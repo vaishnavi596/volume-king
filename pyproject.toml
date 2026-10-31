@@ -2,3 +2,6 @@
 name = "volume-king"
 version = "1.0.0"
 dependencies = ["flet==0.27.6"]
+
+[project.scripts]
+volume-king = "main:main"
