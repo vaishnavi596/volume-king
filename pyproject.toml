@@ -1,1 +1,5 @@
+[project]
+name = "volume-king"
+version = "1.0.0"
+description = "Volume King App"
 dependencies = ["flet==0.27.6"]
