@@ -1,32 +1,36 @@
-name: build
-on: [push]
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          
       - uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '21'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.27.4'
-          channel: 'stable'
-      - name: Install dependencies
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Flet
         run: |
-          python -m pip install --upgrade pip
-          pip install flet==0.28.3
+          pip install flet
+          sudo apt-get update
+          sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libunwind-dev
+
       - name: Build APK
         run: |
-          flutter doctor
           flet build apk --verbose
+
       - name: Upload APK
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Volume-King-APK
-          path: build/apk
+          name: bot-king-trade-apk
+          path: build/**/*.apk
