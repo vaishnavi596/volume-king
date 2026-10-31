@@ -7,44 +7,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.27.4'
-          channel: 'stable'
-
-      - name: Accept Android Licenses
-        run: |
-          yes | flutter doctor --android-licenses || true
-          flutter doctor -v
-
       - name: Install Flet
         run: |
           pip install --upgrade pip
-          pip install flet==0.27.6
+          pip install flet
 
       - name: Build APK
-        run: |
-          flet build apk --verbose
+        run: flet build apk --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: bot-king-apk
+          name: apk
           path: build/apk
