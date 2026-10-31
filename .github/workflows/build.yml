@@ -14,9 +14,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.5'
       - name: Install Flet
         run: pip install "flet==0.27.6"
       - name: Build APK
