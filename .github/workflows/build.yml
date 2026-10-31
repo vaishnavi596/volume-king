@@ -1,70 +1,58 @@
 name: build
-on: [push]
+on:
+  push:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v5
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Flutter 3.24.5
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
+          cache: true
 
-      - name: Accept Android Licenses
+      - name: Flutter Doctor
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           flutter doctor -v
           flutter config --no-analytics
 
-      - name: Create pyproject.toml
+      - name: Create Config
         run: |
+          ls -la
           if [ ! -f pyproject.toml ]; then
-          cat > pyproject.toml << 'EOF'
-          [project]
-          name = "volume-king"
-          version = "1.0.0"
-          description = "Volume King Trading App"
-          dependencies = ["flet==0.27.6"]
-          requires-python = ">=3.8"
-
-          [tool.flet]
-          org = "com.volumeking.app"
-          product = "Volume King"
-          company = "VolumeKing"
-
-          [tool.flet.app]
-          path = "main.py"
-
-          [tool.flet.android]
-          package_name = "com.volumeking.app"
-          EOF
+            echo '[project]
+            name = "volume-king"
+            version = "1.0.0"
+            dependencies = ["flet==0.27.6"]
+            [tool.flet]
+            org = "com.volumeking"
+            ' > pyproject.toml
           fi
 
-      - name: Install Flet & Build APK
+      - name: Build APK
         run: |
           pip install flet==0.27.6
-          flet build apk --verbose --org com.volumeking.app
+          flet build apk --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Volume-King-APK-Final
+          name: Volume-King-APK
           path: build/apk
