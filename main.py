@@ -2,56 +2,59 @@ import flet as ft
 
 def main(page: ft.Page):
     page.title = "Bot King Trade"
-    page.theme_mode = ft.ThemeMode.DARK
-    page.padding = 10
     page.scroll = ft.ScrollMode.AUTO
+    page.padding = 15
 
+    # --- Data ---
     bot_list = []
 
+    # --- UI Controls ---
     symbol_dropdown = ft.Dropdown(
-        label="Symbol",
-        value="BankNifty",
+        label="Select Symbol",
+        value="BTCUSDT",
         options=[
-            ft.dropdown.Option("Nifty"),
-            ft.dropdown.Option("BankNifty"),
-            ft.dropdown.Option("Sensex"),
-            ft.dropdown.Option("TCS"),
+            ft.dropdown.Option("BTCUSDT"),
+            ft.dropdown.Option("ETHUSDT"),
+            ft.dropdown.Option("BNBUSDT"),
         ],
-        width=300
+        width=300,
     )
 
-    live_price = ft.Text("₹ 44,892.35 +1.24%", size=26, weight=ft.FontWeight.BOLD)
-    
-    premiums_column = ft.Column(scroll=ft.ScrollMode.AUTO, height=400)
-    bot_column = ft.Column()
+    live_price = ft.Text("Live Price: --", size=16)
+    premiums_column = ft.Column()
+    bot_column = ft.Column(scroll=ft.ScrollMode.AUTO, height=300)
 
-    def add_to_bot(e):
-        sym = e.control.data
-        if sym not in bot_list:
-            bot_list.append(sym)
-            bot_column.controls.append(ft.Text(f"✅ {sym} added to Bot"))
-            page.snack_bar = ft.SnackBar(content=ft.Text(f"Added: {sym} to Bot List"))
-            page.snack_bar.open = True
-            page.update()
-
+    # --- Functions ---
     def refresh_premiums(e=None):
         premiums_column.controls.clear()
-        for s in ["Nifty", "BankNifty", "Sensex", "TCS"]:
+        for i, s in enumerate(["5.2%", "3.8%", "7.1%"]):
             premiums_column.controls.append(
                 ft.ListTile(
-                    title=ft.Text(s, weight=ft.FontWeight.BOLD),
-                    subtitle=ft.Text("Premium: ₹ 120.5"),
+                    title=ft.Text(f"Market {i+1}: {s}"),
                     trailing=ft.IconButton(
-                        icon=ft.icons.ADD,  # ye chhota 'i' wala hai, 0.27.6 ke liye
+                        icon=ft.icons.ADD,
                         data=s,
                         on_click=add_to_bot
                     )
                 )
             )
+        live_price.value = f"Live Price: {symbol_dropdown.value} - $65000"
+        page.update()
+
+    def add_to_bot(e):
+        sel = e.control.data
+        bot_list.append(sel)
+        bot_column.controls.append(
+            ft.ListTile(
+                title=ft.Text(f"Bot #{len(bot_list)} : {sel}"),
+                trailing=ft.IconButton(icon=ft.icons.DELETE)
+            )
+        )
         page.update()
 
     refresh_btn = ft.ElevatedButton("Refresh Premiums", icon=ft.icons.REFRESH, on_click=refresh_premiums)
-    
+
+    # --- Layout ---
     page.add(
         ft.Text("Bot King Trade", size=30, weight=ft.FontWeight.BOLD),
         symbol_dropdown,
@@ -64,6 +67,8 @@ def main(page: ft.Page):
         ft.Text("My Bot List:", size=18, weight=ft.FontWeight.BOLD),
         bot_column
     )
+
     refresh_premiums()
 
-ft.app(target=main)
+if __name__ == "__main__":
+    ft.app(target=main)
