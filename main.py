@@ -1,21 +1,36 @@
 import flet as ft
 
 def main(page: ft.Page):
-    page.title = "VOLUME KING V10"
+    page.title = "Volume King"
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#080A12"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.padding = 20
     
+    page.appbar = ft.AppBar(title=ft.Text("Volume King"), bgcolor="green")
+
+    def booster_clicked(e):
+        page.show_snack_bar(ft.SnackBar(content=ft.Text("Volume Booster ON! 🔊"), bgcolor="green"))
+        page.update()
+
     page.add(
         ft.Column([
-            ft.Text("VOLUME KING V10 ULTIMATE", size=24, weight=ft.FontWeight.BOLD, color="white", text_align=ft.TextAlign.CENTER),
-            ft.Text("NIFTY 24500 CE @ 124.5 -> TARGET 165.8", size=18, color="#00E676", text_align=ft.TextAlign.CENTER),
-            ft.ElevatedButton("BUY CE 24500 CE", bgcolor="#00E676", color="white", width=250, height=50)
-        ],
+            ft.Icon(ft.Icons.VOLUME_UP, size=120, color=ft.Colors.GREEN_400),
+            ft.Text("Volume King", size=32, weight=ft.FontWeight.BOLD),
+            ft.Text("Your Phone Volume Booster", size=16, color=ft.Colors.GREY_400),
+            ft.Container(height=30),
+            ft.ElevatedButton(
+                "BOOST VOLUME", 
+                icon=ft.Icons.ROCKET_LAUNCH,
+                bgcolor="green", 
+                color="white",
+                width=200, 
+                height=50,
+                on_click=booster_clicked
+            ),
+            ft.Text("App is running successfully!", size=12, color=ft.Colors.GREEN)
+        ], 
         alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=20
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )
     )
-    page.update()
+
+ft.app(target=main)
