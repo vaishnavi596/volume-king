@@ -24,11 +24,9 @@ jobs:
           pip install --upgrade pip
           pip install flet==0.27.6
       - name: Build APK
-        run: |
-          flet --version
-          flet build apk --verbose
+        run: flet build apk --verbose
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: bot-king-trade-apk
+          name: bot-king-apk
           path: build/apk
