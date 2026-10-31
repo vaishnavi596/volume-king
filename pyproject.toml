@@ -1,7 +1,14 @@
 [project]
 name = "volume-king"
 version = "1.0.0"
-dependencies = ["flet==0.28.3"]
+dependencies = [
+    "flet==0.28.3",
+    "yfinance",
+    "requests",
+    "peewee",
+    "certifi"
+]
 
 [tool.flet]
 org = "com.volumeking.app"
+app_name = "Volume King"
