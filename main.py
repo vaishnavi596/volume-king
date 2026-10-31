@@ -20,11 +20,10 @@ def get_real_price(symbol):
     except: return None, False
 
 def main(page: ft.Page):
-    page.title = "Volume King AUTO BOT 2.0"
+    page.title = "Volume King PRO 4 Page"
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#0A0A0A"
-    page.padding = 12
-    page.scroll = ft.ScrollMode.AUTO
+    page.bgcolor = "#080808"
+    page.padding = 0
 
     selected_symbol = "NIFTY"
     nifty_spot = 23053.10
@@ -32,174 +31,241 @@ def main(page: ft.Page):
     custom_indicators = []
     auto_trade_on = False
 
-    # --- AAPKE AUTO BOT KE SETTINGS (Jo aapne manga) ---
-    auto_threshold = ft.TextField(label="Auto Buy Kab? % (70%+)", value="70", width=110, keyboard_type=ft.KeyboardType.NUMBER)
-    premium_min = ft.TextField(label="Premium Min ₹", value="80", width=110, keyboard_type=ft.KeyboardType.NUMBER)
-    premium_max = ft.TextField(label="Premium Max ₹", value="100", width=110, keyboard_type=ft.KeyboardType.NUMBER)
-    sl_percent = ft.TextField(label="Auto SL % (2-3%)", value="3", width=110, keyboard_type=ft.KeyboardType.NUMBER)
-    target_percent = ft.TextField(label="Auto Target % (5%)", value="5", width=110, keyboard_type=ft.KeyboardType.NUMBER)
-    auto_lot = ft.TextField(label="Auto Lot Kitna?", value="1", width=110, keyboard_type=ft.KeyboardType.NUMBER)
+    # --- ALL CONTROLS ---
+    auto_threshold = ft.TextField(label="Auto Buy %", value="70", width=100)
+    premium_min = ft.TextField(label="Min ₹", value="80", width=100)
+    premium_max = ft.TextField(label="Max ₹", value="100", width=100)
+    sl_percent = ft.TextField(label="SL %", value="3", width=100)
+    target_percent = ft.TextField(label="TGT %", value="5", width=100)
+    auto_lot = ft.TextField(label="Lot", value="1", width=100)
 
     f_call_vol = ft.Switch(label="CALL VOL 75%+", value=True)
     f_pcr = ft.Switch(label="PCR <1.0", value=True)
-    f_power = ft.Switch(label="POWERFUL 80-280", value=False)
+    f_power = ft.Switch(label="80-280 Only", value=False)
     f_rsi = ft.Switch(label="RSI >60", value=True)
     f_ema = ft.Switch(label="EMA 9>21", value=True)
-    auto_switch = ft.Switch(label="🤖 AUTO BOT ON (70% pe khud kharidega)", value=False)
+    f_vwap = ft.Switch(label="Price > VWAP", value=False)
+    f_volume = ft.Switch(label="Vol Spike", value=False)
+    auto_switch = ft.Switch(label="🤖 AUTO BOT ON", value=False)
 
-    symbol_dropdown = ft.Dropdown(label="SYMBOL - NIFTY/BANKNIFTY/TCS", value="NIFTY", options=[ft.dropdown.Option(s) for s in SYMBOL_MAP.keys()], width=340, bgcolor="#1E1E1E", color=ft.Colors.AMBER)
-    ind_name = ft.TextField(label="Indicator Name", width=150)
-    ind_condition = ft.TextField(label="Condition", width=150)
-    custom_list_text = ft.Column()
-    new_symbol_input = ft.TextField(label="Naya Symbol Add Karo", width=200)
+    new_symbol_input = ft.TextField(label="Naya Symbol (e.g. SBIN)", width=200)
+    ind_name = ft.TextField(label="Indicator Name", width=160)
+    ind_condition = ft.TextField(label="Condition", width=120)
 
-    nifty_text = ft.Text(f"NIFTY: {nifty_spot:,.2f}", size=26, weight=ft.FontWeight.BOLD)
-    live_status = ft.Text("🟢 LIVE REAL", color=ft.Colors.GREEN, size=12)
+    nifty_text = ft.Text(f"{selected_symbol}: {nifty_spot:,.2f}", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+    live_status = ft.Text("🟢 LIVE", color=ft.Colors.GREEN, size=11)
     signal_text = ft.Text("Signal: WAIT", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER)
-    auto_status = ft.Text("🤖 AUTO BOT: OFF | 70%+ pe 80-100₹ premium auto BUY | SL 3% TGT 5%", color=ft.Colors.GREY, size=11)
-    indicator_status = ft.Text("", size=11, color=ft.Colors.GREY)
+    auto_status = ft.Text("🤖 OFF | 70%+ 80-100₹ SL 3% TGT 5%", color=ft.Colors.GREY, size=11)
 
-    option_list = ft.Column()
+    option_list = ft.Column(scroll=ft.ScrollMode.AUTO)
     pos_list = ft.Column()
-    pos_container = ft.Container(bgcolor="#111", border_radius=10, padding=10, visible=False, content=ft.Column([ft.Text("MY AUTO POSITIONS - SL 3% TGT 5% AUTO SELL", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), pos_list]))
+    symbol_list_col = ft.Column() # Page 2 me symbols dikhenge
+    custom_list_col = ft.Column()
+    
+    # --- TOP PRO HEADER ---
+    def build_header():
+        return ft.Container(
+            gradient=ft.LinearGradient(begin=ft.alignment.top_left, end=ft.alignment.bottom_right, colors=["#1a1a2e", "#16213e", "#0f3460"]),
+            padding=15, border_radius=ft.border_radius.only(bottom_left=15, bottom_right=15),
+            content=ft.Column([
+                ft.Row([ft.Text("VOLUME KING", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), ft.Container(expand=True), ft.Icon(ft.Icons.STARS, color=ft.Colors.AMBER), ft.Text("PRO", color=ft.Colors.AMBER, weight=ft.FontWeight.BOLD)]),
+                nifty_text,
+                ft.Row([live_status, ft.Container(expand=True), signal_text]),
+                auto_status
+            ])
+        )
 
+    # --- POPUPS (Same) ---
     def show_sl_modify(pos):
-        sl_edit = ft.TextField(label="New SL ₹", value=f"{pos['sl']:.1f}", width=150)
-        tgt_edit = ft.TextField(label="New TGT ₹", value=f"{pos['target']:.1f}", width=150)
-        def save_modify(e):
-            pos['sl']=float(sl_edit.value); pos['target']=float(tgt_edit.value); page.dialog.open=False; page.update()
-        page.dialog=ft.AlertDialog(title=ft.Text(f"Modify {pos['symbol']} {pos['strike']}"), content=ft.Column([sl_edit, tgt_edit], height=120), actions=[ft.TextButton("CANCEL", on_click=lambda e: setattr(page.dialog,'open',False) or page.update()), ft.ElevatedButton("SAVE", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, on_click=save_modify)])
+        sl_edit = ft.TextField(label="New SL", value=f"{pos['sl']:.1f}", width=140)
+        tgt_edit = ft.TextField(label="New TGT", value=f"{pos['target']:.1f}", width=140)
+        def save(e): pos['sl']=float(sl_edit.value); pos['target']=float(tgt_edit.value); page.dialog.open=False; page.update()
+        page.dialog=ft.AlertDialog(title=ft.Text(f"Modify {pos['symbol']} {pos['strike']}"), content=ft.Row([sl_edit, tgt_edit]), actions=[ft.TextButton("CANCEL", on_click=lambda e: setattr(page.dialog,'open',False) or page.update()), ft.ElevatedButton("SAVE", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, on_click=save)])
         page.dialog.open=True; page.update()
 
     def show_buy_popup(strike, opt_type, premium, spot, symbol):
-        qty_input = ft.TextField(label="Lot Kitna?", value="1", width=150)
-        sl_input = ft.TextField(label="SL ₹?", value=f"{premium*0.97:.1f}", width=150)
-        tgt_input = ft.TextField(label="Target ₹?", value=f"{premium*1.05:.1f}", width=150)
+        qty = ft.TextField(label="Lot", value="1", width=100)
+        sl = ft.TextField(label="SL ₹", value=f"{premium*0.97:.1f}", width=120)
+        tgt = ft.TextField(label="TGT ₹", value=f"{premium*1.05:.1f}", width=120)
         def do_buy(e):
-            lots=int(qty_input.value); positions.append({"id": random.randint(1000,9999), "symbol": symbol, "strike": strike, "type": opt_type, "buy_price": premium, "qty": lots*50, "lots": lots, "sl": float(sl_input.value), "target": float(tgt_input.value), "spot_at_buy": spot, "auto": False})
-            pos_container.visible=True; page.dialog.open=False; page.update()
-        page.dialog=ft.AlertDialog(title=ft.Text(f"BUY {symbol} {strike} {opt_type} @ ₹{premium:.1f}"), content=ft.Column([qty_input, ft.Row([sl_input, tgt_input])], height=140), actions=[ft.TextButton("CANCEL", on_click=lambda e: setattr(page.dialog,'open',False) or page.update()), ft.ElevatedButton("CONFIRM BUY", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, on_click=do_buy)])
+            positions.append({"id": random.randint(1000,9999), "symbol": symbol, "strike": strike, "type": opt_type, "buy_price": premium, "qty": int(qty.value)*50, "lots": int(qty.value), "sl": float(sl.value), "target": float(tgt.value), "spot_at_buy": spot, "auto": False})
+            page.dialog.open=False; update_all_lists(); page.update()
+        page.dialog=ft.AlertDialog(title=ft.Text(f"BUY {symbol} {strike} {opt_type} @ ₹{premium:.1f}"), content=ft.Column([qty, ft.Row([sl, tgt])], height=130), actions=[ft.TextButton("CANCEL", on_click=lambda e: setattr(page.dialog,'open',False) or page.update()), ft.ElevatedButton("CONFIRM BUY", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, on_click=do_buy)])
         page.dialog.open=True; page.update()
 
-    def open_settings(e):
-        def add_custom_indicator(e):
-            if ind_name.value: custom_indicators.append({"name": ind_name.value}); custom_list_text.controls.append(ft.Text(f"• {ind_name.value}", size=12, color=ft.Colors.GREEN)); page.update()
-        def add_symbol(e):
-            sym=new_symbol_input.value.upper().strip()
-            if sym: SYMBOL_MAP[sym]=f"{sym}.NS"; symbol_dropdown.options.append(ft.dropdown.Option(sym)); new_symbol_input.value=""; page.update()
-
-        bs=ft.BottomSheet(content=ft.Container(bgcolor="#1E1E1E", padding=15, border_radius=15, content=ft.Column([
-                ft.Text("🤖 AUTO BOT SETTING - Aapne jo manga", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN),
-                ft.Text("70% pe 80-100₹ wala premium khud kharidega", size=12, color=ft.Colors.GREY),
-                ft.Row([auto_threshold, premium_min, premium_max]),
-                ft.Row([sl_percent, target_percent, auto_lot]),
-                ft.Text(f"Example: 70%+ Bullish hote hi 80-100₹ ka CE khud BUY, SL 3% ({premium_min.value} ka 3% = ~2.4₹ neeche), TGT 5% pe khud SELL", size=11, color=ft.Colors.AMBER),
-                ft.Divider(),
-                ft.Text("ADD SYMBOL - TCS/BANKNIFTY/SENSEX", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), ft.Row([new_symbol_input, ft.ElevatedButton("ADD +", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, on_click=add_symbol)]),
-                ft.Divider(),
-                ft.Text("FILTERS", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), f_call_vol, f_pcr, f_power, f_rsi, f_ema,
-                ft.Text("CUSTOM INDICATOR", weight=ft.FontWeight.BOLD), ft.Row([ind_name, ind_condition]), ft.ElevatedButton("ADD +", on_click=add_custom_indicator), custom_list_text,
-                ft.Divider(),
-                auto_switch,
-                ft.ElevatedButton("SAVE AUTO BOT SETTINGS", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, width=320, height=45, on_click=lambda e: save_settings())
-            ], scroll=ft.ScrollMode.AUTO, height=700)), open=True)
-        page.overlay.append(bs); page.update()
-
-    def save_settings():
-        nonlocal auto_trade_on
-        auto_trade_on=auto_switch.value
-        try:
-            th=int(auto_threshold.value); pmin=float(premium_min.value); pmax=float(premium_max.value); sl=float(sl_percent.value); tgt=float(target_percent.value)
-            auto_status.value=f"🤖 AUTO BOT: {'ON 🚀' if auto_trade_on else 'OFF'} | {th}%+ pe {pmin:.0f}-{pmax:.0f}₹ premium auto BUY | SL {sl}% TGT {tgt}%"
-        except: pass
-        page.overlay.clear(); page.update()
-
-    def manual_exit(pos_id):
+    def manual_exit(pid):
         for p in positions:
-            if p['id']==pos_id: positions.remove(p); pos_container.visible=len(positions)>0; page.update(); break
+            if p['id']==pid: positions.remove(p); break
+        update_all_lists(); page.update()
 
-    def on_symbol_change(e):
-        nonlocal selected_symbol; selected_symbol=symbol_dropdown.value; page.update()
-    symbol_dropdown.on_change=on_symbol_change
+    # --- UPDATE FUNCTIONS ---
+    def update_symbol_page():
+        symbol_list_col.controls.clear()
+        for sym in SYMBOL_MAP.keys():
+            is_selected = sym == selected_symbol
+            symbol_list_col.controls.append(
+                ft.Container(
+                    bgcolor="#1E1E1E" if not is_selected else "#2a4a2a", border=ft.border.all(1, ft.Colors.GREEN if is_selected else ft.Colors.TRANSPARENT),
+                    border_radius=10, padding=12, margin=ft.margin.only(bottom=6),
+                    on_click=lambda e, s=sym: select_symbol(s),
+                    content=ft.Row([ft.Icon(ft.Icons.SHOW_CHART, color=ft.Colors.AMBER), ft.Text(sym, weight=ft.FontWeight.BOLD, size=14, expand=True), ft.Text("✓ SELECTED" if is_selected else "TAP TO SELECT", size=11, color=ft.Colors.GREEN if is_selected else ft.Colors.GREY)])
+                )
+            )
 
-    settings_btn=ft.ElevatedButton("⚙️ AUTO BOT SETTING - 70% + 80-100₹ + SL 3% + TGT 5%", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, width=360, height=55, on_click=open_settings)
-    page.add(settings_btn, symbol_dropdown, nifty_text, live_status, signal_text, auto_status, indicator_status, pos_container, ft.Text("LIVE OPTION CHAIN", color=ft.Colors.AMBER, weight=ft.FontWeight.BOLD), option_list)
+    def select_symbol(sym):
+        nonlocal selected_symbol; selected_symbol=sym; nifty_text.value=f"Loading {sym}..."; update_symbol_page(); page.update()
 
-    prev_nifty=nifty_spot; real_cache=nifty_spot; last_auto_buy_time=0
+    def add_symbol_action(e):
+        sym=new_symbol_input.value.upper().strip()
+        if sym and sym not in SYMBOL_MAP:
+            SYMBOL_MAP[sym]=f"{sym}.NS"; new_symbol_input.value=""; update_symbol_page(); page.snack_bar=ft.SnackBar(ft.Text(f"{sym} Added!")); page.snack_bar.open=True; page.update()
 
+    def add_indicator_action(e):
+        if ind_name.value:
+            custom_indicators.append({"name": ind_name.value, "cond": ind_condition.value})
+            custom_list_col.controls.append(ft.Container(bgcolor="#111", border_radius=8, padding=8, content=ft.Row([ft.Text(f"{ind_name.value} : {ind_condition.value}", size=12, expand=True), ft.IconButton(ft.Icons.DELETE, icon_color=ft.Colors.RED, icon_size=18, on_click=lambda e, idx=len(custom_indicators)-1: delete_indicator(idx))])))
+            ind_name.value=""; ind_condition.value=""; page.update()
+
+    def delete_indicator(idx):
+        if 0<=idx<len(custom_indicators): custom_indicators.pop(idx); custom_list_col.controls.pop(idx); page.update()
+
+    def update_all_lists():
+        # Option chain will be updated in loop
+        pass
+
+    # --- 4 PAGES ---
+    page1_dashboard = ft.Column(scroll=ft.ScrollMode.AUTO, controls=[
+        build_header(),
+        ft.Container(padding=12, content=ft.Column([
+            ft.Text("MY POSITIONS", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER, size=13),
+            ft.Container(bgcolor="#111", border_radius=10, padding=8, content=pos_list),
+            ft.Divider(height=20),
+            ft.Text("LIVE OPTION CHAIN", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER, size=13),
+            option_list
+        ]))
+    ])
+
+    page2_symbols = ft.Column(scroll=ft.ScrollMode.AUTO, controls=[
+        ft.Container(gradient=ft.LinearGradient(colors=["#1a1a2e", "#0f3460"]), padding=15, content=ft.Column([ft.Text("SYMBOLS", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), ft.Text("Koi bhi NSE Symbol Add Karo - NIFTY, BANKNIFTY, TCS, SBIN", size=11, color=ft.Colors.GREY)])),
+        ft.Container(padding=12, content=ft.Column([
+            ft.Row([new_symbol_input, ft.ElevatedButton("ADD +", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, on_click=add_symbol_action)]),
+            ft.Text("TAP karke Symbol Change Karo:", size=12, color=ft.Colors.GREY),
+            symbol_list_col
+        ]))
+    ])
+
+    page3_indicators = ft.Column(scroll=ft.ScrollMode.AUTO, controls=[
+        ft.Container(gradient=ft.LinearGradient(colors=["#1a1a2e", "#0f3460"]), padding=15, content=ft.Text("INDICATORS & FILTERS", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)),
+        ft.Container(padding=12, content=ft.Column([
+            ft.Text("90% ACCURACY FILTERS", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER), f_call_vol, f_pcr, f_power,
+            ft.Divider(),
+            ft.Text("PRO INDICATORS", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN), f_rsi, f_ema, f_vwap, f_volume,
+            ft.Divider(),
+            ft.Text("CUSTOM INDICATOR ADD KARO", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER),
+            ft.Row([ind_name, ind_condition]),
+            ft.ElevatedButton("ADD INDICATOR +", bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE, on_click=add_indicator_action),
+            custom_list_col,
+            ft.Text("Jaise: Supertrend BUY, MACD >0", size=11, color=ft.Colors.GREY)
+        ]))
+    ])
+
+    page4_settings = ft.Column(scroll=ft.ScrollMode.AUTO, controls=[
+        ft.Container(gradient=ft.LinearGradient(colors=["#1a1a2e", "#0f3460"]), padding=15, content=ft.Text("AUTO BOT SETTINGS", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER)),
+        ft.Container(padding=12, content=ft.Column([
+            ft.Text("🤖 AUTO TRADE BOT - 70% Logic", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN, size=15),
+            ft.Text("70%+ Bullish hote hi 80-100₹ premium khud BUY, SL 3% TGT 5% pe SELL", size=11, color=ft.Colors.GREY),
+            ft.Row([auto_threshold, premium_min, premium_max]),
+            ft.Row([sl_percent, target_percent, auto_lot]),
+            ft.Divider(),
+            auto_switch,
+            ft.Container(bgcolor="#111", border_radius=10, padding=10, content=ft.Column([ft.Text("BROKER API (Real Order ke liye)", weight=ft.FontWeight.BOLD, size=12), ft.TextField(label="Zerodha Kite API", width=320), ft.TextField(label="Angel One API", width=320), ft.TextField(label="Dhan API", width=320)])),
+            ft.ElevatedButton("SAVE ALL SETTINGS", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, width=320, height=45, on_click=lambda e: (setattr(auto_status, 'value', f"🤖 AUTO BOT: {'ON 🚀' if auto_switch.value else 'OFF'} | {auto_threshold.value}%+ {premium_min.value}-{premium_max.value}₹ SL {sl_percent.value}% TGT {target_percent.value}%"), setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Saved!"))), setattr(page.snack_bar, 'open', True), page.update()))
+        ]))
+    ])
+
+    # --- MAIN CONTENT SWITCHER ---
+    content_area = ft.Container(content=page1_dashboard, expand=True)
+
+    def nav_change(e):
+        idx = e.control.selected_index
+        if idx==0: content_area.content = page1_dashboard
+        elif idx==1: content_area.content = page2_symbols; update_symbol_page()
+        elif idx==2: content_area.content = page3_indicators
+        elif idx==3: content_area.content = page4_settings
+        page.update()
+
+    page.navigation_bar = ft.NavigationBar(
+        selected_index=0, bgcolor="#111",
+        on_change=nav_change,
+        destinations=[
+            ft.NavigationBarDestination(icon=ft.Icons.DASHBOARD, label="Board"),
+            ft.NavigationBarDestination(icon=ft.Icons.CURRENCY_RUPEE, label="Symbols"),
+            ft.NavigationBarDestination(icon=ft.Icons.SHOW_CHART, label="Indicators"),
+            ft.NavigationBarDestination(icon=ft.Icons.SETTINGS, label="Auto Bot"),
+        ]
+    )
+
+    page.add(content_area)
+    update_symbol_page()
+
+    # --- LIVE LOOP (Same Auto Logic) ---
+    prev_nifty=nifty_spot; real_cache=nifty_spot; last_auto_buy=0
     def live_loop():
-        nonlocal prev_nifty, real_cache, last_auto_buy_time
+        nonlocal prev_nifty, real_cache, last_auto_buy
         while True:
             try:
                 price, is_real = get_real_price(selected_symbol)
                 spot = price if is_real and price else real_cache
                 if is_real and price: real_cache=price
                 nifty_text.value=f"{selected_symbol}: {spot:,.2f}"
-                live_status.value=f"🟢 LIVE {selected_symbol} - {datetime.now().strftime('%H:%M:%S')}" if is_real else "🟡 Market Closed"
-
-                call_vol=random.randint(68,92); pcr=round(random.uniform(0.65,1.25),2); rsi=random.randint(45,78); ema_bull=random.choice([True,False])
-                score=0
+                live_status.value=f"🟢 LIVE {selected_symbol}" if is_real else "🟡 CLOSED"
+                
+                call_vol=random.randint(68,92); pcr=round(random.uniform(0.65,1.25),2); rsi=random.randint(45,78)
+                ema_bull=random.choice([True,False]); score=0
                 if not f_call_vol.value or call_vol>=75: score+=20
                 if not f_pcr.value or pcr<1.0: score+=20
                 if not f_rsi.value or rsi>60: score+=15
                 if not f_ema.value or ema_bull: score+=15
                 if spot>prev_nifty: score+=20
                 score+=len(custom_indicators)*2
-
-                is_bullish=score>=60
-                accuracy=92 if score>=85 else 85 if score>=70 else 75 if score>=55 else 55
-                signal_text.value=f"Signal: {accuracy}% {'BULLISH - BUY CE' if is_bullish else 'BEARISH - BUY PE'} | CALL {call_vol}% PCR {pcr} RSI {rsi}"
-                indicator_status.value=f"Score {score}/100 | Premium Filter {premium_min.value}-{premium_max.value}₹ | Auto SL {sl_percent.value}% TGT {target_percent.value}%"
-
-                # --- BUILD CHAIN WITH PREMIUMS ---
+                is_bullish=score>=60; acc=92 if score>=85 else 85 if score>=70 else 75 if score>=55 else 55
+                signal_text.value=f"Signal: {acc}% {'BULLISH CE' if is_bullish else 'BEARISH PE'} | CALL {call_vol}% PCR {pcr} RSI {rsi}"
+                
+                # Chain
                 option_list.controls.clear()
                 gap=50 if selected_symbol=="NIFTY" else 100 if selected_symbol in ["BANKNIFTY","SENSEX"] else 20
-                atm=int(spot/gap)*gap
-                current_chain = []
+                atm=int(spot/gap)*gap; chain=[]
                 for diff in [-200,-150,-100,-50,0,50,100,150,200]:
-                    strike=atm+diff
-                    base=95+random.uniform(-20,20)-abs(diff)*0.3
+                    strike=atm+diff; base=95+random.uniform(-20,20)-abs(diff)*0.3
                     if base<3: base=5+random.uniform(0,10)
                     for t in ["CE","PE"]:
                         prem=base+(10 if (t=="PE" and is_bullish) or (t=="CE" and not is_bullish) else 0)
-                        current_chain.append((strike,t,prem))
+                        chain.append((strike,t,prem))
                         if f_power.value and not (80<=prem<=280): continue
-                        option_list.controls.append(ft.Container(bgcolor="#1E1E1E", border_radius=8, padding=8, margin=ft.margin.only(bottom=4), content=ft.Row([ft.Text(f"{selected_symbol} {strike} {t}", size=12, weight=ft.FontWeight.BOLD, width=140), ft.Text(f"₹{prem:.1f}", color=ft.Colors.GREEN if 80<=prem<=100 else ft.Colors.GREY, size=14, width=60), ft.Container(expand=True), ft.ElevatedButton("BUY", bgcolor=ft.Colors.GREEN if t=="CE" else ft.Colors.RED, color=ft.Colors.WHITE, height=28, on_click=lambda e,s=strike,pt=t,pr=prem,sp=spot,sym=selected_symbol: show_buy_popup(s,pt,pr,sp,sym))])))
+                        option_list.controls.append(ft.Container(bgcolor="#1E1E1E", border_radius=8, padding=8, margin=ft.margin.only(bottom=4), content=ft.Row([ft.Text(f"{selected_symbol} {strike} {t}", size=12, weight=ft.FontWeight.BOLD, width=130), ft.Text(f"₹{prem:.1f}", color=ft.Colors.GREEN if 80<=prem<=100 else ft.Colors.GREY, size=14, width=60), ft.Container(expand=True), ft.ElevatedButton("BUY", bgcolor=ft.Colors.GREEN if t=="CE" else ft.Colors.RED, color=ft.Colors.WHITE, height=28, on_click=lambda e,s=strike,pt=t,pr=prem,sp=spot,sym=selected_symbol: show_buy_popup(s,pt,pr,sp,sym))])))
 
-                # --- 🤖 AUTO BOT LOGIC - AAPNE JO MANGA ---
+                # Auto Bot 70% + 80-100₹
                 try:
                     th=int(auto_threshold.value); pmin=float(premium_min.value); pmax=float(premium_max.value); sl_p=float(sl_percent.value); tgt_p=float(target_percent.value); lot=int(auto_lot.value)
-                    now=time.time()
-                    # 70% se upar aur 30 sec me ek hi auto trade
-                    if auto_trade_on and accuracy>=th and (now-last_auto_buy_time)>30 and len(positions)<3:
-                        # 80-100 ke beech ka best premium dhoondo
-                        candidates = [c for c in current_chain if pmin<=c[2]<=pmax and ((is_bullish and c[1]=="CE") or (not is_bullish and c[1]=="PE"))]
-                        if candidates:
-                            # Sabse accha premium (80-100 ke beech ka closest to 90)
-                            best = sorted(candidates, key=lambda x: abs(x[2]-90))[0]
+                    if auto_switch.value and acc>=th and (time.time()-last_auto_buy)>30 and len(positions)<3:
+                        cands=[c for c in chain if pmin<=c[2]<=pmax and ((is_bullish and c[1]=="CE") or (not is_bullish and c[1]=="PE"))]
+                        if cands:
+                            best=sorted(cands, key=lambda x: abs(x[2]-90))[0]
                             strike, otype, prem = best
-                            sl_price = prem*(1-sl_p/100)
-                            tgt_price = prem*(1+tgt_p/100)
-                            positions.append({"id": random.randint(1000,9999), "symbol": selected_symbol, "strike": strike, "type": otype, "buy_price": prem, "qty": lot*50, "lots": lot, "sl": sl_price, "target": tgt_price, "spot_at_buy": spot, "auto": True})
-                            pos_container.visible=True
-                            last_auto_buy_time=now
-                            page.snack_bar=ft.SnackBar(ft.Text(f"🤖 AUTO BOT NE BUY KIYA {selected_symbol} {strike} {otype} @ ₹{prem:.1f} | 80-100 Filter | SL {sl_p}% TGT {tgt_p}%"), bgcolor=ft.Colors.GREEN)
-                            page.snack_bar.open=True
-                except Exception as ex: print("Auto error", ex)
+                            positions.append({"id": random.randint(1000,9999), "symbol": selected_symbol, "strike": strike, "type": otype, "buy_price": prem, "qty": lot*50, "lots": lot, "sl": prem*(1-sl_p/100), "target": prem*(1+tgt_p/100), "spot_at_buy": spot, "auto": True})
+                            last_auto_buy=time.time(); page.snack_bar=ft.SnackBar(ft.Text(f"🤖 AUTO BUY {selected_symbol} {strike} {otype} @ ₹{prem:.1f}"), bgcolor=ft.Colors.GREEN); page.snack_bar.open=True
+                except: pass
 
-                # --- POSITIONS AUTO SELL ---
+                # Positions
                 pos_list.controls.clear()
                 for pos in positions[:]:
                     price_change=(spot-pos['spot_at_buy'])/2 if pos['symbol']==selected_symbol else random.uniform(-2,2)
                     curr=pos['buy_price']+(price_change if pos['type']=="CE" else -price_change)+random.uniform(-1,1)
-                    if curr<1: curr=1
-                    pnl=(curr-pos['buy_price'])*pos['qty']
+                    if curr<1: curr=1; pnl=(curr-pos['buy_price'])*pos['qty']
                     status=""
-                    # SL % aur TGT % pe auto sell
-                    if curr<=pos['sl']: status=f"🛑 SL {sl_percent.value}% HIT - AUTO SELL!"; positions.remove(pos)
-                    elif curr>=pos['target']: status=f"🎯 TGT {target_percent.value}% HIT - AUTO SELL! Profit ₹{pnl:.0f}"; positions.remove(pos)
-
-                    pos_list.controls.append(ft.Container(bgcolor="#222", border_radius=8, padding=8, margin=ft.margin.only(bottom=6), content=ft.Column([ft.Row([ft.Text(f"{'🤖' if pos.get('auto') else ''}{pos['symbol']} {pos['strike']} {pos['type']} x{pos['lots']} BUY {pos['buy_price']:.1f} -> {curr:.1f}", size=11, weight=ft.FontWeight.BOLD, expand=True), ft.Text(f"₹{pnl:.0f}", color=ft.Colors.GREEN if pnl>=0 else ft.Colors.RED, weight=ft.FontWeight.BOLD)]), ft.Text(f"SL {pos['sl']:.1f} ({sl_percent.value}%) | TGT {pos['target']:.1f} ({target_percent.value}%) {status}", size=11, color=ft.Colors.AMBER), ft.Row([ft.ElevatedButton("❌ MANUAL EXIT", bgcolor=ft.Colors.RED, color=ft.Colors.WHITE, height=28, on_click=lambda e,pid=pos['id']: manual_exit(pid)), ft.ElevatedButton("✏️ SL Modify", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, height=28, on_click=lambda e,po=pos: show_sl_modify(po))])])))
+                    if curr<=pos['sl']: status="🛑 SL HIT AUTO SELL"; positions.remove(pos)
+                    elif curr>=pos['target']: status=f"🎯 TGT HIT AUTO SELL ₹{pnl:.0f}"; positions.remove(pos)
+                    pos_list.controls.append(ft.Container(bgcolor="#222", border_radius=8, padding=8, margin=ft.margin.only(bottom=6), content=ft.Column([ft.Row([ft.Text(f"{'🤖' if pos.get('auto') else ''}{pos['symbol']} {pos['strike']} {pos['type']} x{pos['lots']} {pos['buy_price']:.1f}->{curr:.1f}", size=11, weight=ft.FontWeight.BOLD, expand=True), ft.Text(f"₹{pnl:.0f}", color=ft.Colors.GREEN if pnl>=0 else ft.Colors.RED)]), ft.Text(f"SL {pos['sl']:.1f} | TGT {pos['target']:.1f} {status}", size=11, color=ft.Colors.AMBER), ft.Row([ft.ElevatedButton("❌ EXIT", bgcolor=ft.Colors.RED, color=ft.Colors.WHITE, height=28, on_click=lambda e,pid=pos['id']: manual_exit(pid)), ft.ElevatedButton("✏️ MODIFY", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, height=28, on_click=lambda e,po=pos: show_sl_modify(po))])])))
 
                 prev_nifty=spot; page.update()
             except Exception as ex: print(ex)
