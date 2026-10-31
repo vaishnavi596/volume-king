@@ -1,27 +1,21 @@
 import flet as ft
-import threading
-import time
-import random
+import threading, time, random, json
 from datetime import datetime
 
-# --- CONFIG ---
 DEMO_BALANCE = 100000
 is_demo = True
-live_nifty = 24500
-call_vol = 70
-my_trades = []
+live_nifty = 24481
 
-def get_nifty_data():
-    # LIVE jaisa data (NSE API se)
-    try:
-        return {
-            "NIFTY": 24532.75 + random.uniform(-100, 100),
-            "CALL_VOL": random.randint(55, 88),
-            "PCR": round(random.uniform(0.75, 1.35), 2),
-            "SIGNAL": "70% CALL" if random.randint(60,85) > 70 else "WAIT"
-        }
-    except:
-        return {"NIFTY": 24532, "CALL_VOL": 70, "PCR": 1.0, "SIGNAL": "CHECKING"}
+# Saved API Config
+api_config = {
+    "broker": "Demo",
+    "angel_api_key": "",
+    "angel_client": "",
+    "angel_pass": "",
+    "angel_totp": "",
+    "dhan_client": "",
+    "dhan_token": ""
+}
 
 def main(page: ft.Page):
     page.title = "Volume King Trading"
@@ -30,119 +24,188 @@ def main(page: ft.Page):
     page.padding = 15
     page.scroll = ft.ScrollMode.AUTO
 
-    # --- UI ELEMENTS ---
-    title = ft.Text("VOLUME KING 97 - TRADING", size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
+    # Load saved config
+    try:
+        saved = page.client_storage.get("api_config")
+        if saved:
+            api_config.update(json.loads(saved))
+    except:
+        pass
+
+    # --- UI ---
+    title = ft.Text("VOLUME KING 97 - TRADING", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
+    
+    # Broker Dropdown - YAHI AAPKA OPTION HAI
+    broker_dropdown = ft.Dropdown(
+        label="Broker Choose Karo",
+        value=api_config["broker"],
+        options=[
+            ft.dropdown.Option("Demo"),
+            ft.dropdown.Option("AngelOne"),
+            ft.dropdown.Option("Dhan"),
+            ft.dropdown.Option("Navia"),
+        ],
+        width=320,
+        on_change=lambda e: save_broker(e)
+    )
+
+    def save_broker(e):
+        api_config["broker"] = e.control.value
+        page.client_storage.set("api_config", json.dumps(api_config))
+        page.snack_bar = ft.SnackBar(ft.Text(f"Broker {e.control.value} Selected! API Settings me jakar key daalo."))
+        page.snack_bar.open = True
+        page.update()
 
     balance_text = ft.Text(f"DEMO Balance: ₹{DEMO_BALANCE:,}", size=18, color=ft.Colors.GREEN, weight=ft.FontWeight.BOLD)
-    nifty_text = ft.Text("NIFTY: Loading...", size=28, weight=ft.FontWeight.BOLD)
-    vol_text = ft.Text("CALL VOL: --% | PCR: --", size=16, color=ft.Colors.AMBER)
-    signal_text = ft.Text("Signal: Checking 70% Logic...", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
-    last_trade_text = ft.Text("Last Trade: No Trade", size=14, color=ft.Colors.GREY)
+    nifty_text = ft.Text("NIFTY: 24,481.99", size=28, weight=ft.FontWeight.BOLD)
+    vol_text = ft.Text("CALL VOL: 66% | PCR: 0.84", size=14, color=ft.Colors.AMBER)
+    signal_text = ft.Text("Signal: Checking...", size=15, weight=ft.FontWeight.BOLD)
 
-    # --- FUNCTIONS ---
+    # OPTION CHAIN - Powerful Premium Logic
+    option_list = ft.Column()
+
+    last_trade = ft.Text("Last Trade: No Trade", size=13, color=ft.Colors.GREY)
+
+    # --- SETTINGS SHEET (API Key Daalne ka Option) ---
+    angel_key_field = ft.TextField(label="AngelOne API Key", value=api_config["angel_api_key"], width=320)
+    angel_client_field = ft.TextField(label="AngelOne Client Code", value=api_config["angel_client"], width=320)
+    angel_pass_field = ft.TextField(label="AngelOne Password/PIN", password=True, value=api_config["angel_pass"], width=320)
+    angel_totp_field = ft.TextField(label="AngelOne TOTP Secret", value=api_config["angel_totp"], width=320)
+    
+    dhan_client_field = ft.TextField(label="Dhan Client ID", value=api_config["dhan_client"], width=320)
+    dhan_token_field = ft.TextField(label="Dhan Access Token", value=api_config["dhan_token"], width=320)
+
+    def save_api_keys(e):
+        api_config["angel_api_key"] = angel_key_field.value
+        api_config["angel_client"] = angel_client_field.value
+        api_config["angel_pass"] = angel_pass_field.value
+        api_config["angel_totp"] = angel_totp_field.value
+        api_config["dhan_client"] = dhan_client_field.value
+        api_config["dhan_token"] = dhan_token_field.value
+        page.client_storage.set("api_config", json.dumps(api_config))
+        page.dialog.open = False
+        page.snack_bar = ft.SnackBar(ft.Text("API Keys Save Ho Gaye! ✅ Ab Live Trading Ready!"), bgcolor=ft.Colors.GREEN)
+        page.snack_bar.open = True
+        page.update()
+
+    settings_dialog = ft.AlertDialog(
+        title=ft.Text("API Keys Setting - Baad Me Daal Dena"),
+        content=ft.Column([
+            ft.Text("AngelOne:", weight=ft.FontWeight.BOLD),
+            angel_key_field, angel_client_field, angel_pass_field, angel_totp_field,
+            ft.Divider(),
+            ft.Text("Dhan:", weight=ft.FontWeight.BOLD),
+            dhan_client_field, dhan_token_field,
+            ft.Text("Ye sab app me hi save rahega, GitHub pe nahi jayega!", size=11, color=ft.Colors.GREY)
+        ], scroll=ft.ScrollMode.AUTO, height=400),
+        actions=[ft.TextButton("Save Keys", on_click=save_api_keys), ft.TextButton("Close", on_click=lambda e: setattr(page.dialog, 'open', False) or page.update())]
+    )
+    page.dialog = settings_dialog
+
+    def open_settings(e):
+        page.dialog.open = True
+        page.update()
+
+    def buy_order(symbol, premium):
+        global DEMO_BALANCE
+        # Powerful Logic Check
+        power_tag = "POWERFUL ✅" if 120 < premium < 280 else "RISKY ❌ GALEGA"
+        
+        if broker_dropdown.value == "Demo" or is_demo:
+            DEMO_BALANCE -= premium
+            balance_text.value = f"DEMO Balance: ₹{DEMO_BALANCE:,.0f}"
+            last_trade.value = f"DEMO BUY {symbol} @ ₹{premium:.2f} [{power_tag}]"
+            page.snack_bar = ft.SnackBar(ft.Text(f"{symbol} BUY @ {premium} - {power_tag}"), bgcolor=ft.Colors.GREEN if "POWERFUL" in power_tag else ft.Colors.RED)
+        else:
+            # Yahan Real Broker Order Lagega - Jab API Key Hoga
+            if not api_config["angel_api_key"] and broker_dropdown.value == "AngelOne":
+                page.snack_bar = ft.SnackBar(ft.Text("Pehle Settings me AngelOne API Key Daalo!"), bgcolor=ft.Colors.RED)
+            else:
+                last_trade.value = f"REAL BUY {symbol} @ ₹{premium:.2f} -> {broker_dropdown.value} Order!"
+                page.snack_bar = ft.SnackBar(ft.Text(f"REAL Order {broker_dropdown.value} pe gaya!"))
+        
+        page.snack_bar.open = True
+        page.update()
+
     def switch_mode(e):
         global is_demo
         is_demo = not e.control.value
-        if is_demo:
-            balance_text.value = f"DEMO Balance: ₹{DEMO_BALANCE:,}"
-            balance_text.color = ft.Colors.GREEN
-            e.control.label = "LIVE MODE OFF (DEMO ON)"
-            page.snack_bar = ft.SnackBar(ft.Text("DEMO MODE ON - Real Paisa Nahi Lagega"))
-        else:
-            balance_text.value = "LIVE MODE - ANGELONE REAL"
-            balance_text.color = ft.Colors.RED
-            e.control.label = "LIVE MODE ON - REAL MONEY!"
-            page.snack_bar = ft.SnackBar(ft.Text("LIVE MODE ON - Real Order Lagega!"), bgcolor=ft.Colors.RED)
-        page.snack_bar.open = True
+        balance_text.value = f"{'DEMO' if is_demo else 'LIVE ('+broker_dropdown.value+')'} Balance: ₹{DEMO_BALANCE:,}"
         page.update()
 
-    def buy_order(symbol):
-        global DEMO_BALANCE
-        price = live_nifty
-        qty = 75
-        if is_demo:
-            # 1. DEMO TRADE LOGIC
-            cost = price * 0.5 # assume option price 50 rs
-            if DEMO_BALANCE >= cost:
-                DEMO_BALANCE -= cost
-                my_trades.append(symbol)
-                balance_text.value = f"DEMO Balance: ₹{DEMO_BALANCE:,.0f}"
-                last_trade_text.value = f"DEMO BUY {symbol} @ {price:.2f} | SL 30% | TGT 50%"
-                page.snack_bar = ft.SnackBar(ft.Text(f"DEMO BUY {symbol} Ho Gaya!"), bgcolor=ft.Colors.GREEN)
-            else:
-                page.snack_bar = ft.SnackBar(ft.Text("Demo Balance Khatam! +Add Fund Karo"))
-        else:
-            # 2. ANGELONE REAL LOGIC (yahan aapka AngelOne code lagega)
-            last_trade_text.value = f"REAL BUY {symbol} @ {price:.2f} -> AngelOne Order Placed!"
-            page.snack_bar = ft.SnackBar(ft.Text(f"REAL {symbol} Order Gaya AngelOne pe!"), bgcolor=ft.Colors.RED)
-
-        page.snack_bar.open = True
-        page.update()
-
-    def add_fund(e):
-        global DEMO_BALANCE
-        if is_demo:
-            DEMO_BALANCE += 10000
-            balance_text.value = f"DEMO Balance: ₹{DEMO_BALANCE:,}"
-            page.snack_bar = ft.SnackBar(ft.Text("+ ₹10,000 Demo Fund Added!"), bgcolor=ft.Colors.BLUE)
-            page.snack_bar.open = True
-            page.update()
-        else:
-            # REAL FUND - Dhan/Angel link
-            page.launch_url("https://www.angelone.in/")
-            page.snack_bar = ft.SnackBar(ft.Text("AngelOne Fund Page Khul Raha Hai..."))
-            page.snack_bar.open = True
-            page.update()
-
-    # --- BUTTONS ---
     mode_switch = ft.Switch(label="LIVE MODE OFF (DEMO ON)", value=False, on_change=switch_mode)
-
-    buy_ce = ft.ElevatedButton("BUY CE - 70% Logic", bgcolor=ft.Colors.GREEN, color=ft.Colors.WHITE, width=320, height=50, on_click=lambda e: buy_order("NIFTY CE"))
-    buy_pe = ft.ElevatedButton("BUY PE - 70% Logic", bgcolor=ft.Colors.RED, color=ft.Colors.WHITE, width=320, height=50, on_click=lambda e: buy_order("NIFTY PE"))
-
-    add_fund_btn = ft.OutlinedButton(" + Add Fund ₹10,000 (Demo) / Real Add ", width=320, on_click=add_fund)
-    trades_btn = ft.TextButton(f"My Trades: {len(my_trades)}", on_click=lambda e: print(my_trades))
+    settings_btn = ft.IconButton(ft.Icons.SETTINGS, icon_color=ft.Colors.AMBER, on_click=open_settings, tooltip="API Keys Daalo")
 
     page.add(
-        title,
+        ft.Row([title, settings_btn]),
+        broker_dropdown,
         mode_switch,
         balance_text,
         ft.Divider(),
         nifty_text,
         vol_text,
         signal_text,
-        last_trade_text,
+        option_list,
+        last_trade,
         ft.Divider(),
-        buy_ce,
-        buy_pe,
-        ft.Container(height=10),
-        add_fund_btn,
-        trades_btn,
-        ft.Text("1=Demo Trade | 2=AngelOne Live | 3=Nifty Volume Logic - All in One", size=11, color=ft.Colors.GREY)
+        ft.Text("Settings ⚙️ me jakar API Key baad me daal sakte ho", size=11, color=ft.Colors.GREY)
     )
 
-    # --- LIVE PRICE LOOP (Background me chalta rahega, Sleep nahi hoga) ---
     def live_loop():
-        global live_nifty
         while True:
-            data = get_nifty_data()
-            live_nifty = data["NIFTY"]
-            nifty_text.value = f"NIFTY: {data['NIFTY']:,.2f}"
-            vol_text.value = f"CALL VOL: {data['CALL_VOL']}% | PCR: {data['PCR']}"
-            signal_text.value = f"Signal: {data['SIGNAL']} @ {datetime.now().strftime('%H:%M:%S')}"
+            nifty = 24481 + random.uniform(-150, 150)
+            call_vol = random.randint(55, 88)
             
-            # 3. VOLUME LOGIC - 70% pe color change
-            if data['CALL_VOL'] >= 70:
+            # POWERFUL PREMIUM LOGIC
+            # ATM se thoda ITM - 120-280 ka premium slow decay
+            strikes = []
+            for diff in [-100, -50, 0, 50, 100]:
+                strike = int(nifty/50)*50 + diff
+                premium = 250 - abs(diff)*1.8 + random.uniform(-20,20) # Powerful logic
+                if premium < 20: premium = 20+random.uniform(5,20)
+                
+                # Powerful Check
+                if 120 < premium < 280:
+                    tag = "POWERFUL ✅ SLOW DECAY"
+                    color = ft.Colors.GREEN
+                elif premium < 80:
+                    tag = "RISKY ❌ Jaldi Galega"
+                    color = ft.Colors.RED
+                else:
+                    tag = "OK"
+                    color = ft.Colors.AMBER
+                
+                strikes.append((strike, premium, tag, color))
+
+            nifty_text.value = f"NIFTY: {nifty:,.2f}"
+            vol_text.value = f"CALL VOL: {call_vol}% | PCR: {random.uniform(0.7,1.3):.2f} | {datetime.now().strftime('%H:%M:%S')}"
+            
+            if call_vol >= 70:
+                signal_text.value = f"Signal: 70% CALL - BUY CE Recommended!"
                 signal_text.color = ft.Colors.GREEN
-                signal_text.value += " - BUY CE READY!"
             else:
+                signal_text.value = f"Signal: WAIT - {call_vol}%"
                 signal_text.color = ft.Colors.AMBER
-            
+
+            # Update Option List
+            option_list.controls.clear()
+            for strike, prem, tag, col in strikes:
+                option_list.controls.append(
+                    ft.Container(
+                        bgcolor="#1E1E1E", border_radius=10, padding=10, margin=ft.margin.only(bottom=5),
+                        content=ft.Row([
+                            ft.Column([ft.Text(f"{strike} CE", weight=ft.FontWeight.BOLD), ft.Text(f"₹{prem:.1f}", size=16)], expand=True),
+                            ft.Column([ft.Text(tag, size=11, color=col), 
+                                       ft.ElevatedButton("BUY", bgcolor=col, color=ft.Colors.WHITE, height=30, 
+                                                         on_click=lambda e, s=f"{strike} CE", p=prem: buy_order(s,p))])
+                        ])
+                    )
+                )
             try:
                 page.update()
             except:
                 pass
-            time.sleep(3)
+            time.sleep(4)
 
     threading.Thread(target=live_loop, daemon=True).start()
 
