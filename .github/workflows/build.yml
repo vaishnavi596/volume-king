@@ -1,6 +1,8 @@
 name: Build APK
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
@@ -15,26 +17,32 @@ jobs:
           python-version: '3.11'
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
+          channel: 'stable'
+
+      - name: Install Linux Dependencies (Ye wala missing tha aapke me)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libmpv-dev libwebkit2gtk-4.0-dev
 
       - name: Install Flet
         run: |
-          pip install flet==0.25.2
+          pip install flet==0.27.6
 
       - name: Build APK
         run: |
-          flet build apk
+          flet build apk --verbose --no-open
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk
-          path: build
+          name: volume-king-apk
+          path: build/apk
