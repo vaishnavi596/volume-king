@@ -5,8 +5,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -19,24 +18,53 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
 
-      - name: Install Flet
+      - name: Accept Android Licenses
         run: |
-          pip install --upgrade pip
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          flutter doctor -v
+          flutter config --no-analytics
+
+      - name: Create pyproject.toml
+        run: |
+          if [ ! -f pyproject.toml ]; then
+          cat > pyproject.toml << 'EOF'
+          [project]
+          name = "volume-king"
+          version = "1.0.0"
+          description = "Volume King Trading App"
+          dependencies = ["flet==0.27.6"]
+          requires-python = ">=3.8"
+
+          [tool.flet]
+          org = "com.volumeking.app"
+          product = "Volume King"
+          company = "VolumeKing"
+
+          [tool.flet.app]
+          path = "main.py"
+
+          [tool.flet.android]
+          package_name = "com.volumeking.app"
+          EOF
+          fi
+
+      - name: Install Flet & Build APK
+        run: |
           pip install flet==0.27.6
+          flet build apk --verbose --org com.volumeking.app
 
-      - name: Build APK - Volume King
-        run: |
-          flet build apk --verbose
-
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Volume-King-APK
+          name: Volume-King-APK-Final
           path: build/apk
-          retention-days: 7
