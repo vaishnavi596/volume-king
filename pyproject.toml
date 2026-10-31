@@ -1,5 +1,5 @@
 [project]
-name = "volume-king"
+name = "bot-king-trade"
 version = "1.0.0"
 dependencies = [
     "flet==0.28.3",
@@ -9,4 +9,5 @@ dependencies = [
 ]
 
 [tool.flet]
-org = "com.vaishnavi.volumeking"
+org = "com.vaishnavi.botking"
+app_name = "Bot King Trade"
