@@ -5,10 +5,8 @@ dependencies = [
     "flet==0.28.3",
     "yfinance",
     "requests",
-    "peewee",
-    "certifi"
+    "peewee"
 ]
 
 [tool.flet]
-org = "com.volumeking.app"
-app_name = "Volume King"
+org = "com.vaishnavi.volumeking"
