@@ -16,10 +16,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Install Flet
+      - name: Install Flet 0.27.6
         run: |
           pip install --upgrade pip
-          pip install flet
+          pip install "flet==0.27.6"
       - name: Build APK
         run: flet build apk --yes --verbose
       - name: Upload APK
