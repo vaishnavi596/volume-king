@@ -17,14 +17,14 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.3'
+          flutter-version: '3.32.5'
           channel: 'stable'
       - name: Install Flet
         run: |
           pip install --upgrade pip
-          pip install flet==0.27.6
+          pip install flet --upgrade
       - name: Build APK
-        run: flet build apk --verbose
+        run: flet build apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
