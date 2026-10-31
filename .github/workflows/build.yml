@@ -1,9 +1,7 @@
 name: Build APK
-
 on:
   push:
     branches: [ main ]
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,14 +17,18 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.22.3'
           channel: 'stable'
       - name: Install Flet
-        run: pip install flet==0.27.6
+        run: |
+          pip install --upgrade pip
+          pip install flet==0.27.6
       - name: Build APK
-        run: flet build apk --verbose
+        run: |
+          flet --version
+          flet build apk --verbose
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: bot-king-trade-apk
-          path: build/**/*.apk
+          path: build/apk
