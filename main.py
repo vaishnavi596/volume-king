@@ -1,186 +1,182 @@
 import flet as ft
-import yfinance as yf
 import random
-import datetime
-import requests
+import threading
+import time
+try:
+    from SmartApi import SmartConnect
+    import pyotp
+except:
+    pass
 
 def main(page: ft.Page):
-    page.title = "Bot King Trade"
+    page.title = "Bot King Trade - Pro"
     page.theme_mode = ft.ThemeMode.DARK
-    page.padding = 0
+    page.padding = 15
 
-    # --- STORAGE ---
-    pnl_history = []
-    total_pnl = ft.Text("Today P&L: ₹0", size=18, color="green", weight=ft.FontWeight.BOLD)
-    log_field = ft.TextField(label="Bot Log", multiline=True, min_lines=6, value="Bot King Ready...\n", read_only=True, expand=True)
+    # --- NEW FEATURE 1: INDICATOR SELECTOR ---
+    selected_symbol = ft.Text("BankNifty", size=20, weight=ft.FontWeight.BOLD)
+    
+    symbol_dropdown = ft.Dropdown(
+        label="Indicator / Symbol",
+        value="BankNifty",
+        options=[
+            ft.dropdown.Option("Nifty"),
+            ft.dropdown.Option("BankNifty"),
+            ft.dropdown.Option("Sensex"),
+            ft.dropdown.Option("TCS"),
+            ft.dropdown.Option("HDFC Bank"),
+            ft.dropdown.Option("RELIANCE"),
+            ft.dropdown.Option("INFY"),
+        ],
+        width=300,
+        on_change=lambda e: on_symbol_change(e)
+    )
+
+    def on_symbol_change(e):
+        selected_symbol.value = f"{e.control.value}"
+        page.update()
+        # Yaha Angel API se live price fetch kar sakte ho
 
     # --- LIVE DATA ---
-    nifty_txt = ft.Text("Nifty: Loading...", size=16)
-    bank_txt = ft.Text("BankNifty: Loading...", size=16)
-    sensex_txt = ft.Text("Sensex: Loading...", size=16)
-    signal_txt = ft.Text("Signal: Waiting for 70% Volume...", size=18, weight=ft.FontWeight.BOLD, color="yellow")
+    live_price_txt = ft.Text("₹ 44,892.35 +1.24%", size=28, weight=ft.FontWeight.BOLD)
+    nifty_txt = ft.Text("Nifty: Loading...", size=14)
+    bank_txt = ft.Text("BankNifty: Loading...", size=14)
+    sensex_txt = ft.Text("Sensex: Loading...", size=14)
     
+    # --- NEW FEATURE 2: BULLISH/BEARISH METER ---
+    bullish_pct = 68
+    bearish_pct = 32
+    
+    market_sentiment_title = ft.Text("Market Sentiment", size=14, color="grey")
+    bullish_txt = ft.Text(f"Bullish {bullish_pct}%", color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD)
+    bearish_txt = ft.Text(f"Bearish {bearish_pct}%", color=ft.Colors.RED_400, weight=ft.FontWeight.BOLD)
+    
+    sentiment_bar = ft.Row([
+        ft.Container(width=200 * (bullish_pct/100), height=12, bgcolor=ft.Colors.GREEN, border_radius=5),
+        ft.Container(width=200 * (bearish_pct/100), height=12, bgcolor=ft.Colors.RED_400, border_radius=5),
+    ], spacing=0)
+
+    # --- NEW FEATURE 3: TOP PREMIUMS 80-100 ---
+    premiums_column = ft.Column([])
+    bot_list = [] # Add to Bot wale yaha save honge
+
+    def buy_premium(symbol):
+        page.snack_bar = ft.SnackBar(ft.Text(f"BUY Order Placed: {symbol}"))
+        page.snack_bar.open = True
+        page.update()
+
+    def add_to_bot(symbol):
+        bot_list.append(symbol)
+        page.snack_bar = ft.SnackBar(ft.Text(f"Added to Bot: {symbol} | Total: {len(bot_list)}"))
+        page.snack_bar.open = True
+        page.update()
+
+    def refresh_premiums(e=None):
+        # Yaha Angel API se Option Chain aayega - abhi demo data
+        demo_premiums = [
+            {"name": f"{symbol_dropdown.value} 54600 CE", "price": 92},
+            {"name": f"{symbol_dropdown.value} 54700 CE", "price": 85},
+            {"name": f"{symbol_dropdown.value} 54800 CE", "price": 81},
+        ]
+        premiums_column.controls.clear()
+        for p in demo_premiums:
+            # Filter 80-100
+            if 80 <= p["price"] <= 100:
+                premiums_column.controls.append(
+                    ft.Card(content=ft.Container(
+                        content=ft.Row([
+                            ft.Column([
+                                ft.Text(p["name"], weight=ft.FontWeight.BOLD, size=14),
+                                ft.Text(f"@ ₹{p['price']}", color=ft.Colors.GREEN_400)
+                            ], expand=True),
+                            ft.ElevatedButton("Buy", bgcolor=ft.Colors.GREEN_600, color="white", 
+                                              on_click=lambda _, s=p["name"]: buy_premium(s)),
+                            ft.OutlinedButton("Add to Bot", 
+                                              on_click=lambda _, s=p["name"]: add_to_bot(s)),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        padding=10
+                    ))
+                )
+        page.update()
+
     # --- INPUTS ---
     capital_input = ft.TextField(label="Capital", value="100000", width=160)
     risk_input = ft.TextField(label="Risk %", value="2", width=100)
     api_key = ft.TextField(label="Angel One API Key", password=True)
     client_id = ft.TextField(label="Angel Client ID")
+    mpin_input = ft.TextField(label="Angel MPIN", password=True)
+    totp_input = ft.TextField(label="Angel TOTP Secret", password=True)
     telegram_token = ft.TextField(label="Telegram Bot Token", password=True)
     telegram_chat = ft.TextField(label="Telegram Chat ID")
-    
     paper_mode = ft.Switch(label="Paper Trading Mode (Safe Test)", value=True)
     auto_trade_switch = ft.Switch(label="Auto Trading ON", value=False)
 
-    # --- CHART DATA (Volume Bars) ---
+    # --- CHART DATA ---
     chart = ft.BarChart(
         bar_groups=[
-            ft.BarChartGroup(x=i, bar_rods=[ft.BarChartRod(from_y=0, to_y=random.randint(50, 95), width=12, color=ft.Colors.GREEN if random.randint(70,100)>=80 else ft.Colors.GREY)])
-            for i in range(7)
+            ft.BarChartGroup(x=i, bar_rods=[ft.BarChartRod(from_y=0, to_y=random.randint(50, 95), width=10, color=ft.Colors.GREEN if random.randint(70,100)>=80 else ft.Colors.RED)])
+            for i in range(12)
         ],
-        border=ft.border.all(1, ft.Colors.GREY_700),
+        border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.GREY)),
         left_axis=ft.ChartAxis(labels_size=40),
-        bottom_axis=ft.ChartAxis(labels_size=30),
-        horizontal_grid_lines=ft.ChartGridLines(color=ft.Colors.GREY_800, width=1),
-        height=180,
-        expand=False,
+        bottom_axis=ft.ChartAxis(labels=[ft.ChartAxisLabel(value=i, label=ft.Text(f"{9+i//2}:30", size=10)) for i in range(0,12,2)]),
+        horizontal_grid_lines=ft.ChartGridLines(interval=20, color=ft.Colors.GREY_800),
+        expand=True,
+        height=200
     )
 
-    def send_telegram(msg):
-        if telegram_token.value and telegram_chat.value:
-            try:
-                url = f"https://api.telegram.org/bot{telegram_token.value}/sendMessage"
-                requests.post(url, data={"chat_id": telegram_chat.value, "text": msg}, timeout=5)
-                log_field.value += f"\n[TELEGRAM] {msg}"
-            except:
-                log_field.value += f"\n[TELEGRAM FAIL] {msg}"
-        page.update()
-
-    def load_prices(e=None):
+    # --- ANGEL LOGIN ---
+    def angel_login(e=None):
         try:
-            # 1. Live Prices
-            for sym, txt, name in [("^NSEI", nifty_txt, "Nifty"), ("^NSEBANK", bank_txt, "BankNifty"), ("^BSESN", sensex_txt, "Sensex")]:
-                try:
-                    data = yf.Ticker(sym).history(period="1d")
-                    price = data['Close'].iloc[-1] if not data.empty else random.randint(23000, 55000)
-                    txt.value = f"{name}: {price:.2f}"
-                except:
-                    txt.value = f"{name}: {random.randint(23000, 55000)} (Demo)"
-            
-            # 2. Volume Logic 70% Rule 80-100
-            vol = random.randint(65, 105)
-            nifty_price = 23053.10
-            
-            # Update Chart
-            chart.bar_groups = [
-                ft.BarChartGroup(x=i, bar_rods=[ft.BarChartRod(from_y=0, to_y=random.randint(55, 105), width=14, color=ft.Colors.GREEN if random.randint(60,100)>=80 else ft.Colors.ORANGE)])
-                for i in range(7)
-            ]
-            
-            if vol >= 80:
-                signal_txt.value = f"BUY Signal! Volume {vol}%"
-                signal_txt.color = "green"
-                log_field.value += f"\n{datetime.datetime.now().strftime('%H:%M:%S')} - BUY Nifty @ {nifty_txt.value} Vol {vol}% {'(PAPER)' if paper_mode.value else '(REAL)'}"
-                
-                # Sound + Telegram Alert
-                page.show_snack_bar(ft.SnackBar(ft.Text(f"🔥 BUY ALERT! Vol {vol}%"), bgcolor="green"))
-                send_telegram(f"Bot King Alert: BUY Nifty {nifty_txt.value} Volume {vol}% - {'Paper' if paper_mode.value else 'REAL'}")
-                
-                # P&L Simulate
-                profit = random.randint(200, 800) if paper_mode.value else 0
-                pnl_history.append(profit)
-                total_pnl.value = f"Today P&L: ₹{sum(pnl_history)} | Trades: {len(pnl_history)}"
-                total_pnl.color = "green" if sum(pnl_history)>=0 else "red"
-
-                # Auto Trading (Real)
-                if not paper_mode.value and auto_trade_switch.value and api_key.value:
-                    log_field.value += f"\n[REAL ORDER] Placing Angel One Order..."
-            else:
-                signal_txt.value = f"Wait - Volume {vol}%"
-                signal_txt.color = "orange"
-                log_field.value += f"\n{datetime.datetime.now().strftime('%H:%M:%S')} - Scan Vol {vol}% - No Trade"
-            
+            if not api_key.value or not client_id.value or not mpin_input.value or not totp_input.value:
+                page.snack_bar = ft.SnackBar(ft.Text("Pehle Angel ke 4 box bharo!"))
+                page.snack_bar.open = True
+                page.update()
+                return
+            totp = pyotp.TOTP(totp_input.value).now()
+            obj = SmartConnect(api_key=api_key.value)
+            data = obj.generateSession(client_id.value, mpin_input.value, totp)
+            page.snack_bar = ft.SnackBar(ft.Text(f"Angel Login Success! {client_id.value}"))
+            page.snack_bar.open = True
+            refresh_premiums() # Login ke baad premium refresh karo
             page.update()
         except Exception as ex:
-            log_field.value += f"\nError: {ex}"
+            page.snack_bar = ft.SnackBar(ft.Text(f"Login Fail: {ex}"))
+            page.snack_bar.open = True
             page.update()
 
-    # --- 4 PAGES ---
-    page1 = ft.Column([
-        ft.Text("Bot King Trade", size=22, weight=ft.FontWeight.BOLD),
-        ft.Text("70% Volume 80-100 Bot Ready", size=14, color="green"),
-        ft.Divider(),
-        nifty_txt, bank_txt, sensex_txt,
-        total_pnl,
-        ft.ElevatedButton("Refresh Live Price", on_click=load_prices, bgcolor="green", color="white"),
-        ft.Text("Live Volume Chart (Last 7 Candles)", size=14, weight=ft.FontWeight.BOLD),
-        chart,
-        ft.Divider(),
-        signal_txt,
-        ft.ElevatedButton("Get Volume Signal", on_click=load_prices, bgcolor="blue", color="white", width=300, height=50),
-    ], spacing=12, scroll=ft.ScrollMode.AUTO)
+    login_btn = ft.ElevatedButton("Angel One Login Test", icon=ft.Icons.LOGIN, on_click=angel_login, bgcolor="green", color="white")
 
-    page2 = ft.Column([
-        ft.Text("Settings", size=22, weight=ft.FontWeight.BOLD),
-        ft.Row([capital_input, risk_input]),
-        api_key, client_id,
-        ft.Divider(),
-        telegram_token, telegram_chat,
-        ft.Text("Telegram ke liye @BotFather se token lo", size=11, color="grey"),
-        ft.Divider(),
-        paper_mode, auto_trade_switch,
-        ft.ElevatedButton("Save Settings", bgcolor="green", color="white", on_click=lambda e: page.show_snack_bar(ft.SnackBar(ft.Text("Settings Saved!"))))
-    ], spacing=12, scroll=ft.ScrollMode.AUTO)
-
-    page3 = ft.Column([
-        ft.Text("Add Indicator", size=22, weight=ft.FontWeight.BOLD),
-        ft.Checkbox(label="Volume King 70% (80-100)", value=True),
-        ft.Checkbox(label="RSI 14", value=True),
-        ft.Checkbox(label="VWAP", value=True),
-        ft.Checkbox(label="Supertrend", value=False),
-        ft.Slider(min=0, max=100, value=80, label="Volume Threshold: {value}%"),
-        ft.Text("Chart me green bar = 80%+ Volume Signal", size=12, color="green"),
-        ft.ElevatedButton("Apply Indicators", bgcolor="orange", color="white")
-    ], spacing=10, scroll=ft.ScrollMode.AUTO)
-
-    page4 = ft.Column([
-        ft.Text("Bot Command Center", size=22, weight=ft.FontWeight.BOLD),
-        ft.Row([
-            ft.ElevatedButton("AUTO BOT START", bgcolor="green", color="white", width=150, height=60, on_click=load_prices),
-            ft.ElevatedButton("STOP BOT", bgcolor="red", color="white", width=150, height=60),
-        ], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Divider(),
-        ft.RadioGroup(content=ft.Column([
-            ft.Radio(value="auto", label="Fully Auto (Paper + Telegram)"),
-            ft.Radio(value="manual", label="Manual Confirm"),
-            ft.Radio(value="real", label="Real Angel One Trading"),
-        ])),
-        ft.Divider(),
-        log_field,
-        ft.Row([
-            ft.ElevatedButton("Clear Log", on_click=lambda e: setattr(log_field, 'value', 'Log Cleared...\n') or page.update()),
-            ft.ElevatedButton("Daily Report", bgcolor="blue", color="white", on_click=lambda e: send_telegram(f"Daily Report: {total_pnl.value}"))
-        ])
-    ], spacing=12, expand=True, scroll=ft.ScrollMode.AUTO)
-
-    content_area = ft.Container(content=page1, padding=16, expand=True)
-
-    def nav_change(e):
-        idx = e.control.selected_index
-        content_area.content = [page1, page2, page3, page4][idx]
-        page.update()
-
-    page.navigation_bar = ft.NavigationBar(
-        destinations=[
-            ft.NavigationBarDestination(icon=ft.Icons.DASHBOARD, label="Dashboard"),
-            ft.NavigationBarDestination(icon=ft.Icons.SETTINGS, label="Settings"),
-            ft.NavigationBarDestination(icon=ft.Icons.SHOW_CHART, label="Indicator"),
-            ft.NavigationBarDestination(icon=ft.Icons.SMART_TOY, label="Bot"),
-        ],
-        on_change=nav_change,
-        selected_index=0
+    # --- LAYOUT ---
+    page.add(
+        ft.Column([
+            ft.Text("Bot King Trade", size=22, weight=ft.FontWeight.BOLD),
+            symbol_dropdown,
+            ft.Row([ft.Text("Live Price: ", size=16), selected_symbol]),
+            live_price_txt,
+            ft.Divider(),
+            market_sentiment_title,
+            ft.Row([bullish_txt, bearish_txt], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            sentiment_bar,
+            ft.Divider(),
+            ft.Row([
+                ft.Text(f"Top Premiums ₹80-100", size=16, weight=ft.FontWeight.BOLD),
+                ft.IconButton(icon=ft.Icons.REFRESH, on_click=refresh_premiums)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            premiums_column,
+            ft.Divider(),
+            ft.Text("Volume Chart - Today 9:15 to 3:30", size=12, color="grey"),
+            chart,
+            ft.Divider(),
+            ft.Text("Settings", weight=ft.FontWeight.BOLD),
+            ft.Row([capital_input, risk_input]),
+            api_key, client_id, mpin_input, totp_input, login_btn,
+            ft.Divider(),
+            telegram_token, telegram_chat,
+            paper_mode, auto_trade_switch,
+            nifty_txt, bank_txt, sensex_txt,
+        ], scroll=ft.ScrollMode.AUTO)
     )
-
-    page.add(content_area)
-    load_prices()
+    refresh_premiums()
 
 ft.app(target=main)
