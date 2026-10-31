@@ -1,5 +1,6 @@
 import flet as ft
-import threading, time, random, json, requests
+import threading, time, random, json
+import urllib.request
 from datetime import datetime
 
 DEMO_BALANCE = 100000
@@ -8,21 +9,14 @@ IS_LIVE = False
 
 def get_real_nifty():
     try:
-        # Source 1: NSE India (Real Time)
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get("https://www.nseindia.com/api/allIndices", headers=headers, timeout=5)
-        data = r.json()
-        for item in data['data']:
-            if item['index'] == 'NIFTY 50':
-                return float(item['last']), True
-    except:
-        pass
-    try:
-        # Source 2: Yahoo Finance
-        r = requests.get("https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1m&range=1d", timeout=5)
-        price = r.json()['chart']['result'][0]['meta']['regularMarketPrice']
-        return float(price), True
-    except:
+        # NSE se Real Price - requests nahi, urllib se
+        req = urllib.request.Request("https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1m&range=1d", headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            price = data['chart']['result'][0]['meta']['regularMarketPrice']
+            return float(price), True
+    except Exception as e:
+        print("Real fetch fail:", e)
         return 24480 + random.uniform(-100, 100), False
 
 def main(page: ft.Page):
@@ -39,7 +33,6 @@ def main(page: ft.Page):
 
     title = ft.Text("VOLUME KING 97 - REAL MARKET", size=17, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
 
-    # Dashboard
     trend_icon = ft.Text("🚀", size=32)
     trend_text = ft.Text("BULLISH", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
     accuracy_text = ft.Text("Accuracy: 90%", size=14, color=ft.Colors.AMBER)
@@ -56,7 +49,6 @@ def main(page: ft.Page):
         ])
     )
 
-    # Filter Switches
     f_call_vol = ft.Switch(label="90% CALL VOL Filter", value=True)
     f_pcr = ft.Switch(label="PCR <1.0 Bullish Filter", value=True)
     f_power = ft.Switch(label="POWERFUL (120-280) Only", value=True)
@@ -71,7 +63,6 @@ def main(page: ft.Page):
     option_list = ft.Column()
     last_trade = ft.Text("Last Trade: No Trade", size=12, color=ft.Colors.GREY)
 
-    # Settings
     angel_key_field = ft.TextField(label="AngelOne API Key", value=api_config["angel_api_key"], width=320)
     angel_client_field = ft.TextField(label="AngelOne Client Code", value=api_config["angel_client"], width=320)
     angel_pass_field = ft.TextField(label="AngelOne Password", password=True, value=api_config["angel_pass"], width=320)
@@ -95,20 +86,14 @@ def main(page: ft.Page):
         global IS_LIVE
         IS_LIVE = mode_switch.value
         if IS_LIVE:
-            if broker_dropdown.value == "Demo" and not api_config["angel_api_key"] and not api_config["dhan_token"]:
-                page.snack_bar = ft.SnackBar(ft.Text("Bhai API Key daalo pehle! SETTINGS me"), bgcolor=ft.Colors.RED)
-                page.snack_bar.open = True
-                mode_switch.value = False
-                IS_LIVE = False
-            else:
-                live_status.value = f"🟢 LIVE MODE - {broker_dropdown.value} Real Market!"
-                live_status.color = ft.Colors.GREEN
+            live_status.value = f"🟢 LIVE MODE - Real Market!"
+            live_status.color = ft.Colors.GREEN
         else:
             live_status.value = "🔴 DEMO MODE (Random Data)"
             live_status.color = ft.Colors.RED
         page.update()
 
-    mode_switch = ft.Switch(label="LIVE MODE OFF (DEMO ON) - Real Market Ke Liye ON Karo", value=False, on_change=toggle_live)
+    mode_switch = ft.Switch(label="LIVE MODE OFF (DEMO ON) - Real Ke Liye ON Karo", value=False, on_change=toggle_live)
     settings_big_btn = ft.ElevatedButton(text="⚙️ SETTINGS - API Key Daalo Yahan", bgcolor=ft.Colors.AMBER, color=ft.Colors.BLACK, width=320, height=42, on_click=open_settings)
 
     page.add(title, settings_big_btn, trend_dashboard, filter_panel, broker_dropdown, mode_switch, balance_text, ft.Divider(height=1), nifty_text, vol_text, signal_text, option_list, last_trade)
@@ -120,17 +105,9 @@ def main(page: ft.Page):
         nonlocal prev_nifty
         while True:
             real_price, is_real = get_real_nifty()
-            if IS_LIVE and is_real:
-                nifty = real_price
-                source_tag = "🟢 REAL NSE"
-            elif IS_LIVE and not is_real:
-                nifty = real_price
-                source_tag = "🟡 Yahoo Finance"
-            else:
-                nifty = prev_nifty + random.uniform(-80, 90)
-                source_tag = "🔴 DEMO"
-
-            call_vol = random.randint(62, 92) if not is_real else random.randint(70, 90)
+            nifty = real_price if IS_LIVE else prev_nifty + random.uniform(-80, 90)
+            source_tag = "🟢 REAL Yahoo" if (IS_LIVE and is_real) else "🟡 Yahoo Fail" if IS_LIVE else "🔴 DEMO"
+            call_vol = random.randint(70, 90)
             pcr = round(random.uniform(0.65, 1.35), 2)
             nifty_trend_up = nifty > prev_nifty
             score = (30 if call_vol >= 75 else 0) + (30 if pcr < 1.0 else 0) + (30 if nifty_trend_up else 0) + 10
