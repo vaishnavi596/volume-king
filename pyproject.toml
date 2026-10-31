@@ -1,9 +1,1 @@
-[project]
-name = "volume-king"
-version = "1.0.0"
-description = "Volume King"
-dependencies = ["flet==0.27.6"]
-requires-python = ">=3.11"
-
-[project.scripts]
-volume-king = "main:main"
+dependencies = ["flet==0.28.3"]
