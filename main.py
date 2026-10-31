@@ -69,6 +69,3 @@ def main(page: ft.Page):
     )
 
     refresh_premiums()
-
-if __name__ == "__main__":
-    ft.app(target=main)
