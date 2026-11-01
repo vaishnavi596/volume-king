@@ -1,5 +1,32 @@
 [project]
-name = "bot-king-trade"
+name = "boating-trading-bot"
 version = "1.0.0"
-requires-python = ">=3.11"
-dependencies = ["flet==0.28.3", "requests"]
+description = "Boating Trading Bot - OI Auto Trading with LIVE Data"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "flet==0.21.2"
+]
+
+[project.scripts]
+app = "main:main"
+
+[tool.briefcase]
+project_name = "Boating Trading Bot"
+bundle = "com.boating.tradingbot"
+description = "OI Auto Trading Bot with Real Time LIVE Data"
+author = "Rajesh Gupta"
+author_email = "rajesh@example.com"
+
+[tool.briefcase.app.boating-trading-bot]
+formal_name = "Boating Trading Bot"
+description = "OI Auto Trading Bot - NIFTY OI Chain LIVE"
+sources = ["src/boating_trading_bot"]
+requires = ["flet"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Naya app banane ke liye sirf upar ke 3 line badlo:
+# name, project_name, bundle
