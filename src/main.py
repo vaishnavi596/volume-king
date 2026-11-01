@@ -1,14 +1,11 @@
 import flet as ft
 
 def main(page: ft.Page):
-    page.title = "Volume King"
-    page.bgcolor = "#0F0F0F"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    
+    page.bgcolor = "#000000"
     page.add(
-        ft.Column([
-            ft.Text("VOLUME KING 97", size=30, weight=ft.FontWeight.BOLD, color="amber"),
-            ft.ElevatedButton("START SCAN", bgcolor="green", color="white", width=250, height=50)
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        ft.Text("VOLUME KING 97 - WORKING! ✅", size=25, color="green", weight="bold"),
+        ft.Text("Black Fix Ho Gaya!", color="white", size=20),
+        ft.ElevatedButton("BUY CE 90%", bgcolor="green", color="white")
     )
+
+ft.app(target=main)
