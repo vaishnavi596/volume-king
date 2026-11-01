@@ -1,17 +1,7 @@
 [project]
 name = "volume-king"
 version = "1.0.0"
-description = "Volume King 97 Real Market"
-readme = "README.md"
+dependencies = ["flet==0.27.6"]
 requires-python = ">=3.11"
-dependencies = [
-    "flet==0.27.6",
-]
 
 [tool.flet]
-org = "com.vaishnavi.volumeking"
-product = "Volume King"
-company = "Volume King"
-
-[tool.flet.app]
-path = "src"
