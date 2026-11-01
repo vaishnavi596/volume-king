@@ -1,9 +1,6 @@
 name: Build APK
 on: [push, workflow_dispatch]
 jobs:
-  build:name: Build APK
-on: [push, workflow_dispatch]
-jobs:
   build:
     runs-on: ubuntu-latest
     steps:
@@ -21,32 +18,9 @@ jobs:
           pip install flet==0.27.6
           flutter doctor
       - name: Build APK
-        run: |
-          flet build apk
+        run: flet build apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
-        with:
-          name: volume-king-apk
-          path: build/
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.27.4'
-          channel: 'stable'
-          cache: true
-      - name: Install dependencies
-        run: |
-          pip install flet==0.27.6
-          flutter doctor
-      - name: Build APK
-        run: |
-          flet pack --android
-      - uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
           path: build/
