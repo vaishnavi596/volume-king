@@ -6,6 +6,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -22,8 +28,6 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install flet==0.27.6
-          flet --version
-          flutter --version
           
       - name: Build APK
         run: |
