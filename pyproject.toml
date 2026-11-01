@@ -1,3 +1,4 @@
+
 [project]
 name = "volume-king"
 version = "1.0.0"
@@ -8,3 +9,6 @@ requires-python = ">=3.11"
 product = "Volume King"
 org = "com.volumeking"
 company = "Volume King"
+
+[tool.flet.flutter.pubspec.dependency_overrides]
+wakelock_plus = "1.2.11"
