@@ -1,40 +1,52 @@
-name: Build Volume King APK
+name: Build APK
 on: [push, workflow_dispatch]
-
+jobs:
+  build:name: Build APK
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Setup Flutter 3.27.4
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.4'
           channel: 'stable'
-
-      - name: Install Flet
+          cache: true
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip
           pip install flet==0.27.6
-
+          flutter doctor
       - name: Build APK
         run: |
-          flet build apk --verbose
-
+          flet build apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Volume-King-APK
-          path: build/apk
+          name: volume-king-apk
+          path: build/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: |
+          pip install flet==0.27.6
+          flutter doctor
+      - name: Build APK
+        run: |
+          flet pack --android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: volume-king-apk
+          path: build/
