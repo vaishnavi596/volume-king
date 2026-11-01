@@ -10,7 +10,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -20,18 +20,18 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.27.4'
           channel: 'stable'
           cache: true
           
       - name: Install Flet
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install flet==0.27.6
+          flutter doctor
           
       - name: Build APK
-        run: |
-          flet build apk --verbose
+        run: flet build apk --verbose
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
