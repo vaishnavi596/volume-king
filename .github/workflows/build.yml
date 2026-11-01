@@ -5,34 +5,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
-          
-      - name: Setup Python
-        uses: actions/setup-python@v5
+          java-version: '17'
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.4'
+          flutter-version: '3.24.5'
           channel: 'stable'
-          cache: true
-          
-      - name: Install Flet
+      - name: Accept Android Licenses
         run: |
-          python -m pip install --upgrade pip
-          pip install flet==0.27.6
-          flutter doctor
-          
+          flutter doctor -v
+          flutter config --no-analytics
+          yes | flutter doctor --android-licenses || true
+      - name: Install Flet
+        run: pip install flet==0.27.6
       - name: Build APK
         run: flet build apk --verbose
-          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
