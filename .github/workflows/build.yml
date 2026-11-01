@@ -29,11 +29,6 @@ jobs:
           pip install --upgrade pip
           pip install flet==0.27.6
 
-      - name: Doctor
-        run: |
-          flutter doctor
-          flet --version
-
       - name: Build APK
         run: |
           flet build apk --verbose
