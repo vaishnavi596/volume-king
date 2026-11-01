@@ -18,7 +18,7 @@ jobs:
         with:
           flutter-version: '3.27.4'
           channel: 'stable'
-      - run: pip install flet==0.28.3
+      - run: pip install flet==0.28.3 requests
       - run: flet build apk --verbose
       - uses: actions/upload-artifact@v4
         with:
