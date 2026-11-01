@@ -1,98 +1,89 @@
 import flet as ft
-import threading, time, random
+import random
+import time
+import threading
 from datetime import datetime
 
 def main(page: ft.Page):
-    page.title = "VOLUME KING 97 V8"
+    page.title = "VOLUME KING 97"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = "#000000"
-    page.padding = 10
+    page.padding = 12
+    page.vertical_alignment = ft.MainAxisAlignment.START
 
-    # Top
-    title = ft.Text("VOLUME KING 97 V8 UNIVERSAL", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
-    broker = ft.Dropdown(label="Broker", value="Demo", options=[ft.dropdown.Option("AngelOne"), ft.dropdown.Option("Dhan"), ft.dropdown.Option("Demo")], width=180, height=50, text_size=12)
-    login_btn = ft.ElevatedButton("LOGIN", bgcolor=ft.Colors.GREEN, color="white", width=80, height=40)
+    # --- Title ---
+    title = ft.Text("VOLUME KING 97 V8 UNIVERSAL", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN, text_align=ft.TextAlign.CENTER)
     
-    live_switch = ft.Switch(label="DEMO MODE", value=False)
-    live_label = ft.Text("DEMO MODE", color=ft.Colors.RED, size=12, weight=ft.FontWeight.BOLD)
+    # --- Broker ---
+    broker = ft.Dropdown(label="Broker", value="Demo", options=[ft.dropdown.Option("AngelOne"), ft.dropdown.Option("Dhan"), ft.dropdown.Option("Demo")], width=170, text_size=13, height=50)
+    login = ft.ElevatedButton("LOGIN", bgcolor="green", color="white", width=80)
 
-    def switch_change(e):
-        if live_switch.value:
-            live_label.value = "LIVE MODE"
-            live_label.color = ft.Colors.GREEN
-        else:
-            live_label.value = "DEMO MODE"
-            live_label.color = ft.Colors.RED
+    # --- Mode ---
+    mode_txt = ft.Text("DEMO MODE", color="red", weight=ft.FontWeight.BOLD, size=14)
+    mode_sw = ft.Switch(label="DEMO", value=False)
+    def mode_change(e):
+        mode_txt.value = "LIVE MODE 🟢" if mode_sw.value else "DEMO MODE 🔴"
+        mode_txt.color = "green" if mode_sw.value else "red"
         page.update()
+    mode_sw.on_change = mode_change
 
-    live_switch.on_change = switch_change
-
-    # Market
-    nifty_txt = ft.Text("LIVE NIFTY: 24532", size=22, weight=ft.FontWeight.BOLD, color="white")
-    vol_bar = ft.ProgressBar(value=0.74, color=ft.Colors.GREEN, bgcolor="#333333", height=10)
-    call_txt = ft.Text("CALL Vol: 74% | PUT Vol: 26%", size=14)
-    pcr_txt = ft.Text("PCR: 0.92 (Neutral)", size=14)
-    vwap_txt = ft.Text("VWAP: 24490", size=13)
-    oi_txt = ft.Text("OI Trend: CALL OI UP", size=13, color=ft.Colors.GREEN)
-
-    signal_title = ft.Text("90% SIGNAL: BUY CE", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER)
-    last_txt = ft.Text("Last Trade: No Trade", size=11, color=ft.Colors.GREY_400)
-    signal_box = ft.Container(bgcolor="#2A2A0A", padding=12, border_radius=12, content=ft.Column([signal_title, last_txt]))
+    # --- Market Data ---
+    nifty = ft.Text("LIVE NIFTY: 24532 🟢", size=24, weight=ft.FontWeight.BOLD, color="white")
+    vol_bar = ft.ProgressBar(value=0.74, color="green", bgcolor="#333333", height=12)
+    call_vol = ft.Text("CALL Vol: 74% | PUT Vol: 26%", size=15, color="white")
+    pcr = ft.Text("PCR: 0.92 (Neutral)", size=14, color="yellow")
+    vwap = ft.Text("VWAP: 24490 | Price VWAP UPAR", size=13, color="grey")
+    
+    signal = ft.Text("🔥 90% SIGNAL: BUY CE", size=18, weight=ft.FontWeight.BOLD, color="yellow")
+    last = ft.Text("Last Trade: No Trade", size=12, color="grey")
+    signal_box = ft.Container(bgcolor="#222200", padding=10, border_radius=10, content=ft.Column([signal, last]))
 
     def buy_ce(e):
-        last_txt.value = f"Last: BUY CE {datetime.now().strftime('%H:%M:%S')}"
-        page.snack_bar = ft.SnackBar(ft.Text("BUY CE Placed!"), bgcolor=ft.Colors.GREEN)
+        last.value = f"BUY CE @ {datetime.now().strftime('%H:%M:%S')} ✅"
+        page.snack_bar = ft.SnackBar(ft.Text("BUY CE 90% Placed! 🚀"), bgcolor="green")
         page.snack_bar.open = True
         page.update()
-
     def buy_pe(e):
-        last_txt.value = f"Last: BUY PE {datetime.now().strftime('%H:%M:%S')}"
-        page.snack_bar = ft.SnackBar(ft.Text("BUY PE Placed!"), bgcolor=ft.Colors.RED)
+        last.value = f"BUY PE @ {datetime.now().strftime('%H:%M:%S')} ✅"
+        page.snack_bar = ft.SnackBar(ft.Text("BUY PE 90% Placed! 📉"), bgcolor="red")
         page.snack_bar.open = True
         page.update()
 
-    btn_ce = ft.ElevatedButton("BUY CE 90%", bgcolor="#00C853", color="white", expand=True, height=55, on_click=buy_ce)
-    btn_pe = ft.ElevatedButton("BUY PE 90%", bgcolor="#D32F2F", color="white", expand=True, height=55, on_click=buy_pe)
+    b1 = ft.ElevatedButton("BUY CE 90%", bgcolor="#00C853", color="white", expand=True, height=55, on_click=buy_ce)
+    b2 = ft.ElevatedButton("BUY PE 90%", bgcolor="#D32F2F", color="white", expand=True, height=55, on_click=buy_pe)
 
     page.add(
         title,
-        ft.Row([broker, login_btn]),
-        ft.Row([live_switch, live_label]),
-        nifty_txt,
+        ft.Row([broker, login]),
+        ft.Row([mode_sw, mode_txt]),
+        ft.Divider(color="#333", height=1),
+        nifty,
         vol_bar,
-        call_txt,
-        pcr_txt,
-        vwap_txt,
-        oi_txt,
+        call_vol,
+        pcr,
+        vwap,
         signal_box,
-        ft.Row([btn_ce, btn_pe]),
-        ft.Text("ZAP MODE ON", size=10, color=ft.Colors.GREY_500, text_align=ft.TextAlign.CENTER)
+        ft.Row([b1, b2]),
+        ft.Text("V8.1 SAFE MODE - NCC Tag Next", size=10, color="grey", text_align=ft.TextAlign.CENTER)
     )
 
-    def loop():
+    # --- SAFE LOOP ---
+    def live():
         while True:
+            time.sleep(3)
             try:
-                n = 24532 + random.uniform(-150, 150)
+                nv = 24532 + random.uniform(-150, 150)
                 cv = random.randint(65, 88)
-                pcr = round(random.uniform(0.75, 1.25), 2)
-                
-                nifty_txt.value = f"LIVE NIFTY: {n:.0f} {'🟢' if cv>70 else '🔴'}"
+                nifty.value = f"LIVE NIFTY: {nv:.0f} {'🟢' if cv>70 else '🔴'}"
+                call_vol.value = f"CALL Vol: {cv}% | PUT Vol: {100-cv}%"
                 vol_bar.value = cv/100
-                call_txt.value = f"CALL Vol: {cv}% | PUT Vol: {100-cv}%"
-                pcr_txt.value = f"PCR: {pcr}"
-                
-                if cv > 75 and pcr < 1.0:
-                    signal_title.value = f"{cv}% SIGNAL: BUY CE"
-                    signal_title.color = ft.Colors.GREEN
-                elif cv < 65:
-                    signal_title.value = f"{100-cv}% SIGNAL: BUY PE"
-                    signal_title.color = ft.Colors.RED
-
+                if cv > 76:
+                    signal.value = f"🔥 {cv}% SIGNAL: BUY CE"
+                    signal.color = "green"
                 page.update()
             except:
                 pass
-            time.sleep(3)
 
-    threading.Thread(target=loop, daemon=True).start()
+    threading.Thread(target=live, daemon=True).start()
 
 ft.app(target=main)
