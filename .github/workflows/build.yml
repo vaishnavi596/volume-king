@@ -26,12 +26,15 @@ jobs:
         with:
           python-version: '3.11'
           
+      - name: Accept Android Licenses
+        run: |
+          yes | flutter doctor --android-licenses
+          flutter doctor -v
+          
       - name: Install Flet
         run: |
           pip install --upgrade pip
           pip install flet==0.24.1
-          flutter --version
-          python --version
           
       - name: Build APK
         run: flet build apk --verbose
