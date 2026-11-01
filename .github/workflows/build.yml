@@ -7,40 +7,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          
-      - name: Setup Flutter 3.19.6
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
           channel: 'stable'
           cache: true
-          
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Accept Android Licenses
+      - name: Fix Doctor
         run: |
-          yes | flutter doctor --android-licenses
+          flutter config --no-enable-linux-desktop --no-enable-macos-desktop --no-enable-windows-desktop --no-enable-web --no-enable-ios --enable-android
+          flutter config --no-analytics
+          mkdir -p $ANDROID_HOME/licenses
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-googletv-license
           flutter doctor -v
-          
-      - name: Install Flet
-        run: |
-          pip install --upgrade pip
-          pip install flet==0.24.1
-          
-      - name: Build APK
-        run: flet build apk --verbose
-          
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - run: pip install flet==0.24.1
+      - run: flet build apk --verbose
+      - uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
           path: build/apk
