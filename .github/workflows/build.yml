@@ -5,22 +5,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.4'
-          channel: 'stable'
-          cache: true
-      - name: Install dependencies
-        run: |
-          pip install flet==0.27.6
-          flutter doctor
+          flutter-version: '3.22.2'
+          channel: stable
+      - name: Install Flet
+        run: pip install flet
       - name: Build APK
-        run: flet build apk
+        run: |
+          flutter config --no-analytics
+          flet pack src/main.py --distpath build --overwrite
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
-          path: build/
+          path: build
