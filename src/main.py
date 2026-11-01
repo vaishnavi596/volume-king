@@ -12,5 +12,3 @@ def main(page: ft.Page):
             ft.ElevatedButton("START SCAN", bgcolor="green", color="white", width=250, height=50)
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
-
-ft.app(target=main)
