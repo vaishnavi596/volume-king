@@ -1,40 +1,61 @@
+name: Build Boating Trading Bot APK
 
-// FREE Third-Party Live Data - No API Key Needed
-// Option 1: NSE via AllOrigins Proxy (FREE)
-// Option 2: Yahoo Finance (FREE)
-// Option 3: TradingView Widget (FREE)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-const FREE_LIVE_SOURCES = {
-  // NSE Option Chain via free proxy
-  nse_proxy: "https://api.allorigins.win/raw?url=https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY",
-  
-  // Alternative free sources
-  yahoo_nifty: "https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI",
-  
-  // For live OI - use NSE with proxy
-  getLiveOI: async function() {
-    try {
-      const res = await fetch(this.nse_proxy);
-      const data = await res.json();
-      return data;
-    } catch(e) {
-      console.log("Using mock live data");
-      // Fallback mock live
-      return {
-        pcr: (0.8 + Math.random()*0.6).toFixed(2),
-        totalOI: Math.floor(20000000 + Math.random()*10000000),
-        strikes: [
-          {strike: 23000, percent: 85+Math.random()*10, signal: "STRONG BUY"},
-          {strike: 23100, percent: 75+Math.random()*10, signal: "STRONG BUY"},
-          {strike: 23200, percent: 70+Math.random()*10, signal: "BUY"}
-        ]
-      };
-    }
-  }
-};
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-// Usage in app - call every 3 sec
-// setInterval(async () => {
-//   const live = await FREE_LIVE_SOURCES.getLiveOI();
-//   document.getElementById('pcr').innerText = live.pcr;
-// }, 3000);
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install briefcase flet
+
+      - name: Build Android APK
+        run: |
+          briefcase create android
+          briefcase build android
+          briefcase package android --packaging-format debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Boating-Trading-Bot-APK
+          path: build/boating-trading-bot/*/android/gradle/app/build/outputs/apk/debug/app-debug.apk
+
+# ALTERNATIVE - Agar aap HTML/JS wala app use kar rahe ho (Capacitor):
+# name: Build Android APK
+# on: [push, workflow_dispatch]
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: '18'
+#       - uses: actions/setup-java@v4
+#         with:
+#           distribution: 'temurin'
+#           java-version: '17'
+#       - run: npm install
+#       - run: npx cap add android || true
+#       - run: npx cap copy android
+#       - uses: android-actions/setup-android@v3
+#       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+#       - uses: actions/upload-artifact@v4
+#         with:
+#           name: Boating-Trading-Bot-APK
+#           path: android/app/build/outputs/apk/debug/app-debug.apk
