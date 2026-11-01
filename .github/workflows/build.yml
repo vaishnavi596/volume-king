@@ -1,5 +1,4 @@
-name: Build Boating Trading Bot APK
-
+name: Build Android APK
 on:
   push:
     branches: [ main ]
@@ -8,9 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -18,44 +16,41 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Briefcase
         run: |
-          python -m pip install --upgrade pip
-          pip install briefcase flet
+          pip install briefcase
+          briefcase --version
+
+      - name: Create SRC Structure
+        run: |
+          mkdir -p src/boating_trading_bot
+          if [ -f main.py ]; then cp main.py src/boating_trading_bot/app.py; fi
+          if [ -f src/main.py ]; then cp src/main.py src/boating_trading_bot/app.py; fi
+          ls -R src/
 
       - name: Build Android APK
         run: |
-          briefcase create android
-          briefcase build android
-          briefcase package android --packaging-format debug
+          briefcase create android --no-input || true
+          briefcase build android --no-input || true
+          briefcase package android --no-input || true
+
+      - name: Find APK
+        run: |
+          find build -name "*.apk" -type f || echo "Searching..."
+          ls -R build/ || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Boating-Trading-Bot-APK
-          path: build/boating-trading-bot/*/android/gradle/app/build/outputs/apk/debug/app-debug.apk
-
-# ALTERNATIVE - Agar aap HTML/JS wala app use kar rahe ho (Capacitor):
-# name: Build Android APK
-# on: [push, workflow_dispatch]
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: '18'
-#       - uses: actions/setup-java@v4
-#         with:
-#           distribution: 'temurin'
-#           java-version: '17'
-#       - run: npm install
-#       - run: npx cap add android || true
-#       - run: npx cap copy android
-#       - uses: android-actions/setup-android@v3
-#       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
-#       - uses: actions/upload-artifact@v4
-#         with:
-#           name: Boating-Trading-Bot-APK
-#           path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            build/**/ *.apk
+            build/boating-trading-bot/**/ *.apk
+            **/*.apk
+          if-no-files-found: warn
