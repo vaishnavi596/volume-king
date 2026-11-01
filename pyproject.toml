@@ -1,10 +1,9 @@
 [project]
 name = "boating-trading-bot"
 version = "1.0.0"
-description = "Boating Trading Bot - OI Auto Trading"
-readme = "README.md"
+description = "Boating Trading Bot"
 requires-python = ">=3.10"
-dependencies = ["flet"]
+dependencies = ["flet", "requests"]
 
 [build-system]
 requires = ["hatchling"]
@@ -15,8 +14,8 @@ project_name = "Boating Trading Bot"
 bundle = "com.boating.tradingbot"
 version = "1.0.0"
 
-[tool.briefcase.app.boating-trading-bot]
+[tool.briefcase.app.boatingtradingbot]
 formal_name = "Boating Trading Bot"
-description = "OI Auto Trading Bot"
-sources = ["src"]
-requires = ["flet"]
+description = "OI Auto Trading"
+sources = ["src/boatingtradingbot"]
+requires = ["flet", "requests"]
