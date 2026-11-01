@@ -1,225 +1,239 @@
-
 import flet as ft
-import asyncio
-import json
-import urllib.request
-from datetime import datetime
 
-
-def get_nifty_data():
-    url = (
-        "https://query1.finance.yahoo.com/v8/finance/chart/"
-        "%5ENSEI?range=1d&interval=5m"
-    )
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"}
-    )
-
-    with urllib.request.urlopen(request, timeout=12) as response:
-        data = json.loads(response.read().decode())
-
-    result = data["chart"]["result"][0]
-    meta = result["meta"]
-    quote = result["indicators"]["quote"][0]
-
-    price = meta.get("regularMarketPrice")
-    previous = meta.get("previousClose")
-
-    if price is None:
-        raise ValueError("NIFTY price unavailable")
-
-    volumes = quote.get("volume") or []
-    closes = quote.get("close") or []
-
-    total_volume = 0
-    total_value = 0
-
-    for close, volume in zip(closes, volumes):
-        if close is not None and volume:
-            total_value += close * volume
-            total_volume += volume
-
-    vwap = total_value / total_volume if total_volume else None
-
-    change = price - previous if previous else None
-    change_pct = (change / previous * 100) if previous else None
-
-    return {
-        "price": price,
-        "change": change,
-        "change_pct": change_pct,
-        "vwap": vwap,
-        "time": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    }
+BG = "#0B1220"
+CARD = "#151F30"
+GOLD = "#F5B942"
+WHITE = "#FFFFFF"
+MUTED = "#9AA9BD"
 
 
 def main(page: ft.Page):
-    page.title = "VOLUME KING 97 V8"
-    page.bgcolor = "#080D18"
-    page.padding = 15
-    page.scroll = ft.ScrollMode.AUTO
+    page.title = "BOT KING"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.bgcolor = BG
+    page.padding = 0
+    page.spacing = 0
 
-    mode = "LIVE"
+    def heading(title, subtitle=""):
+        return ft.Column([
+            ft.Text(title, size=24, weight="bold", color=GOLD),
+            ft.Text(subtitle, size=12, color=MUTED)
+        ], spacing=4)
 
-    status = ft.Text("डेटा अभी लोड नहीं हुआ", color="#FFC857")
-    price_text = ft.Text("--", size=34, weight="bold", color="white")
-    change_text = ft.Text("--", size=17, color="white")
-    vwap_text = ft.Text("--", size=19, color="#55D6BE")
-    time_text = ft.Text("--", size=12, color="#AAB4C5")
-    mode_text = ft.Text("LIVE MODE", color="#55D6BE", size=16)
-    trade_text = ft.Text(
-        "CE / PE सिमुलेशन के लिए बटन दबाएँ",
-        color="white",
-        size=14
-    )
-
-    def panel(title, content):
+    def panel(title, value, note=""):
         return ft.Container(
             content=ft.Column([
-                ft.Text(title, color="#AAB4C5", size=13),
-                content
-            ], spacing=8),
-            bgcolor="#172235",
-            padding=16,
+                ft.Text(title, color=MUTED, size=12),
+                ft.Text(value, color=WHITE, size=22, weight="bold"),
+                ft.Text(note, color=GOLD, size=11)
+            ], spacing=5),
+            bgcolor=CARD,
+            padding=15,
             border_radius=12,
             expand=True
         )
 
-    async def refresh_data(e=None):
-        status.value = "NIFTY डेटा लोड हो रहा है..."
-        page.update()
+    def section(title, controls):
+        return ft.Column([
+            ft.Text(title, color=GOLD, size=16, weight="bold"),
+            *controls
+        ], spacing=10)
 
-        try:
-            data = await asyncio.to_thread(get_nifty_data)
+    # PAGE 1: DASHBOARD
+    dashboard = ft.Column([
+        heading("BOT KING", "INDIAN MARKET DASHBOARD"),
+        ft.Row([
+            panel("NIFTY 50", "--", "Live data not connected"),
+            panel("BANK NIFTY", "--", "Live data not connected")
+        ]),
+        section("MARKET SENTIMENT", [
+            panel("Market Trend", "WAIT", "Data source required"),
+            ft.Row([
+                panel("PCR", "--", "Pending OI data"),
+                panel("India VIX", "--", "Pending data")
+            ])
+        ]),
+        section("IMPORTANT LEVELS", [
+            ft.Row([
+                panel("Support", "--"),
+                panel("Resistance", "--")
+            ]),
+            panel("Market Update", "Not connected",
+                  "Connect a market data provider for live values")
+        ])
+    ], spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
-            price_text.value = f"{data['price']:,.2f}"
-
-            if data["change"] is not None:
-                change_text.value = (
-                    f"बदलाव: {data['change']:+.2f} "
-                    f"({data['change_pct']:+.2f}%)"
+    # PAGE 2: OI CHAIN
+    oi_page = ft.Column([
+        heading("OI CHAIN", "OPEN INTEREST ANALYSIS"),
+        ft.Row([
+            panel("PCR", "--", "Pending live data"),
+            panel("Max Pain", "--", "Pending live data")
+        ]),
+        section("CALL / PUT DATA", [
+            ft.Text(
+                "Strike       CE OI       PE OI       Change",
+                color=GOLD, size=13
+            ),
+            *[
+                ft.Container(
+                    content=ft.Text(
+                        f"{strike}       --       --       --",
+                        color=WHITE, size=13
+                    ),
+                    bgcolor=CARD, padding=14, border_radius=8
                 )
-                change_text.color = (
-                    "#55D6BE" if data["change"] >= 0 else "#FF7272"
-                )
-            else:
-                change_text.value = "बदलाव उपलब्ध नहीं"
-
-            vwap_text.value = (
-                f"{data['vwap']:,.2f} (अनुमानित)"
-                if data["vwap"] is not None
-                else "उपलब्ध नहीं"
+                for strike in ["ATM - 200", "ATM - 100", "ATM",
+                               "ATM + 100", "ATM + 200"]
+            ],
+            ft.Text(
+                "Live options-chain data is not connected yet.",
+                color=MUTED, size=12
             )
+        ])
+    ], spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
-            time_text.value = f"प्राप्ति समय: {data['time']}"
-            status.value = (
-                "डेटा स्रोत: Yahoo Finance Chart API | "
-                "डेटा विलंबित हो सकता है"
-            )
+    # PAGE 3: CHART ANALYTICS
+    chart_page = ft.Column([
+        heading("CHART ANALYTICS", "TECHNICAL INDICATORS"),
+        ft.Row([
+            ft.OutlinedButton("1m"),
+            ft.OutlinedButton("5m"),
+            ft.OutlinedButton("15m"),
+            ft.OutlinedButton("1H"),
+            ft.OutlinedButton("1D")
+        ], wrap=True),
+        panel("PRICE CHART", "Chart pending",
+              "Connect a chart data provider"),
+        section("INDICATORS", [
+            ft.Row([
+                panel("EMA 9", "--"),
+                panel("EMA 21", "--")
+            ]),
+            ft.Row([
+                panel("RSI", "--"),
+                panel("VWAP", "--")
+            ]),
+            panel("Volume", "--", "Pending market data")
+        ])
+    ], spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
-        except Exception as error:
-            status.value = (
-                "डेटा नहीं मिला। इंटरनेट या डेटा स्रोत जाँचें।"
-            )
-            price_text.value = "--"
-            change_text.value = "--"
-            vwap_text.value = "--"
-            time_text.value = str(error)[:100]
-
-        page.update()
-
-    def set_demo(e):
-        nonlocal mode
-        mode = "DEMO"
-        mode_text.value = "DEMO MODE"
-        mode_text.color = "#FFC857"
-        trade_text.value = "DEMO मोड: केवल सिमुलेशन"
-        page.update()
-
-    def set_live(e):
-        nonlocal mode
-        mode = "LIVE"
-        mode_text.value = "LIVE MODE"
-        mode_text.color = "#55D6BE"
-        trade_text.value = "LIVE डेटा मोड: असली ट्रेडिंग चालू नहीं है"
-        page.update()
-
-    def simulate_trade(side):
-        trade_text.value = (
-            f"{side} सिमुलेशन चुना गया। "
-            "कोई असली ऑर्डर नहीं भेजा गया।"
+    # PAGE 4: AUTO BOT
+    auto_page = ft.Column([
+        heading("AUTO BOT", "TRADING STRATEGY"),
+        panel("BOT STATUS", "STOPPED",
+              "Auto trading is disabled by default"),
+        ft.Switch(
+            label="Enable Auto Bot",
+            value=False,
+            active_color=GOLD
+        ),
+        section("TRADE SETTINGS", [
+            ft.TextField(
+                label="Target (Points)",
+                value="30",
+                keyboard_type=ft.KeyboardType.NUMBER
+            ),
+            ft.TextField(
+                label="Stop Loss (Points)",
+                value="15",
+                keyboard_type=ft.KeyboardType.NUMBER
+            ),
+            ft.TextField(
+                label="Entry Threshold",
+                value="70",
+                keyboard_type=ft.KeyboardType.NUMBER
+            ),
+            panel("Today's MTM", "₹0",
+                  "Demo display only")
+        ]),
+        ft.Text(
+            "Broker connection and live order execution are not "
+            "implemented. Do not use this for live trading yet.",
+            color=MUTED, size=12
         )
-        page.update()
+    ], spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
-    page.add(
-        ft.Column([
-            ft.Text(
-                "VOLUME KING 97",
-                size=27,
-                weight="bold",
-                color="#55D6BE"
+    # PAGE 5: SETTINGS
+    settings_page = ft.Column([
+        heading("SETTINGS / API", "BROKER CONFIGURATION"),
+        section("BROKER", [
+            ft.Dropdown(
+                label="Select Broker",
+                options=[
+                    ft.dropdown.Option("Angel One"),
+                    ft.dropdown.Option("Zerodha"),
+                    ft.dropdown.Option("Dhan"),
+                    ft.dropdown.Option("Upstox")
+                ]
             ),
-            ft.Text("V8 MARKET DASHBOARD", color="white", size=15),
-            ft.Divider(color="#34445C"),
-
-            mode_text,
-            ft.Row([
-                ft.ElevatedButton("LIVE MODE", on_click=set_live),
-                ft.ElevatedButton("DEMO MODE", on_click=set_demo)
-            ]),
-
-            panel("NIFTY 50", price_text),
-            change_text,
-            panel("VWAP", vwap_text),
-
-            ft.Text(
-                "OPTIONS DATA",
-                size=17,
-                color="#55D6BE",
-                weight="bold"
-            ),
-            ft.Text("PCR: उपलब्ध नहीं - Options Chain डेटा आवश्यक",
-                    color="white"),
-            ft.Text("CALL VOLUME: उपलब्ध नहीं", color="white"),
-            ft.Text("PUT VOLUME: उपलब्ध नहीं", color="white"),
-
-            ft.Divider(color="#34445C"),
-            ft.Text("SIMULATION TRADING", color="#55D6BE", size=17),
-
-            ft.Row([
-                ft.ElevatedButton(
-                    "BUY CE (SIMULATION)",
-                    bgcolor="#087F5B",
-                    color="white",
-                    on_click=lambda e: simulate_trade("BUY CE")
-                ),
-                ft.ElevatedButton(
-                    "BUY PE (SIMULATION)",
-                    bgcolor="#B02A37",
-                    color="white",
-                    on_click=lambda e: simulate_trade("BUY PE")
-                )
-            ]),
-            trade_text,
-
+            ft.TextField(label="Client ID"),
+            ft.TextField(label="API Key", password=True),
+            ft.TextField(label="API Secret", password=True),
+            ft.TextField(label="Access Token", password=True),
             ft.ElevatedButton(
-                "REFRESH NIFTY DATA",
-                on_click=refresh_data
-            ),
-            status,
-            time_text,
-
-            ft.Text(
-                "शिक्षण और सिमुलेशन के लिए। "
-                "यह ऐप ब्रोकर ऑर्डर नहीं भेजता।",
-                color="#AAB4C5",
-                size=11
+                "Save Settings",
+                bgcolor=GOLD,
+                color=BG
             )
-        ], spacing=14)
+        ]),
+        section("WATCHLIST", [
+            panel("NIFTY 50", "Not connected"),
+            panel("BANK NIFTY", "Not connected")
+        ]),
+        ft.Text(
+            "Credentials are not saved or sent anywhere in this "
+            "starter version. Broker integration is still pending.",
+            color=MUTED, size=12
+        )
+    ], spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
+
+    pages = [
+        dashboard, oi_page, chart_page, auto_page, settings_page
+    ]
+
+    body = ft.Container(
+        content=dashboard,
+        expand=True,
+        padding=16
     )
 
-    page.run_task(refresh_data)
+    def change_page(e):
+        index = e.control.selected_index
+        body.content = pages[index]
+        page.update()
+
+    page.navigation_bar = ft.NavigationBar(
+        selected_index=0,
+        on_change=change_page,
+        bgcolor=CARD,
+        indicator_color="#59451D",
+        destinations=[
+            ft.NavigationBarDestination(
+                icon=ft.icons.HOME_OUTLINED,
+                selected_icon=ft.icons.HOME,
+                label="Home"
+            ),
+            ft.NavigationBarDestination(
+                icon=ft.icons.LIST_ALT,
+                label="OI Chain"
+            ),
+            ft.NavigationBarDestination(
+                icon=ft.icons.SHOW_CHART,
+                label="Chart"
+            ),
+            ft.NavigationBarDestination(
+                icon=ft.icons.SMART_TOY,
+                label="Auto Bot"
+            ),
+            ft.NavigationBarDestination(
+                icon=ft.icons.SETTINGS,
+                label="Settings"
+            )
+        ]
+    )
+
+    page.add(body)
 
 
 ft.app(target=main)
