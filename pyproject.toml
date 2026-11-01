@@ -1,0 +1,13 @@
+[project]
+name = "volume-king"
+version = "1.0.0"
+description = "Volume King Scanner"
+requires-python = ">=3.11"
+dependencies = [
+    "flet==0.24.1"
+]
+
+[tool.flet]
+org = "com.volume.king"
+product = "Volume King"
+company = "Volume King"
