@@ -1,8 +1,20 @@
 [project]
 name = "volume-king"
-version = "1.0.0"
-description = "Volume King - OI Bot 4 Pages"
-requires-python = ">=3.11"
-dependencies = ["flet==0.28.3", "requests"]
+version = "7.0.0"
+description = "Volume King 100% Combined"
+requires-python = ">=3.10"
+dependencies = ["kivy"]
 
-[tool.flet]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.briefcase]
+project_name = "Volume King"
+bundle = "com.volumeking.trade"
+
+[tool.briefcase.app.volume-king]
+formal_name = "Volume King"
+description = "Premium Base + Nifty Base + News Base"
+sources = ["src"]
+requires = ["kivy"]
