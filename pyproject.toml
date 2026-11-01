@@ -1,9 +1,5 @@
 [project]
 name = "volume-king"
 version = "1.0.0"
-description = "Bot King Trade"
 requires-python = ">=3.11"
 dependencies = ["flet==0.28.3"]
-
-[project.scripts]
-volume-king = "main:main"
