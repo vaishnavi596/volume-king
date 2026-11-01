@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -24,24 +24,21 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Accept Android Licenses
+      - name: Accept Licenses
         run: |
-          flutter --version
           flutter doctor
           yes | flutter doctor --android-licenses || true
-          sudo apt-get update
-          yes | sdkmanager --licenses || true
-          flutter doctor
 
       - name: Install Flet
         run: |
           pip install --upgrade pip
-          pip install flet==0.27.6
+          pip install flet==0.28.3
 
       - name: Build APK
         run: flet build apk --verbose
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
