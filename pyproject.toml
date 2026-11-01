@@ -14,10 +14,9 @@ build-backend = "hatchling.build"
 project_name = "Boating Trading Bot"
 bundle = "com.boating.tradingbot"
 version = "1.0.0"
-description = "OI Auto Trading Bot"
 
 [tool.briefcase.app.boating-trading-bot]
 formal_name = "Boating Trading Bot"
-description = "Boating Trading Bot - LIVE OI Trading"
-sources = ["src/boating_trading_bot"]
+description = "OI Auto Trading Bot"
+sources = ["src"]
 requires = ["flet"]
