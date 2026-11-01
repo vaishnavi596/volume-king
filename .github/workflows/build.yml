@@ -1,19 +1,36 @@
 name: Build Volume King APK
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
       - name: Install Flet
-        run: pip install flet
+        run: |
+          pip install --upgrade pip
+          pip install flet
+
       - name: Build APK
-        run: flet build apk
-      - name: Upload APK
+        run: |
+          flet build apk --verbose
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Volume-King-APK-Final
+          name: Volume-King-APK-FINAL
           path: build/apk
+          if-no-files-found: error
