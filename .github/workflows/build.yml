@@ -1,56 +1,47 @@
-name: Build Android APK
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+import flet as ft
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+def main(page: ft.Page):
+    page.title = "Boating Trading Bot"
+    page.theme_mode = ft.ThemeMode.DARK
+    page.bgcolor = "#0f172a"
+    
+    status_text = ft.Text("BOT STOPPED", color="red", size=20, weight="bold")
+    log_text = ft.Text("Bot ready... Waiting for START", color="white")
+    pcr_text = ft.Text("PCR: 1.15 Bullish", size=18, color="green")
+    
+    def start_bot(e):
+        status_text.value = "BOT RUNNING - LIVE"
+        status_text.color = "green"
+        log_text.value = "LIVE: NIFTY 23000 CE 93% STRONG BUY\nLIVE: Fetching OI Data..."
+        page.update()
+    
+    def stop_bot(e):
+        status_text.value = "BOT STOPPED"
+        status_text.color = "red"
+        log_text.value = "Bot Stopped"
+        page.update()
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    page.add(
+        ft.Column([
+            ft.Text("BOATING - OI AUTO TRADING", size=24, weight="bold", color="white"),
+            ft.Divider(),
+            status_text,
+            ft.Row([
+                ft.ElevatedButton("START", bgcolor="green", color="white", on_click=start_bot),
+                ft.ElevatedButton("STOP", bgcolor="red", color="white", on_click=stop_bot),
+            ]),
+            ft.Container(height=20),
+            pcr_text,
+            ft.Container(
+                content=log_text,
+                bgcolor="#1e293b",
+                padding=10,
+                border_radius=10,
+                height=200,
+                width=400
+            ),
+            ft.Text("Page 2: Indicator | Page 3: OI Chain | Page 4: Bot Setting - Coming in LIVE version", color="grey")
+        ])
+    )
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Install Briefcase
-        run: |
-          pip install briefcase
-          briefcase --version
-
-      - name: Create SRC Structure
-        run: |
-          mkdir -p src/boating_trading_bot
-          if [ -f main.py ]; then cp main.py src/boating_trading_bot/app.py; fi
-          if [ -f src/main.py ]; then cp src/main.py src/boating_trading_bot/app.py; fi
-          ls -R src/
-
-      - name: Build Android APK
-        run: |
-          briefcase create android --no-input || true
-          briefcase build android --no-input || true
-          briefcase package android --no-input || true
-
-      - name: Find APK
-        run: |
-          find build -name "*.apk" -type f || echo "Searching..."
-          ls -R build/ || true
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Boating-Trading-Bot-APK
-          path: |
-            build/**/ *.apk
-            build/boating-trading-bot/**/ *.apk
-            **/*.apk
-          if-no-files-found: warn
+ft.app(target=main)
