@@ -1,35 +1,44 @@
+
 name: Build APK
+
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
-          channel: 'stable'
+          flutter-version: '3.24.5'
+          channel: stable
           cache: true
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Fix Doctor
-        run: |
-          flutter config --no-enable-linux-desktop --no-enable-macos-desktop --no-enable-windows-desktop --no-enable-web --no-enable-ios --enable-android
-          flutter config --no-analytics
-          mkdir -p $ANDROID_HOME/licenses
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" > $ANDROID_HOME/licenses/android-sdk-license
-          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-googletv-license
-          flutter doctor -v
-      - run: pip install flet==0.24.1
-      - run: flet build apk --verbose
-      - uses: actions/upload-artifact@v4
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
+      - name: Install Flet
+        run: pip install flet==0.24.1
+
+      - name: Build APK
+        run: flet build apk --verbose
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
-          path: build/apk
+          path: build/apk/*.apk
+          if-no-files-found: error
