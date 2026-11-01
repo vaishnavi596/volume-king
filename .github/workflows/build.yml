@@ -19,17 +19,17 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: Install Flet 0.24.1
+      - name: Install Flet
         run: |
           pip install --upgrade pip
           pip install flet==0.24.1
           
       - name: Build APK
         run: |
-          flet pack main.py --android --distpath dist
+          flet build apk --verbose
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: volume-king-apk
-          path: dist
+          path: build/apk
