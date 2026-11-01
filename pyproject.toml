@@ -1,9 +1,12 @@
 [project]
 name = "volume-king"
 version = "1.0.0"
-dependencies = [
-    "flet==0.27.6"
-]
-requires-python = ">=3.11"
+description = "Volume King 97"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["flet"]
 
 [tool.flet]
+org-name = "com.vaishnavi"
+project-name = "volume-king"
+product-name = "Volume King 97"
