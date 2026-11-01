@@ -1,21 +1,8 @@
 [project]
-name = "boating-trading-bot"
+name = "volume-king"
 version = "1.0.0"
-description = "Boating Trading Bot"
-requires-python = ">=3.10"
-dependencies = ["flet", "requests"]
+description = "Volume King - OI Bot 4 Pages"
+requires-python = ">=3.11"
+dependencies = ["flet==0.28.3", "requests"]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.briefcase]
-project_name = "Boating Trading Bot"
-bundle = "com.boating.tradingbot"
-version = "1.0.0"
-
-[tool.briefcase.app.boatingtradingbot]
-formal_name = "Boating Trading Bot"
-description = "OI Auto Trading"
-sources = ["src/boatingtradingbot"]
-requires = ["flet", "requests"]
+[tool.flet]
