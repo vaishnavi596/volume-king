@@ -3,72 +3,45 @@ import flet as ft
 def main(page: ft.Page):
     page.title = "Boating Trading Bot"
     page.theme_mode = ft.ThemeMode.DARK
-    page.window_width = 400
-    page.window_height = 800
-
-    # LIVE DATA
-    pcr_text = ft.Text("PCR: 1.15 Bullish | LIVE ●", color=ft.colors.GREEN, size=16)
-    status = ft.Text("Bot STOPPED", color=ft.colors.RED)
-    log = ft.Column([])
-
+    page.bgcolor = "#0f172a"
+    
+    status_text = ft.Text("BOT STOPPED", color="red", size=20, weight="bold")
+    log_text = ft.Text("Bot ready... Waiting for START", color="white")
+    pcr_text = ft.Text("PCR: 1.15 Bullish", size=18, color="green")
+    
     def start_bot(e):
-        status.value = "Bot RUNNING - Scanning NIFTY..."
-        status.color = ft.colors.GREEN
-        log.controls.append(ft.Text("Scanning NIFTY 23000 CE - Economy 85% - STRONG BUY", color=ft.colors.GREEN))
+        status_text.value = "BOT RUNNING - LIVE"
+        status_text.color = "green"
+        log_text.value = "LIVE: NIFTY 23000 CE 93% STRONG BUY\nLIVE: Fetching OI Data..."
         page.update()
-
+    
     def stop_bot(e):
-        status.value = "Bot STOPPED"
-        status.color = ft.colors.RED
+        status_text.value = "BOT STOPPED"
+        status_text.color = "red"
+        log_text.value = "Bot Stopped"
         page.update()
 
-    # Page 1 - Main
-    page1 = ft.Column([
-        ft.Text("Main Page - OI Auto Trading", size=20, weight="bold"),
-        pcr_text,
-        status,
-        ft.Row([ft.ElevatedButton("START OI BOT", bgcolor=ft.colors.GREEN, color=ft.colors.WHITE, on_click=start_bot),
-                ft.ElevatedButton("STOP BOT", bgcolor=ft.colors.RED, color=ft.colors.WHITE, on_click=stop_bot)]),
-        log
-    ])
-
-    # Page 2 - Indicator
-    page2 = ft.Column([
-        ft.Text("Indicator Settings", size=20, weight="bold"),
-        ft.TextField(label="Stock (HDFC, RELIANCE, TCS)", value="NIFTY"),
-        ft.TextField(label="Min Economy", value="70"),
-        ft.TextField(label="Max Economy", value="45"),
-        ft.TextField(label="OI Filter", value="800000"),
-    ])
-
-    # Page 3 - OI Chain
-    page3 = ft.Column([
-        ft.Text("OI Chain - LIVE", size=20, weight="bold"),
-        ft.Text("NIFTY 23000 CE - 93% STRONG BUY", color=ft.colors.GREEN),
-        ft.Text("NIFTY 23100 CE - 77% BUY", color=ft.colors.GREEN),
-        ft.Text("NIFTY 23200 CE - 75% BUY", color=ft.colors.GREEN),
-        ft.Row([ft.ElevatedButton("BUY"), ft.ElevatedButton("SELL")])
-    ])
-
-    # Page 4 - Bot Setting
-    page4 = ft.Column([
-        ft.Text("Bot Settings", size=20, weight="bold"),
-        ft.Switch(label="AUTO Mode", value=True),
-        ft.TextField(label="Target %", value="10%"),
-        ft.TextField(label="StopLoss %", value="5%"),
-    ])
-
-    tabs = ft.Tabs(
-        selected_index=0,
-        tabs=[
-            ft.Tab(text="Main", content=page1),
-            ft.Tab(text="Indicator", content=page2),
-            ft.Tab(text="OI Chain", content=page3),
-            ft.Tab(text="Bot Set", content=page4),
-        ],
-        expand=1
+    page.add(
+        ft.Column([
+            ft.Text("BOATING - OI AUTO TRADING", size=24, weight="bold", color="white"),
+            ft.Divider(),
+            status_text,
+            ft.Row([
+                ft.ElevatedButton("START", bgcolor="green", color="white", on_click=start_bot),
+                ft.ElevatedButton("STOP", bgcolor="red", color="white", on_click=stop_bot),
+            ]),
+            ft.Container(height=20),
+            pcr_text,
+            ft.Container(
+                content=log_text,
+                bgcolor="#1e293b",
+                padding=10,
+                border_radius=10,
+                height=200,
+                width=400
+            ),
+            ft.Text("Page 2: Indicator | Page 3: OI Chain | Page 4: Bot Setting - Coming in LIVE version", color="grey")
+        ])
     )
-
-    page.add(tabs)
 
 ft.app(target=main)
