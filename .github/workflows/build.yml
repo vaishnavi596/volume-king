@@ -2,40 +2,18 @@ name: Build Volume King APK
 on: [push, workflow_dispatch]
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          
-      - name: Install System Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y openjdk-17-jdk python3-pip zip unzip libffi-dev libssl-dev
-          
-      - name: Install Buildozer
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.33
-          
+          python-version: '3.11'
+      - name: Install Flet
+        run: pip install flet
       - name: Build APK
-        run: |
-          # Agar buildozer.spec nahi hai to banao
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
-          # Requirements fix
-          sed -i 's/#*requirements =.*/requirements = python3,kivy/' buildozer.spec
-          sed -i 's/orientation =.*/orientation = portrait/' buildozer.spec || echo "orientation = portrait" >> buildozer.spec
-          # Build - Isme 15-20 min lagega
-          buildozer -v android debug
-          
-      - name: Upload APK Artifact
+        run: flet build apk
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Volume-King-APK-Final
-          path: bin/*.apk
-          if-no-files-found: error
+          path: build/apk
