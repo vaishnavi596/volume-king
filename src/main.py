@@ -96,7 +96,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),20,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=14,padding=12,expand=True)
-        return [heading("Market Dashboard • YAHOO PREVIEW"),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
+        return [heading("Market Dashboard • YAHOO PREVIEW"),dashboard_positions(),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
@@ -255,28 +255,71 @@ def app_main(page:ft.Page):
         chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
         page.update()
     chart_quantity=ft.TextField(label="Paper quantity",value="1",width=140,keyboard_type=ft.KeyboardType.NUMBER)
-    chart_position={"side":None,"symbol":None,"entry":None,"qty":0}
-    chart_paper_status=txt("Paper position: FLAT",12,MUTED)
+    chart_sl=ft.TextField(label="Stop loss % (paper)",value="2",width=150,keyboard_type=ft.KeyboardType.NUMBER)
+    chart_target=ft.TextField(label="Target % (paper)",value="4",width=150,keyboard_type=ft.KeyboardType.NUMBER)
+    chart_paper_status=txt("Paper trading • no real orders",12,MUTED)
+    def open_positions():
+        return prefs.setdefault("paper_positions",{})
+    def trade_history():
+        return prefs.setdefault("paper_history",[])
+    def position_pnl(p):
+        price=(quotes.get(p["symbol"]) or {}).get("price")
+        if price is None:return None
+        return (float(price)-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1)
+    def exit_paper(sym):
+        p=open_positions().pop(sym,None)
+        if p:
+            pnl=position_pnl(p)
+            trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":(quotes.get(sym) or {}).get("price"),"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds")})
+            save()
+        select(current[0])
     def chart_paper_trade(side):
+        sym=symbol.value
         if side=="EXIT":
-            chart_position.update(side=None,symbol=None,entry=None,qty=0)
-            chart_paper_status.value="Paper position closed."
+            if sym in open_positions():
+                exit_paper(sym)
+                chart_paper_status.value="Paper position closed."
+            else:chart_paper_status.value="No open position for "+sym
         else:
             try:
                 qty=int(chart_quantity.value)
-                price=(quotes.get(symbol.value) or {}).get("price")
-                if qty<1 or qty>100000 or price is None:raise ValueError()
-                chart_position.update(side=side,symbol=symbol.value,entry=float(price),qty=qty)
-                chart_paper_status.value="Paper "+side+" recorded. No real order."
+                price=(quotes.get(sym) or {}).get("price")
+                sl_pct=float(chart_sl.value);target_pct=float(chart_target.value)
+                if qty<1 or qty>100000 or price is None or not (0<sl_pct<=100 and 0<target_pct<=100):raise ValueError()
+                if sym in open_positions():
+                    chart_paper_status.value="Position already open for "+sym+". Exit first."
+                    select(2)
+                    return
+                price=float(price)
+                sl_price=price*(1-sl_pct/100 if side=="BUY" else 1+sl_pct/100)
+                target_price=price*(1+target_pct/100 if side=="BUY" else 1-target_pct/100)
+                open_positions()[sym]={"symbol":sym,"side":side,"entry":price,"qty":qty,"sl":sl_price,"target":target_price,"time":datetime.now().isoformat(timespec="seconds")}
+                trade_history().append({"event":side,"symbol":sym,"side":side,"qty":qty,"price":price,"time":datetime.now().isoformat(timespec="seconds")})
+                saved=save()
+                chart_paper_status.value="Paper "+side+" recorded"+(" and saved." if saved else " (storage unavailable).")
             except (ValueError,TypeError):
-                chart_paper_status.value="Valid quantity and available quote required."
+                chart_paper_status.value="Valid quantity, SL, target and available quote required."
         select(2)
     def chart_position_text():
-        p=chart_position
-        if not p["side"]:return "Paper position: FLAT"
-        price=(quotes.get(p["symbol"]) or {}).get("price")
-        pnl="P&L unavailable" if price is None else "Unrealized P&L ₹"+format((price-p["entry"])*p["qty"]*(1 if p["side"]=="BUY" else -1),",.2f")
-        return "Paper "+p["side"]+" "+p["symbol"]+" ×"+str(p["qty"])+" @ ₹"+format(p["entry"],",.2f")+" • "+pnl
+        p=open_positions().get(symbol.value)
+        if not p:return "Paper position: FLAT"
+        pnl=position_pnl(p)
+        return "Paper "+p["side"]+" "+p["symbol"]+" ×"+str(p["qty"])+" @ ₹"+format(p["entry"],",.2f")+" • "+("P&L unavailable" if pnl is None else "Unrealized P&L ₹"+format(pnl,",.2f"))
+    def dashboard_positions():
+        controls=[]
+        total=0.0;missing=False
+        for sym,p in open_positions().items():
+            pnl=position_pnl(p)
+            if pnl is None:missing=True
+            else:total+=pnl
+            controls.append(ft.Column([txt(sym+" • "+p["side"]+" ×"+str(p["qty"]),14,GOLD,True),note("Entry ₹"+format(p["entry"],",.2f")+" • SL ₹"+format(p["sl"],",.2f")+" • Target ₹"+format(p["target"],",.2f)),note("P&L unavailable" if pnl is None else "Unrealized P&L ₹"+format(pnl,",.2f")),ft.OutlinedButton("Exit "+sym,on_click=lambda e,v=sym:exit_paper(v))]))
+        if not controls:controls.append(note("No open paper positions"))
+        controls.append(txt("Total unrealized P&L "+("partially unavailable • " if missing else "")+"₹"+format(total,",.2f"),14,GOLD,True))
+        history=trade_history()[-10:]
+        controls.append(txt("Recent paper orders",15,GOLD,True))
+        for h in reversed(history):
+            controls.append(note(h.get("time","")+" • "+h.get("event","")+" "+h.get("symbol","")+" ×"+str(h.get("qty",""))))
+        return section("My Positions • Paper Only",ft.Column(controls,spacing=9))
     def charts():
         content=[heading("Charts • Technical Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_chart_tab(v),style=ft.ButtonStyle(color=GOLD if chart_tab[0]==n else MUTED)) for n in ["Chart","Indicators","Drawing","Compare","Levels","Signals"]],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),ft.ElevatedButton("Apply / Refresh",on_click=lambda e:page.run_task(load_chart),bgcolor=GOLD,color=BG)]
         if chart_tab[0]=="Chart":
@@ -284,7 +327,7 @@ def app_main(page:ft.Page):
                 txt("₹ "+quote_price(symbol.value),26,GOLD,True),
                 txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
                 note("Yahoo preview • delayed or unavailable"),
-                chart_quantity,
+                ft.Row([chart_quantity,chart_sl,chart_target],wrap=True),
                 ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:chart_paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:chart_paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("Exit",on_click=lambda e:chart_paper_trade("EXIT"))],wrap=True),
                 txt(chart_position_text(),12,GOLD),chart_paper_status,
                 note("Simulation only • no real orders")
