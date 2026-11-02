@@ -1,836 +1,93 @@
-
 import flet as ft
-import asyncio
 import json
-import urllib.request
-from datetime import datetime
+from pathlib import Path
 
-BG = "#050C16"
-CARD = "#0C1D30"
-GOLD = "#FFC928"
-MUTED = "#9EB1C4"
-GREEN = "#22C55E"
-RED = "#EF4444"
+BG="#050C16"; PANEL="#0B1B2C"; PANEL2="#10283A"; GOLD="#FFC400"; GREEN="#21D39B"; RED="#FF617A"; WHITE="#F1F5FA"; MUTED="#94A7B9"
+STATE=Path.home()/".bot_king_settings.json"
 
-NIFTY50 = [
-    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT",
-    "AXISBANK", "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV",
-    "BEL", "BHARTIARTL", "CIPLA", "COALINDIA",
-    "DRREDDY", "EICHERMOT", "ETERNAL", "GRASIM",
-    "HCLTECH", "HDFCBANK", "HDFCLIFE", "HINDALCO",
-    "HINDUNILVR", "ICICIBANK", "INDUSINDBK", "INFY",
-    "ITC", "JIOFIN", "JSWSTEEL", "KOTAKBANK",
-    "LT", "M&M", "MARUTI", "NESTLEIND",
-    "NTPC", "ONGC", "POWERGRID", "RELIANCE",
-    "SBILIFE", "SBIN", "SHRIRAMFIN", "SUNPHARMA",
-    "TATACONSUM", "TATAMOTORS", "TATASTEEL", "TCS",
-    "TECHM", "TITAN", "TRENT", "ULTRACEMCO",
-    "WIPRO", "MAXHEALTH"
-]
-
-INDEX_SYMBOLS = {
-    "NIFTY": "^NSEI",
-    "BANKNIFTY": "^NSEBANK",
-    "SENSEX": "^BSESN"
-}
-
-
-def yahoo_symbol(symbol):
-    symbol = symbol.strip().upper()
-    if symbol in INDEX_SYMBOLS:
-        return INDEX_SYMBOLS[symbol]
-    if symbol.startswith("^"):
-        return symbol
-    return symbol + ".NS"
-
-
-def fetch_yahoo(symbol, interval="5m", period="1d"):
-    url = (
-        "https://query1.finance.yahoo.com/v8/finance/chart/"
-        + yahoo_symbol(symbol)
-        + f"?range={period}&interval={interval}"
-    )
-
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"}
-    )
-
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-
-def get_quote(symbol):
+def main(page:ft.Page):
+    page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
+    page.window_width=420; page.window_height=850
+    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Yahoo Finance","api_url":"","api_key":""}
     try:
-        data = fetch_yahoo(symbol)
-        result = data["chart"]["result"][0]
-        meta = result["meta"]
-
-        price = meta.get("regularMarketPrice")
-        previous = (
-            meta.get("chartPreviousClose")
-            or meta.get("previousClose")
-        )
-
-        if price is None:
-            return None
-
-        change = None
-        if previous:
-            change = ((price - previous) / previous) * 100
-
-        return {
-            "price": float(price),
-            "change": change
-        }
-    except Exception:
-        return None
-
-
-def get_candles(symbol, interval):
-    data = fetch_yahoo(symbol, interval, "1d")
-    result = data["chart"]["result"][0]
-
-    timestamps = result.get("timestamp", [])
-    quote = result["indicators"]["quote"][0]
-
-    rows = []
-
-    for i, stamp in enumerate(timestamps):
+        if STATE.exists(): prefs.update(json.loads(STATE.read_text()))
+    except Exception: pass
+    def save():
+        try: STATE.write_text(json.dumps(prefs))
+        except Exception: pass
+    def txt(s,size=14,color=WHITE,bold=False):
+        return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
+    def card(*children):
+        return ft.Container(content=ft.Column(list(children),spacing=12),bgcolor=PANEL,border_radius=18,padding=16,border=ft.border.all(1,"#18364B"))
+    def heading(s):return txt(s,22,WHITE,True)
+    def pill(s,selected=False):
+        return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
+    def note(s):return txt(s,12,MUTED)
+    def unavailable(s):return txt("NO LIVE DATA — "+s,13,RED)
+    def section(title,child):return card(txt(title,17,GOLD,True),child)
+    def dashboard():
+        def index(name):
+            return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt("—",25,GOLD,True),note("Waiting for verified market feed")]),bgcolor=PANEL2,border_radius=14,padding=12,expand=True)
+        return [heading("Market Dashboard"),ft.Row([pill("NIFTY 50",True),pill("BANK NIFTY"),pill("FIN NIFTY")],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt("NIFTY 50",20,WHITE,True),pill("OFFLINE")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt("—",36,GOLD,True),unavailable("connect a verified quote API"),ft.Row([note("High: —"),note("Low: —"),note("Volume: —")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Row([pill("OI Data"),pill("Scanner"),pill("Signals"),pill("Paper Trade")],wrap=True)),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
+    search=ft.TextField(hint_text="Search symbol (e.g. RELIANCE)",border_color="#294158",color=WHITE,bgcolor=PANEL2)
+    watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC"]
+    watch_list=ft.Column(spacing=8)
+    def fill_watch(_=None):
+        watch_list.controls.clear()
+        for sym in watch_symbols:
+            if search.value and search.value.upper() not in sym:continue
+            watch_list.controls.append(ft.Container(content=ft.Row([ft.Icon(ft.Icons.STAR_BORDER,color=GOLD),ft.Column([txt(sym,15,WHITE,True),note("NSE")],expand=True,spacing=1),ft.Column([txt("—",16,GOLD,True),note("No quote")],horizontal_alignment=ft.CrossAxisAlignment.END)]),bgcolor=PANEL,border_radius=12,padding=14))
+        page.update()
+    search.on_change=fill_watch
+    def watchlist():
+        fill_watch()
+        return [ft.Row([heading("Watchlist"),pill("NIFTY 50",True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),search,ft.Row([pill("All",True),pill("Bullish"),pill("Bearish"),pill("Neutral")],scroll=ft.ScrollMode.AUTO),unavailable("quotes and classifications unavailable"),watch_list]
+    symbol=ft.Dropdown(label="Symbol",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
+    timeframe=ft.Dropdown(label="Timeframe",value="5m",options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
+    ema=ft.Switch(label="EMA 20 / 50",value=True,active_color=GREEN)
+    vwap=ft.Switch(label="VWAP",value=True,active_color=GREEN)
+    rsi=ft.Switch(label="RSI",value=False,active_color=GREEN)
+    def charts():
+        return [heading("Chart Analytics"),ft.Row([pill("Chart",True),pill("Indicators"),pill("Drawing"),pill("Compare")],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),card(ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=72,color=GOLD),heading("Candlestick chart"),unavailable("OHLCV feed not connected"),note("No fabricated candles or indicators")],horizontal_alignment=ft.CrossAxisAlignment.CENTER,alignment=ft.MainAxisAlignment.CENTER),height=280,alignment=ft.alignment.center)),section("Indicators",ft.Column([ema,vwap,rsi])),section("Analysis",note("EMA, RSI and VWAP will be calculated from validated candles after connecting a market data provider."))]
+    chain_symbol=ft.Dropdown(label="Index",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY"]],expand=True)
+    expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",hint_text="Choose actual expiry",expand=True)
+    def options():
+        return [heading("Options Chain"),ft.Row([chain_symbol,expiry]),card(ft.Row([pill("PCR —"),pill("Total OI —"),pill("Chg OI —")],wrap=True),unavailable("licensed option-chain API required")),card(ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Divider(color="#294158"),note("OI     LTP       —       LTP     OI"),unavailable("no option prices or strikes received")),section("Premium Money Flow",note("Traded value: —   PCR: —   Highest CE/PE OI: —")),section("Option Signals",unavailable("no validated live data / backtest"))]
+    mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x) for x in ["Paper","Manual","Semi-Auto","Auto"]])
+    source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Yahoo Finance","Broker API"]])
+    api_url=ft.TextField(label="Broker API base URL",value=prefs["api_url"])
+    api_key=ft.TextField(label="API key (local only)",value=prefs["api_key"],password=True,can_reveal_password=True)
+    sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
+    target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
+    limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
+    conf=ft.Slider(min=70,max=85,divisions=15,value=prefs["confidence"],label="{value}%")
+    status=txt("Trading disabled until authenticated API, validation and explicit confirmation.",12,RED)
+    def save_settings(_):
         try:
-            close = quote["close"][i]
-            if close is None:
-                continue
-
-            rows.append({
-                "time": datetime.fromtimestamp(stamp).strftime("%H:%M"),
-                "open": float(quote["open"][i] or 0),
-                "high": float(quote["high"][i] or 0),
-                "low": float(quote["low"][i] or 0),
-                "close": float(close),
-                "volume": int(quote["volume"][i] or 0)
-            })
+            stop=float(sl.value);take=float(target.value);count=int(limit.value)
+            if not (0<stop<=100 and 0<take<=100 and 1<=count<=50):raise ValueError()
+            prefs.update(mode=mode.value,source=source.value,api_url=api_url.value,api_key=api_key.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value))
+            save();status.value="Preferences saved locally. Live orders remain disabled.";status.color=GREEN
         except Exception:
-            continue
-
-    return rows
-
-
-def main(page: ft.Page):
-    page.title = "BOT KING"
-    page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = BG
-    page.padding = 0
-    page.scroll = ft.ScrollMode.HIDDEN
-    page.spacing = 0
-
-    bluechips = ["RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY", "BHARTIARTL", "ITC", "LT", "SBIN", "HINDUNILVR", "KOTAKBANK", "AXISBANK", "MARUTI", "SUNPHARMA", "TITAN"]
-    watchlist = bluechips + [s for s in NIFTY50 if s not in bluechips]
-    watch_visible_count = 10
-    quotes = {}
-    trades = []
-    active_page = "Dashboard"
-    alerts_enabled = False
-    selected_broker = "None"
-    scanner_threshold = 75
-
-    status = ft.Text("BOT KING तैयार है", color=MUTED, size=11)
-    body = ft.ListView(spacing=12, expand=True, padding=ft.padding.symmetric(horizontal=12, vertical=12), auto_scroll=False)
-
-    add_symbol = ft.TextField(
-        label="Stock Symbol",
-        hint_text="जैसे TATAMOTORS",
-        width=205
-    )
-
-    chart_symbol = ft.TextField(
-        label="Chart Symbol",
-        value="NIFTY",
-        width=160
-    )
-
-    timeframe = ft.Dropdown(
-        label="Timeframe",
-        value="5m",
-        width=120,
-        options=[
-            ft.dropdown.Option(x)
-            for x in ["1m", "5m", "15m", "30m", "60m"]
-        ]
-    )
-
-    option_symbol = ft.TextField(
-        label="Options Symbol",
-        value="NIFTY",
-        width=160
-    )
-
-    trade_symbol = ft.TextField(
-        label="Symbol",
-        value="NIFTY",
-        width=150
-    )
-
-    trade_side = ft.Dropdown(
-        label="CE / PE",
-        value="CE",
-        width=100,
-        options=[
-            ft.dropdown.Option("CE"),
-            ft.dropdown.Option("PE")
-        ]
-    )
-
-    premium = ft.TextField(
-        label="Premium",
-        value="100",
-        width=120
-    )
-
-    quantity = ft.TextField(
-        label="Quantity",
-        value="1",
-        width=100
-    )
-
-    broker_dropdown = ft.Dropdown(label="Broker / Data Provider", value="None", options=[ft.dropdown.Option(x) for x in ["None", "Angel One", "Dhan", "Zerodha", "Upstox", "Custom"]])
-    api_secret = ft.TextField(label="API Secret (do not enter yet)", password=True)
-    redirect_url = ft.TextField(label="Redirect URL")
-    api_key = ft.TextField(
-        label="Angel One API Key",
-        password=True,
-        can_reveal_password=True
-    )
-
-    client_code = ft.TextField(label="Client Code")
-
-    pin = ft.TextField(
-        label="PIN",
-        password=True,
-        can_reveal_password=True
-    )
-
-    totp = ft.TextField(
-        label="TOTP",
-        password=True,
-        can_reveal_password=True
-    )
-
-    watch_column = ft.Column(spacing=8)
-    chart_column = ft.Column(spacing=6)
-    option_column = ft.Column(spacing=8)
-    trade_column = ft.Column(spacing=8)
-    quote_cards = ft.Column(spacing=8)
-
-    def make_card(title, value, subtitle=""):
-        return ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text(title, color=MUTED, size=11),
-                    ft.Text(
-                        value,
-                        color=GOLD,
-                        size=20,
-                        weight=ft.FontWeight.BOLD
-                    ),
-                    ft.Text(subtitle, color=MUTED, size=10)
-                ],
-                spacing=3
-            ),
-            bgcolor=CARD,
-            padding=16,
-            border=ft.border.all(1, "#24425C"),
-            border_radius=12,
-            width=float("inf")
-        )
-
-    async def refresh_market(e=None):
-        status.value = "Market data अपडेट हो रहा है..."
+            status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
         page.update()
-
-        symbols = ["NIFTY", "BANKNIFTY", "SENSEX"]
-
-        results = await asyncio.gather(
-            *[
-                asyncio.to_thread(get_quote, symbol)
-                for symbol in symbols
-            ],
-            return_exceptions=True
-        )
-
-        for symbol, result in zip(symbols, results):
-            if isinstance(result, dict):
-                quotes[symbol] = result
-
-        status.value = "Market refresh पूरा हुआ"
-        render()
-
-    async def load_quote(symbol):
-        status.value = f"{symbol} लोड हो रहा है..."
+    def settings():
+        return [heading("Settings & Trading Bot"),section("Trading Mode",ft.Column([mode,note("Paper is simulation. Live order execution is NOT implemented.")])),section("Risk Management",ft.Column([ft.Row([sl,target]),limit,txt("Signal confidence filter (70–85%)",14),conf,note("Bullish/Bearish confidence is not available without validated signals")])),section("Market Data & API",ft.Column([source,api_url,api_key,note("Never publish API secrets in GitHub. Credentials here are local app preferences; use secure storage for production.")])),ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("No real-money orders, auto-trading, guaranteed signals, or invented live prices. Broker integration requires a separate authenticated backend."))]
+    pages=[dashboard,watchlist,charts,options,settings]
+    icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS]
+    names=["Dashboard","Watchlist","Charts","Options","Settings"]
+    body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=16)
+    navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_AROUND)
+    current=[0]
+    def select(i):
+        current[0]=i
+        body.controls.clear()
+        body.controls.extend(pages[i]())
+        navbar.controls.clear()
+        for j in range(5):
+            navbar.controls.append(ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=23),txt(names[j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=3),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=6)))
         page.update()
-
-        result = await asyncio.to_thread(get_quote, symbol)
-
-        if result:
-            quotes[symbol] = result
-            status.value = f"{symbol} अपडेट हुआ"
-        else:
-            status.value = f"{symbol}: डेटा उपलब्ध नहीं"
-
-        render()
-
-    async def load_chart(e=None):
-        chart_column.controls = [
-            ft.Text("Chart लोड हो रहा है...", color=MUTED)
-        ]
-        page.update()
-
-        try:
-            rows = await asyncio.to_thread(
-                get_candles,
-                chart_symbol.value,
-                timeframe.value
-            )
-
-            if not rows:
-                raise ValueError("No chart data")
-
-            values = [row["close"] for row in rows]
-            low = min(values)
-            high = max(values)
-            blocks = "▁▂▃▄▅▆▇█"
-
-            sparkline = "".join(
-                blocks[
-                    min(7, int((value - low) / (high - low) * 7))
-                ] if high > low else "▄"
-                for value in values
-            )
-
-            chart_column.controls = [
-                ft.Text(sparkline, size=24, color=GOLD),
-                ft.Text(
-                    "Time  Open  High  Low  Close  Volume",
-                    size=10,
-                    color=MUTED
-                )
-            ]
-
-            for row in rows[-15:]:
-                chart_column.controls.append(
-                    ft.Text(
-                        f'{row["time"]}  {row["open"]:.2f}  '
-                        f'{row["high"]:.2f}  {row["low"]:.2f}  '
-                        f'{row["close"]:.2f}  {row["volume"]}',
-                        size=10
-                    )
-                )
-
-        except Exception:
-            chart_column.controls = [
-                ft.Text(
-                    "NO DATA • Chart data उपलब्ध नहीं है।",
-                    color=RED
-                )
-            ]
-
-        page.update()
-
-    async def load_options(e=None):
-        option_column.controls = [
-            ft.Text(
-                "NO DATA • असली Options Chain API अभी नहीं जुड़ी है।",
-                color=RED
-            ),
-            ft.Text(
-                "Strike, Premium, OI और PCR के लिए "
-                "विश्वसनीय डेटा स्रोत जोड़ना बाकी है।",
-                color=MUTED,
-                size=11
-            )
-        ]
-        page.update()
-
-    def buy_paper_trade(e):
-        try:
-            price = float(premium.value)
-            qty = int(quantity.value)
-
-            if price <= 0 or qty <= 0:
-                raise ValueError()
-
-            trades.append({
-                "symbol": trade_symbol.value.strip().upper(),
-                "side": trade_side.value,
-                "qty": qty,
-                "entry": price,
-                "exit": None
-            })
-
-            status.value = "Paper trade खुल गया"
-            render()
-
-        except Exception:
-            status.value = "Premium और Quantity सही डालें"
-            page.update()
-
-    def exit_paper_trade(index):
-        try:
-            price = float(premium.value)
-
-            if price <= 0:
-                raise ValueError()
-
-            trades[index]["exit"] = price
-            status.value = "Paper trade बंद हुआ"
-            render()
-
-        except Exception:
-            status.value = "Exit Premium सही डालें"
-            page.update()
-
-    def add_stock(e):
-        symbol = add_symbol.value.strip().upper()
-
-        if symbol and symbol not in watchlist:
-            watchlist.append(symbol)
-            add_symbol.value = ""
-            render()
-        else:
-            status.value = "Symbol खाली है या पहले से मौजूद है"
-            page.update()
-
-    def remove_stock(symbol):
-        if symbol in watchlist:
-            watchlist.remove(symbol)
-        render()
-
-    def toggle_alert(e):
-        nonlocal alerts_enabled
-        alerts_enabled = e.control.value
-
-        status.value = (
-            "Paper Alerts ON"
-            if alerts_enabled else "Paper Alerts OFF"
-        )
-        page.update()
-
-    def connect_angel_one(e):
-        status.value = (
-            "Broker का सुरक्षित Backend अभी तैयार नहीं है। "
-            "अभी कोई कनेक्शन नहीं हुआ।"
-        )
-        page.update()
-
-    def show_more_watchlist(e):
-        nonlocal watch_visible_count
-        watch_visible_count = min(len(watchlist), watch_visible_count + 10)
-        render()
-
-    def show_page(name):
-        nonlocal active_page
-        active_page = name
-        render()
-
-    def render():
-        body.controls = []
-
-        if active_page == "Dashboard":
-            quote_cards.controls = []
-
-            for symbol in ["NIFTY", "BANKNIFTY", "SENSEX"]:
-                quote = quotes.get(symbol)
-
-                if quote:
-                    change = (
-                        f'{quote["change"]:+.2f}%'
-                        if quote["change"] is not None
-                        else "Change N/A"
-                    )
-
-                    quote_cards.controls.append(
-                        make_card(
-                            symbol,
-                            f'{quote["price"]:,.2f}',
-                            change
-                        )
-                    )
-                else:
-                    quote_cards.controls.append(
-                        make_card(symbol, "NO DATA", "Refresh दबाएँ")
-                    )
-
-            body.controls = [
-                ft.Row([
-                    ft.Text("Dashboard", size=22, weight=ft.FontWeight.BOLD, expand=True),
-                    ft.Container(content=ft.Text("MARKET DATA", size=10, color=GOLD),
-                                 padding=8, bgcolor=CARD, border_radius=8)
-                ]),
-                quote_cards,
-                ft.Container(
-                    content=ft.Column([
-                        ft.Row([ft.Icon(ft.icons.TRENDING_UP, color=GOLD, size=20),
-                                ft.Text("Market Sentiment", size=17, weight=ft.FontWeight.BOLD)]),
-                        ft.Text("Bullish / Bearish: NO DATA", color=MUTED, size=14),
-                        ft.Text("Confidence 70–85% • डेटा और बैकटेस्ट जुड़ने के बाद", color=GOLD, size=11),
-                    ], spacing=10), bgcolor=CARD, padding=16,
-                    border=ft.border.all(1, "#24425C"), border_radius=12
-                ),
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("Market Breadth & NIFTY Setup", size=16, weight=ft.FontWeight.BOLD, color=GOLD),
-                        ft.Text("Support / Resistance • Volume • OI • Trend", color=MUTED, size=12),
-                        ft.Text("NO DATA — सत्यापित डेटा स्रोत की आवश्यकता है।", color=RED, size=11)
-                    ], spacing=8), bgcolor=CARD, padding=16,
-                    border=ft.border.all(1, "#24425C"), border_radius=12
-                ),
-                ft.Row([
-                    ft.ElevatedButton("Refresh Market", on_click=refresh_market, bgcolor=GOLD, color=BG),
-                    ft.Text("Delayed / unofficial feed", color=MUTED, size=10)
-                ], wrap=True),
-                ft.Text("Yahoo Finance आधिकारिक NSE/BSE लाइव फीड नहीं है।", color=MUTED, size=11)
-            ]
-
-        elif active_page == "Watchlist":
-            watch_column = ft.Column(spacing=8)
-
-            body.controls = [
-                ft.Text(
-                    "NIFTY 50 Watchlist",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Text(
-                    f"कुल शेयर: {len(watchlist)}",
-                    color=GOLD
-                ),
-                ft.Row(
-                    [
-                        add_symbol,
-                        ft.ElevatedButton(
-                            "Add",
-                            on_click=add_stock,
-                            bgcolor=GOLD,
-                            color=BG
-                        )
-                    ],
-                    wrap=False
-                ),
-                watch_column
-            ]
-
-            for symbol in watchlist[:watch_visible_count]:
-                quote = quotes.get(symbol)
-
-                price = (
-                    f'{quote["price"]:,.2f}'
-                    if quote else "--"
-                )
-
-                change = (
-                    f'{quote["change"]:+.2f}%'
-                    if quote and quote["change"] is not None
-                    else "भाव के लिए Load दबाएँ"
-                )
-
-                watch_column.controls.append(
-                    ft.Container(
-                        content=ft.Row(
-                            [
-                                ft.Column(
-                                    [
-                                        ft.Text(
-                                            symbol,
-                                            weight=ft.FontWeight.BOLD
-                                        ),
-                                        ft.Text(
-                                            change,
-                                            size=10,
-                                            color=MUTED
-                                        )
-                                    ],
-                                    expand=True,
-                                    spacing=2
-                                ),
-                                ft.Text(price, color=GOLD),
-                                ft.TextButton(
-                                    "Load",
-                                    on_click=lambda e, s=symbol:
-                                        page.run_task(load_quote, s)
-                                ),
-                                ft.TextButton(
-                                    "×",
-                                    on_click=lambda e, s=symbol:
-                                        remove_stock(s)
-                                )
-                            ]
-                        ),
-                        bgcolor=CARD,
-                        padding=8,
-                        border_radius=8
-                    )
-                )
-
-            if watch_visible_count < len(watchlist):
-                watch_column.controls.append(ft.ElevatedButton(
-                    f"और शेयर दिखाएँ ({watch_visible_count}/{len(watchlist)})",
-                    on_click=show_more_watchlist, bgcolor=GOLD, color=BG
-                ))
-
-        elif active_page == "Charts":
-            body.controls = [
-                ft.Text(
-                    "Market Charts",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Row(
-                    [chart_symbol, timeframe],
-                    wrap=True
-                ),
-                ft.ElevatedButton(
-                    "Load Chart",
-                    on_click=load_chart,
-                    bgcolor=GOLD,
-                    color=BG
-                ),
-                chart_column
-            ]
-
-        elif active_page == "Options":
-            body.controls = [
-                ft.Text(
-                    "Options Chain",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Row(
-                    [
-                        option_symbol,
-                        ft.ElevatedButton(
-                            "Load Chain",
-                            on_click=load_options,
-                            bgcolor=GOLD,
-                            color=BG
-                        )
-                    ],
-                    wrap=True
-                ),
-                option_column,
-                ft.Container(content=ft.Column([ft.Text("OI & Premium Money Flow", color=GOLD, size=16, weight=ft.FontWeight.BOLD), ft.Text("Highest CE/PE OI • Change in OI • Traded Value • PCR", color=MUTED), ft.Text("NO DATA — Options Chain API आवश्यक है।", color=RED, size=11)], spacing=6), bgcolor=CARD, padding=12, border_radius=12)
-            ]
-
-        elif active_page == "Paper":
-            opened = sum(
-                trade["exit"] is None for trade in trades
-            )
-
-            pnl = sum(
-                (trade["exit"] - trade["entry"]) * trade["qty"]
-                for trade in trades
-                if trade["exit"] is not None
-            )
-
-            trade_column.controls = [
-                make_card("Open Trades", str(opened)),
-                make_card("Realized P&L", f"₹{pnl:,.2f}"),
-                ft.Text(
-                    "नया Paper Trade",
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Row([trade_symbol, trade_side], wrap=True),
-                ft.Row([premium, quantity], wrap=True),
-                ft.ElevatedButton(
-                    "BUY (PAPER)",
-                    on_click=buy_paper_trade,
-                    bgcolor=GOLD,
-                    color=BG
-                ),
-                ft.Text(
-                    "Trade History",
-                    weight=ft.FontWeight.BOLD
-                )
-            ]
-
-            for i, trade in enumerate(trades):
-                line = (
-                    f'{trade["symbol"]} {trade["side"]} | '
-                    f'Qty {trade["qty"]} | '
-                    f'Entry ₹{trade["entry"]:.2f}'
-                )
-
-                if trade["exit"] is None:
-                    trade_column.controls.append(
-                        ft.Row(
-                            [
-                                ft.Text(line, size=11, expand=True),
-                                ft.TextButton(
-                                    "Exit",
-                                    on_click=lambda e, j=i:
-                                        exit_paper_trade(j)
-                                )
-                            ]
-                        )
-                    )
-                else:
-                    value = (
-                        trade["exit"] - trade["entry"]
-                    ) * trade["qty"]
-
-                    trade_column.controls.append(
-                        ft.Text(
-                            line
-                            + f' | Exit ₹{trade["exit"]:.2f}'
-                            + f' | P&L ₹{value:,.2f}',
-                            size=11,
-                            color=GREEN if value >= 0 else RED
-                        )
-                    )
-
-            if not trades:
-                trade_column.controls.append(
-                    ft.Text(
-                        "अभी कोई Paper Trade नहीं है।",
-                        color=MUTED
-                    )
-                )
-
-            body.controls = [
-                ft.Text(
-                    "Paper Trading",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                trade_column,
-                ft.Text(
-                    "यह केवल simulation है। वास्तविक order नहीं जाता। "
-                    "ऐप बंद होने पर trades reset हो सकते हैं।",
-                    size=10,
-                    color=MUTED
-                )
-            ]
-
-        elif active_page == "Alerts":
-            body.controls = [
-                ft.Text(
-                    "Alerts",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Switch(
-                    label="Paper Alerts ON/OFF",
-                    value=alerts_enabled,
-                    on_change=toggle_alert
-                ),
-                ft.Text(
-                    "Push notifications अभी शामिल नहीं हैं।",
-                    color=MUTED,
-                    size=11
-                )
-            ]
-
-        elif active_page == "Settings":
-            body.controls = [
-                ft.Text("Settings & Trading Tools", size=20, weight=ft.FontWeight.BOLD, color=GOLD),
-                ft.Container(content=ft.Column([
-                    ft.Text("Market Scanner", size=17, weight=ft.FontWeight.BOLD),
-                    ft.Text("Bullish / Bearish • Breakout • Volume • Market Breadth • No-Trade Zone", size=12, color=MUTED),
-                    ft.Text("Signal confidence filter: 70%–85% (planned)", color=GOLD),
-                    ft.Text("NO DATA — सत्यापित लाइव डेटा और बैकटेस्ट के बिना कोई प्रतिशत या ट्रेड सिग्नल नहीं दिखाया जाएगा।", color=RED, size=11),
-                ], spacing=8), bgcolor=CARD, padding=14, border_radius=12),
-                ft.Container(content=ft.Column([
-                    ft.Text("Paper Trading", size=17, weight=ft.FontWeight.BOLD),
-                    ft.ElevatedButton("Open Paper Trading", on_click=lambda e: show_page("Paper"), bgcolor=GOLD, color=BG),
-                    ft.Text("केवल simulation; असली ऑर्डर नहीं।", color=MUTED, size=11),
-                ]), bgcolor=CARD, padding=14, border_radius=12),
-                ft.Container(content=ft.Column([
-                    ft.Text("Alerts & Notifications", size=17, weight=ft.FontWeight.BOLD),
-                    ft.Switch(label="Paper Alerts ON/OFF", value=alerts_enabled, on_change=toggle_alert),
-                    ft.Text("अभी Push Notifications सक्रिय नहीं हैं।", color=MUTED, size=11),
-                ]), bgcolor=CARD, padding=14, border_radius=12),
-                ft.Container(content=ft.Column([
-                    ft.Text("Broker & API Integration", size=17, weight=ft.FontWeight.BOLD),
-                    broker_dropdown,
-                    ft.Text("Available: Angel One, Dhan, Zerodha, Upstox, Custom", color=MUTED, size=11),
-                    ft.Text("NOT CONNECTED • केवल UI; अभी असली credentials न डालें।", color=RED, size=11),
-                    ft.ElevatedButton("Connection Status", on_click=connect_angel_one, bgcolor=GOLD, color=BG),
-                    ft.Text("API Key / Secret / PIN / TOTP के लिए सुरक्षित server-side login बाद में जोड़ा जाएगा।", color=MUTED, size=11),
-                ]), bgcolor=CARD, padding=14, border_radius=12),
-                ft.Container(content=ft.Column([
-                    ft.Text("Bot Risk Controls • DEMO ONLY", size=17, weight=ft.FontWeight.BOLD, color=GOLD),
-                    ft.Text("Signal threshold: 70%–95% • News 20% • Options direction 40% • Premium flow 40%", color=MUTED, size=11),
-                    ft.Text("Entry premium ₹80–₹100 • SL 2%–3% • Target / trailing SL • Max daily loss", color=MUTED, size=11),
-                    ft.Text("AUTO ORDERS OFF — ये केवल प्रस्तावित नियम हैं; लाइव ट्रेडिंग चालू नहीं है।", color=RED, size=11),
-                    ft.Text("Yahoo fallback: चार्ट के लिए, ऑर्डर भेजने के लिए नहीं।", color=MUTED, size=11),
-                ], spacing=8), bgcolor=CARD, padding=14, border_radius=12),
-                ft.Text("BOT KING • Classic Dark & Gold", color=MUTED, size=11),
-            ]
-
-        page.update()
-
-    tabs = [
-        ("Home", ft.icons.DASHBOARD),
-        ("Watchlist", ft.icons.STAR),
-        ("Charts", ft.icons.SHOW_CHART),
-        ("Options", ft.icons.LIST_ALT),
-        ("Settings", ft.icons.SETTINGS),
-    ]
-
-    def on_navigation_change(e):
-        index = e.control.selected_index
-        if 0 <= index < len(tabs):
-            show_page("Dashboard" if index == 0 else tabs[index][0])
-
-    page.navigation_bar = ft.NavigationBar(
-        selected_index=0,
-        destinations=[
-            ft.NavigationBarDestination(icon=icon, label=name)
-            for name, icon in tabs
-        ],
-        on_change=on_navigation_change,
-        bgcolor="#071525",
-        indicator_color="#18334B",
-        height=72,
-    )
-
-    page.add(
-        ft.SafeArea(
-            content=ft.Column(
-                [
-                    ft.Container(
-                        content=ft.Column(
-                            [
-                                ft.Text("♛ BOT KING", size=25,
-                                        weight=ft.FontWeight.BOLD, color=GOLD),
-                                status,
-                            ],
-                            spacing=2,
-                        ),
-                        padding=ft.padding.only(left=16, right=16, top=10, bottom=12),
-                    ),
-                    body,
-                ],
-                expand=True,
-                spacing=0,
-            ),
-            expand=True,
-        )
-    )
-
-    original_render = render
-
-    def render():
-        try:
-            original_render()
-        except Exception as exc:
-            body.controls = [ft.Text("Screen error", color=RED), ft.Text(str(exc), selectable=True, color=MUTED), ft.ElevatedButton("Dashboard", on_click=lambda e: show_page("Dashboard"))]
-        page.navigation_bar.selected_index = next(
-            (i for i, (name, _) in enumerate(tabs) if name == active_page), 0
-        )
-        page.update()
-
-    render()
-    page.run_task(refresh_market)
-
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=35),ft.Column([txt("BOT KING",28,GOLD,True),note("Smart Trading Assistant")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=16,right=16,top=15,bottom=12),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=14,vertical=8)),ft.Container(content=navbar,bgcolor="#071A2B",padding=ft.padding.symmetric(vertical=8)))
+    select(0)
 
 ft.app(target=main)
