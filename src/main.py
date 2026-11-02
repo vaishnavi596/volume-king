@@ -361,7 +361,6 @@ def app_main(page:ft.Page):
     bot_expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",value=prefs.get("bot_expiry",""),hint_text="Select contract expiry manually")
     bot_lots=ft.Dropdown(label="Number of lots",value=str(prefs.get("bot_lots",1)),options=[ft.dropdown.Option(str(i),f"{i} Lot"+("s" if i>1 else "")) for i in range(1,51)])
     # Calendar suggestions are only previews, not verified exchange contracts.
-    from datetime import date, timedelta
     def preview_expiries(instrument):
         today=date.today()
         # NIFTY weekly; other symbols monthly. Verify against exchange holiday calendar.
