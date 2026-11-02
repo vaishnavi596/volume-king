@@ -42,7 +42,7 @@ jobs:
         run: flet --version
 
       - name: Build APK
-        run: flet build apk --verbose
+        run: flet build apk --module-name main --verbose src
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
