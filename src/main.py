@@ -154,29 +154,41 @@ def main(page:ft.Page):
     def watchlist():
         fill_watch()
         return [ft.Row([heading("Watchlist (NIFTY 50)"),pill("50 stocks",True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,note(market_status+" • Prices indicative / may be delayed"),watch_list,pager]
-    symbol=ft.Dropdown(label="Symbol",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
-    timeframe=ft.Dropdown(label="Timeframe",value="5m",options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
-    ema=ft.Switch(label="EMA 20 / 50",value=True,active_color=GREEN)
-    vwap=ft.Switch(label="VWAP",value=True,active_color=GREEN)
-    rsi=ft.Switch(label="RSI",value=False,active_color=GREEN)
+    symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
+    timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
+    ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
+    vwap=ft.Switch(label="VWAP",value=bool(prefs.get("chart_vwap",True)),active_color=GREEN)
+    rsi=ft.Switch(label="RSI",value=bool(prefs.get("chart_rsi",False)),active_color=GREEN)
     chart_tab=["Chart"]
     drawing_mode=["None"]
     compare_symbol=ft.Dropdown(label="Compare",value="BANKNIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX","RELIANCE","HDFCBANK"]])
-    macd=ft.Switch(label="MACD (12,26,9)",value=False,active_color=GREEN)
-    volume=ft.Switch(label="Volume",value=True,active_color=GREEN)
-    ema200=ft.Switch(label="EMA 200",value=False,active_color=GREEN)
-    sma50=ft.Switch(label="SMA 50",value=False,active_color=GREEN)
-    bollinger=ft.Switch(label="Bollinger Bands",value=False,active_color=GREEN)
-    atr=ft.Switch(label="ATR 14",value=False,active_color=GREEN)
-    supertrend=ft.Switch(label="Supertrend",value=False,active_color=GREEN)
+    macd=ft.Switch(label="MACD (12,26,9)",value=bool(prefs.get("chart_macd",False)),active_color=GREEN)
+    volume=ft.Switch(label="Volume",value=bool(prefs.get("chart_volume",True)),active_color=GREEN)
+    ema200=ft.Switch(label="EMA 200",value=bool(prefs.get("chart_ema200",False)),active_color=GREEN)
+    sma50=ft.Switch(label="SMA 50",value=bool(prefs.get("chart_sma50",False)),active_color=GREEN)
+    bollinger=ft.Switch(label="Bollinger Bands",value=bool(prefs.get("chart_bollinger",False)),active_color=GREEN)
+    atr=ft.Switch(label="ATR 14",value=bool(prefs.get("chart_atr",False)),active_color=GREEN)
+    supertrend=ft.Switch(label="Supertrend",value=bool(prefs.get("chart_supertrend",False)),active_color=GREEN)
+    def persist_chart_settings(e=None):
+        prefs.update({"chart_ema":ema.value,"chart_vwap":vwap.value,"chart_rsi":rsi.value,"chart_macd":macd.value,"chart_volume":volume.value,"chart_ema200":ema200.value,"chart_sma50":sma50.value,"chart_bollinger":bollinger.value,"chart_atr":atr.value,"chart_supertrend":supertrend.value})
+        prefs.update(chart_symbol=symbol.value,chart_timeframe=timeframe.value,chart_type=chart_style_picker.value if "chart_style_picker" in locals() else "Candlestick")
+        saved=save()
+        if e is not None:
+            chart_message.value="Chart preferences saved." if saved else "Could not save chart preferences."
+            page.update()
+    for control in [ema,vwap,rsi,macd,volume,ema200,sma50,bollinger,atr,supertrend]:
+        control.on_change=persist_chart_settings
     chart_message=txt("",12,MUTED)
     def choose_chart_tab(v):
         chart_tab[0]=v
         select(2)
-    chart_style=["Candlestick"]
-    chart_style_picker=ft.Dropdown(label="Chart type",value="Candlestick",options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
+    chart_style=[prefs.get("chart_type","Candlestick")]
+    chart_style_picker=ft.Dropdown(label="Chart type",value=prefs.get("chart_type","Candlestick"),options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
+    symbol.on_change=persist_chart_settings
+    timeframe.on_change=persist_chart_settings
     def chart_style_apply(e):
         chart_style[0]=chart_style_picker.value
+        persist_chart_settings()
         select(2)
     def chart_candles():
         q=quotes.get(symbol.value) or {}
@@ -209,7 +221,7 @@ def main(page:ft.Page):
         if chart_tab[0]=="Chart":
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Apply indicators",on_click=lambda e:select(2)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
+            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
