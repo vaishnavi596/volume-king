@@ -244,9 +244,41 @@ def app_main(page:ft.Page):
         drawing_mode[0]=v
         chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
         page.update()
+    chart_quantity=ft.TextField(label="Paper quantity",value="1",width=140,keyboard_type=ft.KeyboardType.NUMBER)
+    chart_position={"side":None,"symbol":None,"entry":None,"qty":0}
+    chart_paper_status=txt("Paper position: FLAT",12,MUTED)
+    def chart_paper_trade(side):
+        if side=="EXIT":
+            chart_position.update(side=None,symbol=None,entry=None,qty=0)
+            chart_paper_status.value="Paper position closed."
+        else:
+            try:
+                qty=int(chart_quantity.value)
+                price=(quotes.get(symbol.value) or {}).get("price")
+                if qty<1 or qty>100000 or price is None:raise ValueError()
+                chart_position.update(side=side,symbol=symbol.value,entry=float(price),qty=qty)
+                chart_paper_status.value="Paper "+side+" recorded. No real order."
+            except (ValueError,TypeError):
+                chart_paper_status.value="Valid quantity and available quote required."
+        select(2)
+    def chart_position_text():
+        p=chart_position
+        if not p["side"]:return "Paper position: FLAT"
+        price=(quotes.get(p["symbol"]) or {}).get("price")
+        pnl="P&L unavailable" if price is None else "Unrealized P&L ₹"+format((price-p["entry"])*p["qty"]*(1 if p["side"]=="BUY" else -1),",.2f")
+        return "Paper "+p["side"]+" "+p["symbol"]+" ×"+str(p["qty"])+" @ ₹"+format(p["entry"],",.2f")+" • "+pnl
     def charts():
         content=[heading("Charts • Technical Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_chart_tab(v),style=ft.ButtonStyle(color=GOLD if chart_tab[0]==n else MUTED)) for n in ["Chart","Indicators","Drawing","Compare","Levels","Signals"]],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),ft.ElevatedButton("Apply / Refresh",on_click=lambda e:page.run_task(load_chart),bgcolor=GOLD,color=BG)]
         if chart_tab[0]=="Chart":
+            content.append(section("Stock Details • "+symbol.value,ft.Column([
+                txt("₹ "+quote_price(symbol.value),26,GOLD,True),
+                txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
+                note("Yahoo preview • delayed or unavailable"),
+                chart_quantity,
+                ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:chart_paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:chart_paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("Exit",on_click=lambda e:chart_paper_trade("EXIT"))],wrap=True),
+                txt(chart_position_text(),12,GOLD),chart_paper_status,
+                note("Simulation only • no real orders")
+            ])))
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
             content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
