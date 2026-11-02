@@ -5,10 +5,10 @@ import json
 import urllib.request
 from datetime import datetime
 
-BG = "#08111F"
-CARD = "#142238"
-GOLD = "#F5C542"
-MUTED = "#AAB7C8"
+BG = "#050C16"
+CARD = "#0C1D30"
+GOLD = "#FFC928"
+MUTED = "#9EB1C4"
 GREEN = "#22C55E"
 RED = "#EF4444"
 
@@ -239,7 +239,8 @@ def main(page: ft.Page):
             ),
             bgcolor=CARD,
             padding=16,
-            border_radius=10,
+            border=ft.border.all(1, "#24425C"),
+            border_radius=12,
             width=float("inf")
         )
 
@@ -460,25 +461,34 @@ def main(page: ft.Page):
                     )
 
             body.controls = [
-                ft.Text(
-                    "Market Dashboard",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
+                ft.Row([
+                    ft.Text("Dashboard", size=22, weight=ft.FontWeight.BOLD, expand=True),
+                    ft.Container(content=ft.Text("MARKET DATA", size=10, color=GOLD),
+                                 padding=8, bgcolor=CARD, border_radius=8)
+                ]),
                 quote_cards,
-                ft.Container(content=ft.Column([ft.Text("Market Sentiment & Scanner", color=GOLD, size=16, weight=ft.FontWeight.BOLD), ft.Text("Bullish / Bearish confidence: NO DATA", color=MUTED), ft.Text("OI, Volume, Breadth और Momentum की पुष्टि के बाद ही संकेत उपलब्ध होंगे।", size=11, color=MUTED)], spacing=6), bgcolor=CARD, padding=12, border_radius=12),
-                ft.ElevatedButton(
-                    "Refresh Market",
-                    on_click=refresh_market,
-                    bgcolor=GOLD,
-                    color=BG
+                ft.Container(
+                    content=ft.Column([
+                        ft.Row([ft.Icon(ft.icons.TRENDING_UP, color=GOLD, size=20),
+                                ft.Text("Market Sentiment", size=17, weight=ft.FontWeight.BOLD)]),
+                        ft.Text("Bullish / Bearish: NO DATA", color=MUTED, size=14),
+                        ft.Text("Confidence 70–85% • डेटा और बैकटेस्ट जुड़ने के बाद", color=GOLD, size=11),
+                    ], spacing=10), bgcolor=CARD, padding=16,
+                    border=ft.border.all(1, "#24425C"), border_radius=12
                 ),
-                ft.Text(
-                    "Yahoo Finance डेटा है। यह आधिकारिक NSE/BSE "
-                    "लाइव फीड नहीं है और इसमें देरी हो सकती है।",
-                    color=MUTED,
-                    size=11
-                )
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text("Market Breadth & NIFTY Setup", size=16, weight=ft.FontWeight.BOLD, color=GOLD),
+                        ft.Text("Support / Resistance • Volume • OI • Trend", color=MUTED, size=12),
+                        ft.Text("NO DATA — सत्यापित डेटा स्रोत की आवश्यकता है।", color=RED, size=11)
+                    ], spacing=8), bgcolor=CARD, padding=16,
+                    border=ft.border.all(1, "#24425C"), border_radius=12
+                ),
+                ft.Row([
+                    ft.ElevatedButton("Refresh Market", on_click=refresh_market, bgcolor=GOLD, color=BG),
+                    ft.Text("Delayed / unofficial feed", color=MUTED, size=10)
+                ], wrap=True),
+                ft.Text("Yahoo Finance आधिकारिक NSE/BSE लाइव फीड नहीं है।", color=MUTED, size=11)
             ]
 
         elif active_page == "Watchlist":
@@ -773,8 +783,8 @@ def main(page: ft.Page):
             ),
             expand=True,
             padding=ft.padding.symmetric(vertical=8),
-            bgcolor="#1D3049" if selected else "#0D1929",
-            border_radius=6,
+            bgcolor="#18334B" if selected else "#071525",
+            border_radius=10,
             on_click=lambda e, n=name: show_page(n),
         )
 
@@ -783,8 +793,8 @@ def main(page: ft.Page):
             [bottom_button(name, icon) for name, icon in tabs],
             spacing=0,
         ),
-        bgcolor="#0D1929",
-        padding=ft.padding.only(left=2, right=2, top=4, bottom=12),
+        bgcolor="#071525",
+        padding=ft.padding.only(left=4, right=4, top=7, bottom=12),
     )
 
     page.add(
@@ -793,13 +803,13 @@ def main(page: ft.Page):
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text("BOT KING", size=26,
+                            ft.Text("♛ BOT KING", size=25,
                                     weight=ft.FontWeight.BOLD, color=GOLD),
                             status,
                         ],
                         spacing=2,
                     ),
-                    padding=ft.padding.only(left=12, right=12, top=6, bottom=6),
+                    padding=ft.padding.only(left=16, right=16, top=10, bottom=12),
                 ),
                 ft.Container(content=body, expand=True),
                 bottom_menu,
