@@ -1,3 +1,4 @@
+
 [project]
 name = "bot-king"
 version = "1.0.0"
@@ -8,6 +9,10 @@ requires-python = ">=3.11"
 product = "BOT KING"
 org = "com.botking"
 company = "BOT KING"
+
+[tool.flet.app]
+path = "src"
+module = "main"
 
 [tool.flet.flutter.pubspec.dependency_overrides]
 wakelock_plus = "1.2.11"
