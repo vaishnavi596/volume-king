@@ -291,6 +291,68 @@ def main(page:ft.Page):
         connection_status.color=RED
         page.update()
 
+    # Trading Bot controls: offline calculation and paper-only order simulation.
+    bot_symbol=ft.Dropdown(label="Instrument",value=prefs.get("bot_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","HDFCBANK","ICICIBANK","RELIANCE","SBIN","Custom"]])
+    bot_custom=ft.TextField(label="Custom symbol (optional)",value=prefs.get("bot_custom",""))
+    bot_type=ft.Dropdown(label="Option type",value=prefs.get("bot_type","CE"),options=[ft.dropdown.Option(x) for x in ["CE","PE"]])
+    bot_strike=ft.TextField(label="Strike price",value=str(prefs.get("bot_strike","23400")),keyboard_type=ft.KeyboardType.NUMBER)
+    bot_expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",value=prefs.get("bot_expiry",""),hint_text="Select contract expiry manually")
+    bot_lots=ft.TextField(label="Lots (1-50)",value=str(prefs.get("bot_lots",1)),keyboard_type=ft.KeyboardType.NUMBER)
+    bot_lot_size=ft.TextField(label="Units per lot (verify with exchange)",value=str(prefs.get("bot_lot_size",1)),keyboard_type=ft.KeyboardType.NUMBER)
+    bot_premium=ft.TextField(label="Entry premium (INR)",value=str(prefs.get("bot_premium",80)),keyboard_type=ft.KeyboardType.NUMBER)
+    bot_trailing=ft.Switch(label="Trailing stop (calculation only)",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
+    bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
+    bot_trade_status=txt("No paper option position open.",12,MUTED)
+    bot_position={"side":None,"entry":None,"quantity":0,"contract":None}
+    def bot_values():
+        p=float(bot_premium.value);st=float(sl.value);tg=float(target.value)
+        lots=int(bot_lots.value);unit=int(bot_lot_size.value);strike=float(bot_strike.value)
+        if not (p>0 and 0<st<100 and 0<tg<=1000 and 1<=lots<=50 and 1<=unit<=100000 and strike>0):
+            raise ValueError("Check premium, strike, lots, lot size, stop loss and target.")
+        if bot_expiry.value:
+            datetime.strptime(bot_expiry.value.strip(),"%Y-%m-%d")
+        sym=(bot_custom.value or "").strip().upper() if bot_symbol.value=="Custom" else bot_symbol.value
+        if not sym:raise ValueError("Enter a custom symbol.")
+        contract=f"{sym} {bot_strike.value} {bot_type.value} {bot_expiry.value or '(expiry not set)'}"
+        return p,st,tg,lots*unit,contract
+    def calculate_bot(e=None):
+        try:
+            p,st,tg,qty,contract=bot_values()
+            bot_preview.value=(f"{contract} | Qty {qty} | Entry INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f} | "
+                               f"Cost INR {p*qty:,.2f} | Max planned loss INR {p*qty*st/100:,.2f} | Planned profit INR {p*qty*tg/100:,.2f}. "
+                               "Illustrative premium-based calculations; excludes charges, slippage and gaps. No live option quote.")
+            bot_preview.color=GREEN
+        except (ValueError,TypeError,OverflowError) as exc:
+            bot_preview.value="Invalid input: "+str(exc)
+            bot_preview.color=RED
+        page.update()
+    def bot_paper_action(side):
+        if mode.value!="Paper":
+            bot_trade_status.value="Live orders disabled. Select Paper mode for simulation."
+            bot_trade_status.color=RED
+        elif side=="EXIT":
+            if bot_position["side"]:
+                bot_trade_status.value="Paper option position closed at simulated entry premium (no live exit quote)."
+                bot_position.update(side=None,entry=None,quantity=0,contract=None)
+                bot_trade_status.color=GREEN
+            else:
+                bot_trade_status.value="No paper option position to exit."
+                bot_trade_status.color=MUTED
+        elif bot_position["side"]:
+            bot_trade_status.value="Exit the existing paper position before another entry."
+            bot_trade_status.color=RED
+        else:
+            try:
+                p,st,tg,qty,contract=bot_values()
+                if not bot_expiry.value:raise ValueError("Set contract expiry before paper entry.")
+                bot_position.update(side=side,entry=p,quantity=qty,contract=contract)
+                bot_trade_status.value=f"SIMULATED {side} {contract} | {qty} units @ INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f}. No real order."
+                bot_trade_status.color=GREEN
+            except (ValueError,TypeError,OverflowError) as exc:
+                bot_trade_status.value="Paper entry blocked: "+str(exc)
+                bot_trade_status.color=RED
+        page.update()
+
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -324,7 +386,8 @@ def main(page:ft.Page):
         try:
             stop=float(sl.value);take=float(target.value);count=int(limit.value)
             if not (0<stop<=100 and 0<take<=100 and 1<=count<=50):raise ValueError()
-            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value))
+            bot_values()
+            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value)
             save();status.value="Preferences saved locally. Live orders remain disabled.";status.color=GREEN
         except Exception:
             status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
@@ -338,7 +401,28 @@ def main(page:ft.Page):
         tabs=["Trading Bot","Broker & API","Risk & Money","Strategy","Alerts","Backtest"]
         content=[heading("Settings & Trading Bot"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_settings_tab(v),style=ft.ButtonStyle(color=GOLD if settings_tab[0]==n else MUTED)) for n in tabs],scroll=ft.ScrollMode.AUTO)]
         if settings_tab[0]=="Trading Bot":
-            content.extend([section("Trading Mode",ft.Column([mode,note("Paper mode only for simulated orders. Live execution disabled.")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status]))])
+            content.extend([
+                section("01  TRADING MODE",ft.Column([mode,note("Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.")])),
+                section("02  OPTION CONTRACT",ft.Column([
+                    bot_symbol,bot_custom,ft.Row([bot_type,bot_strike],wrap=True),
+                    bot_expiry,ft.Row([bot_lots,bot_lot_size],wrap=True),
+                    bot_premium,note("Enter the actual exchange lot size and premium manually. No option-chain feed is connected.")
+                ],spacing=12)),
+                section("03  RISK & TARGET",ft.Column([
+                    ft.Row([sl,target],wrap=True),limit,bot_trailing,
+                    note("Trailing stop is a saved preference only. It does not automatically update or execute orders."),
+                    ft.ElevatedButton("CALCULATE PLAN",on_click=calculate_bot,bgcolor=GOLD,color=BG),
+                    bot_preview
+                ],spacing=12)),
+                section("04  PAPER TRADE CONTROLS",ft.Column([
+                    ft.Row([
+                        ft.ElevatedButton("BUY (Paper)",on_click=lambda e:bot_paper_action("BUY"),bgcolor=GREEN,color=BG),
+                        ft.ElevatedButton("SELL (Paper)",on_click=lambda e:bot_paper_action("SELL"),bgcolor=RED,color=WHITE),
+                        ft.OutlinedButton("EXIT",on_click=lambda e:bot_paper_action("EXIT"))
+                    ],wrap=True),bot_trade_status,
+                    note("Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.")
+                ],spacing=12))
+            ])
         elif settings_tab[0]=="Broker & API":
             content.append(section("Broker & Data Source",ft.Column([broker,broker_info,source,credential_column,api_url,ft.Row([ft.ElevatedButton("Connect / Check",on_click=explain_broker_connection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Clear / Disconnect",on_click=clear_broker_credentials)],wrap=True),connection_status,note("Credentials are temporary and never saved. This is a setup form, not a live broker connection. For real login a secure broker-specific integration is required.") ])))
         elif settings_tab[0]=="Risk & Money":
