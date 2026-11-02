@@ -120,7 +120,7 @@ def main(page: ft.Page):
     page.title = "BOT KING"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG
-    page.padding = 12
+    page.padding = 8
     page.scroll = ft.ScrollMode.HIDDEN
 
     watchlist = NIFTY50.copy()
@@ -128,6 +128,8 @@ def main(page: ft.Page):
     trades = []
     active_page = "Dashboard"
     alerts_enabled = False
+    selected_broker = "None"
+    scanner_threshold = 75
 
     status = ft.Text("BOT KING तैयार है", color=MUTED, size=11)
     body = ft.Column(spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -188,6 +190,9 @@ def main(page: ft.Page):
         width=100
     )
 
+    broker_dropdown = ft.Dropdown(label="Broker / Data Provider", value="None", options=[ft.dropdown.Option(x) for x in ["None", "Angel One", "Dhan", "Zerodha", "Upstox", "Custom"]])
+    api_secret = ft.TextField(label="API Secret (do not enter yet)", password=True)
+    redirect_url = ft.TextField(label="Redirect URL")
     api_key = ft.TextField(
         label="Angel One API Key",
         password=True,
@@ -407,7 +412,7 @@ def main(page: ft.Page):
 
     def connect_angel_one(e):
         status.value = (
-            "Angel One का सुरक्षित Backend अभी तैयार नहीं है। "
+            "Broker का सुरक्षित Backend अभी तैयार नहीं है। "
             "अभी कोई कनेक्शन नहीं हुआ।"
         )
         page.update()
@@ -452,6 +457,7 @@ def main(page: ft.Page):
                     weight=ft.FontWeight.BOLD
                 ),
                 quote_cards,
+                ft.Container(content=ft.Column([ft.Text("Market Sentiment & Scanner", color=GOLD, size=16, weight=ft.FontWeight.BOLD), ft.Text("Bullish / Bearish confidence: NO DATA", color=MUTED), ft.Text("OI, Volume, Breadth और Momentum की पुष्टि के बाद ही संकेत उपलब्ध होंगे।", size=11, color=MUTED)], spacing=6), bgcolor=CARD, padding=12, border_radius=12),
                 ft.ElevatedButton(
                     "Refresh Market",
                     on_click=refresh_market,
@@ -585,7 +591,8 @@ def main(page: ft.Page):
                     ],
                     wrap=True
                 ),
-                option_column
+                option_column,
+                ft.Container(content=ft.Column([ft.Text("OI & Premium Money Flow", color=GOLD, size=16, weight=ft.FontWeight.BOLD), ft.Text("Highest CE/PE OI • Change in OI • Traded Value • PCR", color=MUTED), ft.Text("NO DATA — Options Chain API आवश्यक है।", color=RED, size=11)], spacing=6), bgcolor=CARD, padding=12, border_radius=12)
             ]
 
         elif active_page == "Paper":
@@ -697,35 +704,34 @@ def main(page: ft.Page):
                 )
             ]
 
-        elif active_page == "Angel One":
+        elif active_page == "Settings":
             body.controls = [
-                ft.Text(
-                    "Angel One SmartAPI",
-                    size=20,
-                    weight=ft.FontWeight.BOLD
-                ),
-                ft.Text(
-                    "यह अभी केवल जानकारी भरने का इंटरफेस है। "
-                    "वास्तविक कनेक्शन सक्रिय नहीं है।",
-                    color=MUTED,
-                    size=11
-                ),
-                api_key,
-                client_code,
-                pin,
-                totp,
-                ft.ElevatedButton(
-                    "Connect Angel One",
-                    on_click=connect_angel_one,
-                    bgcolor=GOLD,
-                    color=BG
-                ),
-                ft.Text(
-                    "सुरक्षित Backend और आधिकारिक SmartAPI "
-                    "लॉगिन जोड़े बिना credentials न डालें।",
-                    color=RED,
-                    size=11
-                )
+                ft.Text("Settings & Trading Tools", size=20, weight=ft.FontWeight.BOLD, color=GOLD),
+                ft.Container(content=ft.Column([
+                    ft.Text("Market Scanner", size=17, weight=ft.FontWeight.BOLD),
+                    ft.Text("Bullish / Bearish • Breakout • Volume • Market Breadth • No-Trade Zone", size=12, color=MUTED),
+                    ft.Text("Signal confidence filter: 70%–85% (planned)", color=GOLD),
+                    ft.Text("NO DATA — सत्यापित लाइव डेटा और बैकटेस्ट के बिना कोई प्रतिशत या ट्रेड सिग्नल नहीं दिखाया जाएगा।", color=RED, size=11),
+                ], spacing=8), bgcolor=CARD, padding=14, border_radius=12),
+                ft.Container(content=ft.Column([
+                    ft.Text("Paper Trading", size=17, weight=ft.FontWeight.BOLD),
+                    ft.ElevatedButton("Open Paper Trading", on_click=lambda e: show_page("Paper"), bgcolor=GOLD, color=BG),
+                    ft.Text("केवल simulation; असली ऑर्डर नहीं।", color=MUTED, size=11),
+                ]), bgcolor=CARD, padding=14, border_radius=12),
+                ft.Container(content=ft.Column([
+                    ft.Text("Alerts & Notifications", size=17, weight=ft.FontWeight.BOLD),
+                    ft.Switch(label="Paper Alerts ON/OFF", value=alerts_enabled, on_change=toggle_alert),
+                    ft.Text("अभी Push Notifications सक्रिय नहीं हैं।", color=MUTED, size=11),
+                ]), bgcolor=CARD, padding=14, border_radius=12),
+                ft.Container(content=ft.Column([
+                    ft.Text("Broker & API Integration", size=17, weight=ft.FontWeight.BOLD),
+                    broker_dropdown,
+                    ft.Text("Available: Angel One, Dhan, Zerodha, Upstox, Custom", color=MUTED, size=11),
+                    ft.Text("NOT CONNECTED • केवल UI; अभी असली credentials न डालें।", color=RED, size=11),
+                    ft.ElevatedButton("Connection Status", on_click=connect_angel_one, bgcolor=GOLD, color=BG),
+                    ft.Text("API Key / Secret / PIN / TOTP के लिए सुरक्षित server-side login बाद में जोड़ा जाएगा।", color=MUTED, size=11),
+                ]), bgcolor=CARD, padding=14, border_radius=12),
+                ft.Text("BOT KING • Classic Dark & Gold", color=MUTED, size=11),
             ]
 
         page.update()
@@ -735,9 +741,7 @@ def main(page: ft.Page):
         ("Watchlist", ft.icons.STAR),
         ("Charts", ft.icons.SHOW_CHART),
         ("Options", ft.icons.LIST_ALT),
-        ("Paper", ft.icons.RECEIPT_LONG),
-        ("Alerts", ft.icons.NOTIFICATIONS),
-        ("Angel One", ft.icons.LINK),
+        ("Settings", ft.icons.SETTINGS),
     ]
 
     def bottom_button(name, icon):
