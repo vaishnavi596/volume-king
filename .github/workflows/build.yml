@@ -56,6 +56,9 @@ jobs:
       - name: Verify Flet version
         run: flet --version
 
+      - name: Check Python syntax before APK packaging
+        run: python -m py_compile src/main.py
+
       - name: Build APK
         run: flet build apk --verbose
 
