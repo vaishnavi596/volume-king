@@ -97,7 +97,7 @@ def app_main(page:ft.Page):
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),20,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=14,padding=12,expand=True)
         return [heading("Market Dashboard • YAHOO PREVIEW"),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
-    search=ft.TextField(hint_text="Search symbol (e.g. RELIANCE)",border_color="#294158",color=WHITE,bgcolor=PANEL2)
+    search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
     active_watch=[0]
@@ -114,6 +114,8 @@ def app_main(page:ft.Page):
     def change_watch(i):
         active_watch[0]=i
         watch_filter[0]="All"
+        search.value=""
+        feedback.value=""
         select(1)
     async def validate_and_add(sym):
         try:
@@ -162,23 +164,31 @@ def app_main(page:ft.Page):
         select(1)
     def fill_watch(_=None):
         watch_list.controls.clear()
+        visible_count=0
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
             change=(quotes.get(sym) or {}).get("change")
             direction="Bullish" if change is not None and change>0 else "Bearish" if change is not None and change<0 else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
+            visible_count+=1
             watch_list.controls.append(ft.Row([
                 ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction)],expand=True,spacing=0),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
+        if visible_count==0:
+            message="No matching stocks found. Clear search to show this list." if search.value or watch_filter[0]!="All" else "This watchlist is empty. Add a stock below."
+            watch_list.controls.append(note(message))
         page.update()
     search.on_change=fill_watch
+    def clear_watch_search(e):
+        search.value=""
+        fill_watch()
     def watchlist():
         fill_watch()
         return [heading("Watchlist • 5 Lists"),
-            ft.Row([ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED)) for i in range(5)],scroll=ft.ScrollMode.AUTO),
+            ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
-            search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
+            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
