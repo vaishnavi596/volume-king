@@ -327,6 +327,17 @@ def main(page:ft.Page):
     bot_lot_size=ft.TextField(label="Units per lot (verify with exchange)",value=str(prefs.get("bot_lot_size",1)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_premium=ft.TextField(label="Entry premium (INR)",value=str(prefs.get("bot_premium",80)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_trailing=ft.Switch(label="Trailing stop (calculation only)",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
+    # Saved strategy preferences only: no unattended execution or live orders.
+    auto_entry=ft.Switch(label="Auto entry on validated signal (future)",value=bool(prefs.get("auto_entry",False)),active_color=GOLD)
+    auto_reentry=ft.Switch(label="Re-entry after exit (future)",value=bool(prefs.get("auto_reentry",False)),active_color=GOLD)
+    buy_dip=ft.Switch(label="Buy on dip / limited averaging (future)",value=bool(prefs.get("buy_dip",False)),active_color=GOLD)
+    partial_profit=ft.Switch(label="Partial profit booking (future)",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
+    max_total_lots=ft.Dropdown(label="Maximum total lots",value=str(prefs.get("max_total_lots",2)),options=[ft.dropdown.Option(str(i)) for i in range(1,51)])
+    dip_step=ft.TextField(label="Minimum dip before adding (%)",value=str(prefs.get("dip_step",5)),keyboard_type=ft.KeyboardType.NUMBER)
+    max_daily_loss=ft.TextField(label="Daily loss limit (INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
+    cooldown=ft.Dropdown(label="Re-entry cooldown (minutes)",value=str(prefs.get("cooldown",15)),options=[ft.dropdown.Option(str(i)) for i in [5,10,15,30,60]])
+    squareoff=ft.Dropdown(label="Paper square-off time",value=str(prefs.get("squareoff","15:15")),options=[ft.dropdown.Option(x) for x in ["15:00","15:10","15:15","15:20","15:25"]])
+    emergency_stop=ft.Switch(label="Emergency stop: block new paper entries",value=bool(prefs.get("emergency_stop",False)),active_color=RED)
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
     bot_trade_status=txt("No paper option position open.",12,MUTED)
     bot_position={"side":None,"entry":None,"quantity":0,"contract":None}
@@ -366,6 +377,9 @@ def main(page:ft.Page):
             else:
                 bot_trade_status.value="No paper option position to exit."
                 bot_trade_status.color=MUTED
+        elif emergency_stop.value:
+            bot_trade_status.value="Emergency stop active. New paper entries blocked."
+            bot_trade_status.color=RED
         elif bot_position["side"]:
             bot_trade_status.value="Exit the existing paper position before another entry."
             bot_trade_status.color=RED
@@ -415,7 +429,8 @@ def main(page:ft.Page):
             stop=float(sl.value);take=float(target.value);count=int(limit.value)
             if not (0<stop<=100 and 0<take<=100 and 1<=count<=50):raise ValueError()
             bot_values()
-            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value,bot_expiry_mode=bot_expiry_mode.value)
+            if not (1<=int(max_total_lots.value)<=50 and int(max_total_lots.value)>=int(bot_lots.value) and 0<float(dip_step.value)<=100 and float(max_daily_loss.value)>0):raise ValueError("Invalid strategy limits")
+            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value,bot_expiry_mode=bot_expiry_mode.value,auto_entry=auto_entry.value,auto_reentry=auto_reentry.value,buy_dip=buy_dip.value,partial_profit=partial_profit.value,max_total_lots=int(max_total_lots.value),dip_step=float(dip_step.value),max_daily_loss=float(max_daily_loss.value),cooldown=int(cooldown.value),squareoff=squareoff.value,emergency_stop=emergency_stop.value)
             save();status.value="Preferences saved locally. Live orders remain disabled.";status.color=GREEN
         except Exception:
             status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
@@ -437,12 +452,17 @@ def main(page:ft.Page):
                     bot_premium,note("Enter the actual exchange lot size and premium manually. No option-chain feed is connected.")
                 ],spacing=12)),
                 section("03  RISK & TARGET",ft.Column([
-                    ft.Row([sl,target],wrap=True),limit,bot_trailing,
+                    ft.Row([sl,target],wrap=True),limit,
                     note("Trailing stop is a saved preference only. It does not automatically update or execute orders."),
                     ft.ElevatedButton("CALCULATE PLAN",on_click=calculate_bot,bgcolor=GOLD,color=BG),
                     bot_preview
                 ],spacing=12)),
-                section("04  PAPER TRADE CONTROLS",ft.Column([
+                section("04  AUTO STRATEGY (PREFERENCES ONLY)",ft.Column([
+                    auto_entry,auto_reentry,buy_dip,partial_profit,bot_trailing,
+                    max_total_lots,dip_step,cooldown,max_daily_loss,squareoff,emergency_stop,
+                    note("Auto entry, re-entry, averaging, partial exits, trailing SL and square-off are NOT running. These switches save a plan only. Emergency stop immediately blocks new manual paper entries. No live orders.")
+                ],spacing=12)),
+                section("05  PAPER TRADE CONTROLS",ft.Column([
                     ft.Row([
                         ft.ElevatedButton("BUY (Paper)",on_click=lambda e:bot_paper_action("BUY"),bgcolor=GREEN,color=BG),
                         ft.ElevatedButton("SELL (Paper)",on_click=lambda e:bot_paper_action("SELL"),bgcolor=RED,color=WHITE),
