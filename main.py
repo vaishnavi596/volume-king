@@ -1,305 +1,165 @@
 import flet as ft
 
-BG = "#0B1020"
-PANEL = "#151D31"
-GOLD = "#F5C451"
-MUTED = "#9AA8C2"
-GREEN = "#35C98A"
-RED = "#F06A75"
+BG, PANEL, PANEL2 = "#090D18", "#141C2D", "#1B2740"
+GOLD, WHITE, MUTED = "#F5C451", "#F4F7FC", "#9AA8BD"
+GREEN, RED, BLUE = "#35C98A", "#F16D78", "#63A7FF"
 
-WATCHLIST = [
-    "RELIANCE", "HDFCBANK", "ICICIBANK", "SBIN",
-    "INFY", "TCS", "ITC", "LT", "AXISBANK",
-    "KOTAKBANK", "BHARTIARTL", "TATAMOTORS",
-    "MARUTI", "SUNPHARMA", "WIPRO"
-]
-
-FILTERS = [
-    "Price Trend", "Volume Surge", "OI Change", "PCR",
-    "Option Premium Change", "Futures Long/Short Buildup",
-    "VWAP", "EMA 9/21", "RSI", "World News Sentiment",
-    "Market Breadth", "Sector Strength", "Breakout Scanner",
-    "Volume Confirmation", "OI Trap Alert", "No Trade Zone"
-]
-
+WATCHLIST = ["RELIANCE", "HDFCBANK", "ICICIBANK", "SBIN", "INFY", "TCS",
+             "ITC", "LT", "AXISBANK", "KOTAKBANK", "BHARTIARTL",
+             "TATAMOTORS", "MARUTI", "SUNPHARMA", "WIPRO"]
 
 def main(page: ft.Page):
     page.title = "BOT KING"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG
-    page.padding = 12
-    page.scroll = ft.ScrollMode.AUTO
+    page.padding = 0
+    page.spacing = 0
 
-    watchlist = WATCHLIST.copy()
-    timeframe = "5 min"
+    body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
+    nav = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=5)
+    watch = list(WATCHLIST)
+    nav_buttons = {}
 
-    title = ft.Text(
-        "BOT KING / DASHBOARD",
-        size=21,
-        weight=ft.FontWeight.BOLD,
-        color=GOLD
-    )
+    def t(s, size=13, color=WHITE, weight=ft.FontWeight.NORMAL):
+        return ft.Text(str(s), size=size, color=color, weight=weight)
 
-    content = ft.Column(spacing=12)
-
-    def text(value, size=13, color="white", bold=False):
-        return ft.Text(
-            value,
-            size=size,
-            color=color,
-            weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL
-        )
-
-    def panel(heading, controls):
+    def card(title, *items):
         return ft.Container(
-            content=ft.Column(
-                [text(heading, 16, GOLD, True)] + controls,
-                spacing=9
-            ),
-            bgcolor=PANEL,
-            border_radius=12,
-            padding=13
-        )
+            content=ft.Column([t(title, 13, GOLD, ft.FontWeight.BOLD), *items], spacing=9),
+            bgcolor=PANEL, padding=14, border_radius=14,
+            border=ft.border.all(1, "#26334B"))
 
-    def metric(name, value="--", note="NO DATA"):
+    def metric(name):
         return ft.Container(
-            content=ft.Column([
-                text(name, 11, MUTED),
-                text(value, 19, GOLD, True),
-                text(note, 10, MUTED)
-            ], spacing=4),
-            bgcolor="#202A40",
-            border_radius=9,
-            padding=9,
-            expand=True
-        )
+            content=ft.Column([t(name, 11, MUTED, ft.FontWeight.BOLD),
+                               t("--", 21, WHITE, ft.FontWeight.BOLD),
+                               t("NO LIVE DATA", 10, GOLD)], spacing=4),
+            bgcolor=PANEL2, padding=12, border_radius=12, expand=True)
 
-    def row(*controls):
-        return ft.Row(list(controls), spacing=8, wrap=True)
+    def row(a, b, c=MUTED):
+        return ft.Row([t(a, 12, MUTED), ft.Container(expand=True),
+                       t(b, 12, c, ft.FontWeight.BOLD)])
 
-    def show_dashboard():
-        content.controls = [
-            ft.Container(
-                content=text(
-                    "DATA: NOT CONNECTED  |  SIGNAL: WAIT / NO DATA",
-                    11, RED, True
-                ),
-                bgcolor="#321F2B",
-                padding=10,
-                border_radius=8
-            ),
-
-            panel("INTRADAY LIVE SCANNER", [
-                text("Select scanning timeframe", 12, MUTED),
-                row(*[
-                    ft.ElevatedButton(
-                        t,
-                        bgcolor=GOLD if t == timeframe else "#26334D",
-                        color="#101727" if t == timeframe else "white",
-                        on_click=lambda e, v=t: change_timeframe(v)
-                    )
-                    for t in ["1 min", "5 min", "10 min", "15 min"]
-                ]),
-                text("Selected: " + timeframe, 12, GOLD),
-                row(metric("NIFTY 50"), metric("BANK NIFTY")),
-                row(metric("SENSEX"), metric("INDIA VIX"))
-            ]),
-
-            panel("MARKET SCORE MODEL", [
-                text("Model score is not a probability or guarantee.", 11, MUTED),
-                row(
-                    metric("World News", "20%", "WEIGHT"),
-                    metric("Futures", "40%", "WEIGHT"),
-                    metric("Options / OI", "40%", "WEIGHT")
-                ),
-                row(
-                    metric("Bullish Score"),
-                    metric("Bearish Score")
-                )
-            ]),
-
-            panel("CE / PE POSITIONING", [
-                row(metric("CE OI Change"), metric("PE OI Change")),
-                row(metric("CE Premium"), metric("PE Premium")),
-                text("CE/PE positioning requires underlying price, premium and OI confirmation.", 11, MUTED)
-            ]),
-
-            panel("FUTURES LONG / SHORT BUILDUP", [
-                row(metric("Long Buildup"), metric("Short Buildup")),
-                text("Price and OI interpretation:", 12, GOLD, True),
-                text("Price up + OI up = Long buildup"),
-                text("Price down + OI up = Short buildup"),
-                text("Price up + OI down = Short covering"),
-                text("Price down + OI down = Long unwinding")
-            ]),
-
-            panel("SCANNER FILTERS", [
-                text("Filters ready; results need a connected market-data feed.", 11, MUTED)
-            ] + [
-                text("○  " + f, 12) for f in FILTERS
-            ]),
-
-            panel("SWING VIEW", [
-                text("Swing timeframe: Daily / Weekly", 12, MUTED),
-                row(metric("Swing Trend"), metric("Breakout"), metric("Swing RSI")),
-                text("Swing analysis will appear after data connection.", 11, MUTED)
-            ]),
-
-            panel("DATA STATUS", [
-                text("Market prices: NOT CONNECTED", 12, RED),
-                text("Options / Futures OI: NOT CONNECTED", 12, RED),
-                text("World news sentiment: NOT CONNECTED", 12, RED),
-                text("Yahoo Finance: planned for testing; may be delayed.", 11, MUTED),
-                text("NSE-authorized vendor: planned primary live source.", 11, MUTED),
-                text("Broker API: optional, last development stage.", 11, MUTED)
-            ])
-        ]
+    def show(items):
+        body.controls.clear()
+        body.controls.extend(items)
         page.update()
 
-    def change_timeframe(value):
-        nonlocal timeframe
-        timeframe = value
-        show_dashboard()
+    def dashboard():
+        show([
+            card("MARKET STATUS",
+                 ft.Row([t("DATA: DISCONNECTED", 12, RED, ft.FontWeight.BOLD),
+                         ft.Container(expand=True), t("SIGNAL: WAIT", 12, GOLD, ft.FontWeight.BOLD)]),
+                 t("Live feed connect hone par hi prices aur signals dikhenge.", 11, MUTED)),
+            ft.Row([metric("NIFTY 50"), metric("BANK NIFTY")], spacing=10),
+            ft.Row([metric("SENSEX"), metric("INDIA VIX")], spacing=10),
+            card("INTRADAY LIVE SCANNER",
+                 t("Timeframe", 12, MUTED),
+                 ft.Row([ft.OutlinedButton("1 MIN"), ft.OutlinedButton("5 MIN"),
+                         ft.OutlinedButton("10 MIN"), ft.OutlinedButton("15 MIN")],
+                        wrap=True, spacing=5),
+                 row("World news sentiment", "20%", BLUE),
+                 row("Futures positioning", "40%", BLUE),
+                 row("Options premium / OI", "40%", BLUE),
+                 t("MODEL SCORE: WAITING FOR AUTHORIZED DATA", 11, GOLD, ft.FontWeight.BOLD)),
+            card("CE / PE POSITIONING", row("CALL (CE) OI", "NO DATA"),
+                 row("PUT (PE) OI", "NO DATA"), row("PCR / MAX PAIN", "NO DATA"),
+                 t("OI aur premium confirmation ke bina trade signal nahi banega.", 11, MUTED)),
+            card("FUTURES BUILDUP GUIDE",
+                 row("Price up + OI up", "LONG BUILDUP", GREEN),
+                 row("Price down + OI up", "SHORT BUILDUP", RED),
+                 row("Price up + OI down", "SHORT COVERING", GREEN),
+                 row("Price down + OI down", "LONG UNWINDING", GOLD)),
+            card("SMART FILTERS",
+                 t("Market Breadth • Sector Strength • Breakout", 12),
+                 t("Volume Confirmation • OI Trap • No Trade Zone", 12),
+                 t("Signal History • Data Freshness • Swing View", 12))
+        ])
 
-    def show_watchlist():
-        symbol_input = ft.TextField(
-            label="Stock symbol (example: TATAMOTORS)",
-            expand=True
-        )
-        stock_rows = ft.Column(spacing=5)
+    def watchlist_page():
+        field = ft.TextField(hint_text="Stock symbol, e.g. TATASTEEL", text_size=13)
+        rows = [ft.Container(content=ft.Row([
+            ft.Column([t(s, 13, WHITE, ft.FontWeight.BOLD), t("Price: --  Change: --", 10, MUTED)],
+                      spacing=3, expand=True), t("NO DATA", 10, GOLD)]),
+            bgcolor=PANEL2, padding=10, border_radius=10) for s in watch]
+        def add(e):
+            symbol = (field.value or "").strip().upper()
+            if symbol and symbol not in watch:
+                watch.append(symbol)
+                watchlist_page()
+        show([card("MY WATCHLIST", t("Stocks add kar sakte hain. Data abhi disconnected hai.", 11, MUTED),
+                   ft.Row([ft.Container(content=field, expand=True),
+                           ft.ElevatedButton("ADD", on_click=add, bgcolor=GOLD, color=BG)])),
+              card("TRACKED STOCKS", *rows)])
 
-        def refresh():
-            stock_rows.controls = []
-            for symbol in watchlist:
-                stock_rows.controls.append(
-                    ft.Container(
-                        content=ft.Row([
-                            text(symbol, 13, "white", True),
-                            ft.Container(expand=True),
-                            text("NO DATA", 10, MUTED),
-                            ft.TextButton(
-                                "REMOVE",
-                                on_click=lambda e, s=symbol: remove_stock(s)
-                            )
-                        ]),
-                        bgcolor="#202A40",
-                        padding=8,
-                        border_radius=8
-                    )
-                )
-            page.update()
+    def options_page():
+        show([card("OPTIONS ANALYSIS", t("NIFTY / BANK NIFTY / SENSEX", 12, MUTED),
+                   ft.Row([metric("PCR"), metric("MAX PAIN")]),
+                   ft.Row([metric("ATM STRIKE"), metric("IV")])),
+              card("OPEN INTEREST", row("CE OI buildup", "NO DATA"),
+                   row("PE OI buildup", "NO DATA"), row("CE premium change", "NO DATA"),
+                   row("PE premium change", "NO DATA"),
+                   t("Options chain feed connect hone par analysis active hoga.", 11, MUTED)),
+              card("TRADE SAFETY", t("Abhi koi CE/PE BUY ya SELL recommendation nahi di jayegi.", 12, GOLD))])
 
-        def remove_stock(symbol):
-            if symbol in watchlist:
-                watchlist.remove(symbol)
-            refresh()
+    def charts_page():
+        show([card("CHARTS & INDICATORS", t("Selected symbol: NIFTY 50", 12, MUTED),
+                   ft.Row([ft.OutlinedButton("1m"), ft.OutlinedButton("5m"),
+                           ft.OutlinedButton("15m"), ft.OutlinedButton("1D")], wrap=True),
+                   ft.Container(content=ft.Column([t("PRICE / VOLUME CHART", 14, GOLD),
+                       t("Chart will appear after data connection.", 12, MUTED),
+                       ft.Container(content=t("NO CHART DATA", 13, MUTED), height=110,
+                                    alignment=ft.alignment.center, bgcolor="#101827",
+                                    border_radius=10)], spacing=10),
+                       bgcolor=PANEL2, padding=12, border_radius=12)),
+              card("TECHNICAL INDICATORS", row("EMA 9 / EMA 21", "--"),
+                   row("RSI 14", "--"), row("VWAP", "--"), row("Volume", "--"))])
 
-        def add_stock(e):
-            symbol = (symbol_input.value or "").strip().upper()
-            if symbol and symbol not in watchlist:
-                watchlist.append(symbol)
-            symbol_input.value = ""
-            refresh()
+    def alerts_page():
+        show([card("ALERT CENTER", row("Price alerts", "INACTIVE"),
+                   row("Breakout alerts", "INACTIVE"), row("OI trap alerts", "INACTIVE"),
+                   row("No-trade zone alerts", "INACTIVE")),
+              card("PAPER TRADING MODE", t("Automatic order execution: DISABLED", 12, GREEN),
+                   t("Pehle data aur paper testing verify honge. Real orders place nahi honge.", 11, MUTED)),
+              card("SIGNAL HISTORY", t("No signals recorded yet.", 12, MUTED))])
 
-        content.controls = [
-            panel("MY WATCHLIST", [
-                text("Add or remove stocks from your list.", 11, MUTED),
-                row(
-                    symbol_input,
-                    ft.ElevatedButton("ADD", on_click=add_stock, bgcolor=GOLD, color="#101727")
-                ),
-                stock_rows
-            ])
-        ]
-        refresh()
+    def data_page():
+        show([card("DATA / API CONNECTION", row("Primary source", "NOT CONNECTED", RED),
+                   row("Backup / testing source", "NOT CONNECTED", RED),
+                   row("Last update", "--"), row("Data freshness", "UNKNOWN")),
+              card("CONNECTION PLAN", t("1. Authorized NSE market-data vendor", 12),
+                   t("2. Delayed/test data for UI testing", 12),
+                   t("3. Live futures and options chain feed", 12),
+                   t("4. Broker API optional — last stage", 12)),
+              card("IMPORTANT", t("Public feeds may be delayed and may not provide reliable live options OI. Live trading ke liye licensed data source zaroori hai.", 11, GOLD))])
 
-    def show_options():
-        content.controls = [
-            panel("OPTIONS & OI CHAIN", [
-                text("Options data is not connected. Values are intentionally blank.", 11, MUTED),
-                row(metric("PCR"), metric("MAX PAIN"), metric("ATM STRIKE")),
-                row(metric("Total CE OI"), metric("Total PE OI")),
-                row(metric("CE Premium Change"), metric("PE Premium Change"))
-            ])
-        ]
-        page.update()
-
-    def show_charts():
-        content.controls = [
-            panel("CHART ANALYTICS", [
-                text("Selected timeframe: " + timeframe, 12, GOLD),
-                row(metric("EMA 9"), metric("EMA 21")),
-                row(metric("RSI"), metric("VWAP")),
-                metric("PRICE / VOLUME CHART", "--", "DATA NOT CONNECTED"),
-                text("Indicators will calculate after price-feed connection.", 11, MUTED)
-            ])
-        ]
-        page.update()
-
-    def show_alerts():
-        content.controls = [
-            panel("ALERTS & SIGNAL HISTORY", [
-                text("Alert-only / paper mode. Automatic order execution is disabled.", 12, GREEN, True),
-                row(metric("Today's Signals", "0"), metric("Win Rate", "--", "NOT CALCULATED")),
-                text("No signals generated. No trades will be invented without data.", 11, MUTED)
-            ])
-        ]
-        page.update()
-
-    def show_data():
-        content.controls = [
-            panel("DATA SOURCES & API", [
-                text("Primary live source: NSE-authorized data vendor (planned)", 12),
-                text("Testing source: Yahoo Finance (may be delayed)", 12),
-                text("Options and Futures OI: NOT CONNECTED", 12, RED),
-                text("World news sentiment: NOT CONNECTED", 12, RED),
-                text("Broker API: optional, planned for last stage", 12),
-                ft.Divider(),
-                text("Live market data requires a suitable licensed data feed.", 12, GOLD, True),
-                text("This version is an interface only. No credentials are stored and no orders are placed.", 11, MUTED)
-            ])
-        ]
-        page.update()
+    pages = {"Dashboard": dashboard, "Watchlist": watchlist_page, "Options": options_page,
+             "Charts": charts_page, "Alerts": alerts_page, "Data/API": data_page}
 
     def navigate(name):
-        title.value = "BOT KING / " + name.upper()
+        for key, button in nav_buttons.items():
+            button.bgcolor = GOLD if key == name else PANEL2
+            button.color = BG if key == name else WHITE
         pages[name]()
         page.update()
 
-    pages = {
-        "Dashboard": show_dashboard,
-        "Watchlist": show_watchlist,
-        "Options": show_options,
-        "Charts": show_charts,
-        "Alerts": show_alerts,
-        "Data/API": show_data
-    }
+    for name in pages:
+        b = ft.ElevatedButton(name, bgcolor=PANEL2, color=WHITE,
+            on_click=lambda e, n=name: navigate(n),
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=9))
+        nav_buttons[name] = b
+        nav.controls.append(b)
 
-    navigation = ft.Row(
-        [
-            ft.ElevatedButton(
-                name,
-                on_click=lambda e, n=name: navigate(n),
-                bgcolor="#26334D",
-                color="white"
-            )
-            for name in pages
-        ],
-        wrap=True,
-        spacing=5
-    )
-
-    page.add(
-        ft.Column([
-            title,
-            text("INDIAN MARKET SCANNER  |  INTRADAY + SWING", 10, MUTED),
-            navigation,
-            ft.Divider(),
-            content
-        ], spacing=10)
-    )
-
-    show_dashboard()
-
+    header = ft.Container(content=ft.Row([
+        ft.Column([t("♛  BOT KING", 22, GOLD, ft.FontWeight.BOLD),
+                   t("SMART MARKET SCANNER", 9, MUTED)], spacing=2, expand=True),
+        ft.Container(content=t("PAPER MODE", 10, GREEN, ft.FontWeight.BOLD),
+                     bgcolor="#18372F", padding=9, border_radius=10)]),
+        padding=14, bgcolor=BG)
+    bottom = ft.Container(content=nav, padding=8, bgcolor="#0E1524",
+                          border=ft.border.only(top=ft.BorderSide(1, "#26334B")))
+    page.add(ft.Column([header, ft.Container(content=body, expand=True, padding=12), bottom],
+                       expand=True, spacing=0))
+    navigate("Dashboard")
 
 ft.app(target=main)
