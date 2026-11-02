@@ -312,7 +312,7 @@ def app_main(page:ft.Page):
             pnl=position_pnl(p)
             if pnl is None:missing=True
             else:total+=pnl
-            controls.append(ft.Column([txt(sym+" • "+p["side"]+" ×"+str(p["qty"]),14,GOLD,True),note("Entry ₹"+format(p["entry"],",.2f")+" • SL ₹"+format(p["sl"],",.2f")+" • Target ₹"+format(p["target"],",.2f)),note("P&L unavailable" if pnl is None else "Unrealized P&L ₹"+format(pnl,",.2f")),ft.OutlinedButton("Exit "+sym,on_click=lambda e,v=sym:exit_paper(v))]))
+            controls.append(ft.Column([txt(sym+" • "+p["side"]+" ×"+str(p["qty"]),14,GOLD,True),note("Entry ₹"+format(p["entry"],",.2f")+" • SL ₹"+format(p["sl"],",.2f")+" • Target ₹"+format(p["target"],",.2f")),note("P&L unavailable" if pnl is None else "Unrealized P&L ₹"+format(pnl,",.2f")),ft.OutlinedButton("Exit "+sym,on_click=lambda e,v=sym:exit_paper(v))]))
         if not controls:controls.append(note("No open paper positions"))
         controls.append(txt("Total unrealized P&L "+("partially unavailable • " if missing else "")+"₹"+format(total,",.2f"),14,GOLD,True))
         history=trade_history()[-10:]
