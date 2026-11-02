@@ -297,13 +297,41 @@ def main(page:ft.Page):
     bot_type=ft.Dropdown(label="Option type",value=prefs.get("bot_type","CE"),options=[ft.dropdown.Option(x) for x in ["CE","PE"]])
     bot_strike=ft.TextField(label="Strike price",value=str(prefs.get("bot_strike","23400")),keyboard_type=ft.KeyboardType.NUMBER)
     bot_expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",value=prefs.get("bot_expiry",""),hint_text="Select contract expiry manually")
-    bot_lots=ft.TextField(label="Lots (1-50)",value=str(prefs.get("bot_lots",1)),keyboard_type=ft.KeyboardType.NUMBER)
+    bot_lots=ft.Dropdown(label="Number of lots",value=str(prefs.get("bot_lots",1)),options=[ft.dropdown.Option(str(i),f"{i} Lot"+("s" if i>1 else "")) for i in range(1,51)])
+    # Calendar suggestions are only previews, not verified exchange contracts.
+    from datetime import date, timedelta
+    def preview_expiries(instrument):
+        today=date.today()
+        # NIFTY weekly; other symbols monthly. Verify against exchange holiday calendar.
+        dates=[]
+        for offset in range(1,100):
+            d=today+timedelta(days=offset)
+            if d.weekday()!=1:continue
+            if instrument=="NIFTY" or (d+timedelta(days=7)).month!=d.month:
+                dates.append(d.isoformat())
+            if len(dates)>=4:break
+        return dates
+    bot_expiry_mode=ft.Dropdown(label="Expiry selection",value="Nearest (preview)",options=[ft.dropdown.Option(x) for x in ["Nearest (preview)","Next (preview)","Manual"]])
+    expiry_warning=ft.Text("Calendar estimate only. Holiday shifts and exchange-listed expiries are not verified; paper mode only.",size=12,color=GOLD)
+    def update_expiry(e=None):
+        choices=preview_expiries(bot_symbol.value)
+        selected=choices[1] if bot_expiry_mode.value=="Next (preview)" and len(choices)>1 else (choices[0] if choices else "")
+        if bot_expiry_mode.value!="Manual":
+            bot_expiry.value=selected
+            bot_expiry.read_only=True
+        else:
+            bot_expiry.read_only=False
+        if e is not None:page.update()
+    bot_expiry_mode.on_change=update_expiry
+    bot_symbol.on_change=update_expiry
     bot_lot_size=ft.TextField(label="Units per lot (verify with exchange)",value=str(prefs.get("bot_lot_size",1)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_premium=ft.TextField(label="Entry premium (INR)",value=str(prefs.get("bot_premium",80)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_trailing=ft.Switch(label="Trailing stop (calculation only)",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
     bot_trade_status=txt("No paper option position open.",12,MUTED)
     bot_position={"side":None,"entry":None,"quantity":0,"contract":None}
+    bot_expiry_mode.value=prefs.get("bot_expiry_mode","Nearest (preview)")
+    update_expiry()
     def bot_values():
         p=float(bot_premium.value);st=float(sl.value);tg=float(target.value)
         lots=int(bot_lots.value);unit=int(bot_lot_size.value);strike=float(bot_strike.value)
@@ -387,7 +415,7 @@ def main(page:ft.Page):
             stop=float(sl.value);take=float(target.value);count=int(limit.value)
             if not (0<stop<=100 and 0<take<=100 and 1<=count<=50):raise ValueError()
             bot_values()
-            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value)
+            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value,bot_expiry_mode=bot_expiry_mode.value)
             save();status.value="Preferences saved locally. Live orders remain disabled.";status.color=GREEN
         except Exception:
             status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
@@ -405,7 +433,7 @@ def main(page:ft.Page):
                 section("01  TRADING MODE",ft.Column([mode,note("Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.")])),
                 section("02  OPTION CONTRACT",ft.Column([
                     bot_symbol,bot_custom,ft.Row([bot_type,bot_strike],wrap=True),
-                    bot_expiry,ft.Row([bot_lots,bot_lot_size],wrap=True),
+                    bot_expiry_mode,bot_expiry,expiry_warning,ft.Row([bot_lots,bot_lot_size],wrap=True),
                     bot_premium,note("Enter the actual exchange lot size and premium manually. No option-chain feed is connected.")
                 ],spacing=12)),
                 section("03  RISK & TARGET",ft.Column([
