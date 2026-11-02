@@ -122,6 +122,7 @@ def main(page: ft.Page):
     page.bgcolor = BG
     page.padding = 0
     page.scroll = ft.ScrollMode.HIDDEN
+    page.spacing = 0
 
     bluechips = ["RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY", "BHARTIARTL", "ITC", "LT", "SBIN", "HINDUNILVR", "KOTAKBANK", "AXISBANK", "MARUTI", "SUNPHARMA", "TITAN"]
     watchlist = bluechips + [s for s in NIFTY50 if s not in bluechips]
@@ -134,7 +135,7 @@ def main(page: ft.Page):
     scanner_threshold = 75
 
     status = ft.Text("BOT KING तैयार है", color=MUTED, size=11)
-    body = ft.Column(spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
+    body = ft.ListView(spacing=12, expand=True, padding=ft.padding.symmetric(horizontal=12, vertical=12), auto_scroll=False)
 
     add_symbol = ft.TextField(
         label="Stock Symbol",
@@ -239,7 +240,7 @@ def main(page: ft.Page):
             bgcolor=CARD,
             padding=16,
             border_radius=10,
-            expand=True
+            width=float("inf")
         )
 
     async def refresh_market(e=None):
@@ -783,7 +784,7 @@ def main(page: ft.Page):
             spacing=0,
         ),
         bgcolor="#0D1929",
-        padding=ft.padding.symmetric(horizontal=2, vertical=4),
+        padding=ft.padding.only(left=2, right=2, top=4, bottom=12),
     )
 
     page.add(
@@ -798,14 +799,14 @@ def main(page: ft.Page):
                         ],
                         spacing=2,
                     ),
-                    padding=ft.padding.only(bottom=6),
+                    padding=ft.padding.only(left=12, right=12, top=6, bottom=6),
                 ),
                 ft.Container(content=body, expand=True),
                 bottom_menu,
             ],
             expand=True,
             spacing=0,
-        ), expand=True)
+        ), expand=True, bottom=False)
     )
 
     original_render = render
