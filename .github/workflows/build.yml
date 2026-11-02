@@ -35,6 +35,21 @@ jobs:
       - name: Accept Android licenses
         run: yes | flutter doctor --android-licenses || true
 
+      - name: Install required Android NDK
+        run: |
+          set -e
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK_ROOT"
+          for attempt in 1 2 3; do
+            echo "Installing NDK 25.1.8937393 (attempt $attempt)"
+            if yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "ndk;25.1.8937393"; then
+              test -f "$SDK_ROOT/ndk/25.1.8937393/source.properties" && break
+            fi
+            rm -rf "$SDK_ROOT/ndk/25.1.8937393"
+            sleep 10
+          done
+          test -f "$SDK_ROOT/ndk/25.1.8937393/source.properties"
+
       - name: Install Flet
         run: pip install flet==0.25.2
 
