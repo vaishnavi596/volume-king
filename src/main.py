@@ -120,10 +120,11 @@ def main(page: ft.Page):
     page.title = "BOT KING"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG
-    page.padding = 8
+    page.padding = 0
     page.scroll = ft.ScrollMode.HIDDEN
 
-    watchlist = NIFTY50.copy()
+    bluechips = ["RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY", "BHARTIARTL", "ITC", "LT", "SBIN", "HINDUNILVR", "KOTAKBANK", "AXISBANK", "MARUTI", "SUNPHARMA", "TITAN"]
+    watchlist = bluechips + [s for s in NIFTY50 if s not in bluechips]
     watch_visible_count = 10
     quotes = {}
     trades = []
@@ -236,8 +237,9 @@ def main(page: ft.Page):
                 spacing=3
             ),
             bgcolor=CARD,
-            padding=12,
-            border_radius=10
+            padding=16,
+            border_radius=10,
+            expand=True
         )
 
     async def refresh_market(e=None):
@@ -785,7 +787,7 @@ def main(page: ft.Page):
     )
 
     page.add(
-        ft.Column(
+        ft.SafeArea(content=ft.Column(
             [
                 ft.Container(
                     content=ft.Column(
@@ -803,7 +805,7 @@ def main(page: ft.Page):
             ],
             expand=True,
             spacing=0,
-        )
+        ), expand=True)
     )
 
     original_render = render
