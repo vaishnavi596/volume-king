@@ -116,7 +116,7 @@ def main(page:ft.Page):
         fill_watch()
     def set_filter(v):
         watch_filter[0]=v
-        fill_watch()
+        select(1)
 
     def open_stock(sym):
         selected_watch[0]=sym
@@ -234,8 +234,55 @@ def main(page:ft.Page):
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
         select(2)
-    chain_symbol=ft.Dropdown(label="Index",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]],expand=True)
-    expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",hint_text="Use verified exchange expiry",expand=True)
+    chain_symbol=ft.Dropdown(label="Index / Stock",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols],expand=True)
+    option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK",expand=True)
+    option_expiry_choice=ft.Dropdown(label="Expiry",value="Nearest",options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]],expand=True)
+    expiry=ft.TextField(label="Expiry date (calendar preview)",read_only=True,expand=True)
+    option_expiry_note=txt("Calendar estimate only; holidays and listed contracts need broker/exchange verification.",11,GOLD)
+    def monthly_expiry(year,month,weekday):
+        import calendar
+        last=calendar.monthrange(year,month)[1]
+        d=date(year,month,last)
+        return d-timedelta(days=(d.weekday()-weekday)%7)
+    def option_dates(sym):
+        today=date.today()
+        weekly=sym in ("NIFTY","SENSEX")
+        day=3 if sym=="SENSEX" else 1
+        result=[]
+        if weekly:
+            for i in range(0,40):
+                d=today+timedelta(days=i)
+                if d.weekday()==day:result.append(d)
+                if len(result)>=2:break
+        else:
+            for i in range(0,6):
+                y=today.year+(today.month-1+i)//12
+                m=(today.month-1+i)%12+1
+                d=monthly_expiry(y,m,day)
+                if d>=today:result.append(d)
+                if len(result)>=2:break
+        return result
+    def refresh_option_expiry(e=None):
+        if option_expiry_choice.value=="Manual":
+            expiry.read_only=False
+        else:
+            expiry.read_only=True
+            dates=option_dates(chain_symbol.value)
+            idx=1 if option_expiry_choice.value=="Next" else 0
+            expiry.value=dates[idx].isoformat() if len(dates)>idx else ""
+        if e is not None:select(3)
+    def add_option_symbol(e):
+        sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
+        if sym and sym.replace("-","").replace("&","").isalnum() and sym not in [o.key for o in chain_symbol.options]:
+            chain_symbol.options.append(ft.dropdown.Option(sym))
+        if sym and sym in [o.key for o in chain_symbol.options]:
+            chain_symbol.value=sym
+            option_add_symbol.value=""
+            refresh_option_expiry()
+        select(3)
+    chain_symbol.on_change=refresh_option_expiry
+    option_expiry_choice.on_change=refresh_option_expiry
+    refresh_option_expiry()
     option_tab=["Option Chain"]
     strategy_choice=[""]
     option_notice=txt("",12,MUTED)
@@ -246,7 +293,7 @@ def main(page:ft.Page):
         strategy_choice[0]=v
         select(3)
     def options():
-        content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,expiry]),ft.ElevatedButton("Apply selection",on_click=lambda e:select(3)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
+        content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,option_expiry_choice]),ft.Row([expiry]),option_expiry_note,ft.Row([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)]),note("Stock options only where F&O contracts are listed; selection does not confirm availability."),ft.ElevatedButton("Apply selection",on_click=lambda e:select(3)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         if option_tab[0]=="Option Chain":
             content.extend([section("Option Chain",ft.Column([ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),unavailable("Broker options market-data API required")]))])
         elif option_tab[0]=="OI Analysis":content.append(section("OI Analysis",unavailable("Live CE/PE open interest API not connected")))
