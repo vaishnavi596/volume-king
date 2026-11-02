@@ -99,51 +99,88 @@ def app_main(page:ft.Page):
         return [heading("Market Dashboard • YAHOO PREVIEW"),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
     search=ft.TextField(hint_text="Search symbol (e.g. RELIANCE)",border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
+    watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
+    active_watch=[0]
     watch_list=ft.Column(spacing=8)
     selected_watch=[""]
     watch_filter=["All"]
-    add_symbol=ft.TextField(label="Add NSE symbol",hint_text="RELIANCE",expand=True)
+    add_symbol=ft.TextField(label="Add NSE symbol",hint_text="e.g. HDFCBANK",expand=True)
     feedback=txt("",12,MUTED)
+    def store_watch():
+        for i,group in enumerate(watch_groups,1):prefs["watchlist_"+str(i)]=list(group)
+        return save()
+    def all_watch_symbols():
+        return list(dict.fromkeys(sym for group in watch_groups for sym in group))
+    def change_watch(i):
+        active_watch[0]=i
+        watch_filter[0]="All"
+        select(1)
+    async def validate_and_add(sym):
+        try:
+            q=await asyncio.to_thread(get_yahoo,sym)
+            if q.get("price") is None:raise ValueError("No market price")
+            quotes[sym]=q
+        except Exception:
+            feedback.value="Quote not verified. Check symbol, internet or provider limits; not added."
+            page.update()
+            return
+        if sym not in watch_groups[active_watch[0]]:
+            watch_groups[active_watch[0]].append(sym)
+            store_watch()
+        if sym not in [o.key for o in chain_symbol.options]:
+            chain_symbol.options.append(ft.dropdown.Option(sym))
+        feedback.value=sym+" added and saved to List "+str(active_watch[0]+1)
+        add_symbol.value=""
+        select(1)
     def add_watch(e):
-        sym=(add_symbol.value or "").strip().upper().replace(".NS","")
-        if not sym or not sym.replace("-","").replace("&","").isalnum():
-            feedback.value="Enter valid NSE symbol"
-        elif sym in watch_symbols:
-            feedback.value="Already in watchlist"
+        sym=(add_symbol.value or "").strip().upper().removesuffix(".NS")
+        if not sym or len(sym)>25 or not all(c.isalnum() or c in "-&." for c in sym):
+            feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
+        elif sym in watch_groups[active_watch[0]]:
+            feedback.value="Already in this list."
         else:
-            watch_symbols.append(sym)
-            add_symbol.value=""
-            feedback.value=sym+" added; quote loads on next refresh"
-        fill_watch()
+            feedback.value="Checking market symbol..."
+            page.run_task(validate_and_add,sym)
+        page.update()
     def set_filter(v):
         watch_filter[0]=v
         select(1)
-
     def open_stock(sym):
         selected_watch[0]=sym
         if sym not in [o.key for o in symbol.options]:
             symbol.options.append(ft.dropdown.Option(sym))
         symbol.value=sym
+        chart_tab[0]="Chart"
         select(2)
+        page.run_task(load_chart)
     def remove_stock(sym):
-        if sym in watch_symbols:watch_symbols.remove(sym)
-        fill_watch()
+        group=watch_groups[active_watch[0]]
+        if sym in group:
+            group.remove(sym)
+            store_watch()
+            feedback.value=sym+" removed from List "+str(active_watch[0]+1)
+        select(1)
     def fill_watch(_=None):
         watch_list.controls.clear()
-        matching=[]
-        for sym in watch_symbols:
+        for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
             change=(quotes.get(sym) or {}).get("change")
             direction="Bullish" if change is not None and change>0 else "Bearish" if change is not None and change<0 else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
-            matching.append(sym)
-        for sym in matching:
-            watch_list.controls.append(ft.Container(content=ft.Row([ft.IconButton(icon=ft.Icons.CANDLESTICK_CHART,icon_color=GOLD,tooltip="Open chart",on_click=lambda e,v=sym:open_stock(v)),ft.Column([txt(sym,12,WHITE,True)],expand=True,spacing=0),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END),ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove stock",on_click=lambda e,v=sym:remove_stock(v))]),bgcolor=PANEL,border_radius=9,padding=4))
+            watch_list.controls.append(ft.Row([
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction)],expand=True,spacing=0),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
+            ],spacing=2))
         page.update()
     search.on_change=fill_watch
     def watchlist():
         fill_watch()
-        return [ft.Row([heading("Watchlist (NIFTY 50)"),pill("50 stocks",True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,note(market_status+" • Prices indicative / may be delayed"),watch_list]
+        return [heading("Watchlist • 5 Lists"),
+            ft.Row([ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED)) for i in range(5)],scroll=ft.ScrollMode.AUTO),
+            note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
+            search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
+            ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
+            note(market_status+" • Quotes may be delayed"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
@@ -235,7 +272,7 @@ def app_main(page:ft.Page):
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
         select(2)
-    chain_symbol=ft.Dropdown(label="Index / Stock",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols],expand=True)
+    chain_symbol=ft.Dropdown(label="Index / Stock",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+all_watch_symbols()],expand=True)
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK",expand=True)
     option_expiry_choice=ft.Dropdown(label="Expiry",value="Nearest",options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]],expand=True)
     expiry=ft.TextField(label="Expiry date (calendar preview)",read_only=True,expand=True)
@@ -565,7 +602,7 @@ def app_main(page:ft.Page):
         while True:
             if prefs.get("source")=="Yahoo Finance":
                 successes=0
-                symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
+                symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
                 semaphore=asyncio.Semaphore(5)
                 async def load_one(sym):
                     async with semaphore:
