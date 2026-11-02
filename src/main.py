@@ -756,13 +756,20 @@ def main(page: ft.Page):
                     ft.ElevatedButton("Connection Status", on_click=connect_angel_one, bgcolor=GOLD, color=BG),
                     ft.Text("API Key / Secret / PIN / TOTP के लिए सुरक्षित server-side login बाद में जोड़ा जाएगा।", color=MUTED, size=11),
                 ]), bgcolor=CARD, padding=14, border_radius=12),
+                ft.Container(content=ft.Column([
+                    ft.Text("Bot Risk Controls • DEMO ONLY", size=17, weight=ft.FontWeight.BOLD, color=GOLD),
+                    ft.Text("Signal threshold: 70%–95% • News 20% • Options direction 40% • Premium flow 40%", color=MUTED, size=11),
+                    ft.Text("Entry premium ₹80–₹100 • SL 2%–3% • Target / trailing SL • Max daily loss", color=MUTED, size=11),
+                    ft.Text("AUTO ORDERS OFF — ये केवल प्रस्तावित नियम हैं; लाइव ट्रेडिंग चालू नहीं है।", color=RED, size=11),
+                    ft.Text("Yahoo fallback: चार्ट के लिए, ऑर्डर भेजने के लिए नहीं।", color=MUTED, size=11),
+                ], spacing=8), bgcolor=CARD, padding=14, border_radius=12),
                 ft.Text("BOT KING • Classic Dark & Gold", color=MUTED, size=11),
             ]
 
         page.update()
 
     tabs = [
-        ("Dashboard", ft.icons.DASHBOARD),
+        ("Home", ft.icons.DASHBOARD),
         ("Watchlist", ft.icons.STAR),
         ("Charts", ft.icons.SHOW_CHART),
         ("Options", ft.icons.LIST_ALT),
@@ -772,7 +779,7 @@ def main(page: ft.Page):
     def on_navigation_change(e):
         index = e.control.selected_index
         if 0 <= index < len(tabs):
-            show_page(tabs[index][0])
+            show_page("Dashboard" if index == 0 else tabs[index][0])
 
     page.navigation_bar = ft.NavigationBar(
         selected_index=0,
