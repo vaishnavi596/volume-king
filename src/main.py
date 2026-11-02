@@ -171,7 +171,7 @@ def main(page:ft.Page):
     supertrend=ft.Switch(label="Supertrend",value=bool(prefs.get("chart_supertrend",False)),active_color=GREEN)
     def persist_chart_settings(e=None):
         prefs.update({"chart_ema":ema.value,"chart_vwap":vwap.value,"chart_rsi":rsi.value,"chart_macd":macd.value,"chart_volume":volume.value,"chart_ema200":ema200.value,"chart_sma50":sma50.value,"chart_bollinger":bollinger.value,"chart_atr":atr.value,"chart_supertrend":supertrend.value})
-        prefs.update(chart_symbol=symbol.value,chart_timeframe=timeframe.value,chart_type=chart_style_picker.value if "chart_style_picker" in locals() else "Candlestick")
+        prefs.update(chart_symbol=symbol.value,chart_timeframe=timeframe.value,chart_type=prefs.get("chart_type","Candlestick"))
         saved=save()
         if e is not None:
             chart_message.value="Chart preferences saved." if saved else "Could not save chart preferences."
@@ -188,6 +188,7 @@ def main(page:ft.Page):
     timeframe.on_change=persist_chart_settings
     def chart_style_apply(e):
         chart_style[0]=chart_style_picker.value
+        prefs["chart_type"]=chart_style_picker.value
         persist_chart_settings()
         select(2)
     def chart_candles():
