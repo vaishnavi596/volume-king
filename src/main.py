@@ -243,28 +243,53 @@ def main(page:ft.Page):
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x) for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Yahoo Finance","Broker API"]])
-    broker=ft.Dropdown(label="Broker",value="Angel One",options=[ft.dropdown.Option(x) for x in ["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Custom API"]])
-    api_url=ft.TextField(label="Broker API base URL",value=prefs["api_url"])
+    broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
+    broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
+    api_url=ft.TextField(label="Custom HTTPS API endpoint",value=prefs.get("api_url",""))
     broker_info=ft.Text("",size=13,color=MUTED)
+    broker_fields={
+        "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
+        "Dhan":["Client ID","Access Token"],
+        "Zerodha Kite":["API Key","API Secret","Request Token (after official login)"],
+        "Upstox":["Client ID / API Key","Client Secret","Authorization Code"],
+        "FYERS":["App ID","Secret Key","Authorization Code"],
+        "ICICI Direct":["API Key","API Secret","Session Token"],
+        "Kotak Neo":["Consumer Key","Client ID","MPIN","TOTP"],
+        "Groww":["API Key","API Secret / Access Token"],
+        "Shoonya / Finvasia":["User ID","Vendor Code","API Secret","TOTP"],
+        "5paisa":["App Key","App Secret","Client Code","Session Token"],
+        "Custom API":["API Key","API Secret","Access Token"]
+    }
+    default_fields=["API Key / App ID","API Secret (if required)","Client ID (if required)","Access Token / Authorization Code"]
+    credential_inputs={}
+    credential_column=ft.Column(spacing=10)
+    connection_status=txt("Not connected. Live broker login is not enabled in this build.",12,MUTED)
     def update_broker_info(e=None):
-        details={
-            "Angel One":"SmartAPI • API Key, Client Code and secure login required",
-            "Dhan":"DhanHQ • Client ID and access-token authorization required",
-            "Zerodha Kite":"Kite Connect • API Key and OAuth authorization required",
-            "Upstox":"Upstox API • Client ID and OAuth authorization required",
-            "FYERS":"FYERS API • App ID and OAuth authorization required",
-            "Alice Blue":"Alice Blue API • Account authorization required",
-            "5paisa":"5paisa API • App authorization required",
-            "ICICI Direct":"Breeze API • API authorization required",
-            "Kotak Neo":"Kotak Neo API • Account authorization required",
-            "Motilal Oswal":"Broker API authorization required",
-            "Custom API":"Custom provider • HTTPS endpoint and authentication required"
-        }
-        broker_info.value=details.get(broker.value,"Select a broker")
+        name=broker.value
+        labels=broker_fields.get(name,default_fields)
+        credential_inputs.clear()
+        controls=[]
+        for label in labels:
+            secret=any(word in label.lower() for word in ["secret","mpin","totp","token","key","code"])
+            field=ft.TextField(label=label,password=secret,can_reveal_password=secret)
+            credential_inputs[label]=field
+            controls.append(field)
+        credential_column.controls=controls
+        broker_info.value=name+" • Enter credentials on this device only. Nothing is saved or sent."
+        connection_status.value="Not connected. Authentication adapter required for "+name+"."
+        connection_status.color=MUTED
         if e is not None:page.update()
     broker.on_change=update_broker_info
     update_broker_info()
-    # Never collect or save live broker secrets in this unprotected preview.
+    def clear_broker_credentials(e):
+        for field in credential_inputs.values():field.value=""
+        connection_status.value="Credentials cleared from the form. No broker session was created."
+        connection_status.color=GREEN
+        page.update()
+    def explain_broker_connection(e):
+        connection_status.value="Not connected: secure broker authentication and callback service are not configured. No credentials transmitted."
+        connection_status.color=RED
+        page.update()
 
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -315,7 +340,7 @@ def main(page:ft.Page):
         if settings_tab[0]=="Trading Bot":
             content.extend([section("Trading Mode",ft.Column([mode,note("Paper mode only for simulated orders. Live execution disabled.")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status]))])
         elif settings_tab[0]=="Broker & API":
-            content.append(section("Broker & Data Source",ft.Column([broker,broker_info,source,api_url,note("Broker choices are for future integrations. No authentication or real orders are enabled. Do NOT enter live API keys here.") ])))
+            content.append(section("Broker & Data Source",ft.Column([broker,broker_info,source,credential_column,api_url,ft.Row([ft.ElevatedButton("Connect / Check",on_click=explain_broker_connection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Clear / Disconnect",on_click=clear_broker_credentials)],wrap=True),connection_status,note("Credentials are temporary and never saved. This is a setup form, not a live broker connection. For real login a secure broker-specific integration is required.") ])))
         elif settings_tab[0]=="Risk & Money":
             content.append(section("Risk Management",ft.Column([ft.Row([sl,target]),limit,note("Risk controls are stored but automatic SL/target execution is disabled.")])))
         elif settings_tab[0]=="Strategy":
