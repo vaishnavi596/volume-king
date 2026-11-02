@@ -121,7 +121,7 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = BG
     page.padding = 12
-    page.scroll = ft.ScrollMode.AUTO
+    page.scroll = ft.ScrollMode.HIDDEN
 
     watchlist = NIFTY50.copy()
     quotes = {}
@@ -130,7 +130,7 @@ def main(page: ft.Page):
     alerts_enabled = False
 
     status = ft.Text("BOT KING तैयार है", color=MUTED, size=11)
-    body = ft.Column(spacing=12)
+    body = ft.Column(spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
 
     add_symbol = ft.TextField(
         label="Stock Symbol",
@@ -467,7 +467,7 @@ def main(page: ft.Page):
             ]
 
         elif active_page == "Watchlist":
-            watch_column.controls = []
+            watch_column = ft.Column(spacing=8)
 
             body.controls = [
                 ft.Text(
@@ -730,47 +730,74 @@ def main(page: ft.Page):
 
         page.update()
 
-    nav_buttons = []
+    tabs = [
+        ("Dashboard", ft.icons.DASHBOARD),
+        ("Watchlist", ft.icons.STAR),
+        ("Charts", ft.icons.SHOW_CHART),
+        ("Options", ft.icons.LIST_ALT),
+        ("Paper", ft.icons.RECEIPT_LONG),
+        ("Alerts", ft.icons.NOTIFICATIONS),
+        ("Angel One", ft.icons.LINK),
+    ]
 
-    for name in [
-        "Dashboard",
-        "Watchlist",
-        "Charts",
-        "Options",
-        "Paper",
-        "Alerts",
-        "Angel One"
-    ]:
-        nav_buttons.append(
-            ft.TextButton(
-                name,
-                on_click=lambda e, n=name: show_page(n)
-            )
+    def bottom_button(name, icon):
+        selected = active_page == name
+        return ft.Container(
+            content=ft.Column(
+                [
+                    ft.Icon(icon, size=19, color=GOLD if selected else MUTED),
+                    ft.Text(name, size=8, color=GOLD if selected else MUTED,
+                            no_wrap=True),
+                ],
+                spacing=3,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            expand=True,
+            padding=ft.padding.symmetric(vertical=8),
+            bgcolor="#1D3049" if selected else "#0D1929",
+            border_radius=6,
+            on_click=lambda e, n=name: show_page(n),
         )
+
+    bottom_menu = ft.Container(
+        content=ft.Row(
+            [bottom_button(name, icon) for name, icon in tabs],
+            spacing=0,
+        ),
+        bgcolor="#0D1929",
+        padding=ft.padding.symmetric(horizontal=2, vertical=4),
+    )
 
     page.add(
         ft.Column(
             [
-                ft.Text(
-                    "BOT KING",
-                    size=26,
-                    weight=ft.FontWeight.BOLD,
-                    color=GOLD
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Text("BOT KING", size=26,
+                                    weight=ft.FontWeight.BOLD, color=GOLD),
+                            status,
+                        ],
+                        spacing=2,
+                    ),
+                    padding=ft.padding.only(bottom=6),
                 ),
-                status,
-                ft.Divider(color="#34445B"),
-                ft.Row(
-                    nav_buttons,
-                    wrap=True,
-                    spacing=2
-                ),
-                ft.Divider(color="#34445B"),
-                body
+                ft.Container(content=body, expand=True),
+                bottom_menu,
             ],
             expand=True,
-            scroll=ft.ScrollMode.AUTO
+            spacing=0,
         )
     )
+
+    original_render = render
+
+    def render():
+        original_render()
+        bottom_menu.content.controls = [
+            bottom_button(name, icon) for name, icon in tabs
+        ]
+        page.update()
 
     render()
     page.run_task(refresh_market)
