@@ -124,6 +124,7 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.HIDDEN
 
     watchlist = NIFTY50.copy()
+    watch_visible_count = 10
     quotes = {}
     trades = []
     active_page = "Dashboard"
@@ -417,6 +418,11 @@ def main(page: ft.Page):
         )
         page.update()
 
+    def show_more_watchlist(e):
+        nonlocal watch_visible_count
+        watch_visible_count = min(len(watchlist), watch_visible_count + 10)
+        render()
+
     def show_page(name):
         nonlocal active_page
         active_page = name
@@ -500,7 +506,7 @@ def main(page: ft.Page):
                 watch_column
             ]
 
-            for symbol in watchlist:
+            for symbol in watchlist[:watch_visible_count]:
                 quote = quotes.get(symbol)
 
                 price = (
@@ -551,6 +557,12 @@ def main(page: ft.Page):
                         border_radius=8
                     )
                 )
+
+            if watch_visible_count < len(watchlist):
+                watch_column.controls.append(ft.ElevatedButton(
+                    f"और शेयर दिखाएँ ({watch_visible_count}/{len(watchlist)})",
+                    on_click=show_more_watchlist, bgcolor=GOLD, color=BG
+                ))
 
         elif active_page == "Charts":
             body.controls = [
