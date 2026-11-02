@@ -139,7 +139,7 @@ def main(page: ft.Page):
     add_symbol = ft.TextField(
         label="Stock Symbol",
         hint_text="जैसे TATAMOTORS",
-        expand=True
+        width=205
     )
 
     chart_symbol = ft.TextField(
@@ -503,7 +503,7 @@ def main(page: ft.Page):
                             color=BG
                         )
                     ],
-                    wrap=True
+                    wrap=False
                 ),
                 watch_column
             ]
@@ -811,7 +811,10 @@ def main(page: ft.Page):
     original_render = render
 
     def render():
-        original_render()
+        try:
+            original_render()
+        except Exception as exc:
+            body.controls = [ft.Text("Screen error", color=RED), ft.Text(str(exc), selectable=True, color=MUTED), ft.ElevatedButton("Dashboard", on_click=lambda e: show_page("Dashboard"))]
         bottom_menu.content.controls = [
             bottom_button(name, icon) for name, icon in tabs
         ]
