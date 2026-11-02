@@ -769,54 +769,45 @@ def main(page: ft.Page):
         ("Settings", ft.icons.SETTINGS),
     ]
 
-    def bottom_button(name, icon):
-        selected = active_page == name
-        return ft.Container(
-            content=ft.Column(
-                [
-                    ft.Icon(icon, size=19, color=GOLD if selected else MUTED),
-                    ft.Text(name, size=8, color=GOLD if selected else MUTED,
-                            no_wrap=True),
-                ],
-                spacing=3,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            expand=True,
-            padding=ft.padding.symmetric(vertical=8),
-            bgcolor="#18334B" if selected else "#071525",
-            border_radius=10,
-            on_click=lambda e, n=name: show_page(n),
-        )
+    def on_navigation_change(e):
+        index = e.control.selected_index
+        if 0 <= index < len(tabs):
+            show_page(tabs[index][0])
 
-    bottom_menu = ft.Container(
-        content=ft.Row(
-            [bottom_button(name, icon) for name, icon in tabs],
-            spacing=0,
-        ),
+    page.navigation_bar = ft.NavigationBar(
+        selected_index=0,
+        destinations=[
+            ft.NavigationBarDestination(icon=icon, label=name)
+            for name, icon in tabs
+        ],
+        on_change=on_navigation_change,
         bgcolor="#071525",
-        padding=ft.padding.only(left=4, right=4, top=7, bottom=12),
+        indicator_color="#18334B",
+        height=72,
     )
 
     page.add(
-        ft.SafeArea(content=ft.Column(
-            [
-                ft.Container(
-                    content=ft.Column(
-                        [
-                            ft.Text("♛ BOT KING", size=25,
-                                    weight=ft.FontWeight.BOLD, color=GOLD),
-                            status,
-                        ],
-                        spacing=2,
+        ft.SafeArea(
+            content=ft.Column(
+                [
+                    ft.Container(
+                        content=ft.Column(
+                            [
+                                ft.Text("♛ BOT KING", size=25,
+                                        weight=ft.FontWeight.BOLD, color=GOLD),
+                                status,
+                            ],
+                            spacing=2,
+                        ),
+                        padding=ft.padding.only(left=16, right=16, top=10, bottom=12),
                     ),
-                    padding=ft.padding.only(left=16, right=16, top=10, bottom=12),
-                ),
-                ft.Container(content=body, expand=True),
-                bottom_menu,
-            ],
+                    body,
+                ],
+                expand=True,
+                spacing=0,
+            ),
             expand=True,
-            spacing=0,
-        ), expand=True, bottom=False)
+        )
     )
 
     original_render = render
@@ -826,9 +817,9 @@ def main(page: ft.Page):
             original_render()
         except Exception as exc:
             body.controls = [ft.Text("Screen error", color=RED), ft.Text(str(exc), selectable=True, color=MUTED), ft.ElevatedButton("Dashboard", on_click=lambda e: show_page("Dashboard"))]
-        bottom_menu.content.controls = [
-            bottom_button(name, icon) for name, icon in tabs
-        ]
+        page.navigation_bar.selected_index = next(
+            (i for i, (name, _) in enumerate(tabs) if name == active_page), 0
+        )
         page.update()
 
     render()
