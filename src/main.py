@@ -35,7 +35,9 @@ def main(page:ft.Page):
         change=((price/previous-1)*100) if price is not None and previous else None
         return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M")}
     def save():
-        try: STATE.write_text(json.dumps(prefs))
+        try:
+            prefs.pop("api_key",None)
+            STATE.write_text(json.dumps(prefs))
         except Exception: pass
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
@@ -68,14 +70,25 @@ def main(page:ft.Page):
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
     def section(title,child):return card(txt(title,17,GOLD,True),child)
+    dashboard_index=["NIFTY"]
+    dashboard_tool=[""]
+    def dashboard_index_set(name):
+        dashboard_index[0]=name
+        select(0)
+    def dashboard_tool_open(name):
+        dashboard_tool[0]=name
+        if name=="Paper Trade":select(4)
+        elif name=="OI Data":select(3)
+        else:select(0)
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),20,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=14,padding=12,expand=True)
-        return [heading("Market Dashboard • YAHOO PREVIEW"),ft.Row([pill("NIFTY 50",True),pill("BANK NIFTY"),pill("FIN NIFTY")],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt("NIFTY 50",20,WHITE,True),pill("Yahoo preview" if "NIFTY" in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price("NIFTY"),36,GOLD,True),txt(quote_change("NIFTY"),16,price_color("NIFTY"),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Row([pill("OI Data"),pill("Scanner"),pill("Signals"),pill("Paper Trade")],wrap=True)),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
+        return [heading("Market Dashboard • YAHOO PREVIEW"),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
     search=ft.TextField(hint_text="Search symbol (e.g. RELIANCE)",border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_list=ft.Column(spacing=8)
     watch_page=[0]
+    selected_watch=[""]
     page_size=12
     pager=ft.Row(alignment=ft.MainAxisAlignment.CENTER)
     watch_filter=["All"]
@@ -97,6 +110,15 @@ def main(page:ft.Page):
         watch_page[0]=0
         fill_watch()
 
+    def open_stock(sym):
+        selected_watch[0]=sym
+        if sym not in [o.key for o in symbol.options]:
+            symbol.options.append(ft.dropdown.Option(sym))
+        symbol.value=sym
+        select(2)
+    def remove_stock(sym):
+        if sym in watch_symbols:watch_symbols.remove(sym)
+        fill_watch()
     def fill_watch(_=None):
         watch_list.controls.clear()
         matching=[]
@@ -109,7 +131,7 @@ def main(page:ft.Page):
         pages_count=max(1,(len(matching)+page_size-1)//page_size)
         watch_page[0]=min(watch_page[0],pages_count-1)
         for sym in matching[watch_page[0]*page_size:(watch_page[0]+1)*page_size]:
-            watch_list.controls.append(ft.Container(content=ft.Row([ft.Icon(ft.Icons.STAR_BORDER,color=GOLD),ft.Column([txt(sym,15,WHITE,True),note("NSE")],expand=True,spacing=1),ft.Column([txt(quote_price(sym),16,price_color(sym),True),txt(quote_change(sym),11,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)]),bgcolor=PANEL,border_radius=12,padding=14))
+            watch_list.controls.append(ft.Container(content=ft.Row([ft.IconButton(icon=ft.Icons.CANDLESTICK_CHART,icon_color=GOLD,tooltip="Open chart",on_click=lambda e,v=sym:open_stock(v)),ft.Column([txt(sym,15,WHITE,True),note("Tap chart icon")],expand=True,spacing=1),ft.Column([txt(quote_price(sym),16,price_color(sym),True),txt(quote_change(sym),11,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END),ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove stock",on_click=lambda e,v=sym:remove_stock(v))]),bgcolor=PANEL,border_radius=12,padding=8))
         pager.controls.clear()
         pager.controls.extend([ft.TextButton("‹",on_click=lambda e:move_watch(-1)),note(f"{watch_page[0]+1} / {pages_count}  •  {len(matching)} stocks"),ft.TextButton("›",on_click=lambda e:move_watch(1))])
         page.update()
@@ -135,12 +157,19 @@ def main(page:ft.Page):
     def choose_chart_tab(v):
         chart_tab[0]=v
         select(2)
+    chart_style=["Candlestick"]
+    chart_style_picker=ft.Dropdown(label="Chart type",value="Candlestick",options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
+    def chart_style_apply(e):
+        chart_style[0]=chart_style_picker.value
+        select(2)
     def chart_candles():
         q=quotes.get(symbol.value) or {}
         bars=q.get("bars") or []
         if len(bars)<2:
             return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Yahoo Finance • internet connection required")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
+        if chart_style[0]=="Line":
+            return ft.Container(content=tiny_chart(symbol.value),height=230)
         low=min(b[3] for b in bars);high=max(b[2] for b in bars)
         spread=max(high-low,.001)
         width=324; height=230
@@ -162,9 +191,9 @@ def main(page:ft.Page):
     def charts():
         content=[heading("Charts • Technical Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_chart_tab(v),style=ft.ButtonStyle(color=GOLD if chart_tab[0]==n else MUTED)) for n in ["Chart","Indicators","Drawing","Compare","Levels","Signals"]],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),ft.ElevatedButton("Apply / Refresh",on_click=lambda e:page.run_task(load_chart),bgcolor=GOLD,color=BG)]
         if chart_tab[0]=="Chart":
-            content.extend([section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,vwap,rsi,macd,volume,note("Indicator overlays require sufficient historical candles. Settings are retained during this session.")])))
+            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,vwap,rsi,macd,volume,ft.ElevatedButton("Apply indicators",on_click=lambda e:select(2)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
@@ -189,13 +218,30 @@ def main(page:ft.Page):
         select(2)
     chain_symbol=ft.Dropdown(label="Index",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY"]],expand=True)
     expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",hint_text="Choose actual expiry",expand=True)
+    option_tab=["Option Chain"]
+    strategy_choice=[""]
+    option_notice=txt("",12,MUTED)
+    def choose_option_tab(v):
+        option_tab[0]=v
+        select(3)
+    def choose_strategy(v):
+        strategy_choice[0]=v
+        select(3)
     def options():
-        return [heading("Options Chain & Flow Analysis"),ft.Row([chain_symbol,expiry]),card(ft.Row([pill("PCR —"),pill("Total OI —"),pill("Chg OI —")],wrap=True),unavailable("licensed option-chain API required")),card(ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Divider(color="#294158"),note("OI     LTP       —       LTP     OI"),unavailable("no option prices or strikes received")),section("Premium Money Flow",note("Traded value: —   PCR: —   Highest CE/PE OI: —")),section("OI Change & PCR Trend",unavailable("historical options API required")),section("Intraday Options Setup",unavailable("no validated live data / backtest")),section("Popular Strategies",ft.Row([pill("Bull Call Spread"),pill("Bear Put Spread"),pill("Iron Condor")],wrap=True))]
+        content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,expiry]),ft.ElevatedButton("Apply selection",on_click=lambda e:select(3)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
+        if option_tab[0]=="Option Chain":
+            content.extend([section("Option Chain",ft.Column([ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),unavailable("Broker options market-data API required")]))])
+        elif option_tab[0]=="OI Analysis":content.append(section("OI Analysis",unavailable("Live CE/PE open interest API not connected")))
+        elif option_tab[0]=="PCR":content.append(section("Put Call Ratio",unavailable("PCR requires validated option-chain data")))
+        elif option_tab[0]=="Premium Flow":content.append(section("Premium Money Flow",unavailable("Premium-flow API not connected")))
+        else:
+            content.append(section("Strategy Selector",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:choose_strategy(v)) for n in ["Bull Call Spread","Bear Put Spread","Iron Condor"]],wrap=True),note("Selected strategy: "+(strategy_choice[0] or "None")),note("Educational preview only; no orders are placed")])))
+        return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x) for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Yahoo Finance","Broker API"]])
     broker=ft.Dropdown(label="Broker",value="Angel One",options=[ft.dropdown.Option(x) for x in ["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Custom API"]])
     api_url=ft.TextField(label="Broker API base URL",value=prefs["api_url"])
-    api_key=ft.TextField(label="API key (local only)",value=prefs["api_key"],password=True,can_reveal_password=True)
+    # API credentials are intentionally not collected or stored until secure authentication is implemented.
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -240,7 +286,22 @@ def main(page:ft.Page):
         settings_tab[0]=v
         select(4)
     def settings():
-        return [heading("Settings & Trading Bot"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_settings_tab(v),style=ft.ButtonStyle(color=GOLD if settings_tab[0]==n else MUTED)) for n in ["Trading Bot","Broker & API","Risk & Money","Strategy","Alerts","Backtest"]],scroll=ft.ScrollMode.AUTO),section("Trading Mode",ft.Column([mode,note("Paper is simulation. Live order execution is NOT implemented.")])),section("Risk Management",ft.Column([ft.Row([sl,target]),limit,txt("Signal confidence filter (70–85%)",14),conf,note("Bullish/Bearish confidence is not available without validated signals")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status,note("Stop loss / target are displayed for review; automatic execution is not enabled.")])),section("Broker API Options",ft.Column([broker,source,api_url,api_key,note("Broker options are placeholders. Do not enter real API secrets until encrypted storage and authentication are implemented.")])),ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("No real-money orders, auto-trading, guaranteed signals, or invented live prices. Broker integration requires a separate authenticated backend."))]
+        tabs=["Trading Bot","Broker & API","Risk & Money","Strategy","Alerts","Backtest"]
+        content=[heading("Settings & Trading Bot"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_settings_tab(v),style=ft.ButtonStyle(color=GOLD if settings_tab[0]==n else MUTED)) for n in tabs],scroll=ft.ScrollMode.AUTO)]
+        if settings_tab[0]=="Trading Bot":
+            content.extend([section("Trading Mode",ft.Column([mode,note("Paper mode only for simulated orders. Live execution disabled.")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status]))])
+        elif settings_tab[0]=="Broker & API":
+            content.append(section("Broker & Data Source",ft.Column([broker,source,api_url,note("Broker choices are for future integrations. No authentication or real orders are enabled. Do NOT enter live API keys here.") ])))
+        elif settings_tab[0]=="Risk & Money":
+            content.append(section("Risk Management",ft.Column([ft.Row([sl,target]),limit,note("Risk controls are stored but automatic SL/target execution is disabled.")])))
+        elif settings_tab[0]=="Strategy":
+            content.append(section("Strategy & Signal Filters",ft.Column([txt("Signal confidence filter (70–85%)",14),conf,note("Strategy engine is not connected; this is a saved preference only.")])))
+        elif settings_tab[0]=="Alerts":
+            content.append(section("Alerts",note("Alert delivery is not implemented. No active alerts.")))
+        else:
+            content.append(section("Backtest & Reports",note("Backtesting requires historical data and a validated strategy. No results are available.")))
+        content.extend([ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("Broker orders, automatic trading and signals are disabled until secure integration and testing."))])
+        return content
     pages=[dashboard,watchlist,charts,options,settings]
     icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS]
     names=["Dashboard","Watchlist","Charts","Options","Settings"]
@@ -262,12 +323,17 @@ def main(page:ft.Page):
         while True:
             if prefs.get("source")=="Yahoo Finance":
                 successes=0
-                for sym in list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)):
-                    try:
-                        quotes[sym]=await asyncio.to_thread(get_yahoo,sym)
-                        successes+=1
-                    except Exception:
-                        pass
+                symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
+                semaphore=asyncio.Semaphore(5)
+                async def load_one(sym):
+                    async with semaphore:
+                        try:
+                            quotes[sym]=await asyncio.to_thread(get_yahoo,sym)
+                            return True
+                        except Exception:
+                            return False
+                results=await asyncio.gather(*(load_one(sym) for sym in symbols))
+                successes=sum(results)
                 market_status=f"Yahoo Finance • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
                 try:select(current[0])
                 except Exception:pass
