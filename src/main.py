@@ -362,10 +362,24 @@ def app_main(page:ft.Page):
     def choose_strategy(v):
         strategy_choice[0]=v
         select(3)
+    option_strike=ft.TextField(label="Strike price",hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
+    option_side=ft.Dropdown(label="Contract",value="CE",options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")],width=120)
+    option_qty=ft.TextField(label="Lots (paper)",value="1",keyboard_type=ft.KeyboardType.NUMBER,width=120)
+    option_paper_note=txt("Option paper entry requires verified premium and lot size.",12,MUTED)
+    def option_paper_action(side):
+        option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
+        page.update()
     def options():
         content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,option_expiry_choice]),ft.Row([expiry]),option_expiry_note,ft.Row([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)]),note("Stock options only where F&O contracts are listed; selection does not confirm availability."),ft.ElevatedButton("Apply selection",on_click=lambda e:select(3)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         if option_tab[0]=="Option Chain":
-            content.extend([section("Option Chain",ft.Column([ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),unavailable("Broker options market-data API required")]))])
+            content.extend([section("Option Chain",ft.Column([ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Column([unavailable("Verified exchange option-chain feed not connected"),
+                note("CE/PE premiums and listed strikes are not invented."),
+                ft.Row([option_strike,option_side],wrap=True),
+                option_qty,
+                ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:option_paper_action("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:option_paper_action("SELL"),bgcolor=RED,color=WHITE)],wrap=True),
+                option_paper_note,
+                section("Option Chart",unavailable("Historical option premium data source required"))
+            ])]))])
         elif option_tab[0]=="OI Analysis":content.append(section("OI Analysis",unavailable("Live CE/PE open interest API not connected")))
         elif option_tab[0]=="PCR":content.append(section("Put Call Ratio",unavailable("PCR requires validated option-chain data")))
         elif option_tab[0]=="Premium Flow":content.append(section("Premium Money Flow",unavailable("Premium-flow API not connected")))
