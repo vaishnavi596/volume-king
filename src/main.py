@@ -35,7 +35,9 @@ def main(page:ft.Page):
         change=((price/previous-1)*100) if price is not None and previous else None
         return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M")}
     def save():
-        try: STATE.write_text(json.dumps(prefs))
+        try:
+            prefs.pop("api_key",None)
+            STATE.write_text(json.dumps(prefs))
         except Exception: pass
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
@@ -239,7 +241,7 @@ def main(page:ft.Page):
     source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Yahoo Finance","Broker API"]])
     broker=ft.Dropdown(label="Broker",value="Angel One",options=[ft.dropdown.Option(x) for x in ["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Custom API"]])
     api_url=ft.TextField(label="Broker API base URL",value=prefs["api_url"])
-    api_key=ft.TextField(label="API key (local only)",value=prefs["api_key"],password=True,can_reveal_password=True)
+    # API credentials are intentionally not collected or stored until secure authentication is implemented.
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -321,12 +323,17 @@ def main(page:ft.Page):
         while True:
             if prefs.get("source")=="Yahoo Finance":
                 successes=0
-                for sym in list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)):
-                    try:
-                        quotes[sym]=await asyncio.to_thread(get_yahoo,sym)
-                        successes+=1
-                    except Exception:
-                        pass
+                symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
+                semaphore=asyncio.Semaphore(5)
+                async def load_one(sym):
+                    async with semaphore:
+                        try:
+                            quotes[sym]=await asyncio.to_thread(get_yahoo,sym)
+                            return True
+                        except Exception:
+                            return False
+                results=await asyncio.gather(*(load_one(sym) for sym in symbols))
+                successes=sum(results)
                 market_status=f"Yahoo Finance • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
                 try:select(current[0])
                 except Exception:pass
