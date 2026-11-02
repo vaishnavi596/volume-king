@@ -153,6 +153,10 @@ def main(page:ft.Page):
     macd=ft.Switch(label="MACD (12,26,9)",value=False,active_color=GREEN)
     volume=ft.Switch(label="Volume",value=True,active_color=GREEN)
     ema200=ft.Switch(label="EMA 200",value=False,active_color=GREEN)
+    sma50=ft.Switch(label="SMA 50",value=False,active_color=GREEN)
+    bollinger=ft.Switch(label="Bollinger Bands",value=False,active_color=GREEN)
+    atr=ft.Switch(label="ATR 14",value=False,active_color=GREEN)
+    supertrend=ft.Switch(label="Supertrend",value=False,active_color=GREEN)
     chart_message=txt("",12,MUTED)
     def choose_chart_tab(v):
         chart_tab[0]=v
@@ -193,7 +197,7 @@ def main(page:ft.Page):
         if chart_tab[0]=="Chart":
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,vwap,rsi,macd,volume,ft.ElevatedButton("Apply indicators",on_click=lambda e:select(2)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
+            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Apply indicators",on_click=lambda e:select(2)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
@@ -241,7 +245,27 @@ def main(page:ft.Page):
     source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Yahoo Finance","Broker API"]])
     broker=ft.Dropdown(label="Broker",value="Angel One",options=[ft.dropdown.Option(x) for x in ["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Custom API"]])
     api_url=ft.TextField(label="Broker API base URL",value=prefs["api_url"])
-    # API credentials are intentionally not collected or stored until secure authentication is implemented.
+    broker_info=ft.Text("",size=13,color=MUTED)
+    def update_broker_info(e=None):
+        details={
+            "Angel One":"SmartAPI • API Key, Client Code and secure login required",
+            "Dhan":"DhanHQ • Client ID and access-token authorization required",
+            "Zerodha Kite":"Kite Connect • API Key and OAuth authorization required",
+            "Upstox":"Upstox API • Client ID and OAuth authorization required",
+            "FYERS":"FYERS API • App ID and OAuth authorization required",
+            "Alice Blue":"Alice Blue API • Account authorization required",
+            "5paisa":"5paisa API • App authorization required",
+            "ICICI Direct":"Breeze API • API authorization required",
+            "Kotak Neo":"Kotak Neo API • Account authorization required",
+            "Motilal Oswal":"Broker API authorization required",
+            "Custom API":"Custom provider • HTTPS endpoint and authentication required"
+        }
+        broker_info.value=details.get(broker.value,"Select a broker")
+        if e is not None:page.update()
+    broker.on_change=update_broker_info
+    update_broker_info()
+    # Never collect or save live broker secrets in this unprotected preview.
+
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -291,7 +315,7 @@ def main(page:ft.Page):
         if settings_tab[0]=="Trading Bot":
             content.extend([section("Trading Mode",ft.Column([mode,note("Paper mode only for simulated orders. Live execution disabled.")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status]))])
         elif settings_tab[0]=="Broker & API":
-            content.append(section("Broker & Data Source",ft.Column([broker,source,api_url,note("Broker choices are for future integrations. No authentication or real orders are enabled. Do NOT enter live API keys here.") ])))
+            content.append(section("Broker & Data Source",ft.Column([broker,broker_info,source,api_url,note("Broker choices are for future integrations. No authentication or real orders are enabled. Do NOT enter live API keys here.") ])))
         elif settings_tab[0]=="Risk & Money":
             content.append(section("Risk Management",ft.Column([ft.Row([sl,target]),limit,note("Risk controls are stored but automatic SL/target execution is disabled.")])))
         elif settings_tab[0]=="Strategy":
