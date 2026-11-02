@@ -104,7 +104,31 @@ def main(page:ft.Page):
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
     conf=ft.Slider(min=70,max=85,divisions=15,value=prefs["confidence"],label="{value}%")
-    status=txt("Trading disabled until authenticated API, validation and explicit confirmation.",12,RED)
+    status=txt("Broker orders disabled. Paper Buy/Sell is simulated.",12,RED)
+    paper_position={"side":None,"entry":None,"symbol":None}
+    paper_status=txt("Paper position: FLAT",12,MUTED)
+    def paper_trade(side):
+        if mode.value!="Paper":
+            paper_status.value="Switch to Paper mode for simulated Buy / Sell."
+            paper_status.color=RED
+        elif side=="EXIT":
+            if paper_position["side"]:
+                paper_status.value="Paper position closed (simulation only)."
+                paper_position.update(side=None,entry=None,symbol=None)
+                paper_status.color=GREEN
+            else:paper_status.value="No paper position to exit."
+        else:
+            sym=symbol.value
+            q=quotes.get(sym)
+            if not q or q.get("price") is None:
+                paper_status.value="Cannot simulate entry: Yahoo quote unavailable."
+                paper_status.color=RED
+            else:
+                paper_position.update(side=side,entry=q["price"],symbol=sym)
+                paper_status.value=f"Paper {side} {sym} @ {q['price']:,.2f} • SL {sl.value}% • Target {target.value}% (not an actual order)"
+                paper_status.color=GREEN
+        page.update()
+
     def save_settings(_):
         try:
             stop=float(sl.value);take=float(target.value);count=int(limit.value)
@@ -115,7 +139,7 @@ def main(page:ft.Page):
             status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
         page.update()
     def settings():
-        return [heading("Settings & Trading Bot"),ft.Row([pill("Trading Bot",True),pill("Broker & API"),pill("Risk & Money"),pill("Strategy"),pill("Alerts"),pill("Backtest")],scroll=ft.ScrollMode.AUTO),section("Trading Mode",ft.Column([mode,note("Paper is simulation. Live order execution is NOT implemented.")])),section("Risk Management",ft.Column([ft.Row([sl,target]),limit,txt("Signal confidence filter (70–85%)",14),conf,note("Bullish/Bearish confidence is not available without validated signals")])),section("Market Data & API",ft.Column([source,api_url,api_key,note("Never publish API secrets in GitHub. Credentials here are local app preferences; use secure storage for production.")])),ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("No real-money orders, auto-trading, guaranteed signals, or invented live prices. Broker integration requires a separate authenticated backend."))]
+        return [heading("Settings & Trading Bot"),ft.Row([pill("Trading Bot",True),pill("Broker & API"),pill("Risk & Money"),pill("Strategy"),pill("Alerts"),pill("Backtest")],scroll=ft.ScrollMode.AUTO),section("Trading Mode",ft.Column([mode,note("Paper is simulation. Live order execution is NOT implemented.")])),section("Risk Management",ft.Column([ft.Row([sl,target]),limit,txt("Signal confidence filter (70–85%)",14),conf,note("Bullish/Bearish confidence is not available without validated signals")])),section("Paper Trading Controls",ft.Column([ft.Row([ft.ElevatedButton("BUY (Paper)",on_click=lambda e:paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL (Paper)",on_click=lambda e:paper_trade("SELL"),bgcolor=RED,color=WHITE),ft.OutlinedButton("EXIT",on_click=lambda e:paper_trade("EXIT"))],wrap=True),paper_status,note("Stop loss / target are displayed for review; automatic execution is not enabled.")])),section("Broker API Options",ft.Column([ft.Row([pill("Dhan"),pill("Angel One"),pill("Zerodha"),pill("Upstox")],wrap=True),source,api_url,api_key,note("Broker options are placeholders. Do not enter real API secrets until encrypted storage and authentication are implemented.")])),ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("No real-money orders, auto-trading, guaranteed signals, or invented live prices. Broker integration requires a separate authenticated backend."))]
     pages=[dashboard,watchlist,charts,options,settings]
     icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS]
     names=["Dashboard","Watchlist","Charts","Options","Settings"]
