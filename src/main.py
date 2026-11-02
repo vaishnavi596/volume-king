@@ -1,5 +1,6 @@
 import flet as ft
 import json
+import traceback
 import asyncio
 import urllib.request
 import urllib.parse
@@ -9,7 +10,7 @@ from pathlib import Path
 BG="#03080E"; PANEL="#071821"; PANEL2="#0B2630"; GOLD="#FFCB12"; GREEN="#00E778"; RED="#FF405D"; WHITE="#F1F5FA"; MUTED="#9DB2BD"
 STATE=Path.home()/".bot_king_settings.json"
 
-def main(page:ft.Page):
+def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
     page.window_width=420; page.window_height=850
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Yahoo Finance","api_url":"","api_key":""}
@@ -581,5 +582,21 @@ def main(page:ft.Page):
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
+
+def main(page: ft.Page):
+    try:
+        app_main(page)
+    except Exception:
+        error=traceback.format_exc()
+        print("BOT KING STARTUP ERROR:\\n"+error,flush=True)
+        page.controls.clear()
+        page.bgcolor="#03080E"
+        page.padding=16
+        page.add(
+            ft.Text("BOT KING — Startup Error",size=22,color="#FFCB12",weight=ft.FontWeight.BOLD),
+            ft.Text("The app could not initialize. Please send a screenshot of this error.",color="#FFFFFF"),
+            ft.Column([ft.Text(error,size=11,color="#FF8796",selectable=True)],scroll=ft.ScrollMode.AUTO,expand=True),
+        )
+        page.update()
 
 ft.app(target=main)
