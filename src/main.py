@@ -16,6 +16,10 @@ def main(page:ft.Page):
     try:
         if STATE.exists(): prefs.update(json.loads(STATE.read_text()))
     except Exception: pass
+    try:
+        stored=page.client_storage.get("bot_king_preferences")
+        if isinstance(stored,dict):prefs.update(stored)
+    except Exception:pass
     quotes={}
     candles={}
     market_status="Connecting Yahoo Finance…"
@@ -35,10 +39,18 @@ def main(page:ft.Page):
         change=((price/previous-1)*100) if price is not None and previous else None
         return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M")}
     def save():
+        # Android-friendly persistent preferences; never persist broker secrets.
+        safe={k:v for k,v in prefs.items() if k not in ("api_key","api_secret","access_token","password","totp")}
+        errors=[]
         try:
-            prefs.pop("api_key",None)
-            STATE.write_text(json.dumps(prefs))
-        except Exception: pass
+            page.client_storage.set("bot_king_preferences",safe)
+            return True
+        except Exception as exc:errors.append(str(exc))
+        try:
+            STATE.write_text(json.dumps(safe))
+            return True
+        except Exception as exc:errors.append(str(exc))
+        return False
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
@@ -328,10 +340,10 @@ def main(page:ft.Page):
     bot_premium=ft.TextField(label="Entry premium (INR)",value=str(prefs.get("bot_premium",80)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_trailing=ft.Switch(label="Trailing stop (calculation only)",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
     # Saved strategy preferences only: no unattended execution or live orders.
-    auto_entry=ft.Switch(label="Auto entry on validated signal (future)",value=bool(prefs.get("auto_entry",False)),active_color=GOLD)
-    auto_reentry=ft.Switch(label="Re-entry after exit (future)",value=bool(prefs.get("auto_reentry",False)),active_color=GOLD)
-    buy_dip=ft.Switch(label="Buy on dip / limited averaging (future)",value=bool(prefs.get("buy_dip",False)),active_color=GOLD)
-    partial_profit=ft.Switch(label="Partial profit booking (future)",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
+    auto_entry=ft.Switch(label="Auto entry (saved plan only)",value=bool(prefs.get("auto_entry",False)),active_color=GOLD)
+    auto_reentry=ft.Switch(label="Re-entry after exit (saved plan)",value=bool(prefs.get("auto_reentry",False)),active_color=GOLD)
+    buy_dip=ft.Switch(label="Buy on dip (saved plan only)",value=bool(prefs.get("buy_dip",False)),active_color=GOLD)
+    partial_profit=ft.Switch(label="Partial profit booking (plan)",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
     max_total_lots=ft.Dropdown(label="Maximum total lots",value=str(prefs.get("max_total_lots",2)),options=[ft.dropdown.Option(str(i)) for i in range(1,51)])
     dip_step=ft.TextField(label="Minimum dip before adding (%)",value=str(prefs.get("dip_step",5)),keyboard_type=ft.KeyboardType.NUMBER)
     max_daily_loss=ft.TextField(label="Daily loss limit (INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
@@ -431,9 +443,9 @@ def main(page:ft.Page):
             bot_values()
             if not (1<=int(max_total_lots.value)<=50 and int(max_total_lots.value)>=int(bot_lots.value) and 0<float(dip_step.value)<=100 and float(max_daily_loss.value)>0):raise ValueError("Invalid strategy limits")
             prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value,bot_expiry_mode=bot_expiry_mode.value,auto_entry=auto_entry.value,auto_reentry=auto_reentry.value,buy_dip=buy_dip.value,partial_profit=partial_profit.value,max_total_lots=int(max_total_lots.value),dip_step=float(dip_step.value),max_daily_loss=float(max_daily_loss.value),cooldown=int(cooldown.value),squareoff=squareoff.value,emergency_stop=emergency_stop.value)
-            save();status.value="Preferences saved locally. Live orders remain disabled.";status.color=GREEN
+            persisted=save();status.value=("Settings saved on device. Auto strategies are not running." if persisted else "Save failed: device storage unavailable. Settings will reset after restart.");status.color=GREEN if persisted else RED
         except Exception:
-            status.value="Invalid risk values. Check stop loss, target and max trades.";status.color=RED
+            status.value="Cannot save: check contract, lot limits, premium, SL, target and daily loss.";status.color=RED
         page.update()
     broker.value=prefs.get("broker","Angel One")
     settings_tab=["Trading Bot"]
