@@ -99,10 +99,7 @@ def main(page:ft.Page):
     search=ft.TextField(hint_text="Search symbol (e.g. RELIANCE)",border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_list=ft.Column(spacing=8)
-    watch_page=[0]
     selected_watch=[""]
-    page_size=12
-    pager=ft.Row(alignment=ft.MainAxisAlignment.CENTER)
     watch_filter=["All"]
     add_symbol=ft.TextField(label="Add NSE symbol",hint_text="RELIANCE",expand=True)
     feedback=txt("",12,MUTED)
@@ -119,7 +116,6 @@ def main(page:ft.Page):
         fill_watch()
     def set_filter(v):
         watch_filter[0]=v
-        watch_page[0]=0
         fill_watch()
 
     def open_stock(sym):
@@ -140,20 +136,13 @@ def main(page:ft.Page):
             direction="Bullish" if change is not None and change>0 else "Bearish" if change is not None and change<0 else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             matching.append(sym)
-        pages_count=max(1,(len(matching)+page_size-1)//page_size)
-        watch_page[0]=min(watch_page[0],pages_count-1)
-        for sym in matching[watch_page[0]*page_size:(watch_page[0]+1)*page_size]:
-            watch_list.controls.append(ft.Container(content=ft.Row([ft.IconButton(icon=ft.Icons.CANDLESTICK_CHART,icon_color=GOLD,tooltip="Open chart",on_click=lambda e,v=sym:open_stock(v)),ft.Column([txt(sym,15,WHITE,True),note("Tap chart icon")],expand=True,spacing=1),ft.Column([txt(quote_price(sym),16,price_color(sym),True),txt(quote_change(sym),11,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END),ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove stock",on_click=lambda e,v=sym:remove_stock(v))]),bgcolor=PANEL,border_radius=12,padding=8))
-        pager.controls.clear()
-        pager.controls.extend([ft.TextButton("‹",on_click=lambda e:move_watch(-1)),note(f"{watch_page[0]+1} / {pages_count}  •  {len(matching)} stocks"),ft.TextButton("›",on_click=lambda e:move_watch(1))])
+        for sym in matching:
+            watch_list.controls.append(ft.Container(content=ft.Row([ft.IconButton(icon=ft.Icons.CANDLESTICK_CHART,icon_color=GOLD,tooltip="Open chart",on_click=lambda e,v=sym:open_stock(v)),ft.Column([txt(sym,12,WHITE,True)],expand=True,spacing=0),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END),ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove stock",on_click=lambda e,v=sym:remove_stock(v))]),bgcolor=PANEL,border_radius=9,padding=4))
         page.update()
-    def move_watch(delta):
-        watch_page[0]=max(0,watch_page[0]+delta)
-        fill_watch()
-    search.on_change=lambda e:(watch_page.__setitem__(0,0),fill_watch())
+    search.on_change=fill_watch
     def watchlist():
         fill_watch()
-        return [ft.Row([heading("Watchlist (NIFTY 50)"),pill("50 stocks",True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,note(market_status+" • Prices indicative / may be delayed"),watch_list,pager]
+        return [ft.Row([heading("Watchlist (NIFTY 50)"),pill("50 stocks",True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),search,ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,note(market_status+" • Prices indicative / may be delayed"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
@@ -245,8 +234,8 @@ def main(page:ft.Page):
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
         select(2)
-    chain_symbol=ft.Dropdown(label="Index",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY"]],expand=True)
-    expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",hint_text="Choose actual expiry",expand=True)
+    chain_symbol=ft.Dropdown(label="Index",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]],expand=True)
+    expiry=ft.TextField(label="Expiry (YYYY-MM-DD)",hint_text="Use verified exchange expiry",expand=True)
     option_tab=["Option Chain"]
     strategy_choice=[""]
     option_notice=txt("",12,MUTED)
