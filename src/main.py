@@ -231,6 +231,7 @@ def app_main(page:ft.Page):
     from threading import RLock
     trade_lock=RLock()
     scan_generation=[0]
+    provider_generation=[0]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
         diagnostics.append(datetime.now(timezone.utc).isoformat(timespec="seconds")+" "+area+": "+type(exc).__name__)
@@ -268,7 +269,11 @@ def app_main(page:ft.Page):
     def get_market_data(ticker,interval="5m",range_="1d"):
         if prefs.get("source")!="Yahoo Finance":
             raise RuntimeError("Broker feed not connected. Select Yahoo Finance; credentials alone do not connect a broker.")
-        return get_yahoo(ticker,interval,range_)
+        generation=provider_generation[0]
+        result=get_yahoo(ticker,interval,range_)
+        if generation!=provider_generation[0] or prefs.get("source")!="Yahoo Finance":
+            raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
+        return result
     def analyze_current(bars,selected=None,timeframe="5m"):
         result=analyze(clean_bars(bars),selected,timeframe)
         seconds={"1m":60,"3m":180,"5m":300,"15m":900,"30m":1800,"1h":3600,"1d":86400}.get(timeframe,300)
@@ -664,6 +669,8 @@ def app_main(page:ft.Page):
             dates=option_dates(chain_symbol.value)
             idx=1 if option_expiry_choice.value=="Next" else 0
             expiry.value=dates[idx].isoformat() if len(dates)>idx else ""
+        prefs.update(option_symbol=chain_symbol.value,option_expiry_choice=option_expiry_choice.value,option_expiry=expiry.value or "")
+        save()
         if e is not None:select(1)
     def add_option_symbol(e):
         sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
@@ -790,6 +797,10 @@ def app_main(page:ft.Page):
         selected=choices[1] if bot_expiry_mode.value=="Next (preview)" and len(choices)>1 else (choices[0] if choices else "")
         if bot_expiry_mode.value!="Manual":
             bot_expiry.value=selected
+            prefs["bot_expiry"]=selected
+            prefs["bot_expiry_mode"]=bot_expiry_mode.value
+            prefs["bot_symbol"]=bot_symbol.value
+            save()
             bot_expiry.read_only=True
         else:
             bot_expiry.read_only=False
@@ -806,7 +817,7 @@ def app_main(page:ft.Page):
     partial_profit=ft.Switch(label="Partial profit booking (plan)",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
     max_total_lots=ft.Dropdown(label="Maximum total lots",value=str(prefs.get("max_total_lots",2)),options=[ft.dropdown.Option(str(i)) for i in range(1,51)])
     dip_step=ft.TextField(label="Minimum dip before adding (%)",value=str(prefs.get("dip_step",5)),keyboard_type=ft.KeyboardType.NUMBER)
-    max_daily_loss=ft.TextField(label="Daily loss limit (INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
+    max_daily_loss=ft.TextField(label="Daily planned-risk budget (paper INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
     cooldown=ft.Dropdown(label="Re-entry cooldown (minutes)",value=str(prefs.get("cooldown",15)),options=[ft.dropdown.Option(str(i)) for i in [5,10,15,30,60]])
     squareoff=ft.Dropdown(label="Paper square-off time",value=str(prefs.get("squareoff","15:15")),options=[ft.dropdown.Option(x) for x in ["15:00","15:10","15:15","15:20","15:25"]])
     emergency_stop=ft.Switch(label="Emergency stop (paper)",value=bool(prefs.get("emergency_stop",False)),active_color=RED)
@@ -840,6 +851,31 @@ def app_main(page:ft.Page):
             bot_preview.value="Invalid input: "+str(exc)
             bot_preview.color=RED
         page.update()
+    def paper_day():
+        return datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat()
+    def paper_risk_ledger():
+        today=paper_day()
+        ledgers=prefs.setdefault("paper_daily_limits",{})
+        if today not in ledgers:
+            # Preserve accepted entries from older builds during this day's migration.
+            accepted=[]
+            for event in prefs.get("bot_paper_events",[]):
+                try:
+                    when=datetime.fromisoformat(event["time"])
+                    if when.tzinfo is None:when=when.replace(tzinfo=timezone.utc)
+                    if (when.astimezone(timezone(timedelta(hours=5,minutes=30))).date().isoformat()==today
+                            and event.get("status","").startswith("SIMULATED ")
+                            and event.get("action") in ("BUY","SELL")):
+                        accepted.append(event)
+                except (KeyError,ValueError,TypeError):continue
+            used=0.0
+            for event in accepted:
+                position=event.get("position") or {}
+                try:used+=float(position["entry"])*int(position["quantity"])*float(position.get("stop_loss_pct",2))/100
+                except (KeyError,ValueError,TypeError):pass
+            ledgers[today]={"entries":len(accepted),"planned_risk_used":used}
+        for day in sorted(ledgers)[:-35]:del ledgers[day]
+        return ledgers[today]
     def bot_paper_action(side):
         with trade_lock:
             bot_paper_action_locked(side)
@@ -865,6 +901,17 @@ def app_main(page:ft.Page):
             try:
                 p,st,tg,qty,contract=bot_values()
                 if not bot_expiry.value:raise ValueError("Set contract expiry before paper entry.")
+                validate_field(limit,"max_trades",limit.value)
+                validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
+                ledger=paper_risk_ledger()
+                if int(ledger["entries"])>=int(limit.value):
+                    raise ValueError("Daily paper entry limit reached. EXIT remains available.")
+                planned_risk=p*qty*st/100
+                remaining=float(max_daily_loss.value)-float(ledger["planned_risk_used"])
+                if planned_risk>remaining+1e-9:
+                    raise ValueError("Daily paper planned-risk budget exceeded. This is not actual loss accounting.")
+                ledger["entries"]+=1
+                ledger["planned_risk_used"]+=planned_risk
                 bot_position.update(side=side,entry=p,quantity=qty,contract=contract,stop_loss_pct=st,target_pct=tg)
                 bot_trade_status.value=f"SIMULATED {side} {contract} | {qty} units @ INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f}. No real order."
                 bot_trade_status.color=GREEN
@@ -944,7 +991,7 @@ def app_main(page:ft.Page):
     def settings():
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Credentials are temporary and never saved. This is a setup form, not a live broker connection. For real login a secure broker-specific integration is required.')])))
-        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_symbol, bot_custom, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium, note('Enter the actual exchange lot size and premium manually. No option-chain feed is connected.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True), limit, note('Trailing stop is a saved preference only. It does not automatically update or execute orders.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  AUTO STRATEGY (PREFERENCES ONLY)', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Auto entry, re-entry, averaging, partial exits, trailing SL and square-off are NOT running. These switches save a plan only. Emergency stop immediately blocks new manual paper entries. No live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=WHITE), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status, note('Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.')], spacing=12))])
+        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_symbol, bot_custom, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium, note('Enter the actual exchange lot size and premium manually. No option-chain feed is connected.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True), limit, note('Trailing stop is a saved preference only. It does not automatically update or execute orders.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  AUTO STRATEGY (PREFERENCES ONLY)', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Actual realized-loss accounting needs verified exit prices. Auto entry/re-entry, averaging, partial exits, trailing SL and square-off are saved plans only. No live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=WHITE), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status, note('Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.')], spacing=12))])
         content.extend([
             section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
             section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
@@ -1542,6 +1589,7 @@ console.log('BOT KING Lightweight Charts ready');
     def provider_changed(e):
         nonlocal market_status
         market_status="Broker feed not connected" if source.value!="Yahoo Finance" else "Yahoo history: waiting for refresh"
+        provider_generation[0]+=1
         quotes.clear();candles.clear();top5_candidates.clear();scan_generation[0]+=1
         scan_result.controls.clear()
         connection_status.value="Broker feed not connected" if source.value!="Yahoo Finance" else "Yahoo delayed history selected"
@@ -1575,7 +1623,7 @@ console.log('BOT KING Lightweight Charts ready');
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
         page.run_task(restore_scroll,i)
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.4.0 AUDIT FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.4.1 RECHECK FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
@@ -1587,17 +1635,23 @@ console.log('BOT KING Lightweight Charts ready');
                 continue
             initial=False
             if prefs.get("source")=="Yahoo Finance":
+                generation=provider_generation[0]
                 successes=0
                 symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
                 semaphore=asyncio.Semaphore(5)
                 async def load_one(sym):
                     async with semaphore:
                         try:
-                            quotes[sym]=await asyncio.to_thread(get_market_data,sym)
+                            data=await asyncio.to_thread(get_market_data,sym)
+                            if generation!=provider_generation[0] or prefs.get("source")!="Yahoo Finance":return False
+                            quotes[sym]=data
                             return True
                         except Exception:
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
+                if generation!=provider_generation[0] or prefs.get("source")!="Yahoo Finance":
+                    await asyncio.sleep(.05)
+                    continue
                 successes=sum(results)
                 market_status=f"Yahoo Finance • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
@@ -1608,6 +1662,9 @@ console.log('BOT KING Lightweight Charts ready');
                             return sym,analyze_current(data["bars"],filter_selected[:],"5m")
                         except Exception:return sym,None
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
+                if generation!=provider_generation[0] or prefs.get("source")!="Yahoo Finance":
+                    await asyncio.sleep(.05)
+                    continue
                 top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 try:

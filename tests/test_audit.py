@@ -107,4 +107,61 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(v['scan_result'].controls,before)
         self.assertTrue(any(fn.__name__=='restart_latest_scan' for fn,args in page.tasks))
 
+    def test_derived_expiry_persists_after_mode_change(self):
+        page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01'})
+        v['bot_expiry_mode'].value='Nearest (preview)'
+        v['bot_expiry_mode'].on_change(event(v['bot_expiry_mode']))
+        expected=v['bot_expiry'].value
+        self.assertNotEqual(expected,'2099-12-01')
+        prefs=page.client_storage.get('bot_king_preferences')
+        self.assertEqual(prefs['bot_expiry'],expected)
+        _,restored=start(prefs)
+        self.assertEqual(restored['bot_expiry'].value,expected)
+        v['option_expiry_choice'].value='Next'
+        v['option_expiry_choice'].on_change(event(v['option_expiry_choice']))
+        self.assertEqual(page.client_storage.get('bot_king_preferences')['option_expiry'],v['expiry'].value)
+
+    def test_inflight_dashboard_response_rejected_after_source_change(self):
+        page,v=start({'scanner_live':False})
+        async def run():
+            original_thread=asyncio.to_thread;original_sleep=asyncio.sleep;switched=False
+            async def delayed(fn,*args,**kwargs):
+                nonlocal switched
+                if not switched:
+                    switched=True
+                    v['source'].value='Broker API';v['source'].on_change(event(v['source']))
+                return {'price':100,'change':0,'bars':[]}
+            class StopLoop(Exception):pass
+            async def stop(*args,**kwargs):raise StopLoop()
+            asyncio.to_thread=delayed;asyncio.sleep=stop
+            try:
+                with self.assertRaises(StopLoop):await v['refresh_market']()
+            finally:asyncio.to_thread=original_thread;asyncio.sleep=original_sleep
+        asyncio.run(run())
+        self.assertEqual(v['prefs']['source'],'Broker API')
+        self.assertEqual(v['quotes'],{})
+        self.assertEqual(v['top5_candidates'],[])
+
+    def test_daily_entry_limit_persists_and_exit_stays_available(self):
+        page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','max_trades':1})
+        v['bot_paper_action']('BUY');v['bot_paper_action']('EXIT');v['bot_paper_action']('SELL')
+        self.assertIsNone(v['bot_position']['side'])
+        self.assertIn('Daily paper entry limit',v['bot_trade_status'].value)
+        _,restored=start(page.client_storage.get('bot_king_preferences'))
+        restored['bot_paper_action']('BUY')
+        self.assertIsNone(restored['bot_position']['side'])
+        self.assertEqual(restored['paper_risk_ledger']()['entries'],1)
+
+    def test_daily_planned_risk_and_concurrent_entries(self):
+        page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','max_trades':10,'bot_premium':100,'bot_lots':2,'bot_lot_size':25,'max_total_lots':4,'max_daily_loss':100})
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(v['bot_paper_action'],['BUY']*8))
+        self.assertEqual(v['paper_risk_ledger']()['entries'],1)
+        v['bot_paper_action']('EXIT');v['bot_paper_action']('BUY')
+        self.assertIsNone(v['bot_position']['side'])
+        self.assertIn('planned-risk budget',v['bot_trade_status'].value)
+        self.assertEqual(v['paper_risk_ledger']()['planned_risk_used'],100)
+        v['max_daily_loss'].value='nan';v['bot_paper_action']('BUY')
+        self.assertIsNone(v['bot_position']['side'])
+
 if __name__=='__main__':unittest.main()
