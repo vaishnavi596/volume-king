@@ -65,7 +65,7 @@ jobs:
           python -c "import flet; import importlib.metadata as m; print('Flet:', m.version('flet'))"
 
       - name: Build APK
-        run: flet build apk --verbose
+        run: flet build apk --include-packages flet_webview --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
