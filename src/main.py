@@ -726,6 +726,18 @@ def app_main(page:ft.Page):
     def tradingview_url(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
         return "https://www.tradingview.com/chart/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5"
+    tradingview_status=ft.Text("TradingView: waiting for page load",size=12,color=MUTED)
+    def tv_started(e):
+        tradingview_status.value="TradingView: loading page..."
+        tradingview_status.update()
+    def tv_ended(e):
+        tradingview_status.value="TradingView: page loaded; if chart stays blank, website scripts may be blocked."
+        tradingview_status.update()
+    def tv_error(e):
+        tradingview_status.value="TradingView WebView error: "+str(e.data)[:220]
+        tradingview_status.update()
+    def tv_retry(e):
+        select(3)
     def chart_provider_change(e):
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
@@ -816,7 +828,9 @@ def app_main(page:ft.Page):
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView":
                 parts.append(note("TradingView full chart in Android WebView • internet required. Market data may be delayed; AI votes use Yahoo candles."))
-                parts.append(ft.Container(content=ft.WebView(url=tradingview_url(sym),expand=True),height=420,bgcolor=PANEL2,border_radius=8))
+                parts.append(tradingview_status)
+                parts.append(ft.Container(content=ft.WebView(url=tradingview_url(sym),expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error),height=420,bgcolor=PANEL2,border_radius=8))
+                parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
                 return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
