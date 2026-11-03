@@ -98,12 +98,16 @@ def app_main(page:ft.Page):
         elif name=="Paper Trade":select(2)
         elif name=="OI Data":select(1)
         else:select(0)
+    def open_candidate_chart(symbol):
+        scan_symbol.value=symbol
+        select(3)
+        trigger_scan()
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
         return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("5m signal is not confirmed by 15m/1h; OI/PCR/News unavailable")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("WAIT • Live option premium, liquidity and expiry not verified")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
                 [note("Updated "+top5_last_update[0]+" • 5m candle ranking using active scanner filters; NOT a win probability")]
-                + ([ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% votes",12,GREEN if x["bias"]=="BULLISH" else RED,True),note("5m • "+str(x["age"])+"s old • "+x["reason"])],spacing=2) for x in top5_candidates]
+                + ([ft.Container(content=ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% votes",12,GREEN if x["bias"]=="BULLISH" else RED,True),note("5m • "+str(x["age"])+"s old • "+x["reason"]),note("Tap to open chart")],spacing=2),on_click=lambda e,s=x["symbol"]:open_candidate_chart(s),bgcolor=PANEL2,padding=9,border_radius=8) for x in top5_candidates]
                    if top5_candidates else [note("WAIT • no fresh qualified candidates; not a trade guarantee")])
             ,spacing=6)),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
 
@@ -718,6 +722,12 @@ def app_main(page:ft.Page):
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
     chart_filter_names=["EMA 9/21","RSI 14","MACD","Supertrend"]
+    chart_provider=[prefs.get("chart_provider","TradingView")]
+    def chart_provider_change(e):
+        chart_provider[0]=e.control.value
+        prefs["chart_provider"]=chart_provider[0]
+        save()
+        select(3)
     filter_checklist=ft.Column(spacing=0)
     def reset_default_filters(e):
         filter_selected[:]=DEFAULT_FILTERS[:]
@@ -730,9 +740,7 @@ def app_main(page:ft.Page):
         name=e.control.data
         if e.control.value and name not in filter_selected:filter_selected.append(name)
         elif not e.control.value and name in filter_selected:filter_selected.remove(name)
-        scanner_chart_indicators[:]=[x for x in chart_filter_names if x in filter_selected]
         prefs["scanner_filters"]=filter_selected[:]
-        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
         save();select(3)
         if not scan_busy[0]:trigger_scan()
     def filter_edit(add):
@@ -802,6 +810,14 @@ def app_main(page:ft.Page):
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
+            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
+            if chart_provider[0]=="TradingView":
+                tv_symbol={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(sym,"NSE:"+sym)
+                tv_url="https://s.tradingview.com/widgetembed/?symbol="+urllib.parse.quote(tv_symbol,safe="")+"&interval=5&theme=dark&style=1&locale=en"
+                parts.append(note("TradingView hosted chart • may be delayed; internet required. AI scanner votes remain separate."))
+                parts.append(ft.Container(content=ft.WebView(url=tv_url,expand=True),height=420,bgcolor=PANEL2,border_radius=8))
+                parts.append(note("If the embedded chart is unavailable, switch Chart provider to BOT KING / Yahoo."))
+                return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
                 closes=[float(b[4]) for b in bars]
@@ -1066,7 +1082,7 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.1.1")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
