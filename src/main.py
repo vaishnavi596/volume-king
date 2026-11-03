@@ -713,6 +713,7 @@ def app_main(page:ft.Page):
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
+    chart_filter_names=["EMA 9/21","RSI 14","MACD","Supertrend"]
     def filter_edit(add):
         q=(filter_choice.value or filter_query.value or "").strip().lower()
         hits=[x for x in filter_names if q and q in x.lower()]
@@ -720,7 +721,10 @@ def app_main(page:ft.Page):
         elif add and hits[0] not in filter_selected:filter_selected.append(hits[0]);filter_feedback.value="Added "+hits[0]
         elif not add and hits[0] in filter_selected and len(filter_selected)>1:filter_selected.remove(hits[0]);filter_feedback.value="Removed "+hits[0]
         else:filter_feedback.value="Already active or last filter"
-        prefs["scanner_filters"]=filter_selected[:];save();page.update()
+        # Scanner votes and chart overlays share the same selected indicator state.
+        scanner_chart_indicators[:]=[x for x in chart_filter_names if x in filter_selected]
+        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
+        prefs["scanner_filters"]=filter_selected[:];save();select(3)
         if not scan_busy[0]:trigger_scan()
     scan_auto_generation=[0]
     def auto_scan_changed(e):
@@ -755,7 +759,7 @@ def app_main(page:ft.Page):
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     scanner_chart_visible=[True]
-    scanner_chart_indicators=list(prefs.get("scanner_chart_indicators",["EMA 9/21","RSI 14","MACD","Supertrend"]))
+    scanner_chart_indicators=[x for x in chart_filter_names if x in filter_selected]
     scanner_chart_style=[prefs.get("scanner_chart_style","Candlestick")]
     def scanner_chart_toggle(e):
         scanner_chart_visible[0]=not scanner_chart_visible[0]
@@ -764,9 +768,13 @@ def app_main(page:ft.Page):
         name=e.control.data
         if e.control.value and name not in scanner_chart_indicators:scanner_chart_indicators.append(name)
         if not e.control.value and name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
+        if e.control.value and name not in filter_selected:filter_selected.append(name)
+        if not e.control.value and name in filter_selected:filter_selected.remove(name)
+        prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
         save()
         select(3)
+        if not scan_busy[0]:trigger_scan()
     def scanner_chart_style_change(e):
         scanner_chart_style[0]=e.control.value
         prefs["scanner_chart_style"]=scanner_chart_style[0]
@@ -830,8 +838,10 @@ def app_main(page:ft.Page):
                 if "Supertrend" in scanner_chart_indicators:
                     parts.append(note("Supertrend signal: see Analysis Basis; no fabricated overlay"))
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
-            parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in ["EMA 9/21","RSI 14","MACD","Supertrend"]],spacing=0))
-            parts.append(note("Indicators remain independent of chart type; OHLC never disappears when all are disabled."))
+            parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
+            extra=[x for x in filter_selected if x not in chart_filter_names]
+            if extra:parts.append(note("Scanner-only analysis: "+", ".join(extra)+" • chart overlays for these filters are not implemented yet."))
+            parts.append(note("These four indicator switches also update scanner votes. Base OHLC remains visible when all are disabled."))
             parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner():
