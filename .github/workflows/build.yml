@@ -57,7 +57,12 @@ jobs:
         run: flet --version
 
       - name: Check Python syntax before APK packaging
-        run: python -m py_compile src/main.py
+        run: python -m py_compile src/main.py src/scanner_engine.py
+
+      - name: Verify build dependencies
+        run: |
+          python -m pip check
+          python -c "import flet; import importlib.metadata as m; print('Flet:', m.version('flet'))"
 
       - name: Build APK
         run: flet build apk --verbose
