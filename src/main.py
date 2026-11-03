@@ -729,7 +729,8 @@ def app_main(page:ft.Page):
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
-        if not scan_live.value:\n            scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
+        if not scan_live.value:
+            scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
         page.update()
         page.run_task(scan_market)
     async def scan_market():
@@ -748,7 +749,8 @@ def app_main(page:ft.Page):
             bars=hist.get("bars") or []
             closes=[float(b[4]) for b in bars if b[4] is not None and b[4]>0]
             if len(closes)<8:raise ValueError("Not enough valid Yahoo candles. Choose a longer period or daily timeframe.")
-            latest_timestamp=bars[-1][0]\n            scan_last_candle[0]=latest_timestamp
+            latest_timestamp=bars[-1][0]
+            scan_last_candle[0]=latest_timestamp
             updated=datetime.fromtimestamp(latest_timestamp,timezone.utc)
             age_hours=(datetime.now(timezone.utc)-updated).total_seconds()/3600
             price=closes[-1]
@@ -870,9 +872,12 @@ def app_main(page:ft.Page):
                 note("Do not trade based only on this simulation. Check live broker quote and contract first."),
                 ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
-            scan_result.controls=controls\n            scan_status.value="Last checked "+datetime.now().strftime("%H:%M:%S")+" • Yahoo candle "+updated.strftime("%H:%M UTC")+" • updates only when source changes"
+            scan_result.controls=controls
+            scan_status.value="Last checked "+datetime.now().strftime("%H:%M:%S")+" • Yahoo candle "+updated.strftime("%H:%M UTC")+" • updates only when source changes"
         except Exception as exc:
-            scan_status.value="Refresh failed • last results may be stale"\n            if not scan_live.value or not scan_result.controls:\n                scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
+            scan_status.value="Refresh failed • last results may be stale"
+            if not scan_live.value or not scan_result.controls:
+                scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
             if current[0]==5:page.update()
@@ -920,7 +925,8 @@ def main(page: ft.Page):
         app_main(page)
     except Exception:
         error=traceback.format_exc()
-        print("BOT KING STARTUP ERROR:\\n"+error,flush=True)
+        print("BOT KING STARTUP ERROR:\
+"+error,flush=True)
         page.controls.clear()
         page.bgcolor="#03080E"
         page.padding=16
