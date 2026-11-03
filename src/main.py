@@ -5,6 +5,8 @@ import asyncio
 import urllib.request
 import urllib.parse
 from market_feed import AngelFeed, FeedError
+from analysis_quality import quality_check, agreement_detail
+from help_content import describe
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -419,7 +421,12 @@ def app_main(page:ft.Page):
                 "fresh_seconds":max(1800,seconds*2),"horizon":horizon}
     def analyze_current(bars,selected=None,timeframe="5m"):
         selected=[name for name in (filter_selected if selected is None else selected) if filter_modes.get(name,"Analysis")!="Chart"]
-        result=analyze(clean_bars(bars),selected,timeframe)
+        quality=quality_check(bars,timeframe_spec(timeframe)["seconds"])
+        result=analyze(quality["bars"],selected,timeframe)
+        result["quality"]={k:v for k,v in quality.items() if k!="bars"}
+        result["agreement_detail"]=agreement_detail(result)
+        if not quality["usable"]:
+            return dict(result,bias="WAIT",score=0,reason=result["reason"]+" • Data quality: "+"; ".join(quality["reasons"]))
         fresh_seconds=timeframe_spec(timeframe)["fresh_seconds"]
         age=datetime.now(timezone.utc).timestamp()-(result.get("timestamp") or 0)
         if age<0 or age>fresh_seconds:
@@ -495,7 +502,60 @@ def app_main(page:ft.Page):
         points=[ft.LineChartDataPoint(i,(v-lo)/spread*100) for i,v in enumerate(values)]
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
-    def section(title,child):return card(txt(title,15,GOLD,True),child)
+    def help_status(title,control=None):
+        text=str(title).lower()
+        if control is not None:
+            if control in list(credential_inputs.values()):return "निजी credential field है। Popup में इसका मान नहीं दिखाया जाता।"
+            error=getattr(control,"error_text",None)
+            if error:return "इस field में validation error है: "+str(error)
+            return "इस नियंत्रण में अभी validation error दर्ज नहीं है। वास्तविक डेटा की स्थिति संबंधित सेक्शन में देखें।"
+        if "diagnostic" in text:return "इस सत्र में दर्ज errors: "+str(len(diagnostics))+"। यह पूर्ण कार्यक्षमता का प्रमाण नहीं है।"
+        if "source" in text or "broker" in text:return str(connection_status.value)+" • स्रोत: "+str(prefs.get("source","Auto"))
+        if "news" in text or "headline" in text:
+            data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
+            return str(data.get("news_status","Headlines अभी उपलब्ध नहीं हैं।"))
+        if ("analysis" in text and "oi analysis" not in text) or "scanner" in text or "super five" in text:return str(scan_status.value)+" • "+str(scan_shared.get("basis","Analysis अभी उपलब्ध नहीं है।"))
+        if "chart" in text:return str(tradingview_status.value)+" • "+quote_caption(scan_symbol.value or "NIFTY")
+        if "alert" in text or "backtest" in text:return "यह सेवा अभी जुड़ी नहीं है।"
+        if any(x in text for x in ("paper","protection","strategy","risk","target","trade")):
+            return "Paper / saved-plan सुविधा है। Live orders और live automatic exit सक्रिय नहीं हैं।"
+        if any(x in text for x in ("option","pcr","oi analysis","flow")):
+            rows=selected_option_rows()
+            if not rows:return "Verified option डेटा अभी उपलब्ध नहीं है। "+option_feed_status[0]
+            now=datetime.now(timezone.utc).timestamp()
+            fresh=all(r.get("timestamp") is not None and 0<=now-r["timestamp"]<=90 for r in rows)
+            return ("हाल के option quotes उपलब्ध हैं। " if fresh else "Option quotes पुराने हैं या समय उपलब्ध नहीं है। ")+option_feed_status[0]
+        sym=chain_symbol.value if current[0]==1 else (scan_symbol.value or "NIFTY")
+        return quote_caption(sym)+" • स्रोत: "+str(prefs.get("source","Auto"))+" • broker "+("जुड़ा है" if angel_feed.connected else "जुड़ा नहीं है")
+    def show_help(title,control=None):
+        message=describe(title)
+        dialog=ft.AlertDialog(title=txt("ⓘ "+str(title),17,GOLD,True),
+            content=ft.Column([note(message),txt("अभी की स्थिति",14,GOLD,True),note(help_status(title,control)),note("डेटा न मिले: Refresh करें, स्रोत और expiry जाँचें। Field error हो: मान ठीक करके फिर save करें।")],tight=True,scroll=ft.ScrollMode.AUTO,width=330),
+            actions=[ft.TextButton("बंद करें",on_click=lambda e:close_help(dialog))])
+        if hasattr(page,"open"):page.open(dialog)
+        else:page.dialog=dialog;dialog.open=True;page.update()
+        return dialog
+    def close_help(dialog):
+        if hasattr(page,"close"):page.close(dialog)
+        else:dialog.open=False;page.update()
+    def section(title,child):
+        header=ft.Row([ft.Container(content=txt(title,15,GOLD,True),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_color=MUTED,tooltip="आसान जानकारी और वर्तमान स्थिति",on_click=lambda e:show_help(title))])
+        return card(header,child)
+    def decorate_help(control,parent_wrap=False):
+        if getattr(control,"data",None)=="help_wrapper":return control
+        fields=(ft.TextField,ft.Dropdown,ft.Checkbox,ft.Switch,ft.Slider)
+        if isinstance(control,fields):
+            label=getattr(control,"label",None) or getattr(control,"tooltip",None) or "Signal agreement"
+            width=getattr(control,"width",None);expand=getattr(control,"expand",None)
+            if parent_wrap:width=width or 300;expand=False
+            control.expand=False
+            header=ft.Row([ft.Container(content=txt(label,11,MUTED),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_size=16,icon_color=MUTED,tooltip="जानकारी",on_click=lambda e,c=control,t=label:show_help(t,c))])
+            return ft.Column([header,control],data="help_wrapper",expand=expand,width=width,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+        if isinstance(control,(ft.Column,ft.Row)):
+            control.controls=[decorate_help(c,isinstance(control,ft.Row) and bool(control.wrap)) for c in control.controls]
+        elif isinstance(control,ft.Container) and control.content is not None:
+            control.content=decorate_help(control.content)
+        return control
     scan_shared={"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     top5_candidates=[]
     top5_last_update=["—"]
@@ -2204,7 +2264,7 @@ console.log('BOT KING Lightweight Charts ready');
         current[0]=i
         prefs["last_page"]=i;save()
         body.controls.clear()
-        body.controls.extend(([data_source_panel()] if i!=2 else [])+pages[i]())
+        body.controls.extend([decorate_help(c) for c in (([data_source_panel()] if i!=2 else [])+pages[i]())])
         navbar.controls.clear()
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
