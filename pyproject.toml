@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = ["flet==0.25.2"]
 requires-python = ">=3.11"
 
