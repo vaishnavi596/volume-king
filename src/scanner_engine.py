@@ -14,7 +14,7 @@ def ema(values, period):
     return out
 
 def analyze(bars, selected=None, timeframe="5m"):
-    selected = selected or DEFAULT_FILTERS
+    selected = DEFAULT_FILTERS if selected is None else selected
     clean = [b for b in bars if len(b)>=6 and all(isinstance(b[i],(int,float)) and b[i]>0 for i in (1,2,3,4))]
     if len(clean)<30:
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
