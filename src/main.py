@@ -4,6 +4,7 @@ import traceback
 import asyncio
 import urllib.request
 import urllib.parse
+from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -84,6 +85,8 @@ def app_main(page:ft.Page):
 
     def section(title,child):return card(txt(title,16,GOLD,True),child)
     scan_shared={"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
+    top5_candidates=[]
+    top5_last_update=["—"]
     dashboard_index=["NIFTY"]
     dashboard_tool=[""]
     def dashboard_index_set(name):
@@ -98,7 +101,11 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("OI/PCR/News not connected")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("Simulation only; no verified options trade")),section("TOP 5 • YAHOO QUOTE WATCHLIST",ft.Column([note(x+" • "+quote_change(x)+" • not a validated signal") for x in sorted(watch_symbols,key=lambda k:abs((quotes.get(k) or {}).get("change") or 0),reverse=True)[:5]])),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
+        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("OI/PCR/News not connected")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("Simulation only; no verified options trade")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
+                [note("Updated: "+top5_last_update[0]+" • delayed candle feed")]
+                + ([ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% agreement",12,GREEN if x["bias"]=="BULLISH" else RED,True),note(x["reason"])],spacing=2) for x in top5_candidates]
+                   if top5_candidates else [note("WAIT • no fresh qualified candidates; not a trade guarantee")])
+            ,spacing=6)),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -690,8 +697,8 @@ def app_main(page:ft.Page):
     scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
-    scan_period=ft.Dropdown(label="Historical period",value="1mo",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
+    scan_period=ft.Dropdown(label="Historical period",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
+    scan_tf=ft.Dropdown(label="Candle timeframe",value="5m",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=True,active_color=GREEN)
@@ -701,8 +708,8 @@ def app_main(page:ft.Page):
     scan_last_success=[None]
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Last successful scan: — | Candle age: — | Next refresh: —",size=11,color=MUTED)
-    filter_names=["SMA 5/20","EMA 9/21","RSI 14","MACD"]
-    filter_selected=[x for x in prefs.get("scanner_filters",filter_names) if x in filter_names] or filter_names[:]
+    filter_names=ALL_FILTERS[:]
+    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names] or DEFAULT_FILTERS[:]
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
@@ -813,7 +820,11 @@ def app_main(page:ft.Page):
                 votes.append(("MACD",1 if line[-1]>sig else -1 if line[-1]<sig else 0,"MACD="+scan_num(line[-1])+" signal="+scan_num(sig)))
             up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
             direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
-            basis=f"{up} bullish / {down} bearish • {len(votes)} filters (not win probability)"
+            advanced=analyze(bars,filter_selected,interval)
+            direction=advanced["bias"]
+            basis=advanced["reason"]
+            lines=[txt(v["name"]+" • "+("BULLISH" if v["vote"]==1 else "BEARISH" if v["vote"]==-1 else "NEUTRAL" if v["vote"]==0 else "UNAVAILABLE")+" • "+v["detail"],11,
+                       GREEN if v["vote"]==1 else RED if v["vote"]==-1 else MUTED) for v in advanced["votes"]]
             lines=[txt(n+" • "+("BULLISH" if v==1 else "BEARISH" if v==-1 else "NEUTRAL")+" • "+d,11,GREEN if v==1 else RED if v==-1 else MUTED) for n,v,d in votes]
             support=min(closes[-min(20,len(closes)):])
             resistance=max(closes[-min(20,len(closes)):])
@@ -863,7 +874,7 @@ def app_main(page:ft.Page):
                     note("Theoretical strike grid and expiry; verify actual listed strike, lot, spread, OI and quote in broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
             age_warning=("STALE DATA — no trading decision from this quote." if age_hours>24 else "Data may be delayed; confirm with broker.")
-            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Latest UTC: "+updated.strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/News not connected; excluded.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Latest UTC: "+updated.strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
                 txt("Underlying historical close: ₹"+scan_num(price),15),
                 txt("Yahoo candle (UTC): "+updated.strftime("%d %b %Y %H:%M"),12),
                 txt("Data age: "+f"{max(0,age_hours):.1f}"+" hours • "+age_warning,12,RED if age_hours>24 else GOLD),
@@ -969,6 +980,16 @@ def app_main(page:ft.Page):
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 successes=sum(results)
                 market_status=f"Yahoo Finance • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
+                # Fresh candle-only Top 5; scan across the watchlist and include indexes.
+                async def rank_one(sym):
+                    async with semaphore:
+                        try:
+                            data=await asyncio.to_thread(get_yahoo,sym,"5m","5d")
+                            return sym,analyze(data["bars"],DEFAULT_FILTERS,"5m")
+                        except Exception:return sym,None
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols+["NIFTY","BANKNIFTY"]))))
+                top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
+                top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 try:
                     if current[0]!=5:select(current[0])
                 except Exception:pass
