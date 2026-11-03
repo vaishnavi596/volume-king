@@ -1,5 +1,4 @@
 import flet as ft
-import flet_webview as fwv
 import json
 import traceback
 import asyncio
@@ -816,9 +815,12 @@ def app_main(page:ft.Page):
                 tv_symbol={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(sym,"NSE:"+sym)
                 tv_url="https://s.tradingview.com/widgetembed/?symbol="+urllib.parse.quote(tv_symbol,safe="")+"&interval=5&theme=dark&style=1&locale=en"
                 parts.append(note("TradingView hosted chart • may be delayed; internet required. AI scanner votes remain separate."))
-                parts.append(ft.Container(content=fwv.WebView(url=tv_url,expand=True),height=420,bgcolor=PANEL2,border_radius=8))
+                parts.append(ft.Container(content=ft.WebView(url=tv_url,expand=True),height=420,bgcolor=PANEL2,border_radius=8)) if hasattr(ft,"WebView") else note("Embedded TradingView requires a compatible WebView extension; select BOT KING / Yahoo chart for now."))
                 parts.append(note("If the embedded chart is unavailable, switch Chart provider to BOT KING / Yahoo."))
-                return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
+                if hasattr(ft,"WebView"):
+                    return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
+                chart_provider[0]="BOT KING / Yahoo"
+                parts=[]
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
                 closes=[float(b[4]) for b in bars]
