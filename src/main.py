@@ -94,9 +94,9 @@ def app_main(page:ft.Page):
         select(0)
     def dashboard_tool_open(name):
         dashboard_tool[0]=name
-        if name=="Scanner":select(5)
-        elif name=="Paper Trade":select(4)
-        elif name=="OI Data":select(3)
+        if name=="Scanner":select(3)
+        elif name=="Paper Trade":select(2)
+        elif name=="OI Data":select(1)
         else:select(0)
     def dashboard():
         def index(name):
@@ -754,12 +754,52 @@ def app_main(page:ft.Page):
     scan_busy=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
+    scanner_chart_visible=[True]
+    scanner_chart_indicators=["EMA 9/21","RSI 14","MACD","Supertrend"]
+    def scanner_chart_toggle(e):
+        scanner_chart_visible[0]=not scanner_chart_visible[0]
+        select(3)
+    def scanner_chart_filter(e):
+        name=e.control.data
+        if name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
+        else:scanner_chart_indicators.append(name)
+        select(3)
+    def scanner_compact_chart():
+        sym=scan_symbol.value or "NIFTY"
+        hist=candles.get("scanner_chart_"+sym) or {}
+        bars=hist.get("bars") or []
+        parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
+        if scanner_chart_visible[0]:
+            parts.append(note("Historical underlying candles • NOT option premium • may be delayed"))
+            if len(bars)>=2:
+                closes=[float(b[4]) for b in bars[-35:]]
+                low=min(closes);high=max(closes);spread=max(high-low,0.01)
+                points=[ft.LineChartDataPoint(i,v) for i,v in enumerate(closes)]
+                series=[ft.LineChartData(data_points=points,stroke_width=2,color=GREEN,curved=False)]
+                if "EMA 9/21" in scanner_chart_indicators:
+                    for length,color in [(9,GOLD),(21,"#72A7F2")]:
+                        alpha=2/(length+1);ema=closes[0];vals=[]
+                        for i,v in enumerate(closes):
+                            ema=alpha*v+(1-alpha)*ema
+                            vals.append(ft.LineChartDataPoint(i,ema))
+                        series.append(ft.LineChartData(data_points=vals,stroke_width=1.5,color=color,curved=False))
+                parts.append(ft.Container(content=ft.LineChart(data_series=series,min_x=0,max_x=len(closes)-1,min_y=low-spread*.12,max_y=high+spread*.12,left_axis=ft.ChartAxis(labels_size=45),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),expand=True),height=180))
+                parts.append(note("Range ₹"+f"{low:,.2f}"+" – ₹"+f"{high:,.2f}"))
+            else:parts.append(note("Chart will appear after a successful scanner fetch."))
+            parts.append(ft.Row([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in ["EMA 9/21","RSI 14","MACD","Supertrend"]],wrap=True,spacing=0))
+            parts.append(note("RSI/MACD/Supertrend results appear in Analysis Basis below; only EMA overlays the chart."))
+            parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
+        return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner():
-        return [heading("AI SMART SCANNER • Yahoo"),note("Historical underlying data + transparent theoretical option simulation; no live option feed or broker API."),
-            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,scan_live,scan_refresh,scan_status,scan_age_display,
-                 note("AUTO SCAN • filters and settings trigger analysis"),
-                 note("Custom min/max apply when Premium budget = Custom. Results are NOT live option quotes.")),
-            section("FILTER LIBRARY • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Supported candle filters only; OI/PCR require a verified feed.")],spacing=5)),scan_result]
+        scan_min.visible=scan_budget.value=="Custom"
+        scan_max.visible=scan_budget.value=="Custom"
+        return [heading("AI SCANNER • Chart & Signals"),
+            note("Yahoo underlying candles • simulated premiums, not live contracts"),
+            card(ft.Row([scan_symbol,scan_tf],spacing=6),ft.Row([scan_budget,scan_period],spacing=6),ft.Row([scan_min,scan_max],spacing=6),ft.Row([scan_expiry,scan_refresh],spacing=6),
+                 scan_live,scan_status,scan_age_display),
+            scanner_compact_chart(),
+            section("INDICATOR FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Default filters preserved. Only supported, calculated indicators can vote; OI/PCR unavailable.")],spacing=5)),
+            scan_result]
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
@@ -783,6 +823,7 @@ def app_main(page:ft.Page):
                 raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
             hist=await asyncio.to_thread(get_yahoo,sym,interval,period)
             bars=hist.get("bars") or []
+            candles["scanner_chart_"+sym]=hist
             closes=[float(b[4]) for b in bars if b[4] is not None and b[4]>0]
             if len(closes)<8:raise ValueError("Not enough valid Yahoo candles. Choose a longer period or daily timeframe.")
             latest_timestamp=bars[-1][0]
@@ -942,10 +983,10 @@ def app_main(page:ft.Page):
                 scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
-            if current[0] in (0,5):select(current[0])
-    pages=[dashboard,watchlist,charts,options,settings,scanner]
-    icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
-    names=["Dashboard","Watchlist","Charts","Options","Settings","AI Scanner"]
+            if current[0] in (0,3):select(current[0])
+    pages=[dashboard,options,settings,scanner]
+    icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
+    names=["Home","Options","Settings","Scanner"]
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=12)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
     current=[0]
@@ -955,9 +996,9 @@ def app_main(page:ft.Page):
         body.controls.extend(pages[i]())
         navbar.controls.clear()
         for j in range(len(pages)):
-            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(["Home","Watch","Chart","Option","Setting","Scanner"][j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
+            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.0.2")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.0.3")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
