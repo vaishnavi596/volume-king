@@ -5,7 +5,7 @@ import asyncio
 import urllib.request
 import urllib.parse
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 
 #                                  Apache License
@@ -226,11 +226,62 @@ def app_main(page:ft.Page):
         stored=page.client_storage.get("bot_king_preferences")
         if isinstance(stored,dict):prefs.update(stored)
     except Exception:pass
+    prefs["schema_version"]=2
+    diagnostics=[]
+    from threading import RLock
+    trade_lock=RLock()
+    scan_generation=[0]
+    def log_error(area,exc):
+        # Store only exception types; never endpoint URLs, credentials or response bodies.
+        diagnostics.append(datetime.now(timezone.utc).isoformat(timespec="seconds")+" "+area+": "+type(exc).__name__)
+        del diagnostics[:-30]
+    def regular_hours(now=None):
+        now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
+        return now.weekday()<5 and (9,15)<=(now.hour,now.minute)<(15,30)
+    def session_caption():
+        return ("Regular session hours • exchange holidays not verified" if regular_hours()
+                else "Outside regular session hours • automatic refresh paused")
     quotes={}
     candles={}
     market_status="Connecting Yahoo Finance…"
     symbols_yahoo={"NIFTY":"^NSEI","NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN","RELIANCE":"RELIANCE.NS","HDFCBANK":"HDFCBANK.NS","ICICIBANK":"ICICIBANK.NS","TCS":"TCS.NS","INFY":"INFY.NS","BHARTIARTL":"BHARTIARTL.NS","SBIN":"SBIN.NS","ITC":"ITC.NS"}
+    def clean_bars(bars):
+        import math
+        rows={}
+        for b in bars:
+            try:
+                t=int(b[0]);o,h,l,c=map(float,b[1:5]);v=float(b[5] or 0)
+                if t>0 and all(math.isfinite(x) and x>0 for x in (o,h,l,c)) and l<=min(o,c)<=max(o,c)<=h and math.isfinite(v) and v>=0:
+                    rows[t]=(t,o,h,l,c,v)
+            except (ValueError,TypeError,IndexError,OverflowError):continue
+        return [rows[t] for t in sorted(rows)]
+    def aggregate_3m(bars):
+        out={}
+        for t,o,h,l,c,v in clean_bars(bars):
+            local=datetime.fromtimestamp(t,timezone(timedelta(hours=5,minutes=30)))
+            start=local.replace(hour=9,minute=15,second=0,microsecond=0).timestamp()
+            bucket=int(start+((t-start)//180)*180)
+            if bucket not in out:out[bucket]=[bucket,o,h,l,c,v]
+            else:
+                row=out[bucket];row[2]=max(row[2],h);row[3]=min(row[3],l);row[4]=c;row[5]+=v
+        return list(out.values())
+    def get_market_data(ticker,interval="5m",range_="1d"):
+        if prefs.get("source")!="Yahoo Finance":
+            raise RuntimeError("Broker feed not connected. Select Yahoo Finance; credentials alone do not connect a broker.")
+        return get_yahoo(ticker,interval,range_)
+    def analyze_current(bars,selected=None,timeframe="5m"):
+        result=analyze(clean_bars(bars),selected,timeframe)
+        seconds={"1m":60,"3m":180,"5m":300,"15m":900,"30m":1800,"1h":3600,"1d":86400}.get(timeframe,300)
+        age=datetime.now(timezone.utc).timestamp()-(result.get("timestamp") or 0)
+        if age<0 or age>max(1800,seconds*2):
+            return dict(result,bias="WAIT",score=0,reason=result["reason"]+" • data stale or timestamp invalid; historical only")
+        if result.get("score",0)<float(prefs.get("confidence",75)):
+            result=dict(result,bias="WAIT",score=0,reason=result["reason"]+" • below saved agreement threshold")
+        return result
     def get_yahoo(ticker,interval="5m",range_="1d"):
+        requested=interval
+        if interval=="3m":interval="1m";range_="7d"
+        if interval=="1m":range_="7d"
         code=symbols_yahoo.get(ticker,ticker+".NS")
         url="https://query1.finance.yahoo.com/v8/finance/chart/"+urllib.parse.quote(code,safe="")+"?interval="+interval+"&range="+range_
         request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (BOT KING Market Preview)","Accept":"application/json"})
@@ -240,6 +291,8 @@ def app_main(page:ft.Page):
         vals=data["indicators"]["quote"][0]
         timestamps=data.get("timestamp",[])
         bars=[(t,o,h,l,cl,v) for t,o,h,l,cl,v in zip(timestamps,vals["open"],vals["high"],vals["low"],vals["close"],vals["volume"]) if None not in (o,h,l,cl)]
+        bars=clean_bars(bars)
+        if requested=="3m":bars=aggregate_3m(bars)
         price=meta.get("regularMarketPrice")
         previous=meta.get("chartPreviousClose") or meta.get("previousClose")
         change=((price/previous-1)*100) if price is not None and previous else None
@@ -309,7 +362,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("5m signal is not confirmed by 15m/1h; OI/PCR/News unavailable")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("WAIT • Live option premium, liquidity and expiry not verified")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
+        return [section("CANDLE ANALYSIS • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("Single-timeframe analysis only; OI/PCR/News unavailable")],spacing=4)),dashboard_positions(),section("OPTION SETUP • UNAVAILABLE",note("WAIT • Live option premium, liquidity and expiry not verified")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
                 [note("Updated "+top5_last_update[0]+" • 5m candle ranking using active scanner filters; NOT a win probability")]
                 + ([ft.Container(content=ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% votes",12,GREEN if x["bias"]=="BULLISH" else RED,True),note("5m • "+str(x["age"])+"s old • "+x["reason"]),note("Tap to open chart")],spacing=2),on_click=lambda e,s=x["symbol"]:open_candidate_chart(s),bgcolor=PANEL2,padding=9,border_radius=8) for x in top5_candidates]
                    if top5_candidates else [note("WAIT • no fresh qualified candidates; not a trade guarantee")])
@@ -337,7 +390,7 @@ def app_main(page:ft.Page):
         select(1)
     async def validate_and_add(sym):
         try:
-            q=await asyncio.to_thread(get_yahoo,sym)
+            q=await asyncio.to_thread(get_market_data,sym)
             if q.get("price") is None:raise ValueError("No market price")
             quotes[sym]=q
         except Exception:
@@ -564,21 +617,21 @@ def app_main(page:ft.Page):
         return content
     async def load_chart():
         try:
-            quotes[symbol.value]=await asyncio.to_thread(get_yahoo,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
+            quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
             chart_message.value="Yahoo chart updated"
         except Exception as exc:
             chart_message.value="Yahoo candles unavailable; check connection or rate limits"
         select(2)
     async def load_comparison():
         try:
-            quotes[compare_symbol.value]=await asyncio.to_thread(get_yahoo,compare_symbol.value)
+            quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
         select(2)
-    chain_symbol=ft.Dropdown(label="Index / Stock",value="NIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+all_watch_symbols()],expand=True)
+    chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+all_watch_symbols()],expand=True)
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK",expand=True)
-    option_expiry_choice=ft.Dropdown(label="Expiry",value="Nearest",options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]],expand=True)
-    expiry=ft.TextField(label="Expiry date (calendar preview)",read_only=True,expand=True)
+    option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]],expand=True)
+    expiry=ft.TextField(label="Expiry date (calendar preview)",value=prefs.get("option_expiry",""),read_only=True,expand=True)
     option_expiry_note=txt("Calendar estimate only; holidays and listed contracts need broker/exchange verification.",11,GOLD)
     def monthly_expiry(year,month,weekday):
         import calendar
@@ -623,19 +676,23 @@ def app_main(page:ft.Page):
         select(1)
     chain_symbol.on_change=refresh_option_expiry
     option_expiry_choice.on_change=refresh_option_expiry
+    if chain_symbol.value not in [o.key for o in chain_symbol.options]:chain_symbol.options.append(ft.dropdown.Option(chain_symbol.value))
     refresh_option_expiry()
-    option_tab=["Option Chain"]
-    strategy_choice=[""]
+    option_tab=[prefs.get("option_tab","Option Chain")]
+    if option_tab[0] not in ("Option Chain","OI Analysis","PCR","Premium Flow","Strategy"):option_tab[0]="Option Chain"
+    strategy_choice=[prefs.get("option_strategy","")]
     option_notice=txt("",12,MUTED)
     def choose_option_tab(v):
         option_tab[0]=v
+        prefs["option_tab"]=v;save()
         select(1)
     def choose_strategy(v):
         strategy_choice[0]=v
+        prefs["option_strategy"]=v;save()
         select(1)
-    option_strike=ft.TextField(label="Strike price",hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
-    option_side=ft.Dropdown(label="Contract",value="CE",options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")],width=120)
-    option_qty=ft.TextField(label="Lots (paper)",value="1",keyboard_type=ft.KeyboardType.NUMBER,width=120)
+    option_strike=ft.TextField(label="Strike price",value=prefs.get("option_strike",""),hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
+    option_side=ft.Dropdown(label="Contract",value=prefs.get("option_side","CE"),options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")],width=120)
+    option_qty=ft.TextField(label="Lots (paper)",value=str(prefs.get("option_qty","1")),keyboard_type=ft.KeyboardType.NUMBER,width=120)
     option_paper_note=txt("Option paper entry requires verified premium and lot size.",12,MUTED)
     def option_paper_action(side):
         option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
@@ -754,15 +811,18 @@ def app_main(page:ft.Page):
     squareoff=ft.Dropdown(label="Paper square-off time",value=str(prefs.get("squareoff","15:15")),options=[ft.dropdown.Option(x) for x in ["15:00","15:10","15:15","15:20","15:25"]])
     emergency_stop=ft.Switch(label="Emergency stop (paper)",value=bool(prefs.get("emergency_stop",False)),active_color=RED)
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
-    bot_trade_status=txt("No paper option position open.",12,MUTED)
-    bot_position={"side":None,"entry":None,"quantity":0,"contract":None}
+    bot_trade_status=txt("Saved paper position: "+str((prefs.get("bot_position") or {}).get("contract") or "FLAT"),12,MUTED)
+    bot_position=dict(prefs.get("bot_position") or {"side":None,"entry":None,"quantity":0,"contract":None})
     bot_expiry_mode.value=prefs.get("bot_expiry_mode","Nearest (preview)")
     update_expiry()
     def bot_values():
+        import math
         p=float(bot_premium.value);st=float(sl.value);tg=float(target.value)
+        if not all(math.isfinite(x) for x in (p,st,tg,float(bot_strike.value))):raise ValueError("Use finite numeric values")
         lots=int(bot_lots.value);unit=int(bot_lot_size.value);strike=float(bot_strike.value)
         if not (p>0 and 0<st<100 and 0<tg<=1000 and 1<=lots<=50 and 1<=unit<=100000 and strike>0):
             raise ValueError("Check premium, strike, lots, lot size, stop loss and target.")
+        if int(max_total_lots.value)<lots:raise ValueError("Maximum total lots must cover the selected entry lots.")
         if bot_expiry.value:
             datetime.strptime(bot_expiry.value.strip(),"%Y-%m-%d")
         sym=(bot_custom.value or "").strip().upper() if bot_symbol.value=="Custom" else bot_symbol.value
@@ -781,6 +841,9 @@ def app_main(page:ft.Page):
             bot_preview.color=RED
         page.update()
     def bot_paper_action(side):
+        with trade_lock:
+            bot_paper_action_locked(side)
+    def bot_paper_action_locked(side):
         if mode.value!="Paper":
             bot_trade_status.value="Live orders disabled. Select Paper mode for simulation."
             bot_trade_status.color=RED
@@ -802,12 +865,17 @@ def app_main(page:ft.Page):
             try:
                 p,st,tg,qty,contract=bot_values()
                 if not bot_expiry.value:raise ValueError("Set contract expiry before paper entry.")
-                bot_position.update(side=side,entry=p,quantity=qty,contract=contract)
+                bot_position.update(side=side,entry=p,quantity=qty,contract=contract,stop_loss_pct=st,target_pct=tg)
                 bot_trade_status.value=f"SIMULATED {side} {contract} | {qty} units @ INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f}. No real order."
                 bot_trade_status.color=GREEN
             except (ValueError,TypeError,OverflowError) as exc:
                 bot_trade_status.value="Paper entry blocked: "+str(exc)
                 bot_trade_status.color=RED
+        prefs["bot_position"]=dict(bot_position)
+        events=prefs.setdefault("bot_paper_events",[])
+        events.append({"time":datetime.now(timezone.utc).isoformat(timespec="seconds"),"action":side,"position":dict(bot_position),"status":bot_trade_status.value})
+        del events[:-200]
+        if not save():bot_trade_status.value+=" • WARNING: position could not be saved"
         page.update()
 
     sl=ft.TextField(label="Stop loss %",value=str(prefs["stop_loss"]),keyboard_type=ft.KeyboardType.NUMBER)
@@ -839,16 +907,34 @@ def app_main(page:ft.Page):
                 paper_status.color=GREEN
         page.update()
 
-    def save_settings(_):
+    field_bindings=[]
+    def validate_field(control,key,value):
+        import math
+        ints={"max_trades":(1,50),"bot_lots":(1,50),"bot_lot_size":(1,100000),"max_total_lots":(1,50),"cooldown":(1,1440),"option_qty":(1,100000),"confidence":(70,85)}
+        floats={"stop_loss":(0,99.99),"target":(0,100),"bot_premium":(0,1e9),"bot_strike":(0,1e9),"dip_step":(0,100),"max_daily_loss":(0,1e12),"scanner_min":(-1e-9,1e9),"scanner_max":(0,1e9)}
+        if key in ints:
+            value=int(value);lo,hi=ints[key]
+            if not lo<=value<=hi:raise ValueError(f"Enter {lo}–{hi}")
+        elif key in floats:
+            value=float(value);lo,hi=floats[key]
+            if not math.isfinite(value) or not lo<value<=hi:raise ValueError(f"Enter a number above {max(0,lo):g} and up to {hi:g}")
+        elif key in ("bot_expiry","option_expiry") and value:
+            datetime.strptime(value.strip(),"%Y-%m-%d")
+        if isinstance(control,ft.TextField):control.error_text=None
+        return value
+    def save_control(control,key):
         try:
-            stop=float(sl.value);take=float(target.value);count=int(limit.value)
-            if not (0<stop<=100 and 0<take<=100 and 1<=count<=50):raise ValueError()
-            bot_values()
-            if not (1<=int(max_total_lots.value)<=50 and int(max_total_lots.value)>=int(bot_lots.value) and 0<float(dip_step.value)<=100 and float(max_daily_loss.value)>0):raise ValueError("Invalid strategy limits")
-            prefs.update(mode=mode.value,source=source.value,broker=broker.value,api_url=api_url.value,stop_loss=stop,target=take,max_trades=count,confidence=int(conf.value),bot_symbol=bot_symbol.value,bot_custom=bot_custom.value,bot_type=bot_type.value,bot_strike=bot_strike.value,bot_expiry=bot_expiry.value,bot_lots=int(bot_lots.value),bot_lot_size=int(bot_lot_size.value),bot_premium=float(bot_premium.value),bot_trailing=bot_trailing.value,bot_expiry_mode=bot_expiry_mode.value,auto_entry=auto_entry.value,auto_reentry=auto_reentry.value,buy_dip=buy_dip.value,partial_profit=partial_profit.value,max_total_lots=int(max_total_lots.value),dip_step=float(dip_step.value),max_daily_loss=float(max_daily_loss.value),cooldown=int(cooldown.value),squareoff=squareoff.value,emergency_stop=emergency_stop.value)
-            persisted=save();status.value=("Settings saved on device. Auto strategies are not running." if persisted else "Save failed: device storage unavailable. Settings will reset after restart.");status.color=GREEN if persisted else RED
-        except Exception:
-            status.value="Cannot save: check contract, lot limits, premium, SL, target and daily loss.";status.color=RED
+            value=validate_field(control,key,control.value)
+            prefs[key]=value
+            return True
+        except (ValueError,TypeError,OverflowError) as exc:
+            if isinstance(control,ft.TextField):control.error_text=str(exc)
+            return False
+    def save_settings(_):
+        invalid=[key for control,key in field_bindings if not save_control(control,key)]
+        persisted=save()
+        status.value=("Valid fields saved; fix highlighted fields: "+", ".join(invalid) if invalid else "Settings saved on device.") if persisted else "Save failed — device storage unavailable"
+        status.color=GOLD if invalid else GREEN if persisted else RED
         page.update()
     broker.value=prefs.get("broker","Angel One")
     settings_tab=["Trading Bot"]
@@ -856,47 +942,17 @@ def app_main(page:ft.Page):
         settings_tab[0]=v
         select(2)
     def settings():
-        tabs=["Trading Bot","Broker & API","Risk & Money","Strategy","Alerts","Backtest"]
-        content=[heading("Settings & Trading Bot"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_settings_tab(v),style=ft.ButtonStyle(color=GOLD if settings_tab[0]==n else MUTED)) for n in tabs],scroll=ft.ScrollMode.AUTO)]
-        if settings_tab[0]=="Trading Bot":
-            content.extend([
-                section("01  TRADING MODE",ft.Column([mode,note("Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.")])),
-                section("02  OPTION CONTRACT",ft.Column([
-                    bot_symbol,bot_custom,ft.Row([bot_type,bot_strike],wrap=True),
-                    bot_expiry_mode,bot_expiry,expiry_warning,ft.Row([bot_lots,bot_lot_size],wrap=True),
-                    bot_premium,note("Enter the actual exchange lot size and premium manually. No option-chain feed is connected.")
-                ],spacing=12)),
-                section("03  RISK & TARGET",ft.Column([
-                    ft.Row([sl,target],wrap=True),limit,
-                    note("Trailing stop is a saved preference only. It does not automatically update or execute orders."),
-                    ft.ElevatedButton("CALCULATE PLAN",on_click=calculate_bot,bgcolor=GOLD,color=BG),
-                    bot_preview
-                ],spacing=12)),
-                section("04  AUTO STRATEGY (PREFERENCES ONLY)",ft.Column([
-                    auto_entry,auto_reentry,buy_dip,partial_profit,bot_trailing,
-                    max_total_lots,dip_step,cooldown,max_daily_loss,squareoff,emergency_stop,
-                    note("Auto entry, re-entry, averaging, partial exits, trailing SL and square-off are NOT running. These switches save a plan only. Emergency stop immediately blocks new manual paper entries. No live orders.")
-                ],spacing=12)),
-                section("05  PAPER TRADE CONTROLS",ft.Column([
-                    ft.Row([
-                        ft.ElevatedButton("BUY (Paper)",on_click=lambda e:bot_paper_action("BUY"),bgcolor=GREEN,color=BG),
-                        ft.ElevatedButton("SELL (Paper)",on_click=lambda e:bot_paper_action("SELL"),bgcolor=RED,color=WHITE),
-                        ft.OutlinedButton("EXIT",on_click=lambda e:bot_paper_action("EXIT"))
-                    ],wrap=True),bot_trade_status,
-                    note("Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.")
-                ],spacing=12))
-            ])
-        elif settings_tab[0]=="Broker & API":
-            content.append(section("Broker & Data Source",ft.Column([broker,broker_info,source,credential_column,api_url,ft.Row([ft.ElevatedButton("Connect / Check",on_click=explain_broker_connection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Clear / Disconnect",on_click=clear_broker_credentials)],wrap=True),connection_status,note("Credentials are temporary and never saved. This is a setup form, not a live broker connection. For real login a secure broker-specific integration is required.") ])))
-        elif settings_tab[0]=="Risk & Money":
-            content.append(section("Risk Management",ft.Column([ft.Row([sl,target]),limit,note("Risk controls are stored but automatic SL/target execution is disabled.")])))
-        elif settings_tab[0]=="Strategy":
-            content.append(section("Strategy & Signal Filters",ft.Column([txt("Signal confidence filter (70–85%)",14),conf,note("Strategy engine is not connected; this is a saved preference only.")])))
-        elif settings_tab[0]=="Alerts":
-            content.append(section("Alerts",note("Alert delivery is not implemented. No active alerts.")))
-        else:
-            content.append(section("Backtest & Reports",note("Backtesting requires historical data and a validated strategy. No results are available.")))
-        content.extend([ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("Broker orders, automatic trading and signals are disabled until secure integration and testing."))])
+        content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Credentials are temporary and never saved. This is a setup form, not a live broker connection. For real login a secure broker-specific integration is required.')])))
+        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_symbol, bot_custom, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium, note('Enter the actual exchange lot size and premium manually. No option-chain feed is connected.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True), limit, note('Trailing stop is a saved preference only. It does not automatically update or execute orders.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  AUTO STRATEGY (PREFERENCES ONLY)', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Auto entry, re-entry, averaging, partial exits, trailing SL and square-off are NOT running. These switches save a plan only. Emergency stop immediately blocks new manual paper entries. No live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=WHITE), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status, note('Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.')], spacing=12))])
+        content.extend([
+            section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
+            section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
+            section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
+            section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
+            ft.ElevatedButton("Check / Save all valid fields",on_click=save_settings,bgcolor=GOLD,color=BG),
+            note("Live broker orders are not connected. Strategy switches save plans only.")
+        ])
         return content
 
 
@@ -906,16 +962,17 @@ def app_main(page:ft.Page):
     if saved_scanner_symbol not in scanner_symbols:
         scanner_symbols.append(saved_scanner_symbol)
     scan_symbol=ft.Dropdown(label="Market / NSE stock",value=saved_scanner_symbol,options=[ft.dropdown.Option(v) for v in scanner_symbols])
-    scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
-    scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
-    scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
-    scan_period=ft.Dropdown(label="Historical period",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Candle timeframe",value=prefs.get("scanner_timeframe","5m"),options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
-    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
-    scan_auto=ft.Switch(label="Trend filter (simulation)",value=True,active_color=GREEN)
-    scan_live=ft.Switch(label="Auto Scan (while app is open)",value=True,active_color=GREEN)
-    scan_refresh=ft.Dropdown(label="Auto refresh interval",value="60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
-    scan_status=ft.Text("Auto Scan OFF • Yahoo underlying only; not a live option feed.",size=11,color=MUTED)
+    scan_budget=ft.Dropdown(label="Premium budget",value=prefs.get("scanner_budget","80-120"),options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
+    scan_min=ft.TextField(label="Custom minimum (₹)",value=str(prefs.get("scanner_min","50")),keyboard_type=ft.KeyboardType.NUMBER)
+    scan_max=ft.TextField(label="Custom maximum (₹)",value=str(prefs.get("scanner_max","500")),keyboard_type=ft.KeyboardType.NUMBER)
+    scan_period=ft.Dropdown(label="Historical period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
+    scan_tf=ft.Dropdown(label="Candle timeframe",value=prefs.get("scanner_timeframe","5m"),options=[ft.dropdown.Option(v) for v in ["1m","3m","5m","15m","30m","1h","1d"]])
+    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
+    scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
+    scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
+    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","60")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
+    scan_status=ft.Text("Yahoo delayed history • automatic refresh follows saved preference",size=11,color=MUTED)
+    if not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
     scan_last_candle=[None]
     scan_last_success=[None]
     scan_next_refresh=[None]
@@ -957,12 +1014,12 @@ def app_main(page:ft.Page):
     def tradingview_widget_html(symbol, bars):
         payload=json.dumps(lightweight_payload(bars),allow_nan=False)
         options=json.dumps({"symbol":symbol,"timeframe":scan_tf.value,"line":scanner_chart_style[0]=="Line",
-                            "ema":"EMA 9/21" in scanner_chart_indicators}).replace("</","<\\/")
+                            "ema":"EMA 9/21" in scanner_chart_indicators,"view":prefs.get("chart_views",{}).get(symbol+":"+str(scan_tf.value))}).replace("</","<\\/")
         return ('''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{margin:0;height:100%;background:#080f18;color:#eaf1f6;font:12px sans-serif}
-#header{height:48px;padding:6px 8px;box-sizing:border-box}#readout{font-size:11px;color:#a9bbc5}
-#chart{height:calc(100% - 84px);width:100%}#credit{height:36px;padding:3px 8px;box-sizing:border-box;font-size:9px;color:#a9bbc5}a{color:#e9b949}</style>
-</head><body><div id="header"><b id="status">Starting chart...</b><div id="readout"></div></div><div id="chart"></div>
+#header{height:62px;padding:6px 8px;box-sizing:border-box;overflow:hidden}#readout{font-size:11px;color:#a9bbc5}
+#chart{height:calc(100% - 134px);width:100%;touch-action:none}#tools{height:36px;display:flex;gap:8px;padding:0 8px}button{background:#193443;color:#eaf1f6;border:1px solid #47616f;border-radius:5px;padding:5px 15px;font-size:15px}#credit{height:36px;padding:3px 8px;box-sizing:border-box;font-size:9px;color:#a9bbc5}a{color:#e9b949}</style>
+</head><body><div id="header"><b id="status">Starting chart...</b><div id="readout"></div></div><div id="tools"><button id="zoomIn">＋</button><button id="zoomOut">−</button><button id="resetZoom">Reset</button></div><div id="chart"></div>
 <div id="credit">TradingView Lightweight Charts™<br>Copyright (с) 2024 TradingView, Inc. <a href="https://www.tradingview.com/">TradingView</a> · Apache 2.0</div>
 <script>'''+LIGHTWEIGHT_CHARTS_JS.replace("</script","<\\/script")+'''</script><script>
 (function(){
@@ -978,21 +1035,32 @@ const series=options.line?chart.addLineSeries({color:'#16c784',lineWidth:2}):cha
 const ema9=options.ema?chart.addLineSeries({color:'#e9b949',lineWidth:1,priceLineVisible:false,lastValueVisible:false}):null;
 const ema21=options.ema?chart.addLineSeries({color:'#72a7f2',lineWidth:1,priceLineVisible:false,lastValueVisible:false}):null;
 function ema(data,n){let value=data[0].close;return data.map(b=>{value+=(b.close-value)*2/(n+1);return {time:b.time,value:value}})}
-let first=true,latestText='';
+let first=true,latestText='',count=0;
+function resetView(){if(count)chart.timeScale().setVisibleLogicalRange({from:Math.max(0,count-70),to:count+3})}
+function zoom(factor){const r=chart.timeScale().getVisibleLogicalRange();if(!r)return;const span=Math.max(8,Math.min(2000,(r.to-r.from)*factor));chart.timeScale().setVisibleLogicalRange({from:r.to-span,to:r.to})}
+document.getElementById('zoomIn').onclick=()=>zoom(.7);
+document.getElementById('zoomOut').onclick=()=>zoom(1.4);
+document.getElementById('resetZoom').onclick=resetView;
 window.botKingSetData=function(data){
  series.setData(options.line?data.map(b=>({time:b.time,value:b.close})):data);
+ count=data.length;
  if(data.length){
   if(ema9){ema9.setData(ema(data,9));ema21.setData(ema(data,21))}
   latestText='Last candle: '+ist(data[data.length-1].time)+' IST · Yahoo delayed history';
   status.textContent=options.symbol+' · '+options.timeframe+' · '+data.length+' candles';
   readout.textContent=latestText;
-  if(first){chart.timeScale().fitContent();first=false}
+  if(first){
+   if(options.view && Number.isFinite(options.view.from) && Number.isFinite(options.view.to) && options.view.to>options.view.from){chart.timeScale().setVisibleLogicalRange(options.view)}else{resetView()}
+   first=false;
+  }
  }else{status.textContent=options.symbol+' · No candles available';readout.textContent='Use Retry chart to fetch data.'}
 };
 chart.subscribeCrosshairMove(p=>{
  const b=p.seriesData.get(series);
  readout.textContent=b?(ist(p.time)+' IST · '+(options.line?'Price '+b.value.toFixed(2):'O '+b.open.toFixed(2)+' H '+b.high.toFixed(2)+' L '+b.low.toFixed(2)+' C '+b.close.toFixed(2))):latestText;
 });
+let viewTimer;
+chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(!r)return;clearTimeout(viewTimer);viewTimer=setTimeout(()=>console.log('BK_VIEW:'+JSON.stringify({symbol:options.symbol,timeframe:options.timeframe,from:r.from,to:r.to})),750)});
 new ResizeObserver(()=>chart.applyOptions({width:host.clientWidth,height:host.clientHeight})).observe(host);
 window.botKingSetData('''+payload+''');
 console.log('BOT KING Lightweight Charts ready');
@@ -1008,6 +1076,7 @@ console.log('BOT KING Lightweight Charts ready');
             pass
     async def tv_load_widget():
         view=tv_view[0]
+        generation=scan_generation[0]
         if view is None:return
         try:
             # Flet 0.25.2 Android ignores the initial enableJavascript attribute.
@@ -1020,11 +1089,12 @@ console.log('BOT KING Lightweight Charts ready');
             sym=scan_symbol.value or "NIFTY"
             interval=scan_tf.value or "5m"
             tv_set_status("Loading Yahoo candles for "+sym+"...")
-            hist=await asyncio.to_thread(get_yahoo,sym,interval,scan_period.value or "7d")
-            if view is not tv_view[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
+            hist=await asyncio.to_thread(get_market_data,sym,interval,scan_period.value or "7d")
+            if view is not tv_view[0] or generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             view.load_html(tradingview_widget_html(sym,hist.get("bars") or []),base_url="https://www.tradingview.com/")
         except Exception as exc:
-            tv_set_status("TradingView widget load error: "+str(exc)[:180])
+            log_error("chart",exc)
+            tv_set_status("Chart load failed ("+type(exc).__name__+"). Check provider, internet, and history period; use Retry.")
     def tv_started(e):
         tv_set_status("TradingView widget: loading...")
     def tv_ended(e):
@@ -1034,6 +1104,17 @@ console.log('BOT KING Lightweight Charts ready');
             page.run_task(tv_load_widget)
         else:
             tv_set_status("Lightweight chart loaded • Yahoo delayed history • touch to inspect")
+    def chart_console(e):
+        try:
+            import math
+            message=e.message
+            if not message.startswith("BK_VIEW:"):return
+            v=json.loads(message[8:]);lo=float(v["from"]);hi=float(v["to"])
+            if not (math.isfinite(lo) and math.isfinite(hi) and 0<hi-lo<=100000):return
+            if v["symbol"]!=scan_symbol.value or v["timeframe"]!=scan_tf.value:return
+            prefs.setdefault("chart_views",{})[v["symbol"]+":"+v["timeframe"]]={"from":lo,"to":hi}
+            save()
+        except (ValueError,TypeError,KeyError,AttributeError):pass
     def tv_error(e):
         tv_set_status("TradingView resource error: "+str(e.data)[:220])
     def tv_retry(e):
@@ -1079,7 +1160,15 @@ console.log('BOT KING Lightweight Charts ready');
             page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
+        initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
+            if not initial and not regular_hours():
+                scan_next_refresh[0]=None
+                scan_status.value=session_caption()
+                if current[0]==3:page.update()
+                await asyncio.sleep(30)
+                continue
+            initial=False
             if not scan_busy[0]:
                 scan_busy[0]=True
                 await scan_market()
@@ -1094,11 +1183,17 @@ console.log('BOT KING Lightweight Charts ready');
         prefs["scanner_symbol"]=scan_symbol.value or "NIFTY"
         prefs["scanner_timeframe"]=scan_tf.value or "5m"
         save()
-        if e is not None and e.control in (scan_symbol,scan_tf):
+        if e is not None and e.control in (scan_symbol,scan_tf,scan_period):
+            scan_generation[0]+=1
             # Explicit selection changes reload the chart; background scans do not.
             scan_result.controls.clear()
+            candles.pop("scanner_chart_"+(scan_symbol.value or "NIFTY"),None)
             if current[0]==3:select(3)
-        if scan_tf.value=="1m":scan_period.value="7d"
+        if e is not None and e.control is scan_budget:
+            scan_min.visible=scan_budget.value=="Custom";scan_max.visible=scan_budget.value=="Custom"
+            page.update()
+        if scan_tf.value in ("1m","3m"):
+            scan_period.value="7d";prefs["scanner_period"]="7d";save()
         if not scan_busy[0]:
             scan_busy[0]=True
             page.run_task(scan_market)
@@ -1108,11 +1203,12 @@ console.log('BOT KING Lightweight Charts ready');
     scan_busy=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
-    scanner_chart_visible=[True]
+    scanner_chart_visible=[bool(prefs.get("scanner_chart_visible",True))]
     scanner_chart_indicators=[x for x in prefs.get("scanner_chart_indicators",chart_filter_names) if x in chart_filter_names]
     scanner_chart_style=[prefs.get("scanner_chart_style","Candlestick")]
     def scanner_chart_toggle(e):
         scanner_chart_visible[0]=not scanner_chart_visible[0]
+        prefs["scanner_chart_visible"]=scanner_chart_visible[0];save()
         select(3)
     def scanner_chart_filter(e):
         # Chart visibility is independent of the ten active background analysis filters.
@@ -1126,20 +1222,27 @@ console.log('BOT KING Lightweight Charts ready');
         prefs["scanner_chart_style"]=scanner_chart_style[0]
         save()
         select(3)
+    def choose_timeframe(value):
+        scan_tf.value=value
+        prefs["scanner_timeframe"]=value;save()
+        trigger_scan(type("TimeframeChange",(),{"control":scan_tf})())
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
         hist=candles.get("scanner_chart_"+sym) or {}
         bars=(hist.get("bars") or [])[-35:]
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
+            parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in ["1m","3m","5m","15m","30m","1h","1d"]],scroll=ft.ScrollMode.AUTO))
+            parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView Lightweight":
-                parts.append(note("TradingView Lightweight Charts • Yahoo delayed OHLC • drag / pinch to zoom; touch for prices. EMA 9/21 shown when selected."))
+                parts.append(note("TradingView Lightweight Charts • Yahoo delayed OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
+                parts.append(ft.Checkbox(label="Show EMA 9/21",value="EMA 9/21" in scanner_chart_indicators,data="EMA 9/21",on_change=scanner_chart_filter))
                 parts.append(tradingview_status)
                 tv_booted[0]=False
-                tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error)
-                parts.append(ft.Container(content=tv_view[0],height=420,bgcolor=PANEL2,border_radius=8))
+                tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
+                parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
                 return section("LIGHTWEIGHT CHART • "+sym,ft.Column(parts,spacing=4))
@@ -1202,10 +1305,10 @@ console.log('BOT KING Lightweight Charts ready');
         filter_checklist.controls=[ft.Checkbox(label=x+(" • data unavailable" if x in ("OI Support","OI Resistance","OI Profile","Max Pain") else ""),value=x in filter_selected,data=x,on_change=filter_checkbox_changed) for x in DEFAULT_FILTERS]
         scan_min.visible=scan_budget.value=="Custom"
         scan_max.visible=scan_budget.value=="Custom"
-        return [heading("AI SCANNER • Chart & Signals"),
+        return [heading("RULE-BASED SCANNER • Chart & Analysis"),
             note("Yahoo underlying candles • simulated premiums, not live contracts"),
             card(ft.Row([scan_symbol,scan_tf],spacing=6),ft.Row([scan_budget,scan_period],spacing=6),ft.Row([scan_min,scan_max],spacing=6),ft.Row([scan_expiry,scan_refresh],spacing=6),
-                 scan_live,scan_status,scan_age_display),
+                 scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
             scanner_compact_chart(),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result]
@@ -1216,7 +1319,13 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
         page.update()
         page.run_task(scan_market)
+    async def restart_latest_scan():
+        await asyncio.sleep(.05)
+        if not scan_busy[0]:
+            scan_busy[0]=True
+            await scan_market()
     async def scan_market():
+        generation=scan_generation[0]
         import math
         from datetime import timezone
         try:
@@ -1224,13 +1333,14 @@ console.log('BOT KING Lightweight Charts ready');
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
             # Yahoo supports limited intraday history; do not pretend 15m is daily.
-            if interval=="1m" and period!="7d":
+            if interval in ("1m","3m") and period!="7d":
                 raise ValueError("Yahoo 1m history is limited. Select 7d; only recent candles may be returned.")
             if interval=="5m" and period=="3mo":
                 raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
-            if interval in ("5m","15m") and period=="3mo":
+            if interval in ("5m","15m","30m") and period=="3mo":
                 raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
-            hist=await asyncio.to_thread(get_yahoo,sym,interval,period)
+            hist=await asyncio.to_thread(get_market_data,sym,interval,period)
+            if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
             candles["scanner_chart_"+sym]=hist
             # Push fresh bars into the existing chart without losing zoom or reloading.
@@ -1251,7 +1361,7 @@ console.log('BOT KING Lightweight Charts ready');
             first=closes[0]
             change=(price/first-1)*100
             # Estimate annual volatility using selected candle duration; for illustrative pricing only.
-            annual_bars={"1m":375*252,"5m":75*252,"15m":25*252,"1h":7*252,"1d":252}[interval]
+            annual_bars={"1m":375*252,"3m":125*252,"5m":75*252,"15m":25*252,"30m":12.5*252,"1h":7*252,"1d":252}[interval]
             returns=[math.log(closes[i]/closes[i-1]) for i in range(1,len(closes))]
             avg=sum(returns)/len(returns)
             variance=sum((v-avg)**2 for v in returns)/max(1,len(returns)-1)
@@ -1278,14 +1388,13 @@ console.log('BOT KING Lightweight Charts ready');
                 votes.append(("MACD",1 if line[-1]>sig else -1 if line[-1]<sig else 0,"MACD="+scan_num(line[-1])+" signal="+scan_num(sig)))
             up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
             direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
-            advanced=analyze(bars,filter_selected,interval)
+            advanced=analyze_current(bars,filter_selected,interval)
             direction=advanced["bias"]
             basis=advanced["reason"]
             lines=[txt(v["name"]+" • "+("BULLISH" if v["vote"]==1 else "BEARISH" if v["vote"]==-1 else "NEUTRAL" if v["vote"]==0 else "UNAVAILABLE")+" • "+v["detail"],11,
                        GREEN if v["vote"]==1 else RED if v["vote"]==-1 else MUTED) for v in advanced["votes"]]
-            lines=[txt(n+" • "+("BULLISH" if v==1 else "BEARISH" if v==-1 else "NEUTRAL")+" • "+d,11,GREEN if v==1 else RED if v==-1 else MUTED) for n,v,d in votes]
-            support=min(closes[-min(20,len(closes)):])
-            resistance=max(closes[-min(20,len(closes)):])
+            support=min(float(b[3]) for b in bars[-20:])
+            resistance=max(float(b[2]) for b in bars[-20:])
             budget=scan_budget.value or "80-120"
             if budget=="Custom":
                 low=float(scan_min.value);high=float(scan_max.value)
@@ -1395,36 +1504,88 @@ console.log('BOT KING Lightweight Charts ready');
             scan_status.value="Last checked "+datetime.now().strftime("%H:%M:%S")+" • Yahoo candle "+updated.strftime("%H:%M UTC")+" • updates only when source changes"
             scan_age_display.value=(f"Last scan: 0 sec ago | Candle age: {max(0,int(age_hours*3600))} sec | Next auto refresh: "+(f"{int(scan_refresh.value or '60')} sec" if scan_live.value else "OFF"))
         except Exception as exc:
+            log_error("scanner",exc)
+            if generation!=scan_generation[0]:return
             scan_status.value="Refresh failed • last results may be stale"
             if not scan_live.value or not scan_result.controls:
                 scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
+            if generation!=scan_generation[0]:
+                page.run_task(restart_latest_scan)
             if current[0]==3 and chart_provider[0]=="TradingView Lightweight":
                 # Preserve the native chart while updating result/status controls.
                 page.update()
             elif current[0] in (0,3):
                 select(current[0])
+    def bind_saved(control,key):
+        field_bindings.append((control,key))
+        if key in prefs:control.value=str(prefs[key]) if isinstance(control,(ft.TextField,ft.Dropdown)) else prefs[key]
+        previous=control.on_change
+        def changed(e):
+            if save_control(control,key):
+                ok=save();status.value="Saved automatically" if ok else "Save failed — device storage unavailable";status.color=GREEN if ok else RED
+                if previous is not None:previous(e)
+            else:status.value="Invalid value — not saved. Fix the field below.";status.color=RED
+            page.update()
+        control.on_change=changed
+    bindings=[(mode,"mode"),(source,"source"),(broker,"broker"),(api_url,"api_url"),
+        (sl,"stop_loss"),(target,"target"),(limit,"max_trades"),(conf,"confidence"),
+        (bot_symbol,"bot_symbol"),(bot_custom,"bot_custom"),(bot_type,"bot_type"),(bot_strike,"bot_strike"),
+        (bot_expiry,"bot_expiry"),(bot_expiry_mode,"bot_expiry_mode"),(bot_lots,"bot_lots"),(bot_lot_size,"bot_lot_size"),(bot_premium,"bot_premium"),
+        (bot_trailing,"bot_trailing"),(auto_entry,"auto_entry"),(auto_reentry,"auto_reentry"),(buy_dip,"buy_dip"),(partial_profit,"partial_profit"),
+        (max_total_lots,"max_total_lots"),(dip_step,"dip_step"),(cooldown,"cooldown"),(max_daily_loss,"max_daily_loss"),(squareoff,"squareoff"),(emergency_stop,"emergency_stop"),
+        (scan_symbol,"scanner_symbol"),(scan_tf,"scanner_timeframe"),(scan_budget,"scanner_budget"),(scan_min,"scanner_min"),(scan_max,"scanner_max"),
+        (scan_period,"scanner_period"),(scan_expiry,"scanner_expiry"),(scan_auto,"scanner_trend"),(scan_live,"scanner_live"),(scan_refresh,"scanner_refresh"),
+        (chain_symbol,"option_symbol"),(option_expiry_choice,"option_expiry_choice"),(expiry,"option_expiry"),(option_strike,"option_strike"),(option_side,"option_side"),(option_qty,"option_qty")]
+    for control,key in bindings:bind_saved(control,key)
+    def provider_changed(e):
+        nonlocal market_status
+        market_status="Broker feed not connected" if source.value!="Yahoo Finance" else "Yahoo history: waiting for refresh"
+        quotes.clear();candles.clear();top5_candidates.clear();scan_generation[0]+=1
+        scan_result.controls.clear()
+        connection_status.value="Broker feed not connected" if source.value!="Yahoo Finance" else "Yahoo delayed history selected"
+        scan_status.value=connection_status.value
+        select(current[0])
+    source_previous=source.on_change
+    def source_change(e):
+        source_previous(e);provider_changed(e)
+    source.on_change=source_change
     pages=[dashboard,options,settings,scanner]
     icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
     names=["Home","Options","Settings","Scanner"]
-    body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=12)
+    def remember_scroll(e):
+        prefs.setdefault("page_scroll",{})[str(current[0])]=max(0,float(e.pixels))
+        save()
+    body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=12,on_scroll=remember_scroll,on_scroll_interval=750)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
-    current=[0]
+    current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<4 else 0]
+    async def restore_scroll(i):
+        await asyncio.sleep(.15)
+        if current[0]==i:
+            try:body.scroll_to(offset=float(prefs.get("page_scroll",{}).get(str(i),0)),duration=0)
+            except Exception as exc:log_error("scroll",exc)
     def select(i):
         current[0]=i
+        prefs["last_page"]=i;save()
         body.controls.clear()
         body.controls.extend(pages[i]())
         navbar.controls.clear()
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.3.0 LIGHTWEIGHT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
-    select(0)
+        page.run_task(restore_scroll,i)
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.4.0 AUDIT FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
         nonlocal market_status
+        initial=True
         while True:
+            if not initial and not regular_hours():
+                await asyncio.sleep(30)
+                continue
+            initial=False
             if prefs.get("source")=="Yahoo Finance":
                 successes=0
                 symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
@@ -1432,7 +1593,7 @@ console.log('BOT KING Lightweight Charts ready');
                 async def load_one(sym):
                     async with semaphore:
                         try:
-                            quotes[sym]=await asyncio.to_thread(get_yahoo,sym)
+                            quotes[sym]=await asyncio.to_thread(get_market_data,sym)
                             return True
                         except Exception:
                             return False
@@ -1443,14 +1604,14 @@ console.log('BOT KING Lightweight Charts ready');
                 async def rank_one(sym):
                     async with semaphore:
                         try:
-                            data=await asyncio.to_thread(get_yahoo,sym,"5m","5d")
-                            return sym,analyze(data["bars"],filter_selected[:],"5m")
+                            data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
+                            return sym,analyze_current(data["bars"],filter_selected[:],"5m")
                         except Exception:return sym,None
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
                 top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 try:
-                    if current[0]!=3:select(current[0])
+                    if current[0]==0:select(0)
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
@@ -1472,3 +1633,4 @@ def main(page: ft.Page):
         page.update()
 
 ft.app(target=main)
+

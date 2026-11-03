@@ -64,6 +64,9 @@ jobs:
           python -m pip check
           python -c "import flet; import importlib.metadata as m; print('Flet:', m.version('flet'))"
 
+      - name: Offline UI and persistence regression tests
+        run: python -m unittest discover -s tests -v
+
       - name: Build APK
         run: flet build apk --include-packages flet_webview --verbose
 
