@@ -685,17 +685,20 @@ def app_main(page:ft.Page):
 
     # Scanner-only upgrade. Existing five page functions remain unchanged.
     scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]])
-    scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Custom","Any"]])
+    scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
     scan_period=ft.Dropdown(label="Historical period",value="1mo",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]])
-    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["7","14","21","30"]])
+    scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
+    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=False,active_color=GREEN)
     scan_refresh=ft.Dropdown(label="Auto refresh interval",value="60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("Auto Scan OFF • Yahoo underlying only; not a live option feed.",size=11,color=MUTED)
     scan_last_candle=[None]
+    scan_last_success=[None]
+    scan_next_refresh=[None]
+    scan_age_display=ft.Text("Last successful scan: — | Candle age: — | Next refresh: —",size=11,color=MUTED)
     scan_auto_generation=[0]
     def auto_scan_changed(e):
         scan_auto_generation[0]+=1
@@ -714,6 +717,7 @@ def app_main(page:ft.Page):
                 delay=int(scan_refresh.value or "60")
             except (ValueError,TypeError):
                 delay=60
+            scan_next_refresh[0]=datetime.now().timestamp()+max(30,delay)
             await asyncio.sleep(max(30,delay))
     scan_live.on_change=auto_scan_changed
     scan_result=ft.Column(spacing=12)
@@ -722,7 +726,7 @@ def app_main(page:ft.Page):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     def scanner():
         return [heading("AI SMART SCANNER • Yahoo"),note("Historical underlying data + transparent theoretical option simulation; no live option feed or broker API."),
-            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,scan_live,scan_refresh,scan_status,
+            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,scan_live,scan_refresh,scan_status,scan_age_display,
                  ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
                  note("Custom min/max apply when Premium budget = Custom. Results are NOT live option quotes.")),
             scan_result]
@@ -741,6 +745,8 @@ def app_main(page:ft.Page):
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
             # Yahoo supports limited intraday history; do not pretend 15m is daily.
+            if interval=="1m" and period!="7d":
+                raise ValueError("Yahoo 1m history is limited. Select 7d; only recent candles may be returned.")
             if interval=="5m" and period=="3mo":
                 raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
             if interval in ("5m","15m") and period=="3mo":
@@ -757,7 +763,7 @@ def app_main(page:ft.Page):
             first=closes[0]
             change=(price/first-1)*100
             # Estimate annual volatility using selected candle duration; for illustrative pricing only.
-            annual_bars={"5m":75*252,"15m":25*252,"1h":7*252,"1d":252}[interval]
+            annual_bars={"1m":375*252,"5m":75*252,"15m":25*252,"1h":7*252,"1d":252}[interval]
             returns=[math.log(closes[i]/closes[i-1]) for i in range(1,len(closes))]
             avg=sum(returns)/len(returns)
             variance=sum((v-avg)**2 for v in returns)/max(1,len(returns)-1)
@@ -823,7 +829,7 @@ def app_main(page:ft.Page):
                 txt("Indicative annualized volatility: "+f"{volatility*100:.1f}%",12),
                 note("Rule-based scanner, not a trained AI model or calibrated probability."))]
             # Summary is a scenario calculator, never a live executable recommendation.
-            fresh_limit={"5m":0.5,"15m":1.0,"1h":2.0,"1d":30.0}[interval]
+            fresh_limit={"1m":0.12,"5m":0.5,"15m":1.0,"1h":2.0,"1d":30.0}[interval]
             fresh=(0<=age_hours<=fresh_limit)
             aligned_choices=[v for v in eligible if v["aligned"] and v["dist"]<=0.04]
             selected=aligned_choices[0] if aligned_choices else None
@@ -843,7 +849,7 @@ def app_main(page:ft.Page):
                 stop=entry*0.80
                 target1=entry*1.20
                 target2=entry*1.35
-                horizon={"5m":"10–30 minutes","15m":"30–60 minutes",
+                horizon={"1m":"3–10 minutes","5m":"10–30 minutes","15m":"30–60 minutes",
                          "1h":"1–3 hours","1d":"1 trading day"}[interval]
                 intrinsic=max(0.0,price-selected["strike"]) if selected["call"] else max(0.0,selected["strike"]-price)
                 time_value=max(0.0,entry-intrinsic)
@@ -873,7 +879,10 @@ def app_main(page:ft.Page):
                 ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
             scan_result.controls=controls
+            scan_last_success[0]=datetime.now().timestamp()
+            scan_next_refresh[0]=(scan_last_success[0]+int(scan_refresh.value or "60")) if scan_live.value else None
             scan_status.value="Last checked "+datetime.now().strftime("%H:%M:%S")+" • Yahoo candle "+updated.strftime("%H:%M UTC")+" • updates only when source changes"
+            scan_age_display.value=(f"Last scan: 0 sec ago | Candle age: {max(0,int(age_hours*3600))} sec | Next auto refresh: "+(f"{int(scan_refresh.value or '60')} sec" if scan_live.value else "OFF"))
         except Exception as exc:
             scan_status.value="Refresh failed • last results may be stale"
             if not scan_live.value or not scan_result.controls:
