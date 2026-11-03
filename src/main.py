@@ -83,6 +83,7 @@ def app_main(page:ft.Page):
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
     def section(title,child):return card(txt(title,16,GOLD,True),child)
+    scan_shared={"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     dashboard_index=["NIFTY"]
     dashboard_tool=[""]
     def dashboard_index_set(name):
@@ -97,7 +98,8 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [heading("Market Dashboard • YAHOO PREVIEW"),dashboard_positions(),ft.Row([ft.TextButton(text=label,on_click=lambda e,v=val:dashboard_index_set(v),style=ft.ButtonStyle(color=GOLD if dashboard_index[0]==val else MUTED)) for label,val in [("NIFTY 50","NIFTY"),("BANK NIFTY","BANKNIFTY"),("SENSEX","SENSEX")]],scroll=ft.ScrollMode.AUTO),card(ft.Row([txt(dashboard_index[0],20,WHITE,True),pill("Yahoo preview" if dashboard_index[0] in quotes else "Offline")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),txt(quote_price(dashboard_index[0]),36,GOLD,True),txt(quote_change(dashboard_index[0]),16,price_color(dashboard_index[0]),True),note(market_status),ft.Row([note("Source: Yahoo Finance"),note("Indicative / may be delayed")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)),ft.Row([index("NIFTY"),index("BANKNIFTY"),index("SENSEX")]),section("Market Sentiment",ft.Column([txt("Bullish —   /   Bearish —",17),unavailable("breadth and historical data required")])),section("Market Breadth",note("Advances —   Declines —   A/D ratio —")),section("Today's Setup",ft.Column([note("Bias: unavailable"),note("Support / Resistance: unavailable"),note("Signals are disabled until backtested")])),section("Trading Tools",ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:dashboard_tool_open(v)) for n in ["OI Data","Scanner","Signals","Paper Trade"]],wrap=True),note("Scanner and Signals: live signal engine not yet connected" if dashboard_tool[0] in ("Scanner","Signals") else "Choose a tool above")])),section("Top Movers",unavailable("live NIFTY 50 constituent feed required"))]
+        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("OI/PCR/News not connected")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("Simulation only; no verified options trade")),section("TOP 5 • YAHOO QUOTE WATCHLIST",ft.Column([note(x+" • "+quote_change(x)+" • not a validated signal") for x in sorted(watch_symbols,key=lambda k:abs((quotes.get(k) or {}).get("change") or 0),reverse=True)[:5]])),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
+
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color="#294158",color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
@@ -692,13 +694,27 @@ def app_main(page:ft.Page):
     scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
-    scan_live=ft.Switch(label="Auto Scan (while app is open)",value=False,active_color=GREEN)
+    scan_live=ft.Switch(label="Auto Scan (while app is open)",value=True,active_color=GREEN)
     scan_refresh=ft.Dropdown(label="Auto refresh interval",value="60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("Auto Scan OFF • Yahoo underlying only; not a live option feed.",size=11,color=MUTED)
     scan_last_candle=[None]
     scan_last_success=[None]
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Last successful scan: — | Candle age: — | Next refresh: —",size=11,color=MUTED)
+    filter_names=["SMA 5/20","EMA 9/21","RSI 14","MACD"]
+    filter_selected=[x for x in prefs.get("scanner_filters",filter_names) if x in filter_names] or filter_names[:]
+    filter_query=ft.TextField(label="Find indicator",dense=True)
+    filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
+    filter_feedback=note("Active: "+", ".join(filter_selected))
+    def filter_edit(add):
+        q=(filter_choice.value or filter_query.value or "").strip().lower()
+        hits=[x for x in filter_names if q and q in x.lower()]
+        if len(hits)!=1:filter_feedback.value="Select one supported filter"
+        elif add and hits[0] not in filter_selected:filter_selected.append(hits[0]);filter_feedback.value="Added "+hits[0]
+        elif not add and hits[0] in filter_selected and len(filter_selected)>1:filter_selected.remove(hits[0]);filter_feedback.value="Removed "+hits[0]
+        else:filter_feedback.value="Already active or last filter"
+        prefs["scanner_filters"]=filter_selected[:];save();page.update()
+        if not scan_busy[0]:trigger_scan()
     scan_auto_generation=[0]
     def auto_scan_changed(e):
         scan_auto_generation[0]+=1
@@ -720,6 +736,13 @@ def app_main(page:ft.Page):
             scan_next_refresh[0]=datetime.now().timestamp()+max(30,delay)
             await asyncio.sleep(max(30,delay))
     scan_live.on_change=auto_scan_changed
+    def trigger_scan(e=None):
+        if scan_tf.value=="1m":scan_period.value="7d"
+        if not scan_busy[0]:
+            scan_busy[0]=True
+            page.run_task(scan_market)
+    for c in [scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto]:
+        c.on_change=trigger_scan
     scan_result=ft.Column(spacing=12)
     scan_busy=[False]
     def scan_num(x):
@@ -727,9 +750,9 @@ def app_main(page:ft.Page):
     def scanner():
         return [heading("AI SMART SCANNER • Yahoo"),note("Historical underlying data + transparent theoretical option simulation; no live option feed or broker API."),
             card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,scan_live,scan_refresh,scan_status,scan_age_display,
-                 ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
+                 note("AUTO SCAN • filters and settings trigger analysis"),
                  note("Custom min/max apply when Premium budget = Custom. Results are NOT live option quotes.")),
-            scan_result]
+            section("FILTER LIBRARY • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Supported candle filters only; OI/PCR require a verified feed.")],spacing=5)),scan_result]
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
@@ -770,7 +793,28 @@ def app_main(page:ft.Page):
             volatility=max(.08,min(1.5,math.sqrt(variance*annual_bars)))
             ma_fast=sum(closes[-min(5,len(closes)):])/min(5,len(closes))
             ma_slow=sum(closes[-min(20,len(closes)):])/min(20,len(closes))
-            direction="BULLISH" if price>ma_fast and ma_fast>=ma_slow else "BEARISH" if price<ma_fast and ma_fast<=ma_slow else "SIDEWAYS / WAIT"
+            def ema(vals,n):
+                z=vals[0];out=[z]
+                for v in vals[1:]:z+=2*(v-z)/(n+1);out.append(z)
+                return out
+            votes=[]
+            if "SMA 5/20" in filter_selected:votes.append(("SMA 5/20",1 if price>ma_fast>=ma_slow else -1 if price<ma_fast<=ma_slow else 0,"5="+scan_num(ma_fast)+" 20="+scan_num(ma_slow)))
+            if "EMA 9/21" in filter_selected:
+                x=ema(closes,9)[-1];y=ema(closes,21)[-1]
+                votes.append(("EMA 9/21",1 if price>x>y else -1 if price<x<y else 0,"9="+scan_num(x)+" 21="+scan_num(y)))
+            if "RSI 14" in filter_selected:
+                dif=[closes[i]-closes[i-1] for i in range(1,len(closes))]
+                g=sum(max(0,v) for v in dif[-14:]);l=sum(max(0,-v) for v in dif[-14:])
+                val=100 if l==0 else 100-100/(1+g/l)
+                votes.append(("RSI 14",1 if 52<=val<=70 else -1 if 30<=val<=48 else 0,f"RSI={val:.1f}"))
+            if "MACD" in filter_selected:
+                line=[x-y for x,y in zip(ema(closes,12),ema(closes,26))]
+                sig=ema(line,9)[-1]
+                votes.append(("MACD",1 if line[-1]>sig else -1 if line[-1]<sig else 0,"MACD="+scan_num(line[-1])+" signal="+scan_num(sig)))
+            up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
+            direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
+            basis=f"{up} bullish / {down} bearish • {len(votes)} filters (not win probability)"
+            lines=[txt(n+" • "+("BULLISH" if v==1 else "BEARISH" if v==-1 else "NEUTRAL")+" • "+d,11,GREEN if v==1 else RED if v==-1 else MUTED) for n,v,d in votes]
             support=min(closes[-min(20,len(closes)):])
             resistance=max(closes[-min(20,len(closes)):])
             budget=scan_budget.value or "80-120"
@@ -819,7 +863,7 @@ def app_main(page:ft.Page):
                     note("Theoretical strike grid and expiry; verify actual listed strike, lot, spread, OI and quote in broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
             age_warning=("STALE DATA — no trading decision from this quote." if age_hours>24 else "Data may be delayed; confirm with broker.")
-            controls=[card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Latest UTC: "+updated.strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/News not connected; excluded.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
                 txt("Underlying historical close: ₹"+scan_num(price),15),
                 txt("Yahoo candle (UTC): "+updated.strftime("%d %b %Y %H:%M"),12),
                 txt("Data age: "+f"{max(0,age_hours):.1f}"+" hours • "+age_warning,12,RED if age_hours>24 else GOLD),
@@ -878,6 +922,7 @@ def app_main(page:ft.Page):
                 note("Do not trade based only on this simulation. Check live broker quote and contract first."),
                 ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
+            scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym)
             scan_result.controls=controls
             scan_last_success[0]=datetime.now().timestamp()
             scan_next_refresh[0]=(scan_last_success[0]+int(scan_refresh.value or "60")) if scan_live.value else None
@@ -889,7 +934,7 @@ def app_main(page:ft.Page):
                 scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
-            if current[0]==5:page.update()
+            if current[0] in (0,5):select(current[0])
     pages=[dashboard,watchlist,charts,options,settings,scanner]
     icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
     names=["Dashboard","Watchlist","Charts","Options","Settings","AI Scanner"]
@@ -904,8 +949,9 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(["Home","Watch","Chart","Option","Setting","Scanner"][j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",21,GOLD,True),note("AI Trading Assistant Pro • v3.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=8,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",21,GOLD,True),note("AI Trading Assistant Pro • v1.0.1")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=8,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
+    page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
         nonlocal market_status
         while True:
