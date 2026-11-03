@@ -692,20 +692,44 @@ def app_main(page:ft.Page):
     scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["7","14","21","30"]])
     scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
+    scan_live=ft.Switch(label="Auto Scan (while app is open)",value=False,active_color=GREEN)
+    scan_refresh=ft.Dropdown(label="Auto refresh interval",value="60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
+    scan_status=ft.Text("Auto Scan OFF • Yahoo underlying only; not a live option feed.",size=11,color=MUTED)
+    scan_last_candle=[None]
+    scan_auto_generation=[0]
+    def auto_scan_changed(e):
+        scan_auto_generation[0]+=1
+        scan_status.value=("Auto Scan ON • checking for new Yahoo candles" if scan_live.value
+                           else "Auto Scan OFF")
+        page.update()
+        if scan_live.value:
+            page.run_task(auto_scan_loop,scan_auto_generation[0])
+    async def auto_scan_loop(generation):
+        # No background service: refresh runs only while this app/page is alive.
+        while scan_live.value and generation==scan_auto_generation[0]:
+            if not scan_busy[0]:
+                scan_busy[0]=True
+                await scan_market()
+            try:
+                delay=int(scan_refresh.value or "60")
+            except (ValueError,TypeError):
+                delay=60
+            await asyncio.sleep(max(30,delay))
+    scan_live.on_change=auto_scan_changed
     scan_result=ft.Column(spacing=12)
     scan_busy=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     def scanner():
         return [heading("AI SMART SCANNER • Yahoo"),note("Historical underlying data + transparent theoretical option simulation; no live option feed or broker API."),
-            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,
+            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,scan_live,scan_refresh,scan_status,
                  ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
                  note("Custom min/max apply when Premium budget = Custom. Results are NOT live option quotes.")),
             scan_result]
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
-        scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
+        if not scan_live.value:\n            scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
         page.update()
         page.run_task(scan_market)
     async def scan_market():
@@ -724,7 +748,7 @@ def app_main(page:ft.Page):
             bars=hist.get("bars") or []
             closes=[float(b[4]) for b in bars if b[4] is not None and b[4]>0]
             if len(closes)<8:raise ValueError("Not enough valid Yahoo candles. Choose a longer period or daily timeframe.")
-            latest_timestamp=bars[-1][0]
+            latest_timestamp=bars[-1][0]\n            scan_last_candle[0]=latest_timestamp
             updated=datetime.fromtimestamp(latest_timestamp,timezone.utc)
             age_hours=(datetime.now(timezone.utc)-updated).total_seconds()/3600
             price=closes[-1]
@@ -846,9 +870,9 @@ def app_main(page:ft.Page):
                 note("Do not trade based only on this simulation. Check live broker quote and contract first."),
                 ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
-            scan_result.controls=controls
+            scan_result.controls=controls\n            scan_status.value="Last checked "+datetime.now().strftime("%H:%M:%S")+" • Yahoo candle "+updated.strftime("%H:%M UTC")+" • updates only when source changes"
         except Exception as exc:
-            scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
+            scan_status.value="Refresh failed • last results may be stale"\n            if not scan_live.value or not scan_result.controls:\n                scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
             if current[0]==5:page.update()
