@@ -90,7 +90,8 @@ def app_main(page:ft.Page):
         select(0)
     def dashboard_tool_open(name):
         dashboard_tool[0]=name
-        if name=="Paper Trade":select(4)
+        if name=="Scanner":select(5)
+        elif name=="Paper Trade":select(4)
         elif name=="OI Data":select(3)
         else:select(0)
     def dashboard():
@@ -680,9 +681,102 @@ def app_main(page:ft.Page):
             content.append(section("Backtest & Reports",note("Backtesting requires historical data and a validated strategy. No results are available.")))
         content.extend([ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("Broker orders, automatic trading and signals are disabled until secure integration and testing."))])
         return content
-    pages=[dashboard,watchlist,charts,options,settings]
-    icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS]
-    names=["Dashboard","Watchlist","Charts","Options","Settings"]
+
+    # AI Smart Scanner: indicative Yahoo underlying analysis, never a live option quote.
+    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]],expand=True)
+    scan_budget=ft.Dropdown(label="Preferred premium range",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Any"]],expand=True)
+    scan_period=ft.Dropdown(label="History",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]],expand=True)
+    scan_tf=ft.Dropdown(label="Timeframe",value="15m",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]],expand=True)
+    scan_auto=ft.Switch(label="Smart Auto Filter",value=True,active_color=GREEN)
+    scan_result=ft.Column(spacing=12)
+    scan_busy=[False]
+    def scan_num(x):
+        return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
+    def scanner():
+        return [heading("AI SMART SCANNER • Yahoo"),note("One scrollable page • No broker API • Underlying data may be delayed"),
+            card(scan_symbol,ft.Row([scan_budget,scan_period],wrap=True),scan_tf,scan_auto,
+                 ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
+                 note("Yahoo supplies underlying prices; option premium/OI/Greeks are NOT live. Simulated candidates are educational estimates, not executable quotes.")),
+            scan_result]
+    def run_scan(e):
+        if scan_busy[0]:return
+        scan_busy[0]=True
+        scan_result.controls=[card(txt("Scanning Yahoo historical data…",16,GOLD,True),note("Checking momentum, volatility, support/resistance and premium budget."))]
+        page.update()
+        page.run_task(scan_market)
+    async def scan_market():
+        import math
+        try:
+            sym=scan_symbol.value or "NIFTY"
+            period=scan_period.value or "7d"
+            interval=scan_tf.value or "15m"
+            # Yahoo intraday intervals have limited history; use daily bars for 1-3 months.
+            hist=await asyncio.to_thread(get_yahoo,sym,"1d",period)
+            closes=[float(b[4]) for b in hist.get("bars",[]) if b[4] is not None]
+            if len(closes)<5:raise ValueError("Insufficient Yahoo history to analyze this symbol.")
+            price=closes[-1]
+            change7=(price/closes[max(0,len(closes)-6)]-1)*100
+            returns=[math.log(closes[i]/closes[i-1]) for i in range(1,len(closes)) if closes[i]>0 and closes[i-1]>0]
+            mean=sum(returns)/len(returns) if returns else 0
+            volatility=(sum((v-mean)**2 for v in returns)/max(1,len(returns)-1))**.5*math.sqrt(252) if len(returns)>1 else 0
+            ma5=sum(closes[-5:])/5
+            ma20=sum(closes[-20:])/min(20,len(closes))
+            momentum=(price/ma5-1)*100
+            direction="BULLISH" if price>ma5 and ma5>=ma20 else "BEARISH" if price<ma5 and ma5<=ma20 else "SIDEWAYS / WAIT"
+            support=min(closes[-min(7,len(closes)):]);resistance=max(closes[-min(7,len(closes)):])
+            # Approximate one-week Black-Scholes theoretical prices, NOT actual market contracts.
+            def normal_cdf(x):return .5*(1+math.erf(x/math.sqrt(2)))
+            def model_option(k,is_call,days=7):
+                t=days/365;sig=max(.08,min(1.5,volatility));r=.06
+                d1=(math.log(price/k)+(r+.5*sig*sig)*t)/(sig*math.sqrt(t))
+                d2=d1-sig*math.sqrt(t)
+                return max(0,price*normal_cdf(d1)-k*math.exp(-r*t)*normal_cdf(d2)) if is_call else max(0,k*math.exp(-r*t)*normal_cdf(-d2)-price*normal_cdf(-d1))
+            step=50 if sym=="NIFTY" else 100 if sym in ("BANKNIFTY","SENSEX") else max(1,round(price*.005))
+            atm=round(price/step)*step
+            candidates=[]
+            for k in [atm+i*step for i in range(-8,9) if atm+i*step>0]:
+                for is_call in (True,False):
+                    premium=model_option(k,is_call)
+                    low,high=([0,1e12] if scan_budget.value=="Any" else [float(x) for x in (scan_budget.value or "80-120").split("-")])
+                    if low<=premium<=high:
+                        # Penalize deep OTM and very low time value. No guarantee of slower decay.
+                        dist=abs(k-price)/price
+                        candidates.append((dist,abs(premium-(low+high)/2) if high<1e10 else premium,k,is_call,premium))
+            candidates.sort()
+            controls=[card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+                txt("Underlying: "+scan_num(price)+"  |  Historical move: "+f"{change7:+.2f}%",14),
+                txt("5-day average: "+scan_num(ma5)+"  |  20-day average: "+scan_num(ma20),12),
+                txt("Support: "+scan_num(support)+"  |  Resistance: "+scan_num(resistance),12),
+                txt("Annualized historical volatility: "+f"{volatility*100:.1f}%",12),
+                note("Signal is a rule-based trend assessment, not a trained AI probability or guaranteed prediction."))]
+            if candidates:
+                rows=[]
+                for _,__,k,is_call,prem in candidates[:5]:
+                    side="CE" if is_call else "PE"
+                    rows.append(ft.Container(content=ft.Column([
+                        txt(f"{sym} {k:g} {side} • simulated ₹{prem:.2f}",14,GOLD,True),
+                        note("Illustrative 7-day expiry • theoretical Black-Scholes • actual strike/expiry/lot/liquidity not verified"),
+                        note("Theta decay can accelerate near expiry. Verify live option chain and spread in your broker before trading.")
+                    ],spacing=5),bgcolor=PANEL2,padding=10,border_radius=10))
+                controls.append(section("Budget-matched SIMULATED premiums",ft.Column(rows,spacing=8)))
+            else:
+                controls.append(section("Premium budget",note("No theoretical option near this budget in the tested strikes. Change budget; do not assume an actual listed contract.")))
+            controls.append(section("Risk / simulation",ft.Column([
+                note("For calls, upside is needed; for puts, downside. A correct direction alone may not offset theta decay."),
+                note("Prefer sufficient days to expiry, narrow bid-ask spread and strong volume/OI — these require a licensed/live option-chain feed."),
+                note("No live CE/PE quote, win probability, auto order, or guaranteed low-decay contract is claimed."),
+                ft.ElevatedButton("Open Paper Trading",on_click=lambda e:select(4))
+            ])))
+            scan_result.controls=controls
+        except Exception as exc:
+            scan_result.controls=[card(unavailable("Yahoo scan failed: "+str(exc)),note("Try again with internet; no signal generated."))]
+        finally:
+            scan_busy[0]=False
+            if current[0]==5:page.update()
+
+    pages=[dashboard,watchlist,charts,options,settings,scanner]
+    icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
+    names=["Dashboard","Watchlist","Charts","Options","Settings","AI Scanner"]
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=16)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_AROUND,scroll=ft.ScrollMode.AUTO)
     current=[0]
@@ -691,7 +785,7 @@ def app_main(page:ft.Page):
         body.controls.clear()
         body.controls.extend(pages[i]())
         navbar.controls.clear()
-        for j in range(5):
+        for j in range(len(pages)):
             navbar.controls.append(ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=23),txt(names[j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=3),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=6)))
         page.update()
     page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=35),ft.Column([txt("BOT KING",23,GOLD,True),note("AI Trading Assistant Pro • v3.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=16,right=16,top=15,bottom=12),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=14,vertical=8)),ft.Container(content=navbar,bgcolor="#071A2B",padding=ft.padding.symmetric(vertical=8)))
