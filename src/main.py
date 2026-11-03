@@ -731,13 +731,37 @@ def app_main(page:ft.Page):
     tv_booted=[False]
     def tradingview_widget_html(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
-        config={"autosize":True,"symbol":ticker,"interval":"5","timezone":"Asia/Kolkata","theme":"dark","style":"1","locale":"en","allow_symbol_change":True,"hide_side_toolbar":False,"hide_top_toolbar":False,"save_image":False,"support_host":"https://www.tradingview.com"}
-        return ('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">'
-                '<style>html,body{margin:0;padding:0;width:100%;height:100%;background:#080F18;overflow:hidden}'
-                '.tradingview-widget-container{height:100%;width:100%}.tradingview-widget-container__widget{height:100%;width:100%}</style>'
-                '</head><body><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>'
-                '<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>'
-                +json.dumps(config)+'</script></div></body></html>')
+        config={"autosize":True,"symbol":ticker,"interval":"5","timezone":"Asia/Kolkata","theme":"dark","style":"1","locale":"en","allow_symbol_change":True,"hide_side_toolbar":False,"hide_top_toolbar":False,"save_image":False}
+        config_json=json.dumps(config).replace("</","<\\/")
+        return ('''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;width:100%;height:100%;background:#080F18;color:#EAF1F6;font:12px sans-serif}
+#diagnostic{position:absolute;top:0;left:0;right:0;z-index:99;background:#193443;padding:8px;white-space:normal}
+.tradingview-widget-container{position:absolute;top:42px;bottom:0;left:0;right:0}
+.tradingview-widget-container__widget{width:100%;height:100%}</style></head>
+<body><div id="diagnostic">Diagnostic: HTML displayed; checking JavaScript...</div>
+<div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div></div>
+<script>
+(function(){
+ var d=document.getElementById('diagnostic');
+ function show(s){d.textContent='Diagnostic: '+s;console.log('BOT KING TV: '+s)}
+ window.addEventListener('error',function(e){show('JS error: '+e.message)});
+ window.addEventListener('unhandledrejection',function(e){show('Promise error: '+String(e.reason).slice(0,150))});
+ show('JavaScript OK; requesting TradingView script');
+ var s=document.createElement('script');
+ s.type='text/javascript';
+ s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+ s.async=true;
+ s.textContent=JSON.stringify('''+config_json+''');
+ s.onload=function(){show('TradingView script downloaded; checking iframe...')};
+ s.onerror=function(){show('TradingView script NETWORK ERROR (s3.tradingview.com)')};
+ document.querySelector('.tradingview-widget-container').appendChild(s);
+ setTimeout(function(){
+  var frame=document.querySelector('.tradingview-widget-container iframe');
+  if(frame){show('TradingView iframe created; checking visual rendering')}
+  else{show('NO iframe after 12s; widget script failed to initialize')}
+ },12000);
+})();
+</script></body></html>''')
     def tv_set_status(message):
         tradingview_status.value=message
         try:
@@ -750,7 +774,7 @@ def app_main(page:ft.Page):
         if view is None:return
         try:
             tv_set_status("TradingView widget: loading embedded chart...")
-            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"))
+            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
         except Exception as exc:
             tv_set_status("TradingView widget load error: "+str(exc)[:180])
     def tv_started(e):
