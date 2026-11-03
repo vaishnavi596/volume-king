@@ -403,7 +403,7 @@ def app_main(page:ft.Page):
             dates=option_dates(chain_symbol.value)
             idx=1 if option_expiry_choice.value=="Next" else 0
             expiry.value=dates[idx].isoformat() if len(dates)>idx else ""
-        if e is not None:select(3)
+        if e is not None:select(1)
     def add_option_symbol(e):
         sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
         if sym and sym.replace("-","").replace("&","").isalnum() and sym not in [o.key for o in chain_symbol.options]:
@@ -412,7 +412,7 @@ def app_main(page:ft.Page):
             chain_symbol.value=sym
             option_add_symbol.value=""
             refresh_option_expiry()
-        select(3)
+        select(1)
     chain_symbol.on_change=refresh_option_expiry
     option_expiry_choice.on_change=refresh_option_expiry
     refresh_option_expiry()
@@ -421,10 +421,10 @@ def app_main(page:ft.Page):
     option_notice=txt("",12,MUTED)
     def choose_option_tab(v):
         option_tab[0]=v
-        select(3)
+        select(1)
     def choose_strategy(v):
         strategy_choice[0]=v
-        select(3)
+        select(1)
     option_strike=ft.TextField(label="Strike price",hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
     option_side=ft.Dropdown(label="Contract",value="CE",options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")],width=120)
     option_qty=ft.TextField(label="Lots (paper)",value="1",keyboard_type=ft.KeyboardType.NUMBER,width=120)
@@ -433,7 +433,7 @@ def app_main(page:ft.Page):
         option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
         page.update()
     def options():
-        content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,option_expiry_choice]),ft.Row([expiry]),option_expiry_note,ft.Row([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)]),note("Stock options only where F&O contracts are listed; selection does not confirm availability."),ft.ElevatedButton("Apply selection",on_click=lambda e:select(3)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
+        content=[heading("Options Chain & Flow Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_option_tab(v),style=ft.ButtonStyle(color=GOLD if option_tab[0]==n else MUTED)) for n in ["Option Chain","OI Analysis","PCR","Premium Flow","Strategy"]],scroll=ft.ScrollMode.AUTO),ft.Row([chain_symbol,option_expiry_choice]),ft.Row([expiry]),option_expiry_note,ft.Row([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)]),note("Stock options only where F&O contracts are listed; selection does not confirm availability."),ft.ElevatedButton("Apply selection",on_click=lambda e:select(1)),note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         if option_tab[0]=="Option Chain":
             content.extend([section("Option Chain",ft.Column([ft.Row([txt("CALL (CE)",14,GREEN,True),txt("STRIKE",14,GOLD,True),txt("PUT (PE)",14,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Column([unavailable("Verified exchange option-chain feed not connected"),
                 note("CE/PE premiums and listed strikes are not invented."),
@@ -646,7 +646,7 @@ def app_main(page:ft.Page):
     settings_tab=["Trading Bot"]
     def choose_settings_tab(v):
         settings_tab[0]=v
-        select(4)
+        select(2)
     def settings():
         tabs=["Trading Bot","Broker & API","Risk & Money","Strategy","Alerts","Backtest"]
         content=[heading("Settings & Trading Bot"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_settings_tab(v),style=ft.ButtonStyle(color=GOLD if settings_tab[0]==n else MUTED)) for n in tabs],scroll=ft.ScrollMode.AUTO)]
@@ -1029,7 +1029,7 @@ def app_main(page:ft.Page):
                 top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 try:
-                    if current[0]!=5:select(current[0])
+                    if current[0]!=3:select(current[0])
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
