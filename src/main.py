@@ -722,9 +722,10 @@ def app_main(page:ft.Page):
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
     chart_filter_names=["EMA 9/21","RSI 14","MACD","Supertrend"]
-    chart_provider=["BOT KING / Yahoo"]
-    # v1.2 Android runtime does not register the WebView control. Reset persisted invalid selection.
-    prefs["chart_provider"]="BOT KING / Yahoo"
+    chart_provider=[prefs.get("chart_provider","TradingView")]
+    def tradingview_url(symbol):
+        ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
+        return "https://s.tradingview.com/widgetembed/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5&theme=dark&style=1&locale=en"
     def chart_provider_change(e):
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
@@ -812,7 +813,12 @@ def app_main(page:ft.Page):
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
-            parts.append(note("BOT KING / Yahoo chart • TradingView embedded mode temporarily disabled: Android WebView extension is not installed."))
+            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
+            if chart_provider[0]=="TradingView":
+                parts.append(note("TradingView • embedded Android chart. Market data may be delayed; AI votes use Yahoo candles."))
+                parts.append(ft.Container(content=ft.WebView(url=tradingview_url(sym),expand=True),height=420,bgcolor=PANEL2,border_radius=8))
+                parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
+                return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
                 closes=[float(b[4]) for b in bars]
