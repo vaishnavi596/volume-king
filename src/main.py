@@ -697,7 +697,7 @@ def app_main(page:ft.Page):
 
 
     # Scanner-only upgrade. Existing five page functions remain unchanged.
-    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]])
+    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))])
     scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
