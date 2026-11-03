@@ -774,7 +774,7 @@ def app_main(page:ft.Page):
                     pool.append(dict(strike=strike,call=call,premium=premium,decay=decay,decay_pct=decay_pct,aligned=aligned,dist=abs(strike-price)/price))
             eligible=[v for v in pool if low<=v["premium"]<=high]
             if scan_auto.value and direction!="SIDEWAYS / WAIT":
-                eligible.sort(key=lambda v:(not v["aligned"],v["decay_pct"],v["dist"]))
+                eligible.sort(key=lambda v:(not v["aligned"],v["dist"],v["decay_pct"]))
             else:eligible.sort(key=lambda v:(v["decay_pct"],v["dist"]))
             rows=[]
             for v in eligible[:5]:
@@ -796,6 +796,41 @@ def app_main(page:ft.Page):
                 txt("Support: "+scan_num(support)+"  |  Resistance: "+scan_num(resistance),12),
                 txt("Indicative annualized volatility: "+f"{volatility*100:.1f}%",12),
                 note("Rule-based scanner, not a trained AI model or calibrated probability."))]
+            # Summary is a scenario calculator, never a live executable recommendation.
+            fresh_limit={"5m":0.5,"15m":1.0,"1h":2.0,"1d":30.0}[interval]
+            fresh=(0<=age_hours<=fresh_limit)
+            aligned_choices=[v for v in eligible if v["aligned"] and v["dist"]<=0.04]
+            selected=aligned_choices[0] if aligned_choices else None
+            if direction=="SIDEWAYS / WAIT" or not fresh or selected is None:
+                reason=("Market is sideways; wait for a clearer trend." if direction=="SIDEWAYS / WAIT"
+                        else "Yahoo candle is too old for this selected timeframe." if not fresh
+                        else "No suitable near-the-money, trend-aligned simulated premium matches this budget.")
+                summary=section("TOP SETUP • WAIT / NO TRADE",ft.Column([
+                    txt(reason,14,GOLD,True),
+                    note("No entry, stop loss, target or holding-time recommendation is issued."),
+                    note("Re-scan with fresh data; verify live option chain and contract with broker.")
+                ],spacing=8))
+            else:
+                side="CE" if selected["call"] else "PE"
+                entry=selected["premium"]
+                # Explicitly illustrative percentage scenarios, NOT forecasted fills.
+                stop=entry*0.80
+                target1=entry*1.20
+                target2=entry*1.35
+                horizon={"5m":"10–30 minutes","15m":"30–60 minutes",
+                         "1h":"1–3 hours","1d":"1 trading day"}[interval]
+                intrinsic=max(0.0,price-selected["strike"]) if selected["call"] else max(0.0,selected["strike"]-price)
+                time_value=max(0.0,entry-intrinsic)
+                summary=section("TOP SETUP • SIMULATION ONLY",ft.Column([
+                    txt(f'{sym} {selected["strike"]:g} {side} • modeled ₹{entry:.2f}',16,GOLD,True),
+                    txt(f'Illustrative entry ₹{entry:.2f} | SL ₹{stop:.2f}',14),
+                    txt(f'Illustrative targets ₹{target1:.2f} / ₹{target2:.2f}',14),
+                    txt("Scenario horizon: "+horizon,13),
+                    txt(f'Intrinsic ≈ ₹{intrinsic:.2f} | Time value ≈ ₹{time_value:.2f}',12),
+                    note("20% stop and 20%/35% targets are fixed hypothetical scenarios, not market-derived predictions."),
+                    note("Actual strike, expiry, premium, liquidity and order execution are UNVERIFIED. Do not trade from this simulation alone.")
+                ],spacing=8))
+            controls.insert(0,summary)
             if rows:
                 controls.append(section("Premium candidates • SIMULATION ONLY",ft.Column(rows,spacing=8)))
             else:
