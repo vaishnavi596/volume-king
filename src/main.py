@@ -738,29 +738,31 @@ def app_main(page:ft.Page):
                 '</head><body><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>'
                 '<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>'
                 +json.dumps(config)+'</script></div></body></html>')
+    def tv_set_status(message):
+        tradingview_status.value=message
+        try:
+            if tradingview_status.page is not None:
+                tradingview_status.update()
+        except (AssertionError, RuntimeError):
+            pass
     async def tv_load_widget():
         view=tv_view[0]
         if view is None:return
         try:
-            tradingview_status.value="TradingView widget: loading embedded chart..."
-            tradingview_status.update()
-            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
+            tv_set_status("TradingView widget: loading embedded chart...")
+            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"))
         except Exception as exc:
-            tradingview_status.value="TradingView widget load error: "+str(exc)[:180]
-            tradingview_status.update()
+            tv_set_status("TradingView widget load error: "+str(exc)[:180])
     def tv_started(e):
-        tradingview_status.value="TradingView widget: loading..."
-        tradingview_status.update()
+        tv_set_status("TradingView widget: loading...")
     def tv_ended(e):
         if not tv_booted[0]:
             tv_booted[0]=True
             page.run_task(tv_load_widget)
         else:
-            tradingview_status.value="TradingView widget HTML loaded; waiting for chart rendering."
-            tradingview_status.update()
+            tv_set_status("TradingView widget HTML loaded; waiting for chart rendering.")
     def tv_error(e):
-        tradingview_status.value="TradingView resource error: "+str(e.data)[:220]
-        tradingview_status.update()
+        tv_set_status("TradingView resource error: "+str(e.data)[:220])
     def tv_retry(e):
         tv_booted[0]=False
         select(3)
