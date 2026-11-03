@@ -101,9 +101,9 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("OI/PCR/News not connected")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("Simulation only; no verified options trade")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
-                [note("Updated: "+top5_last_update[0]+" • delayed candle feed")]
-                + ([ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% agreement",12,GREEN if x["bias"]=="BULLISH" else RED,True),note(x["reason"])],spacing=2) for x in top5_candidates]
+        return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("5m signal is not confirmed by 15m/1h; OI/PCR/News unavailable")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("WAIT • Live option premium, liquidity and expiry not verified")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
+                [note("Updated "+top5_last_update[0]+" • filtered candidates; NOT a win probability")]
+                + ([ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% votes",12,GREEN if x["bias"]=="BULLISH" else RED,True),note("5m • "+str(x["age"])+"s old • "+x["reason"])],spacing=2) for x in top5_candidates]
                    if top5_candidates else [note("WAIT • no fresh qualified candidates; not a trade guarantee")])
             ,spacing=6)),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
 
