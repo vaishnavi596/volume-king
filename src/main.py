@@ -925,8 +925,7 @@ def main(page: ft.Page):
         app_main(page)
     except Exception:
         error=traceback.format_exc()
-        print("BOT KING STARTUP ERROR:\
-"+error,flush=True)
+        print("BOT KING STARTUP ERROR:"+error,flush=True)
         page.controls.clear()
         page.bgcolor="#03080E"
         page.padding=16
