@@ -726,17 +726,43 @@ def app_main(page:ft.Page):
     def tradingview_url(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
         return "https://www.tradingview.com/chart/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5"
-    tradingview_status=ft.Text("TradingView: waiting for page load",size=12,color=MUTED)
+    tradingview_status=ft.Text("TradingView widget: preparing...",size=12,color=MUTED)
+    tv_view=[None]
+    tv_booted=[False]
+    def tradingview_widget_html(symbol):
+        ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
+        config={"autosize":True,"symbol":ticker,"interval":"5","timezone":"Asia/Kolkata","theme":"dark","style":"1","locale":"en","allow_symbol_change":True,"hide_side_toolbar":False,"hide_top_toolbar":False,"save_image":False,"support_host":"https://www.tradingview.com"}
+        return ('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">'
+                '<style>html,body{margin:0;padding:0;width:100%;height:100%;background:#080F18;overflow:hidden}'
+                '.tradingview-widget-container{height:100%;width:100%}.tradingview-widget-container__widget{height:100%;width:100%}</style>'
+                '</head><body><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>'
+                '<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>'
+                +json.dumps(config)+'</script></div></body></html>')
+    async def tv_load_widget():
+        view=tv_view[0]
+        if view is None:return
+        try:
+            tradingview_status.value="TradingView widget: loading embedded chart..."
+            tradingview_status.update()
+            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
+        except Exception as exc:
+            tradingview_status.value="TradingView widget load error: "+str(exc)[:180]
+            tradingview_status.update()
     def tv_started(e):
-        tradingview_status.value="TradingView: loading page..."
+        tradingview_status.value="TradingView widget: loading..."
         tradingview_status.update()
     def tv_ended(e):
-        tradingview_status.value="TradingView: page loaded; if chart stays blank, website scripts may be blocked."
-        tradingview_status.update()
+        if not tv_booted[0]:
+            tv_booted[0]=True
+            page.run_task(tv_load_widget)
+        else:
+            tradingview_status.value="TradingView widget HTML loaded; waiting for chart rendering."
+            tradingview_status.update()
     def tv_error(e):
-        tradingview_status.value="TradingView WebView error: "+str(e.data)[:220]
+        tradingview_status.value="TradingView resource error: "+str(e.data)[:220]
         tradingview_status.update()
     def tv_retry(e):
+        tv_booted[0]=False
         select(3)
     def chart_provider_change(e):
         chart_provider[0]=e.control.value
@@ -827,9 +853,11 @@ def app_main(page:ft.Page):
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView":
-                parts.append(note("TradingView full chart in Android WebView • internet required. Market data may be delayed; AI votes use Yahoo candles."))
+                parts.append(note("TradingView official Advanced Chart widget in Android WebView • internet required. AI votes use Yahoo candles."))
                 parts.append(tradingview_status)
-                parts.append(ft.Container(content=ft.WebView(url=tradingview_url(sym),expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error),height=420,bgcolor=PANEL2,border_radius=8))
+                tv_booted[0]=False
+                tv_view[0]=ft.WebView(url="about:blank",expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error)
+                parts.append(ft.Container(content=tv_view[0],height=420,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
                 return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
