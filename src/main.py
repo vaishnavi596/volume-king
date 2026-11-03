@@ -774,7 +774,7 @@ def app_main(page:ft.Page):
         if view is None:return
         try:
             tv_set_status("TradingView widget: loading embedded chart...")
-            await view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
+            view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
         except Exception as exc:
             tv_set_status("TradingView widget load error: "+str(exc)[:180])
     def tv_started(e):
@@ -882,7 +882,7 @@ def app_main(page:ft.Page):
                 parts.append(note("TradingView official Advanced Chart widget in Android WebView • internet required. AI votes use Yahoo candles."))
                 parts.append(tradingview_status)
                 tv_booted[0]=False
-                tv_view[0]=ft.WebView(url="about:blank",expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error)
+                tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error)
                 parts.append(ft.Container(content=tv_view[0],height=420,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
@@ -1151,7 +1151,7 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.1 JS FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
