@@ -164,4 +164,99 @@ class AuditTests(unittest.TestCase):
         v['max_daily_loss'].value='nan';v['bot_paper_action']('BUY')
         self.assertIsNone(v['bot_position']['side'])
 
+    def test_added_filters_visible_toggle_restore_and_individual_remove(self):
+        page,v=start({'scanner_live':False})
+        v['scan_busy'][0]=True
+        names=['OI Support','OI Resistance','OI Profile','Max Pain','Volume']
+        for name in names:
+            v['filter_choice'].value=name;v['filter_edit'](True)
+        self.assertEqual(v['added_filters'],names)
+        self.assertEqual(len(v['added_filter_list'].controls),5)
+        for row in v['added_filter_list'].controls:
+            self.assertEqual(row.content.controls[2].text,'Remove ×')
+        checkbox=v['added_filter_list'].controls[0].content.controls[0]
+        checkbox.value=False;checkbox.on_change(event(checkbox))
+        self.assertIn(names[0],v['added_filters']);self.assertNotIn(names[0],v['filter_selected'])
+        _,restored=start(page.client_storage.get('bot_king_preferences'))
+        self.assertEqual(restored['added_filters'],names)
+        self.assertNotIn(names[0],restored['filter_selected'])
+        restored['scan_busy'][0]=True
+        for name in names:restored['remove_added_filter'](name)
+        self.assertEqual(restored['added_filters'],[])
+        self.assertFalse(any(n in restored['filter_selected'] for n in names))
+
+    def test_complete_scanner_flow_for_every_timeframe(self):
+        import time
+        def texts(controls):
+            out=[]
+            def walk(c):
+                if isinstance(c,ft.Text):out.append(str(c.value))
+                for child in c._get_children():walk(child)
+            for c in controls:walk(c)
+            return ' | '.join(out)
+        for tf in ['1m','3m','5m','15m','30m','1h','1d']:
+            with self.subTest(timeframe=tf):
+                page,v=start({'scanner_live':False,'scanner_timeframe':tf,'scanner_budget':'Any'})
+                async def run():
+                    original=asyncio.to_thread
+                    async def history(fn,*args,**kwargs):
+                        now=int(time.time());step=v['timeframe_spec'](tf)['seconds']
+                        return {'bars':[(now-(99-i)*step,24000+i*5,24006+i*5,23999+i*5,24005+i*5,1000) for i in range(100)]}
+                    asyncio.to_thread=history
+                    try:await v['scan_market']()
+                    finally:asyncio.to_thread=original
+                asyncio.run(run())
+                self.assertNotIn('Refresh failed',v['scan_status'].value)
+                rendered=texts(v['scan_result'].controls)
+                self.assertIn('TOP SETUP • SIMULATION ONLY',rendered)
+                self.assertIn('Scenario horizon: '+v['timeframe_spec'](tf)['horizon'],rendered)
+                self.assertFalse(v['diagnostics'])
+
+    def test_stale_wait_reason_is_not_sideways(self):
+        import time
+        page,v=start({'scanner_live':False,'scanner_timeframe':'3m','scanner_budget':'Any'})
+        async def run():
+            original=asyncio.to_thread
+            async def history(*args,**kwargs):
+                now=int(time.time())-6*3600
+                return {'bars':[(now-(99-i)*180,24000+i*5,24006+i*5,23999+i*5,24005+i*5,1000) for i in range(100)]}
+            asyncio.to_thread=history
+            try:await v['scan_market']()
+            finally:asyncio.to_thread=original
+        asyncio.run(run())
+        values=[]
+        def walk(c):
+            if isinstance(c,ft.Text):values.append(str(c.value))
+            for child in c._get_children():walk(child)
+        for c in v['scan_result'].controls:walk(c)
+        text=' | '.join(values)
+        self.assertIn('Last candle is too old',text)
+        self.assertNotIn('Market is sideways',text)
+
+    def test_expiry_preview_uses_same_calendar_and_skips_closed_today(self):
+        _,v=start()
+        for symbol in ['NIFTY','BANKNIFTY','SENSEX','HDFCBANK']:
+            self.assertEqual(v['preview_expiries'](symbol),[d.isoformat() for d in v['option_dates'](symbol)])
+        tz=timezone(timedelta(hours=5,minutes=30))
+        before=v['option_dates']('NIFTY',datetime(2026,11,3,10,0,tzinfo=tz))
+        after=v['option_dates']('NIFTY',datetime(2026,11,3,21,0,tzinfo=tz))
+        self.assertEqual(before[0].isoformat(),'2026-11-03')
+        self.assertEqual(after[0].isoformat(),'2026-11-10')
+
+    def test_paused_refresh_has_no_countdown_and_scanner_fields_not_in_rows(self):
+        _,v=start({'scanner_live':True})
+        class ClosedClock(datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime(2026,11,7,21,0,tzinfo=tz)
+        v['refresh_scan_age'].__globals__['datetime']=ClosedClock
+        v['scan_last_success'][0]=ClosedClock.now().timestamp()-15
+        v['scan_next_refresh'][0]=ClosedClock.now().timestamp()+60
+        v['refresh_scan_age']()
+        self.assertIsNone(v['scan_next_refresh'][0])
+        self.assertIn('PAUSED',v['scan_age_display'].value)
+        self.assertIn('15 sec ago',v['scan_age_display'].value)
+        top=v['scanner']()[2].content.controls
+        self.assertIn(v['scan_tf'],top);self.assertIn(v['scan_period'],top);self.assertIn(v['scan_refresh'],top)
+        self.assertFalse(any(isinstance(c,ft.Row) and v['scan_tf'] in c.controls for c in top))
+
 if __name__=='__main__':unittest.main()
