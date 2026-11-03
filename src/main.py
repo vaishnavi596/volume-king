@@ -682,103 +682,146 @@ def app_main(page:ft.Page):
         content.extend([ft.ElevatedButton("Save settings",on_click=save_settings,bgcolor=GOLD,color=BG),status,section("Safety",note("Broker orders, automatic trading and signals are disabled until secure integration and testing."))])
         return content
 
-    # AI Smart Scanner: indicative Yahoo underlying analysis, never a live option quote.
+
+    # Scanner-only upgrade. Existing five page functions remain unchanged.
     scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]])
-    scan_budget=ft.Dropdown(label="Preferred premium range",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Any"]])
-    scan_period=ft.Dropdown(label="History",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Timeframe",value="15m",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]])
-    scan_auto=ft.Switch(label="Smart Auto Filter",value=True,active_color=GREEN)
+    scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Custom","Any"]])
+    scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
+    scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
+    scan_period=ft.Dropdown(label="Historical period",value="1mo",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
+    scan_tf=ft.Dropdown(label="Candle timeframe",value="1d",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]])
+    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["7","14","21","30"]])
+    scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
     scan_result=ft.Column(spacing=12)
     scan_busy=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     def scanner():
-        return [heading("AI SMART SCANNER • Yahoo"),note("Scroll down for filters and results • No broker API • Yahoo prices may be delayed"),
-            card(scan_symbol,scan_budget,scan_period,scan_tf,scan_auto,
+        return [heading("AI SMART SCANNER • Yahoo"),note("Historical underlying data + transparent theoretical option simulation; no live option feed or broker API."),
+            card(scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto,
                  ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
-                 note("Yahoo supplies underlying prices; option premium/OI/Greeks are NOT live. Simulated candidates are educational estimates, not executable quotes.")),
+                 note("Custom min/max apply when Premium budget = Custom. Results are NOT live option quotes.")),
             scan_result]
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
-        scan_result.controls=[card(txt("Scanning Yahoo historical data…",16,GOLD,True),note("Checking momentum, volatility, support/resistance and premium budget."))]
+        scan_result.controls=[card(txt("Checking Yahoo market history…",16,GOLD,True))]
         page.update()
         page.run_task(scan_market)
     async def scan_market():
         import math
+        from datetime import timezone
         try:
             sym=scan_symbol.value or "NIFTY"
-            period=scan_period.value or "7d"
-            interval=scan_tf.value or "15m"
-            # Yahoo intraday intervals have limited history; use daily bars for 1-3 months.
-            hist=await asyncio.to_thread(get_yahoo,sym,"1d",period)
-            closes=[float(b[4]) for b in hist.get("bars",[]) if b[4] is not None]
-            if len(closes)<5:raise ValueError("Insufficient Yahoo history to analyze this symbol.")
+            period=scan_period.value or "1mo"
+            interval=scan_tf.value or "1d"
+            # Yahoo supports limited intraday history; do not pretend 15m is daily.
+            if interval=="5m" and period=="3mo":
+                raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
+            if interval in ("5m","15m") and period=="3mo":
+                raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
+            hist=await asyncio.to_thread(get_yahoo,sym,interval,period)
+            bars=hist.get("bars") or []
+            closes=[float(b[4]) for b in bars if b[4] is not None and b[4]>0]
+            if len(closes)<8:raise ValueError("Not enough valid Yahoo candles. Choose a longer period or daily timeframe.")
+            latest_timestamp=bars[-1][0]
+            updated=datetime.fromtimestamp(latest_timestamp,timezone.utc)
+            age_hours=(datetime.now(timezone.utc)-updated).total_seconds()/3600
             price=closes[-1]
-            change7=(price/closes[max(0,len(closes)-6)]-1)*100
-            returns=[math.log(closes[i]/closes[i-1]) for i in range(1,len(closes)) if closes[i]>0 and closes[i-1]>0]
-            mean=sum(returns)/len(returns) if returns else 0
-            volatility=(sum((v-mean)**2 for v in returns)/max(1,len(returns)-1))**.5*math.sqrt(252) if len(returns)>1 else 0
-            ma5=sum(closes[-5:])/5
-            ma20=sum(closes[-20:])/min(20,len(closes))
-            momentum=(price/ma5-1)*100
-            direction="BULLISH" if price>ma5 and ma5>=ma20 else "BEARISH" if price<ma5 and ma5<=ma20 else "SIDEWAYS / WAIT"
-            support=min(closes[-min(7,len(closes)):]);resistance=max(closes[-min(7,len(closes)):])
-            # Approximate one-week Black-Scholes theoretical prices, NOT actual market contracts.
+            first=closes[0]
+            change=(price/first-1)*100
+            # Estimate annual volatility using selected candle duration; for illustrative pricing only.
+            annual_bars={"5m":75*252,"15m":25*252,"1h":7*252,"1d":252}[interval]
+            returns=[math.log(closes[i]/closes[i-1]) for i in range(1,len(closes))]
+            avg=sum(returns)/len(returns)
+            variance=sum((v-avg)**2 for v in returns)/max(1,len(returns)-1)
+            volatility=max(.08,min(1.5,math.sqrt(variance*annual_bars)))
+            ma_fast=sum(closes[-min(5,len(closes)):])/min(5,len(closes))
+            ma_slow=sum(closes[-min(20,len(closes)):])/min(20,len(closes))
+            direction="BULLISH" if price>ma_fast and ma_fast>=ma_slow else "BEARISH" if price<ma_fast and ma_fast<=ma_slow else "SIDEWAYS / WAIT"
+            support=min(closes[-min(20,len(closes)):])
+            resistance=max(closes[-min(20,len(closes)):])
+            budget=scan_budget.value or "80-120"
+            if budget=="Custom":
+                low=float(scan_min.value);high=float(scan_max.value)
+            elif budget=="Any":low,high=0.,float("inf")
+            else:low,high=map(float,budget.split("-"))
+            if not (math.isfinite(low) and low>=0 and high>low):raise ValueError("Premium range must have a valid minimum and larger maximum.")
+            days=int(scan_expiry.value or "14")
             def normal_cdf(x):return .5*(1+math.erf(x/math.sqrt(2)))
-            def model_option(k,is_call,days=7):
-                t=days/365;sig=max(.08,min(1.5,volatility));r=.06
+            def model(k,call,days_left):
+                t=max(days_left,0.01)/365
+                sig=volatility;r=.06
                 d1=(math.log(price/k)+(r+.5*sig*sig)*t)/(sig*math.sqrt(t))
                 d2=d1-sig*math.sqrt(t)
-                return max(0,price*normal_cdf(d1)-k*math.exp(-r*t)*normal_cdf(d2)) if is_call else max(0,k*math.exp(-r*t)*normal_cdf(-d2)-price*normal_cdf(-d1))
-            step=50 if sym=="NIFTY" else 100 if sym in ("BANKNIFTY","SENSEX") else max(1,round(price*.005))
+                if call:return max(0.,price*normal_cdf(d1)-k*math.exp(-r*t)*normal_cdf(d2))
+                return max(0.,k*math.exp(-r*t)*normal_cdf(-d2)-price*normal_cdf(-d1))
+            # Strike increments for stocks are not inferred from price: use illustrative grids.
+            step=50 if sym=="NIFTY" else 100 if sym in ("BANKNIFTY","SENSEX") else max(1,round(price*.01))
             atm=round(price/step)*step
-            candidates=[]
-            for k in [atm+i*step for i in range(-8,9) if atm+i*step>0]:
-                for is_call in (True,False):
-                    premium=model_option(k,is_call)
-                    low,high=([0,1e12] if scan_budget.value=="Any" else [float(x) for x in (scan_budget.value or "80-120").split("-")])
-                    if low<=premium<=high:
-                        # Penalize deep OTM and very low time value. No guarantee of slower decay.
-                        dist=abs(k-price)/price
-                        candidates.append((dist,abs(premium-(low+high)/2) if high<1e10 else premium,k,is_call,premium))
-            candidates.sort()
+            pool=[]
+            for i in range(-30,31):
+                strike=atm+i*step
+                if strike<=0:continue
+                for call in (True,False):
+                    premium=model(strike,call,days)
+                    if premium<.05:continue
+                    next_day=model(strike,call,max(1,days-1))
+                    decay=max(0.,premium-next_day)
+                    aligned=(direction=="BULLISH" and call) or (direction=="BEARISH" and not call)
+                    # Penalize very far OTM and high daily time decay.
+                    decay_pct=100*decay/max(premium,.01)
+                    pool.append(dict(strike=strike,call=call,premium=premium,decay=decay,decay_pct=decay_pct,aligned=aligned,dist=abs(strike-price)/price))
+            eligible=[v for v in pool if low<=v["premium"]<=high]
+            if scan_auto.value and direction!="SIDEWAYS / WAIT":
+                eligible.sort(key=lambda v:(not v["aligned"],v["decay_pct"],v["dist"]))
+            else:eligible.sort(key=lambda v:(v["decay_pct"],v["dist"]))
+            rows=[]
+            for v in eligible[:5]:
+                side="CE" if v["call"] else "PE"
+                label="TREND-ALIGNED" if v["aligned"] else "COUNTER-TREND / CAUTION"
+                rows.append(ft.Container(content=ft.Column([
+                    txt(f'{sym} {v["strike"]:g} {side} • SIM ₹{v["premium"]:.2f}',14,GOLD,True),
+                    txt(label,12,GREEN if v["aligned"] else MUTED,True),
+                    note(f'Illustrative daily time decay ≈ ₹{v["decay"]:.2f} ({v["decay_pct"]:.1f}% of premium) if underlying/volatility stay constant.'),
+                    note("Theoretical strike grid and expiry; verify actual listed strike, lot, spread, OI and quote in broker.")
+                ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
+            age_warning=("STALE DATA — no trading decision from this quote." if age_hours>24 else "Data may be delayed; confirm with broker.")
             controls=[card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
-                txt("Underlying: "+scan_num(price)+"  |  Historical move: "+f"{change7:+.2f}%",14),
-                txt("5-day average: "+scan_num(ma5)+"  |  20-day average: "+scan_num(ma20),12),
+                txt("Underlying historical close: ₹"+scan_num(price),15),
+                txt("Yahoo candle (UTC): "+updated.strftime("%d %b %Y %H:%M"),12),
+                txt("Data age: "+f"{max(0,age_hours):.1f}"+" hours • "+age_warning,12,RED if age_hours>24 else GOLD),
+                txt("Selected timeframe: "+interval+" • Period: "+period+" • Move: "+f"{change:+.2f}%",12),
+                txt("5-candle average: "+scan_num(ma_fast)+"  |  20-candle average: "+scan_num(ma_slow),12),
                 txt("Support: "+scan_num(support)+"  |  Resistance: "+scan_num(resistance),12),
-                txt("Annualized historical volatility: "+f"{volatility*100:.1f}%",12),
-                note("Signal is a rule-based trend assessment, not a trained AI probability or guaranteed prediction."))]
-            if candidates:
-                rows=[]
-                for _,__,k,is_call,prem in candidates[:5]:
-                    side="CE" if is_call else "PE"
-                    rows.append(ft.Container(content=ft.Column([
-                        txt(f"{sym} {k:g} {side} • simulated ₹{prem:.2f}",14,GOLD,True),
-                        note("Illustrative 7-day expiry • theoretical Black-Scholes • actual strike/expiry/lot/liquidity not verified"),
-                        note("Theta decay can accelerate near expiry. Verify live option chain and spread in your broker before trading.")
-                    ],spacing=5),bgcolor=PANEL2,padding=10,border_radius=10))
-                controls.append(section("Budget-matched SIMULATED premiums",ft.Column(rows,spacing=8)))
+                txt("Indicative annualized volatility: "+f"{volatility*100:.1f}%",12),
+                note("Rule-based scanner, not a trained AI model or calibrated probability."))]
+            if rows:
+                controls.append(section("Premium candidates • SIMULATION ONLY",ft.Column(rows,spacing=8)))
             else:
-                controls.append(section("Premium budget",note("No theoretical option near this budget in the tested strikes. Change budget; do not assume an actual listed contract.")))
-            controls.append(section("Risk / simulation",ft.Column([
-                note("For calls, upside is needed; for puts, downside. A correct direction alone may not offset theta decay."),
-                note("Prefer sufficient days to expiry, narrow bid-ask spread and strong volume/OI — these require a licensed/live option-chain feed."),
-                note("No live CE/PE quote, win probability, auto order, or guaranteed low-decay contract is claimed."),
+                nearest=sorted(pool,key=lambda v:abs(v["premium"]-(low+high)/2) if math.isfinite(high) else v["dist"])[:3]
+                lines=[note("No modeled contract matched this budget. Here are nearby theoretical prices; not real exchange quotes.")]
+                for v in nearest:
+                    lines.append(txt(f'{v["strike"]:g} {"CE" if v["call"] else "PE"} ≈ ₹{v["premium"]:.2f} (simulation)',12))
+                controls.append(section("No budget match — alternatives",ft.Column(lines,spacing=7)))
+            controls.append(section("Risk / validation",ft.Column([
+                note("Expiry days are illustrative, not an NSE expiry calendar. Actual theta may be very different."),
+                note("Time decay can accelerate close to expiry; cheaper premiums can lose value faster."),
+                note("Without live option chain, bid/ask, OI, Greeks and lot size cannot be verified."),
+                note("Do not trade based only on this simulation. Check live broker quote and contract first."),
                 ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
             scan_result.controls=controls
         except Exception as exc:
-            scan_result.controls=[card(unavailable("Yahoo scan failed: "+str(exc)),note("Try again with internet; no signal generated."))]
+            scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
             if current[0]==5:page.update()
-
     pages=[dashboard,watchlist,charts,options,settings,scanner]
     icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
     names=["Dashboard","Watchlist","Charts","Options","Settings","AI Scanner"]
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=16)
-    navbar=ft.Row(alignment=ft.MainAxisAlignment.START,scroll=ft.ScrollMode.AUTO,spacing=2)
+    navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
     current=[0]
     def select(i):
         current[0]=i
@@ -786,7 +829,7 @@ def app_main(page:ft.Page):
         body.controls.extend(pages[i]())
         navbar.controls.clear()
         for j in range(len(pages)):
-            navbar.controls.append(ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=23),txt(names[j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=3),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=7,vertical=6))))
+            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(["Home","Watch","Chart","Option","Setting","Scanner"][j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
     page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=35),ft.Column([txt("BOT KING",23,GOLD,True),note("AI Trading Assistant Pro • v3.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=16,right=16,top=15,bottom=12),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=14,vertical=8)),ft.Container(content=navbar,bgcolor="#071A2B",padding=ft.padding.symmetric(vertical=8)))
     select(0)
