@@ -683,18 +683,18 @@ def app_main(page:ft.Page):
         return content
 
     # AI Smart Scanner: indicative Yahoo underlying analysis, never a live option quote.
-    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]],expand=True)
-    scan_budget=ft.Dropdown(label="Preferred premium range",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Any"]],expand=True)
-    scan_period=ft.Dropdown(label="History",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]],expand=True)
-    scan_tf=ft.Dropdown(label="Timeframe",value="15m",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]],expand=True)
+    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in ["NIFTY","BANKNIFTY","SENSEX","HDFCBANK","ICICIBANK","RELIANCE","SBIN","TCS","INFY"]])
+    scan_budget=ft.Dropdown(label="Preferred premium range",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","80-120","120-200","200-400","Any"]])
+    scan_period=ft.Dropdown(label="History",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
+    scan_tf=ft.Dropdown(label="Timeframe",value="15m",options=[ft.dropdown.Option(v) for v in ["5m","15m","1h","1d"]])
     scan_auto=ft.Switch(label="Smart Auto Filter",value=True,active_color=GREEN)
     scan_result=ft.Column(spacing=12)
     scan_busy=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     def scanner():
-        return [heading("AI SMART SCANNER • Yahoo"),note("One scrollable page • No broker API • Underlying data may be delayed"),
-            card(scan_symbol,ft.Row([scan_budget,scan_period],wrap=True),scan_tf,scan_auto,
+        return [heading("AI SMART SCANNER • Yahoo"),note("Scroll down for filters and results • No broker API • Yahoo prices may be delayed"),
+            card(scan_symbol,scan_budget,scan_period,scan_tf,scan_auto,
                  ft.ElevatedButton("SCAN MARKET",icon=ft.Icons.SEARCH,bgcolor=GOLD,color=BG,on_click=run_scan),
                  note("Yahoo supplies underlying prices; option premium/OI/Greeks are NOT live. Simulated candidates are educational estimates, not executable quotes.")),
             scan_result]
@@ -765,7 +765,7 @@ def app_main(page:ft.Page):
                 note("For calls, upside is needed; for puts, downside. A correct direction alone may not offset theta decay."),
                 note("Prefer sufficient days to expiry, narrow bid-ask spread and strong volume/OI — these require a licensed/live option-chain feed."),
                 note("No live CE/PE quote, win probability, auto order, or guaranteed low-decay contract is claimed."),
-                ft.ElevatedButton("Open Paper Trading",on_click=lambda e:select(4))
+                ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
             ])))
             scan_result.controls=controls
         except Exception as exc:
@@ -778,7 +778,7 @@ def app_main(page:ft.Page):
     icons=[ft.Icons.DASHBOARD,ft.Icons.STAR,ft.Icons.CANDLESTICK_CHART,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
     names=["Dashboard","Watchlist","Charts","Options","Settings","AI Scanner"]
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,spacing=16)
-    navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_AROUND,scroll=ft.ScrollMode.AUTO)
+    navbar=ft.Row(alignment=ft.MainAxisAlignment.START,scroll=ft.ScrollMode.AUTO,spacing=2)
     current=[0]
     def select(i):
         current[0]=i
@@ -786,7 +786,7 @@ def app_main(page:ft.Page):
         body.controls.extend(pages[i]())
         navbar.controls.clear()
         for j in range(len(pages)):
-            navbar.controls.append(ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=23),txt(names[j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=3),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=6)))
+            navbar.controls.append(ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=23),txt(names[j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=3),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=7,vertical=6))))
         page.update()
     page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=35),ft.Column([txt("BOT KING",23,GOLD,True),note("AI Trading Assistant Pro • v3.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=16,right=16,top=15,bottom=12),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=14,vertical=8)),ft.Container(content=navbar,bgcolor="#071A2B",padding=ft.padding.symmetric(vertical=8)))
     select(0)
@@ -807,7 +807,8 @@ def app_main(page:ft.Page):
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 successes=sum(results)
                 market_status=f"Yahoo Finance • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
-                try:select(current[0])
+                try:
+                    if current[0]!=5:select(current[0])
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
