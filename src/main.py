@@ -776,10 +776,10 @@ def app_main(page:ft.Page):
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
         select(2)
-    chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+all_watch_symbols()],expand=True)
-    option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK",expand=True)
-    option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]],expand=True)
-    expiry=ft.TextField(label="Expiry date (calendar preview)",value=prefs.get("option_expiry",""),read_only=True,expand=True)
+    chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+all_watch_symbols()])
+    option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK")
+    option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]])
+    expiry=ft.TextField(label="Expiry date (calendar preview)",value=prefs.get("option_expiry",""),read_only=True)
     option_expiry_note=txt("Calendar estimate only; holidays and listed contracts need broker/exchange verification.",11,GOLD)
     def monthly_expiry(year,month,weekday):
         import calendar
@@ -850,11 +850,27 @@ def app_main(page:ft.Page):
     def option_paper_action(side):
         option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
         page.update()
+    def option_chain_preview():
+        # Keep the structure visible without presenting missing quotes as zero.
+        headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
+        strike=str(option_strike.value or "").strip() or "—"
+        table=ft.DataTable(
+            columns=[ft.DataColumn(txt(label,12,GOLD,True)) for label in headings],
+            rows=[ft.DataRow(cells=[ft.DataCell(txt(value,13,MUTED)) for value in ["—","—",strike+" (manual)","—","—"]])],
+            column_spacing=18,
+        )
+        return ft.Column([
+            note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
+            note("Underlying prices use the selected data source; Yahoo history may be delayed."),
+            ft.Row([table],scroll=ft.ScrollMode.AUTO),
+            unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
+            note("The strike below is a manual paper selection, not a verified listed contract."),
+        ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
-                 ft.Row([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],wrap=True),
+                 ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([unavailable('Verified exchange option-chain feed not connected'), note('CE/PE premiums and listed strikes are not invented.'), ft.Row([option_strike, option_side], wrap=True), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, section('Option Chart', unavailable('Historical option premium data source required'))])]))])
+        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, section('Option Chart', unavailable('Historical option premium data source required'))])]))])
         content.append(section('OI Analysis', unavailable('Live CE/PE open interest API not connected')))
         content.append(section('Put Call Ratio', unavailable('PCR requires validated option-chain data')))
         content.append(section('Premium Money Flow', unavailable('Premium-flow API not connected')))
@@ -2014,7 +2030,7 @@ console.log('BOT KING Lightweight Charts ready');
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
         page.run_task(restore_scroll,i)
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.6.0 CONTROL HUB")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.6.1 OPTIONS LAYOUT FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
