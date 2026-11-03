@@ -259,4 +259,156 @@ class AuditTests(unittest.TestCase):
         self.assertIn(v['scan_tf'],top);self.assertIn(v['scan_period'],top);self.assertIn(v['scan_refresh'],top)
         self.assertFalse(any(isinstance(c,ft.Row) and v['scan_tf'] in c.controls for c in top))
 
+    def test_filter_routing_and_capability_limits(self):
+        import time
+        _,v=start({'scanner_live':False})
+        v['filter_modes']['EMA 9/21']='Chart'
+        now=int(time.time());bars=[(now-(39-i)*300,100+i,103+i,99+i,102+i,100) for i in range(40)]
+        result=v['analyze_current'](bars,['EMA 9/21'],'5m')
+        self.assertFalse(result['votes']);self.assertTrue(v['ema_on_chart']())
+        v['filter_modes']['EMA 9/21']='Analysis'
+        self.assertFalse(v['ema_on_chart']())
+        self.assertEqual(v['analyze_current'](bars,['EMA 9/21'],'5m')['votes'][0]['name'],'EMA 9/21')
+        self.assertEqual([x.key for x in v['filter_mode_control']('RSI 14').options],['Analysis'])
+        self.assertEqual([x.key for x in v['filter_mode_control']('EMA 9/21').options],['Analysis','Chart','Both'])
+
+    def test_news_rss_freshness_dedup_and_unsafe_xml(self):
+        from email.utils import format_datetime
+        import time
+        _,v=start()
+        date=format_datetime(datetime.now(timezone.utc))
+        xml=('<rss><channel><item><title>HDFC Bank profit rises</title><link>https://example.com/a</link><pubDate>'+date+'</pubDate><source>Example</source></item>'
+             '<item><title>HDFC Bank profit rises</title><link>https://example.com/a</link><pubDate>'+date+'</pubDate></item>'
+             '<item><title>Old</title><link>https://example.com/old</link><pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate></item></channel></rss>').encode()
+        items=v['parse_news_rss'](xml,'Test source')
+        self.assertEqual(len(items),1);self.assertEqual(items[0]['source'],'Example')
+        with self.assertRaises(ValueError):v['parse_news_rss'](b'<!DOCTYPE rss><rss/>','Test')
+        self.assertEqual(v['headline_signal']([{'title':'HDFC Bank denies fraud rumour'}])['bias'],'UNCLASSIFIED')
+        self.assertEqual(v['headline_signal']([{'title':'HDFC Bank profit rises'},{'title':'HDFC Bank raises guidance'}])['bias'],'POSITIVE')
+
+    def test_combined_missing_options_is_not_neutral_or_confirmed(self):
+        import time
+        _,v=start();now=time.time()
+        candle={'bias':'BULLISH','timestamp':now,'reason':'test'}
+        items=[{'title':'HDFC Bank profit rises','published':now,'source':'A','url':'https://example.com/a'}, {'title':'HDFC Bank raises guidance','published':now,'source':'B','url':'https://example.com/b'}]
+        local={'items':items,'status':'Available'};world={'items':[],'status':'Unavailable'}
+        result=v['combine_analysis']('HDFCBANK','5m',candle,local,world)
+        self.assertEqual(result['overall'],'WAIT');self.assertEqual(result['coverage'],2)
+        self.assertEqual(result['options']['bias'],'UNAVAILABLE')
+        self.assertEqual(result['news']['bias'],'POSITIVE')
+
+    def test_options_volume_alone_has_no_direction(self):
+        import time
+        _,v=start();now=time.time()
+        v['option_snapshots']['HDFCBANK']={'symbol':'HDFCBANK','timeframe':'5m','timestamp':now,'verified':True,'call_volume':10000,'put_volume':1,'direction':'BULLISH'}
+        self.assertEqual(v['option_component']('HDFCBANK','5m')['bias'],'UNCONFIRMED')
+        snap=v['option_snapshots']['HDFCBANK'];snap['direction_basis']='validated_trade_flow'
+        self.assertEqual(v['option_component']('HDFCBANK','5m')['bias'],'BULLISH')
+        snap['timestamp']=now-86400
+        self.assertFalse(v['option_component']('HDFCBANK','5m')['available'])
+
+    def test_combined_agreement_conflict_and_entity_relevance(self):
+        import time
+        _,v=start();now=time.time()
+        candle={'bias':'BULLISH','timestamp':now,'reason':'test'}
+        local={'items':[{'title':'HDFC Bank profit rises','published':now},{'title':'HDFC Bank raises guidance','published':now}],'status':'Available'}
+        v['option_snapshots']['HDFCBANK']={'symbol':'HDFCBANK','timeframe':'5m','timestamp':now,'verified':True,'direction':'BULLISH','direction_basis':'validated_trade_flow'}
+        self.assertEqual(v['combine_analysis']('HDFCBANK','5m',candle,local,{'items':[]})['overall'],'BULLISH')
+        v['option_snapshots']['HDFCBANK']['direction']='BEARISH'
+        self.assertEqual(v['combine_analysis']('HDFCBANK','5m',candle,local,{'items':[]})['overall'],'WAIT')
+        # Another company's headlines cannot supply the news vote for this symbol.
+        self.assertEqual(v['combine_analysis']('SBIN','5m',candle,local,{'items':[]})['news']['bias'],'UNCLASSIFIED')
+
+    def test_news_fetch_failure_does_not_invent_headlines(self):
+        _,v=start()
+        request=v['fetch_news'].__globals__['urllib'].request
+        original=request.urlopen
+        def fail(*args,**kwargs):raise OSError('test failure')
+        request.urlopen=fail
+        try:result=v['fetch_news']('HDFCBANK')
+        finally:request.urlopen=original
+        self.assertEqual(result['items'],[]);self.assertIn('Unavailable',result['status'])
+
+    def test_scroll_layout_page_saves_and_no_tools(self):
+        _,v=start({'scanner_live':False})
+        def texts(controls):
+            out=[]
+            def walk(c):
+                if isinstance(c,ft.Text):out.append(str(c.value))
+                for child in c._get_children():walk(child)
+            for c in controls:walk(c)
+            return out
+        options=' | '.join(texts(v['options']()))
+        for name in ['Option Chain','OI Analysis','Put Call Ratio','Premium Money Flow','Strategy Selector']:self.assertIn(name,options)
+        home=texts(v['dashboard']());self.assertNotIn('Tools',home)
+        self.assertIn("TODAY'S PAPER RISK",home)
+        self.assertEqual(v['body'].horizontal_alignment,ft.CrossAxisAlignment.STRETCH)
+        v['sl'].value='invalid';v['save_page'](1)
+        self.assertEqual(v['page_save_status'][1].value,'Saved on this device')
+        v['save_page'](2);self.assertIn('stop_loss',v['page_save_status'][2].value)
+
+    def test_backup_restore_excludes_secrets_and_never_arms_automation(self):
+        import json
+        page,v=start({'scanner_live':False})
+        v['prefs'].update(api_key='SECRET',api_url='https://secret.example/token',access_token='TOKEN',bot_custom='HDFCBANK')
+        payload=v['backup_payload']();self.assertNotIn('api_key',payload['data']);self.assertNotIn('api_url',payload['data']);self.assertNotIn('access_token',payload['data'])
+        payload['data'].update(protection_enabled=True,scanner_live=True,mode='Auto',bot_custom='SBIN')
+        v['backup_text'].value=json.dumps(payload);v['restore_confirm'].value=True;v['import_backup']()
+        self.assertEqual(v['bot_custom'].value,'SBIN');self.assertEqual(v['mode'].value,'Paper')
+        self.assertFalse(v['scan_live'].value);self.assertFalse(v['protection_enabled'].value)
+        self.assertEqual(v['prefs']['api_key'],'SECRET')
+        previous=v['bot_custom'].value
+        payload['data']['bot_custom']='BAD';payload['data']['paper_journal']=[{'event':'EXIT'}]
+        v['backup_text'].value=json.dumps(payload);v['restore_confirm'].value=True;v['import_backup']()
+        self.assertEqual(v['bot_custom'].value,previous)
+        self.assertIn('blocked',v['backup_status'].value)
+
+    def test_setting_history_undo(self):
+        page,v=start({'scanner_live':False})
+        old=v['bot_custom'].value
+        v['bot_custom'].value='SBIN';v['bot_custom'].on_change(event(v['bot_custom']))
+        self.assertEqual(v['prefs']['setting_changes'][-1]['key'],'bot_custom')
+        v['undo_setting']();self.assertEqual(v['bot_custom'].value,old)
+
+    def test_paper_protection_manual_assisted_and_auto(self):
+        for mode in ['Manual','Assisted','Auto (Paper)']:
+            with self.subTest(mode=mode):
+                page,v=start({'scanner_live':False,'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','bot_premium':100,'protection_enabled':True,'protection_profit':10,'protection_mode':mode})
+                v['bot_paper_action']('BUY');v['paper_mark'].value='120';v['check_paper_protection']()
+                if mode=='Auto (Paper)':
+                    self.assertIsNone(v['bot_position']['side']);self.assertEqual(v['prefs']['paper_journal'][-1]['paper_pnl'],20)
+                else:self.assertEqual(v['bot_position']['side'],'BUY')
+                if mode=='Assisted':self.assertTrue(v['protection_pending']);self.assertFalse(v['protection_no_reply'].value)
+
+    def test_stale_manual_mark_blocks_timeout_exit(self):
+        import time
+        page,v=start({'scanner_live':False,'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','bot_premium':100,'protection_enabled':True,'protection_profit':10,'protection_mode':'Assisted','protection_no_reply':True})
+        v['bot_paper_action']('BUY');v['paper_mark'].value='120';v['check_paper_protection']()
+        v['protection_pending']['deadline']=time.time()-1;v['protection_sample']['time']=time.time()-120
+        async def run():
+            original=asyncio.sleep;calls=0
+            class StopLoop(Exception):pass
+            async def tick(*args):
+                nonlocal calls
+                calls+=1
+                if calls>1:raise StopLoop()
+            asyncio.sleep=tick
+            try:
+                with self.assertRaises(StopLoop):await v['protection_clock']()
+            finally:asyncio.sleep=original
+        asyncio.run(run());self.assertEqual(v['bot_position']['side'],'BUY')
+        self.assertIn('stale',v['protection_status'].value)
+
+    def test_palette_contrast(self):
+        _,v=start()
+        colors=v['txt'].__globals__
+        def lum(h):
+            values=[int(h[i:i+2],16)/255 for i in (1,3,5)]
+            values=[x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in values]
+            return sum(x*y for x,y in zip(values,[.2126,.7152,.0722]))
+        def ratio(a,b):
+            lo,hi=sorted((lum(a),lum(b)));return (hi+.05)/(lo+.05)
+        for fg,bg in [('WHITE','PANEL'),('MUTED','PANEL2'),('RED','PANEL2'),('BG','RED'),('BG','GREEN'),('BG','GOLD')]:self.assertGreaterEqual(ratio(colors[fg],colors[bg]),4.5)
+        self.assertGreaterEqual(ratio(colors['BORDER'],colors['PANEL2']),3)
+
 if __name__=='__main__':unittest.main()
