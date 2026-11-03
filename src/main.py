@@ -102,7 +102,7 @@ def app_main(page:ft.Page):
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
         return [section("AI AUTO SCANNER • "+scan_shared["direction"],ft.Column([note(scan_shared["symbol"]+" • "+scan_shared["tf"]+" candles"),note(scan_shared["basis"]),note("5m signal is not confirmed by 15m/1h; OI/PCR/News unavailable")],spacing=4)),dashboard_positions(),section("AI BEST SETUP",note("WAIT • Live option premium, liquidity and expiry not verified")),section("TOP 5 • MULTI-FILTER WATCH",ft.Column(
-                [note("Updated "+top5_last_update[0]+" • filtered candidates; NOT a win probability")]
+                [note("Updated "+top5_last_update[0]+" • 5m candle ranking using active scanner filters; NOT a win probability")]
                 + ([ft.Column([txt(x["symbol"]+" • "+x["bias"]+" • "+str(x["score"])+"% votes",12,GREEN if x["bias"]=="BULLISH" else RED,True),note("5m • "+str(x["age"])+"s old • "+x["reason"])],spacing=2) for x in top5_candidates]
                    if top5_candidates else [note("WAIT • no fresh qualified candidates; not a trade guarantee")])
             ,spacing=6)),section("MARKET OVERVIEW",ft.Column([ft.Row([ft.Container(content=txt(x,11,MUTED,True),width=100),ft.Container(content=txt(quote_price(x),13,GOLD,True),expand=True),txt(quote_change(x),11,price_color(x),True)]) for x in ["NIFTY","BANKNIFTY","SENSEX"]])),section("API STATUS",note(market_status+" • Broker/Option Chain/News disconnected")),section("Tools",ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:dashboard_tool_open(v)) for x in ["OI Data","Scanner","Paper Trade"]],wrap=True))]
@@ -709,22 +709,41 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Last successful scan: — | Candle age: — | Next refresh: —",size=11,color=MUTED)
     filter_names=ALL_FILTERS[:]
-    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names] or DEFAULT_FILTERS[:]
+    # One-time migration restores the original ten defaults without overriding later user edits.
+    if not prefs.get("default_ten_migrated"):
+        prefs["scanner_filters"]=DEFAULT_FILTERS[:]
+        prefs["default_ten_migrated"]=True
+    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names]
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
     chart_filter_names=["EMA 9/21","RSI 14","MACD","Supertrend"]
+    filter_checklist=ft.Column(spacing=0)
+    def reset_default_filters(e):
+        filter_selected[:]=DEFAULT_FILTERS[:]
+        scanner_chart_indicators[:]=chart_filter_names[:]
+        prefs["scanner_filters"]=filter_selected[:]
+        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
+        save();select(3)
+        if not scan_busy[0]:trigger_scan()
+    def filter_checkbox_changed(e):
+        name=e.control.data
+        if e.control.value and name not in filter_selected:filter_selected.append(name)
+        elif not e.control.value and name in filter_selected:filter_selected.remove(name)
+        scanner_chart_indicators[:]=[x for x in chart_filter_names if x in filter_selected]
+        prefs["scanner_filters"]=filter_selected[:]
+        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
+        save();select(3)
+        if not scan_busy[0]:trigger_scan()
     def filter_edit(add):
-        q=(filter_choice.value or filter_query.value or "").strip().lower()
+        q=(filter_query.value.strip() if filter_query.value and filter_query.value.strip() else filter_choice.value or "").lower()
         hits=[x for x in filter_names if q and q in x.lower()]
         if len(hits)!=1:filter_feedback.value="Select one supported filter"
         elif add and hits[0] not in filter_selected:filter_selected.append(hits[0]);filter_feedback.value="Added "+hits[0]
-        elif not add and hits[0] in filter_selected and len(filter_selected)>1:filter_selected.remove(hits[0]);filter_feedback.value="Removed "+hits[0]
+        elif not add and hits[0] in filter_selected:filter_selected.remove(hits[0]);filter_feedback.value="Removed "+hits[0]
         else:filter_feedback.value="Already active or last filter"
         # Scanner votes and chart overlays share the same selected indicator state.
-        scanner_chart_indicators[:]=[x for x in chart_filter_names if x in filter_selected]
-        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
-        prefs["scanner_filters"]=filter_selected[:];save();select(3)
+        prefs["scanner_filters"]=filter_selected[:];filter_query.value="";save();select(3)
         if not scan_busy[0]:trigger_scan()
     scan_auto_generation=[0]
     def auto_scan_changed(e):
@@ -759,22 +778,18 @@ def app_main(page:ft.Page):
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     scanner_chart_visible=[True]
-    scanner_chart_indicators=[x for x in chart_filter_names if x in filter_selected]
+    scanner_chart_indicators=[x for x in prefs.get("scanner_chart_indicators",chart_filter_names) if x in chart_filter_names]
     scanner_chart_style=[prefs.get("scanner_chart_style","Candlestick")]
     def scanner_chart_toggle(e):
         scanner_chart_visible[0]=not scanner_chart_visible[0]
         select(3)
     def scanner_chart_filter(e):
+        # Chart visibility is independent of the ten active background analysis filters.
         name=e.control.data
         if e.control.value and name not in scanner_chart_indicators:scanner_chart_indicators.append(name)
         if not e.control.value and name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
-        if e.control.value and name not in filter_selected:filter_selected.append(name)
-        if not e.control.value and name in filter_selected:filter_selected.remove(name)
-        prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
-        save()
-        select(3)
-        if not scan_busy[0]:trigger_scan()
+        save();select(3)
     def scanner_chart_style_change(e):
         scanner_chart_style[0]=e.control.value
         prefs["scanner_chart_style"]=scanner_chart_style[0]
@@ -839,12 +854,11 @@ def app_main(page:ft.Page):
                     parts.append(note("Supertrend signal: see Analysis Basis; no fabricated overlay"))
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
             parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
-            extra=[x for x in filter_selected if x not in chart_filter_names]
-            if extra:parts.append(note("Scanner-only analysis: "+", ".join(extra)+" • chart overlays for these filters are not implemented yet."))
-            parts.append(note("These four indicator switches also update scanner votes. Base OHLC remains visible when all are disabled."))
+            parts.append(note("Chart switches affect display only. The 10 analysis filters below work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
             parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner():
+        filter_checklist.controls=[ft.Checkbox(label=x+(" • data unavailable" if x in ("OI Support","OI Resistance","OI Profile","Max Pain") else ""),value=x in filter_selected,data=x,on_change=filter_checkbox_changed) for x in DEFAULT_FILTERS]
         scan_min.visible=scan_budget.value=="Custom"
         scan_max.visible=scan_budget.value=="Custom"
         return [heading("AI SCANNER • Chart & Signals"),
@@ -852,7 +866,7 @@ def app_main(page:ft.Page):
             card(ft.Row([scan_symbol,scan_tf],spacing=6),ft.Row([scan_budget,scan_period],spacing=6),ft.Row([scan_min,scan_max],spacing=6),ft.Row([scan_expiry,scan_refresh],spacing=6),
                  scan_live,scan_status,scan_age_display),
             scanner_compact_chart(),
-            section("INDICATOR FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Default filters preserved. Only supported, calculated indicators can vote; OI/PCR unavailable.")],spacing=5)),
+            section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result]
     def run_scan(e):
         if scan_busy[0]:return
@@ -1077,9 +1091,9 @@ def app_main(page:ft.Page):
                     async with semaphore:
                         try:
                             data=await asyncio.to_thread(get_yahoo,sym,"5m","5d")
-                            return sym,analyze(data["bars"],DEFAULT_FILTERS,"5m")
+                            return sym,analyze(data["bars"],filter_selected[:],"5m")
                         except Exception:return sym,None
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols+["NIFTY","BANKNIFTY"]))))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
                 top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 try:
