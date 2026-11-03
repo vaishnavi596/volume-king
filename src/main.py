@@ -56,7 +56,7 @@ def app_main(page:ft.Page):
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
-        return ft.Container(content=ft.Column(list(children),spacing=9),bgcolor=PANEL,border_radius=14,padding=12,border=ft.border.all(1,"#79652F"))
+        return ft.Container(content=ft.Column(list(children),spacing=6),bgcolor=PANEL,border_radius=12,padding=10,border=ft.border.all(1,"#79652F"))
     def heading(s):return txt(s,19,WHITE,True)
     def pill(s,selected=False):
         return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
@@ -83,7 +83,7 @@ def app_main(page:ft.Page):
         points=[ft.LineChartDataPoint(i,(v-lo)/spread*100) for i,v in enumerate(values)]
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
-    def section(title,child):return card(txt(title,16,GOLD,True),child)
+    def section(title,child):return card(txt(title,15,GOLD,True),child)
     scan_shared={"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     top5_candidates=[]
     top5_last_update=["—"]
@@ -544,7 +544,7 @@ def app_main(page:ft.Page):
     max_daily_loss=ft.TextField(label="Daily loss limit (INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
     cooldown=ft.Dropdown(label="Re-entry cooldown (minutes)",value=str(prefs.get("cooldown",15)),options=[ft.dropdown.Option(str(i)) for i in [5,10,15,30,60]])
     squareoff=ft.Dropdown(label="Paper square-off time",value=str(prefs.get("squareoff","15:15")),options=[ft.dropdown.Option(x) for x in ["15:00","15:10","15:15","15:20","15:25"]])
-    emergency_stop=ft.Switch(label="Emergency stop: block new paper entries",value=bool(prefs.get("emergency_stop",False)),active_color=RED)
+    emergency_stop=ft.Switch(label="Emergency stop (paper)",value=bool(prefs.get("emergency_stop",False)),active_color=RED)
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
     bot_trade_status=txt("No paper option position open.",12,MUTED)
     bot_position={"side":None,"entry":None,"quantity":0,"contract":None}
@@ -700,7 +700,7 @@ def app_main(page:ft.Page):
     scan_period=ft.Dropdown(label="Historical period",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
     scan_tf=ft.Dropdown(label="Candle timeframe",value="5m",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
-    scan_auto=ft.Switch(label="Smart Auto Filter (prefer trend-aligned strikes)",value=True,active_color=GREEN)
+    scan_auto=ft.Switch(label="Trend filter (simulation)",value=True,active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=True,active_color=GREEN)
     scan_refresh=ft.Dropdown(label="Auto refresh interval",value="60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("Auto Scan OFF • Yahoo underlying only; not a live option feed.",size=11,color=MUTED)
@@ -860,18 +860,18 @@ def app_main(page:ft.Page):
                     decay_pct=100*decay/max(premium,.01)
                     pool.append(dict(strike=strike,call=call,premium=premium,decay=decay,decay_pct=decay_pct,aligned=aligned,dist=abs(strike-price)/price))
             eligible=[v for v in pool if low<=v["premium"]<=high]
-            if scan_auto.value and direction!="SIDEWAYS / WAIT":
+            if scan_auto.value and direction in ("BULLISH","BEARISH"):
                 eligible.sort(key=lambda v:(not v["aligned"],v["dist"],v["decay_pct"]))
             else:eligible.sort(key=lambda v:(v["decay_pct"],v["dist"]))
             rows=[]
-            for v in eligible[:5]:
+            for v in eligible[:3]:
                 side="CE" if v["call"] else "PE"
                 label="TREND-ALIGNED" if v["aligned"] else "COUNTER-TREND / CAUTION"
                 rows.append(ft.Container(content=ft.Column([
                     txt(f'{sym} {v["strike"]:g} {side} • SIM ₹{v["premium"]:.2f}',14,GOLD,True),
                     txt(label,12,GREEN if v["aligned"] else MUTED,True),
                     note(f'Illustrative daily time decay ≈ ₹{v["decay"]:.2f} ({v["decay_pct"]:.1f}% of premium) if underlying/volatility stay constant.'),
-                    note("Theoretical strike grid and expiry; verify actual listed strike, lot, spread, OI and quote in broker.")
+                    note("Unverified strike/expiry • check broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
             age_warning=("STALE DATA — no trading decision from this quote." if age_hours>24 else "Data may be delayed; confirm with broker.")
             controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Latest UTC: "+updated.strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
@@ -888,8 +888,8 @@ def app_main(page:ft.Page):
             fresh=(0<=age_hours<=fresh_limit)
             aligned_choices=[v for v in eligible if v["aligned"] and v["dist"]<=0.04]
             selected=aligned_choices[0] if aligned_choices else None
-            if direction=="SIDEWAYS / WAIT" or not fresh or selected is None:
-                reason=("Market is sideways; wait for a clearer trend." if direction=="SIDEWAYS / WAIT"
+            if direction not in ("BULLISH","BEARISH") or not fresh or selected is None:
+                reason=("Market is sideways; wait for a clearer trend." if direction not in ("BULLISH","BEARISH")
                         else "Yahoo candle is too old for this selected timeframe." if not fresh
                         else "No suitable near-the-money, trend-aligned simulated premium matches this budget.")
                 summary=section("TOP SETUP • WAIT / NO TRADE",ft.Column([
@@ -927,11 +927,8 @@ def app_main(page:ft.Page):
                     lines.append(txt(f'{v["strike"]:g} {"CE" if v["call"] else "PE"} ≈ ₹{v["premium"]:.2f} (simulation)',12))
                 controls.append(section("No budget match — alternatives",ft.Column(lines,spacing=7)))
             controls.append(section("Risk / validation",ft.Column([
-                note("Expiry days are illustrative, not an NSE expiry calendar. Actual theta may be very different."),
-                note("Time decay can accelerate close to expiry; cheaper premiums can lose value faster."),
-                note("Without live option chain, bid/ask, OI, Greeks and lot size cannot be verified."),
-                note("Do not trade based only on this simulation. Check live broker quote and contract first."),
-                ft.ElevatedButton("Back to Dashboard",on_click=lambda e:select(0))
+                note("SIMULATION ONLY • Verify actual expiry, strikes, bid/ask, OI, lot size, IV and theta with a broker. Premium can decay rapidly; do not trade from modeled quotes."),
+                ft.ElevatedButton("Dashboard",on_click=lambda e:select(0))
             ])))
             scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym)
             scan_result.controls=controls
@@ -958,9 +955,9 @@ def app_main(page:ft.Page):
         body.controls.extend(pages[i]())
         navbar.controls.clear()
         for j in range(len(pages)):
-            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(["Home","Watch","Chart","Option","Setting","Scanner"][j],10,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
+            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(["Home","Watch","Chart","Option","Setting","Scanner"][j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",21,GOLD,True),note("AI Trading Assistant Pro • v1.0.1")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=8,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.0.2")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
