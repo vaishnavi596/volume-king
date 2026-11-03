@@ -773,6 +773,13 @@ def app_main(page:ft.Page):
         view=tv_view[0]
         if view is None:return
         try:
+            # Flet 0.25.2 Android ignores the initial enableJavascript attribute.
+            # Wait for the native acknowledgement before loading scripts.
+            tv_set_status("TradingView: enabling JavaScript...")
+            await asyncio.to_thread(view.invoke_method, "set_javascript_mode",
+                                    arguments={"value": "true"},
+                                    wait_for_result=True, wait_timeout=10)
+            if view is not tv_view[0]:return
             tv_set_status("TradingView widget: loading embedded chart...")
             view.load_html(tradingview_widget_html(scan_symbol.value or "NIFTY"),base_url="https://www.tradingview.com/")
         except Exception as exc:
@@ -780,6 +787,7 @@ def app_main(page:ft.Page):
     def tv_started(e):
         tv_set_status("TradingView widget: loading...")
     def tv_ended(e):
+        if e.control is not tv_view[0]:return
         if not tv_booted[0]:
             tv_booted[0]=True
             page.run_task(tv_load_widget)
@@ -788,8 +796,8 @@ def app_main(page:ft.Page):
     def tv_error(e):
         tv_set_status("TradingView resource error: "+str(e.data)[:220])
     def tv_retry(e):
-        tv_booted[0]=False
-        select(3)
+        if tv_view[0] is not None:
+            page.run_task(tv_load_widget)
     def chart_provider_change(e):
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
@@ -1136,7 +1144,11 @@ def app_main(page:ft.Page):
                 scan_result.controls=[card(unavailable("Scanner: "+str(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
         finally:
             scan_busy[0]=False
-            if current[0] in (0,3):select(current[0])
+            if current[0]==3 and chart_provider[0]=="TradingView":
+                # Preserve the native chart while updating result/status controls.
+                page.update()
+            elif current[0] in (0,3):
+                select(current[0])
     pages=[dashboard,options,settings,scanner]
     icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
     names=["Home","Options","Settings","Scanner"]
@@ -1151,7 +1163,7 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.1 JS FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.2 WEBVIEW FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
