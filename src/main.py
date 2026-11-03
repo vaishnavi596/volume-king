@@ -697,12 +697,16 @@ def app_main(page:ft.Page):
 
 
     # Scanner-only upgrade. Existing five page functions remain unchanged.
-    scan_symbol=ft.Dropdown(label="Market / NSE stock",value="NIFTY",options=[ft.dropdown.Option(v) for v in list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))])
+    scanner_symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
+    saved_scanner_symbol=prefs.get("scanner_symbol","NIFTY")
+    if saved_scanner_symbol not in scanner_symbols:
+        scanner_symbols.append(saved_scanner_symbol)
+    scan_symbol=ft.Dropdown(label="Market / NSE stock",value=saved_scanner_symbol,options=[ft.dropdown.Option(v) for v in scanner_symbols])
     scan_budget=ft.Dropdown(label="Premium budget",value="80-120",options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value="50",keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value="500",keyboard_type=ft.KeyboardType.NUMBER)
     scan_period=ft.Dropdown(label="Historical period",value="7d",options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Candle timeframe",value="5m",options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
+    scan_tf=ft.Dropdown(label="Candle timeframe",value=prefs.get("scanner_timeframe","5m"),options=[ft.dropdown.Option(v) for v in ["1m","5m","15m","1h","1d"]])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value="14",options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=True,active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=True,active_color=GREEN)
@@ -731,7 +735,7 @@ def app_main(page:ft.Page):
     tv_booted=[False]
     def tradingview_widget_html(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
-        config={"autosize":True,"symbol":ticker,"interval":"5","timezone":"Asia/Kolkata","theme":"dark","style":"1","locale":"en","allow_symbol_change":True,"hide_side_toolbar":False,"hide_top_toolbar":False,"save_image":False}
+        config={"autosize":True,"symbol":ticker,"interval":{"1m":"1","5m":"5","15m":"15","1h":"60","1d":"D"}.get(scan_tf.value,"5"),"timezone":"Asia/Kolkata","theme":"dark","style":"1","locale":"en","allow_symbol_change":True,"hide_side_toolbar":False,"hide_top_toolbar":False,"save_image":False}
         config_json=json.dumps(config).replace("</","<\\/")
         return ('''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{margin:0;width:100%;height:100%;background:#080F18;color:#EAF1F6;font:12px sans-serif}
@@ -850,6 +854,13 @@ def app_main(page:ft.Page):
             await asyncio.sleep(max(30,delay))
     scan_live.on_change=auto_scan_changed
     def trigger_scan(e=None):
+        prefs["scanner_symbol"]=scan_symbol.value or "NIFTY"
+        prefs["scanner_timeframe"]=scan_tf.value or "5m"
+        save()
+        if e is not None and e.control in (scan_symbol,scan_tf):
+            # Explicit selection changes reload the chart; background scans do not.
+            scan_result.controls.clear()
+            if current[0]==3:select(3)
         if scan_tf.value=="1m":scan_period.value="7d"
         if not scan_busy[0]:
             scan_busy[0]=True
@@ -1163,7 +1174,7 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.2 WEBVIEW FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.2.3 SAVED CHART")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
