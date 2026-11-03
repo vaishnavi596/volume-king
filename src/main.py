@@ -725,7 +725,7 @@ def app_main(page:ft.Page):
     chart_provider=[prefs.get("chart_provider","TradingView")]
     def tradingview_url(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
-        return "https://s.tradingview.com/widgetembed/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5&theme=dark&style=1&locale=en"
+        return "https://www.tradingview.com/chart/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5"
     def chart_provider_change(e):
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
@@ -815,7 +815,7 @@ def app_main(page:ft.Page):
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView":
-                parts.append(note("TradingView • embedded Android chart. Market data may be delayed; AI votes use Yahoo candles."))
+                parts.append(note("TradingView full chart in Android WebView • internet required. Market data may be delayed; AI votes use Yahoo candles."))
                 parts.append(ft.Container(content=ft.WebView(url=tradingview_url(sym),expand=True),height=420,bgcolor=PANEL2,border_radius=8))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
                 return section("TRADINGVIEW • "+sym,ft.Column(parts,spacing=4))
