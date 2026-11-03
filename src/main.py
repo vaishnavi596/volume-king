@@ -755,39 +755,83 @@ def app_main(page:ft.Page):
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     scanner_chart_visible=[True]
-    scanner_chart_indicators=["EMA 9/21","RSI 14","MACD","Supertrend"]
+    scanner_chart_indicators=list(prefs.get("scanner_chart_indicators",["EMA 9/21","RSI 14","MACD","Supertrend"]))
+    scanner_chart_style=[prefs.get("scanner_chart_style","Candlestick")]
     def scanner_chart_toggle(e):
         scanner_chart_visible[0]=not scanner_chart_visible[0]
         select(3)
     def scanner_chart_filter(e):
         name=e.control.data
-        if name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
-        else:scanner_chart_indicators.append(name)
+        if e.control.value and name not in scanner_chart_indicators:scanner_chart_indicators.append(name)
+        if not e.control.value and name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
+        prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
+        save()
+        select(3)
+    def scanner_chart_style_change(e):
+        scanner_chart_style[0]=e.control.value
+        prefs["scanner_chart_style"]=scanner_chart_style[0]
+        save()
         select(3)
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
         hist=candles.get("scanner_chart_"+sym) or {}
-        bars=hist.get("bars") or []
+        bars=(hist.get("bars") or [])[-35:]
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
-            parts.append(note("Historical underlying candles • NOT option premium • may be delayed"))
+            parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
+            parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
-                closes=[float(b[4]) for b in bars[-35:]]
-                low=min(closes);high=max(closes);spread=max(high-low,0.01)
-                points=[ft.LineChartDataPoint(i,v) for i,v in enumerate(closes)]
-                series=[ft.LineChartData(data_points=points,stroke_width=2,color=GREEN,curved=False)]
-                if "EMA 9/21" in scanner_chart_indicators:
-                    for length,color in [(9,GOLD),(21,"#72A7F2")]:
-                        alpha=2/(length+1);ema=closes[0];vals=[]
-                        for i,v in enumerate(closes):
-                            ema=alpha*v+(1-alpha)*ema
-                            vals.append(ft.LineChartDataPoint(i,ema))
-                        series.append(ft.LineChartData(data_points=vals,stroke_width=1.5,color=color,curved=False))
-                parts.append(ft.Container(content=ft.LineChart(data_series=series,min_x=0,max_x=len(closes)-1,min_y=low-spread*.12,max_y=high+spread*.12,left_axis=ft.ChartAxis(labels_size=45),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),expand=True),height=180))
+                closes=[float(b[4]) for b in bars]
+                lows=[float(b[3]) for b in bars]
+                highs=[float(b[2]) for b in bars]
+                low=min(lows);high=max(highs);spread=max(high-low,.01)
+                if scanner_chart_style[0]=="Line":
+                    points=[ft.LineChartDataPoint(i,v) for i,v in enumerate(closes)]
+                    series=[ft.LineChartData(data_points=points,stroke_width=2,color=GREEN,curved=False)]
+                    if "EMA 9/21" in scanner_chart_indicators:
+                        for length,color in [(9,GOLD),(21,"#72A7F2")]:
+                            alpha=2/(length+1);z=closes[0];vals=[]
+                            for i,v in enumerate(closes):
+                                z=alpha*v+(1-alpha)*z
+                                vals.append(ft.LineChartDataPoint(i,z))
+                            series.append(ft.LineChartData(data_points=vals,stroke_width=1.5,color=color,curved=False))
+                    visual=ft.LineChart(data_series=series,min_x=0,max_x=len(closes)-1,min_y=low-spread*.12,max_y=high+spread*.12,left_axis=ft.ChartAxis(labels_size=48),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),expand=True)
+                else:
+                    width=300;height=180;controls=[]
+                    for i,(_,o,h,l,c,v) in enumerate(bars):
+                        x=i*width/len(bars)+2
+                        yy=lambda p:8+(high-float(p))/spread*(height-16)
+                        color=GREEN if c>=o else RED
+                        controls.append(ft.Container(left=x+2,top=yy(h),width=2,height=max(1,yy(l)-yy(h)),bgcolor=color))
+                        controls.append(ft.Container(left=x,top=min(yy(o),yy(c)),width=max(3,width/len(bars)-2),height=max(2,abs(yy(c)-yy(o))),bgcolor=color))
+                    if "EMA 9/21" in scanner_chart_indicators:
+                        for length,color in [(9,GOLD),(21,"#72A7F2")]:
+                            z=closes[0]
+                            for i,v in enumerate(closes):
+                                z+=2*(v-z)/(length+1)
+                                controls.append(ft.Container(left=i*width/len(bars)+3,top=yy(z),width=3,height=3,bgcolor=color))
+                    visual=ft.Stack(controls,width=width,height=height)
+                parts.append(ft.Container(content=visual,height=190,alignment=ft.alignment.center))
                 parts.append(note("Range ₹"+f"{low:,.2f}"+" – ₹"+f"{high:,.2f}"))
+                if "RSI 14" in scanner_chart_indicators and len(closes)>=15:
+                    dif=[closes[i]-closes[i-1] for i in range(-14,0)]
+                    gain=sum(max(0,x) for x in dif);loss=sum(max(0,-x) for x in dif)
+                    value=100 if loss==0 else 100-100/(1+gain/loss)
+                    parts.append(note(f"RSI 14: {value:.1f}"))
+                if "MACD" in scanner_chart_indicators:
+                    def ema_series(n):
+                        z=closes[0];out=[]
+                        for v in closes:z+=2*(v-z)/(n+1);out.append(z)
+                        return out
+                    m=[x-y for x,y in zip(ema_series(12),ema_series(26))]
+                    z=m[0]
+                    for v in m:z+=2*(v-z)/10
+                    parts.append(note(f"MACD: {m[-1]:.2f} • Signal: {z:.2f}"))
+                if "Supertrend" in scanner_chart_indicators:
+                    parts.append(note("Supertrend signal: see Analysis Basis; no fabricated overlay"))
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
-            parts.append(ft.Row([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in ["EMA 9/21","RSI 14","MACD","Supertrend"]],wrap=True,spacing=0))
-            parts.append(note("RSI/MACD/Supertrend results appear in Analysis Basis below; only EMA overlays the chart."))
+            parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in ["EMA 9/21","RSI 14","MACD","Supertrend"]],spacing=0))
+            parts.append(note("Indicators remain independent of chart type; OHLC never disappears when all are disabled."))
             parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner():
@@ -998,7 +1042,7 @@ def app_main(page:ft.Page):
         for j in range(len(pages)):
             navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
         page.update()
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.0.3")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.1.0")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(0)
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     async def refresh_market():
