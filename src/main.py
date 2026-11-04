@@ -4,11 +4,12 @@ import traceback
 import asyncio
 import urllib.request
 import urllib.parse
-from market_feed import AngelFeed, FeedError
+from market_feed import AngelFeed, FeedError, SessionExpired
 from analysis_quality import quality_check, agreement_detail
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
+from feed_health import FeedHealth,safe_error,retry_delay
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -247,6 +248,12 @@ def app_main(page:ft.Page):
     provider_generation=[0]
     angel_feed=AngelFeed()
     broker_retry=[0.0]
+    broker_failures=[0]
+    health=FeedHealth()
+    scan_progress={"checked":0,"total":50,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
+    app_active=[True]
+    resume_busy=[False]
+    runtime_status=ft.Text("While-open monitoring only; screen-lock continuity is not verified",size=12,color=MUTED)
     option_feed={}
     option_feed_busy=[False]
     broker_connect_busy=[False]
@@ -303,9 +310,12 @@ def app_main(page:ft.Page):
     def fetch_news(symbol,global_news=False):
         key="GLOBAL" if global_news else symbol
         now=datetime.now(timezone.utc).timestamp()
+        health_key="news:"+key;request_id=health.begin(health_key)
         with news_lock:
             cached=news_cache.get(key) or market_store.get("news",key)
-            if cached and now-cached["fetched"]<600:return cached
+            if cached and now-cached["fetched"]<600:
+                health.finish(health_key,request_id,"CACHED",source=cached.get("source","RSS"),data_time=max([r.get("published",0) for r in cached.get("items",[])]+[0]))
+                return cached
         if global_news:
             url="https://feeds.bbci.co.uk/news/business/rss.xml";source_name="BBC News Business"
         else:
@@ -324,6 +334,7 @@ def app_main(page:ft.Page):
         if result.get("items"):market_store.put("news",(key,),result)
         elif cached and cached.get("items"):
             result=dict(cached,status="Cached headlines • "+age_label(max(x.get("published",0) for x in cached["items"])))
+        health.finish(health_key,request_id,"AVAILABLE" if result.get("items") and result.get("fetched")==now else "CACHED" if result.get("items") else "UNAVAILABLE",source=result.get("source","RSS"),data_time=max([r.get("published",0) for r in result.get("items",[])]+[0]),error="" if result.get("items") else "No recent headlines or feed unavailable")
         with news_lock:news_cache[key]=result
         return result
     def headline_signal(items):
@@ -417,24 +428,39 @@ def app_main(page:ft.Page):
         selected=prefs.get("source","Auto")
         generation=provider_generation[0]
         result=None
+        health_key="market:"+selected+":"+ticker+":"+interval
+        request_id=health.begin(health_key)
+        fallback_reason=""
         try:
             if selected in ("Auto","Broker API") and angel_feed.connected and (selected=="Broker API" or time.monotonic()>=broker_retry[0]):
-                try:result=angel_feed.history(ticker,interval,range_)
-                except Exception:
-                    broker_retry[0]=time.monotonic()+30
-                    if selected=="Broker API":raise FeedError("Broker feed failed; reconnect or select Auto") from None
+                try:
+                    result=angel_feed.history(ticker,interval,range_)
+                    broker_failures[0]=0;broker_retry[0]=0
+                except Exception as exc:
+                    broker_failures[0]+=1
+                    broker_retry[0]=time.monotonic()+retry_delay(broker_failures[0])
+                    fallback_reason=safe_error(exc)
+                    if selected=="Broker API":raise
             if result is None:
                 if selected=="Broker API":raise FeedError("Broker feed not connected")
                 result=get_yahoo(ticker,interval,range_)
                 result["fallback"]=selected=="Auto"
             result["cached"]=False
-        except Exception:
+        except Exception as exc:
+            fallback_reason=safe_error(exc)
             result=market_store.get("market",selected,ticker,interval,range_)
-            if not result:raise
+            if not result:
+                health.finish(health_key,request_id,"UNAVAILABLE",error=fallback_reason)
+                raise
             result=dict(result,cached=True,cache_status="Last successful data • refresh failed; historical display only")
         if generation!=provider_generation[0] or prefs.get("source","Auto")!=selected:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
+        state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
+        quote_time=result.get("quote_timestamp")
+        if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
+            state="STALE";fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
+        health.finish(health_key,request_id,state,source=result.get("source",""),data_time=quote_time,error=fallback_reason)
         return result
     def timeframe_spec(interval):
         specs={
@@ -444,7 +470,7 @@ def app_main(page:ft.Page):
             "1d":(86400,1,"1 trading day")}
         seconds,bars_per_day,horizon=specs[interval]
         return {"seconds":seconds,"annual_bars":bars_per_day*252,
-                "fresh_seconds":max(1800,seconds*2),"horizon":horizon}
+                "fresh_seconds":max(120,seconds*2+30),"horizon":horizon}
     def analyze_current(bars,selected=None,timeframe="5m"):
         selected=[name for name in (filter_selected if selected is None else selected) if filter_modes.get(name,"Analysis")!="Chart"]
         quality=quality_check(bars,timeframe_spec(timeframe)["seconds"])
@@ -534,23 +560,27 @@ def app_main(page:ft.Page):
             if control in list(credential_inputs.values()):return "निजी credential field है। Popup में इसका मान नहीं दिखाया जाता।"
             error=getattr(control,"error_text",None)
             if error:return "इस field में validation error है: "+str(error)
+            if "expiry" in text or "strike" in text or "contract" in text:return component_status("options")
+            if "source" in text or "provider" in text or "symbol" in text:return component_status("market")
             return "इस नियंत्रण में अभी validation error दर्ज नहीं है। वास्तविक डेटा की स्थिति संबंधित सेक्शन में देखें।"
+        if "execution capabilities" in text or "live auto trading" in text:return "Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"
         if "diagnostic" in text:return "इस सत्र में दर्ज errors: "+str(len(diagnostics))+"। यह पूर्ण कार्यक्षमता का प्रमाण नहीं है।"
-        if "source" in text or "broker" in text:return str(connection_status.value)+" • स्रोत: "+str(prefs.get("source","Auto"))
+        if "source" in text or "broker" in text:return str(connection_status.value)+" • "+component_status("market")
         if "news" in text or "headline" in text:
             data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
-            return str(data.get("news_status","Headlines अभी उपलब्ध नहीं हैं।"))
+            return str(data.get("news_status","Headlines अभी उपलब्ध नहीं हैं।"))+" • "+component_status("news")
         if ("analysis" in text and "oi analysis" not in text) or "scanner" in text or "super five" in text:return str(scan_status.value)+" • "+str(scan_shared.get("basis","Analysis अभी उपलब्ध नहीं है।"))
-        if "chart" in text:return str(tradingview_status.value)+" • "+quote_caption(scan_symbol.value or "NIFTY")
+        if "option chart" in text:return component_status("option_chart")+" • "+option_feed_status[0]
+        if "chart" in text and "option" not in text:return str(tradingview_status.value)+" • "+component_status("market")
         if "alert" in text or "backtest" in text:return "यह सेवा अभी जुड़ी नहीं है।"
         if any(x in text for x in ("paper","protection","strategy","risk","target","trade")):
             return "Paper / saved-plan सुविधा है। Live orders और live automatic exit सक्रिय नहीं हैं।"
         if any(x in text for x in ("option","pcr","oi analysis","flow")):
             rows=selected_option_rows()
-            if not rows:return "Verified option डेटा अभी उपलब्ध नहीं है। "+option_feed_status[0]
+            if not rows:return "Verified option डेटा अभी उपलब्ध नहीं है। "+option_feed_status[0]+" • "+component_status("options")
             now=datetime.now(timezone.utc).timestamp()
             fresh=all(r.get("timestamp") is not None and 0<=now-r["timestamp"]<=90 for r in rows)
-            return ("हाल के option quotes उपलब्ध हैं। " if fresh else "Option quotes पुराने हैं या समय उपलब्ध नहीं है। ")+option_feed_status[0]
+            return ("हाल के option quotes उपलब्ध हैं। " if fresh else "Option quotes पुराने हैं या समय उपलब्ध नहीं है। ")+option_feed_status[0]+" • "+component_status("options")
         sym=chain_symbol.value if current[0]==1 else (scan_symbol.value or "NIFTY")
         return quote_caption(sym)+" • स्रोत: "+str(prefs.get("source","Auto"))+" • broker "+("जुड़ा है" if angel_feed.connected else "जुड़ा नहीं है")
     def show_help(title,control=None):
@@ -614,8 +644,35 @@ def app_main(page:ft.Page):
             note("Emergency stop: "+("ON" if prefs.get("emergency_stop") else "OFF")),
             note("Protection: "+prefs.get("protection_mode","Manual")+" • paper demonstration only; live monitoring disconnected")
         ],spacing=4))
+    def execution_capabilities():
+        return section("EXECUTION CAPABILITIES",ft.Column([
+            note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Yahoo / saved data; broker not connected")),
+            note("Paper orders: local simulation • strategy switches: saved plans"),
+            note("Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"),
+            note("Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading."),
+            runtime_status,ft.ElevatedButton("Live auto trading • not available",disabled=True),
+        ],spacing=5,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+    def component_status(kind,sym=None,interval=None):
+        sym=sym or (scan_symbol.value or "NIFTY");interval=interval or (scan_tf.value or "5m")
+        if kind=="market":key="market:"+prefs.get("source","Auto")+":"+sym+":"+interval
+        elif kind=="options":key="options:"+chain_symbol.value+":"+str(expiry.value)
+        elif kind=="option_chart":key="option_chart:"+chain_symbol.value+":"+str(expiry.value)+":"+str(option_strike.value)+":"+str(option_side.value)
+        else:key="news:"+sym
+        row=health.get(key)
+        if not row:
+            if kind=="market" and quotes.get(sym):return "Saved snapshot • "+quote_caption(sym)+" • no new request recorded in this session"
+            if kind in ("options","option_chart") and selected_option_rows():return "Saved option snapshot • not proof of a live connection • no new request recorded in this session"
+            return "No request recorded for this selection yet"
+        def stamp(value):
+            return datetime.fromtimestamp(value,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST") if isinstance(value,(int,float)) else "Unavailable"
+        return row.get("state","Unknown")+" • source: "+row.get("source","")+" • data time: "+stamp(row.get("data_time"))+" • last attempt: "+stamp(row.get("last_attempt"))+" • last success: "+stamp(row.get("last_success"))+" • "+row.get("error","")
+    async def retry_selected_data():
+        broker_retry[0]=0;broker_failures[0]=0
+        await refresh_selected_options()
+        if not scan_busy[0]:await scan_market()
+        if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues")],spacing=4))
+        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -623,25 +680,55 @@ def app_main(page:ft.Page):
             rows.append(ft.TextButton(content=ft.Text(item["source"]+" • "+item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url)))
         if len(rows)==1:rows.append(note("No news loaded for the selected symbol yet. Open Scanner and refresh."))
         return section("NEWS & EVENT CONTEXT",ft.Column(rows,spacing=4))
+    def display_analysis(sym,data):
+        raw=data.get("bars") or []
+        live=analyze_current(raw,filter_selected[:],"5m")
+        display=dict(live)
+        completed=[bar for bar in raw if bar[0]+300<=datetime.now(timezone.utc).timestamp()]
+        if completed:
+            quality=quality_check(completed,300,now=completed[-1][0]+300)
+            if quality["usable"]:
+                selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
+                display=analyze(quality["bars"],selected,"5m")
+                if display.get("score",0)<float(prefs.get("confidence",75)):display.update(bias="WAIT",score=0)
+        if not completed or not quality["usable"]:
+            display.update(bias="DATA UNAVAILABLE",score=0,timestamp=None,reason="Insufficient or invalid completed candles; last valid result retained")
+        age=datetime.now(timezone.utc).timestamp()-(display.get("timestamp") or 0)
+        display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
+        return display
+    def publish_partial_ranking(results):
+        available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
+        available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
+        previous=top5_candidates[:]
+        if available:top5_candidates[:]=available[:5]
+        used={row["symbol"] for row in top5_candidates}
+        for row in previous+saved_ranking.get("rows",[]):
+            if len(top5_candidates)>=5:break
+            if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
+        for sym in watch_symbols:
+            if len(top5_candidates)>=5:break
+            if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
+        return available
     def super_five_card():
         rows=top5_candidates[:]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
-        controls=[note("Configured 50-company watchlist • last completed-candle analysis • not a trade order")]
+        controls=[note("Configured 50-company watchlist • last completed-candle analysis • not a trade order"),
+            note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
-            historical=row.get("historical") or age is None or not 0<=age<=1800 or not regular_hours()
+            historical=row.get("historical") or age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours()
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
             color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+row["bias"],14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+("NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"]),14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
+        return [execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -981,15 +1068,18 @@ def app_main(page:ft.Page):
     async def load_option_history():
         context=(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
         generation=provider_generation[0]
+        health_key="option_chart:"+":".join(str(x) for x in context);request_id=health.begin(health_key)
         try:
             if source.value=="Yahoo Finance":raise FeedError("Yahoo option history unavailable")
             bars=await asyncio.to_thread(angel_feed.option_history,*context)
             if generation!=provider_generation[0] or context!=(chain_symbol.value,expiry.value,option_strike.value,option_side.value):return
             option_chart_cache.clear();option_chart_cache.update(context=context,bars=bars)
             market_store.put("option_chart",context,{"bars":bars,"source":"Angel One"})
+            health.finish(health_key,request_id,"AVAILABLE" if 0<=datetime.now(timezone.utc).timestamp()-bars[-1][0]<=630 else "STALE",source="Angel One",data_time=bars[-1][0])
             option_feed_status[0]="Selected option premium history loaded from Angel One."
         except Exception as exc:
             log_error("option_chart",exc)
+            health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
             option_feed_status[0]="Option chart unavailable: connect Angel One and enter an exact listed strike/expiry."
         if current[0]==1:select(1)
     def option_chart_panel():
@@ -1027,6 +1117,7 @@ def app_main(page:ft.Page):
         if option_feed_busy[0]:return
         option_feed_busy[0]=True
         generation=provider_generation[0];sym=chain_symbol.value;expiry_value=expiry.value
+        health_key="options:"+sym+":"+str(expiry_value);request_id=health.begin(health_key)
         selection=(sym,expiry_value,option_expiry_choice.value)
         option_feed_status[0]="Loading selected data..."
         try:
@@ -1036,6 +1127,7 @@ def app_main(page:ft.Page):
                 index=1 if option_expiry_choice.value=="Next" else 0
                 if len(dates)<=index:raise FeedError("Listed expiry unavailable")
                 expiry_value=dates[index];expiry.value=expiry_value
+                health_key="options:"+sym+":"+str(expiry_value);request_id=health.begin(health_key)
                 prefs["option_expiry"]=expiry_value;save()
                 option_expiry_note.value="Expiry selected from Angel One instrument master; quote timestamps shown below."
             hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
@@ -1044,6 +1136,7 @@ def app_main(page:ft.Page):
             if source.value=="Yahoo Finance" or not angel_feed.connected:
                 option_feed.clear()
                 option_feed_status[0]="Yahoo underlying updated. Verified CE/PE and OI are not supplied by this Yahoo adapter."
+                health.finish(health_key,request_id,"UNAVAILABLE",source="Yahoo Finance",error="This source has no verified NSE option-chain data")
                 return
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
@@ -1053,15 +1146,20 @@ def app_main(page:ft.Page):
             if data["complete"] and len(fresh)==len(data["rows"]):
                 option_snapshots[sym]={"symbol":sym,"timeframe":scan_tf.value,"verified":True,"source":"Angel One","expiry":expiry_value,"timestamp":min(r["timestamp"] for r in fresh),"call_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="CE"),"put_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="PE")}
             else:option_snapshots.pop(sym,None)
+            times=[row["timestamp"] for row in data["rows"] if row.get("timestamp")]
+            health.finish(health_key,request_id,"AVAILABLE" if data["complete"] else "PARTIAL",source="Angel One",data_time=min(times) if times else None,error="" if data["complete"] else "Partial strike-window coverage")
             option_feed_status[0]="Angel One • up to 9 strikes • "+("requested window complete" if data["complete"] else "partial quote coverage")
         except Exception as exc:
             log_error("options_feed",exc)
+            health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
             option_feed_status[0]="Feed unavailable. Check connection and listed expiry; cached quotes retain their timestamps."
         finally:
             option_feed_busy[0]=False
             if current[0]==1:select(1)
     async def option_poll():
         while True:
+            if not app_active[0]:
+                await asyncio.sleep(5);continue
             if current[0]==1 and regular_hours():await refresh_selected_options()
             elif current[0] in (0,3) and regular_hours():
                 sym=scan_symbol.value or "NIFTY";generation=provider_generation[0]
@@ -1136,7 +1234,7 @@ def app_main(page:ft.Page):
         content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero."),save_footer(1)])
         return content
-    mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x) for x in ["Paper","Manual","Semi-Auto","Auto"]])
+    mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
     broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
@@ -1522,7 +1620,7 @@ def app_main(page:ft.Page):
         page.update()
     def backup_payload():
         allowed={k for _,k in field_bindings if k!="api_url"}
-        allowed.update({"filter_modes","scanner_filters","scanner_added_filters","scanner_chart_indicators","scanner_chart_style","scanner_chart_visible","chart_provider","chart_views","last_page","page_scroll","option_strategy","paper_journal","paper_daily_limits","bot_position"})
+        allowed.update({"language","filter_modes","scanner_filters","scanner_added_filters","scanner_chart_indicators","scanner_chart_style","scanner_chart_visible","chart_provider","chart_views","last_page","page_scroll","option_strategy","paper_journal","paper_daily_limits","bot_position"})
         return {"app":"BOT KING","schema":1,"data":{k:v for k,v in prefs.items() if k in allowed}}
     def export_backup(e=None):
         backup_text.value=json.dumps(backup_payload(),ensure_ascii=False,indent=2)
@@ -1578,6 +1676,7 @@ def app_main(page:ft.Page):
                 chart_provider[0]=data["chart_provider"];prefs["chart_provider"]=chart_provider[0]
             if data.get("scanner_chart_style") in ("Candlestick","Line"):
                 scanner_chart_style[0]=data["scanner_chart_style"];prefs["scanner_chart_style"]=scanner_chart_style[0]
+            if data.get("language") in ("English","हिंदी"):prefs["language"]=data["language"]
             refresh_option_expiry();update_expiry()
             protection_pending.clear();protection_sample.clear();protection_peak[0]=0
             market_status="Data source: "+source.value+" • waiting for refresh"
@@ -1592,7 +1691,9 @@ def app_main(page:ft.Page):
     backup_status=txt("Backup excludes API credentials. Store it privately outside the app.",12,MUTED)
     restore_confirm=ft.Checkbox(label="Replace normal settings from this backup; automatic actions stay OFF",value=False)
     def settings():
-        content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
+        if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
+            connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
+        content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: read-only market data integration. Credentials go only to Angel One; public IP lookup uses ipify without credentials. No live orders. Other brokers are not integrated.')])))
         content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_symbol, bot_custom, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True), limit, note('Trailing stop is a saved preference only. It does not automatically update or execute orders.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  AUTO STRATEGY (PREFERENCES ONLY)', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Actual realized-loss accounting needs verified exit prices. Auto entry/re-entry, averaging, partial exits, trailing SL and square-off are saved plans only. No live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status, note('Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.')], spacing=12))])
         content.extend([
@@ -1873,6 +1974,9 @@ console.log('BOT KING Lightweight Charts ready');
         # No background service: refresh runs only while this app/page is alive.
         initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
+            if not app_active[0]:
+                scan_next_refresh[0]=None
+                await asyncio.sleep(5);continue
             if not initial and not regular_hours():
                 scan_next_refresh[0]=None
                 scan_status.value=session_caption()
@@ -2334,7 +2438,7 @@ console.log('BOT KING Lightweight Charts ready');
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
         page.update()
         page.run_task(restore_scroll,i)
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.8.1 LAST DATA")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.9.0 MONITORING AUDIT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
@@ -2343,6 +2447,8 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         initial=True
         while True:
+            if not app_active[0]:
+                await asyncio.sleep(5);continue
             if not initial and not regular_hours():
                 await asyncio.sleep(30)
                 continue
@@ -2352,13 +2458,19 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
                 semaphore=asyncio.Semaphore(5)
+                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Refreshing market quotes")
+                market_completed=[0]
+                cycle_data={}
                 async def load_one(sym):
                     async with semaphore:
                         try:
-                            data=await asyncio.to_thread(get_market_data,sym)
+                            data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):return False
-                            quotes[sym]=data
-                            return True
+                            quotes[sym]=data;cycle_data[sym]=data
+                            market_completed[0]+=1
+                            scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
+                            if current[0]==0 and market_completed[0]%5==0:select(0)
+                            return not data.get("cached")
                         except Exception:
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
@@ -2368,39 +2480,31 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=sum(results)
                 market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now().strftime("%H:%M") if successes else "Yahoo Finance unavailable: check internet / rate limits"
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
+                ranking_results={}
+                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
                 async def rank_one(sym):
                     async with semaphore:
+                        data=None;result=None
                         try:
-                            data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
-                            raw=data.get("bars") or []
-                            live=analyze_current(raw,filter_selected[:],"5m")
-                            display=dict(live)
-                            if raw:
-                                completed=[bar for bar in raw if bar[0]+300<=datetime.now(timezone.utc).timestamp()]
-                                if completed:
-                                    quality=quality_check(completed,300,now=completed[-1][0]+300)
-                                    if quality["usable"]:
-                                        selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
-                                        display=analyze(quality["bars"],selected,"5m")
-                                        if display.get("score",0)<float(prefs.get("confidence",75)):display.update(bias="WAIT",score=0)
-                            display.update(source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or live["bias"]=="WAIT",age=0)
-                            return sym,display
-                        except Exception:return sym,None
+                            data=cycle_data.get(sym)
+                            if data is None:data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
+                            result=display_analysis(sym,data)
+                        except Exception as exc:log_error("super_five",exc)
+                        if generation!=provider_generation[0]:return sym,None
+                        ranking_results[sym]=result
+                        scan_progress["checked"]+=1
+                        scan_progress["valid"]+=int(bool(result and result.get("timestamp")))
+                        scan_progress["failed"]+=int(not bool(result and result.get("timestamp")))
+                        scan_progress["cached"]+=int(bool(data and data.get("cached")))
+                        publish_partial_ranking(ranking_results)
+                        if current[0]==0:select(0)
+                        return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
                     await asyncio.sleep(.05)
                     continue
-                available=[dict(res,symbol=sym) for sym,res in pairs if res and res.get("timestamp")]
-                available.sort(key=lambda r:(r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
-                if available:
-                    top5_candidates[:]=available[:5]
-                    used={row["symbol"] for row in top5_candidates}
-                    for row in saved_ranking.get("rows",[]):
-                        if len(top5_candidates)>=5:break
-                        if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
-                    for sym in watch_symbols:
-                        if len(top5_candidates)>=5:break
-                        if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
+                available=publish_partial_ranking(ranking_results)
+                scan_progress["state"]="Complete" if scan_progress["valid"] else "No valid data; last saved results retained"
                 async def enrich(candidate):
                     async with semaphore:
                         combined=await load_combined(candidate["symbol"],"5m",candidate)
@@ -2419,6 +2523,35 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(120)
     page.run_task(refresh_market)
     page.run_task(option_poll)
+    async def refresh_after_resume():
+        if resume_busy[0]:return
+        resume_busy[0]=True
+        generation=provider_generation[0];sym=scan_symbol.value or "NIFTY"
+        try:
+            if current[0]==1:await refresh_selected_options()
+            else:
+                data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
+                if generation==provider_generation[0] and sym==scan_symbol.value:quotes[sym]=data
+            if generation==provider_generation[0] and app_active[0]:
+                runtime_status.value="App resumed • selected data checked • no automatic broker order"
+                select(current[0])
+        except Exception as exc:
+            log_error("resume",exc)
+            runtime_status.value="App resumed • refresh failed; last saved data remains visible"
+            page.update()
+        finally:resume_busy[0]=False
+    def lifecycle_changed(e):
+        state=getattr(e,"state",None)
+        state=getattr(state,"value",str(state)).lower()
+        app_active[0]=state=="resumed"
+        if not app_active[0]:
+            protection_pending.clear()
+            runtime_status.value="App backgrounded • uninterrupted monitoring unavailable • refresh on resume"
+        else:
+            runtime_status.value="App resumed • checking selected data..."
+            page.run_task(refresh_after_resume)
+        page.update()
+    page.on_app_lifecycle_state_change=lifecycle_changed
 
 def main(page: ft.Page):
     try:
