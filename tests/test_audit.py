@@ -42,7 +42,7 @@ def start(prefs=None,cache_path=None):
     import atexit
     atexit.register(settings_temp.cleanup)
     env["STATE"]=Path(settings_temp.name)/"settings.json"
-    page=Page(prefs or {});page.settings_temp=settings_temp;page.cache_temp=cache_temp;local={};previous=sys.getprofile()
+    page=Page(dict({"manual_contract_confirmed":True,"bot_lot_size":1},**(prefs or {})));page.settings_temp=settings_temp;page.cache_temp=cache_temp;local={};previous=sys.getprofile()
     def trace(frame,event,arg):
         if event=='return' and frame.f_code.co_name=='app_main':local.update(frame.f_locals)
     sys.setprofile(trace)
@@ -423,5 +423,6 @@ class AuditTests(unittest.TestCase):
         self.assertGreaterEqual(ratio(colors['BORDER'],colors['PANEL2']),3)
 
 if __name__=='__main__':unittest.main()
+
 
 
