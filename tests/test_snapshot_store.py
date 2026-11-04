@@ -50,7 +50,8 @@ class SnapshotTests(unittest.TestCase):
     def test_five_rows_visible_before_first_fetch(self):
         _,v=start({'scanner_live':False})
         card=v['super_five_card']()
-        rows=card.content.controls[1].controls[1:-1]
+        import flet as ft
+        rows=[c for c in card.content.controls[1].controls if isinstance(c,ft.Container)]
         self.assertEqual(len(rows),5)
         self.assertTrue(all('DATA UNAVAILABLE' in row.content.controls[0].value for row in rows))
     def test_app_restart_and_failed_fetch_keep_last_data(self):
