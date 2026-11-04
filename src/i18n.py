@@ -139,6 +139,15 @@ HI.update({
 "OI/PCR/Max Pain not connected; unavailable filters never vote.":"OI/PCR/Max Pain जुड़े नहीं; डेटा बिना फ़िल्टर वोट नहीं देते।",
 "Analysis uses completed candles only; chart may show a forming candle.":"विश्लेषण में केवल पूरी candles हैं; चार्ट में बनती candle भी दिख सकती है।",
 })
+HI.update({
+"SUPER FIVE • LAST AVAILABLE ANALYSIS":"सुपर फाइव • आखिरी उपलब्ध विश्लेषण",
+"Configured 50-company watchlist • last completed-candle analysis • not a trade order":"सेव सूची की 50 कंपनियाँ • आखिरी पूरी कैंडल का विश्लेषण • ट्रेड ऑर्डर नहीं",
+"Historical conclusions are kept for reference. Freshness checks still gate new live signals.":"पुराने निष्कर्ष जानकारी के लिए रहते हैं। नए live संकेत के लिए ताजा डेटा की जाँच जरूरी है।",
+"Last available option quotes • timestamps below • not a live connection guarantee":"आखिरी उपलब्ध ऑप्शन भाव • समय नीचे देखें • live कनेक्शन की गारंटी नहीं",
+"No saved analysis; waiting for first successful fetch":"सेव विश्लेषण नहीं; पहली सफल डेटा जाँच का इंतजार",
+"No valid candle data":"सही कैंडल डेटा उपलब्ध नहीं",
+"Time unavailable":"समय उपलब्ध नहीं","Invalid future time":"भविष्य का गलत समय",
+})
 EN_STATUS={
  "बंद करें":"Close","अभी की स्थिति":"Current status",
  "आसान जानकारी और वर्तमान स्थिति":"Simple explanation and current status","जानकारी":"Information",
@@ -190,6 +199,9 @@ PREFIX={
 "Loading selected data...":"चुना डेटा लोड हो रहा है…","Complete":"पूरा","Unavailable":"उपलब्ध नहीं",
 "Not connected. Authentication adapter required for ":"कनेक्ट नहीं। समर्थित login चाहिए: ",
 "Recent quote":"हाल का भाव","Old / delayed quote":"पुराना / देर का भाव","quote time unavailable":"भाव का समय उपलब्ध नहीं",
+"HISTORICAL / last available":"ऐतिहासिक / आखिरी उपलब्ध","Recent analysis":"हाल का विश्लेषण",
+"Last saved quote":"आखिरी सेव भाव","Source: ":"स्रोत: ","HISTORICAL":"ऐतिहासिक",
+"DATA UNAVAILABLE":"डेटा उपलब्ध नहीं","BULLISH":"बुलिश","BEARISH":"बेयरिश",
 }
 def translate(text,language):
     text=str(text)
@@ -201,6 +213,7 @@ def translate(text,language):
     if text.startswith("ⓘ "):return "ⓘ "+translate(text[2:],language)
     result=text
     for old,new in sorted(PREFIX.items(),key=lambda x:-len(x[0])):result=result.replace(old,new)
+    for old,new in [("sec old","सेकंड पुराना"),("min old","मिनट पुराना"),("hours old","घंटे पुराना"),("days old","दिन पुराना")]:result=result.replace(old,new)
     if re.fullmatch(r"\d+ Lots?",result):return result.split()[0]+" लॉट"
     return result
 
