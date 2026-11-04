@@ -5,10 +5,12 @@ import socket
 import time
 import threading
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 
 IST=timezone(timedelta(hours=5,minutes=30))
 class FeedError(RuntimeError): pass
+class SessionExpired(FeedError): pass
 
 class AngelFeed:
     ROOT="https://apiconnect.angelone.in"
@@ -43,8 +45,17 @@ class AngelFeed:
                     data=json.dumps(payload).encode(),headers=headers,method="POST")
             try:
                 with urllib.request.urlopen(req,timeout=12) as response:data=json.load(response)
-            except Exception as exc:raise FeedError("Broker request failed; check connection/session") from None
-        if data.get("status") is not True:raise FeedError("Broker rejected request; reconnect or verify contract")
+            except urllib.error.HTTPError as exc:
+                if exc.code in (401,403):
+                    self.disconnect()
+                    raise SessionExpired("Broker session expired; reconnect") from None
+                raise FeedError("Broker HTTP request failed; retry later") from None
+            except Exception:raise FeedError("Broker request failed; check connection/session") from None
+        if data.get("status") is not True:
+            if kind!="login" and str(data.get("errorcode") or data.get("errorCode")) in ("AG8001","AG8002"):
+                self.disconnect()
+                raise SessionExpired("Broker session expired; reconnect")
+            raise FeedError("Broker rejected request; reconnect or verify contract")
         return data.get("data")
     def connect(self,key,client,pin,totp):
         import uuid
