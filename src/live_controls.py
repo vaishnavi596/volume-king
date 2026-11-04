@@ -16,6 +16,9 @@ class LiveOrderControls:
         self.capabilities = {}
         self.review = None
         self.dialog = None
+        self.linked_options = False
+        self.on_contract_change = None
+        self.on_segment_change = None
         self.ack = ft.Checkbox(label="I understand: real money, intraday LIMIT orders, no automatic SL/target", value=False)
         self.phrase = ft.TextField(label="Type ENABLE LIVE TRADING to arm for 15 minutes")
         self.segment = ft.Dropdown(label="Live segment", value="Options", options=[ft.dropdown.Option(x) for x in ("Options", "Cash")])
@@ -46,13 +49,20 @@ class LiveOrderControls:
         self.generation += 1
         self.review = None
         self.close_dialog()
+        if self.on_contract_change:self.on_contract_change()
 
     def segment_changed(self, e=None):
+        if e is not None:
+            self.price.value="";self.units.value="1"
         for field in (self.expiry, self.strike, self.option_type):
-            field.visible = self.segment.value == "Options"
+            field.visible = self.segment.value == "Options" and not (self.linked_options and field is self.expiry)
             wrapper = getattr(field, "_bk_help_wrapper", None)
             if wrapper is not None:wrapper.visible = field.visible
         self.edited()
+        self.symbol.visible = not (self.linked_options and self.segment.value == "Options")
+        wrapper=getattr(self.symbol,"_bk_help_wrapper",None)
+        if wrapper is not None:wrapper.visible=self.symbol.visible
+        if e is not None and self.on_segment_change:self.on_segment_change()
         if e is not None:self.update()
 
     def close_dialog(self):
@@ -149,6 +159,7 @@ class LiveOrderControls:
         self.symbol.value = symbol;self.expiry.value = expiry;self.strike.value = str(strike or "");self.option_type.value = option_type
         self.price.value = ""  # Never turn a historical option premium into an automatic live limit.
         self.review = None
+        if self.on_contract_change:self.on_contract_change()
         self.status.value = "Selected option copied. Enter your live limit price, then review; no order has been sent."
 
     async def preview(self):

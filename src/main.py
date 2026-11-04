@@ -230,7 +230,7 @@ def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
     page.window_width=420; page.window_height=850
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
-    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
+    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Broker API","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
@@ -664,14 +664,14 @@ def app_main(page:ft.Page):
     def dashboard_tool_open(name):
         dashboard_tool[0]=name
         if name=="Scanner":select(3)
-        elif name=="Paper Trade":select(2)
+        elif name=="Paper Trade":select(4)
         elif name=="OI Data":select(1)
         else:select(0)
     def open_candidate_chart(symbol):
         scan_symbol.value=symbol
         select(3)
         trigger_scan()
-    page_save_status=[ft.Text("",size=12,color=MUTED) for _ in range(4)]
+    page_save_status=[ft.Text("",size=12,color=MUTED) for _ in range(5)]
     def risk_overview():
         ledger=paper_risk_ledger()
         return section("TODAY'S PAPER RISK",ft.Column([
@@ -779,7 +779,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
+        return [execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), section("LIVE ORDERS & POSITIONS",ft.Column([note(live_controls.status.value),ft.OutlinedButton("Open LIVE trading",on_click=lambda e:select(1))])), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -1128,7 +1128,7 @@ def app_main(page:ft.Page):
     def choose_strategy(v):
         strategy_choice[0]=v
         prefs["option_strategy"]=v;save()
-        select(1)
+        select(4)
     option_strike=ft.TextField(label="Strike price",value=prefs.get("option_strike",""),hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
     option_side=ft.Dropdown(label="Contract",value=prefs.get("option_side","CE"),options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")])
     option_qty=ft.TextField(label="Lots (paper)",value=str(prefs.get("option_qty","1")),keyboard_type=ft.KeyboardType.NUMBER)
@@ -1338,7 +1338,13 @@ def app_main(page:ft.Page):
             return (f"{float(val):,.0f}" if key=="oi" else f"{float(val):,.2f}") if val is not None else "—"
         table_rows=[]
         def choose_contract(strike_value,side):
+            sync_selected_live_context()
             option_strike.value=f"{strike_value:g}";option_side.value=side
+            live_controls.use_options(chain_symbol.value,expiry.value,option_strike.value,side)
+            quoted=next((r for r in rows if r.get("strike")==strike_value and r.get("side")==side),None)
+            if quoted and quoted.get("timestamp") is not None and 0<=datetime.now(timezone.utc).timestamp()-quoted["timestamp"]<=90:
+                live_controls.price.value=str(quoted["premium"])
+                live_controls.status.value="Current broker premium copied as an editable LIMIT price. Review the live order before confirming."
             prefs.update(option_strike=option_strike.value,option_side=side);save();select(1)
         for strike_value,sides in sorted(grouped.items()):
             ce=sides.get("CE",{});pe=sides.get("PE",{})
@@ -1365,17 +1371,23 @@ def app_main(page:ft.Page):
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
             ft.ElevatedButton("Refresh selected data",on_click=lambda e:page.run_task(refresh_selected_options)),
-            note("Table uses listed broker contracts when connected. The strike input below is a manual selection; paper orders remain manual."),
+            note("Table uses listed broker contracts when connected. Tap a premium or enter the exact strike in the LIVE form below; every real order requires separate review and confirmation."),
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
-        content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
+        content=[heading("LIVE • Options, Orders & Positions"),note("Broker data, option selection and real order controls are on this page. Paper practice is page 5."),
+                 ft.OutlinedButton("Broker connection settings",on_click=lambda e:select(2))]
+        if live_controls.segment.value=="Cash":
+            return content+[section("LIVE CASH • REAL MONEY",live_controls.content())]
+        sync_selected_live_context()
+        content.extend([symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
-                 note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
+                 note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))])
+        content.append(section('Option Chain',ft.Column([note("Tap a CE or PE premium to select that exact contract for LIVE review."),option_chain_preview()])))
+        content.append(section('LIVE ORDER & BOT STATUS',ft.Column([note("Manual confirmed orders are supported. Automatic live SL/target, re-entry and unattended bot protection are not connected."),live_controls.content()])))
+        content.append(option_chart_panel())
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
-        content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
@@ -1461,7 +1473,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value="Auto";prefs["source"]="Auto";save()
+            source.value="Broker API";prefs["source"]="Broker API";save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data connected • live orders require separate arming/review • reconnect after expiry or restart"
             connection_status.color=GREEN
@@ -1479,6 +1491,27 @@ def app_main(page:ft.Page):
         page.run_task(connect_angel)
 
     live_controls=LiveOrderControls(page,angel_feed)
+    live_controls.linked_options=True
+    live_controls.strike.value=option_strike.value;live_controls.option_type.value=option_side.value
+    live_option_context=[(chain_symbol.value,expiry.value)]
+    def sync_live_chart_contract():
+        if live_controls.segment.value=="Options":
+            live_controls.symbol.value=chain_symbol.value;live_controls.expiry.value=expiry.value
+            option_strike.value=live_controls.strike.value;option_side.value=live_controls.option_type.value
+            prefs.update(option_strike=option_strike.value,option_side=option_side.value)
+            save()
+    def sync_selected_live_context():
+        if live_controls.segment.value!="Options":return
+        context=(chain_symbol.value,expiry.value)
+        if live_option_context[0]!=context:
+            live_option_context[0]=context
+            live_controls.strike.value="";live_controls.price.value="";live_controls.units.value="1"
+            live_controls.edited()
+            live_controls.status.value="Symbol or expiry changed. Select the exact new contract and review again."
+        live_controls.symbol.value=context[0];live_controls.expiry.value=context[1]
+    live_controls.on_contract_change=sync_live_chart_contract
+    live_controls.on_segment_change=lambda:select(1)
+    live_controls.segment_changed()
     def copy_live_contract(e):
         live_controls.use_options(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
         page.update()
@@ -1764,9 +1797,11 @@ def app_main(page:ft.Page):
             return False
     def save_page(page_id):
         def belongs(key):
-            if page_id==1:return key.startswith("option_")
+            general={"source","broker","api_url","confidence"}
+            if page_id==1:return key.startswith("option_") and key!="option_qty"
             if page_id==3:return key.startswith("scanner_")
-            if page_id==2:return not key.startswith(("option_","scanner_"))
+            if page_id==2:return key in general
+            if page_id==4:return key=="option_qty" or (key not in general and not key.startswith(("option_","scanner_")))
             return False
         invalid=[key for control,key in field_bindings if belongs(key) and not save_control(control,key)]
         persisted=save()
@@ -1982,35 +2017,38 @@ def app_main(page:ft.Page):
             if stamp.tzinfo is None:stamp=stamp.replace(tzinfo=timezone.utc)
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
-    def settings():
+    def paper_page():
         cash_quantity.visible=bot_segment.value=="Cash"
         for field in (bot_type,bot_strike,bot_expiry_mode,bot_expiry,expiry_warning,bot_lots,bot_lot_size):field.visible=bot_segment.value=="Options"
         bot_custom.visible=bot_symbol.value=="Custom"
-        if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
-            connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
-        content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: direct mode provides market data only. Server mode also supports separately enabled, confirmed manual live orders. Server access key and trust confirmation are required. Broker credentials stay in memory; reconnect after 30 minutes idle or 8 hours maximum. Other brokers are not integrated.')])))
-        content.append(section('LIVE TRADING • REAL MONEY • MANUAL CONFIRMATION',ft.Column([ft.OutlinedButton('Copy selected Options contract to LIVE form',on_click=copy_live_contract),live_controls.content()],spacing=8)))
+        content=[heading("Paper • Practice only"),note("All simulation controls are on this page. No real broker orders are sent from Paper.")]
         content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
                 ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
                 note("This section protects PAPER positions only using manual premiums while the app is open. LIVE orders use the separate confirmed-order section; this paper demo does not manage them.")],spacing=6)),
             paper_control_card(),paper_journal_card(),
-            section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
-            section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
-            help_box("Risk and protection", "Paper limits are local simulations. Broker-side SL/target, filled-order confirmation and an always-on service are required before live automatic protection can be enabled."),
-            section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
-            section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
-            section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
-            section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
-
-            note("Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only. LIVE orders are separate and remain at the broker after the app closes.")
+            dashboard_positions(),risk_overview(),
+            section('Strategy Selector',ft.Column([ft.Row([ft.ElevatedButton(n,on_click=lambda e,v=n:choose_strategy(v)) for n in ['Bull Call Spread','Bear Put Spread','Iron Condor']],wrap=True),note('Selected strategy: '+(strategy_choice[0] or 'None')),note('Educational preview only; no orders are placed')])),
+            section("PAPER FROM OPTION QUOTE",ft.Column([note("Copy the selected listed option from LIVE to practice here."),option_qty,
+                ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:option_paper_action("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:option_paper_action("SELL"),bgcolor=RED,color=BG)],wrap=True),option_paper_note])),
         ])
         return content
 
+    def settings():
+        if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
+            connection_status.value="Broker disconnected or session expired; reconnect for live data.";connection_status.color=GOLD
+        content=[heading("Settings • Broker & Data"),note("Broker API is the live-data mode. Auto/Yahoo fallback is optional and its source/time is always shown.")]
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: direct mode provides market data only. Server mode also supports separately enabled, confirmed manual live orders. Server access key and trust confirmation are required. Broker credentials stay in memory; reconnect after 30 minutes idle or 8 hours maximum. Other brokers are not integrated.')])))
+        content.extend([
+            section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
+            section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
+            section("SIGNAL AGREEMENT",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
+            section("DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
+        ])
+        return content
 
-    # Scanner-only upgrade. Existing five page functions remain unchanged.
+    # Live analysis and practice remain separate pages.
     scanner_symbols=selection_symbols()
     saved_scanner_symbol=prefs.get("scanner_symbol","NIFTY")
     if saved_scanner_symbol not in scanner_symbols:
@@ -2788,10 +2826,11 @@ console.log('BOT KING Lightweight Charts ready');
                 ok=save();status.value="Saved automatically" if ok else "Save failed — device storage unavailable";status.color=GREEN if ok else RED
                 if key.startswith("protection_"):protection_pending.clear()
                 if previous is not None:previous(e)
+                if key in ("option_symbol","option_expiry","option_expiry_choice"):sync_selected_live_context()
             else:status.value="Invalid value — not saved. Fix the field below.";status.color=RED
             page.update()
         control.on_change=changed
-    bot_segment.on_change=lambda e:select(2)
+    bot_segment.on_change=lambda e:select(4)
     bindings=[(mode,"mode"),(source,"source"),(broker,"broker"),(api_url,"api_url"),
         (sl,"stop_loss"),(target,"target"),(limit,"max_trades"),(conf,"confidence"),
         (bot_symbol,"bot_symbol"),(bot_custom,"bot_custom"),(bot_type,"bot_type"),(bot_strike,"bot_strike"),
@@ -2824,14 +2863,14 @@ console.log('BOT KING Lightweight Charts ready');
     def source_change(e):
         source_previous(e);provider_changed(e)
     source.on_change=source_change
-    pages=[dashboard,options,settings,scanner]
-    icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
-    names=["Home","Options","Settings","Scanner"]
+    pages=[dashboard,options,settings,scanner,paper_page]
+    icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH,ft.Icons.SCHOOL]
+    names=["Home","Live","Settings","Scanner","Paper"]
     def remember_scroll(e):
         prefs.setdefault("page_scroll",{})[str(current[0])]=max(0,float(e.pixels))
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=12,on_scroll=remember_scroll,on_scroll_interval=750)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
-    current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<4 else 0]
+    current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<5 else 0]
     async def restore_scroll(i):
         await asyncio.sleep(.15)
         if current[0]==i:
@@ -2889,7 +2928,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.1.0 PAPER + MANUAL LIVE")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("Live data • v2.2.0")],spacing=0,expand=True),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)

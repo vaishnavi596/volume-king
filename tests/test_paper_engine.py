@@ -69,7 +69,7 @@ class UiPaperTests(unittest.TestCase):
         def controls(root):
             yield root
             for child in root._get_children():yield from controls(child)
-        for i in range(4):
+        for i in range(5):
             v['select'](i);items=[x for root in v['body'].controls for x in controls(root)]
             self.assertEqual(any(x is v['source'] for x in items),i==2)
             self.assertFalse(any(getattr(x,'text',None)=='Save changes' for x in items))

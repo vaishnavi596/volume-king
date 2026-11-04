@@ -231,13 +231,14 @@ class LiveTests(unittest.TestCase):
         self.assertIsNone(ui.review);self.assertIsNone(ui.dialog)
 
     def test_cash_segment_hides_option_help_labels_too(self):
-        _,v=start({'scanner_live':False});v['select'](2);ui=v['live_controls']
+        _,v=start({'scanner_live':False});v['select'](1);ui=v['live_controls']
         ui.segment.value='Cash';ui.segment_changed(None)
         for field in (ui.expiry,ui.strike,ui.option_type):
             self.assertFalse(field.visible)
             self.assertFalse(field._bk_help_wrapper.visible)
         ui.segment.value='Options';ui.segment_changed(None)
-        self.assertTrue(ui.expiry._bk_help_wrapper.visible)
+        self.assertTrue(ui.strike._bk_help_wrapper.visible)
+        self.assertFalse(ui.expiry._bk_help_wrapper.visible)
 
 
 from market_feed import FeedError

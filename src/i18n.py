@@ -122,6 +122,14 @@ HI={
 }
 HI.update({"Auto":"ऑटो","Manual":"मैन्युअल","Paper":"पेपर","Semi-Auto":"अर्ध-ऑटो","Assisted":"सहायता मोड","Auto (Paper)":"ऑटो (पेपर)","Nearest":"निकटतम","Next":"अगली","Nearest (preview)":"निकटतम (अनुमान)","Next (preview)":"अगली (अनुमान)","Any":"कोई भी","Custom":"अपना","Analysis":"विश्लेषण","Chart":"चार्ट","Both":"दोनों","Candlestick":"कैंडल","Line":"लाइन","Auto trend":"ऑटो ट्रेंड","बंद करें":"बंद करें","अभी की स्थिति":"अभी की स्थिति","Lightweight chart: preparing...":"हल्का चार्ट तैयार हो रहा है…","Broker orders disabled. Paper Buy/Sell is simulated.":"ब्रोकर ऑर्डर बंद हैं। पेपर खरीद/बिक्री केवल अभ्यास है।"})
 HI.update({
+    "Live":"लाइव","Paper":"पेपर",
+    "LIVE • Options, Orders & Positions":"लाइव • ऑप्शन्स, ऑर्डर और पोजीशन",
+    "Paper • Practice only":"पेपर • केवल अभ्यास",
+    "Settings • Broker & Data":"सेटिंग्स • ब्रोकर और डेटा",
+    "Broker connection settings":"ब्रोकर कनेक्शन सेटिंग्स",
+    "All simulation controls are on this page. No real broker orders are sent from Paper.":"अभ्यास के सभी नियंत्रण इस पेज पर हैं। पेपर से असली ब्रोकर ऑर्डर नहीं जाते।",
+    "Broker data, option selection and real order controls are on this page. Paper practice is page 5.":"ब्रोकर डेटा, ऑप्शन चयन और असली ऑर्डर के नियंत्रण इसी पेज पर हैं। पेपर अभ्यास पाँचवें पेज पर है।",
+    "Tap a CE or PE premium to select that exact contract for LIVE review.":"उसी कॉन्ट्रैक्ट की लाइव जाँच के लिए CE या PE प्रीमियम दबाएँ।",
 "Verified CE/PE feed not connected. Simulated premiums are excluded.":"सत्यापित कॉल/पुट feed जुड़ी नहीं है। अनुमानित प्रीमियम इसमें शामिल नहीं हैं।",
 "Save failed — device storage unavailable":"सेव नहीं हुआ — डिवाइस स्टोरेज उपलब्ध नहीं",
 "WAITING FOR DATA • verified option-chain feed not connected":"डेटा का इंतजार • सत्यापित ऑप्शन चेन जुड़ी नहीं",

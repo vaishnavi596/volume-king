@@ -39,7 +39,7 @@ class LanguageTests(unittest.TestCase):
         localize_tree(text,'English');self.assertEqual(text.value,'Saved automatically')
     def test_help_in_both_languages_and_original_label_retained(self):
         _,v=start({'scanner_live':False,'language':'हिंदी'})
-        v['select'](2)
+        v['select'](4)
         self.assertEqual(v['sl']._bk_original_label,'Stop loss %')
         self.assertIn('जोखिम',describe(v['sl']._bk_original_label,'हिंदी'))
         self.assertIn('paper demonstration',describe('Stop loss %','English'))
@@ -49,7 +49,7 @@ class LanguageTests(unittest.TestCase):
         _,v=start({'scanner_live':False})
         for language in ('हिंदी','English','हिंदी'):
             v['prefs']['language']=language
-            for page in range(4):
+            for page in range(5):
                 v['select'](page);seen=set()
                 def walk(c):
                     self.assertNotIn(id(c),seen);seen.add(id(c))

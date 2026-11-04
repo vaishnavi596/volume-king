@@ -56,13 +56,13 @@ class AuditTests(unittest.TestCase):
     def test_all_pages_have_unique_controls_and_restore_page(self):
         page,v=start({'last_page':2,'scanner_live':False})
         self.assertEqual(v['current'],[2])
-        for i in range(4):
+        for i in range(5):
             v['select'](i);seen=set()
             def walk(c):
                 self.assertNotIn(id(c),seen);seen.add(id(c))
                 for child in c._get_children():walk(child)
             for c in v['body'].controls:walk(c)
-        self.assertEqual(page.client_storage.get('bot_king_preferences')['last_page'],3)
+        self.assertEqual(page.client_storage.get('bot_king_preferences')['last_page'],4)
 
     def test_autosave_is_independent_and_restores_dropdown_types(self):
         page,v=start({'scanner_symbol':'BANKNIFTY','scanner_timeframe':'3m','scanner_budget':'Custom','scanner_min':70,'scanner_max':140,'scanner_live':False,'bot_lots':2,'max_total_lots':4,'option_qty':3})
@@ -350,13 +350,17 @@ class AuditTests(unittest.TestCase):
             for c in controls:walk(c)
             return out
         options=' | '.join(texts(v['options']()))
-        for name in ['Option Chain','OI Analysis','Put Call Ratio','Premium Money Flow','Strategy Selector']:self.assertIn(name,options)
+        for name in ['Option Chain','OI Analysis','Put Call Ratio','Premium Money Flow','LIVE ORDER & BOT STATUS']:self.assertIn(name,options)
         home=texts(v['dashboard']());self.assertNotIn('Tools',home)
-        self.assertIn("TODAY'S PAPER RISK",home)
+        self.assertNotIn("TODAY'S PAPER RISK",home)
+        practice=" | ".join(texts(v["paper_page"]()))
+        self.assertIn("TODAY'S PAPER RISK",practice)
+        self.assertIn("Strategy Selector",practice)
         self.assertEqual(v['body'].horizontal_alignment,ft.CrossAxisAlignment.STRETCH)
         v['sl'].value='invalid';v['save_page'](1)
         self.assertEqual(v['page_save_status'][1].value,'Saved on this device')
-        v['save_page'](2);self.assertIn('stop_loss',v['page_save_status'][2].value)
+        v['save_page'](2);self.assertNotIn('stop_loss',v['page_save_status'][2].value)
+        v['save_page'](4);self.assertIn('stop_loss',v['page_save_status'][4].value)
 
     def test_backup_restore_excludes_secrets_and_never_arms_automation(self):
         import json
