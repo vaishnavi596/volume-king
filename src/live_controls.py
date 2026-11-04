@@ -1,6 +1,7 @@
 """Manual real-money controls. Every submit/cancel requires its own confirmation."""
 import asyncio
 import math
+import time
 import uuid
 
 import flet as ft
@@ -19,6 +20,8 @@ class LiveOrderControls:
         self.linked_options = False
         self.on_contract_change = None
         self.on_segment_change = None
+        self.on_account_update = None
+        self.positions_snapshot = None
         self.ack = ft.Checkbox(label="I understand: real money, intraday LIMIT orders, no automatic SL/target", value=False)
         self.phrase = ft.TextField(label="Type ENABLE LIVE TRADING to arm for 15 minutes")
         self.segment = ft.Dropdown(label="Live segment", value="Options", options=[ft.dropdown.Option(x) for x in ("Options", "Cash")])
@@ -75,6 +78,7 @@ class LiveOrderControls:
         self.generation += 1
         self.review = None
         self.capabilities = {}
+        self.positions_snapshot = None
         self.phrase.value = ""
         self.ack.value = False
         self.status.value = message
@@ -101,6 +105,7 @@ class LiveOrderControls:
             if (generation, epoch) != (self.generation, self.feed.epoch):return
             self.capabilities = caps
             if not caps.get("enabled"):
+                self.positions_snapshot=None
                 self.status.value = "Live trading is disabled on this server. Market data/Paper remain available."
                 return
             self.limit_text.value = ("Account ending " + caps.get("account_hint", "") + " • maximum INR " + caps["max_order_value"]
@@ -108,6 +113,7 @@ class LiveOrderControls:
             rows = await asyncio.to_thread(self.feed.live, "orders")
             positions = await asyncio.to_thread(self.feed.live, "positions")
             if (generation, epoch) != (self.generation, self.feed.epoch):return
+            self.positions_snapshot={"rows":[dict(row) for row in positions],"time":time.time(),"epoch":epoch}
             self.orders.controls = []
             for row in rows:
                 text = (row["symbol"] + " • " + row["side"] + " " + str(row["quantity"]) + " @ " + row["limit_price"]
@@ -119,10 +125,13 @@ class LiveOrderControls:
             self.positions.controls = [ft.Text(" • ".join(str(row.get(k, "")) for k in ("tradingsymbol", "producttype", "netqty", "pnl")), size=12) for row in positions] or [ft.Text("Broker returned no open positions.", size=12)]
             self.status.value = "Live controls " + ("ARMED for this session" if caps.get("armed") else "DISARMED") + ". Order acknowledgement is not a fill; check filled quantity and broker positions."
         except Exception as exc:
-            if (generation, epoch) == (self.generation, self.feed.epoch):self.error(exc)
+            if (generation, epoch) == (self.generation, self.feed.epoch):
+                self.positions_snapshot=None
+                self.error(exc)
         finally:
             self.busy = False
             self.update()
+            if self.on_account_update:self.on_account_update()
 
     async def arm(self):
         if self.busy:return

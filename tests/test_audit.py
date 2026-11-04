@@ -219,8 +219,9 @@ class AuditTests(unittest.TestCase):
                 asyncio.run(run())
                 self.assertNotIn('Refresh failed',v['scan_status'].value)
                 rendered=texts(v['scan_result'].controls)
-                self.assertIn('TOP SETUP • SIMULATION ONLY',rendered)
-                self.assertIn('Scenario horizon: '+v['timeframe_spec'](tf)['horizon'],rendered)
+                self.assertIn('BROKER PREMIUM QUOTES',rendered)
+                self.assertNotIn('TOP SETUP • SIMULATION ONLY',rendered)
+                self.assertNotIn('Illustrative targets',rendered)
                 self.assertFalse(v['diagnostics'])
 
     def test_stale_wait_reason_is_not_sideways(self):
@@ -241,7 +242,8 @@ class AuditTests(unittest.TestCase):
             for child in c._get_children():walk(child)
         for c in v['scan_result'].controls:walk(c)
         text=' | '.join(values)
-        self.assertIn('Last candle is too old',text)
+        self.assertIn('NIFTY • WAIT',text)
+        self.assertIn('STALE',text)
         self.assertNotIn('Market is sideways',text)
 
     def test_expiry_preview_uses_same_calendar_and_skips_closed_today(self):

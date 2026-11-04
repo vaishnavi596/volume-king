@@ -58,7 +58,7 @@ class SnapshotTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
             _,v=start({'scanner_live':False,'source':'Auto'},cache_path=path)
-            v['market_store'].put('market',('Auto','NIFTY','5m','7d'),self.market())
+            v['market_store'].put('market',('Broker API','NIFTY','5m','7d'),dict(self.market(),source='Angel One'))
             _,restored=start({'scanner_live':False,'source':'Auto'},cache_path=path)
             self.assertEqual(restored['quotes']['NIFTY']['price'],100)
             with patch('urllib.request.urlopen',side_effect=OSError('offline')):

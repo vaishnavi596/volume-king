@@ -73,7 +73,8 @@ class MonitoringAuditTests(unittest.TestCase):
         card=v['execution_capabilities']()
         text=' '.join(str(getattr(c,'value','')) for c in card.content.controls[1].controls)
         self.assertIn('Live orders: OFF',text)
-        self.assertTrue(card.content.controls[1].controls[-1].disabled)
+        self.assertIn('automatic SL/target unavailable',text)
+        self.assertEqual(len(card.content.controls[1].controls),3)
     def test_option_help_uses_its_own_component_error(self):
         _,v=start({'scanner_live':False})
         key='options:'+v['chain_symbol'].value+':'+v['expiry'].value
