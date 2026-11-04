@@ -1,5 +1,6 @@
 """Hindi and English explanations shared by section and field help."""
 EN_HELP={
+ "execution capabilities":"Market data login is read-only. Paper orders are local simulations. Live orders, broker-side SL/target and server automation are not connected. Screen-lock continuity is not guaranteed.",
  "premium budget":"This filters illustrative premium candidates by price range. It is not the total trade cost or your broker balance.",
  "refresh":"While this app is open, data is checked at an interval. Automatic refresh may pause outside regular market hours. This is not a background service or tick streaming.",
  "period":"History period controls how much data is requested; timeframe is the duration of one candle. Intraday history depends on the source.",
@@ -33,6 +34,7 @@ EN_HELP={
 def describe(label,language="हिंदी"):
     text=str(label).lower()
     rules=[
+      (("execution capabilities","live auto trading"),"बाजार डेटा का login केवल पढ़ने के लिए है। पेपर ऑर्डर स्थानीय अभ्यास हैं। वास्तविक ऑर्डर, ब्रोकर SL/लक्ष्य और सर्वर ऑटोमेशन जुड़े नहीं हैं। फोन लॉक में लगातार चलने की गारंटी नहीं है।"),
       (("premium budget",),"यह premium की चुनी हुई सीमा है। Scanner इसी सीमा में simulation candidates छाँटता है। यह पूरे trade का कुल खर्च या उपलब्ध broker balance नहीं है।"),
       (("refresh","auto scan"),"यह ऐप खुला रहने पर तय अंतराल में डेटा दोबारा जाँचता है। बाजार बंद होने पर automatic refresh रुक सकता है। यह background service या tick-by-tick streaming नहीं है।"),
       (("period","history"),"यह इतिहास की अवधि है। Timeframe एक candle की अवधि है। स्रोत के अनुसार intraday history सीमित हो सकती है।"),
