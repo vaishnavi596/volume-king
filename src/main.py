@@ -10,6 +10,7 @@ from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
 from feed_health import FeedHealth,safe_error,retry_delay
+from preference_store import PreferenceWriter,load_preferences
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -227,23 +228,19 @@ def app_main(page:ft.Page):
     page.window_width=420; page.window_height=850
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
-    try:
-        if STATE.exists(): prefs.update(json.loads(STATE.read_text()))
-    except Exception: pass
-    try:
-        stored=page.client_storage.get("bot_king_preferences")
-        if isinstance(stored,dict):prefs.update(stored)
-    except Exception:pass
+    prefs.update(load_preferences(STATE,page.client_storage))
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
-        for root in page.controls:localize_tree(root,prefs.get("language","English"))
-        return original_page_update(*args,**kwargs)
+        with view_lock:
+            for root in page.controls:localize_tree(root,prefs.get("language","English"))
+            return original_page_update(*args,**kwargs)
     page.update=localized_update
     diagnostics=[]
     from threading import RLock
     trade_lock=RLock()
+    view_lock=RLock()
     scan_generation=[0]
     provider_generation=[0]
     angel_feed=AngelFeed()
@@ -511,19 +508,13 @@ def app_main(page:ft.Page):
         previous=meta.get("chartPreviousClose") or meta.get("previousClose")
         change=((price/previous-1)*100) if price is not None and previous else None
         return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M"),"source":"Yahoo Finance","quote_timestamp":meta.get("regularMarketTime"),"fetched_at":datetime.now(timezone.utc).timestamp()}
+    preference_writer=PreferenceWriter(page,STATE,int(prefs.get("_prefs_revision",0)),lambda exc:log_error("preferences",exc))
     def save():
-        # Android-friendly persistent preferences; never persist broker secrets.
+        # Never call synchronous native clientStorage RPC from async refresh tasks.
         safe={k:v for k,v in prefs.items() if k not in ("api_key","api_secret","access_token","password","totp")}
-        errors=[]
-        try:
-            page.client_storage.set("bot_king_preferences",safe)
-            return True
-        except Exception as exc:errors.append(str(exc))
-        try:
-            STATE.write_text(json.dumps(safe))
-            return True
-        except Exception as exc:errors.append(str(exc))
-        return False
+        result=preference_writer.save(safe)
+        prefs["_prefs_revision"]=preference_writer.revision
+        return result
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
@@ -1101,7 +1092,7 @@ def app_main(page:ft.Page):
             when=datetime.fromtimestamp(float(stamp),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
             return source_name+" • "+("Last saved quote" if q.get("cached") else "Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when+" • "+age_label(float(stamp))
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
-    def data_source_panel():
+    def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
             options=[ft.dropdown.Option(x) for x in ("Auto","Yahoo Finance","Broker API")])
         def changed(e):
@@ -1109,7 +1100,7 @@ def app_main(page:ft.Page):
             source.on_change(type("SourceChange",(),{"control":source})())
             page.run_task(refresh_selected_options)
         chooser.on_change=changed
-        sym=chain_symbol.value if current[0]==1 else (scan_symbol.value or "NIFTY")
+        sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
             note("Auto: Angel One first; Yahoo fallback for available underlying data. CE/PE requires a supported option feed. Options poll every 15 seconds while open during regular hours; not tick streaming. No live orders.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
@@ -1167,7 +1158,7 @@ def app_main(page:ft.Page):
                     hist=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
                     if generation==provider_generation[0] and sym==scan_symbol.value:
                         quotes[sym]=hist
-                        if current[0]==0:select(0)
+                        if current[0]==0:request_view_refresh(0)
                 except Exception as exc:log_error("selected_quote",exc)
             await asyncio.sleep(15)
     def selected_option_rows():
@@ -2427,17 +2418,48 @@ console.log('BOT KING Lightweight Charts ready');
             prefs["language"]=e.control.value;save();select(current[0])
         picker.on_change=change_language
         return picker
-    def select(i):
+    nav_items=[]
+    for j in range(len(pages)):
+        icon=ft.Icon(icons[j],color=MUTED,size=19)
+        label=txt(names[j],9,MUTED)
+        button=ft.TextButton(content=ft.Column([icon,label],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6)))
+        navbar.controls.append(ft.Container(content=button,expand=1))
+        nav_items.append((icon,label))
+    first_render=[True]
+    refresh_pending=[False]
+    refresh_target=[None]
+    async def flush_view_refresh():
+        await asyncio.sleep(.25)
+        target=refresh_target[0];refresh_pending[0]=False;refresh_target[0]=None
+        select(target,refresh_only=True)
+    def request_view_refresh(i):
+        if current[0]!=i:return
+        refresh_target[0]=i
+        if not refresh_pending[0]:
+            refresh_pending[0]=True
+            page.run_task(flush_view_refresh)
+    def select(i,refresh_only=False):
+        with view_lock:
+            if refresh_only and current[0]!=i:return
+            render_page(i)
+    def render_page(i):
+        changed=current[0]!=i
+        try:
+            # Construct the new page first; a builder error must not erase the old page.
+            controls=[language_panel()]+[decorate_help(c) for c in (([data_source_panel(i)] if i!=2 else [])+pages[i]())]
+        except Exception as exc:
+            log_error("navigation",exc)
+            page.open(ft.AlertDialog(title=txt("Page could not open",17,GOLD,True),content=note("A page error was recorded in Diagnostics. The previous page remains available."))) if hasattr(page,"open") else None
+            return
         current[0]=i
-        prefs["last_page"]=i;save()
-        body.controls.clear()
-        body.controls.extend([language_panel()]+[decorate_help(c) for c in (([data_source_panel()] if i!=2 else [])+pages[i]())])
-        navbar.controls.clear()
-        for j in range(len(pages)):
-            navbar.controls.append(ft.Container(content=ft.TextButton(content=ft.Column([ft.Icon(icons[j],color=GOLD if i==j else MUTED,size=19),txt(names[j],9,GOLD if i==j else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6))),expand=1))
+        if changed:prefs["last_page"]=i;save()
+        body.controls[:]=controls
+        for j,(icon,label) in enumerate(nav_items):
+            icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
         page.update()
-        page.run_task(restore_scroll,i)
+        if changed or first_render[0]:page.run_task(restore_scroll,i)
+        first_render[0]=False
     page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.9.0 MONITORING AUDIT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
@@ -2469,7 +2491,7 @@ console.log('BOT KING Lightweight Charts ready');
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
-                            if current[0]==0 and market_completed[0]%5==0:select(0)
+                            if current[0]==0 and market_completed[0]%5==0:request_view_refresh(0)
                             return not data.get("cached")
                         except Exception:
                             return False
@@ -2497,7 +2519,7 @@ console.log('BOT KING Lightweight Charts ready');
                         scan_progress["failed"]+=int(not bool(result and result.get("timestamp")))
                         scan_progress["cached"]+=int(bool(data and data.get("cached")))
                         publish_partial_ranking(ranking_results)
-                        if current[0]==0:select(0)
+                        if current[0]==0:request_view_refresh(0)
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
@@ -2518,7 +2540,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if available:
                     market_store.put("ranking",("configured50",),{"rows":top5_candidates,"checked_at":top5_last_update[0]})
                 try:
-                    if current[0] in (0,1):select(current[0])
+                    if current[0] in (0,1):request_view_refresh(current[0])
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
@@ -2570,5 +2592,6 @@ def main(page: ft.Page):
         page.update()
 
 ft.app(target=main)
+
 
 
