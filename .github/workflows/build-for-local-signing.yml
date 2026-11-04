@@ -1,0 +1,105 @@
+
+name: Build 2.1.0 for permanent local signing
+
+on:
+  push:
+    branches: [ bot-king-build-2-1-0 ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
+      - name: Install required Android NDK
+        run: |
+          set -e
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK_ROOT"
+          for attempt in 1 2 3; do
+            echo "Installing NDK 25.1.8937393 (attempt $attempt)"
+            if yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "ndk;25.1.8937393"; then
+              test -f "$SDK_ROOT/ndk/25.1.8937393/source.properties" && break
+            fi
+            rm -rf "$SDK_ROOT/ndk/25.1.8937393"
+            sleep 10
+          done
+          test -f "$SDK_ROOT/ndk/25.1.8937393/source.properties"
+
+      - name: Install Flet
+        run: pip install flet==0.25.2 flet-webview==0.1.0
+
+      - name: Verify Flet version
+        run: flet --version
+
+      - name: Check Python syntax before APK packaging
+        run: python -m py_compile src/main.py src/scanner_engine.py
+
+      - name: Verify build dependencies
+        run: |
+          python -m pip check
+          python -c "import flet; import importlib.metadata as m; print('Flet:', m.version('flet'))"
+
+      - name: Offline UI and persistence regression tests
+        run: |
+          pip install -r backend/requirements.txt httpx==0.28.1
+          python -m unittest discover -s tests -v
+
+      - name: Build intermediate APK for owner signing
+        run: |
+          set -euo pipefail
+          BUILD_CODE=$(( $(date -u +%s) - 1704067200 + 1000000 ))
+          test "$BUILD_CODE" -gt 1000000
+          test "$BUILD_CODE" -le 2100000000
+          flet build apk --include-packages flet_webview --build-number "$BUILD_CODE"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS=$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          mkdir -p build/local-signing
+          cp build/apk/app-release.apk build/local-signing/app-intermediate.apk
+          cp "$BUILD_TOOLS/lib/apksigner.jar" build/local-signing/apksigner.jar
+          "$BUILD_TOOLS/aapt" dump badging build/local-signing/app-intermediate.apk > build/local-signing/manifest.txt
+          grep -F "package: name='com.botking.bot_king'" build/local-signing/manifest.txt
+          grep -F "versionCode='$BUILD_CODE'" build/local-signing/manifest.txt
+          cp config/android-signing.sha256 build/local-signing/android-signing.sha256
+          python - <<'PY2'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path('build/local-signing')
+          entries={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir()}
+          (root/'provenance.json').write_text(json.dumps({'commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'run_number':os.environ['GITHUB_RUN_NUMBER'],'run_attempt':os.environ['GITHUB_RUN_ATTEMPT'],'sha256':entries},sort_keys=True))
+          PY2
+
+      - name: Upload intermediate files (not the installable release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: botking-intermediate-2.1.0
+          path: build/local-signing/*
+          retention-days: 3
+          if-no-files-found: error

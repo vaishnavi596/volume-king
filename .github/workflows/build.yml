@@ -94,7 +94,9 @@ jobs:
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          BUILD_CODE=$(( $(date -u +%s) - 1704067200 + 1000000 ))
+          test "$BUILD_CODE" -gt 1000000
+          test "$BUILD_CODE" -le 2100000000
           flet build apk --include-packages flet_webview --build-number "$BUILD_CODE"
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           BUILD_TOOLS=$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
