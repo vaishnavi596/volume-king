@@ -11,6 +11,7 @@ from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
 from feed_health import FeedHealth,safe_error,retry_delay
 from preference_store import PreferenceWriter,load_preferences
+from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -420,7 +421,22 @@ def app_main(page:ft.Page):
             else:
                 row=out[bucket];row[2]=max(row[2],h);row[3]=min(row[3],l);row[4]=c;row[5]+=v
         return list(out.values())
+    market_recent={};market_locks={};market_registry_lock=RLock()
     def get_market_data(ticker,interval="5m",range_="1d"):
+        import time,copy
+        key=(provider_generation[0],angel_feed.epoch,prefs.get("source","Auto"),ticker,interval,range_)
+        with market_registry_lock:lock=market_locks.setdefault(key,RLock())
+        with lock:
+            cached=market_recent.get(key)
+            if cached and time.monotonic()-cached[0]<10:return copy.deepcopy(cached[1])
+            result=fetch_market_data_uncached(ticker,interval,range_)
+            if key[0]!=provider_generation[0]:raise RuntimeError("Obsolete market response")
+            with market_registry_lock:
+                market_recent[key]=(time.monotonic(),copy.deepcopy(result))
+                for old in list(market_recent):
+                    if time.monotonic()-market_recent[old][0]>30:market_recent.pop(old,None)
+            return result
+    def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
         selected=prefs.get("source","Auto")
         generation=provider_generation[0]
@@ -638,7 +654,7 @@ def app_main(page:ft.Page):
     def execution_capabilities():
         return section("EXECUTION CAPABILITIES",ft.Column([
             note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Yahoo / saved data; broker not connected")),
-            note("Paper orders: local simulation • strategy switches: saved plans"),
+            note("Paper orders: local simulation • strategies: Start + manual ticks only"),
             note("Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"),
             note("Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading."),
             runtime_status,ft.ElevatedButton("Live auto trading • not available",disabled=True),
@@ -1223,10 +1239,10 @@ def app_main(page:ft.Page):
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
         content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
-        content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero."),save_footer(1)])
+        content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
-    source=ft.Dropdown(label="Data provider",value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
+    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
     broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="Custom HTTPS API endpoint",value=prefs.get("api_url",""))
@@ -1301,6 +1317,26 @@ def app_main(page:ft.Page):
         page.run_task(connect_angel)
 
     # Trading Bot controls: offline calculation and paper-only order simulation.
+    bot_segment=ft.Dropdown(label="Segment",value=prefs.get("bot_segment","Options"),options=[ft.dropdown.Option("Options"),ft.dropdown.Option("Cash")])
+    bot_side=ft.Dropdown(label="Plan side",value=prefs.get("bot_side","BUY"),options=[ft.dropdown.Option("BUY"),ft.dropdown.Option("SELL")])
+    cash_max_quantity=ft.TextField(label="Maximum total cash shares",value=str(prefs.get("cash_max_quantity",10000)))
+    cash_quantity=ft.TextField(label="Cash shares",value=str(prefs.get("cash_quantity",1)),keyboard_type=ft.KeyboardType.NUMBER)
+    manual_contract_confirmed=ft.Checkbox(label="I verified manual contract, lot size and premium • Paper only",value=bool(prefs.get("manual_contract_confirmed",False)))
+    paper_capital=ft.TextField(label="Paper capital (INR)",value=str(prefs.get("paper_capital",100000)))
+    paper_notional_limit=ft.TextField(label="Max paper notional per position (not margin)",value=str(prefs.get("paper_notional_limit",100000)))
+    paper_trade_risk=ft.TextField(label="Max planned risk per trade (INR)",value=str(prefs.get("paper_trade_risk",1000)))
+    paper_risk_pct=ft.TextField(label="Max planned risk per trade (%)",value=str(prefs.get("paper_risk_pct",1)))
+    paper_exit_price=ft.TextField(label="Manual exit price • optional; blank means unknown",value="")
+    paper_exit_fees=ft.TextField(label="Paper charges (INR) • 0 excludes charges",value="0")
+    paper_max_additions=ft.TextField(label="Maximum paper additions",value=str(prefs.get("paper_max_additions",1)))
+    paper_add_units=ft.TextField(label="Lots / shares per addition",value=str(prefs.get("paper_add_units",1)))
+    paper_trail_pct=ft.TextField(label="Paper trailing price distance (%)",value=str(prefs.get("paper_trail_pct",2)))
+    paper_partial_trigger=ft.TextField(label="Paper partial profit trigger (%)",value=str(prefs.get("paper_partial_trigger",2)))
+    paper_partial_pct=ft.TextField(label="Paper partial quantity (%)",value=str(prefs.get("paper_partial_pct",50)))
+    paper_reentry_after_sl=ft.Checkbox(label="Allow paper re-entry after stop-loss",value=bool(prefs.get("paper_reentry_after_sl",False)))
+    paper_bot_state=["Stopped"];paper_last_exit={};paper_exit_reason=["Manual paper exit"]
+    paper_state_status=txt("Paper bot stopped • no live orders • manual marks required",12,GOLD)
+
     bot_symbol=ft.Dropdown(label="Instrument",value=prefs.get("bot_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","FINNIFTY","HDFCBANK","ICICIBANK","RELIANCE","SBIN","Custom"]])
     bot_custom=ft.TextField(label="Custom symbol (optional)",value=prefs.get("bot_custom",""))
     bot_type=ft.Dropdown(label="Option type",value=prefs.get("bot_type","CE"),options=[ft.dropdown.Option(x) for x in ["CE","PE"]])
@@ -1332,12 +1368,12 @@ def app_main(page:ft.Page):
     bot_custom.on_change=update_expiry
     bot_lot_size=ft.TextField(label="Units per lot (verify with exchange)",value=str(prefs.get("bot_lot_size",1)),keyboard_type=ft.KeyboardType.NUMBER)
     bot_premium=ft.TextField(label="Entry premium (INR)",value=str(prefs.get("bot_premium",80)),keyboard_type=ft.KeyboardType.NUMBER)
-    bot_trailing=ft.Switch(label="Trailing stop (calculation only)",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
+    bot_trailing=ft.Switch(label="Trailing stop • paper manual ticks",value=bool(prefs.get("bot_trailing",False)),active_color=GOLD)
     # Saved strategy preferences only: no unattended execution or live orders.
-    auto_entry=ft.Switch(label="Auto entry (saved plan only)",value=bool(prefs.get("auto_entry",False)),active_color=GOLD)
-    auto_reentry=ft.Switch(label="Re-entry after exit (saved plan)",value=bool(prefs.get("auto_reentry",False)),active_color=GOLD)
-    buy_dip=ft.Switch(label="Buy on dip (saved plan only)",value=bool(prefs.get("buy_dip",False)),active_color=GOLD)
-    partial_profit=ft.Switch(label="Partial profit booking (plan)",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
+    auto_entry=ft.Switch(label="Entry when Paper Start is pressed",value=bool(prefs.get("auto_entry",False)),active_color=GOLD)
+    auto_reentry=ft.Switch(label="Paper re-entry on a new manual tick",value=bool(prefs.get("auto_reentry",False)),active_color=GOLD)
+    buy_dip=ft.Switch(label="Paper averaging on manual ticks • BUY only",value=bool(prefs.get("buy_dip",False)),active_color=GOLD)
+    partial_profit=ft.Switch(label="Paper partial profit on manual ticks",value=bool(prefs.get("partial_profit",False)),active_color=GOLD)
     max_total_lots=ft.Dropdown(label="Maximum total lots",value=str(prefs.get("max_total_lots",2)),options=[ft.dropdown.Option(str(i)) for i in range(1,51)])
     dip_step=ft.TextField(label="Minimum dip before adding (%)",value=str(prefs.get("dip_step",5)),keyboard_type=ft.KeyboardType.NUMBER)
     max_daily_loss=ft.TextField(label="Daily planned-risk budget (paper INR)",value=str(prefs.get("max_daily_loss",1000)),keyboard_type=ft.KeyboardType.NUMBER)
@@ -1351,7 +1387,7 @@ def app_main(page:ft.Page):
     protection_trail=ft.TextField(label="Profit giveback from peak (%)",value=str(prefs.get("protection_trail",25)))
     protection_timeout=ft.TextField(label="Assisted response timeout (seconds)",value=str(prefs.get("protection_timeout",30)))
     protection_no_reply=ft.Checkbox(label="Allow PAPER exit after timeout if I do not respond",value=bool(prefs.get("protection_no_reply",False)))
-    paper_mark=ft.TextField(label="Current PAPER premium • manually supplied",hint_text="No live option feed is connected")
+    paper_mark=ft.TextField(label="Current PAPER price • manually supplied",hint_text="No live option feed is connected")
     protection_status=txt("Live position protection is NOT connected. Paper demonstration requires a manual current premium.",12,GOLD)
     protection_sample={};protection_pending={};protection_peak=[0.0]
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
@@ -1360,29 +1396,34 @@ def app_main(page:ft.Page):
     bot_expiry_mode.value=prefs.get("bot_expiry_mode","Nearest (preview)")
     update_expiry()
     def bot_values():
-        import math
-        p=float(bot_premium.value);st=float(sl.value);tg=float(target.value)
-        if not all(math.isfinite(x) for x in (p,st,tg,float(bot_strike.value))):raise ValueError("Use finite numeric values")
-        lots=int(bot_lots.value);unit=int(bot_lot_size.value);strike=float(bot_strike.value)
-        if not (p>0 and 0<st<100 and 0<tg<=1000 and 1<=lots<=50 and 1<=unit<=100000 and strike>0):
-            raise ValueError("Check premium, strike, lots, lot size, stop loss and target.")
-        if int(max_total_lots.value)<lots:raise ValueError("Maximum total lots must cover the selected entry lots.")
-        if bot_expiry.value:
-            datetime.strptime(bot_expiry.value.strip(),"%Y-%m-%d")
+        p=finite(bot_premium.value,"Entry",.000001);st=finite(sl.value,"Stop",.000001);tg=finite(target.value,"Target",.000001)
+        if not 0<st<100 or not 0<tg<=1000:raise ValueError("Check stop loss and target")
         sym=(bot_custom.value or "").strip().upper() if bot_symbol.value=="Custom" else bot_symbol.value
-        if not sym:raise ValueError("Enter a custom symbol.")
-        contract=f"{sym} {bot_strike.value} {bot_type.value} {bot_expiry.value or '(expiry not set)'}"
-        return p,st,tg,lots*unit,contract
+        if not sym or not all(c.isalnum() or c in "-&." for c in sym):raise ValueError("Enter a valid symbol")
+        if bot_segment.value=="Cash":
+            if sym in ("NIFTY","BANKNIFTY","FINNIFTY","SENSEX"):raise ValueError("An index is not a cash share; choose a stock")
+            qty=int(cash_quantity.value)
+            if qty<1:raise ValueError("Cash quantity must be a positive integer")
+            contract=sym+" CASH"
+            if qty>int(cash_max_quantity.value):raise ValueError("Maximum total shares exceeded")
+        else:
+            lots=int(bot_lots.value);unit=int(bot_lot_size.value);strike=finite(bot_strike.value,"Strike",.000001)
+            if not (1<=lots<=50 and 1<=unit<=100000):raise ValueError("Check lots and units per lot")
+            if lots>int(max_total_lots.value):raise ValueError("Maximum total lots must cover the selected entry lots.")
+            if not bot_expiry.value:raise ValueError("Set contract expiry")
+            validate_expiry(bot_expiry.value,datetime.now(timezone(timedelta(hours=5,minutes=30))).date())
+            contract=f"{sym} {strike:g} {bot_type.value} {bot_expiry.value}"
+            qty=lots*unit
+        return p,st,tg,qty,contract
+    def check_trade_risk(price,qty,stop):
+        return risk_check(price,qty,stop,paper_capital.value,paper_notional_limit.value,paper_trade_risk.value,paper_risk_pct.value)
     def calculate_bot(e=None):
         try:
-            p,st,tg,qty,contract=bot_values()
-            bot_preview.value=(f"{contract} | Qty {qty} | Entry INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f} | "
-                               f"Cost INR {p*qty:,.2f} | Max planned loss INR {p*qty*st/100:,.2f} | Planned profit INR {p*qty*tg/100:,.2f}. "
-                               "Illustrative premium-based calculations; excludes charges, slippage and gaps. No live option quote.")
+            p,st,tg,qty,contract=bot_values();stop,take=levels(bot_side.value,p,st,tg)
+            planned=check_trade_risk(p,qty,stop)
+            bot_preview.value=f"PAPER {bot_side.value} {contract} | Qty {qty} | Entry INR {p:.2f} | SL INR {stop:.2f} | Target INR {take:.2f} | Notional INR {p*qty:,.2f} | Planned stop-risk INR {planned:,.2f} | Risk:reward 1:{tg/st:.2f}. Not broker margin; charges/slippage/gaps excluded. Short-option loss can exceed planned risk."
             bot_preview.color=GREEN
-        except (ValueError,TypeError,OverflowError) as exc:
-            bot_preview.value="Invalid input: "+str(exc)
-            bot_preview.color=RED
+        except (ValueError,TypeError,OverflowError) as exc:bot_preview.value="Invalid input: "+str(exc);bot_preview.color=RED
         page.update()
     def paper_day():
         return datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat()
@@ -1411,7 +1452,9 @@ def app_main(page:ft.Page):
         return ledgers[today]
     def bot_paper_action(side):
         with trade_lock:
-            bot_paper_action_locked(side)
+            try:bot_paper_action_locked(side)
+            except (ValueError,TypeError,OverflowError) as exc:
+                bot_trade_status.value="Paper action blocked: "+str(exc);bot_trade_status.color=RED;page.update()
     def bot_paper_action_locked(side):
         before=dict(bot_position)
         if mode.value!="Paper":
@@ -1420,7 +1463,18 @@ def app_main(page:ft.Page):
         elif side=="EXIT":
             if bot_position["side"]:
                 valid_mark=(protection_sample.get("position_id")==bot_position.get("position_id") and datetime.now().timestamp()-protection_sample.get("time",0)<=60)
-                bot_trade_status.value="Paper position closed at last MANUAL simulated mark; no live broker quote." if valid_mark else "Paper position closed; exit price/P&L unknown (no live quote)."
+                mark=finite(paper_exit_price.value,"Exit") if str(paper_exit_price.value or "").strip() else protection_sample.get("mark") if valid_mark else None
+                fees=finite(paper_exit_fees.value or 0,"Charges")
+                if mark is not None:
+                    gross,net=paper_pnl(bot_position["side"],bot_position["entry"],mark,bot_position["quantity"],fees)
+                    protection_sample.update(position_id=bot_position.get("position_id"),mark=mark,pnl=net,gross_pnl=gross,fees=fees,time=datetime.now().timestamp())
+                    ledger=paper_risk_ledger();ledger["realized_loss"]=float(ledger.get("realized_loss",0))+max(0,-net)
+                else:
+                    protection_sample.clear()
+                    ledger=paper_risk_ledger();ledger["unknown_exits"]=int(ledger.get("unknown_exits",0))+1
+                paper_last_exit.update(position=dict(bot_position),time=datetime.now().timestamp(),reason=paper_exit_reason[0],known=mark is not None)
+                bot_trade_status.value=paper_exit_reason[0]+(f" • Manual exit {mark:.2f} • net PAPER P&L {protection_sample['pnl']:.2f}" if mark is not None else " • exit price/P&L unknown")
+                paper_exit_reason[0]="Manual paper exit"
                 bot_position.update(side=None,entry=None,quantity=0,contract=None)
                 bot_trade_status.color=GREEN
             else:
@@ -1435,30 +1489,34 @@ def app_main(page:ft.Page):
         else:
             try:
                 p,st,tg,qty,contract=bot_values()
-                if not bot_expiry.value:raise ValueError("Set contract expiry before paper entry.")
+                if not manual_contract_confirmed.value:raise ValueError("Confirm manual contract, lot size and premium before paper entry")
                 validate_field(limit,"max_trades",limit.value)
                 validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
                 ledger=paper_risk_ledger()
                 if int(ledger["entries"])>=int(limit.value):
                     raise ValueError("Daily paper entry limit reached. EXIT remains available.")
-                planned_risk=p*qty*st/100
+                stop,take=levels(side,p,st,tg)
+                planned_risk=check_trade_risk(p,qty,stop)
+                if float(ledger.get("realized_loss",0))>=float(max_daily_loss.value):raise ValueError("Daily realized paper loss limit reached")
                 remaining=float(max_daily_loss.value)-float(ledger["planned_risk_used"])
                 if planned_risk>remaining+1e-9:
                     raise ValueError("Daily paper planned-risk budget exceeded. This is not actual loss accounting.")
                 ledger["entries"]+=1
                 ledger["planned_risk_used"]+=planned_risk
-                bot_position.update(side=side,entry=p,quantity=qty,contract=contract,stop_loss_pct=st,target_pct=tg,position_id=__import__("uuid").uuid4().hex)
+                bot_position.update(side=side,entry=p,quantity=qty,contract=contract,stop_loss_pct=st,target_pct=tg,position_id=__import__("uuid").uuid4().hex,
+                    stop_price=stop,target_price=take,unit_size=1 if bot_segment.value=="Cash" else int(bot_lot_size.value),segment=bot_segment.value,additions=0,last_add_price=p,partial_done=False,best_mark=p)
+                paper_exit_price.value=""
                 protection_sample.clear();protection_pending.clear();protection_peak[0]=0
-                bot_trade_status.value=f"SIMULATED {side} {contract} | {qty} units @ INR {p:.2f} | SL INR {p*(1-st/100):.2f} | Target INR {p*(1+tg/100):.2f}. No real order."
+                bot_trade_status.value=f"SIMULATED {side} {contract} | {qty} units @ INR {p:.2f} | SL INR {stop:.2f} | Target INR {take:.2f}. No real order."
                 bot_trade_status.color=GREEN
             except (ValueError,TypeError,OverflowError) as exc:
                 bot_trade_status.value="Paper entry blocked: "+str(exc)
                 bot_trade_status.color=RED
         if before.get("side")!=bot_position.get("side"):
             journal=prefs.setdefault("paper_journal",[])
-            journal.append({"time":datetime.now(timezone.utc).isoformat(timespec="seconds"),"event":side,"contract":(before if side=="EXIT" else bot_position).get("contract"),"quantity":(before if side=="EXIT" else bot_position).get("quantity"),"entry":(before if side=="EXIT" else bot_position).get("entry"),"reason":bot_trade_status.value,"paper_pnl":protection_sample.get("pnl") if side=="EXIT" and protection_sample.get("position_id")==before.get("position_id") and datetime.now().timestamp()-protection_sample.get("time",0)<=60 else None})
+            journal.append({"time":datetime.now(timezone.utc).isoformat(timespec="seconds"),"event":side,"contract":(before if side=="EXIT" else bot_position).get("contract"),"quantity":(before if side=="EXIT" else bot_position).get("quantity"),"entry":(before if side=="EXIT" else bot_position).get("entry"),"reason":bot_trade_status.value,"exit_price":protection_sample.get("mark") if side=="EXIT" else None,"charges":protection_sample.get("fees") if side=="EXIT" else None,"paper_pnl":protection_sample.get("pnl") if side=="EXIT" and protection_sample.get("position_id")==before.get("position_id") and datetime.now().timestamp()-protection_sample.get("time",0)<=60 else None})
             del journal[:-200]
-            if side=="EXIT":protection_pending.clear();protection_sample.clear();protection_peak[0]=0
+            if side=="EXIT":protection_pending.clear();protection_sample.clear();protection_peak[0]=0;paper_exit_fees.value="0"
         prefs["bot_position"]=dict(bot_position)
         events=prefs.setdefault("bot_paper_events",[])
         events.append({"time":datetime.now(timezone.utc).isoformat(timespec="seconds"),"action":side,"position":dict(bot_position),"status":bot_trade_status.value})
@@ -1501,6 +1559,8 @@ def app_main(page:ft.Page):
         import math
         ints={"max_trades":(1,50),"bot_lots":(1,50),"bot_lot_size":(1,100000),"max_total_lots":(1,50),"cooldown":(1,1440),"option_qty":(1,100000),"confidence":(70,85),"protection_timeout":(5,300)}
         floats={"stop_loss":(0,99.99),"target":(0,100),"bot_premium":(0,1e9),"bot_strike":(0,1e9),"dip_step":(0,100),"max_daily_loss":(0,1e12),"scanner_min":(-1e-9,1e9),"scanner_max":(0,1e9),"protection_loss":(0,1e9),"protection_profit":(0,1e9),"protection_trail":(0,100)}
+        ints.update({"cash_quantity":(1,1000000),"cash_max_quantity":(1,1000000),"paper_max_additions":(0,20),"paper_add_units":(1,10000)})
+        floats.update({"paper_capital":(0,1e12),"paper_notional_limit":(0,1e12),"paper_trade_risk":(0,1e12),"paper_risk_pct":(0,100),"paper_trail_pct":(0,99.99),"paper_partial_trigger":(0,100),"paper_partial_pct":(0,99.99)})
         if key in ints:
             value=int(value);lo,hi=ints[key]
             if not lo<=value<=hi:raise ValueError(f"Enter {lo}–{hi}")
@@ -1588,6 +1648,63 @@ def app_main(page:ft.Page):
                 bot_paper_action("EXIT")
                 protection_status.value="Assisted timeout • PAPER position exited using last manual mark; no live order"
             page.update()
+    def paper_run(action):
+        if action=="Start":
+            try:
+                if mode.value!="Paper":raise ValueError("Select Paper mode")
+                if emergency_stop.value:raise ValueError("Emergency stop is active")
+                bot_values()
+                if not manual_contract_confirmed.value:raise ValueError("Confirm manual contract details")
+                paper_bot_state[0]="Running"
+                if auto_entry.value and not bot_position.get("side"):bot_paper_action(bot_side.value)
+            except (ValueError,TypeError) as exc:paper_state_status.value="Paper Start blocked: "+str(exc);page.update();return
+        else:paper_bot_state[0]="Paused" if action=="Pause" else "Stopped"
+        paper_state_status.value="Paper bot: "+paper_bot_state[0]+" • evaluates only new manual ticks • no live orders"
+        save();page.update()
+    def paper_tick(e=None):
+        with trade_lock:
+            try:
+                if paper_bot_state[0]!="Running" or mode.value!="Paper":raise ValueError("Start the Paper bot first")
+                if not app_active[0]:raise ValueError("App is not active")
+                mark=finite(paper_mark.value,"Manual mark",.000001);now=datetime.now().timestamp()
+                if not bot_position.get("side"):
+                    if not auto_reentry.value or not paper_last_exit:raise ValueError("No paper position; place an entry or enable re-entry")
+                    if not paper_last_exit.get("known") or paper_risk_ledger().get("unknown_exits",0):raise ValueError("Unknown exit P&L blocks automatic paper re-entry")
+                    if "stop" in paper_last_exit.get("reason","").lower() and not paper_reentry_after_sl.value:raise ValueError("Re-entry after stop-loss is OFF")
+                    if now-paper_last_exit["time"]<int(cooldown.value)*60:raise ValueError("Paper re-entry cooldown active")
+                    old=paper_last_exit["position"]
+                    if bot_values()[4]!=old["contract"]:raise ValueError("Contract changed; start a new paper plan")
+                    bot_premium.value=str(mark);prefs["bot_premium"]=mark
+                    bot_paper_action(old["side"]);return
+                settings={"trailing":bot_trailing.value,"trail_pct":paper_trail_pct.value,"partial":partial_profit.value,"partial_trigger":paper_partial_trigger.value,"partial_pct":paper_partial_pct.value,"average":buy_dip.value,"max_additions":int(paper_max_additions.value),"add_units":int(paper_add_units.value),"max_units":int(cash_max_quantity.value) if bot_position.get("segment")=="Cash" else int(max_total_lots.value),"dip_pct":dip_step.value}
+                if bot_values()[4]!=bot_position["contract"]:raise ValueError("Contract changed; exit the existing paper position first")
+                decision=evaluate_mark(bot_position,mark,settings)
+                if decision["action"]=="EXIT":
+                    bot_position.update(decision["position"]);paper_exit_price.value=str(mark);paper_exit_reason[0]=decision["reason"]
+                    bot_paper_action("EXIT");return
+                if decision["action"]=="ADD":
+                    if emergency_stop.value:raise ValueError("Emergency stop blocks additions")
+                    if now-float(bot_position.get("last_add_time",0))<int(cooldown.value)*60:raise ValueError("Addition cooldown active")
+                    new=decision["position"];risk=check_trade_risk(new["entry"],new["quantity"],new["stop_price"])
+                    ledger=paper_risk_ledger()
+                    if float(ledger.get("realized_loss",0))>=float(max_daily_loss.value):raise ValueError("Daily realized paper loss limit reached")
+                    extra=max(0,risk-abs(bot_position["entry"]-bot_position["stop_price"])*bot_position["quantity"])
+                    if ledger["entries"]>=int(limit.value) or ledger["planned_risk_used"]+extra>float(max_daily_loss.value):raise ValueError("Daily paper limit blocks addition")
+                    ledger["entries"]+=1;ledger["planned_risk_used"]+=extra;new["last_add_time"]=now
+                    bot_position.update(new)
+                elif decision["action"]=="PARTIAL":
+                    qty=decision["quantity"];gross,net=paper_pnl(bot_position["side"],bot_position["entry"],mark,qty)
+                    bot_position.update(decision["position"]);bot_position["quantity"]-=qty;bot_position["partial_done"]=True
+                    prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"PARTIAL","contract":bot_position["contract"],"quantity":qty,"entry":bot_position["entry"],"exit_price":mark,"paper_pnl":net,"reason":"Manual-mark paper partial; charges excluded"})
+                else:bot_position.update(decision["position"])
+                protection_sample.clear();prefs["bot_position"]=dict(bot_position)
+                paper_state_status.value="Paper "+decision["action"]+" • "+decision.get("reason","")+" • manual mark "+str(mark)
+                if decision["action"]=="ADD":prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"ADD","contract":bot_position["contract"],"quantity":decision["quantity"],"entry":mark,"paper_pnl":None,"reason":"Manual-mark averaging; stop not widened"})
+                prefs["paper_journal"]=prefs.get("paper_journal",[])[-200:]
+                save();page.update()
+            except (ValueError,TypeError,KeyError,OverflowError) as exc:paper_state_status.value="Paper tick blocked: "+str(exc);page.update()
+    def paper_control_card():
+        return section("PAPER BOT • MANUAL TICK ENGINE",ft.Column([paper_state_status,note("Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position."),ft.Row([ft.ElevatedButton("Start Paper",on_click=lambda e:paper_run("Start")),ft.OutlinedButton("Pause",on_click=lambda e:paper_run("Pause")),ft.OutlinedButton("Stop new actions",on_click=lambda e:paper_run("Stop"))],wrap=True),paper_mark,ft.TextButton("Process manual mark",on_click=paper_tick),cash_max_quantity,paper_max_additions,paper_add_units,paper_trail_pct,paper_partial_trigger,paper_partial_pct,paper_reentry_after_sl],horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def paper_journal_card():
         rows=[]
         for item in reversed(prefs.get("paper_journal",[])[-10:]):
@@ -1686,12 +1803,12 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: read-only market data integration. Credentials go only to Angel One; public IP lookup uses ipify without credentials. No live orders. Other brokers are not integrated.')])))
-        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_symbol, bot_custom, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True), limit, note('Trailing stop is a saved preference only. It does not automatically update or execute orders.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  AUTO STRATEGY (PREFERENCES ONLY)', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Actual realized-loss accounting needs verified exit prices. Auto entry/re-entry, averaging, partial exits, trailing SL and square-off are saved plans only. No live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status, note('Paper orders use manually entered premium, not live market prices. SL/target are displayed, not executed.')], spacing=12))])
+        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
-            section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,paper_mark,
+            section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
                 ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
                 note("No live broker orders or background server are connected. This demo evaluates manually entered premiums while the app is open. It cannot protect real money or operate after the phone closes the app.")],spacing=6)),
-            paper_journal_card(),
+            paper_control_card(),paper_journal_card(),
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(str(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
             help_box("Risk and protection", "Paper limits are local simulations. Broker-side SL/target, filled-order confirmation and an always-on service are required before live automatic protection can be enabled."),
@@ -1699,8 +1816,8 @@ def app_main(page:ft.Page):
             section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
             section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
             section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
-            save_footer(2),
-            note("Live broker orders are not connected. Strategy switches save plans only.")
+
+            note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
         ])
         return content
 
@@ -1769,6 +1886,7 @@ def app_main(page:ft.Page):
     tradingview_status=ft.Text("Lightweight chart: preparing...",size=12,color=MUTED)
     tv_view=[None]
     tv_booted=[False]
+    tv_context=[None];tv_ready=[False];tv_js_view=[None];tv_history=[[]];tv_pending=[None];tv_limit=[300]
     def lightweight_payload(bars):
         import math
         rows={}
@@ -1788,7 +1906,7 @@ def app_main(page:ft.Page):
 <style>html,body{margin:0;height:100%;background:#080f18;color:#eaf1f6;font:12px sans-serif}
 #header{height:62px;padding:6px 8px;box-sizing:border-box;overflow:hidden}#readout{font-size:11px;color:#a9bbc5}
 #chart{height:calc(100% - 134px);width:100%;touch-action:none}#tools{height:36px;display:flex;gap:8px;padding:0 8px}button{background:#193443;color:#eaf1f6;border:1px solid #47616f;border-radius:5px;padding:5px 15px;font-size:15px}#credit{height:36px;padding:3px 8px;box-sizing:border-box;font-size:9px;color:#a9bbc5}a{color:#e9b949}</style>
-</head><body><div id="header"><b id="status">Starting chart...</b><div id="readout"></div></div><div id="tools"><button id="zoomIn">＋</button><button id="zoomOut">−</button><button id="resetZoom">Reset</button></div><div id="chart"></div>
+</head><body><div id="header"><b id="status">Starting chart...</b><div id="readout"></div></div><div id="tools"><button id="zoomIn">＋</button><button id="zoomOut">−</button><button id="resetZoom">Reset</button><button id="moreHistory">More</button></div><div id="chart"></div>
 <div id="credit">TradingView Lightweight Charts™<br>Copyright (с) 2024 TradingView, Inc. <a href="https://www.tradingview.com/">TradingView</a> · Apache 2.0</div>
 <script>'''+LIGHTWEIGHT_CHARTS_JS.replace("</script","<\\/script")+'''</script><script>
 (function(){
@@ -1804,14 +1922,18 @@ const series=options.line?chart.addLineSeries({color:'#16c784',lineWidth:2}):cha
 const ema9=options.ema?chart.addLineSeries({color:'#e9b949',lineWidth:1,priceLineVisible:false,lastValueVisible:false}):null;
 const ema21=options.ema?chart.addLineSeries({color:'#72a7f2',lineWidth:1,priceLineVisible:false,lastValueVisible:false}):null;
 function ema(data,n){let value=data[0].close;return data.map(b=>{value+=(b.close-value)*2/(n+1);return {time:b.time,value:value}})}
-let first=true,latestText='',count=0;
+let first=true,latestText='',count=0,previous=[];
 function resetView(){if(count)chart.timeScale().setVisibleLogicalRange({from:Math.max(0,count-70),to:count+3})}
 function zoom(factor){const r=chart.timeScale().getVisibleLogicalRange();if(!r)return;const span=Math.max(8,Math.min(2000,(r.to-r.from)*factor));chart.timeScale().setVisibleLogicalRange({from:r.to-span,to:r.to})}
 document.getElementById('zoomIn').onclick=()=>zoom(.7);
 document.getElementById('zoomOut').onclick=()=>zoom(1.4);
 document.getElementById('resetZoom').onclick=resetView;
+document.getElementById('moreHistory').onclick=()=>console.log('BK_MORE');
 window.botKingSetData=function(data){
- series.setData(options.line?data.map(b=>({time:b.time,value:b.close})):data);
+ const value=b=>options.line?{time:b.time,value:b.close}:b;
+ const samePrefix=previous.length && data.length>=previous.length && data.length<=previous.length+1 && previous.slice(0,-1).every((b,i)=>JSON.stringify(b)===JSON.stringify(data[i]));
+ if(samePrefix){for(let i=previous.length-1;i<data.length;i++)series.update(value(data[i]))}else{series.setData(data.map(value))}
+ previous=data;
  count=data.length;
  if(data.length){
   if(ema9){ema9.setData(ema(data,9));ema21.setData(ema(data,21))}
@@ -1844,30 +1966,37 @@ console.log('BOT KING Lightweight Charts ready');
         except (AssertionError, RuntimeError):
             pass
     async def tv_load_widget():
-        view=tv_view[0]
-        generation=scan_generation[0]
+        view=tv_view[0];context=tv_context[0]
         if view is None:return
+        sym,interval,period,provider,style,ema,generation=context
+        cached=candles.get("scanner_chart_"+sym) or market_store.get("market",provider,sym,interval,period) or {}
         try:
-            # Flet 0.25.2 Android ignores the initial enableJavascript attribute.
-            # Wait for the native acknowledgement before loading scripts.
-            tv_set_status("TradingView: enabling JavaScript...")
-            await asyncio.to_thread(view.invoke_method, "set_javascript_mode",
-                                    arguments={"value": "true"},
-                                    wait_for_result=True, wait_timeout=10)
+            if tv_js_view[0] is not view:
+                await asyncio.to_thread(view.invoke_method,"set_javascript_mode",arguments={"value":"true"},wait_for_result=True,wait_timeout=10)
+                tv_js_view[0]=view
             if view is not tv_view[0]:return
-            sym=scan_symbol.value or "NIFTY"
-            interval=scan_tf.value or "5m"
-            tv_set_status("Loading source candles for "+sym+"...")
-            hist=await asyncio.to_thread(get_market_data,sym,interval,scan_period.value or "7d")
-            if view is not tv_view[0] or generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
-            candles["scanner_chart_"+sym]=hist
-            quotes[sym]=hist
-            view.load_html(tradingview_widget_html(sym,hist.get("bars") or []),base_url="https://www.tradingview.com/")
+            loaded=False
+            if cached.get("bars"):
+                tv_history[0]=cached["bars"]
+                view.load_html(tradingview_widget_html(sym,tv_history[0][-tv_limit[0]:]),base_url="https://www.tradingview.com/")
+                loaded=True
+                tv_set_status("Saved chart visible • checking newer data...")
+            hist=await asyncio.to_thread(get_market_data,sym,interval,period)
+            if view is not tv_view[0] or context!=tv_context[0] or generation!=provider_generation[0]:return
+            candles["scanner_chart_"+sym]=hist;quotes[sym]=hist;tv_history[0]=hist.get("bars") or []
+            tv_pending[0]=tv_history[0][-tv_limit[0]:]
+            if not loaded:view.load_html(tradingview_widget_html(sym,tv_pending[0]),base_url="https://www.tradingview.com/")
+            elif tv_ready[0]:push_chart_data()
         except Exception as exc:
             log_error("chart",exc)
-            tv_set_status("Chart load failed ("+type(exc).__name__+"). Check provider, internet, and history period; use Retry.")
+            tv_set_status("Chart refresh failed • saved chart retained • Retry available")
+    def push_chart_data():
+        if tv_view[0] is not None and tv_ready[0] and tv_pending[0] is not None:
+            tv_view[0].run_javascript("window.botKingSetData("+json.dumps(lightweight_payload(tv_pending[0]),allow_nan=False)+");")
+            tv_pending[0]=None
+            tv_set_status("Chart ready • "+str(min(tv_limit[0],len(tv_history[0])))+" candles displayed • More loads older history")
     def tv_started(e):
-        tv_set_status("TradingView widget: loading...")
+        if e.control is tv_view[0] and not tv_ready[0]:tv_set_status("Chart initializing...")
     def tv_ended(e):
         if e.control is not tv_view[0]:return
         if not tv_booted[0]:
@@ -1879,6 +2008,13 @@ console.log('BOT KING Lightweight Charts ready');
         try:
             import math
             message=e.message
+            if getattr(e,"control",tv_view[0]) is not tv_view[0]:return
+            if message=="BOT KING Lightweight Charts ready":
+                tv_ready[0]=True;push_chart_data()
+                tv_set_status("Chart ready • touch to inspect • More loads older history");return
+            if message=="BK_MORE":
+                tv_limit[0]=min(len(tv_history[0]),tv_limit[0]+300)
+                tv_pending[0]=tv_history[0][-tv_limit[0]:];push_chart_data();return
             if not message.startswith("BK_VIEW:"):return
             v=json.loads(message[8:]);lo=float(v["from"]);hi=float(v["to"])
             if not (math.isfinite(lo) and math.isfinite(hi) and 0<hi-lo<=100000):return
@@ -1892,6 +2028,7 @@ console.log('BOT KING Lightweight Charts ready');
         if tv_view[0] is not None:
             page.run_task(tv_load_widget)
     def chart_provider_change(e):
+        tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
         save()
@@ -2015,6 +2152,7 @@ console.log('BOT KING Lightweight Charts ready');
     scanner_chart_indicators=[x for x in prefs.get("scanner_chart_indicators",chart_filter_names) if x in chart_filter_names]
     scanner_chart_style=[prefs.get("scanner_chart_style","Candlestick")]
     def scanner_chart_toggle(e):
+        tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
         scanner_chart_visible[0]=not scanner_chart_visible[0]
         prefs["scanner_chart_visible"]=scanner_chart_visible[0];save()
         select(3)
@@ -2062,8 +2200,10 @@ console.log('BOT KING Lightweight Charts ready');
                 parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
                 parts.append(note("Chart/Analysis/Both is selected per filter below. Only EMA currently has a chart overlay."))
                 parts.append(tradingview_status)
-                tv_booted[0]=False
-                tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
+                context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Auto"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
+                if tv_view[0] is None or tv_context[0]!=context:
+                    tv_context[0]=context;tv_booted[0]=False;tv_ready[0]=False;tv_pending[0]=None;tv_limit[0]=300
+                    tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
                 parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
@@ -2140,7 +2280,7 @@ console.log('BOT KING Lightweight Charts ready');
                  scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
             scanner_compact_chart(),fusion_selected,
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
-            scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction."),save_footer(3)]
+            scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
         if scan_busy[0]:return
         scan_busy[0]=True
@@ -2176,7 +2316,8 @@ console.log('BOT KING Lightweight Charts ready');
             if (current[0]==3 and chart_provider[0]=="TradingView Lightweight"
                     and tv_view[0] is not None and sym==scan_symbol.value and interval==scan_tf.value):
                 try:
-                    data=json.dumps(lightweight_payload(bars),allow_nan=False)
+                    data=json.dumps(lightweight_payload(bars[-tv_limit[0]:]),allow_nan=False)
+                    tv_history[0]=bars
                     tv_view[0].run_javascript("if(window.botKingSetData){window.botKingSetData("+data+");}")
                 except Exception as exc:
                     tv_set_status("Chart update failed: "+str(exc)[:120])
@@ -2361,6 +2502,8 @@ console.log('BOT KING Lightweight Charts ready');
         previous=control.on_change
         def changed(e):
             if save_control(control,key):
+                if key in ("bot_symbol","bot_custom","bot_type","bot_strike","bot_expiry","bot_lot_size","bot_lots","bot_expiry_mode","bot_premium","bot_segment","cash_quantity"):
+                    manual_contract_confirmed.value=False;prefs["manual_contract_confirmed"]=False
                 ok=save();status.value="Saved automatically" if ok else "Save failed — device storage unavailable";status.color=GREEN if ok else RED
                 if key.startswith("protection_"):protection_pending.clear()
                 if previous is not None:previous(e)
@@ -2377,6 +2520,7 @@ console.log('BOT KING Lightweight Charts ready');
         (scan_period,"scanner_period"),(scan_expiry,"scanner_expiry"),(scan_auto,"scanner_trend"),(scan_live,"scanner_live"),(scan_refresh,"scanner_refresh"),
         (chain_symbol,"option_symbol"),(option_expiry_choice,"option_expiry_choice"),(expiry,"option_expiry"),(option_strike,"option_strike"),(option_side,"option_side"),(option_qty,"option_qty")]
     bindings.extend([(protection_mode,"protection_mode"),(protection_enabled,"protection_enabled"),(protection_loss,"protection_loss"),(protection_profit,"protection_profit"),(protection_trail,"protection_trail"),(protection_timeout,"protection_timeout"),(protection_no_reply,"protection_no_reply")])
+    bindings.extend([(bot_segment,"bot_segment"),(bot_side,"bot_side"),(cash_quantity,"cash_quantity"),(cash_max_quantity,"cash_max_quantity"),(manual_contract_confirmed,"manual_contract_confirmed"),(paper_capital,"paper_capital"),(paper_notional_limit,"paper_notional_limit"),(paper_trade_risk,"paper_trade_risk"),(paper_risk_pct,"paper_risk_pct"),(paper_max_additions,"paper_max_additions"),(paper_add_units,"paper_add_units"),(paper_trail_pct,"paper_trail_pct"),(paper_partial_trigger,"paper_partial_trigger"),(paper_partial_pct,"paper_partial_pct"),(paper_reentry_after_sl,"paper_reentry_after_sl")])
     for control,key in bindings:bind_saved(control,key)
     def provider_changed(e):
         nonlocal market_status
@@ -2411,7 +2555,7 @@ console.log('BOT KING Lightweight Charts ready');
             try:body.scroll_to(offset=float(prefs.get("page_scroll",{}).get(str(i),0)),duration=0)
             except Exception as exc:log_error("scroll",exc)
     def language_panel():
-        picker=ft.Dropdown(label="Language",value=prefs.get("language","English"),
+        picker=ft.Dropdown(label="Language",dense=True,value=prefs.get("language","English"),
             options=[ft.dropdown.Option("English"),ft.dropdown.Option("हिंदी")])
         def change_language(e):
             if e.control.value not in ("English","हिंदी"):return
@@ -2446,11 +2590,13 @@ console.log('BOT KING Lightweight Charts ready');
         changed=current[0]!=i
         try:
             # Construct the new page first; a builder error must not erase the old page.
-            controls=[language_panel()]+[decorate_help(c) for c in (([data_source_panel(i)] if i!=2 else [])+pages[i]())]
+            controls=([language_panel()] if i==2 else [note(quote_caption(chain_symbol.value if i==1 else (scan_symbol.value or "NIFTY")))])+[decorate_help(c) for c in pages[i]()]
         except Exception as exc:
             log_error("navigation",exc)
             page.open(ft.AlertDialog(title=txt("Page could not open",17,GOLD,True),content=note("A page error was recorded in Diagnostics. The previous page remains available."))) if hasattr(page,"open") else None
             return
+        if changed and current[0]==3 and i!=3:
+            tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
         current[0]=i
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
@@ -2460,7 +2606,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.9.1 NAVIGATION FIX")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.0 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
@@ -2478,7 +2624,7 @@ console.log('BOT KING Lightweight Charts ready');
             if prefs.get("source") in ("Auto","Yahoo Finance","Broker API"):
                 generation=provider_generation[0]
                 successes=0
-                symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
+                symbols=list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
                 semaphore=asyncio.Semaphore(5)
                 scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Refreshing market quotes")
                 market_completed=[0]
@@ -2568,6 +2714,7 @@ console.log('BOT KING Lightweight Charts ready');
         app_active[0]=state=="resumed"
         if not app_active[0]:
             protection_pending.clear()
+            if paper_bot_state[0]=="Running":paper_bot_state[0]="Paused";paper_state_status.value="Paper bot paused on background; press Start after returning"
             runtime_status.value="App backgrounded • uninterrupted monitoring unavailable • refresh on resume"
         else:
             runtime_status.value="App resumed • checking selected data..."
@@ -2592,6 +2739,7 @@ def main(page: ft.Page):
         page.update()
 
 ft.app(target=main)
+
 
 
 
