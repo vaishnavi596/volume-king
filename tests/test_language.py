@@ -7,16 +7,18 @@ from help_content import describe,EN_HELP
 class LanguageTests(unittest.TestCase):
     def test_language_persists_and_does_not_change_contract_values(self):
         page,v=start({'scanner_live':False,'option_symbol':'BANKNIFTY','option_strike':'24000'})
-        v['select'](1);picker=v['body'].controls[0]
+        v['select'](2);picker=v['body'].controls[0]
         picker.value='हिंदी';picker.on_change(event(picker))
         self.assertEqual(page.client_storage.get('bot_king_preferences')['language'],'हिंदी')
         self.assertEqual(v['chain_symbol'].value,'BANKNIFTY')
         self.assertEqual(v['option_strike'].value,'24000')
+        v['select'](1)
         self.assertEqual(v['chain_symbol'].label,'इंडेक्स / शेयर')
         _,restored=start(page.client_storage.get('bot_king_preferences'))
         self.assertEqual(restored['prefs']['language'],'हिंदी')
-        restored['select'](1)
+        restored['select'](2)
         picker=restored['body'].controls[0];picker.value='English';picker.on_change(event(picker))
+        restored['select'](1)
         self.assertEqual(restored['chain_symbol'].label,'Index / Stock')
     def test_dropdown_translation_preserves_keys_and_selection(self):
         option=ft.dropdown.Option('Auto')
@@ -61,3 +63,4 @@ class LanguageTests(unittest.TestCase):
             english=describe(key,'English')
             self.assertTrue(english)
             self.assertFalse(any('\u0900'<=c<='\u097f' for c in english))
+
