@@ -4,7 +4,8 @@ import traceback
 import asyncio
 import urllib.request
 import urllib.parse
-from market_feed import AngelFeed, FeedError, SessionExpired
+from market_feed import FeedError, SessionExpired
+from server_feed import ServerAngelFeed
 from analysis_quality import quality_check, agreement_detail
 from help_content import describe
 from i18n import localize_tree,translate
@@ -244,7 +245,7 @@ def app_main(page:ft.Page):
     view_lock=RLock()
     scan_generation=[0]
     provider_generation=[0]
-    angel_feed=AngelFeed()
+    angel_feed=ServerAngelFeed()
     broker_retry=[0.0]
     broker_failures=[0]
     health=FeedHealth()
@@ -1297,7 +1298,9 @@ def app_main(page:ft.Page):
     source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
     broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
-    api_url=ft.TextField(label="Custom HTTPS API endpoint",value=prefs.get("api_url",""))
+    api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
+    server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
+    server_trust=ft.Checkbox(label="I trust this server to receive my Angel One login",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
@@ -1327,43 +1330,58 @@ def app_main(page:ft.Page):
             credential_inputs[label]=field
             controls.append(field)
         credential_column.controls=controls
-        broker_info.value=name+" • Connect sends credentials only to the official broker over HTTPS. Nothing is saved."
+        broker_info.value=name+" • Empty server address: direct broker login. With a server address: credentials pass through your trusted server to Angel One over HTTPS. Broker sessions stay in memory; no live orders."
         connection_status.value="Not connected. Authentication adapter required for "+name+"."
         connection_status.color=MUTED
         if e is not None:page.update()
     broker.on_change=update_broker_info
     update_broker_info()
-    def clear_broker_credentials(e):
-        angel_feed.disconnect();broker_retry[0]=0
+    async def revoke_and_clear():
+        try:
+            await asyncio.to_thread(angel_feed.revoke)
+            remote_message="Disconnected. Server session cleared."
+        except FeedError:
+            remote_message="Local session cleared. Server unreachable; remote session expires automatically."
+        broker_retry[0]=0
         option_feed.clear();option_snapshots.clear()
-        provider_changed(e)
+        provider_changed(None)
         for field in credential_inputs.values():field.value=""
-        connection_status.value="Disconnected. Credentials cleared; Auto uses Yahoo underlying data."
+        server_access.value="";server_trust.value=False
+        connection_status.value=remote_message+" Auto uses Yahoo underlying data."
         connection_status.color=GREEN
         page.update()
+    def clear_broker_credentials(e):
+        page.run_task(revoke_and_clear)
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
             connection_status.value="Only Angel One read-only integration is supported; Auto can use Yahoo."
             page.update();return
+        endpoint=(api_url.value or "").strip()
+        if endpoint and not server_trust.value:
+            connection_status.value="Confirm that you trust this server before sending your broker login."
+            page.update();return
         broker_connect_busy[0]=True
-        connection_status.value="Connecting to official Angel One read-only market data..."
+        connection_status.value="Connecting to Angel One read-only market data"+(" through your server..." if endpoint else " directly...")
         page.update()
         values=[credential_inputs[label].value or "" for label in broker_fields["Angel One"]]
         try:
-            await asyncio.to_thread(angel_feed.connect,*values)
+            await asyncio.to_thread(angel_feed.connect,*values,endpoint,server_access.value or "")
             for field in credential_inputs.values():field.value=""
+            server_access.value=""
             broker_retry[0]=0
             source.value="Auto";prefs["source"]="Auto";save()
             provider_changed(None)
-            connection_status.value="Angel One connected • market data only • credentials not saved • reconnect after restart"
+            connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
             page.run_task(refresh_selected_options)
         except Exception as exc:
             log_error("broker_login",exc)
             connection_status.value="Connection failed. Check credentials, TOTP, API permissions and network. Auto remains available."
             connection_status.color=RED
-        finally:broker_connect_busy[0]=False
+        finally:
+            values.clear()
+            broker_connect_busy[0]=False
         page.update()
     def explain_broker_connection(e):
         page.run_task(connect_angel)
@@ -1868,7 +1886,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: read-only market data integration. Credentials go only to Angel One; public IP lookup uses ipify without credentials. No live orders. Other brokers are not integrated.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. Sessions expire after 30 minutes idle or at most 8 hours. Other brokers are not integrated.')])))
         content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
@@ -2692,7 +2710,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.1 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.2 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)

@@ -1,6 +1,10 @@
 """Offline UI translation. Market symbols, provider keys and entered values stay unchanged."""
 import re
 HI={
+"My BOT KING server HTTPS address (optional)":"अपने BOT KING सर्वर का HTTPS पता (वैकल्पिक)",
+"Server access key (not saved)":"सर्वर की एक्सेस की (सेव नहीं होगी)",
+"I trust this server to receive my Angel One login":"मैं अपना Angel One लॉगिन इस भरोसेमंद सर्वर को भेजने के लिए सहमत हूँ",
+"Confirm that you trust this server before sending your broker login.":"ब्रोकर लॉगिन भेजने से पहले पुष्टि करें कि यह आपका भरोसेमंद सर्वर है।",
 "Home":"होम","Options":"ऑप्शन्स","Settings":"सेटिंग्स","Scanner":"स्कैनर",
 "Settings & Trading Bot":"सेटिंग्स और ट्रेडिंग बॉट","Options • One scroll page":"ऑप्शन्स • एक स्क्रॉल पेज",
 "RULE-BASED SCANNER • Chart & Analysis":"नियम आधारित स्कैनर • चार्ट और विश्लेषण",
