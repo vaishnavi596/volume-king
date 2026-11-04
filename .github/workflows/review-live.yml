@@ -1,0 +1,48 @@
+name: Review live trading and signing setup
+on:
+  push:
+    branches: [bot-king-live-order-review]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install flet==0.25.2 flet-webview==0.1.0 -r backend/requirements.txt httpx==0.28.1
+      - run: python -m compileall -q src backend tests
+      - run: python -m unittest discover -s tests -v
+      - run: bash -n backend/install-oracle.sh
+  signing-setup-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check permanent signing without exposing private key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$KEYSTORE_BASE64" || -z "$STORE_PASSWORD" ]]; then
+            echo 'SIGNING_NOT_CONFIGURED: both ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD are required.'
+            exit 0
+          fi
+          trap 'rm -f "$RUNNER_TEMP/signing-check.jks" "$RUNNER_TEMP/signing-check.der"' EXIT
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          path=Path(os.environ['RUNNER_TEMP'])/'signing-check.jks'
+          path.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'],validate=True))
+          path.chmod(0o600)
+          PY
+          keytool -exportcert -keystore "$RUNNER_TEMP/signing-check.jks" -alias botking -storepass:env STORE_PASSWORD -file "$RUNNER_TEMP/signing-check.der"
+          echo 'SIGNING_CONFIGURED: permanent key readable with alias botking.'
+          sha256sum "$RUNNER_TEMP/signing-check.der"
