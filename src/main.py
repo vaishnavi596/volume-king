@@ -1117,39 +1117,73 @@ def app_main(page:ft.Page):
         prefs["option_strategy"]=v;save()
         select(1)
     option_strike=ft.TextField(label="Strike price",value=prefs.get("option_strike",""),hint_text="e.g. 25000",keyboard_type=ft.KeyboardType.NUMBER)
-    option_side=ft.Dropdown(label="Contract",value=prefs.get("option_side","CE"),options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")],width=120)
-    option_qty=ft.TextField(label="Lots (paper)",value=str(prefs.get("option_qty","1")),keyboard_type=ft.KeyboardType.NUMBER,width=120)
+    option_side=ft.Dropdown(label="Contract",value=prefs.get("option_side","CE"),options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")])
+    option_qty=ft.TextField(label="Lots (paper)",value=str(prefs.get("option_qty","1")),keyboard_type=ft.KeyboardType.NUMBER)
     option_paper_note=txt("Option paper entry requires verified premium and lot size.",12,MUTED)
     def option_paper_action(side):
         option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
         page.update()
     option_chart_cache={}
+    option_chart_busy=[False]
+    option_chart_feedback={}
+    def option_chart_context():
+        return (chain_symbol.value,expiry.value,option_strike.value,option_side.value)
     async def load_option_history():
-        context=(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
-        generation=provider_generation[0]
+        if option_chart_busy[0]:return
+        context=option_chart_context();generation=provider_generation[0]
+        key=(generation,context)
+        message=""
+        if source.value=="Yahoo Finance":
+            message="Select Auto or Broker API to load Angel One option history."
+        elif not angel_feed.connected:
+            message="Connect Angel One in Settings before loading option history."
+        else:
+            try:
+                if finite(context[2])<=0:raise ValueError("strike")
+                date.fromisoformat(context[1])
+            except (ValueError,TypeError):
+                message="Enter a positive listed strike and select a broker-listed expiry, then load the chart."
+        if message:
+            option_chart_feedback.update(key=key,state="UNAVAILABLE",message=message)
+            if current[0]==1:select(1)
+            return
+        option_chart_busy[0]=True
+        option_chart_feedback.update(key=key,state="LOADING",message="Loading selected option history from Angel One...")
         health_key="option_chart:"+":".join(str(x) for x in context);request_id=health.begin(health_key)
+        if current[0]==1:select(1)
         try:
-            if source.value=="Yahoo Finance":raise FeedError("Yahoo option history unavailable")
             bars=await asyncio.to_thread(angel_feed.option_history,*context)
-            if generation!=provider_generation[0] or context!=(chain_symbol.value,expiry.value,option_strike.value,option_side.value):return
+            if generation!=provider_generation[0] or context!=option_chart_context():return
+            if len(bars)<2:raise FeedError("Not enough option candles")
             option_chart_cache.clear();option_chart_cache.update(context=context,bars=bars)
             market_store.put("option_chart",context,{"bars":bars,"source":"Angel One"})
-            health.finish(health_key,request_id,"AVAILABLE" if 0<=datetime.now(timezone.utc).timestamp()-bars[-1][0]<=630 else "STALE",source="Angel One",data_time=bars[-1][0])
-            option_feed_status[0]="Selected option premium history loaded from Angel One."
+            state="AVAILABLE" if 0<=datetime.now(timezone.utc).timestamp()-bars[-1][0]<=630 else "STALE"
+            health.finish(health_key,request_id,state,source="Angel One",data_time=bars[-1][0])
+            option_chart_feedback.update(key=key,state=state,message="Selected option premium history loaded from Angel One.")
         except Exception as exc:
             log_error("option_chart",exc)
-            health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
-            option_feed_status[0]="Option chart unavailable: connect Angel One and enter an exact listed strike/expiry."
-        if current[0]==1:select(1)
+            if generation==provider_generation[0] and context==option_chart_context():
+                health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
+                option_chart_feedback.update(key=key,state="UNAVAILABLE",message="Angel One option history request failed: "+safe_error(exc)+". Verify the selected listed contract and server session, then retry.")
+        finally:
+            option_chart_busy[0]=False
+            if current[0]==1:select(1)
     def option_chart_panel():
-        context=(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
-        controls=[note("Option premium history • selected manual strike / CE or PE • 5m"),ft.ElevatedButton("Load option premium chart",on_click=lambda e:page.run_task(load_option_history))]
+        context=option_chart_context()
+        feedback=option_chart_feedback if option_chart_feedback.get("key")== (provider_generation[0],context) else {}
+        controls=[note("Option premium history • selected manual strike / CE or PE • 5m"),ft.ElevatedButton("Load option premium chart",disabled=option_chart_busy[0],on_click=lambda e:page.run_task(load_option_history))]
         bars=option_chart_cache.get("bars",[]) if option_chart_cache.get("context")==context else (market_store.get("option_chart",*context) or {}).get("bars",[])
         if bars:
             series=ft.LineChartData(data_points=[ft.LineChartDataPoint(i,b[4]) for i,b in enumerate(bars[-70:])],color=GOLD,stroke_width=2)
             controls.append(ft.Container(content=ft.LineChart(data_series=[series],expand=True),height=200))
             controls.append(note("Angel One • last available history • "+age_label(bars[-1][0])+" • last candle: "+datetime.fromtimestamp(bars[-1][0],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")))
-        else:controls.append(unavailable("Yahoo adapter has no verified NSE option premium history; Angel One connection and listed contract required."))
+        if feedback:
+            controls.append(unavailable(feedback["message"]) if feedback["state"]=="UNAVAILABLE" else note(feedback["message"]))
+        elif not bars:
+            if source.value=="Yahoo Finance":message="Yahoo has no verified NSE option history. Select Auto or Broker API and connect Angel One."
+            elif not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
+            else:message="Enter a listed strike, choose CE or PE, then press Load option premium chart."
+            controls.append(note(message))
         return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def quote_caption(sym):
         q=quotes.get(sym) or {}
@@ -1244,12 +1278,12 @@ def app_main(page:ft.Page):
         if kind=="Flow":
             if not coverage.get("complete") or any(r.get("volume") is None for r in rows):return note("Incomplete volume coverage; totals unavailable.")
             ce_v=sum(float(r["volume"]) for r in calls);pe_v=sum(float(r["volume"]) for r in puts)
-            return note(prefix+f"Selected-window CE volume: {ce_v:g} • PE volume: {pe_v:g}. Volume alone cannot show who made profit or whether trades were bullish/bearish. Not actual premium turnover.")
+            return note(prefix+f"Selected-window CE volume: {ce_v:,.0f} • PE volume: {pe_v:,.0f}. Volume alone cannot show who made profit or whether trades were bullish/bearish. Not actual premium turnover.")
         if not coverage.get("complete") or not calls or len(calls)!=len(puts) or any(r.get("oi") is None for r in rows):
             return note(prefix+"OI/PCR unavailable: incomplete strike-window coverage.")
         ce=sum(float(r["oi"]) for r in calls);pe=sum(float(r["oi"]) for r in puts)
         if kind=="PCR":return note(prefix+"Selected-window OI PCR: "+(f"{pe/ce:.3f}" if ce>0 else "undefined")+" • up to 9 strikes only, not full chain; not a directional guarantee.")
-        return note(prefix+f"Selected-window CE OI: {ce:g} • PE OI: {pe:g} • OI is activity, not investor profits.")
+        return note(prefix+f"Selected-window CE OI: {ce:,.0f} • PE OI: {pe:,.0f} • OI is activity, not investor profits.")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
@@ -1258,7 +1292,7 @@ def app_main(page:ft.Page):
         for row in rows:grouped.setdefault(row["strike"],{})[row["side"]]=row
         def cell_value(row,key):
             val=row.get(key)
-            return str(val) if val is not None else "—"
+            return (f"{float(val):,.0f}" if key=="oi" else f"{float(val):,.2f}") if val is not None else "—"
         table_rows=[]
         for strike_value,sides in sorted(grouped.items()):
             ce=sides.get("CE",{});pe=sides.get("PE",{})
@@ -2710,7 +2744,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.2 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.3 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
