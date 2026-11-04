@@ -41,7 +41,7 @@ class HelpQualityTests(unittest.TestCase):
         row=v['decorate_help'](ft.Row([field],wrap=True))
         wrapper=row.controls[0]
         self.assertEqual(wrapper.width,300);self.assertFalse(wrapper.expand)
-        self.assertIs(wrapper.controls[-1],field)
+        self.assertIs(wrapper.controls[0].controls[0].content,field)
     def test_ai_quality_is_attached_and_bad_input_blocks(self):
         _,v=start({'scanner_live':False})
         bars=self.bars()+[[1,100,90,110,101,10]]

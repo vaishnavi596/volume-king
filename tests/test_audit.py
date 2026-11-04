@@ -185,7 +185,7 @@ class AuditTests(unittest.TestCase):
         for row in v['added_filter_list'].controls:
             self.assertEqual(row.content.controls[2].text,'Remove ×')
         checkbox=v['added_filter_list'].controls[0].content.controls[0]
-        if isinstance(checkbox,ft.Column):checkbox=checkbox.controls[-1]
+        if isinstance(checkbox,ft.Column):checkbox=checkbox.controls[0].controls[0]
         checkbox.value=False;checkbox.on_change(event(checkbox))
         self.assertIn(names[0],v['added_filters']);self.assertNotIn(names[0],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))

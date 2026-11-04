@@ -27,7 +27,7 @@ def safe_error(exc):
     # Never display raw exception text, URLs, API headers, PIN or token values.
     from urllib.error import HTTPError
     if isinstance(exc,HTTPError):
-        if exc.code in (401,403):return "Authentication required; reconnect broker"
+        if exc.code in (401,403):return "Provider access denied (HTTP "+str(exc.code)+"); check source permissions"
         if exc.code==429:return "Provider request limit; retry later"
         return "Provider HTTP error "+str(exc.code)
     if isinstance(exc,TimeoutError):return "Network timeout"

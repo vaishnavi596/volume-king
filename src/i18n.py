@@ -259,7 +259,8 @@ def localize_tree(control,language):
     if isinstance(control,ft.dropdown.Option):
         if control.text is None:control.text=control.key
         attrs.append("text")
-    if isinstance(control,(ft.TextField,ft.Dropdown,ft.Checkbox,ft.Switch)):attrs+=["label","hint_text"]
+    if isinstance(control,(ft.TextField,ft.Dropdown,ft.Checkbox,ft.Switch)):
+        attrs += ["hint_text"] if getattr(control,"_bk_external_label",False) else ["label","hint_text"]
     for attr in attrs:
         try:value=getattr(control,attr,None)
         except AttributeError:continue
