@@ -1,5 +1,7 @@
 # BOT KING 2.1.0: final source audit before APK authorization
 
+This is the pre-build checkpoint. After explicit authorization, permanent signing and APK packaging were completed; see the [verified 2.1.0 release record](release-v2.1.0.md). Server deployment and phone/live-broker verification remain pending.
+
 Date: 2026-11-04. Supersedes the source-state notes in [the earlier recheck](recheck-v2.1.0.md).
 
 **Source test verdict: PASS. Release verdict: BLOCKED pending signing setup and deployment/device verification.** No APK was built, no production server was changed, and no real broker order was submitted during this audit.

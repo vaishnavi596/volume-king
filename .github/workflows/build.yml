@@ -107,7 +107,7 @@ jobs:
           grep -F "package: name='com.botking.bot_king'" "$RUNNER_TEMP/botking-manifest.txt"
           grep -F "versionCode='$BUILD_CODE'" "$RUNNER_TEMP/botking-manifest.txt"
           EXPECTED=$(tr -d '[:space:]' < config/android-signing.sha256)
-          ACTUAL=$("$BUILD_TOOLS/apksigner" verify --print-certs "$RUNNER_TEMP/botking-signed.apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          ACTUAL=$("$BUILD_TOOLS/apksigner" verify --print-certs "$RUNNER_TEMP/botking-signed.apk" | sed -n 's/.*certificate SHA-256 digest: //p' | sort -u)
           test "$EXPECTED" = "$ACTUAL"
           cp "$RUNNER_TEMP/botking-signed.apk" "$APK"
           rm -f build/apk/*.idsig
