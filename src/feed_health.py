@@ -1,0 +1,38 @@
+"""Per-component request status; stores no credentials or server response bodies."""
+import copy
+import time
+from threading import RLock
+
+class FeedHealth:
+    def __init__(self,clock=time.time):
+        self.clock=clock;self.rows={};self.lock=RLock();self.serial=0
+    def begin(self,key):
+        with self.lock:
+            self.serial+=1
+            row=self.rows.setdefault(key,{})
+            row.update(request_id=self.serial,last_attempt=self.clock(),state="LOADING")
+            return self.serial
+    def finish(self,key,request_id,state,source="",data_time=None,error=""):
+        with self.lock:
+            row=self.rows.get(key,{})
+            if row.get("request_id")!=request_id:return False
+            row.update(state=state,source=source,data_time=data_time,error=error)
+            if state in ("AVAILABLE","FALLBACK","STALE","PARTIAL"):
+                row["last_success"]=self.clock()
+            return True
+    def get(self,key):
+        with self.lock:return copy.deepcopy(self.rows.get(key,{}))
+
+def safe_error(exc):
+    # Never display raw exception text, URLs, API headers, PIN or token values.
+    from urllib.error import HTTPError
+    if isinstance(exc,HTTPError):
+        if exc.code in (401,403):return "Authentication required; reconnect broker"
+        if exc.code==429:return "Provider request limit; retry later"
+        return "Provider HTTP error "+str(exc.code)
+    if isinstance(exc,TimeoutError):return "Network timeout"
+    if type(exc).__name__=="SessionExpired":return "Broker session expired; reconnect"
+    return "Data request failed ("+type(exc).__name__+")"
+
+def retry_delay(failures):
+    return min(300,30*2**min(max(int(failures)-1,0),4))
