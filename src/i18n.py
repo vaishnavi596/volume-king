@@ -148,6 +148,25 @@ HI.update({
 "No valid candle data":"सही कैंडल डेटा उपलब्ध नहीं",
 "Time unavailable":"समय उपलब्ध नहीं","Invalid future time":"भविष्य का गलत समय",
 })
+HI.update({
+"EXECUTION CAPABILITIES":"काम करने की वास्तविक क्षमता",
+"Market data: Yahoo / saved data; broker not connected":"बाजार डेटा: Yahoo / सेव डेटा; ब्रोकर जुड़ा नहीं",
+"Market data: Angel One authenticated":"बाजार डेटा: Angel One login जुड़ा है",
+"Paper orders: local simulation • strategy switches: saved plans":"पेपर ऑर्डर: स्थानीय अभ्यास • रणनीति स्विच: सेव प्लान",
+"Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED":"असली ऑर्डर: बंद • असली SL/लक्ष्य: बंद • सर्वर ऑटोमेशन: जुड़ा नहीं",
+"Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading.":"फोन लॉक: लगातार निगरानी की गारंटी नहीं। स्क्रीन चालू रखने से live ट्रेडिंग चालू नहीं होती।",
+"Live auto trading • not available":"वास्तविक ऑटो ट्रेडिंग • अभी उपलब्ध नहीं",
+"While-open monitoring only; screen-lock continuity is not verified":"केवल ऐप खुला रहने पर निगरानी; लॉक में लगातार चलना सत्यापित नहीं",
+"App backgrounded • uninterrupted monitoring unavailable • refresh on resume":"ऐप बैकग्राउंड में • लगातार निगरानी उपलब्ध नहीं • लौटने पर रीफ्रेश",
+"App resumed • checking selected data...":"ऐप फिर खुला • चुना डेटा जाँच रहे हैं…",
+"App resumed • selected data checked • no automatic broker order":"ऐप फिर खुला • चुना डेटा जाँचा • कोई ऑटो ब्रोकर ऑर्डर नहीं",
+"App resumed • refresh failed; last saved data remains visible":"ऐप फिर खुला • रीफ्रेश नहीं हुआ; पिछला डेटा दिखता रहेगा",
+"Retry current data":"वर्तमान डेटा फिर जाँचें",
+"Paper simulation":"पेपर अभ्यास",
+"No request recorded for this selection yet":"इस चयन के लिए इस सत्र में डेटा प्रयास दर्ज नहीं",
+"Market quotes":"बाजार भाव","Analysing configured companies":"चुनी कंपनियों का विश्लेषण",
+"No valid data; last saved results retained":"सही डेटा नहीं मिला; पिछले परिणाम रखे गए",
+})
 EN_STATUS={
  "बंद करें":"Close","अभी की स्थिति":"Current status",
  "आसान जानकारी और वर्तमान स्थिति":"Simple explanation and current status","जानकारी":"Information",
@@ -202,6 +221,18 @@ PREFIX={
 "HISTORICAL / last available":"ऐतिहासिक / आखिरी उपलब्ध","Recent analysis":"हाल का विश्लेषण",
 "Last saved quote":"आखिरी सेव भाव","Source: ":"स्रोत: ","HISTORICAL":"ऐतिहासिक",
 "DATA UNAVAILABLE":"डेटा उपलब्ध नहीं","BULLISH":"बुलिश","BEARISH":"बेयरिश",
+"Scan progress: ":"जाँच प्रगति: "," • valid: ":" • सही डेटा: "," • cached: ":" • सेव डेटा: "," • failed: ":" • असफल: ",
+" • saved preference; no live orders":" • सेव प्राथमिकता; असली ऑर्डर नहीं",
+" • data time: ":" • डेटा समय: "," • last attempt: ":" • अंतिम प्रयास: "," • last success: ":" • अंतिम सफलता: ",
+"Authentication required; reconnect broker":"पहचान सत्यापन चाहिए; ब्रोकर फिर जोड़ें",
+"Broker session expired; reconnect":"ब्रोकर session समाप्त; फिर जोड़ें",
+"Network timeout":"नेटवर्क ने समय पर जवाब नहीं दिया",
+"Provider request limit; retry later":"स्रोत की request सीमा; बाद में फिर जाँचें",
+"This source has no verified NSE option-chain data":"इस स्रोत में सत्यापित NSE ऑप्शन चेन डेटा नहीं",
+"No recent headlines or feed unavailable":"हाल की खबर नहीं मिली या feed उपलब्ध नहीं",
+"Quote time is old, missing or invalid; historical display only":"भाव का समय पुराना/गायब/गलत; केवल ऐतिहासिक प्रदर्शन",
+" • source: ":" • स्रोत: ","Last cache write: ":"आखिरी डेटा सेव की स्थिति: ",
+"UNAVAILABLE":"उपलब्ध नहीं","AVAILABLE":"उपलब्ध","FALLBACK":"वैकल्पिक स्रोत","CACHED":"सेव डेटा","STALE":"पुराना","PARTIAL":"अधूरा","LOADING":"लोड हो रहा है",
 }
 def translate(text,language):
     text=str(text)
