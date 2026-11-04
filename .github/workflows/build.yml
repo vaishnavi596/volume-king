@@ -20,20 +20,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Restore permanent release signing key
-        env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASSWORD" ]; then
-            echo "::error::Permanent signing is not configured. Add ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD. A temporary-key APK will not be published."
-            exit 1
-          fi
-          umask 077
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/botking-release.jks"
-          keytool -list -keystore "$RUNNER_TEMP/botking-release.jks" -storepass:env STORE_PASSWORD -alias botking >/dev/null
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -82,39 +68,10 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Build APK
-        env:
-          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          # Same application identity; monotonic version code even for reruns.
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
-          flet build apk --include-packages flet_webview --verbose \
-            --build-number "$BUILD_CODE"
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          test -x "$BUILD_TOOLS/apksigner"
-          test -x "$BUILD_TOOLS/aapt"
-          APK="build/apk/app-release.apk"
-          # Explicitly replace any temporary Flet/Flutter signature.
-          "$BUILD_TOOLS/apksigner" sign --ks "$RUNNER_TEMP/botking-release.jks" \
-            --ks-key-alias botking --ks-pass env:STORE_PASSWORD --key-pass env:STORE_PASSWORD \
-            --out "$RUNNER_TEMP/botking-signed.apk" "$APK"
-          "$BUILD_TOOLS/apksigner" verify --verbose "$RUNNER_TEMP/botking-signed.apk"
-          "$BUILD_TOOLS/aapt" dump badging "$RUNNER_TEMP/botking-signed.apk" > "$RUNNER_TEMP/botking-manifest.txt"
-          grep -F "package: name='com.botking.bot_king'" "$RUNNER_TEMP/botking-manifest.txt"
-          grep -F "versionCode='$BUILD_CODE'" "$RUNNER_TEMP/botking-manifest.txt"
-          # Compare the APK certificate to the configured keystore certificate.
-          keytool -exportcert -keystore "$RUNNER_TEMP/botking-release.jks" -alias botking \
-            -storepass:env STORE_PASSWORD -file "$RUNNER_TEMP/botking-cert.der" >/dev/null
-          EXPECTED="$(sha256sum "$RUNNER_TEMP/botking-cert.der" | cut -d' ' -f1)"
-          ACTUAL="$("$BUILD_TOOLS/apksigner" verify --print-certs "$RUNNER_TEMP/botking-signed.apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
-          test "$EXPECTED" = "$ACTUAL"
-          cp "$RUNNER_TEMP/botking-signed.apk" "$APK"
-          rm -f build/apk/*.idsig
-
-      - name: Remove signing files
-        if: always()
-        run: rm -f "$RUNNER_TEMP/botking-release.jks" "$RUNNER_TEMP/botking-cert.der" "$RUNNER_TEMP/botking-signed.apk"
+          flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
