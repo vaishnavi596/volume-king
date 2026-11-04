@@ -8,6 +8,7 @@ from market_feed import AngelFeed, FeedError
 from analysis_quality import quality_check, agreement_detail
 from help_content import describe
 from i18n import localize_tree,translate
+from snapshot_store import SnapshotStore,age_label
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -218,6 +219,7 @@ LIGHTWEIGHT_CHARTS_JS="/*!\n * @license\n * TradingView Lightweight Charts™ v4
 
 BG="#080F18"; PANEL="#102735"; PANEL2="#12313E"; GOLD="#E9B949"; GREEN="#16C784"; RED="#FF7890"; WHITE="#EAF1F6"; MUTED="#A9BBC5"; BORDER="#718796"
 STATE=Path.home()/".bot_king_settings.json"
+CACHE_FILE=STATE.with_name("bot_king_market_cache.json")
 
 def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
@@ -259,9 +261,13 @@ def app_main(page:ft.Page):
     def session_caption():
         return ("Regular session hours • exchange holidays not verified" if regular_hours()
                 else "Outside regular session hours • automatic refresh paused")
-    quotes={}
+    market_store=SnapshotStore(CACHE_FILE)
+    quotes=market_store.latest_markets()
     candles={}
     news_cache={}
+    for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
+        previous_news=market_store.get("news",cache_key)
+        if previous_news:news_cache[cache_key]=previous_news
     fusion_cache={}
     fusion_selected=ft.Column(spacing=5)
     option_snapshots={}  # Populated only by a future authenticated broker adapter, never by simulated premiums.
@@ -298,7 +304,7 @@ def app_main(page:ft.Page):
         key="GLOBAL" if global_news else symbol
         now=datetime.now(timezone.utc).timestamp()
         with news_lock:
-            cached=news_cache.get(key)
+            cached=news_cache.get(key) or market_store.get("news",key)
             if cached and now-cached["fetched"]<600:return cached
         if global_news:
             url="https://feeds.bbci.co.uk/news/business/rss.xml";source_name="BBC News Business"
@@ -315,6 +321,9 @@ def app_main(page:ft.Page):
         except Exception as exc:
             log_error("news",exc)
             result={"items":[],"fetched":now,"status":"Unavailable ("+type(exc).__name__+")","source":source_name}
+        if result.get("items"):market_store.put("news",(key,),result)
+        elif cached and cached.get("items"):
+            result=dict(cached,status="Cached headlines • "+age_label(max(x.get("published",0) for x in cached["items"])))
         with news_lock:news_cache[key]=result
         return result
     def headline_signal(items):
@@ -351,7 +360,7 @@ def app_main(page:ft.Page):
         items=[x for x in local_news.get("items",[]) if 0<=now-x.get("published",0)<=86400 and matches(x.get("title",""))]
         cues=headline_signal(items);options=option_component(symbol,interval)
         candle_age=now-(candle.get("timestamp") or 0)
-        candle_valid=0<=candle_age<=timeframe_spec(interval)["fresh_seconds"] and candle.get("bias") in ("BULLISH","BEARISH")
+        candle_valid=not candle.get("historical") and not candle.get("cached") and 0<=candle_age<=timeframe_spec(interval)["fresh_seconds"] and candle.get("bias") in ("BULLISH","BEARISH")
         news_bias={"POSITIVE":"BULLISH","NEGATIVE":"BEARISH"}.get(cues["bias"])
         votes=[candle.get("bias") if candle_valid else None,options["bias"] if options["available"] and options["bias"] in ("BULLISH","BEARISH") else None,news_bias]
         complete=all(v is not None for v in votes)
@@ -360,13 +369,16 @@ def app_main(page:ft.Page):
         return {"symbol":symbol,"timeframe":interval,"overall":overall,"coverage":sum(v is not None for v in votes),"reason":reason,"candle":candle,"options":options,"news":cues,"headlines":items[:5],"global_headlines":[x for x in global_news.get("items",[]) if 0<=now-x.get("published",0)<=86400][:3],"news_status":local_news.get("status","Unavailable") if items else "No recent matching headlines / feed unavailable","global_status":global_news.get("status","Unavailable"),"timestamp":now}
     async def load_combined(symbol,interval,candle):
         local_news,world_news=await asyncio.gather(asyncio.to_thread(fetch_news,symbol),asyncio.to_thread(fetch_news,symbol,True))
-        return combine_analysis(symbol,interval,candle,local_news,world_news)
+        result=combine_analysis(symbol,interval,candle,local_news,world_news)
+        if not candle.get("historical") and candle.get("timestamp"):
+            market_store.put("fusion",(symbol,interval),result)
+        return result
     def fusion_card(symbol,interval,compact=False):
-        data=fusion_cache.get(symbol+":"+interval)
+        data=fusion_cache.get(symbol+":"+interval) or market_store.get("fusion",symbol,interval)
         if not data:return section("COMBINED ANALYSIS • "+symbol,note("Waiting for candles and public news. Options require a verified broker feed."))
         data=dict(data)
         if datetime.now(timezone.utc).timestamp()-data.get("timestamp",0)>timeframe_spec(interval)["fresh_seconds"]:
-            data.update(overall="WAIT",reason="Cached combined result expired; refresh data before use.")
+            data.update(reason="HISTORICAL combined result: "+age_label(data.get("timestamp"))+" • old conclusion only; not a current signal. "+data.get("reason",""))
         controls=[txt(data["overall"]+" • "+str(data["coverage"])+"/3 directional inputs",16,GOLD,True),
             note("Candles: "+data["candle"]["bias"]+" | Options: "+data["options"]["bias"]+" | News cues: "+data["news"]["bias"]),note(data["reason"])]
         if not compact:
@@ -405,17 +417,24 @@ def app_main(page:ft.Page):
         selected=prefs.get("source","Auto")
         generation=provider_generation[0]
         result=None
-        if selected in ("Auto","Broker API") and angel_feed.connected and (selected=="Broker API" or time.monotonic()>=broker_retry[0]):
-            try:result=angel_feed.history(ticker,interval,range_)
-            except Exception:
-                broker_retry[0]=time.monotonic()+30
-                if selected=="Broker API":raise FeedError("Broker feed failed; reconnect or select Auto") from None
-        if result is None:
-            if selected=="Broker API":raise FeedError("Broker feed not connected")
-            result=get_yahoo(ticker,interval,range_)
-            result["fallback"]=selected=="Auto"
+        try:
+            if selected in ("Auto","Broker API") and angel_feed.connected and (selected=="Broker API" or time.monotonic()>=broker_retry[0]):
+                try:result=angel_feed.history(ticker,interval,range_)
+                except Exception:
+                    broker_retry[0]=time.monotonic()+30
+                    if selected=="Broker API":raise FeedError("Broker feed failed; reconnect or select Auto") from None
+            if result is None:
+                if selected=="Broker API":raise FeedError("Broker feed not connected")
+                result=get_yahoo(ticker,interval,range_)
+                result["fallback"]=selected=="Auto"
+            result["cached"]=False
+        except Exception:
+            result=market_store.get("market",selected,ticker,interval,range_)
+            if not result:raise
+            result=dict(result,cached=True,cache_status="Last successful data • refresh failed; historical display only")
         if generation!=provider_generation[0] or prefs.get("source","Auto")!=selected:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
+        if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
         return result
     def timeframe_spec(interval):
         specs={
@@ -564,9 +583,13 @@ def app_main(page:ft.Page):
         elif isinstance(control,ft.Container) and control.content is not None:
             control.content=decorate_help(control.content)
         return control
-    scan_shared={"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
-    top5_candidates=[]
-    top5_last_update=["—"]
+    scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
+    if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
+    saved_ranking=market_store.get("ranking","configured50") or {}
+    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[])][:5]
+    top5_last_update=[saved_ranking.get("checked_at","—")]
+    def mark_ranking_historical():
+        for row in top5_candidates:row["historical"]=True
     dashboard_index=["NIFTY"]
     dashboard_tool=[""]
     def dashboard_index_set(name):
@@ -600,10 +623,25 @@ def app_main(page:ft.Page):
             rows.append(ft.TextButton(content=ft.Text(item["source"]+" • "+item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url)))
         if len(rows)==1:rows.append(note("No news loaded for the selected symbol yet. Open Scanner and refresh."))
         return section("NEWS & EVENT CONTEXT",ft.Column(rows,spacing=4))
+    def super_five_card():
+        rows=top5_candidates[:]
+        if not rows:
+            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
+        controls=[note("Configured 50-company watchlist • last completed-candle analysis • not a trade order")]
+        now=datetime.now(timezone.utc).timestamp()
+        for row in rows:
+            stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
+            historical=row.get("historical") or age is None or not 0<=age<=1800 or not regular_hours()
+            status="HISTORICAL / last available" if historical else "Recent analysis"
+            when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
+            color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+row["bias"],14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+        controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
+        return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), section('SUPER FIVE • CANDLE CANDIDATES + COMBINED CHECK', ft.Column([note('Updated ' + top5_last_update[0] + ' • 5m candle ranking using active scanner filters; NOT a win probability')] + ([ft.Container(content=ft.Column([txt(x['symbol'] + ' • ' + x['bias'] + ' • ' + str(x['score']) + '% votes', 12, GREEN if x['bias'] == 'BULLISH' else RED, True), note('5m • ' + str(x['age']) + 's old • ' + x['reason']), note('Combined: ' + x.get('combined_bias', 'WAIT') + ' • ' + str(x.get('coverage', 0)) + '/3 inputs • incomplete is not neutral'), note('Tap to open chart')], spacing=2), on_click=lambda e, s=x['symbol']: open_candidate_chart(s), bgcolor=PANEL2, padding=9, border_radius=8) for x in top5_candidates] if top5_candidates else [note('WAIT • no fresh qualified candidates; not a trade guarantee')]), spacing=6)), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
+        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -948,6 +986,7 @@ def app_main(page:ft.Page):
             bars=await asyncio.to_thread(angel_feed.option_history,*context)
             if generation!=provider_generation[0] or context!=(chain_symbol.value,expiry.value,option_strike.value,option_side.value):return
             option_chart_cache.clear();option_chart_cache.update(context=context,bars=bars)
+            market_store.put("option_chart",context,{"bars":bars,"source":"Angel One"})
             option_feed_status[0]="Selected option premium history loaded from Angel One."
         except Exception as exc:
             log_error("option_chart",exc)
@@ -956,11 +995,11 @@ def app_main(page:ft.Page):
     def option_chart_panel():
         context=(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
         controls=[note("Option premium history • selected manual strike / CE or PE • 5m"),ft.ElevatedButton("Load option premium chart",on_click=lambda e:page.run_task(load_option_history))]
-        bars=option_chart_cache.get("bars",[]) if option_chart_cache.get("context")==context else []
-        if bars and source.value!="Yahoo Finance" and angel_feed.connected:
+        bars=option_chart_cache.get("bars",[]) if option_chart_cache.get("context")==context else (market_store.get("option_chart",*context) or {}).get("bars",[])
+        if bars:
             series=ft.LineChartData(data_points=[ft.LineChartDataPoint(i,b[4]) for i,b in enumerate(bars[-70:])],color=GOLD,stroke_width=2)
             controls.append(ft.Container(content=ft.LineChart(data_series=[series],expand=True),height=200))
-            controls.append(note("Angel One • last candle: "+datetime.fromtimestamp(bars[-1][0],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")))
+            controls.append(note("Angel One • last available history • "+age_label(bars[-1][0])+" • last candle: "+datetime.fromtimestamp(bars[-1][0],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")))
         else:controls.append(unavailable("Yahoo adapter has no verified NSE option premium history; Angel One connection and listed contract required."))
         return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def quote_caption(sym):
@@ -970,7 +1009,7 @@ def app_main(page:ft.Page):
         try:
             age=datetime.now(timezone.utc).timestamp()-float(stamp)
             when=datetime.fromtimestamp(float(stamp),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
-            return source_name+" • "+("Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when
+            return source_name+" • "+("Last saved quote" if q.get("cached") else "Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when+" • "+age_label(float(stamp))
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel():
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
@@ -1009,6 +1048,7 @@ def app_main(page:ft.Page):
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
             option_feed.clear();option_feed.update(data)
+            market_store.put("options",(sym,expiry_value),data)
             fresh=[r for r in data["rows"] if r.get("timestamp") is not None and 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90]
             if data["complete"] and len(fresh)==len(data["rows"]):
                 option_snapshots[sym]={"symbol":sym,"timeframe":scan_tf.value,"verified":True,"source":"Angel One","expiry":expiry_value,"timestamp":min(r["timestamp"] for r in fresh),"call_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="CE"),"put_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="PE")}
@@ -1033,23 +1073,26 @@ def app_main(page:ft.Page):
                 except Exception as exc:log_error("selected_quote",exc)
             await asyncio.sleep(15)
     def selected_option_rows():
-        if option_feed.get("symbol")!=chain_symbol.value or option_feed.get("expiry")!=expiry.value:return []
-        return option_feed.get("rows",[])
+        if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value:
+            return option_feed.get("rows",[])
+        previous=market_store.get("options",chain_symbol.value,expiry.value) or {}
+        return previous.get("rows",[])
     def option_metrics(kind):
         rows=selected_option_rows()
         if not rows:return unavailable("Verified option quotes unavailable; underlying data may still be available.")
-        if any(r.get("timestamp") is None or not 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90 for r in rows):
-            return note("Cached quotes are old; live OI/PCR calculation paused.")
+        old=any(r.get("timestamp") is None or not 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90 for r in rows)
+        prefix="HISTORICAL • quotes are old • " if old else ""
+        coverage=option_feed if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value else (market_store.get("options",chain_symbol.value,expiry.value) or {})
         calls=[r for r in rows if r["side"]=="CE"];puts=[r for r in rows if r["side"]=="PE"]
         if kind=="Flow":
-            if not option_feed.get("complete") or any(r.get("volume") is None for r in rows):return note("Incomplete volume coverage; totals unavailable.")
+            if not coverage.get("complete") or any(r.get("volume") is None for r in rows):return note("Incomplete volume coverage; totals unavailable.")
             ce_v=sum(float(r["volume"]) for r in calls);pe_v=sum(float(r["volume"]) for r in puts)
-            return note(f"Selected-window CE volume: {ce_v:g} • PE volume: {pe_v:g}. Volume alone cannot show who made profit or whether trades were bullish/bearish. Not actual premium turnover.")
-        if not option_feed.get("complete") or not calls or len(calls)!=len(puts) or any(r.get("oi") is None for r in rows):
-            return note("OI/PCR unavailable: incomplete strike-window coverage.")
+            return note(prefix+f"Selected-window CE volume: {ce_v:g} • PE volume: {pe_v:g}. Volume alone cannot show who made profit or whether trades were bullish/bearish. Not actual premium turnover.")
+        if not coverage.get("complete") or not calls or len(calls)!=len(puts) or any(r.get("oi") is None for r in rows):
+            return note(prefix+"OI/PCR unavailable: incomplete strike-window coverage.")
         ce=sum(float(r["oi"]) for r in calls);pe=sum(float(r["oi"]) for r in puts)
-        if kind=="PCR":return note("Selected-window OI PCR: "+(f"{pe/ce:.3f}" if ce>0 else "undefined")+" • up to 9 strikes only, not full chain; not a directional guarantee.")
-        return note(f"Selected-window CE OI: {ce:g} • PE OI: {pe:g} • OI is activity, not investor profits.")
+        if kind=="PCR":return note(prefix+"Selected-window OI PCR: "+(f"{pe/ce:.3f}" if ce>0 else "undefined")+" • up to 9 strikes only, not full chain; not a directional guarantee.")
+        return note(prefix+f"Selected-window CE OI: {ce:g} • PE OI: {pe:g} • OI is activity, not investor profits.")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
@@ -1075,7 +1118,7 @@ def app_main(page:ft.Page):
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying prices use the selected data source; Yahoo history may be delayed."),
             ft.Row([table],scroll=ft.ScrollMode.AUTO),
-            note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
@@ -1540,7 +1583,7 @@ def app_main(page:ft.Page):
             market_status="Data source: "+source.value+" • waiting for refresh"
             connection_status.value=market_status
             provider_generation[0]+=1;scan_generation[0]+=1
-            quotes.clear();candles.clear();fusion_cache.clear();top5_candidates.clear();scan_result.controls.clear()
+            quotes.clear();candles.clear();fusion_cache.clear();mark_ranking_historical();scan_result.controls.clear()
             restore_confirm.value=False;save();backup_status.value="Settings restored; Auto Scan/protection OFF. Imported positions were not opened. Daily limits retained."
             select(current[0])
         except (ValueError,TypeError,KeyError,OverflowError) as exc:backup_status.value="Restore blocked: "+str(exc)
@@ -1601,7 +1644,7 @@ def app_main(page:ft.Page):
     added_filter_list=ft.Column(spacing=8)
     def store_filters():
         scan_generation[0]+=1
-        top5_candidates.clear()
+        mark_ranking_historical()
         prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_added_filters"]=added_filters[:]
         save()
@@ -1764,7 +1807,7 @@ console.log('BOT KING Lightweight Charts ready');
     filter_checklist=ft.Column(spacing=0)
     def reset_default_filters(e):
         scan_generation[0]+=1
-        top5_candidates.clear()
+        mark_ranking_historical()
         filter_selected[:]=DEFAULT_FILTERS[:]
         added_filters.clear();prefs["scanner_added_filters"]=[]
         scanner_chart_indicators[:]=chart_filter_names[:]
@@ -1912,7 +1955,7 @@ console.log('BOT KING Lightweight Charts ready');
         trigger_scan(type("TimeframeChange",(),{"control":scan_tf})())
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
-        hist=candles.get("scanner_chart_"+sym) or {}
+        hist=candles.get("scanner_chart_"+sym) or market_store.get("market",prefs.get("source","Auto"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
         bars=(hist.get("bars") or [])[-35:]
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
@@ -2080,6 +2123,8 @@ console.log('BOT KING Lightweight Charts ready');
             up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
             direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
             advanced=analyze_current(bars,filter_selected,interval)
+            if hist.get("cached"):
+                advanced.update(bias="WAIT",score=0,reason=advanced["reason"]+" • Saved data only: refresh failed; no new live signal")
             direction=advanced["bias"]
             basis=advanced["reason"]
             lines=[txt(v["name"]+" • "+("BULLISH" if v["vote"]==1 else "BEARISH" if v["vote"]==-1 else "NEUTRAL" if v["vote"]==0 else "UNAVAILABLE")+" • "+v["detail"],11,
@@ -2131,7 +2176,7 @@ console.log('BOT KING Lightweight Charts ready');
                     note(f'Illustrative daily time decay ≈ ₹{v["decay"]:.2f} ({v["decay_pct"]:.1f}% of premium) if underlying/volatility stay constant.'),
                     note("Unverified strike/expiry • check broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
-            age_warning=("HISTORICAL / STALE for selected timeframe" if age_hours*3600>timeframe_spec(interval)["fresh_seconds"] or age_hours<0 else "source candle history; confirm with broker.")
+            age_warning=("HISTORICAL / STALE for selected timeframe" if hist.get("cached") or age_hours*3600>timeframe_spec(interval)["fresh_seconds"] or age_hours<0 else "source candle history; confirm with broker.")
             controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Analysis uses completed candles only; chart may show a forming candle."),note("Latest UTC: "+updated.strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
                 txt("Underlying historical close: ₹"+scan_num(price),15),
                 txt(hist.get("source","Source")+" candle (UTC): "+updated.strftime("%d %b %Y %H:%M"),12),
@@ -2142,7 +2187,7 @@ console.log('BOT KING Lightweight Charts ready');
                 txt("Indicative annualized volatility: "+f"{volatility*100:.1f}%",12),
                 note("Rule-based scanner, not a trained AI model or calibrated probability."))]
             # Summary is a scenario calculator, never a live executable recommendation.
-            fresh=(0<=age_hours*3600<=timeframe_spec(interval)["fresh_seconds"])
+            fresh=(not hist.get("cached") and 0<=age_hours*3600<=timeframe_spec(interval)["fresh_seconds"])
             aligned_choices=[v for v in eligible if v["aligned"] and v["dist"]<=0.04]
             selected=aligned_choices[0] if aligned_choices else None
             if direction not in ("BULLISH","BEARISH") or not fresh or selected is None:
@@ -2190,7 +2235,9 @@ console.log('BOT KING Lightweight Charts ready');
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             fusion_cache[sym+":"+interval]=combined
             fusion_selected.controls=[fusion_card(sym,interval)]
-            scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym)
+            if not hist.get("cached"):
+                scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=latest_timestamp)
+                market_store.put("analysis",(sym,interval),scan_shared)
             scan_result.controls=controls
             scan_last_success[0]=datetime.now().timestamp()
             scan_next_refresh[0]=(scan_last_success[0]+int(scan_refresh.value or "60")) if scan_live.value else None
@@ -2240,7 +2287,7 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
-        quotes.clear();candles.clear();fusion_cache.clear();top5_candidates.clear();scan_generation[0]+=1
+        quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_result.controls.clear()
         connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; Auto can use Yahoo")
         scan_status.value=connection_status.value
@@ -2287,7 +2334,7 @@ console.log('BOT KING Lightweight Charts ready');
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
         page.update()
         page.run_task(restore_scroll,i)
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.8.0 HELP & LANGUAGE")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v1.8.1 LAST DATA")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
@@ -2325,23 +2372,47 @@ console.log('BOT KING Lightweight Charts ready');
                     async with semaphore:
                         try:
                             data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
-                            return sym,analyze_current(data["bars"],filter_selected[:],"5m")
+                            raw=data.get("bars") or []
+                            live=analyze_current(raw,filter_selected[:],"5m")
+                            display=dict(live)
+                            if raw:
+                                completed=[bar for bar in raw if bar[0]+300<=datetime.now(timezone.utc).timestamp()]
+                                if completed:
+                                    quality=quality_check(completed,300,now=completed[-1][0]+300)
+                                    if quality["usable"]:
+                                        selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
+                                        display=analyze(quality["bars"],selected,"5m")
+                                        if display.get("score",0)<float(prefs.get("confidence",75)):display.update(bias="WAIT",score=0)
+                            display.update(source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or live["bias"]=="WAIT",age=0)
+                            return sym,display
                         except Exception:return sym,None
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
                     await asyncio.sleep(.05)
                     continue
-                top5_candidates[:]=rank_candidates({sym:res for sym,res in pairs if res},max_age_seconds=1800)
+                available=[dict(res,symbol=sym) for sym,res in pairs if res and res.get("timestamp")]
+                available.sort(key=lambda r:(r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
+                if available:
+                    top5_candidates[:]=available[:5]
+                    used={row["symbol"] for row in top5_candidates}
+                    for row in saved_ranking.get("rows",[]):
+                        if len(top5_candidates)>=5:break
+                        if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
+                    for sym in watch_symbols:
+                        if len(top5_candidates)>=5:break
+                        if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
                 async def enrich(candidate):
                     async with semaphore:
                         combined=await load_combined(candidate["symbol"],"5m",candidate)
                         return candidate,combined
-                enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:]))
+                enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):continue
                 for candidate,combined in enriched:
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
+                if available:
+                    market_store.put("ranking",("configured50",),{"rows":top5_candidates,"checked_at":top5_last_update[0]})
                 try:
                     if current[0] in (0,1):select(current[0])
                 except Exception:pass
