@@ -31,14 +31,18 @@ def start(prefs=None,cache_path=None):
     tree.body.pop()  # Do not start the Flet client during the offline audit.
     env={'__name__':'audit_main','__file__':str(ROOT/'src/main.py')}
     exec(compile(tree,'audit_main.py','exec'),env)
-    env['STATE']=ROOT/'tests'/'nonexistent_settings_for_test.json'
+    # Test preferences use a private file, never another test's persisted state.
     import tempfile
     cache_temp=tempfile.TemporaryDirectory() if cache_path is None else None
     if cache_temp:
         import atexit
         atexit.register(cache_temp.cleanup)
     env['CACHE_FILE']=Path(cache_temp.name)/'cache.json' if cache_temp else Path(cache_path)
-    page=Page(prefs or {});page.cache_temp=cache_temp;local={};previous=sys.getprofile()
+    settings_temp=tempfile.TemporaryDirectory()
+    import atexit
+    atexit.register(settings_temp.cleanup)
+    env["STATE"]=Path(settings_temp.name)/"settings.json"
+    page=Page(prefs or {});page.settings_temp=settings_temp;page.cache_temp=cache_temp;local={};previous=sys.getprofile()
     def trace(frame,event,arg):
         if event=='return' and frame.f_code.co_name=='app_main':local.update(frame.f_locals)
     sys.setprofile(trace)
@@ -419,4 +423,5 @@ class AuditTests(unittest.TestCase):
         self.assertGreaterEqual(ratio(colors['BORDER'],colors['PANEL2']),3)
 
 if __name__=='__main__':unittest.main()
+
 
