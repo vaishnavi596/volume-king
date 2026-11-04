@@ -1,5 +1,6 @@
 """Transparent, candle-only screening. No broker quotes or probability claims."""
 from datetime import datetime, timezone
+from math import ceil
 
 DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                    "SMC Structure", "Order Block", "Pivot Points", "FVG", "Liquidity Sweep"]
@@ -15,9 +16,10 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
+    selected = list(dict.fromkeys(name for name in selected if name in ALL_FILTERS))
     clean = [b for b in bars if len(b)>=6 and all(isinstance(b[i],(int,float)) and b[i]>0 for i in (1,2,3,4))]
     if len(clean)<30:
-        return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
+        return {"bias":"WAIT","score":0,"votes":[],"requested_filters":len(selected),"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
     close=[float(b[4]) for b in clean]
     high=[float(b[2]) for b in clean]
     low=[float(b[3]) for b in clean]
@@ -95,8 +97,15 @@ def analyze(bars, selected=None, timeframe="5m"):
     bias="BULLISH" if bulls>=3 and agreement>=.7 else "BEARISH" if bears>=3 and agreement>=.7 else "WAIT"
     # Require actual structure or trend confirmation to avoid indicator-count inflation.
     if bias!="WAIT" and not any(v["name"] in ("Supertrend","SMC Structure","EMA 9/21") and v["vote"]==(1 if bias=="BULLISH" else -1) for v in directional):bias="WAIT"
+    available=sum(v["vote"] is not None for v in votes)
+    minimum_available=max(3,ceil(len(selected)*.6))
+    minimum_directional=max(3,ceil(available*.6))
+    coverage_ok=available>=minimum_available and total>=minimum_directional
+    if not coverage_ok:bias="WAIT"
     return {"bias":bias,"score":round(agreement*100) if bias!="WAIT" else 0,
-            "votes":votes,"reason":f"{bulls} bullish / {bears} bearish; {total} directional votes (NOT success probability)",
+            "votes":votes,"requested_filters":len(selected),"coverage_ok":coverage_ok,
+            "minimum_available":minimum_available,"minimum_directional":minimum_directional,
+            "reason":f"{bulls} bullish / {bears} bearish; {total} directional votes (NOT success probability)"+(" • Insufficient filter coverage" if not coverage_ok else ""),
             "count":len(clean),"timeframe":timeframe,"timestamp":clean[-1][0],
             "atr":atr_values[-1],"price":p}
 

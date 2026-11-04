@@ -37,6 +37,12 @@ def agreement_detail(result):
     available=[v for v in votes if v.get("vote") is not None]
     directional=[v for v in available if v.get("vote") in (-1,1)]
     # Multiple indicators share price inputs; their agreement is not independent evidence.
-    return {"available_filters":len(available),"unavailable_filters":len(votes)-len(available),
+    return {"available_filters":len(available),"unavailable_filters":max(len(votes),result.get("requested_filters",len(votes)))-len(available),
             "directional_filters":len(directional),
+            "bullish_filters":sum(v.get("vote")==1 for v in votes),
+            "bearish_filters":sum(v.get("vote")==-1 for v in votes),
+            "neutral_filters":sum(v.get("vote")==0 for v in available),
+            "requested_filters":result.get("requested_filters",len(votes)),
+            "coverage_ok":result.get("coverage_ok",False),
+            "directional_agreement":round(100*max(sum(v.get("vote")==1 for v in votes),sum(v.get("vote")==-1 for v in votes))/len(directional),1) if directional else 0,
             "limitation":"Indicators share price inputs; agreement is not a win probability."}

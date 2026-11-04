@@ -1,5 +1,7 @@
 # BOT KING: 2.0.2 preservation and next-release recheck
 
+This records the earlier recheck. See [the final source audit](final-audit-v2.1.0.md) for the later selected-symbol improvements, current test count and release gates.
+
 Date: 2026-11-04. This is a source/offline review, not a claim of device or real-order certification. No APK was built and no production server was changed for this review.
 
 ## Version scope

@@ -239,6 +239,22 @@ PREFIX={
 "UNAVAILABLE":"उपलब्ध नहीं","AVAILABLE":"उपलब्ध","FALLBACK":"वैकल्पिक स्रोत","CACHED":"सेव डेटा","STALE":"पुराना","PARTIAL":"अधूरा","LOADING":"लोड हो रहा है",
 }
 HI.update({'Segment': 'सेगमेंट', 'Cash': 'कैश शेयर', 'Plan side': 'प्लान की दिशा', 'Cash shares': 'कैश शेयरों की संख्या', 'Maximum total cash shares': 'कुल अधिकतम कैश शेयर', 'I verified manual contract, lot size and premium • Paper only': 'मैंने कॉन्ट्रैक्ट, लॉट साइज और भाव जाँचा है • केवल पेपर', 'Paper capital (INR)': 'पेपर पूँजी (₹)', 'Max paper notional per position (not margin)': 'प्रति पोजीशन अधिकतम पेपर मूल्य (मार्जिन नहीं)', 'Max planned risk per trade (INR)': 'प्रति ट्रेड अधिकतम नियोजित जोखिम (₹)', 'Max planned risk per trade (%)': 'प्रति ट्रेड अधिकतम नियोजित जोखिम (%)', 'Manual exit price • optional; blank means unknown': 'मैनुअल निकास भाव • खाली होने पर अज्ञात', 'Paper charges (INR) • 0 excludes charges': 'पेपर शुल्क (₹) • 0 पर शुल्क शामिल नहीं', 'Maximum paper additions': 'अधिकतम पेपर अतिरिक्त एंट्री', 'Lots / shares per addition': 'हर अतिरिक्त एंट्री में लॉट / शेयर', 'Paper trailing price distance (%)': 'पेपर ट्रेलिंग भाव दूरी (%)', 'Paper partial profit trigger (%)': 'पेपर आंशिक मुनाफे की सीमा (%)', 'Paper partial quantity (%)': 'पेपर आंशिक निकास मात्रा (%)', 'Allow paper re-entry after stop-loss': 'स्टॉप लॉस के बाद पेपर री-एंट्री की अनुमति', 'PAPER BOT • MANUAL TICK ENGINE': 'पेपर बॉट • मैनुअल भाव इंजन', 'Start Paper': 'पेपर शुरू करें', 'Pause': 'रोकें', 'Stop new actions': 'नई कार्रवाइयाँ बंद करें', 'Process manual mark': 'मैनुअल भाव पर कार्रवाई करें', 'Current PAPER price • manually supplied': 'वर्तमान पेपर भाव • खुद दर्ज करें', 'Entry when Paper Start is pressed': 'पेपर शुरू करने पर एंट्री', 'Paper re-entry on a new manual tick': 'नए मैनुअल भाव पर पेपर री-एंट्री', 'Paper averaging on manual ticks • BUY only': 'मैनुअल भाव पर पेपर एवरेजिंग • केवल BUY', 'Paper partial profit on manual ticks': 'मैनुअल भाव पर आंशिक पेपर मुनाफा', 'Trailing stop • paper manual ticks': 'ट्रेलिंग स्टॉप • मैनुअल पेपर भाव', '04  PAPER STRATEGY • MANUAL TICKS': '04  पेपर रणनीति • मैनुअल भाव', 'Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position.': 'Start से असली ऑर्डर चालू नहीं होते। हर बटन दबाने पर नया मैनुअल भाव लिया जाएगा। फोन लॉक होने पर इंजन रुकता है। Stop नई रणनीति कार्रवाइयाँ रोकता है, पोजीशन बंद नहीं करता।', 'Paper bot stopped • no live orders • manual marks required': 'पेपर बॉट बंद • असली ऑर्डर नहीं • मैनुअल भाव चाहिए'})
+HI.update({
+    "SELECTED SYMBOL • FINAL CANDLE DIRECTION":"चुना शेयर / इंडेक्स • अंतिम कैंडल दिशा",
+    "Candle-filter agreement, not success probability. Higher timeframe is a separate check; Super Five remains separate.":"यह कैंडल फ़िल्टरों की सहमति है, जीत की संभावना नहीं। बड़े timeframe की पुष्टि और Super Five अलग हैं।",
+    "Higher timeframe confirmation: not configured for daily candles.":"दैनिक कैंडल के ऊपर बड़े timeframe की पुष्टि अभी निर्धारित नहीं है।",
+    "Higher timeframe confirmation: current selected signal unavailable.":"बड़े timeframe की पुष्टि: चुने timeframe का वर्तमान संकेत उपलब्ध नहीं है।",
+    "Refresh the selected symbol and timeframe. No current signal yet.":"चुने शेयर और timeframe को रीफ्रेश करें। अभी वर्तमान संकेत नहीं मिला है।",
+})
+PREFIX.update({
+    "Bullish: ":"बुलिश: ","Bearish: ":"बेरिश: ","Neutral: ":"न्यूट्रल: ","Unavailable: ":"अनुपलब्ध: ",
+    "Available filters: ":"उपलब्ध फ़िल्टर: ","directional agreement: ":"दिशा देने वाले फ़िल्टरों की सहमति: ",
+    "required: ":"जरूरी: ","Completed candle: ":"पूरी कैंडल: ",
+    "Higher timeframe ":"बड़ा timeframe ","Recent completed candles":"हाल की पूरी कैंडल",
+    "HISTORICAL / stale or refresh failed":"ऐतिहासिक / पुराना डेटा या रीफ्रेश असफल",
+    "Awaiting selected analysis":"चुने शेयर के विश्लेषण की प्रतीक्षा", "AGREES":"सहमत", "CONFLICT":"विपरीत दिशा", "UNCONFIRMED":"पुष्टि नहीं",
+})
+
 def translate(text,language):
     text=str(text)
     if language!="हिंदी":

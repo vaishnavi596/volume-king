@@ -708,7 +708,7 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
+        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • real orders require separate LIVE arming/review"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -2037,6 +2037,55 @@ def app_main(page:ft.Page):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
     filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names]
+    selected_analysis_state={}
+    selected_analysis_panel=ft.Column(horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+    confirmation_timeframes={"1m":"5m","3m":"15m","5m":"15m","15m":"1h","30m":"1h","1h":"1d"}
+    def selected_analysis_card():
+        sym=scan_symbol.value or "NIFTY";interval=scan_tf.value or "5m"
+        context=(sym,interval,scan_generation[0])
+        state=selected_analysis_state if selected_analysis_state.get("context")==context else {}
+        result=state.get("result",{});detail=agreement_detail(result)
+        stamp=result.get("timestamp");now=datetime.now(timezone.utc).timestamp()
+        fresh=bool(stamp and 0<=now-stamp<=timeframe_spec(interval)["fresh_seconds"] and not state.get("cached") and not state.get("failed") and regular_hours())
+        direction=result.get("bias","WAIT") if fresh else "WAIT"
+        when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST") if stamp else "—"
+        higher=state.get("higher",{})
+        higher_tf=confirmation_timeframes.get(interval)
+        if not higher_tf:confirmation="Higher timeframe confirmation: not configured for daily candles."
+        elif not fresh:confirmation="Higher timeframe confirmation: current selected signal unavailable."
+        else:
+            hr=higher.get("result",{});hs=hr.get("timestamp")
+            higher_fresh=bool(hs and 0<=now-hs<=timeframe_spec(higher_tf)["fresh_seconds"] and not higher.get("cached"))
+            hb=hr.get("bias","WAIT") if higher_fresh else "WAIT"
+            alignment="AGREES" if hb==direction and hb in ("BULLISH","BEARISH") else "CONFLICT" if hb in ("BULLISH","BEARISH") and direction in ("BULLISH","BEARISH") else "UNCONFIRMED"
+            confirmation="Higher timeframe "+higher_tf+": "+hb+" • "+alignment+" • source: "+higher.get("source","unavailable")
+        freshness=("Recent completed candles" if fresh else "HISTORICAL / stale or refresh failed" if state else "Awaiting selected analysis")
+        return section("SELECTED SYMBOL • FINAL CANDLE DIRECTION",ft.Column([
+            txt(sym+" • "+interval+" • "+direction,20,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+            note("Bullish: "+str(detail["bullish_filters"])+" • Bearish: "+str(detail["bearish_filters"])+" • Neutral: "+str(detail["neutral_filters"])+" • Unavailable: "+str(detail["unavailable_filters"])),
+            note("Available filters: "+str(detail["available_filters"])+" / "+str(result.get("requested_filters",len([n for n in filter_selected if filter_modes.get(n,"Analysis")!="Chart"])))+" • directional agreement: "+str(detail["directional_agreement"])+"% • required: "+str(prefs.get("confidence",75))+"%"),
+            note("Source: "+state.get("source","Unavailable")+" • "+freshness),
+            note("Completed candle: "+when+" • "+age_label(stamp)),
+            note(confirmation),scan_age_display,
+            note(result.get("reason","Refresh the selected symbol and timeframe. No current signal yet.")),
+            note("Candle-filter agreement, not success probability. Higher timeframe is a separate check; Super Five remains separate.")],spacing=5,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+    def refresh_selected_analysis_panel():
+        selected_analysis_panel.controls=[selected_analysis_card()]
+    async def fetch_higher_confirmation(sym,interval,generation):
+        higher_tf=confirmation_timeframes.get(interval)
+        if not higher_tf:return
+        try:
+            hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,higher_tf,"7d"),timeout=20)
+            result=analyze_current(hist.get("bars") or [],filter_selected[:],higher_tf)
+            higher={"result":result,"source":hist.get("source","Unavailable"),"cached":bool(hist.get("cached"))}
+        except Exception as exc:
+            log_error("higher_timeframe",exc)
+            higher={"result":{"bias":"WAIT"},"source":"Unavailable","cached":True}
+        if generation!=scan_generation[0] or (sym,interval)!=(scan_symbol.value,scan_tf.value):return
+        if selected_analysis_state.get("context")== (sym,interval,generation):
+            selected_analysis_state["higher"]=higher
+            refresh_selected_analysis_panel()
+            if current[0]==3:page.update()
     added_filters=list(dict.fromkeys(x for x in prefs.get("scanner_added_filters",[])+filter_selected if x in filter_names and x not in DEFAULT_FILTERS))
     added_filter_list=ft.Column(spacing=8)
     def store_filters():
@@ -2274,10 +2323,17 @@ console.log('BOT KING Lightweight Charts ready');
         else:next_text=str(max(0,int(scan_next_refresh[0]-now)))+" sec"
         scan_age_display.value="Last scan: "+last+" | Candle age: "+candle+" | Next auto refresh: "+next_text
     async def scan_age_clock():
+        caption_tick=0
         while True:
             refresh_scan_age()
             if current[0]==3:
-                try:scan_age_display.update()
+                try:
+                    caption_tick=(caption_tick+1)%5
+                    if caption_tick==0:
+                        refresh_selected_analysis_panel()
+                        localize_tree(selected_analysis_panel,prefs.get("language","English"))
+                        selected_analysis_panel.update()
+                    else:scan_age_display.update()
                 except (AssertionError,RuntimeError):pass
             await asyncio.sleep(1)
     def auto_scan_changed(e):
@@ -2457,6 +2513,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner():
+        refresh_selected_analysis_panel()
         fusion_selected.controls=[fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m")]
         filter_checklist.controls=[ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=3) for x in DEFAULT_FILTERS]
         added_filter_list.controls=[ft.Container(content=ft.Column([
@@ -2467,10 +2524,10 @@ console.log('BOT KING Lightweight Charts ready');
         if not added_filters:added_filter_list.controls=[note("No extra filters added. Add below; each extra filter will appear here.")]
         scan_min.visible=scan_budget.value=="Custom"
         scan_max.visible=scan_budget.value=="Custom"
-        return [heading("RULE-BASED SCANNER • Chart & Analysis"),
+        return [ft.Column([heading("RULE-BASED SCANNER • Chart & Analysis"),selected_analysis_panel],spacing=12,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,scan_refresh,
-                 scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
+                 scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status),
             scanner_compact_chart(),fusion_selected,
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
@@ -2559,6 +2616,12 @@ console.log('BOT KING Lightweight Charts ready');
                 advanced.update(bias="WAIT",score=0,reason=advanced["reason"]+" • Saved data only: refresh failed; no new live signal")
             direction=advanced["bias"]
             basis=advanced["reason"]
+            selected_analysis_state.clear()
+            selected_analysis_state.update(context=(sym,interval,generation),result=dict(advanced),source=hist.get("source","Unavailable"),cached=bool(hist.get("cached")))
+            refresh_selected_analysis_panel()
+            if current[0]==3:
+                localize_tree(selected_analysis_panel,prefs.get("language","English"))
+                page.update()
             # Publish candle results before RSS requests so missing/slow news cannot hide them.
             scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
@@ -2668,6 +2731,8 @@ console.log('BOT KING Lightweight Charts ready');
                 note("SIMULATION ONLY • Verify actual expiry, strikes, bid/ask, OI, lot size, IV and theta with a broker. Premium can decay rapidly; do not trade from modeled quotes."),
                 ft.ElevatedButton("Dashboard",on_click=lambda e:select(0))
             ])))
+            await fetch_higher_confirmation(sym,interval,generation)
+            if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             try:
                 combined=await asyncio.wait_for(load_combined(sym,interval,advanced),timeout=20)
             except Exception as exc:
@@ -2688,6 +2753,9 @@ console.log('BOT KING Lightweight Charts ready');
         except Exception as exc:
             log_error("scanner",exc)
             if generation!=scan_generation[0]:return
+            if selected_analysis_state.get("context")== (sym,interval,generation):
+                selected_analysis_state["failed"]=True
+            refresh_selected_analysis_panel()
             scan_status.value="Refresh failed • last results may be stale"
             if not scan_live.value or not scan_result.controls:
                 scan_result.controls=[card(unavailable("Scanner: "+safe_error(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
@@ -2710,6 +2778,11 @@ console.log('BOT KING Lightweight Charts ready');
             if save_control(control,key):
                 if isinstance(control,ft.Slider) and hasattr(control,"_bk_help_label"):
                     control._bk_help_label.value=f"Signal agreement: {control.value:g}%"
+                if key=="confidence":
+                    scan_generation[0]+=1
+                    selected_analysis_state.clear()
+                    mark_ranking_historical()
+                    scan_next_refresh[0]=None
                 if key in ("bot_symbol","bot_custom","bot_type","bot_strike","bot_expiry","bot_lot_size","bot_lots","bot_expiry_mode","bot_premium","bot_segment","cash_quantity"):
                     manual_contract_confirmed.value=False;prefs["manual_contract_confirmed"]=False
                 ok=save();status.value="Saved automatically" if ok else "Save failed — device storage unavailable";status.color=GREEN if ok else RED
