@@ -1,4 +1,4 @@
-"""Optional owner-operated HTTPS transport for the read-only Angel adapter."""
+"""Owner HTTPS transport for market data and separately confirmed live orders."""
 import json
 import urllib.error
 import urllib.parse

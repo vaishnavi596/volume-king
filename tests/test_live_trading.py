@@ -2,6 +2,7 @@
 import asyncio
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -114,6 +115,19 @@ class LiveTests(unittest.TestCase):
         self.live.arm('ENABLE LIVE TRADING')
         with self.assertRaises(TradingError):self.live.submit(review['ticket'],'b'*32,'PLACE REAL ORDER')
 
+    def test_concurrent_duplicate_confirmations_submit_only_one_order(self):
+        review=self.live.preview(self.intent)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results=list(pool.map(lambda _:self.live.submit(review['ticket'],'a'*32,'PLACE REAL ORDER'),range(8)))
+        self.assertEqual(len(self.feed.placed),1)
+        self.assertTrue(all(row['broker_id']==results[0]['broker_id'] for row in results))
+
+    def test_failed_broker_order_book_blocks_preview_without_inventing_empty_state(self):
+        with patch.object(self.feed,'order_book',side_effect=TradingError('Broker unavailable')):
+            with self.assertRaises(TradingError):self.live.preview(self.intent)
+        self.assertFalse(self.live.previews)
+        self.assertFalse(self.feed.placed)
+
     def test_unknown_submit_survives_restart_and_blocks_resend(self):
         self.feed.failure=TimeoutError('PRIVATE')
         result=self.submit()
@@ -191,6 +205,39 @@ class LiveTests(unittest.TestCase):
             asyncio.run(ui.submit());asyncio.run(ui.submit())
         submits=[args for args in call.call_args_list if args.args[0]=='submit']
         self.assertEqual(len(submits),1);self.assertIsNone(ui.review)
+
+    def test_background_event_cannot_restore_an_obsolete_arm(self):
+        _,v=start({'scanner_live':False});ui=v['live_controls']
+        ui.ack.value=True;ui.phrase.value='ENABLE LIVE TRADING'
+        calls=[]
+        async def respond(fn, operation, *args):
+            calls.append(operation)
+            if operation=='arm':
+                ui.reset('Backgrounded')
+                return {'enabled':True,'armed':True}
+            return {'enabled':True,'armed':False}
+        with patch('asyncio.to_thread',side_effect=respond):asyncio.run(ui.arm())
+        self.assertEqual(calls,['arm','disarm'])
+        self.assertFalse(ui.capabilities.get('armed'))
+        self.assertEqual(ui.status.value,'Backgrounded')
+
+    def test_edit_during_preview_cannot_open_stale_confirmation(self):
+        _,v=start({'scanner_live':False});ui=v['live_controls']
+        ui.ack.value=True;ui.price.value='80';ui.strike.value='24000';ui.expiry.value='2026-12-01'
+        async def respond(*args):
+            ui.price.value='90';ui.edited()
+            return {'ticket':'old-ticket'}
+        with patch('asyncio.to_thread',side_effect=respond):asyncio.run(ui.preview())
+        self.assertIsNone(ui.review);self.assertIsNone(ui.dialog)
+
+    def test_cash_segment_hides_option_help_labels_too(self):
+        _,v=start({'scanner_live':False});v['select'](2);ui=v['live_controls']
+        ui.segment.value='Cash';ui.segment_changed(None)
+        for field in (ui.expiry,ui.strike,ui.option_type):
+            self.assertFalse(field.visible)
+            self.assertFalse(field._bk_help_wrapper.visible)
+        ui.segment.value='Options';ui.segment_changed(None)
+        self.assertTrue(ui.expiry._bk_help_wrapper.visible)
 
 
 from market_feed import FeedError

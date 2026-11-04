@@ -12,6 +12,7 @@ class LiveOrderControls:
     def __init__(self, page, feed):
         self.page, self.feed = page, feed
         self.busy = False
+        self.generation = 0
         self.capabilities = {}
         self.review = None
         self.dialog = None
@@ -42,12 +43,16 @@ class LiveOrderControls:
         self.page.update()
 
     def edited(self, e=None):
+        self.generation += 1
         self.review = None
+        self.close_dialog()
 
     def segment_changed(self, e=None):
         for field in (self.expiry, self.strike, self.option_type):
             field.visible = self.segment.value == "Options"
-        self.review = None
+            wrapper = getattr(field, "_bk_help_wrapper", None)
+            if wrapper is not None:wrapper.visible = field.visible
+        self.edited()
         if e is not None:self.update()
 
     def close_dialog(self):
@@ -57,6 +62,7 @@ class LiveOrderControls:
             self.dialog = None
 
     def reset(self, message="Live trading disarmed. Existing broker orders/positions remain at Angel One."):
+        self.generation += 1
         self.review = None
         self.capabilities = {}
         self.phrase.value = ""
@@ -79,8 +85,10 @@ class LiveOrderControls:
     async def refresh(self):
         if self.busy:return
         self.busy = True
+        generation, epoch = self.generation, self.feed.epoch
         try:
             caps = await asyncio.to_thread(self.feed.live, "capabilities")
+            if (generation, epoch) != (self.generation, self.feed.epoch):return
             self.capabilities = caps
             if not caps.get("enabled"):
                 self.status.value = "Live trading is disabled on this server. Market data/Paper remain available."
@@ -89,6 +97,7 @@ class LiveOrderControls:
                                      + "/order • " + str(caps["max_daily_entries"]) + " BUY entries/day • INTRADAY LIMIT only")
             rows = await asyncio.to_thread(self.feed.live, "orders")
             positions = await asyncio.to_thread(self.feed.live, "positions")
+            if (generation, epoch) != (self.generation, self.feed.epoch):return
             self.orders.controls = []
             for row in rows:
                 text = (row["symbol"] + " • " + row["side"] + " " + str(row["quantity"]) + " @ " + row["limit_price"]
@@ -99,7 +108,8 @@ class LiveOrderControls:
             if not rows:self.orders.controls = [ft.Text("No BOT KING live order records for this account.", size=12)]
             self.positions.controls = [ft.Text(" • ".join(str(row.get(k, "")) for k in ("tradingsymbol", "producttype", "netqty", "pnl")), size=12) for row in positions] or [ft.Text("Broker returned no open positions.", size=12)]
             self.status.value = "Live controls " + ("ARMED for this session" if caps.get("armed") else "DISARMED") + ". Order acknowledgement is not a fill; check filled quantity and broker positions."
-        except Exception as exc:self.error(exc)
+        except Exception as exc:
+            if (generation, epoch) == (self.generation, self.feed.epoch):self.error(exc)
         finally:
             self.busy = False
             self.update()
@@ -110,11 +120,21 @@ class LiveOrderControls:
             self.status.value = "Read the real-money acknowledgement and type ENABLE LIVE TRADING exactly."
             self.update();return
         self.busy = True
+        generation, epoch = self.generation, self.feed.epoch
         try:
-            self.capabilities = await asyncio.to_thread(self.feed.live, "arm", {"confirmation": self.phrase.value})
+            caps = await asyncio.to_thread(self.feed.live, "arm", {"confirmation": self.phrase.value})
+            if (generation, epoch) != (self.generation, self.feed.epoch):
+                # A background/reset event can overtake the HTTP response. Undo an
+                # obsolete arm on the same session without touching a newer login.
+                if epoch == self.feed.epoch:
+                    try:await asyncio.to_thread(self.feed.live, "disarm")
+                    except Exception:pass
+                return
+            self.capabilities = caps
             self.phrase.value = ""
             self.status.value = "Live orders ARMED for 15 minutes. Each order still requires a fresh review and explicit confirmation."
-        except Exception as exc:self.error(exc)
+        except Exception as exc:
+            if (generation, epoch) == (self.generation, self.feed.epoch):self.error(exc)
         finally:self.busy = False;self.update()
 
     async def disarm(self):
@@ -138,6 +158,7 @@ class LiveOrderControls:
             self.status.value = "Acknowledge the real-money controls before reviewing a live order."
             self.update();return
         self.busy = True
+        generation = self.generation
         try:
             price = float(self.price.value)
             units = int(self.units.value)
@@ -147,7 +168,7 @@ class LiveOrderControls:
             if self.segment.value == "Options":intent.update(expiry=self.expiry.value.strip(), strike=float(self.strike.value))
             epoch = self.feed.epoch
             data = await asyncio.to_thread(self.feed.live, "preview", intent)
-            if epoch != self.feed.epoch:return
+            if epoch != self.feed.epoch or generation != self.generation or not self.ack.value:return
             self.review = {"data": data, "request_id": uuid.uuid4().hex, "epoch": epoch}
             summary = ("REAL MONEY — account ending " + data["account_hint"] + "\n" + data["side"] + " " + data["symbol"]
                        + "\nQuantity: " + str(data["quantity"]) + " (lot size " + str(data["lot_size"]) + ")"

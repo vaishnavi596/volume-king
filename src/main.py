@@ -576,7 +576,9 @@ def app_main(page:ft.Page):
             if "expiry" in text or "strike" in text or "contract" in text:return component_status("options")
             if "source" in text or "provider" in text or "symbol" in text:return component_status("market")
             return "इस नियंत्रण में अभी validation error दर्ज नहीं है। वास्तविक डेटा की स्थिति संबंधित सेक्शन में देखें।"
-        if "execution capabilities" in text or "live auto trading" in text:return "Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"
+        if "execution capabilities" in text or "live auto trading" in text:
+            return "Manual LIVE access: check the separate LIVE controls in Settings. Live automatic SL/target and server automation are not connected."
+        if "live trading" in text:return str(live_controls.status.value)
         if "diagnostic" in text:return "इस सत्र में दर्ज errors: "+str(len(diagnostics))+"। यह पूर्ण कार्यक्षमता का प्रमाण नहीं है।"
         if "source" in text or "broker" in text:return str(connection_status.value)+" • "+component_status("market")
         if "news" in text or "headline" in text:
@@ -587,7 +589,7 @@ def app_main(page:ft.Page):
         if "chart" in text and "option" not in text:return str(tradingview_status.value)+" • "+component_status("market")
         if "alert" in text or "backtest" in text:return "यह सेवा अभी जुड़ी नहीं है।"
         if any(x in text for x in ("paper","protection","strategy","risk","target","trade")):
-            return "Paper / saved-plan सुविधा है। Live orders और live automatic exit सक्रिय नहीं हैं।"
+            return "यह Paper / saved-plan सुविधा है। असली ऑर्डर अलग LIVE सेक्शन से पुष्टि के बाद भेजे जाते हैं; यह नियंत्रण live automatic exit नहीं करता।"
         if any(x in text for x in ("option","pcr","oi analysis","flow")):
             rows=selected_option_rows()
             if not rows:return "Verified option डेटा अभी उपलब्ध नहीं है। "+option_feed_status[0]+" • "+component_status("options")
@@ -639,7 +641,9 @@ def app_main(page:ft.Page):
                 row=ft.Column([ft.Row([ft.Container(content=control._bk_help_label,expand=True),info],spacing=4),control],spacing=4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
             else:
                 row=ft.Row([ft.Container(content=control,expand=True),info],spacing=4,vertical_alignment=ft.CrossAxisAlignment.CENTER)
-            return ft.Column([row],data="help_wrapper",expand=expand,width=width,visible=control.visible,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            wrapper=ft.Column([row],data="help_wrapper",expand=expand,width=width,visible=control.visible,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            control._bk_help_wrapper=wrapper
+            return wrapper
         if isinstance(control,(ft.Column,ft.Row)):
             control.controls=[decorate_help(c,isinstance(control,ft.Row) and bool(control.wrap)) for c in control.controls]
         elif isinstance(control,ft.Container) and control.content is not None:
@@ -1153,8 +1157,10 @@ def app_main(page:ft.Page):
         return row
     def option_paper_action(side):
         try:
-            copy_verified_option_to_paper()
-            bot_paper_action(side)
+            with trade_lock:
+                if bot_position.get("side"):raise ValueError("Exit the existing PAPER position before selecting another entry")
+                copy_verified_option_to_paper()
+                bot_paper_action(side)
             option_paper_note.value=bot_trade_status.value
         except (ValueError,TypeError,KeyError,OverflowError) as exc:
             option_paper_note.value="Cannot "+side+" PAPER: "+str(exc)+". No order placed."
@@ -1240,7 +1246,7 @@ def app_main(page:ft.Page):
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Auto: Angel One first; Yahoo fallback for available underlying data. CE/PE requires a supported option feed. Options poll every 15 seconds while open during regular hours; not tick streaming. No live orders.")],
+            note("Auto: Angel One first; Yahoo fallback for available underlying data. CE/PE requires a supported option feed. Options poll every 15 seconds while open during regular hours; not tick streaming. Real orders require the separate LIVE review and confirmation.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         if option_feed_busy[0]:return

@@ -1,4 +1,5 @@
 import asyncio
+import time
 import unittest
 from unittest.mock import patch
 
@@ -7,6 +8,44 @@ from test_audit import start
 
 
 class FullAuditFixes(unittest.TestCase):
+    def option_quote(self, v, age=0):
+        v['expiry'].value='2026-12-01'
+        v['option_strike'].value='24000'
+        v['option_feed'].update(symbol=v['chain_symbol'].value,expiry=v['expiry'].value,
+            rows=[dict(side='CE',strike=24000,premium=80,timestamp=time.time()-age,lot_size=65)])
+
+    def test_verified_options_paper_entry_uses_broker_lot_without_live_order(self):
+        _,v=start({'scanner_live':False})
+        self.option_quote(v)
+        with patch.object(v['angel_feed'],'live') as live:
+            v['option_paper_action']('BUY')
+            live.assert_not_called()
+        self.assertEqual(v['bot_position']['side'],'BUY')
+        self.assertEqual(v['bot_position']['quantity'],65)
+        self.assertEqual(v['bot_position']['entry'],80)
+
+    def test_stale_paper_entry_and_existing_position_do_not_replace_plan(self):
+        _,v=start({'scanner_live':False})
+        self.option_quote(v,age=100)
+        previous=v['bot_premium'].value
+        v['option_paper_action']('BUY')
+        self.assertIsNone(v['bot_position']['side'])
+        self.assertEqual(v['bot_premium'].value,previous)
+        self.option_quote(v)
+        v['option_paper_action']('BUY')
+        v['bot_premium'].value='90'
+        v['option_paper_action']('SELL')
+        self.assertEqual(v['bot_premium'].value,'90')
+        self.assertEqual(v['bot_position']['entry'],80)
+
+    def test_option_chain_tap_selects_exact_strike_and_side(self):
+        _,v=start({'scanner_live':False})
+        self.option_quote(v)
+        table=v['option_chain_preview']().controls[2].controls[0]
+        table.rows[0].cells[4].on_tap(None)
+        self.assertEqual(v['option_strike'].value,'24000')
+        self.assertEqual(v['option_side'].value,'PE')
+
     def test_negated_and_uncertain_headlines_cannot_vote(self):
         _,v=start({'scanner_live':False})
         data=v['headline_signal']([{'title':'Company denies fraud allegations'}, {'title':'Rumour: company may default on loans'}])
