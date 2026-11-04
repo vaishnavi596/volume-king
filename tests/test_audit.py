@@ -24,7 +24,7 @@ class Page:
     def run_task(self,fn,*args): self.tasks.append((fn,args))
     def launch_url(self,url): pass
 
-def start(prefs=None):
+def start(prefs=None,cache_path=None):
     source=(ROOT/'src/main.py').read_text()
     tree=ast.parse(source)
     assert isinstance(tree.body[-1],ast.Expr)
@@ -32,7 +32,13 @@ def start(prefs=None):
     env={'__name__':'audit_main','__file__':str(ROOT/'src/main.py')}
     exec(compile(tree,'audit_main.py','exec'),env)
     env['STATE']=ROOT/'tests'/'nonexistent_settings_for_test.json'
-    page=Page(prefs or {});local={};previous=sys.getprofile()
+    import tempfile
+    cache_temp=tempfile.TemporaryDirectory() if cache_path is None else None
+    if cache_temp:
+        import atexit
+        atexit.register(cache_temp.cleanup)
+    env['CACHE_FILE']=Path(cache_temp.name)/'cache.json' if cache_temp else Path(cache_path)
+    page=Page(prefs or {});page.cache_temp=cache_temp;local={};previous=sys.getprofile()
     def trace(frame,event,arg):
         if event=='return' and frame.f_code.co_name=='app_main':local.update(frame.f_locals)
     sys.setprofile(trace)
