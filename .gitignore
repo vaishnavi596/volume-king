@@ -2,3 +2,9 @@ __pycache__/
 *.py[cod]
 .venv/
 build/
+
+*.jks
+*.keystore
+key.properties
+*KEYSTORE*.txt
+signing-private/

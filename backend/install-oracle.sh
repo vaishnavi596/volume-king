@@ -3,6 +3,8 @@
 set -euo pipefail
 umask 077
 release=${1:?Pass a full 40-character Git commit SHA}
+live_mode=${2:-}
+[[ -z $live_mode || $live_mode == --enable-live ]] || { echo 'Unknown installer option'; exit 1; }
 [[ $release =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid release SHA'; exit 1; }
 [[ $(id -u) == 0 ]] || { echo 'Run this installer with sudo'; exit 1; }
 appdir=/opt/bot-king-server
@@ -18,9 +20,10 @@ stage=$(mktemp -d /tmp/botking-gateway.XXXXXX)
 trap 'rm -rf "$stage"' EXIT
 base="https://raw.githubusercontent.com/vaishnavi596/volume-king/$release"
 curl --fail --silent --show-error --max-time 60 "$base/backend/server.py" -o "$stage/server.py"
+curl --fail --silent --show-error --max-time 60 "$base/backend/live_trading.py" -o "$stage/live_trading.py"
 curl --fail --silent --show-error --max-time 60 "$base/src/market_feed.py" -o "$stage/market_feed.py"
 curl --fail --silent --show-error --max-time 60 "$base/backend/requirements.txt" -o "$stage/requirements.txt"
-/usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py"
+/usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py" "$stage/live_trading.py"
 
 # Only these Python packages change; existing SmartAPI packages are retained.
 install -o opc -g opc -m 600 "$stage/requirements.txt" "$appdir/gateway-requirements.txt"
@@ -31,17 +34,20 @@ backup="/var/backups/bot-king/gateway-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 install -d -m 700 "$backup"
 cp -p "$appdir/server.py" "$backup/server.py"
 cp -p "$nginxconf" "$backup/nginx.conf"
-for entry in market_feed.py; do
+for entry in market_feed.py live_trading.py; do
     if test -e "$appdir/$entry"; then cp -p "$appdir/$entry" "$backup/$entry"; fi
 done
 if test -e "$dropin"; then cp -p "$dropin" "$backup/gateway.conf"; fi
 if test -e "$limits"; then cp -p "$limits" "$backup/limits.conf"; fi
+if test -e /etc/bot-king/server.env; then cp -p /etc/bot-king/server.env "$backup/server.env"; fi
 
 rollback() {
     echo "Installation failed. Restoring previous server/configuration. Backup: $backup" >&2
     cp -p "$backup/server.py" "$appdir/server.py"
     cp -p "$backup/nginx.conf" "$nginxconf"
     if test -f "$backup/market_feed.py"; then cp -p "$backup/market_feed.py" "$appdir/market_feed.py"; else rm -f "$appdir/market_feed.py"; fi
+    if test -f "$backup/live_trading.py"; then cp -p "$backup/live_trading.py" "$appdir/live_trading.py"; else rm -f "$appdir/live_trading.py"; fi
+    if test -f "$backup/server.env"; then cp -p "$backup/server.env" /etc/bot-king/server.env; fi
     if test -f "$backup/gateway.conf"; then cp -p "$backup/gateway.conf" "$dropin"; else rm -f "$dropin"; fi
     if test -f "$backup/limits.conf"; then cp -p "$backup/limits.conf" "$limits"; else rm -f "$limits"; fi
     restorecon -RF "$appdir" /etc/nginx/conf.d /etc/systemd/system/bot-king.service.d || true
@@ -62,6 +68,15 @@ Path('/etc/bot-king/server.env').write_text('BOTKING_PAIRING_KEY=' + value + '\n
 PY
 fi
 chmod 600 /etc/bot-king/server.env
+if [[ $live_mode == --enable-live ]]; then
+    /usr/bin/python3 - <<'PY'
+from pathlib import Path
+path=Path('/etc/bot-king/server.env')
+lines=[line for line in path.read_text().splitlines() if not line.startswith('BOTKING_LIVE_ORDERS_ENABLED=')]
+lines.append('BOTKING_LIVE_ORDERS_ENABLED=1')
+path.write_text('\n'.join(lines)+'\n')
+PY
+fi
 /usr/bin/python3 - <<'PY'
 from pathlib import Path
 lines = Path('/etc/bot-king/server.env').read_text().splitlines()
@@ -74,6 +89,7 @@ chown opc:opc /home/opc/bot-king-pairing-key.txt
 chmod 600 /home/opc/bot-king-pairing-key.txt
 install -o opc -g opc -m 644 "$stage/server.py" "$appdir/server.py"
 install -o opc -g opc -m 644 "$stage/market_feed.py" "$appdir/market_feed.py"
+install -o opc -g opc -m 644 "$stage/live_trading.py" "$appdir/live_trading.py"
 install -d -m 755 /etc/systemd/system/bot-king.service.d
 cat > "$dropin" <<'UNIT'
 [Service]
@@ -137,5 +153,6 @@ code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}'
 test "$code" = 401
 trap - ERR
 echo 'BOT KING gateway installed. Protected market-data endpoint returned 401 without a session, as expected.'
+echo 'Manual live orders, when server-enabled, still require a fresh owner login, explicit arming and per-order confirmation.'
 echo 'Owner key is in /home/opc/bot-king-pairing-key.txt. Do not paste it into chat.'
 echo "Backup: $backup"

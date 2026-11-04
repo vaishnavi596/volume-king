@@ -5,7 +5,8 @@ import asyncio
 import urllib.request
 import urllib.parse
 from market_feed import FeedError, SessionExpired
-from server_feed import ServerAngelFeed
+from server_feed import ServerAngelFeed, server_origin
+from live_controls import LiveOrderControls
 from analysis_quality import quality_check, agreement_detail
 from help_content import describe
 from i18n import localize_tree,translate
@@ -345,7 +346,7 @@ def app_main(page:ft.Page):
         pos=neg=0
         for item in items:
             text=item["title"].lower()
-            if re.search(r"(not|denies|denied|rumour|rumor|may|could)",text):continue
+            if re.search(r"\b(not|denies|denied|rumour|rumor|may|could)\b",text):continue
             up=any(term in text for term in positive);down=any(term in text for term in negative)
             if up and not down:pos+=1
             elif down and not up:neg+=1
@@ -630,9 +631,15 @@ def app_main(page:ft.Page):
                 control.label="{value}%"
                 control._bk_help_label=txt(f"Signal agreement: {control.value:g}%",12,MUTED)
                 row=ft.Column([ft.Row([ft.Container(content=control._bk_help_label,expand=True),info]),control],horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            elif len(label)>24:
+                control._bk_external_label=True
+                control._bk_original_label=label
+                control.label=""
+                control._bk_help_label=txt(label,12,MUTED)
+                row=ft.Column([ft.Row([ft.Container(content=control._bk_help_label,expand=True),info],spacing=4),control],spacing=4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
             else:
                 row=ft.Row([ft.Container(content=control,expand=True),info],spacing=4,vertical_alignment=ft.CrossAxisAlignment.CENTER)
-            return ft.Column([row],data="help_wrapper",expand=expand,width=width,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            return ft.Column([row],data="help_wrapper",expand=expand,width=width,visible=control.visible,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
         if isinstance(control,(ft.Column,ft.Row)):
             control.controls=[decorate_help(c,isinstance(control,ft.Row) and bool(control.wrap)) for c in control.controls]
         elif isinstance(control,ft.Container) and control.content is not None:
@@ -673,7 +680,7 @@ def app_main(page:ft.Page):
         return section("EXECUTION CAPABILITIES",ft.Column([
             note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Yahoo / saved data; broker not connected")),
             note("Paper orders: local simulation • strategies: Start + manual ticks only"),
-            note("Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"),
+            note("Live orders: "+("ARMED • manual confirmation required" if live_controls.capabilities.get("armed") else "OFF • arm in the separate LIVE controls")+" • live SL/target: OFF • server automation: NOT CONNECTED"),
             note("Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading."),
             runtime_status,ft.ElevatedButton("Live auto trading • not available",disabled=True),
         ],spacing=5,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
@@ -1079,7 +1086,9 @@ def app_main(page:ft.Page):
                 if len(result)>=2:break
         return result
     def refresh_option_expiry(e=None):
+        option_expiry_note.value="Calendar preview only; refresh with Angel One for a listed expiry."
         if option_expiry_choice.value=="Manual":
+            option_expiry_note.value="Manual expiry; broker verification required when refreshing."
             expiry.read_only=False
         else:
             expiry.read_only=True
@@ -1120,8 +1129,35 @@ def app_main(page:ft.Page):
     option_side=ft.Dropdown(label="Contract",value=prefs.get("option_side","CE"),options=[ft.dropdown.Option("CE"),ft.dropdown.Option("PE")])
     option_qty=ft.TextField(label="Lots (paper)",value=str(prefs.get("option_qty","1")),keyboard_type=ft.KeyboardType.NUMBER)
     option_paper_note=txt("Option paper entry requires verified premium and lot size.",12,MUTED)
+    def copy_verified_option_to_paper():
+        if mode.value!="Paper":raise ValueError("Select Paper simulation mode first")
+        strike=finite(option_strike.value,"Strike",.000001)
+        rows=[r for r in selected_option_rows() if float(r.get("strike",-1))==strike and r.get("side")==option_side.value]
+        if len(rows)!=1:raise ValueError("Select one exact listed strike and CE/PE with a broker quote")
+        row=rows[0];stamp=row.get("timestamp")
+        if stamp is None or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=90:
+            raise ValueError("Quote is historical/stale; refresh a current broker quote before PAPER entry")
+        lot=int(row.get("lot_size",0));lots=int(option_qty.value);premium=finite(row.get("premium"),"Premium",.000001)
+        if lot<=0 or not 1<=lots<=50:raise ValueError("Invalid verified lot size or number of lots")
+        sym=chain_symbol.value
+        if sym not in [o.key for o in bot_symbol.options]:bot_symbol.options.append(ft.dropdown.Option(sym))
+        bot_segment.value="Options";bot_symbol.value=sym;bot_custom.value=""
+        bot_type.value=option_side.value;bot_strike.value=str(strike)
+        bot_expiry_mode.value="Manual";bot_expiry.value=expiry.value
+        bot_lots.value=str(lots);bot_lot_size.value=str(lot);bot_premium.value=str(premium)
+        manual_contract_confirmed.value=True
+        prefs.update(bot_segment="Options",bot_symbol=sym,bot_custom="",bot_type=option_side.value,bot_strike=strike,
+                     bot_expiry_mode="Manual",bot_expiry=expiry.value,bot_lots=lots,bot_lot_size=lot,bot_premium=premium,
+                     manual_contract_confirmed=True,bot_contract_symbol=sym)
+        expiry_warning.value="Contract copied from a current broker quote for PAPER simulation; no live order."
+        return row
     def option_paper_action(side):
-        option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
+        try:
+            copy_verified_option_to_paper()
+            bot_paper_action(side)
+            option_paper_note.value=bot_trade_status.value
+        except (ValueError,TypeError,KeyError,OverflowError) as exc:
+            option_paper_note.value="Cannot "+side+" PAPER: "+str(exc)+". No order placed."
         page.update()
     option_chart_cache={}
     option_chart_busy=[False]
@@ -1240,10 +1276,11 @@ def app_main(page:ft.Page):
                 option_snapshots[sym]={"symbol":sym,"timeframe":scan_tf.value,"verified":True,"source":"Angel One","expiry":expiry_value,"timestamp":min(r["timestamp"] for r in fresh),"call_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="CE"),"put_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="PE")}
             else:option_snapshots.pop(sym,None)
             times=[row["timestamp"] for row in data["rows"] if row.get("timestamp")]
-            health.finish(health_key,request_id,"AVAILABLE" if data["complete"] else "PARTIAL",source="Angel One",data_time=min(times) if times else None,error="" if data["complete"] else "Partial strike-window coverage")
+            health.finish(health_key,request_id,("AVAILABLE" if len(fresh)==len(data["rows"]) and data["rows"] else "STALE") if data["complete"] else "PARTIAL",source="Angel One",data_time=min(times) if times else None,error=("" if len(fresh)==len(data["rows"]) and data["rows"] else "Historical or missing quote timestamps") if data["complete"] else "Partial strike-window coverage")
             option_feed_status[0]="Angel One • up to 9 strikes • "+("requested window complete" if data["complete"] else "partial quote coverage")
         except Exception as exc:
             log_error("options_feed",exc)
+            if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
             health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
             option_feed_status[0]="Feed unavailable. Check connection and listed expiry; cached quotes retain their timestamps."
         finally:
@@ -1294,12 +1331,19 @@ def app_main(page:ft.Page):
             val=row.get(key)
             return (f"{float(val):,.0f}" if key=="oi" else f"{float(val):,.2f}") if val is not None else "—"
         table_rows=[]
+        def choose_contract(strike_value,side):
+            option_strike.value=f"{strike_value:g}";option_side.value=side
+            prefs.update(option_strike=option_strike.value,option_side=side);save();select(1)
         for strike_value,sides in sorted(grouped.items()):
             ce=sides.get("CE",{});pe=sides.get("PE",{})
             times=[r.get("timestamp") for r in sides.values()]
             fresh=times and all(t is not None and 0<=datetime.now(timezone.utc).timestamp()-t<=90 for t in times)
             label=f"{strike_value:g}"+("" if fresh else " • OLD")
-            table_rows.append(ft.DataRow(cells=[ft.DataCell(txt(v,12,MUTED)) for v in [cell_value(ce,"premium"),cell_value(ce,"oi"),label,cell_value(pe,"oi"),cell_value(pe,"premium")]]))
+            values=[cell_value(ce,"premium"),cell_value(ce,"oi"),label,cell_value(pe,"oi"),cell_value(pe,"premium")]
+            cells=[ft.DataCell(txt(v,12,MUTED)) for v in values]
+            cells[0].on_tap=lambda e,k=strike_value:choose_contract(k,"CE")
+            cells[4].on_tap=lambda e,k=strike_value:choose_contract(k,"PE")
+            table_rows.append(ft.DataRow(cells=cells))
         table=ft.DataTable(
             columns=[ft.DataColumn(txt(label,12,GOLD,True)) for label in headings],
             rows=table_rows or [ft.DataRow(cells=[ft.DataCell(txt(value,13,MUTED)) for value in ["—","—",strike+" (manual)","—","—"]])],
@@ -1364,13 +1408,14 @@ def app_main(page:ft.Page):
             credential_inputs[label]=field
             controls.append(field)
         credential_column.controls=controls
-        broker_info.value=name+" • Empty server address: direct broker login. With a server address: credentials pass through your trusted server to Angel One over HTTPS. Broker sessions stay in memory; no live orders."
-        connection_status.value="Not connected. Authentication adapter required for "+name+"."
+        broker_info.value=name+" • Direct login: market data only. A trusted server receives your login over HTTPS and can provide separately armed, manually confirmed live orders. Broker sessions stay in memory."
+        connection_status.value=("Not connected. Enter Angel One login fields; reconnect after app restart or session expiry." if name=="Angel One" else "Authentication adapter not implemented for "+name+".")
         connection_status.color=MUTED
         if e is not None:page.update()
     broker.on_change=update_broker_info
     update_broker_info()
     async def revoke_and_clear():
+        live_controls.reset()
         try:
             await asyncio.to_thread(angel_feed.revoke)
             remote_message="Disconnected. Server session cleared."
@@ -1392,6 +1437,12 @@ def app_main(page:ft.Page):
             connection_status.value="Only Angel One read-only integration is supported; Auto can use Yahoo."
             page.update();return
         endpoint=(api_url.value or "").strip()
+        try:
+            if endpoint:server_origin(endpoint)
+        except FeedError:
+            api_url.error_text="Enter an HTTPS server address, not an access key."
+            connection_status.value=api_url.error_text
+            page.update();return
         if endpoint and not server_trust.value:
             connection_status.value="Confirm that you trust this server before sending your broker login."
             page.update();return
@@ -1406,9 +1457,10 @@ def app_main(page:ft.Page):
             broker_retry[0]=0
             source.value="Auto";prefs["source"]="Auto";save()
             provider_changed(None)
-            connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
+            connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data connected • live orders require separate arming/review • reconnect after expiry or restart"
             connection_status.color=GREEN
             page.run_task(refresh_selected_options)
+            if endpoint:page.run_task(live_controls.refresh)
         except Exception as exc:
             log_error("broker_login",exc)
             connection_status.value="Connection failed. Check credentials, TOTP, API permissions and network. Auto remains available."
@@ -1419,6 +1471,11 @@ def app_main(page:ft.Page):
         page.update()
     def explain_broker_connection(e):
         page.run_task(connect_angel)
+
+    live_controls=LiveOrderControls(page,angel_feed)
+    def copy_live_contract(e):
+        live_controls.use_options(chain_symbol.value,expiry.value,option_strike.value,option_side.value)
+        page.update()
 
     # Trading Bot controls: offline calculation and paper-only order simulation.
     bot_segment=ft.Dropdown(label="Segment",value=prefs.get("bot_segment","Options"),options=[ft.dropdown.Option("Options"),ft.dropdown.Option("Cash")])
@@ -1640,7 +1697,7 @@ def app_main(page:ft.Page):
     target=ft.TextField(label="Target %",value=str(prefs["target"]),keyboard_type=ft.KeyboardType.NUMBER)
     limit=ft.TextField(label="Max trades per day",value=str(prefs["max_trades"]),keyboard_type=ft.KeyboardType.NUMBER)
     conf=ft.Slider(min=70,max=85,divisions=15,value=prefs["confidence"],label="{value}%")
-    status=txt("Broker orders disabled. Paper Buy/Sell is simulated.",12,RED)
+    status=txt("Paper controls simulate orders. Real orders require the separate LIVE review and confirmation.",12,GOLD)
     paper_position={"side":None,"entry":None,"symbol":None}
     paper_status=txt("Paper position: FLAT",12,MUTED)
     def paper_trade(side):
@@ -1679,6 +1736,9 @@ def app_main(page:ft.Page):
         elif key in floats:
             value=float(value);lo,hi=floats[key]
             if not math.isfinite(value) or not lo<value<=hi:raise ValueError(f"Enter a number above {max(0,lo):g} and up to {hi:g}")
+        elif key=="api_url" and value:
+            try:value=server_origin(value)
+            except FeedError:raise ValueError("Enter only your server HTTPS address, without /health") from None
         elif key in ("bot_expiry","option_expiry") and value:
             datetime.strptime(value.strip(),"%Y-%m-%d")
         if isinstance(control,ft.TextField):control.error_text=None
@@ -1917,15 +1977,19 @@ def app_main(page:ft.Page):
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
     def settings():
+        cash_quantity.visible=bot_segment.value=="Cash"
+        for field in (bot_type,bot_strike,bot_expiry_mode,bot_expiry,expiry_warning,bot_lots,bot_lot_size):field.visible=bot_segment.value=="Options"
+        bot_custom.visible=bot_symbol.value=="Custom"
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. Sessions expire after 30 minutes idle or at most 8 hours. Other brokers are not integrated.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One: direct mode provides market data only. Server mode also supports separately enabled, confirmed manual live orders. Server access key and trust confirmation are required. Broker credentials stay in memory; reconnect after 30 minutes idle or 8 hours maximum. Other brokers are not integrated.')])))
+        content.append(section('LIVE TRADING • REAL MONEY • MANUAL CONFIRMATION',ft.Column([ft.OutlinedButton('Copy selected Options contract to LIVE form',on_click=copy_live_contract),live_controls.content()],spacing=8)))
         content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
                 ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
-                note("No live broker orders or background server are connected. This demo evaluates manually entered premiums while the app is open. It cannot protect real money or operate after the phone closes the app.")],spacing=6)),
+                note("This section protects PAPER positions only using manual premiums while the app is open. LIVE orders use the separate confirmed-order section; this paper demo does not manage them.")],spacing=6)),
             paper_control_card(),paper_journal_card(),
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
@@ -1935,7 +1999,7 @@ def app_main(page:ft.Page):
             section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
             section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
 
-            note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
+            note("Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only. LIVE orders are separate and remain at the broker after the app closes.")
         ])
         return content
 
@@ -2648,6 +2712,7 @@ console.log('BOT KING Lightweight Charts ready');
             else:status.value="Invalid value — not saved. Fix the field below.";status.color=RED
             page.update()
         control.on_change=changed
+    bot_segment.on_change=lambda e:select(2)
     bindings=[(mode,"mode"),(source,"source"),(broker,"broker"),(api_url,"api_url"),
         (sl,"stop_loss"),(target,"target"),(limit,"max_trades"),(conf,"confidence"),
         (bot_symbol,"bot_symbol"),(bot_custom,"bot_custom"),(bot_type,"bot_type"),(bot_strike,"bot_strike"),
@@ -2663,6 +2728,7 @@ console.log('BOT KING Lightweight Charts ready');
     def provider_changed(e):
         nonlocal market_status
         market_status="Data source: "+source.value+" • waiting for refresh"
+        option_expiry_note.value="Calendar preview/manual expiry; refresh with Angel One for broker-listed verification."
         provider_generation[0]+=1
         quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
@@ -2744,7 +2810,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.3 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.1.0 PAPER + MANUAL LIVE")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
@@ -2861,6 +2927,7 @@ console.log('BOT KING Lightweight Charts ready');
         state=getattr(state,"value",str(state)).lower()
         app_active[0]=state=="resumed"
         if not app_active[0]:
+            live_controls.pause()
             protection_pending.clear()
             if paper_bot_state[0]=="Running":paper_bot_state[0]="Paused";paper_state_status.value="Paper bot paused on background; press Start after returning"
             runtime_status.value="App backgrounded • uninterrupted monitoring unavailable • refresh on resume"

@@ -7,6 +7,11 @@ import urllib.request
 from market_feed import AngelFeed, FeedError, SessionExpired
 
 
+class LiveOperationError(FeedError):
+    """Public, bounded error from the trusted owner's live-order gateway."""
+    pass
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # Never forward a credential or session to another URL.
@@ -56,6 +61,13 @@ class ServerAngelFeed(AngelFeed):
                 raise SessionExpired("Server session expired; reconnect") from None
             if exc.code == 429:
                 raise FeedError("Server busy; wait before retrying") from None
+            if path.startswith("/v1/live/"):
+                try:
+                    detail = json.loads(exc.read(4096)).get("detail", "Live operation could not be verified")
+                    if not isinstance(detail, str) or len(detail) > 400:raise ValueError()
+                except Exception:
+                    detail = "Live operation could not be verified; refresh broker orders before sending another order"
+                raise LiveOperationError(detail) from None
             raise FeedError("Server rejected request; check server access and broker login") from None
         except FeedError:
             raise
@@ -113,3 +125,10 @@ class ServerAngelFeed(AngelFeed):
         if not self.server:
             return super().option_history(symbol, expiry, strike, side)
         return self._call("/v1/option-history", dict(symbol=symbol, expiry=expiry, strike=strike, side=side))
+
+    def live(self, operation, payload=None):
+        if operation not in ("capabilities", "arm", "disarm", "preview", "submit", "orders", "positions", "cancel"):
+            raise FeedError("Unsupported live operation")
+        if not self.server or not self.connected:
+            raise FeedError("Connect Angel One through your BOT KING server for live trading")
+        return self._call("/v1/live/" + operation, payload or {})

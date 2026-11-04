@@ -1,4 +1,4 @@
-"""Single-owner, single-worker BOT KING read-only gateway. No order routes."""
+"""Single-owner BOT KING gateway with separately enabled, confirmed live orders."""
 import asyncio
 import hmac
 import math
@@ -17,6 +17,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
 from market_feed import AngelFeed, FeedError, SessionExpired
+if __package__:
+    from .live_trading import AngelTradingFeed, LiveTrading, OrderJournal, TradingError
+else:
+    from live_trading import AngelTradingFeed, LiveTrading, OrderJournal, TradingError
 
 
 class Login(BaseModel):
@@ -46,11 +50,40 @@ class OptionHistory(Symbol):
     side: Literal["CE", "PE"]
 
 
-def create_app(pairing_key=None, feed=None, clock=time.monotonic):
+class ArmLive(BaseModel):
+    confirmation: str = Field(max_length=40)
+
+
+class LiveIntent(Symbol):
+    segment: Literal["Cash", "Options"]
+    side: Literal["BUY", "SELL"]
+    expiry: Optional[date] = None
+    strike: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
+    option_type: Literal["CE", "PE"] = "CE"
+    units: int = Field(ge=1, le=1000, strict=True)
+    limit_price: float = Field(gt=0, le=10000000, allow_inf_nan=False)
+
+
+class LiveSubmit(BaseModel):
+    ticket: str = Field(min_length=1, max_length=100)
+    request_id: str = Field(min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$")
+    confirmation: Literal["PLACE REAL ORDER"]
+
+
+class LiveCancel(BaseModel):
+    request_id: str = Field(min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$")
+    confirmation: Literal["CANCEL REAL ORDER"]
+
+
+def create_app(pairing_key=None, feed=None, clock=time.monotonic, trading=None):
     pairing_key = pairing_key or os.environ.get("BOTKING_PAIRING_KEY", "")
     if len(pairing_key) < 32:
         raise RuntimeError("BOTKING_PAIRING_KEY must contain at least 32 characters")
-    feed = feed or AngelFeed()
+    feed = feed or AngelTradingFeed()
+    if trading is None and os.environ.get("BOTKING_LIVE_ORDERS_ENABLED", "0") == "1":
+        trading = LiveTrading(feed, OrderJournal(os.environ.get("BOTKING_ORDER_JOURNAL", "/opt/bot-king-server/live-orders.sqlite3")), enabled=True,
+                              max_order_value=os.environ.get("BOTKING_MAX_ORDER_VALUE", "25000"),
+                              max_entries=os.environ.get("BOTKING_MAX_DAILY_ENTRIES", "2"))
     lock = threading.RLock()
     state = {"token": "", "issued": 0.0, "last": 0.0}
     attempts = deque()
@@ -99,6 +132,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
 
     def clear():
         state["token"] = ""
+        if trading:
+            trading.disarm()
+            trading.account = ""
         feed.disconnect()
         feed.instruments = None
         getattr(feed, "resolved", {}).clear()
@@ -136,7 +172,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "broker_connected": bool(state["token"] and feed.connected
                                          and clock() - state["issued"] < 8 * 3600
                                          and clock() - state["last"] < 1800),
-                "live_orders_enabled": False}
+                "live_orders_enabled": bool(trading and trading.enabled)}
 
     @app.post("/v1/login")
     def login(body: Login, x_botking_key: Optional[str] = Header(default=None)):
@@ -165,7 +201,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             finally:
                 values.clear()
             state.update(token=secrets.token_urlsafe(32), issued=clock(), last=clock())
-            return {"session": state["token"], "expires_in": 8 * 3600, "live_orders_enabled": False}
+            if trading:trading.bind_account(feed.client)
+            return {"session": state["token"], "expires_in": 8 * 3600, "live_orders_enabled": bool(trading and trading.enabled)}
         finally:
             lock.release()
 
@@ -191,5 +228,58 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     @app.post("/v1/option-history")
     def option_history(body: OptionHistory, authorization: Optional[str] = Header(default=None)):
         return run(authorization, "option_history", body.symbol, body.expiry.isoformat(), body.strike, body.side)
+
+    def live_call(header, method, *args):
+        if not lock.acquire(blocking=False):
+            raise HTTPException(429, "Server busy; retry later")
+        try:
+            authorized(header)
+            if not trading:
+                if method == "capabilities":return {"enabled": False, "armed": False, "automatic_protection": False}
+                raise HTTPException(403, "Live trading has not been enabled on this server")
+            try:
+                return getattr(trading, method)(*args)
+            except SessionExpired:
+                clear()
+                raise HTTPException(401, "Broker session expired; reconnect") from None
+            except TradingError as exc:
+                raise HTTPException(400, str(exc)) from None
+            except Exception:
+                raise HTTPException(503, "Live operation could not be verified. Refresh broker orders; do not resend an uncertain order.") from None
+        finally:
+            lock.release()
+
+    @app.post("/v1/live/capabilities")
+    def live_capabilities(authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "capabilities")
+
+    @app.post("/v1/live/arm")
+    def live_arm(body: ArmLive, authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "arm", body.confirmation)
+
+    @app.post("/v1/live/disarm")
+    def live_disarm(authorization: Optional[str] = Header(default=None)):
+        live_call(authorization, "disarm")
+        return {"armed": False}
+
+    @app.post("/v1/live/preview")
+    def live_preview(body: LiveIntent, authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "preview", body.model_dump(mode="json"))
+
+    @app.post("/v1/live/submit")
+    def live_submit(body: LiveSubmit, authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "submit", body.ticket, body.request_id, body.confirmation)
+
+    @app.post("/v1/live/orders")
+    def live_orders(authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "reconcile")
+
+    @app.post("/v1/live/positions")
+    def live_positions(authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "positions_summary")
+
+    @app.post("/v1/live/cancel")
+    def live_cancel(body: LiveCancel, authorization: Optional[str] = Header(default=None)):
+        return live_call(authorization, "cancel", body.request_id, body.confirmation)
 
     return app
