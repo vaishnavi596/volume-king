@@ -708,7 +708,7 @@ def app_main(page:ft.Page):
         market_error=market_record.get("error") or "No successful market request for this selection yet"
         last_ok=market_record.get("last_success")
         last_ok_text=(datetime.fromtimestamp(last_ok,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST") if isinstance(last_ok,(int,float)) else "Never")
-        status_color=GREEN if feed_ready and market_state.lower() in ("live","ok","fresh","success") else GOLD
+        status_color=GREEN if feed_ready and market_state.upper() == "AVAILABLE" else GOLD
         rows=[
             txt("SYSTEM HEALTH & SECURITY",16,WHITE,True),
             txt("Broker session: "+("CONNECTED" if feed_ready else "DISCONNECTED"),12,GREEN if feed_ready else RED,True),
@@ -2451,13 +2451,10 @@ console.log('BOT KING Lightweight Charts ready');
             sym=scan_symbol.value or "NIFTY"
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
-            # Yahoo supports limited intraday history; do not pretend 15m is daily.
-            if interval in ("1m","3m") and period!="7d":
-                raise ValueError("Yahoo 1m history is limited. Select 7d; only recent candles may be returned.")
-            if interval=="5m" and period=="3mo":
-                raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
-            if interval in ("5m","15m","30m") and period=="3mo":
-                raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
+            # Broker historical intervals have their own provider limits.
+            # Do not apply obsolete Yahoo-specific validation to Angel One.
+            if interval not in ("1m","3m","5m","15m","30m","1h","1d"):
+                raise ValueError("Unsupported broker candle interval")
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
