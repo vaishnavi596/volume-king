@@ -1409,9 +1409,15 @@ def app_main(page:ft.Page):
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
             page.run_task(refresh_selected_options)
+        except FeedError as exc:
+            log_error("broker_login",exc)
+            # FeedError messages are curated by the transport; never show raw
+            # HTTP response bodies, broker tokens or unhandled exception text.
+            connection_status.value="Connection failed: "+str(exc)+" • Auto remains available."
+            connection_status.color=RED
         except Exception as exc:
             log_error("broker_login",exc)
-            connection_status.value="Connection failed. Check credentials, TOTP, API permissions and network. Auto remains available."
+            connection_status.value="Connection failed unexpectedly. Check app diagnostics; Auto remains available."
             connection_status.color=RED
         finally:
             values.clear()
