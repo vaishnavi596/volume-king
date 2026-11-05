@@ -805,7 +805,7 @@ def app_main(page:ft.Page):
         watch_filter[0]="All"
         search.value=""
         feedback.value=""
-        select(1)
+        select(4)
     async def validate_and_add(sym):
         try:
             q=await asyncio.to_thread(get_market_data,sym)
@@ -823,7 +823,7 @@ def app_main(page:ft.Page):
             chain_symbol.options.append(ft.dropdown.Option(sym))
         feedback.value=sym+" added and saved to List "+str(active_watch[0]+1)
         add_symbol.value=""
-        select(1)
+        select(4)
     def add_watch(e):
         sym=(add_symbol.value or "").strip().upper().removesuffix(".NS")
         if not sym or len(sym)>25 or not all(c.isalnum() or c in "-&." for c in sym):
@@ -836,14 +836,14 @@ def app_main(page:ft.Page):
         page.update()
     def set_filter(v):
         watch_filter[0]=v
-        select(1)
+        select(4)
     def open_stock(sym):
         selected_watch[0]=sym
         if sym not in [o.key for o in symbol.options]:
             symbol.options.append(ft.dropdown.Option(sym))
         symbol.value=sym
         chart_tab[0]="Chart"
-        select(2)
+        select(5)
         page.run_task(load_chart)
     def remove_stock(sym):
         group=watch_groups[active_watch[0]]
@@ -851,7 +851,7 @@ def app_main(page:ft.Page):
             group.remove(sym)
             store_watch()
             feedback.value=sym+" removed from List "+str(active_watch[0]+1)
-        select(1)
+        select(4)
     def fill_watch(_=None):
         watch_list.controls.clear()
         visible_count=0
@@ -1040,13 +1040,13 @@ def app_main(page:ft.Page):
             chart_message.value="Yahoo chart updated"
         except Exception as exc:
             chart_message.value="Yahoo candles unavailable; check connection or rate limits"
-        select(2)
+        select(5)
     async def load_comparison():
         try:
             quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
             chart_message.value=f"{compare_symbol.value} loaded"
         except Exception:chart_message.value="Comparison data unavailable"
-        select(2)
+        select(5)
     chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()])
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK")
     option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]])
@@ -2685,14 +2685,14 @@ console.log('BOT KING Lightweight Charts ready');
     def source_change(e):
         source_previous(e);provider_changed(e)
     source.on_change=source_change
-    pages=[dashboard,options,settings,scanner]
-    icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH]
-    names=["Home","Options","Settings","Scanner"]
+    pages=[dashboard,options,settings,scanner,watchlist,charts]
+    icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH,ft.Icons.LIST,ft.Icons.CANDLESTICK_CHART]
+    names=["Home","Options","Settings","Scanner","Watchlist","Chart"]
     def remember_scroll(e):
         prefs.setdefault("page_scroll",{})[str(current[0])]=max(0,float(e.pixels))
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=12,on_scroll=remember_scroll,on_scroll_interval=750)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
-    current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<4 else 0]
+    current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<len(pages) else 0]
     async def restore_scroll(i):
         await asyncio.sleep(.15)
         if current[0]==i:
