@@ -1,146 +1,208 @@
-#!/usr/bin/env bash
-# Install reviewed, immutable GitHub revision using single-file monolithic bot_app.py
-set -euo pipefail
-umask 077
-release=${1:?Pass a full 40-character Git commit SHA}
-[[ $release =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid release SHA'; exit 1; }
-[[ $(id -u) == 0 ]] || { echo 'Run this installer with sudo'; exit 1; }
-appdir=/opt/bot-king-server
-nginxconf=/etc/nginx/conf.d/bot-king.conf
-dropin=/etc/systemd/system/bot-king.service.d/gateway.conf
-limits=/etc/nginx/conf.d/00-bot-king-limits.conf
-test -x "$appdir/.venv/bin/python"
-test -f "$appdir/server.py"
-test -f "$nginxconf"
-test -f /etc/letsencrypt/live/botkingrajesh.duckdns.org/fullchain.pem
-getent passwd opc >/dev/null
-stage=$(mktemp -d /tmp/botking-gateway.XXXXXX)
-trap 'rm -rf "$stage"' EXIT
-base="https://raw.githubusercontent.com/vaishnavi596/volume-king/$release"
-
-# Single-file new-version path mapped directly to server.py
-curl --fail --silent --show-error --max-time 60 "$base/new-version/bot_app.py" -o "$stage/server.py"
-curl --fail --silent --show-error --max-time 60 "$base/src/market_feed.py" -o "$stage/market_feed.py"
-curl --fail --silent --show-error --max-time 60 "$base/backend/requirements.txt" -o "$stage/requirements.txt"
-/usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py"
-
-install -o opc -g opc -m 600 "$stage/requirements.txt" "$appdir/gateway-requirements.txt"
-sudo -u opc "$appdir/.venv/bin/python" -m pip install --disable-pip-version-check -r "$appdir/gateway-requirements.txt"
-sudo -u opc "$appdir/.venv/bin/python" -m pip check
-
-backup="/var/backups/bot-king/gateway-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-install -d -m 700 "$backup"
-cp -p "$appdir/server.py" "$backup/server.py"
-cp -p "$nginxconf" "$backup/nginx.conf"
-for entry in market_feed.py; do
-    if test -e "$appdir/$entry"; then cp -p "$appdir/$entry" "$backup/$entry"; fi
-done
-if test -e "$dropin"; then cp -p "$dropin" "$backup/gateway.conf"; fi
-if test -e "$limits"; then cp -p "$limits" "$backup/limits.conf"; fi
-
-rollback() {
-    echo "Installation failed. Restoring previous server/configuration. Backup: $backup" >&2
-    cp -p "$backup/server.py" "$appdir/server.py"
-    cp -p "$backup/nginx.conf" "$nginxconf"
-    if test -f "$backup/market_feed.py"; then cp -p "$backup/market_feed.py" "$appdir/market_feed.py"; else rm -f "$appdir/market_feed.py"; fi
-    if test -f "$backup/gateway.conf"; then cp -p "$backup/gateway.conf" "$dropin"; else rm -f "$dropin"; fi
-    if test -f "$backup/limits.conf"; then cp -p "$backup/limits.conf" "$limits"; else rm -f "$limits"; fi
-    restorecon -RF "$appdir" /etc/nginx/conf.d /etc/systemd/system/bot-king.service.d || true
-    systemctl daemon-reload
-    systemctl restart bot-king.service || true
-    nginx -t && systemctl reload nginx || true
-}
-trap 'rollback' ERR
-
-install -d -m 700 /etc/bot-king
-if ! test -f /etc/bot-king/server.env; then
-    /usr/bin/python3 - <<'PY'
-from pathlib import Path
+"""Single-file monolithic BOT KING gateway v2.3.0
+- Extended 2-Hour Idle Session Timeout
+- Dedicated Heartbeat / Ping Support
+- Hardened Single-Owner Security
+"""
+import asyncio
+import hmac
+import math
+import os
 import secrets
-value = secrets.token_urlsafe(48)
-Path('/etc/bot-king/server.env').write_text('BOTKING_PAIRING_KEY=' + value + '\n')
-PY
-fi
-chmod 600 /etc/bot-king/server.env
-/usr/bin/python3 - <<'PY'
-from pathlib import Path
-lines = Path('/etc/bot-king/server.env').read_text().splitlines()
-values = [line.partition('=')[2] for line in lines if line.startswith('BOTKING_PAIRING_KEY=')]
-if len(values) != 1 or len(values[0]) < 32:
-    raise SystemExit('Invalid owner key file; stopping')
-Path('/home/opc/bot-king-pairing-key.txt').write_text(values[0] + '\n')
-PY
-chown opc:opc /home/opc/bot-king-pairing-key.txt
-chmod 600 /home/opc/bot-king-pairing-key.txt
+import threading
+import time
+from collections import deque
+from contextlib import asynccontextmanager, suppress
+from datetime import date
+from typing import Literal, Optional
 
-install -o opc -g opc -m 644 "$stage/server.py" "$appdir/server.py"
-install -o opc -g opc -m 644 "$stage/market_feed.py" "$appdir/market_feed.py"
-install -d -m 755 /etc/systemd/system/bot-king.service.d
-cat > "$dropin" <<'UNIT'
-[Service]
-EnvironmentFile=/etc/bot-king/server.env
-ExecStart=
-ExecStart=/opt/bot-king-server/.venv/bin/python -m uvicorn server:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --limit-concurrency 8 --timeout-keep-alive 5
-UNIT
-chmod 644 "$dropin"
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, SecretStr
 
-cat > "$limits" <<'NGINX'
-limit_req_zone $binary_remote_addr zone=botking_login:1m rate=5r/m;
-NGINX
-chmod 644 "$limits"
+from market_feed import AngelFeed, FeedError, SessionExpired
 
-/usr/bin/python3 - <<'PY'
-from pathlib import Path
-path = Path('/etc/nginx/conf.d/bot-king.conf')
-text = path.read_text()
-marker = '# BOT KING gateway v1'
-if marker not in text:
-    target = 'location / { return 404; }'
-    if text.count(target) != 1 or 'botkingrajesh.duckdns.org' not in text or 'listen 443 ssl' not in text:
-        raise SystemExit('Unexpected Nginx configuration; stopping without guessing')
-    block = '''# BOT KING gateway v1
-    location = /v1/login {
-        limit_req zone=botking_login burst=2 nodelay;
-        limit_req_status 429;
-        client_max_body_size 8k;
-        access_log off;
-        proxy_connect_timeout 3s;
-        proxy_read_timeout 45s;
-        proxy_pass http://127.0.0.1:8000/v1/login;
-    }
-    location /v1/ {
-        client_max_body_size 8k;
-        access_log off;
-        proxy_connect_timeout 3s;
-        proxy_read_timeout 45s;
-        proxy_pass http://127.0.0.1:8000;
-    }
-    location / { return 404; }'''
-    path.write_text(text.replace(target, block))
-PY
 
-restorecon -RF "$appdir" /etc/nginx/conf.d /etc/systemd/system/bot-king.service.d /etc/bot-king
-nginx -t
-systemctl daemon-reload
-systemctl restart bot-king.service
+class Login(BaseModel):
+    api_key: SecretStr
+    client_code: SecretStr
+    pin: SecretStr
+    totp: SecretStr
 
-ready=0
-for attempt in {1..15}; do
-    if curl --fail --silent --max-time 3 http://127.0.0.1:8000/health | /usr/bin/python3 -c 'import json,sys; assert json.load(sys.stdin).get("protocol") == 1' 2>/dev/null; then
-        ready=1
-        break
-    fi
-    sleep 1
-done
-test "$ready" = 1
 
-systemctl reload nginx
-sleep 1
-curl --fail --silent --show-error --max-time 10 --resolve botkingrajesh.duckdns.org:443:127.0.0.1 https://botkingrajesh.duckdns.org/health
-printf '\n'
-code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d '{"symbol":"NIFTY"}' https://botkingrajesh.duckdns.org/v1/expiries)
-test "$code" = 401
+class Symbol(BaseModel):
+    symbol: str = Field(min_length=1, max_length=32, pattern=r"^[A-Z0-9&_-]+$")
 
-trap - ERR
-echo 'BOT KING gateway updated with 2-hour idle timeout.'
-echo "Backup: $backup"
+
+class History(Symbol):
+    interval: Literal["1m", "3m", "5m", "15m", "30m", "1h", "1d"]
+    period: Literal["1d", "5d", "7d", "1mo", "3mo"]
+
+
+class Options(Symbol):
+    expiry: date
+    spot: float = Field(gt=0)
+
+
+class OptionHistory(Symbol):
+    expiry: date
+    strike: float = Field(gt=0)
+    side: Literal["CE", "PE"]
+
+
+def create_app(pairing_key=None, feed=None, clock=time.monotonic):
+    pairing_key = pairing_key or os.environ.get("BOTKING_PAIRING_KEY", "")
+    if len(pairing_key) < 32:
+        raise RuntimeError("BOTKING_PAIRING_KEY must contain at least 32 characters")
+    feed = feed or AngelFeed()
+    lock = threading.RLock()
+    state = {"token": "", "issued": 0.0, "last": 0.0}
+    attempts = deque()
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async def expire_idle():
+            while True:
+                await asyncio.sleep(60)
+                if lock.acquire(blocking=False):
+                    try:
+                        # 2 Hours (7200s) idle timeout and 8 Hours total session limit
+                        if state["token"] and (clock() - state["issued"] >= 8 * 3600 or clock() - state["last"] >= 7200):
+                            clear()
+                    finally:
+                        lock.release()
+        task = asyncio.create_task(expire_idle())
+        try:
+            yield
+        finally:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            clear()
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request, exc):
+        return JSONResponse(status_code=422, content={"detail": "Invalid request fields"})
+
+    @app.middleware("http")
+    async def body_limit(request, call_next):
+        try:
+            length = int(request.headers.get("content-length", "0"))
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid request"})
+        if request.url.path.startswith("/v1/"):
+            if length > 8192:
+                return JSONResponse(status_code=413, content={"detail": "Request too large"})
+            body = await request.body()
+            if len(body) > 8192:
+                return JSONResponse(status_code=413, content={"detail": "Request too large"})
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    def clear():
+        state["token"] = ""
+        feed.disconnect()
+        feed.instruments = None
+        getattr(feed, "resolved", {}).clear()
+
+    def authorized(header):
+        now = clock()
+        if state["token"] and (now - state["issued"] >= 8 * 3600 or now - state["last"] >= 7200):
+            clear()
+        supplied = (header or "").removeprefix("Bearer ")
+        if not state["token"] or not hmac.compare_digest(supplied.encode(), state["token"].encode()) or not (header or "").startswith("Bearer "):
+            raise HTTPException(401, "Session expired; reconnect")
+        state["last"] = now
+
+    def run(header, method, *args):
+        if not lock.acquire(blocking=False):
+            raise HTTPException(429, "Server busy; retry later")
+        try:
+            authorized(header)
+            if any(isinstance(v, float) and not math.isfinite(v) for v in args):
+                raise HTTPException(422, "Invalid market value")
+            try:
+                return getattr(feed, method)(*args)
+            except SessionExpired:
+                clear()
+                raise HTTPException(401, "Broker session expired; reconnect") from None
+            except Exception:
+                raise HTTPException(502, "Market data unavailable; verify session and listed contract") from None
+        finally:
+            lock.release()
+
+    @app.get("/health")
+    def health():
+        return {
+            "status": "ok",
+            "service": "BOT KING",
+            "protocol": 1,
+            "broker_connected": bool(state["token"] and feed.connected
+                                     and clock() - state["issued"] < 8 * 3600
+                                     and clock() - state["last"] < 7200),
+            "live_orders_enabled": False
+        }
+
+    @app.post("/v1/login")
+    def login(body: Login, x_botking_key: Optional[str] = Header(default=None)):
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if not lock.acquire(blocking=False):
+            raise HTTPException(429, "Server busy; retry later")
+        try:
+            now = clock()
+            while attempts and now - attempts[0] >= 60:
+                attempts.popleft()
+            if len(attempts) >= 5:
+                raise HTTPException(429, "Wait before reconnecting")
+            attempts.append(now)
+            values = [body.api_key.get_secret_value(), body.client_code.get_secret_value(),
+                      body.pin.get_secret_value(), body.totp.get_secret_value()]
+            if not all(0 < len(v) <= 256 for v in values) or not values[3].isdigit() or len(values[3]) != 6:
+                raise HTTPException(422, "Invalid login fields")
+            clear()
+            try:
+                feed.connect(*values)
+            except Exception:
+                clear()
+                raise HTTPException(401, "Broker login failed; check credentials and current TOTP") from None
+            finally:
+                values.clear()
+            state.update(token=secrets.token_urlsafe(32), issued=clock(), last=clock())
+            return {"session": state["token"], "expires_in": 8 * 3600, "live_orders_enabled": False}
+        finally:
+            lock.release()
+
+    @app.post("/v1/ping")
+    def ping(authorization: Optional[str] = Header(default=None)):
+        with lock:
+            authorized(authorization)
+        return {"status": "alive", "session_active": True}
+
+    @app.post("/v1/logout")
+    def logout(authorization: Optional[str] = Header(default=None)):
+        with lock:
+            authorized(authorization)
+            clear()
+        return {"status": "disconnected"}
+
+    @app.post("/v1/history")
+    def history(body: History, authorization: Optional[str] = Header(default=None)):
+        return run(authorization, "history", body.symbol, body.interval, body.period)
+
+    @app.post("/v1/expiries")
+    def expiries(body: Symbol, authorization: Optional[str] = Header(default=None)):
+        return run(authorization, "expiries", body.symbol)
+
+    @app.post("/v1/options")
+    def options(body: Options, authorization: Optional[str] = Header(default=None)):
+        return run(authorization, "option_chain", body.symbol, body.expiry.isoformat(), body.spot)
+
+    @app.post("/v1/option-history")
+    def option_history(body: OptionHistory, authorization: Optional[str] = Header(default=None)):
+        return run(authorization, "option_history", body.symbol, body.expiry.isoformat(), body.strike, body.side)
+
+    return app
