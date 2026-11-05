@@ -653,7 +653,7 @@ def app_main(page:ft.Page):
     def dashboard_tool_open(name):
         dashboard_tool[0]=name
         if name=="Scanner":select(3)
-        elif name=="Paper Trade":select(2)
+        elif name=="Trading":select(2)
         elif name=="OI Data":select(1)
         else:select(0)
     def open_candidate_chart(symbol):
@@ -663,16 +663,16 @@ def app_main(page:ft.Page):
     page_save_status=[ft.Text("",size=12,color=MUTED) for _ in range(4)]
     def risk_overview():
         ledger=paper_risk_ledger()
-        return section("TODAY'S PAPER RISK",ft.Column([
+        return section("RISK STATUS • LIVE ORDERS UNAVAILABLE",ft.Column([
             note("Entries: "+str(ledger["entries"])+" / "+str(prefs.get("max_trades",2))),
             note("Remaining planned-risk budget: INR "+format(max(0,float(prefs.get("max_daily_loss",1000))-float(ledger["planned_risk_used"])),",.2f")),
             note("Emergency stop: "+("ON" if prefs.get("emergency_stop") else "OFF")),
-            note("Protection: "+prefs.get("protection_mode","Manual")+" • paper demonstration only; live monitoring disconnected")
+            note("Broker-side protection is not implemented.")
         ],spacing=4))
     def execution_capabilities():
         return section("EXECUTION CAPABILITIES",ft.Column([
             note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Broker not connected; live data unavailable")),
-            note("Paper orders: local simulation • strategies: Start + manual ticks only"),
+            note("Order placement: NOT AVAILABLE"),
             note("Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"),
             note("Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading."),
             runtime_status,ft.ElevatedButton("Live auto trading • not available",disabled=True),
@@ -1017,10 +1017,8 @@ def app_main(page:ft.Page):
                 txt("₹ "+quote_price(symbol.value),26,GOLD,True),
                 txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
                 note("Broker API quotes only • verify freshness"),
-                ft.Row([chart_quantity,chart_sl,chart_target],wrap=True),
                 note("Trading unavailable until verified live-order integration is implemented."),
-                txt(chart_position_text(),12,GOLD),chart_paper_status,
-                note("Simulation only • no real orders")
+                note("Real orders are not available.")
             ])))
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Broker Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
@@ -1028,7 +1026,7 @@ def app_main(page:ft.Page):
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
-            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol's Yahoo trend with the current chart.")])))
+            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol using broker-provided history.")])))
         elif chart_tab[0]=="Levels":
             content.append(section("Market Levels",note("Verified support and resistance calculations are not yet enabled.")))
         else:
@@ -1037,9 +1035,9 @@ def app_main(page:ft.Page):
     async def load_chart():
         try:
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Yahoo chart updated"
+            chart_message.value="Broker chart updated"
         except Exception as exc:
-            chart_message.value="Yahoo candles unavailable; check connection or rate limits"
+            chart_message.value="Broker candles unavailable; check broker connection and data availability"
         select(5)
     async def load_comparison():
         try:
@@ -1308,20 +1306,20 @@ def app_main(page:ft.Page):
         )
         return ft.Column([
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying prices use the selected data source; Yahoo history may be delayed."),
+            note("Underlying prices require authenticated broker data; check timestamps."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
             ft.ElevatedButton("Refresh selected data",on_click=lambda e:page.run_task(refresh_selected_options)),
-            note("Table uses listed broker contracts when connected. The strike input below is a manual selection; paper orders remain manual."),
+            note("Table uses listed broker contracts when connected. Order placement is unavailable."),
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, note('Real orders unavailable until verified broker order integration is implemented.'), option_paper_note, option_chart_panel()])]))])
+        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), note('Real orders unavailable until verified broker order integration is implemented.'), option_chart_panel()])]))])
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
@@ -1927,21 +1925,18 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect. Live data unavailable.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. The v2.3 gateway allows up to 2 hours idle and 8 hours total, but Angel One may expire sooner. Reconnection requires a fresh broker login; credentials are not stored. Other brokers are not integrated.')])))
-        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Live order placement is not implemented; trading controls remain disabled.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
-            section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
-                ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
-                note("No live broker orders or background server are connected. This demo evaluates manually entered premiums while the app is open. It cannot protect real money or operate after the phone closes the app.")],spacing=6)),
-            paper_control_card(),paper_journal_card(),
+            section("TRADING STATUS",ft.Column([
+                note("Real-money orders are not implemented or enabled in this version."),
+                note("No simulated Buy/Sell or paper-trading controls are available."),
+                note("Broker data connection does not authorize order placement.")
+            ],spacing=5)),
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
-            help_box("Risk and protection", "Paper limits are local simulations. Broker-side SL/target, filled-order confirmation and an always-on service are required before live automatic protection can be enabled."),
-            section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
-            section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
-            section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
-            section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
-
-            note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
+            section("SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
+            section("ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
+            section("BACKTEST • NOT CONNECTED",note("No validated backtest report exists in this build.")),
+            section("DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
         ])
         return content
 
@@ -2750,7 +2745,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.3 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.3.1 PREVIEW")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
