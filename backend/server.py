@@ -2,6 +2,7 @@
 import asyncio
 import hmac
 import math
+import logging
 import os
 import secrets
 import threading
@@ -17,6 +18,21 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
 from market_feed import AngelFeed, FeedError, SessionExpired
+
+def log_data_failure(operation, exc):
+    # Never emit raw exceptions, request bodies, headers, client IDs, PINs or JWTs.
+    reasons={"Exact broker symbol unavailable":"symbol_resolution",
+             "Broker candles unavailable":"empty_candles",
+             "Broker quote unavailable":"empty_quote",
+             "Broker quote timestamp unavailable or invalid":"quote_timestamp",
+             "Broker session expired; reconnect":"broker_session_expired",
+             "Broker rejected request; reconnect or verify contract":"broker_rejection",
+             "Broker HTTP request failed; retry later":"broker_http",
+             "Broker request failed; check connection/session":"broker_network_or_response",
+             "Broker not connected":"broker_disconnected"}
+    reason=reasons.get(str(exc),"unclassified")
+    logging.getLogger("botking.diagnostics").warning("BOTKING_DATA_FAILURE operation=%s reason=%s",operation,reason)
+
 if __package__:
     from .live_trading import AngelTradingFeed, LiveTrading, OrderJournal, TradingError
 else:
@@ -145,6 +161,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic, trading=None):
             clear()
         supplied = (header or "").removeprefix("Bearer ")
         if not state["token"] or not hmac.compare_digest(supplied.encode(), state["token"].encode()) or not (header or "").startswith("Bearer "):
+            logging.getLogger("botking.diagnostics").warning("BOTKING_GATEWAY_AUTH reason=%s","session_missing" if not state["token"] else "session_mismatch")
             raise HTTPException(401, "Session expired; reconnect")
         state["last"] = now
 
@@ -157,10 +174,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic, trading=None):
                 raise HTTPException(422, "Invalid market value")
             try:
                 return getattr(feed, method)(*args)
-            except SessionExpired:
+            except SessionExpired as exc:
+                log_data_failure(method,exc)
                 clear()
                 raise HTTPException(401, "Broker session expired; reconnect") from None
-            except Exception:
+            except Exception as exc:
+                log_data_failure(method,exc)
                 # Never send broker responses, JWTs or stack traces to the app.
                 raise HTTPException(502, "Market data unavailable; verify session and listed contract") from None
         finally:
@@ -200,6 +219,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic, trading=None):
                 raise HTTPException(401, "Broker login failed; check credentials and current TOTP") from None
             finally:
                 values.clear()
+            logging.getLogger("botking.diagnostics").warning("BOTKING_LOGIN accepted")
             state.update(token=secrets.token_urlsafe(32), issued=clock(), last=clock())
             if trading:trading.bind_account(feed.client)
             return {"session": state["token"], "expires_in": 8 * 3600, "live_orders_enabled": bool(trading and trading.enabled)}

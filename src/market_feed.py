@@ -1,5 +1,7 @@
 """Read-only Angel One adapter. Never sends orders or logs credentials."""
 import json
+import logging
+import re
 import math
 import socket
 import time
@@ -46,12 +48,18 @@ class AngelFeed:
             try:
                 with urllib.request.urlopen(req,timeout=12) as response:data=json.load(response)
             except urllib.error.HTTPError as exc:
+                logging.getLogger("botking.diagnostics").warning("BOTKING_BROKER_READ operation=%s http=%d",kind,exc.code)
                 if exc.code in (401,403):
                     self.disconnect()
                     raise SessionExpired("Broker session expired; reconnect") from None
                 raise FeedError("Broker HTTP request failed; retry later") from None
-            except Exception:raise FeedError("Broker request failed; check connection/session") from None
+            except Exception:
+                logging.getLogger("botking.diagnostics").warning("BOTKING_BROKER_READ operation=%s reason=network_or_response_failure",kind)
+                raise FeedError("Broker request failed; check connection/session") from None
         if data.get("status") is not True:
+            code=str(data.get("errorcode") or data.get("errorCode") or "")
+            safe_code=code if re.fullmatch(r"(?:AG|AB|AM)\d{4}",code) else "UNCLASSIFIED"
+            logging.getLogger("botking.diagnostics").warning("BOTKING_BROKER_READ operation=%s error_code=%s",kind,safe_code)
             if kind!="login" and str(data.get("errorcode") or data.get("errorCode")) in ("AG8001","AG8002"):
                 self.disconnect()
                 raise SessionExpired("Broker session expired; reconnect")
@@ -90,7 +98,9 @@ class AngelFeed:
         exchange="BSE" if symbol=="SENSEX" else "NSE"
         data=self.request("search",{"exchange":exchange,"searchscrip":search}) or []
         matches=[r for r in data if str(r.get("tradingsymbol","")).upper()==search.upper()]
-        if len(matches)!=1:raise FeedError("Exact broker symbol unavailable")
+        if len(matches)!=1:
+            logging.getLogger("botking.diagnostics").warning("BOTKING_SYMBOL_RESOLUTION exact_matches=%d",len(matches))
+            raise FeedError("Exact broker symbol unavailable")
         result=(exchange,str(matches[0]["symboltoken"]))
         self.resolved[symbol]=result
         return result
