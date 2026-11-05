@@ -78,7 +78,17 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(feed.expiries('NIFTY'),['2099-12-01'])
         with self.assertRaises(FeedError):feed.option_chain('NIFTY','2099-12-02',24000)
 
+    def test_broker_historical_candles_can_be_displayed_with_stale_quote(self):
+        feed=AngelFeed();feed.key='test';feed.token='test'
+        with patch.object(feed,'resolve',return_value=('NSE','123')), \
+             patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]), \
+             patch.object(feed,'quotes',return_value=[{'ltp':100,'exchFeedTime':'01-Jan-2000 09:15:00'}]):
+            result=feed.history('NIFTY','5m','7d')
+        self.assertEqual(len(result['bars']),1)
+        self.assertFalse(result['quote_fresh'])
+        self.assertEqual(result['source'],'Angel One')
+
     def test_stale_broker_quote_cannot_be_claimed_as_live(self):
         feed=AngelFeed();feed.key='test';feed.token='test'
         with patch.object(feed,'resolve',return_value=('NSE','123')),patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]),patch.object(feed,'quotes',return_value=[{'ltp':100,'exchFeedTime':'01-Jan-2000 09:15:00'}]):
-            with self.assertRaises(FeedError):feed.history('NIFTY','5m','7d')
+            self.assertFalse(feed.history('NIFTY','5m','7d')['quote_fresh'])
