@@ -75,6 +75,21 @@ jobs:
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
           flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE"
 
+      - name: Verify APK signature and package metadata
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          apks=(build/apk/*.apk)
+          test "${#apks[@]}" -gt 0
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          AAPT="$(find "$SDK_ROOT/build-tools" -name aapt -type f | sort -V | tail -1)"
+          test -n "$APKSIGNER" && test -n "$AAPT"
+          for apk in "${apks[@]}"; do
+            "$APKSIGNER" verify --verbose --print-certs "$apk"
+            "$AAPT" dump badging "$apk" | head -n 4
+          done
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
