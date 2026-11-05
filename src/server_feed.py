@@ -51,12 +51,22 @@ class ServerAngelFeed(AngelFeed):
                     raise FeedError("Server response too large")
                 return json.loads(raw)
         except urllib.error.HTTPError as exc:
+            # Only expose a fixed, non-sensitive explanation; never echo server
+            # response bodies, broker credentials, tokens or upstream traces.
             if exc.code == 401 and path != "/v1/login":
                 self.disconnect()
                 raise SessionExpired("Server session expired; reconnect") from None
+            if exc.code == 401:
+                raise FeedError("Angel One login rejected (HTTP 401): check Client Code, MPIN, API Key and current TOTP") from None
+            if exc.code == 403:
+                raise FeedError("Server access denied (HTTP 403): verify Server Access Key") from None
+            if exc.code == 422:
+                raise FeedError("Invalid login fields (HTTP 422): verify all required fields and 6-digit TOTP") from None
             if exc.code == 429:
-                raise FeedError("Server busy; wait before retrying") from None
-            raise FeedError("Server rejected request; check server access and broker login") from None
+                raise FeedError("Server busy or login rate limited (HTTP 429); wait before retrying") from None
+            if exc.code in (502, 503, 504):
+                raise FeedError("Gateway or upstream unavailable (HTTP " + str(exc.code) + ")") from None
+            raise FeedError("Server rejected request (HTTP " + str(exc.code) + ")") from None
         except FeedError:
             raise
         except Exception:
