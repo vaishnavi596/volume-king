@@ -1379,7 +1379,7 @@ def app_main(page:ft.Page):
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
         server_access.value="";server_trust.value=False
-        connection_status.value=remote_message+" Auto uses Yahoo underlying data."
+        connection_status.value=remote_message+" Broker data unavailable until reconnect."
         connection_status.color=GREEN
         page.update()
     def clear_broker_credentials(e):
@@ -1387,7 +1387,7 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Only Angel One read-only integration is supported; Auto can use Yahoo."
+            connection_status.value="Only Angel One read-only integration is supported. No fallback provider."
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
@@ -1402,7 +1402,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value="Auto";prefs["source"]="Auto";save()
+            source.value="Broker API";prefs["source"]="Broker API";save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
@@ -1411,11 +1411,11 @@ def app_main(page:ft.Page):
             log_error("broker_login",exc)
             # FeedError messages are curated by the transport; never show raw
             # HTTP response bodies, broker tokens or unhandled exception text.
-            connection_status.value="Connection failed: "+str(exc)+" • Auto remains available."
+            connection_status.value="Connection failed: "+str(exc)+" • Broker data unavailable."
             connection_status.color=RED
         except Exception as exc:
             log_error("broker_login",exc)
-            connection_status.value="Connection failed unexpectedly. Check app diagnostics; Auto remains available."
+            connection_status.value="Connection failed unexpectedly. Check app diagnostics; broker data unavailable."
             connection_status.color=RED
         finally:
             values.clear()
