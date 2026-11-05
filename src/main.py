@@ -698,6 +698,31 @@ def app_main(page:ft.Page):
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
         return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
+    def system_health_panel():
+        symbol=scan_symbol.value or "NIFTY"
+        timeframe=scan_tf.value or "5m"
+        feed_ready=bool(angel_feed.connected)
+        key="market:"+prefs.get("source","Broker API")+":"+symbol+":"+timeframe
+        market_record=health.get(key) or {}
+        market_state=market_record.get("state","NOT CHECKED")
+        market_error=market_record.get("error") or "No successful market request for this selection yet"
+        last_ok=market_record.get("last_success")
+        last_ok_text=(datetime.fromtimestamp(last_ok,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST") if isinstance(last_ok,(int,float)) else "Never")
+        status_color=GREEN if feed_ready and market_state.lower() in ("live","ok","fresh","success") else GOLD
+        rows=[
+            txt("SYSTEM HEALTH & SECURITY",16,WHITE,True),
+            txt("Broker session: "+("CONNECTED" if feed_ready else "DISCONNECTED"),12,GREEN if feed_ready else RED,True),
+            note("Provider: Angel One only • Yahoo fallback: OFF"),
+            txt("Selected market: "+symbol+" / "+timeframe+" • "+str(market_state),12,status_color,True),
+            note("Last successful market request: "+last_ok_text),
+            note("Market diagnostic: "+str(market_error)[:180]),
+            note("Chart / Scanner: require verified fresh broker candles; blank or cached quotes are not live"),
+            note("Option chain: "+str(option_feed_status[0])[:150]),
+            note("Security: broker session in memory • credentials not included in settings backup"),
+            txt("REAL ORDERS: DISABLED • AUTO BOT: DISABLED • BROKER SL/TARGET: NOT AVAILABLE",11,RED,True),
+            ft.ElevatedButton("Retry broker market data",on_click=lambda e:page.run_task(retry_selected_data)),
+        ]
+        return ft.Container(content=ft.Column(rows,spacing=6),bgcolor=PANEL,padding=12,border_radius=12)
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -768,7 +793,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), news_event_overview()]
+        return [system_health_panel(),execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
