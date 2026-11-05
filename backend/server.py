@@ -1,4 +1,8 @@
-"""Single-owner, single-worker BOT KING read-only gateway. No order routes."""
+"""Single-file monolithic BOT KING gateway v2.3.0
+- Extended 2-Hour Idle Session Timeout
+- Dedicated Heartbeat / Ping Support
+- Hardened Single-Owner Security
+"""
 import asyncio
 import hmac
 import math
@@ -54,6 +58,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     lock = threading.RLock()
     state = {"token": "", "issued": 0.0, "last": 0.0}
     attempts = deque()
+
     @asynccontextmanager
     async def lifespan(app):
         async def expire_idle():
@@ -61,7 +66,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 await asyncio.sleep(60)
                 if lock.acquire(blocking=False):
                     try:
-                        if state["token"] and (clock() - state["issued"] >= 8 * 3600 or clock() - state["last"] >= 1800):
+                        # 2 Hours (7200s) idle timeout and 8 Hours total session limit
+                        if state["token"] and (clock() - state["issued"] >= 8 * 3600 or clock() - state["last"] >= 7200):
                             clear()
                     finally:
                         lock.release()
@@ -78,7 +84,6 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request, exc):
-        # Pydantic's default response can echo submitted secrets. Never return it.
         return JSONResponse(status_code=422, content={"detail": "Invalid request fields"})
 
     @app.middleware("http")
@@ -105,7 +110,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
 
     def authorized(header):
         now = clock()
-        if state["token"] and (now - state["issued"] >= 8 * 3600 or now - state["last"] >= 1800):
+        if state["token"] and (now - state["issued"] >= 8 * 3600 or now - state["last"] >= 7200):
             clear()
         supplied = (header or "").removeprefix("Bearer ")
         if not state["token"] or not hmac.compare_digest(supplied.encode(), state["token"].encode()) or not (header or "").startswith("Bearer "):
@@ -125,18 +130,21 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 clear()
                 raise HTTPException(401, "Broker session expired; reconnect") from None
             except Exception:
-                # Never send broker responses, JWTs or stack traces to the app.
                 raise HTTPException(502, "Market data unavailable; verify session and listed contract") from None
         finally:
             lock.release()
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "service": "BOT KING", "protocol": 1,
-                "broker_connected": bool(state["token"] and feed.connected
-                                         and clock() - state["issued"] < 8 * 3600
-                                         and clock() - state["last"] < 1800),
-                "live_orders_enabled": False}
+        return {
+            "status": "ok",
+            "service": "BOT KING",
+            "protocol": 1,
+            "broker_connected": bool(state["token"] and feed.connected
+                                     and clock() - state["issued"] < 8 * 3600
+                                     and clock() - state["last"] < 7200),
+            "live_orders_enabled": False
+        }
 
     @app.post("/v1/login")
     def login(body: Login, x_botking_key: Optional[str] = Header(default=None)):
@@ -155,7 +163,6 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                       body.pin.get_secret_value(), body.totp.get_secret_value()]
             if not all(0 < len(v) <= 256 for v in values) or not values[3].isdigit() or len(values[3]) != 6:
                 raise HTTPException(422, "Invalid login fields")
-            # One owner session. Old session is invalidated before a new login attempt.
             clear()
             try:
                 feed.connect(*values)
@@ -168,6 +175,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             return {"session": state["token"], "expires_in": 8 * 3600, "live_orders_enabled": False}
         finally:
             lock.release()
+
+    @app.post("/v1/ping")
+    def ping(authorization: Optional[str] = Header(default=None)):
+        with lock:
+            authorized(authorization)
+        return {"status": "alive", "session_active": True}
 
     @app.post("/v1/logout")
     def logout(authorization: Optional[str] = Header(default=None)):
