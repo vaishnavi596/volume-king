@@ -1,9 +1,9 @@
 
-name: Build 2.2.0 for permanent local signing
+name: Build 2.3.0 for permanent local signing
 
 on:
   push:
-    branches: [ bot-king-build-2-2-0 ]
+    branches: [ bot-king-build-2-3-0 ]
   workflow_dispatch:
 
 permissions:
@@ -99,7 +99,7 @@ jobs:
       - name: Upload intermediate files (not the installable release)
         uses: actions/upload-artifact@v4
         with:
-          name: botking-intermediate-2.2.0
+          name: botking-intermediate-2.3.0
           path: build/local-signing/*
           retention-days: 3
           if-no-files-found: error

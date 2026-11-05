@@ -263,6 +263,23 @@ PREFIX.update({
     "Awaiting selected analysis":"चुने शेयर के विश्लेषण की प्रतीक्षा", "AGREES":"सहमत", "CONFLICT":"विपरीत दिशा", "UNCONFIRMED":"पुष्टि नहीं",
 })
 
+HI.update({
+"BROKER & API STATUS":"ब्रोकर और API स्थिति",
+"Angel One API — Connected":"Angel One API — जुड़ा हुआ",
+"Angel One API — Disconnected":"Angel One API — जुड़ा नहीं",
+"Refresh data / account":"डेटा / खाता रीफ्रेश करें",
+"Connection settings":"कनेक्शन सेटिंग्स",
+"Disconnect":"डिस्कनेक्ट करें",
+"LIVE MANUAL ORDERS":"लाइव मैनुअल ऑर्डर",
+"Use fresh API prices for Paper while open":"ऐप खुला रहने पर पेपर में ताजा API भाव लें",
+"Use broker price / process paper tick":"ब्रोकर भाव लेकर पेपर जाँचें",
+"API marking OFF • manual practice available":"API भाव से जाँच बंद • मैनुअल अभ्यास उपलब्ध",
+"Enter a numeric practice price":"अभ्यास का भाव संख्या में भरें",
+"Angel One API connected. Login fields hidden; credentials are not saved.":"Angel One API जुड़ा है। लॉगिन बॉक्स छिपे हैं; निजी जानकारी सेव नहीं होती।",
+"Broker data • v2.3.0":"ब्रोकर डेटा • v2.3.0",
+})
+PREFIX.update({"Candle direction: ":"कैंडल दिशा: ","Three-source check: ":"तीन स्रोतों की जाँच: ","Options: ":"ऑप्शन: "})
+
 def translate(text,language):
     text=str(text)
     if language!="हिंदी":

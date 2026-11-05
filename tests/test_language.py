@@ -7,7 +7,7 @@ from help_content import describe,EN_HELP
 class LanguageTests(unittest.TestCase):
     def test_language_persists_and_does_not_change_contract_values(self):
         page,v=start({'scanner_live':False,'option_symbol':'BANKNIFTY','option_strike':'24000'})
-        v['select'](2);picker=v['body'].controls[0]
+        v['select'](2);picker=v['body'].controls[1]
         picker.value='हिंदी';picker.on_change(event(picker))
         self.assertEqual(page.client_storage.get('bot_king_preferences')['language'],'हिंदी')
         self.assertEqual(v['chain_symbol'].value,'BANKNIFTY')
@@ -17,7 +17,7 @@ class LanguageTests(unittest.TestCase):
         _,restored=start(page.client_storage.get('bot_king_preferences'))
         self.assertEqual(restored['prefs']['language'],'हिंदी')
         restored['select'](2)
-        picker=restored['body'].controls[0];picker.value='English';picker.on_change(event(picker))
+        picker=restored['body'].controls[1];picker.value='English';picker.on_change(event(picker))
         restored['select'](1)
         self.assertEqual(restored['chain_symbol'].label,'Index / Stock')
     def test_dropdown_translation_preserves_keys_and_selection(self):

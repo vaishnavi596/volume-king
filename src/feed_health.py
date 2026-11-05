@@ -32,6 +32,19 @@ def safe_error(exc):
         return "Provider HTTP error "+str(exc.code)
     if isinstance(exc,TimeoutError):return "Network timeout"
     if type(exc).__name__=="SessionExpired":return "Broker session expired; reconnect"
+    if type(exc).__name__=="ServerBusy":return "Server busy after safe read retries; try again shortly"
+    if type(exc).__name__=="FeedError":
+        # Only fixed adapter messages; never render arbitrary upstream text.
+        message=str(exc)
+        known={"Broker feed not connected":"Broker disconnected; connect in Settings",
+               "Broker candles unavailable":"Broker returned no candles for this selection",
+               "Broker quote unavailable":"Broker returned no quote for this symbol",
+               "Broker quote timestamp unavailable or invalid":"Broker quote time missing/invalid; cannot label data live",
+               "Listed expiry unavailable":"No listed expiry found for this symbol",
+               "Server connection failed; verify HTTPS and network":"Server connection failed; check HTTPS/network",
+               "Server rejected request; check server access and broker login":"Server rejected data request; check session/API access",
+               "Broker rejected request; reconnect or verify contract":"Broker rejected request; verify API access/contract"}
+        if message in known:return known[message]
     return "Data request failed ("+type(exc).__name__+")"
 
 def retry_delay(failures):

@@ -68,7 +68,7 @@ class SnapshotTests(unittest.TestCase):
     def test_ranked_directions_survive_restart_as_historical(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
-            rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend'} for s in ['A','B','C','D','E']]
+            rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend','source':'Angel One'} for s in ['A','B','C','D','E']]
             SnapshotStore(path).put('ranking',('configured50',),{'rows':rows,'checked_at':'old'})
             _,v=start({'scanner_live':False},cache_path=path)
             self.assertEqual(len(v['top5_candidates']),5)

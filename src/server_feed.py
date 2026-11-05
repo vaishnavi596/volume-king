@@ -1,5 +1,7 @@
 """Owner HTTPS transport for market data and separately confirmed live orders."""
 import json
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -9,6 +11,10 @@ from market_feed import AngelFeed, FeedError, SessionExpired
 
 class LiveOperationError(FeedError):
     """Public, bounded error from the trusted owner's live-order gateway."""
+    pass
+
+
+class ServerBusy(FeedError):
     pass
 
 
@@ -35,12 +41,29 @@ class ServerAngelFeed(AngelFeed):
     def __init__(self):
         super().__init__()
         self.server = ""
+        self.transport_lock = threading.RLock()
 
     @property
     def connected(self):
         return bool(self.token) if self.server else super().connected
 
     def _call(self, path, payload, pairing_key="", token=None, origin=None):
+        # The owner gateway serializes broker work. Queue locally instead of flooding it.
+        epoch = self.epoch
+        readonly = path in ("/v1/history", "/v1/expiries", "/v1/options", "/v1/option-history",
+                            "/v1/live/capabilities", "/v1/live/orders", "/v1/live/positions")
+        with self.transport_lock:
+            if epoch != self.epoch:
+                raise SessionExpired("Session changed; reconnect")
+            for attempt in range(3 if readonly else 1):
+                try:
+                    return self._call_once(path, payload, pairing_key, token, origin)
+                except ServerBusy:
+                    if not readonly or attempt == 2:raise
+                    time.sleep(.5 * (attempt + 1))
+                    if epoch != self.epoch:raise SessionExpired("Session changed; reconnect")
+
+    def _call_once(self, path, payload, pairing_key="", token=None, origin=None):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if pairing_key:
             headers["X-BotKing-Key"] = pairing_key
@@ -60,7 +83,7 @@ class ServerAngelFeed(AngelFeed):
                 self.disconnect()
                 raise SessionExpired("Server session expired; reconnect") from None
             if exc.code == 429:
-                raise FeedError("Server busy; wait before retrying") from None
+                raise ServerBusy("Server busy; wait before retrying") from None
             if path.startswith("/v1/live/"):
                 try:
                     detail = json.loads(exc.read(4096)).get("detail", "Live operation could not be verified")

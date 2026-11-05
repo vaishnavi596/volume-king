@@ -73,17 +73,17 @@ class NavigationRuntimeTests(unittest.TestCase):
     def test_navigation_buttons_remain_stable_and_open_each_page(self):
         _,v=start({'scanner_live':False})
         buttons=[c.content for c in v['navbar'].controls]
-        expected=['LIVE STATUS','LIVE • Options, Orders & Positions','Settings • Broker & Data','RULE-BASED SCANNER • Chart & Analysis','Paper • Practice only']
+        expected=['BROKER & API STATUS','LIVE • Options, Orders & Positions','Settings • Broker & Data','RULE-BASED SCANNER • Chart & Analysis','Paper • Practice only']
         for i,button in enumerate(buttons):
             button.on_click(event(button))
-            self.assertEqual(v['current'][0],i)
+            self.assertEqual(v['current'][0],[0,1,3,4,2][i])
             self.assertEqual([id(c.content) for c in v['navbar'].controls],[id(c) for c in buttons])
             texts=[]
             def walk(c):
                 if isinstance(c,ft.Text):texts.append(c.value)
                 for child in c._get_children():walk(child)
             for root in v['body'].controls:walk(root)
-            self.assertIn(expected[i],texts)
+            self.assertIn(expected[[0,1,3,4,2][i]],texts)
     def test_background_render_does_not_save_preferences_or_reset_scroll(self):
         page,v=start({'scanner_live':False})
         before=v['preference_writer'].revision;tasks=len(page.tasks)
