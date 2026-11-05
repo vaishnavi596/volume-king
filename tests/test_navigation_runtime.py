@@ -73,7 +73,7 @@ class NavigationRuntimeTests(unittest.TestCase):
     def test_navigation_buttons_remain_stable_and_open_each_page(self):
         _,v=start({'scanner_live':False})
         buttons=[c.content for c in v['navbar'].controls]
-        expected=['EXECUTION CAPABILITIES','Options • One scroll page','Settings & Trading Bot','RULE-BASED SCANNER • Chart & Analysis']
+        expected=['EXECUTION CAPABILITIES','Options • One scroll page','Settings & Trading Bot','RULE-BASED SCANNER • Chart & Analysis','Watchlist • 5 Lists','Charts • Technical Analysis']
         for i,button in enumerate(buttons):
             button.on_click(event(button))
             self.assertEqual(v['current'][0],i)
