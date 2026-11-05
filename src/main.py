@@ -2693,7 +2693,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; Auto can use Yahoo")
+        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; no fallback provider")
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
