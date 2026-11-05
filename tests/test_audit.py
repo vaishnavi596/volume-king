@@ -352,7 +352,7 @@ class AuditTests(unittest.TestCase):
         options=' | '.join(texts(v['options']()))
         for name in ['Option Chain','OI Analysis','Put Call Ratio','Premium Money Flow','Strategy Selector']:self.assertIn(name,options)
         home=texts(v['dashboard']());self.assertNotIn('Tools',home)
-        self.assertIn("TODAY'S PAPER RISK",home)
+        self.assertNotIn("TODAY'S PAPER RISK",home)
         self.assertEqual(v['body'].horizontal_alignment,ft.CrossAxisAlignment.STRETCH)
         v['sl'].value='invalid';v['save_page'](1)
         self.assertEqual(v['page_save_status'][1].value,'Saved on this device')
@@ -365,13 +365,13 @@ class AuditTests(unittest.TestCase):
         payload=v['backup_payload']();self.assertNotIn('api_key',payload['data']);self.assertNotIn('api_url',payload['data']);self.assertNotIn('access_token',payload['data'])
         payload['data'].update(protection_enabled=True,scanner_live=True,mode='Auto',bot_custom='SBIN')
         v['backup_text'].value=json.dumps(payload);v['restore_confirm'].value=True;v['import_backup']()
-        self.assertEqual(v['bot_custom'].value,'SBIN');self.assertEqual(v['mode'].value,'Paper')
+        self.assertEqual(v['prefs'].get('bot_custom'),'SBIN');self.assertEqual(v['mode'].value,'Manual')
         self.assertFalse(v['scan_live'].value);self.assertFalse(v['protection_enabled'].value)
         self.assertEqual(v['prefs']['api_key'],'SECRET')
-        previous=v['bot_custom'].value
+        previous=v['prefs'].get('bot_custom')
         payload['data']['bot_custom']='BAD';payload['data']['paper_journal']=[{'event':'EXIT'}]
         v['backup_text'].value=json.dumps(payload);v['restore_confirm'].value=True;v['import_backup']()
-        self.assertEqual(v['bot_custom'].value,previous)
+        self.assertEqual(v['prefs'].get('bot_custom'),previous)
         self.assertIn('blocked',v['backup_status'].value)
 
     def test_setting_history_undo(self):
