@@ -141,11 +141,14 @@ class AngelFeed:
         q=self.quotes(exchange,[token])
         if not q:raise FeedError("Broker quote unavailable")
         q=q[0];stamp=self.timestamp(q.get("exchFeedTime"))
-        if stamp is None or not 0<=time.time()-stamp<=90:
-            raise FeedError("Broker quote is stale; fallback required")
+        # Off-hours quotes are normally old. Keep genuine historical candles
+        # visible but never label an old quote as fresh/live.
+        if stamp is None:raise FeedError("Broker quote timestamp unavailable")
+        fresh=0<=time.time()-stamp<=90
         return {"price":self.number(q["ltp"]),"change":self.number(q.get("percentChange",0)),
             "high":q.get("high"),"low":q.get("low"),"bars":bars,"source":"Angel One",
-            "quote_timestamp":stamp,"fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
+            "quote_timestamp":stamp,"quote_fresh":fresh,
+            "fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
     def option_chain(self,symbol,expiry,spot):
         if not self.connected:raise FeedError("Connect Angel One for live CE/PE data; Yahoo fallback has no verified option chain")
         contracts=[]
