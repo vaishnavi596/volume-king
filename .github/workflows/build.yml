@@ -3,7 +3,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, bot-king-final-five-redesign ]
+    branches: [ main, bot-king-final-five-redesign, broker-only-release-prep ]
   workflow_dispatch:
 
 jobs:
