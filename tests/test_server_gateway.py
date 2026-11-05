@@ -77,7 +77,10 @@ class GatewayTests(unittest.TestCase):
         old = self.login()
         new = self.login()
         self.assertEqual(self.client.post("/v1/expiries", json=body, headers=old).status_code, 401)
-        self.now[0] += 1801
+        # Gateway v2.3 idle expiry is two hours, not the old 30 minutes.
+        self.now[0] += 3600
+        self.assertEqual(self.client.post("/v1/expiries", json=body, headers=new).status_code, 200)
+        self.now[0] += 7201
         self.assertEqual(self.client.post("/v1/expiries", json=body, headers=new).status_code, 401)
         self.assertFalse(self.feed.connected)
         new = self.login()
