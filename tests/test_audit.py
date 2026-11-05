@@ -365,7 +365,7 @@ class AuditTests(unittest.TestCase):
         payload=v['backup_payload']();self.assertNotIn('api_key',payload['data']);self.assertNotIn('api_url',payload['data']);self.assertNotIn('access_token',payload['data'])
         payload['data'].update(protection_enabled=True,scanner_live=True,mode='Auto',bot_custom='SBIN')
         v['backup_text'].value=json.dumps(payload);v['restore_confirm'].value=True;v['import_backup']()
-        self.assertEqual(v['prefs'].get('bot_custom'),'HDFCBANK');self.assertEqual(v['mode'].value,'Manual')
+        self.assertEqual(v['prefs'].get('bot_custom'),'HDFCBANK');self.assertEqual(v['mode'].value,'Paper')
         self.assertFalse(v['scan_live'].value);self.assertFalse(v['protection_enabled'].value)
         self.assertEqual(v['prefs']['api_key'],'SECRET')
         previous=v['prefs'].get('bot_custom')
