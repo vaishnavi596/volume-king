@@ -750,7 +750,7 @@ def app_main(page:ft.Page):
         return list(dict.fromkeys(["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols+all_watch_symbols()+list(prefs.get("custom_symbols",[]))))
     def sync_symbol_choices():
         symbols=selection_symbols()
-        for picker in (chain_symbol,scan_symbol,bot_symbol):
+        for picker in (chain_symbol,scan_symbol,bot_symbol,symbol):
             values=list(dict.fromkeys(symbols+([picker.value] if picker.value else [])+(["Custom"] if picker is bot_symbol else [])))
             picker.options=[ft.dropdown.Option(x) for x in values]
     def symbol_search(picker):
@@ -843,7 +843,7 @@ def app_main(page:ft.Page):
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),watch_list]
-    symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX"]],expand=True)
+    symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
     vwap=ft.Switch(label="VWAP",value=bool(prefs.get("chart_vwap",True)),active_color=GREEN)
@@ -870,7 +870,7 @@ def app_main(page:ft.Page):
     chart_message=txt("",12,MUTED)
     def choose_chart_tab(v):
         chart_tab[0]=v
-        select(2)
+        select(5)
     chart_style=[prefs.get("chart_type","Candlestick")]
     chart_style_picker=ft.Dropdown(label="Chart type",value=prefs.get("chart_type","Candlestick"),options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
     symbol.on_change=persist_chart_settings
@@ -879,7 +879,7 @@ def app_main(page:ft.Page):
         chart_style[0]=chart_style_picker.value
         prefs["chart_type"]=chart_style_picker.value
         persist_chart_settings()
-        select(2)
+        select(5)
     def chart_candles():
         q=quotes.get(symbol.value) or {}
         bars=q.get("bars") or []
@@ -978,7 +978,7 @@ def app_main(page:ft.Page):
             content.append(section("Stock Details • "+symbol.value,ft.Column([
                 txt("₹ "+quote_price(symbol.value),26,GOLD,True),
                 txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
-                note("Broker feed • delayed or unavailable"),
+                note(quote_caption(symbol.value)),chart_message,
                 ft.Row([chart_quantity,chart_sl,chart_target],wrap=True),
                 ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:chart_paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:chart_paper_trade("SELL"),bgcolor=RED,color=BG),ft.OutlinedButton("Exit",on_click=lambda e:chart_paper_trade("EXIT"))],wrap=True),
                 txt(chart_position_text(),12,GOLD),chart_paper_status,
@@ -1001,13 +1001,13 @@ def app_main(page:ft.Page):
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
             chart_message.value="Broker chart updated"
         except Exception as exc:
-            chart_message.value="Broker candles unavailable; check broker connection"
+            chart_message.value="Broker candles unavailable: "+safe_error(exc)
         select(5)
     async def load_comparison():
         try:
             quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
             chart_message.value=f"{compare_symbol.value} loaded"
-        except Exception:chart_message.value="Comparison data unavailable"
+        except Exception as exc:chart_message.value="Comparison data unavailable: "+safe_error(exc)
         select(5)
     chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()])
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK")
@@ -1363,7 +1363,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value="Auto";prefs["source"]="Auto";save()
+            source.value="Broker API";prefs["source"]="Broker API";save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
@@ -1372,11 +1372,11 @@ def app_main(page:ft.Page):
             log_error("broker_login",exc)
             # FeedError messages are curated by the transport; never show raw
             # HTTP response bodies, broker tokens or unhandled exception text.
-            connection_status.value="Connection failed: "+str(exc)+" • Auto remains available."
+            connection_status.value="Connection failed: "+str(exc)+" • Broker data unavailable."
             connection_status.color=RED
         except Exception as exc:
             log_error("broker_login",exc)
-            connection_status.value="Connection failed unexpectedly. Check app diagnostics; Auto remains available."
+            connection_status.value="Connection failed unexpectedly. Check app diagnostics; broker data unavailable."
             connection_status.color=RED
         finally:
             values.clear()
