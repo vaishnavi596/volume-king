@@ -15,7 +15,7 @@ class FeedTests(unittest.TestCase):
     def test_yahoo_without_broker_login(self):
         _,v=start({'source':'Yahoo Finance','scanner_live':False})
         with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:{'source':'Yahoo Finance','price':100,'bars':[],'quote_timestamp':time.time()}}):
-            self.assertEqual(v['get_market_data']('NIFTY')['price'],100)
+            self.assertEqual(v['fetch_market_data_uncached']('NIFTY')['price'],100)
 
     def test_explicit_broker_mode_does_not_fallback_to_yahoo(self):
         _,v=start({'source':'Broker API','scanner_live':False})
