@@ -57,7 +57,7 @@ jobs:
         run: flet --version
 
       - name: Check Python syntax before APK packaging
-        run: python -m py_compile src/main.py src/scanner_engine.py
+        run: python -m py_compile src/main.py src/scanner_engine.py src/market_feed.py src/server_feed.py tests/test_market_feed.py
 
       - name: Verify build dependencies
         run: |
