@@ -18,7 +18,8 @@ class OptionsLayoutTests(unittest.TestCase):
 
     def connected(self, v):
         v['angel_feed'].key='TEST';v['angel_feed'].token='TEST'
-        v['source'].value='Auto'
+        v['source'].value='Broker API'
+        v['prefs']['source']='Broker API'
         v['expiry'].value='2026-12-01'
 
     def test_connected_chart_empty_state_does_not_blame_yahoo(self):
