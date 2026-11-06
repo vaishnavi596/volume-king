@@ -6,31 +6,21 @@ from test_audit import start
 from market_feed import AngelFeed,FeedError
 
 class FeedTests(unittest.TestCase):
-    def test_auto_fallback_and_explicit_broker_fail_closed(self):
+    def test_broker_only_failure_and_disconnect_fail_closed(self):
         _,v=start({'source':'Auto','scanner_live':False})
+        self.assertEqual(v['prefs']['source'],'Broker API')
         feed=v['angel_feed'];feed.key='test';feed.token='test'
-        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, patch.dict(v['get_market_data'].__globals__,{}):
-            # Closure globals remain separate from app locals; patch nested Yahoo's HTTP instead.
-            with patch('urllib.request.urlopen',side_effect=OSError('offline')):
-                with self.assertRaises(OSError):v['get_market_data']('NIFTY')
+        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must never be requested')):
+            with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
             self.assertEqual(broker.call_count,1)
-            self.assertGreater(v['broker_retry'][0],0)
-        v['prefs']['source']='Broker API'
         feed.disconnect()
         with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
 
-    def test_auto_without_login_uses_yahoo_and_preserves_source_time(self):
+    def test_without_login_never_uses_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
-        class Response:
-            def __enter__(self):return self
-            def __exit__(self,*a):pass
-            def read(self):return b'{"chart":{"result":[{"meta":{"regularMarketPrice":100,"regularMarketTime":1700000000},"indicators":{"quote":[{"open":[99],"high":[101],"low":[98],"close":[100],"volume":[10]}]},"timestamp":[1700000000]}]}}'
-        with patch('urllib.request.urlopen',return_value=Response()):
-            q=v['get_market_data']('NIFTY')
-        self.assertEqual(q['source'],'Yahoo Finance')
-        self.assertTrue(q['fallback']);self.assertEqual(q['quote_timestamp'],1700000000)
-        v['quotes']['NIFTY']=q
-        self.assertIn('Old / delayed',v['quote_caption']('NIFTY'))
+        with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must never be requested')):
+            with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
+        self.assertEqual(v['prefs']['source'],'Broker API')
 
     def test_broker_success_is_preferred_without_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
@@ -88,7 +78,17 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(feed.expiries('NIFTY'),['2099-12-01'])
         with self.assertRaises(FeedError):feed.option_chain('NIFTY','2099-12-02',24000)
 
+    def test_broker_historical_candles_can_be_displayed_with_stale_quote(self):
+        feed=AngelFeed();feed.key='test';feed.token='test'
+        with patch.object(feed,'resolve',return_value=('NSE','123')), \
+             patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]), \
+             patch.object(feed,'quotes',return_value=[{'ltp':100,'exchFeedTime':'01-Jan-2000 09:15:00'}]):
+            result=feed.history('NIFTY','5m','7d')
+        self.assertEqual(len(result['bars']),1)
+        self.assertFalse(result['quote_fresh'])
+        self.assertEqual(result['source'],'Angel One')
+
     def test_stale_broker_quote_cannot_be_claimed_as_live(self):
         feed=AngelFeed();feed.key='test';feed.token='test'
         with patch.object(feed,'resolve',return_value=('NSE','123')),patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]),patch.object(feed,'quotes',return_value=[{'ltp':100,'exchFeedTime':'01-Jan-2000 09:15:00'}]):
-            with self.assertRaises(FeedError):feed.history('NIFTY','5m','7d')
+            self.assertFalse(feed.history('NIFTY','5m','7d')['quote_fresh'])

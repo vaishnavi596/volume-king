@@ -32,6 +32,22 @@ def safe_error(exc):
         return "Provider HTTP error "+str(exc.code)
     if isinstance(exc,TimeoutError):return "Network timeout"
     if type(exc).__name__=="SessionExpired":return "Broker session expired; reconnect"
+    if type(exc).__name__=="FeedError":
+        # Only approved static broker adapter messages may reach the UI.
+        # Never show arbitrary server responses or raw transport exceptions.
+        allowed=(
+            "Broker not connected","Broker feed not connected",
+            "Broker request failed; check connection/session",
+            "Broker HTTP request failed; retry later",
+            "Broker rejected request; reconnect or verify contract",
+            "Exact broker symbol unavailable",
+            "Broker candles unavailable","Broker quote unavailable",
+            "Broker quote is stale; fallback required",
+            "Broker session expired; reconnect",
+            "Instrument list unavailable","No option quotes returned",
+            "No listed contracts for selected expiry; choose a broker-listed date",
+        )
+        if str(exc) in allowed:return str(exc)
     return "Data request failed ("+type(exc).__name__+")"
 
 def retry_delay(failures):

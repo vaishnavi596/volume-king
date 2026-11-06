@@ -229,9 +229,11 @@ def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
     page.window_width=420; page.window_height=850
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
-    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
+    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Broker API","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
     prefs["schema_version"]=2
+    # Previous installs may have saved Yahoo/Auto; broker-only mode fails closed.
+    prefs["source"]="Broker API"
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
@@ -257,7 +259,7 @@ def app_main(page:ft.Page):
     option_feed={}
     option_feed_busy=[False]
     broker_connect_busy=[False]
-    option_feed_status=["Connect Angel One for verified CE/PE quotes. Yahoo supplies underlying data only."]
+    option_feed_status=["Connect Angel One for verified CE/PE quotes. Broker data is required."]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
         diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__)
@@ -403,7 +405,7 @@ def app_main(page:ft.Page):
                 when=datetime.fromtimestamp(item["published"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
                 controls.append(ft.Column([note(item["source"]+" • "+when),ft.TextButton(content=ft.Text(item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url))],spacing=1))
         return section("CANDLE + OPTIONS + NEWS • "+symbol+" • "+interval,ft.Column(controls,spacing=5))
-    market_status="Connecting Yahoo Finance…"
+    market_status="Waiting for broker connection…"
     symbols_yahoo={"NIFTY":"^NSEI","NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN","RELIANCE":"RELIANCE.NS","HDFCBANK":"HDFCBANK.NS","ICICIBANK":"ICICIBANK.NS","TCS":"TCS.NS","INFY":"INFY.NS","BHARTIARTL":"BHARTIARTL.NS","SBIN":"SBIN.NS","ITC":"ITC.NS"}
     def clean_bars(bars):
         import math
@@ -442,14 +444,14 @@ def app_main(page:ft.Page):
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
-        selected=prefs.get("source","Auto")
+        selected="Broker API"
         generation=provider_generation[0]
         result=None
         health_key="market:"+selected+":"+ticker+":"+interval
         request_id=health.begin(health_key)
         fallback_reason=""
         try:
-            if selected in ("Auto","Broker API") and angel_feed.connected and (selected=="Broker API" or time.monotonic()>=broker_retry[0]):
+            if angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
                     broker_failures[0]=0;broker_retry[0]=0
@@ -459,9 +461,7 @@ def app_main(page:ft.Page):
                     fallback_reason=safe_error(exc)
                     if selected=="Broker API":raise
             if result is None:
-                if selected=="Broker API":raise FeedError("Broker feed not connected")
-                result=get_yahoo(ticker,interval,range_)
-                result["fallback"]=selected=="Auto"
+                raise FeedError("Broker feed not connected")
             result["cached"]=False
         except Exception as exc:
             fallback_reason=safe_error(exc)
@@ -653,7 +653,7 @@ def app_main(page:ft.Page):
     def dashboard_tool_open(name):
         dashboard_tool[0]=name
         if name=="Scanner":select(3)
-        elif name=="Paper Trade":select(2)
+        elif name=="Trading":select(2)
         elif name=="OI Data":select(1)
         else:select(0)
     def open_candidate_chart(symbol):
@@ -663,16 +663,16 @@ def app_main(page:ft.Page):
     page_save_status=[ft.Text("",size=12,color=MUTED) for _ in range(4)]
     def risk_overview():
         ledger=paper_risk_ledger()
-        return section("TODAY'S PAPER RISK",ft.Column([
+        return section("RISK STATUS • LIVE ORDERS UNAVAILABLE",ft.Column([
             note("Entries: "+str(ledger["entries"])+" / "+str(prefs.get("max_trades",2))),
             note("Remaining planned-risk budget: INR "+format(max(0,float(prefs.get("max_daily_loss",1000))-float(ledger["planned_risk_used"])),",.2f")),
             note("Emergency stop: "+("ON" if prefs.get("emergency_stop") else "OFF")),
-            note("Protection: "+prefs.get("protection_mode","Manual")+" • paper demonstration only; live monitoring disconnected")
+            note("Broker-side protection is not implemented.")
         ],spacing=4))
     def execution_capabilities():
         return section("EXECUTION CAPABILITIES",ft.Column([
-            note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Yahoo / saved data; broker not connected")),
-            note("Paper orders: local simulation • strategies: Start + manual ticks only"),
+            note("Market data: "+("Angel One authenticated" if angel_feed.connected else "Broker not connected; live data unavailable")),
+            note("Order placement: NOT AVAILABLE"),
             note("Live orders: OFF • live SL/target: OFF • server automation: NOT CONNECTED"),
             note("Phone lock: uninterrupted monitoring is NOT guaranteed. Display ON does not enable live trading."),
             runtime_status,ft.ElevatedButton("Live auto trading • not available",disabled=True),
@@ -698,6 +698,31 @@ def app_main(page:ft.Page):
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
         return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
+    def system_health_panel():
+        symbol=scan_symbol.value or "NIFTY"
+        timeframe=scan_tf.value or "5m"
+        feed_ready=bool(angel_feed.connected)
+        key="market:"+prefs.get("source","Broker API")+":"+symbol+":"+timeframe
+        market_record=health.get(key) or {}
+        market_state=market_record.get("state","NOT CHECKED")
+        market_error=market_record.get("error") or "No successful market request for this selection yet"
+        last_ok=market_record.get("last_success")
+        last_ok_text=(datetime.fromtimestamp(last_ok,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST") if isinstance(last_ok,(int,float)) else "Never")
+        status_color=GREEN if feed_ready and market_state.upper() == "AVAILABLE" else GOLD
+        rows=[
+            txt("SYSTEM HEALTH & SECURITY",16,WHITE,True),
+            txt("Broker session: "+("CONNECTED" if feed_ready else "DISCONNECTED"),12,GREEN if feed_ready else RED,True),
+            note("Provider: Angel One only • Yahoo fallback: OFF"),
+            txt("Selected market: "+symbol+" / "+timeframe+" • "+str(market_state),12,status_color,True),
+            note("Last successful market request: "+last_ok_text),
+            note("Market diagnostic: "+str(market_error)[:180]),
+            note("Chart / Scanner: require verified fresh broker candles; blank or cached quotes are not live"),
+            note("Option chain: "+str(option_feed_status[0])[:150]),
+            note("Security: broker session in memory • credentials not included in settings backup"),
+            txt("REAL ORDERS: DISABLED • AUTO BOT: DISABLED • BROKER SL/TARGET: NOT AVAILABLE",11,RED,True),
+            ft.ElevatedButton("Retry broker market data",on_click=lambda e:page.run_task(retry_selected_data)),
+        ]
+        return ft.Container(content=ft.Column(rows,spacing=6),bgcolor=PANEL,padding=12,border_radius=12)
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -768,7 +793,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
+        return [system_health_panel(),execution_capabilities(),data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -1016,19 +1041,17 @@ def app_main(page:ft.Page):
             content.append(section("Stock Details • "+symbol.value,ft.Column([
                 txt("₹ "+quote_price(symbol.value),26,GOLD,True),
                 txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
-                note("Yahoo preview • delayed or unavailable"),
-                ft.Row([chart_quantity,chart_sl,chart_target],wrap=True),
-                ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:chart_paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:chart_paper_trade("SELL"),bgcolor=RED,color=BG),ft.OutlinedButton("Exit",on_click=lambda e:chart_paper_trade("EXIT"))],wrap=True),
-                txt(chart_position_text(),12,GOLD),chart_paper_status,
-                note("Simulation only • no real orders")
+                note("Broker API quotes only • verify freshness"),
+                note("Trading unavailable until verified live-order integration is implemented."),
+                note("Real orders are not available.")
             ])))
-            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Broker Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
             content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
-            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol's Yahoo trend with the current chart.")])))
+            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol using broker-provided history.")])))
         elif chart_tab[0]=="Levels":
             content.append(section("Market Levels",note("Verified support and resistance calculations are not yet enabled.")))
         else:
@@ -1037,9 +1060,9 @@ def app_main(page:ft.Page):
     async def load_chart():
         try:
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Yahoo chart updated"
+            chart_message.value="Broker chart updated"
         except Exception as exc:
-            chart_message.value="Yahoo candles unavailable; check connection or rate limits"
+            chart_message.value="Broker candles unavailable; check broker connection and data availability"
         select(5)
     async def load_comparison():
         try:
@@ -1196,7 +1219,7 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
-            options=[ft.dropdown.Option(x) for x in ("Auto","Yahoo Finance","Broker API")])
+            options=[ft.dropdown.Option("Broker API")])
         def changed(e):
             source.value=e.control.value
             source.on_change(type("SourceChange",(),{"control":source})())
@@ -1204,7 +1227,7 @@ def app_main(page:ft.Page):
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Auto: Angel One first; Yahoo fallback for available underlying data. CE/PE requires a supported option feed. Options poll every 15 seconds while open during regular hours; not tick streaming. No live orders.")],
+            note("Broker API only. If the authenticated broker feed is unavailable, live data is unavailable; no Yahoo fallback. Other brokers require their own implemented adapters. No live orders.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         if option_feed_busy[0]:return
@@ -1308,28 +1331,28 @@ def app_main(page:ft.Page):
         )
         return ft.Column([
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying prices use the selected data source; Yahoo history may be delayed."),
+            note("Underlying prices require authenticated broker data; check timestamps."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
             ft.ElevatedButton("Refresh selected data",on_click=lambda e:page.run_task(refresh_selected_options)),
-            note("Table uses listed broker contracts when connected. The strike input below is a manual selection; paper orders remain manual."),
+            note("Table uses listed broker contracts when connected. Order placement is unavailable."),
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
+        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), note('Real orders unavailable until verified broker order integration is implemented.'), option_chart_panel()])]))])
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
         content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
-    mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
-    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
+    mode=ft.Dropdown(label="Trading mode",value="Manual",options=[ft.dropdown.Option("Manual","Manual • real orders not yet available")],disabled=True)
+    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Broker API")])
     broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
@@ -1381,7 +1404,7 @@ def app_main(page:ft.Page):
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
         server_access.value="";server_trust.value=False
-        connection_status.value=remote_message+" Auto uses Yahoo underlying data."
+        connection_status.value=remote_message+" Broker data unavailable until reconnect."
         connection_status.color=GREEN
         page.update()
     def clear_broker_credentials(e):
@@ -1389,7 +1412,7 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Only Angel One read-only integration is supported; Auto can use Yahoo."
+            connection_status.value="Only Angel One read-only integration is supported. No fallback provider."
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
@@ -1404,7 +1427,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value="Auto";prefs["source"]="Auto";save()
+            source.value="Broker API";prefs["source"]="Broker API";save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
@@ -1413,11 +1436,11 @@ def app_main(page:ft.Page):
             log_error("broker_login",exc)
             # FeedError messages are curated by the transport; never show raw
             # HTTP response bodies, broker tokens or unhandled exception text.
-            connection_status.value="Connection failed: "+str(exc)+" • Auto remains available."
+            connection_status.value="Connection failed: "+str(exc)+" • Broker data unavailable."
             connection_status.color=RED
         except Exception as exc:
             log_error("broker_login",exc)
-            connection_status.value="Connection failed unexpectedly. Check app diagnostics; Auto remains available."
+            connection_status.value="Connection failed unexpectedly. Check app diagnostics; broker data unavailable."
             connection_status.color=RED
         finally:
             values.clear()
@@ -1924,24 +1947,21 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
-            connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
+            connection_status.value="Broker disconnected or session expired; reconnect. Live data unavailable.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),execution_capabilities(),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. The v2.3 gateway allows up to 2 hours idle and 8 hours total, but Angel One may expire sooner. Reconnection requires a fresh broker login; credentials are not stored. Other brokers are not integrated.')])))
-        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
-            section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
-                ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
-                note("No live broker orders or background server are connected. This demo evaluates manually entered premiums while the app is open. It cannot protect real money or operate after the phone closes the app.")],spacing=6)),
-            paper_control_card(),paper_journal_card(),
+            section("TRADING STATUS",ft.Column([
+                note("Real-money orders are not implemented or enabled in this version."),
+                note("No simulated Buy/Sell or paper-trading controls are available."),
+                note("Broker data connection does not authorize order placement.")
+            ],spacing=5)),
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
-            help_box("Risk and protection", "Paper limits are local simulations. Broker-side SL/target, filled-order confirmation and an always-on service are required before live automatic protection can be enabled."),
-            section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
-            section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
-            section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
-            section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
-
-            note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
+            section("SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
+            section("ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
+            section("BACKTEST • NOT CONNECTED",note("No validated backtest report exists in this build.")),
+            section("DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
         ])
         return content
 
@@ -2431,13 +2451,10 @@ console.log('BOT KING Lightweight Charts ready');
             sym=scan_symbol.value or "NIFTY"
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
-            # Yahoo supports limited intraday history; do not pretend 15m is daily.
-            if interval in ("1m","3m") and period!="7d":
-                raise ValueError("Yahoo 1m history is limited. Select 7d; only recent candles may be returned.")
-            if interval=="5m" and period=="3mo":
-                raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
-            if interval in ("5m","15m","30m") and period=="3mo":
-                raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
+            # Broker historical intervals have their own provider limits.
+            # Do not apply obsolete Yahoo-specific validation to Angel One.
+            if interval not in ("1m","3m","5m","15m","30m","1h","1d"):
+                raise ValueError("Unsupported broker candle interval")
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
@@ -2673,7 +2690,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; Auto can use Yahoo")
+        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; no fallback provider")
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
@@ -2750,7 +2767,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.3 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.3.1 PREVIEW")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
