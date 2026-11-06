@@ -6,31 +6,27 @@ from test_audit import start
 from market_feed import AngelFeed,FeedError
 
 class FeedTests(unittest.TestCase):
-    def test_auto_fallback_and_explicit_broker_fail_closed(self):
+    def test_legacy_auto_selection_migrates_to_broker_only_and_fails_closed(self):
         _,v=start({'source':'Auto','scanner_live':False})
+        self.assertEqual(v['prefs']['source'],'Broker API')
         feed=v['angel_feed'];feed.key='test';feed.token='test'
-        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, patch.dict(v['get_market_data'].__globals__,{}):
-            # Closure globals remain separate from app locals; patch nested Yahoo's HTTP instead.
-            with patch('urllib.request.urlopen',side_effect=OSError('offline')):
-                with self.assertRaises(OSError):v['get_market_data']('NIFTY')
-            self.assertEqual(broker.call_count,1)
-            self.assertGreater(v['broker_retry'][0],0)
-        v['prefs']['source']='Broker API'
+        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, \
+             patch('urllib.request.urlopen',side_effect=AssertionError('No Yahoo fallback allowed')):
+            with self.assertRaises(FeedError):
+                v['get_market_data']('NIFTY')
+        self.assertEqual(broker.call_count,1)
+        self.assertGreater(v['broker_retry'][0],0)
         feed.disconnect()
-        with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
+        with self.assertRaisesRegex(FeedError,'Broker API not connected'):
+            v['get_market_data']('NIFTY')
 
-    def test_auto_without_login_uses_yahoo_and_preserves_source_time(self):
+    def test_without_login_never_uses_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
-        class Response:
-            def __enter__(self):return self
-            def __exit__(self,*a):pass
-            def read(self):return b'{"chart":{"result":[{"meta":{"regularMarketPrice":100,"regularMarketTime":1700000000},"indicators":{"quote":[{"open":[99],"high":[101],"low":[98],"close":[100],"volume":[10]}]},"timestamp":[1700000000]}]}}'
-        with patch('urllib.request.urlopen',return_value=Response()):
-            q=v['get_market_data']('NIFTY')
-        self.assertEqual(q['source'],'Yahoo Finance')
-        self.assertTrue(q['fallback']);self.assertEqual(q['quote_timestamp'],1700000000)
-        v['quotes']['NIFTY']=q
-        self.assertIn('Old / delayed',v['quote_caption']('NIFTY'))
+        with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
+            with self.assertRaisesRegex(FeedError,'Broker API not connected'):
+                v['get_market_data']('NIFTY')
+        self.assertEqual(v['prefs']['source'],'Broker API')
+        self.assertNotIn('NIFTY',v['quotes'])
 
     def test_broker_success_is_preferred_without_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
