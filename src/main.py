@@ -2024,6 +2024,7 @@ def app_main(page:ft.Page):
         save()
     chart_provider=[prefs.get("chart_provider","TradingView Lightweight")]
     if chart_provider[0]=="TradingView":chart_provider[0]="TradingView Lightweight"
+    if chart_provider[0]=="BOT KING / Yahoo":chart_provider[0]="BOT KING Broker Chart"
     def tradingview_url(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
         return "https://www.tradingview.com/chart/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5"
