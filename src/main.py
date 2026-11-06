@@ -7,6 +7,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed
 from analysis_quality import quality_check, agreement_detail
+from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
@@ -16,6 +17,12 @@ from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
 from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
+from importlib.metadata import version as package_version, PackageNotFoundError
+
+try:
+    APP_VERSION = package_version("bot-king")
+except PackageNotFoundError:
+    APP_VERSION = "2.3.3"
 from pathlib import Path
 
 #                                  Apache License
@@ -1003,6 +1010,17 @@ def app_main(page:ft.Page):
         for h in reversed(history):
             controls.append(note(h.get("time","")+" • "+h.get("event","")+" "+h.get("symbol","")+" ×"+str(h.get("qty",""))))
         return section("My Positions • Paper Only",ft.Column(controls,spacing=9))
+    def chart_analysis_panel(kind):
+        quote=quotes.get(symbol.value) or {}
+        result=chart_indicators(quote.get("bars") or [])
+        if result["status"]!="AVAILABLE":
+            return section(kind,note("Analysis unavailable: "+result["reason"]))
+        def fmt(key):return format(result[key],",.2f")
+        stamp=datetime.fromtimestamp(result["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
+        provenance=note(str(quote.get("source","Unknown"))+" • "+stamp+" • "+str(result["count"])+" candles • check data freshness before trading")
+        if kind=="Market Levels":
+            return section(kind,ft.Column([txt("20-candle rolling support ₹"+fmt("support"),14,GREEN),txt("20-candle rolling resistance ₹"+fmt("resistance"),14,RED),note("ATR14 ₹"+fmt("atr14")+" • calculated zones, not verified exchange levels"),provenance],spacing=5))
+        return section(kind,ft.Column([txt("Candle analysis: "+result["bias"],16,GOLD,True),note("EMA20 ₹"+fmt("ema20")+" • EMA50 ₹"+fmt("ema50")+" • RSI14 "+fmt("rsi14")),note(result["reason"]+" • not an order recommendation"),provenance],spacing=5))
     def charts():
         content=[heading("Charts • Technical Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_chart_tab(v),style=ft.ButtonStyle(color=GOLD if chart_tab[0]==n else MUTED)) for n in ["Chart","Indicators","Drawing","Compare","Levels","Signals"]],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),ft.ElevatedButton("Apply / Refresh",on_click=lambda e:page.run_task(load_chart),bgcolor=GOLD,color=BG)]
         if chart_tab[0]=="Chart":
@@ -1023,9 +1041,9 @@ def app_main(page:ft.Page):
         elif chart_tab[0]=="Compare":
             content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol trend with the current chart.")])))
         elif chart_tab[0]=="Levels":
-            content.append(section("Market Levels",note("Verified support and resistance calculations are not yet enabled.")))
+            content.append(chart_analysis_panel("Market Levels"))
         else:
-            content.append(section("Signals",note("Trading signals remain disabled until tested and validated.")))
+            content.append(chart_analysis_panel("Signals"))
         return content
     async def load_chart():
         try:
@@ -2734,7 +2752,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.3.2 • Live orders OFF")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v"+APP_VERSION+" • Live orders OFF")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
