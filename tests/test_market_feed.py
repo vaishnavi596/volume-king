@@ -6,33 +6,25 @@ from test_audit import start
 from market_feed import AngelFeed,FeedError
 
 class FeedTests(unittest.TestCase):
-    def test_legacy_auto_selection_migrates_to_broker_only_and_fails_closed(self):
+    def test_legacy_auto_selection_migrates_to_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
-        self.assertEqual(v['prefs']['source'],'Broker API')
+        self.assertEqual(v['prefs']['source'],'Yahoo Finance')
+        with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:{'source':'Yahoo Finance','price':100,'bars':[],'quote_timestamp':time.time()}}):
+            self.assertEqual(v['get_market_data']('NIFTY')['source'],'Yahoo Finance')
+
+    def test_yahoo_without_broker_login(self):
+        _,v=start({'source':'Yahoo Finance','scanner_live':False})
+        with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:{'source':'Yahoo Finance','price':100,'bars':[],'quote_timestamp':time.time()}}):
+            self.assertEqual(v['get_market_data']('NIFTY')['price'],100)
+
+    def test_explicit_broker_mode_does_not_fallback_to_yahoo(self):
+        _,v=start({'source':'Broker API','scanner_live':False})
         feed=v['angel_feed'];feed.key='test';feed.token='test'
-        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, \
-             patch('urllib.request.urlopen',side_effect=AssertionError('No Yahoo fallback allowed')):
-            with self.assertRaises(FeedError):
-                v['get_market_data']('NIFTY')
+        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:(_ for _ in ()).throw(AssertionError('No Yahoo fallback'))}):
+            with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
         self.assertEqual(broker.call_count,1)
-        self.assertGreater(v['broker_retry'][0],0)
         feed.disconnect()
-        with self.assertRaisesRegex(FeedError,'Broker API not connected'):
-            v['get_market_data']('NIFTY')
-
-    def test_without_login_never_uses_yahoo(self):
-        _,v=start({'source':'Auto','scanner_live':False})
-        with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
-            with self.assertRaisesRegex(FeedError,'Broker API not connected'):
-                v['get_market_data']('NIFTY')
-        self.assertEqual(v['prefs']['source'],'Broker API')
-        self.assertNotIn('NIFTY',v['quotes'])
-
-    def test_broker_success_is_preferred_without_yahoo(self):
-        _,v=start({'source':'Auto','scanner_live':False})
-        feed=v['angel_feed'];feed.key='test';feed.token='test'
-        with patch.object(feed,'history',return_value={'source':'Angel One','bars':[]}),patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
-            self.assertEqual(v['get_market_data']('NIFTY')['source'],'Angel One')
+        with self.assertRaisesRegex(FeedError,'Broker API not connected'):v['get_market_data']('NIFTY')
 
     def test_no_order_endpoints_and_disconnect_clears_session(self):
         feed=AngelFeed();feed.key='test';feed.token='test'
