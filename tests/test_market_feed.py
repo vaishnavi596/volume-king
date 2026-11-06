@@ -81,4 +81,18 @@ class FeedTests(unittest.TestCase):
     def test_stale_broker_quote_cannot_be_claimed_as_live(self):
         feed=AngelFeed();feed.key='test';feed.token='test'
         with patch.object(feed,'resolve',return_value=('NSE','123')),patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]),patch.object(feed,'quotes',return_value=[{'ltp':100,'exchFeedTime':'01-Jan-2000 09:15:00'}]):
-            with self.assertRaises(FeedError):feed.history('NIFTY','5m','7d')
+            result=feed.history('NIFTY','5m','7d')
+            self.assertTrue(result['historical_only'])
+            self.assertEqual(len(result['bars']),1)
+            self.assertEqual(result['source'],'Angel One')
+            self.assertFalse(result['quote_unavailable'])
+
+    def test_quote_failure_keeps_verified_candles_without_live_claim(self):
+        feed=AngelFeed();feed.key='test';feed.token='test'
+        with patch.object(feed,'resolve',return_value=('NSE','123')),patch.object(feed,'request',return_value=[['2026-11-04T09:15:00+05:30',100,101,99,100,10]]),patch.object(feed,'quotes',side_effect=FeedError('quote endpoint unavailable')):
+            result=feed.history('NIFTY','5m','7d')
+            self.assertTrue(result['historical_only'])
+            self.assertTrue(result['quote_unavailable'])
+            self.assertEqual(result['price'],100)
+            self.assertIsNone(result['quote_timestamp'])
+            self.assertEqual(len(result['bars']),1)
