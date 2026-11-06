@@ -54,17 +54,20 @@ class SnapshotTests(unittest.TestCase):
         rows=[c for c in card.content.controls[1].controls if isinstance(c,ft.Container)]
         self.assertEqual(len(rows),5)
         self.assertTrue(all('DATA UNAVAILABLE' in row.content.controls[0].value for row in rows))
-    def test_app_restart_and_failed_fetch_keep_last_data(self):
+    def test_restart_keeps_historical_snapshot_but_broker_failure_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
-            _,v=start({'scanner_live':False,'source':'Auto'},cache_path=path)
-            v['market_store'].put('market',('Auto','NIFTY','5m','7d'),self.market())
-            _,restored=start({'scanner_live':False,'source':'Auto'},cache_path=path)
+            _,v=start({'scanner_live':False,'source':'Broker API'},cache_path=path)
+            historical=dict(self.market(),source='Angel One')
+            v['market_store'].put('market',('Broker API','NIFTY','5m','7d'),historical)
+            _,restored=start({'scanner_live':False,'source':'Broker API'},cache_path=path)
             self.assertEqual(restored['quotes']['NIFTY']['price'],100)
-            with patch('urllib.request.urlopen',side_effect=OSError('offline')):
-                result=restored['get_market_data']('NIFTY','5m','7d')
-            self.assertTrue(result['cached']);self.assertEqual(result['price'],100)
+            self.assertTrue(restored['quotes']['NIFTY']['cached'])
+            with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
+                with self.assertRaisesRegex(RuntimeError,'Broker API not connected'):
+                    restored['get_market_data']('NIFTY','5m','7d')
             self.assertIn('Last saved',restored['quote_caption']('NIFTY'))
+
     def test_ranked_directions_survive_restart_as_historical(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
