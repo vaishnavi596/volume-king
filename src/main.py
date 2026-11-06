@@ -932,7 +932,7 @@ def app_main(page:ft.Page):
             color=GREEN if c>=o else RED
             controls.append(ft.Container(left=x+2,top=yhigh,width=2,height=max(1,ylow-yhigh),bgcolor=color))
             controls.append(ft.Container(left=x,top=min(yo,yc),width=max(3,width/len(bars)-2),height=max(2,abs(yc-yo)),bgcolor=color))
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"Broker OHLC • {timeframe.value} • verify feed freshness")],spacing=3)
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness")],spacing=3)
     def drawing_action(v):
         drawing_mode[0]=v
         chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
@@ -1032,7 +1032,7 @@ def app_main(page:ft.Page):
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
             chart_message.value="Chart updated • "+str(quotes[symbol.value].get("source","unknown"))
         except Exception as exc:
-            chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)
+            chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+" • last available chart retained if cached"
         select(5)
     async def load_comparison():
         try:
@@ -1204,7 +1204,7 @@ def app_main(page:ft.Page):
         selection=(sym,expiry_value,option_expiry_choice.value)
         option_feed_status[0]="Loading selected data..."
         try:
-            if angel_feed.connected and option_expiry_choice.value!="Manual":
+            if prefs.get("source")=="Broker API" and angel_feed.connected and option_expiry_choice.value!="Manual":
                 dates=await asyncio.to_thread(angel_feed.expiries,sym)
                 if generation!=provider_generation[0] or selection!=(chain_symbol.value,expiry.value,option_expiry_choice.value):return
                 index=1 if option_expiry_choice.value=="Next" else 0
@@ -1216,9 +1216,9 @@ def app_main(page:ft.Page):
             hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
             quotes[sym]=hist
-            if not angel_feed.connected:
+            if prefs.get("source")!="Broker API" or not angel_feed.connected:
                 option_feed.clear()
-                option_feed_status[0]="Broker API disconnected. Verified CE/PE and OI unavailable."
+                option_feed_status[0]="Verified CE/PE and OI require Broker API mode and a connected broker."
                 health.finish(health_key,request_id,"UNAVAILABLE",source="Broker API",error="Broker API not connected")
                 return
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
@@ -2661,6 +2661,8 @@ console.log('BOT KING Lightweight Charts ready');
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
         quotes.clear();candles.clear();fusion_cache.clear();scan_generation[0]+=1
+        cached_source="Angel One" if source.value=="Broker API" else "Yahoo Finance"
+        quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
         scan_result.controls.clear()
         connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected")
