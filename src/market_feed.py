@@ -46,10 +46,10 @@ class AngelFeed:
             try:
                 with urllib.request.urlopen(req,timeout=12) as response:data=json.load(response)
             except urllib.error.HTTPError as exc:
-                if exc.code in (401,403):
+                if exc.code == 401:
                     self.disconnect()
                     raise SessionExpired("Broker session expired; reconnect") from None
-                raise FeedError("Broker HTTP request failed; retry later") from None
+                raise FeedError("Broker HTTP "+str(exc.code)+" on "+kind+"; verify endpoint permission and contract") from None
             except Exception:raise FeedError("Broker request failed; check connection/session") from None
         if data.get("status") is not True:
             if kind!="login" and str(data.get("errorcode") or data.get("errorCode")) in ("AG8001","AG8002"):
@@ -83,16 +83,22 @@ class AngelFeed:
             self.instruments=data
         return self.instruments
     def resolve(self,symbol):
-        if symbol in self.resolved:return self.resolved[symbol]
-        # Resolve exact cash symbols/index names; never guess a derivative token.
-        aliases={"NIFTY":"Nifty 50","BANKNIFTY":"Nifty Bank","FINNIFTY":"Nifty Fin Service","SENSEX":"SENSEX"}
-        search=aliases.get(symbol,symbol+"-EQ")
-        exchange="BSE" if symbol=="SENSEX" else "NSE"
-        data=self.request("search",{"exchange":exchange,"searchscrip":search}) or []
-        matches=[r for r in data if str(r.get("tradingsymbol","")).upper()==search.upper()]
-        if len(matches)!=1:raise FeedError("Exact broker symbol unavailable")
-        result=(exchange,str(matches[0]["symboltoken"]))
-        self.resolved[symbol]=result
+        """Resolve exact exchange-listed cash/index tokens from Angel One master."""
+        aliases={"NIFTY":"Nifty 50","NIFTY 50":"Nifty 50",
+                 "BANKNIFTY":"Nifty Bank","BANK NIFTY":"Nifty Bank",
+                 "FINNIFTY":"Nifty Fin Service","SENSEX":"SENSEX"}
+        normalized=str(symbol).strip().upper()
+        exchange="BSE" if normalized=="SENSEX" else "NSE"
+        target=aliases.get(normalized,normalized+"-EQ")
+        cache_key=(exchange,target)
+        if cache_key in self.resolved:return self.resolved[cache_key]
+        matches=[r for r in self.master()
+                 if r.get("exch_seg")==exchange
+                 and str(r.get("symbol","")).upper()==target.upper()
+                 and r.get("token")]
+        if len(matches)!=1:raise FeedError("Exact broker symbol unavailable in instrument master")
+        result=(exchange,str(matches[0]["token"]))
+        self.resolved[cache_key]=result
         return result
     def expiries(self,symbol):
         result=set();now=datetime.now(IST)
@@ -142,12 +148,12 @@ class AngelFeed:
         if not q:raise FeedError("Broker quote unavailable")
         q=q[0];stamp=self.timestamp(q.get("exchFeedTime"))
         if stamp is None or not 0<=time.time()-stamp<=90:
-            raise FeedError("Broker quote is stale; fallback required")
+            raise FeedError("Broker quote is stale; historical only")
         return {"price":self.number(q["ltp"]),"change":self.number(q.get("percentChange",0)),
             "high":q.get("high"),"low":q.get("low"),"bars":bars,"source":"Angel One",
             "quote_timestamp":stamp,"fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
     def option_chain(self,symbol,expiry,spot):
-        if not self.connected:raise FeedError("Connect Angel One for live CE/PE data; Yahoo fallback has no verified option chain")
+        if not self.connected:raise FeedError("Connect Angel One for verified live CE/PE data")
         contracts=[]
         for r in self.master():
             if r.get("name")!=symbol or r.get("exch_seg") not in ("NFO","BFO"):continue
