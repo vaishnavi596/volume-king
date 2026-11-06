@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.1.0" # Yahoo and broker selectable; tests updated
+version = "2.1.0" # Yahoo and Broker provider regression fixes
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
