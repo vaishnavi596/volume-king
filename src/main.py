@@ -271,7 +271,7 @@ def app_main(page:ft.Page):
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==prefs.get("source","Yahoo Finance")}
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==("Angel One" if prefs.get("source")=="Broker API" else "Yahoo Finance")}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
