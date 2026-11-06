@@ -71,7 +71,7 @@ class MonitoringAuditTests(unittest.TestCase):
     def test_removed_capabilities_panel_keeps_execution_safety(self):
         _,v=start({'scanner_live':False})
         self.assertNotIn('execution_capabilities',v)
-        self.assertIn('live orders: disabled',v['data_overview']().content.controls[1].controls[3].value.lower())
+        self.assertIn('Live orders: OFF',v['help_status']('live auto trading'))
         self.assertEqual(v['mode'].value,'Paper')
     def test_option_help_uses_its_own_component_error(self):
         _,v=start({'scanner_live':False})
