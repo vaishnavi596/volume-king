@@ -68,12 +68,11 @@ class MonitoringAuditTests(unittest.TestCase):
         with self.assertRaises(Exception):v['get_market_data']('NIFTY')
         self.assertEqual(v['health'].get('market:Broker API:NIFTY:5m')['state'],'UNAVAILABLE')
         self.assertIn('last attempt',v['component_status']('market','NIFTY','5m'))
-    def test_capabilities_never_claim_live_execution(self):
+    def test_removed_capabilities_panel_keeps_execution_safety(self):
         _,v=start({'scanner_live':False})
-        card=v['execution_capabilities']()
-        text=' '.join(str(getattr(c,'value','')) for c in card.content.controls[1].controls)
-        self.assertIn('Live orders: OFF',text)
-        self.assertTrue(card.content.controls[1].controls[-1].disabled)
+        self.assertNotIn('execution_capabilities',v)
+        self.assertIn('live orders: disabled',v['data_overview']().content.controls[1].controls[3].value.lower())
+        self.assertEqual(v['mode'].value,'Paper')
     def test_option_help_uses_its_own_component_error(self):
         _,v=start({'scanner_live':False})
         key='options:'+v['chain_symbol'].value+':'+v['expiry'].value
