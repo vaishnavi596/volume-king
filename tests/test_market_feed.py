@@ -20,7 +20,7 @@ class FeedTests(unittest.TestCase):
         _,v=start({'source':'Broker API','scanner_live':False})
         with patch('urllib.request.urlopen',side_effect=AssertionError('No external provider allowed')):
             with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
-        self.assertEqual(v['health'].get('market:Angel One:NIFTY:5m')['state'],'UNAVAILABLE')
+        self.assertEqual(v['health'].get('market:Broker API:NIFTY:5m')['state'],'UNAVAILABLE')
 
     def test_broker_success_is_preferred_without_yahoo(self):
         _,v=start({'source':'Auto','scanner_live':False})
