@@ -19,6 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -69,11 +70,26 @@ jobs:
           pip install -r backend/requirements.txt httpx==0.28.1
           python -m unittest discover -s tests -v
 
-      - name: Build APK
+      - name: Build APK (retry transient Maven HTTP 429 errors)
         run: |
           set -euo pipefail
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
-          flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE"
+          for attempt in 1 2 3 4; do
+            echo "APK build attempt ${attempt}/4"
+            if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
+              echo "APK build succeeded"
+              exit 0
+            fi
+            if ! grep -Eq '429|Too Many Requests|Could not GET|Read timed out|Connection reset' /tmp/volume-king-build.log; then
+              echo "Non-network build failure; stopping retries"
+              exit 1
+            fi
+            if [ "$attempt" -eq 4 ]; then
+              echo "Build failed after 4 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 45))
+          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
