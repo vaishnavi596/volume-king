@@ -2754,7 +2754,7 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(30)
                 continue
             initial=False
-            if prefs.get("source") in ("Broker API",):
+            if prefs.get("source") in ("Yahoo Finance","Broker API"):
                 generation=provider_generation[0]
                 successes=0
                 symbols=list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
