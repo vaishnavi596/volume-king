@@ -114,6 +114,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_auto_scan_schedules_short_ticks_and_sets_next_due_time(self):
         _,v=start({"scanner_live":True,"scanner_refresh":"60"})
+        v["angel_feed"].key="test";v["angel_feed"].token="test"
         class Clock(datetime):
             @classmethod
             def now(cls,tz=None):
