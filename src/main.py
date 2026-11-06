@@ -445,7 +445,7 @@ def app_main(page:ft.Page):
         import time
         selected="Broker API"
         generation=provider_generation[0]
-        health_key="market:Angel One:"+ticker+":"+interval
+        health_key="market:Broker API:"+ticker+":"+interval
         request_id=health.begin(health_key)
         failure=""
         fallback_reason=""
