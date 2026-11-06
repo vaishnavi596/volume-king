@@ -1126,8 +1126,8 @@ def app_main(page:ft.Page):
         context=option_chart_context();generation=provider_generation[0]
         key=(generation,context)
         message=""
-        if not angel_feed.connected:
-            message="Connect Angel One in Settings before loading option history."
+        if prefs.get("source")!="Broker API" or not angel_feed.connected:
+            message="Select Broker API and connect Angel One in Settings to load verified option premium history."
         else:
             try:
                 if finite(context[2])<=0:raise ValueError("strike")
@@ -1260,7 +1260,7 @@ def app_main(page:ft.Page):
         return previous.get("rows",[])
     def option_metrics(kind):
         rows=selected_option_rows()
-        if not rows:return unavailable("Verified option quotes unavailable; underlying data may still be available.")
+        if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. Yahoo provides underlying quotes and candles only; no values are estimated.")
         old=any(r.get("timestamp") is None or not 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90 for r in rows)
         prefix="HISTORICAL • quotes are old • " if old else ""
         coverage=option_feed if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value else (market_store.get("options",chain_symbol.value,expiry.value) or {})
@@ -1298,9 +1298,9 @@ def app_main(page:ft.Page):
         )
         return ft.Column([
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying prices require a connected broker data feed."),
+            note("Underlying quotes may come from Yahoo Finance and can be delayed. Verified option quotes require Broker API mode."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
-            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • CE/PE premiums and OI are unavailable. No synthetic values are shown."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
