@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.4" # Chart levels, indicator summaries, provider gateway preparation; live Dhan login not yet enabled
+version = "2.3.5" # Chart levels, indicator summaries, provider gateway preparation; live Dhan login not yet enabled
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
