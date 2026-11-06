@@ -3,6 +3,9 @@ name: Build APK
 
 # APK builds are manual only. Code edits must not trigger an APK build.
 on:
+  push:
+    branches: [ main ]
+    paths: [ pyproject.toml ]
   workflow_dispatch:
 
 jobs:
