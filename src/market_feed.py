@@ -46,13 +46,33 @@ class AngelFeed:
             try:
                 with urllib.request.urlopen(req,timeout=12) as response:data=json.load(response)
             except urllib.error.HTTPError as exc:
+                if kind in ("candles", "quote"):
+                    import logging
+                    logging.getLogger("botking.market").warning(
+                        "broker_read_failure operation=%s category=http status=%s",
+                        kind, int(exc.code))
                 if exc.code == 401:
                     self.disconnect()
                     raise SessionExpired("Broker session expired; reconnect") from None
                 raise FeedError("Broker HTTP "+str(exc.code)+" on "+kind+"; verify endpoint permission and contract") from None
-            except Exception:raise FeedError("Broker request failed; check connection/session") from None
+            except Exception as exc:
+                if kind in ("candles", "quote"):
+                    import logging
+                    category = "timeout" if isinstance(exc, (TimeoutError,)) else "transport_or_decode"
+                    logging.getLogger("botking.market").warning(
+                        "broker_read_failure operation=%s category=%s",
+                        kind, category)
+                raise FeedError("Broker request failed; check connection/session") from None
         if data.get("status") is not True:
-            if kind!="login" and str(data.get("errorcode") or data.get("errorCode")) in ("AG8001","AG8002"):
+            code = str(data.get("errorcode") or data.get("errorCode") or "")
+            if kind in ("candles", "quote"):
+                import logging
+                # Only known-format public broker error codes, never response text or payloads.
+                safe_code = code if code.startswith("AG") and code[2:].isdigit() and len(code) <= 12 else "other"
+                logging.getLogger("botking.market").warning(
+                    "broker_read_failure operation=%s category=rejected error_code=%s",
+                    kind, safe_code)
+            if kind!="login" and code in ("AG8001","AG8002"):
                 self.disconnect()
                 raise SessionExpired("Broker session expired; reconnect")
             raise FeedError("Broker rejected request; reconnect or verify contract")
