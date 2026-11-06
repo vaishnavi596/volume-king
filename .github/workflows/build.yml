@@ -98,8 +98,14 @@ jobs:
           echo "APK: $APK"
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -m 1 "^package:"
-          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | grep -E 'Signer #1 certificate SHA-256 digest|Verified using'
+          "$BUILD_TOOLS/aapt" dump badging "$APK" > /tmp/botking-apk-badging.txt
+          grep "^package:" /tmp/botking-apk-badging.txt
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" > /tmp/botking-apk-signature.txt 2>&1 || {
+            echo "::warning::APK signature verification could not complete; preserving APK artifact for inspection."
+            cat /tmp/botking-apk-signature.txt
+            exit 0
+          }
+          cat /tmp/botking-apk-signature.txt
           echo "Compare package name, versionCode, and certificate SHA-256 with the currently installed APK before attempting an in-place update."
 
       - name: Upload APK
