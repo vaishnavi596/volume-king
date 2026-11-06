@@ -142,12 +142,12 @@ class AngelFeed:
         if not q:raise FeedError("Broker quote unavailable")
         q=q[0];stamp=self.timestamp(q.get("exchFeedTime"))
         if stamp is None or not 0<=time.time()-stamp<=90:
-            raise FeedError("Broker quote is stale; fallback required")
+            raise FeedError("Broker quote is stale; latest verified quote unavailable")
         return {"price":self.number(q["ltp"]),"change":self.number(q.get("percentChange",0)),
             "high":q.get("high"),"low":q.get("low"),"bars":bars,"source":"Angel One",
             "quote_timestamp":stamp,"fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
     def option_chain(self,symbol,expiry,spot):
-        if not self.connected:raise FeedError("Connect Angel One for live CE/PE data; Yahoo fallback has no verified option chain")
+        if not self.connected:raise FeedError("Connect Angel One for live CE/PE data; no fallback provider is configured")
         contracts=[]
         for r in self.master():
             if r.get("name")!=symbol or r.get("exch_seg") not in ("NFO","BFO"):continue
