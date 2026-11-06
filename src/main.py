@@ -2,8 +2,6 @@ import flet as ft
 import json
 import traceback
 import asyncio
-import urllib.request
-import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed
 from analysis_quality import quality_check, agreement_detail
@@ -231,6 +229,7 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
+    prefs["source"]="Broker API"  # Migrate legacy provider selections.
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
@@ -257,7 +256,7 @@ def app_main(page:ft.Page):
     option_feed={}
     option_feed_busy=[False]
     broker_connect_busy=[False]
-    option_feed_status=["Connect Angel One for verified CE/PE quotes. Yahoo supplies underlying data only."]
+    option_feed_status=["Connect Angel One for verified CE/PE quotes."]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
         diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__)
@@ -403,8 +402,7 @@ def app_main(page:ft.Page):
                 when=datetime.fromtimestamp(item["published"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
                 controls.append(ft.Column([note(item["source"]+" • "+when),ft.TextButton(content=ft.Text(item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url))],spacing=1))
         return section("CANDLE + OPTIONS + NEWS • "+symbol+" • "+interval,ft.Column(controls,spacing=5))
-    market_status="Connecting Yahoo Finance…"
-    symbols_yahoo={"NIFTY":"^NSEI","NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN","RELIANCE":"RELIANCE.NS","HDFCBANK":"HDFCBANK.NS","ICICIBANK":"ICICIBANK.NS","TCS":"TCS.NS","INFY":"INFY.NS","BHARTIARTL":"BHARTIARTL.NS","SBIN":"SBIN.NS","ITC":"ITC.NS"}
+    market_status="Waiting for broker API connection…"
     def clean_bars(bars):
         import math
         rows={}
@@ -449,7 +447,7 @@ def app_main(page:ft.Page):
         request_id=health.begin(health_key)
         fallback_reason=""
         try:
-            if selected in ("Auto","Broker API") and angel_feed.connected and (selected=="Broker API" or time.monotonic()>=broker_retry[0]):
+            if selected=="Broker API" and angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
                     broker_failures[0]=0;broker_retry[0]=0
@@ -459,13 +457,11 @@ def app_main(page:ft.Page):
                     fallback_reason=safe_error(exc)
                     if selected=="Broker API":raise
             if result is None:
-                if selected=="Broker API":raise FeedError("Broker feed not connected")
-                result=get_yahoo(ticker,interval,range_)
-                result["fallback"]=selected=="Auto"
+                raise FeedError("Broker API not connected; connect Angel One in Settings")
             result["cached"]=False
         except Exception as exc:
             fallback_reason=safe_error(exc)
-            result=market_store.get("market",selected,ticker,interval,range_)
+            result=None  # No historical fallback from removed provider
             if not result:
                 health.finish(health_key,request_id,"UNAVAILABLE",error=fallback_reason)
                 raise
@@ -504,31 +500,6 @@ def app_main(page:ft.Page):
         if result.get("score",0)<float(prefs.get("confidence",75)):
             result=dict(result,bias="WAIT",score=0,reason=result["reason"]+" • below saved agreement threshold")
         return result
-    def get_yahoo(ticker,interval="5m",range_="1d"):
-        requested=interval
-        if interval=="3m":interval="1m";range_="7d"
-        if interval=="1m":range_="7d"
-        code=symbols_yahoo.get(ticker,ticker+".NS")
-        url="https://query1.finance.yahoo.com/v8/finance/chart/"+urllib.parse.quote(code,safe="")+"?interval="+interval+"&range="+range_
-        request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (BOT KING Market Preview)","Accept":"application/json"})
-        try:
-            with urllib.request.urlopen(request,timeout=9) as response:
-                data=json.load(response)["chart"]["result"][0]
-        except Exception:
-            request=urllib.request.Request(url.replace("query1.finance.yahoo.com","query2.finance.yahoo.com"),headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-            with urllib.request.urlopen(request,timeout=9) as response:
-                data=json.load(response)["chart"]["result"][0]
-        meta=data["meta"]
-        vals=data["indicators"]["quote"][0]
-        timestamps=data.get("timestamp",[])
-        bars=[(t,o,h,l,cl,v) for t,o,h,l,cl,v in zip(timestamps,vals["open"],vals["high"],vals["low"],vals["close"],vals["volume"]) if None not in (o,h,l,cl)]
-        bars=clean_bars(bars)
-        if requested=="3m":bars=aggregate_3m(bars)
-        price=meta.get("regularMarketPrice")
-        # chartPreviousClose can be the start of a multi-day range, not yesterday.
-        previous=meta.get("previousClose") or meta.get("regularMarketPreviousClose") or meta.get("chartPreviousClose")
-        change=((price/previous-1)*100) if price is not None and previous else None
-        return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M"),"source":"Yahoo Finance","quote_timestamp":meta.get("regularMarketTime"),"fetched_at":datetime.now(timezone.utc).timestamp()}
     preference_writer=PreferenceWriter(page,STATE,int(prefs.get("_prefs_revision",0)),lambda exc:log_error("preferences",exc))
     def save():
         # Never call synchronous native clientStorage RPC from async refresh tasks.
@@ -689,7 +660,7 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
+        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Broker API")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -914,7 +885,7 @@ def app_main(page:ft.Page):
         q=quotes.get(symbol.value) or {}
         bars=q.get("bars") or []
         if len(bars)<2:
-            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Yahoo Finance • internet connection required")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Broker API connection required")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value),height=230)
@@ -931,7 +902,7 @@ def app_main(page:ft.Page):
             color=GREEN if c>=o else RED
             controls.append(ft.Container(left=x+2,top=yhigh,width=2,height=max(1,ylow-yhigh),bgcolor=color))
             controls.append(ft.Container(left=x,top=min(yo,yc),width=max(3,width/len(bars)-2),height=max(2,abs(yc-yo)),bgcolor=color))
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"Yahoo OHLC • {timeframe.value} • may be delayed")],spacing=3)
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"Broker OHLC • {timeframe.value} • verify feed freshness")],spacing=3)
     def drawing_action(v):
         drawing_mode[0]=v
         chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
@@ -1008,19 +979,19 @@ def app_main(page:ft.Page):
             content.append(section("Stock Details • "+symbol.value,ft.Column([
                 txt("₹ "+quote_price(symbol.value),26,GOLD,True),
                 txt("Change "+quote_change(symbol.value),14,price_color(symbol.value),True),
-                note("Yahoo preview • delayed or unavailable"),
+                note("Broker feed • delayed or unavailable"),
                 ft.Row([chart_quantity,chart_sl,chart_target],wrap=True),
                 ft.Row([ft.ElevatedButton("BUY • Paper",on_click=lambda e:chart_paper_trade("BUY"),bgcolor=GREEN,color=BG),ft.ElevatedButton("SELL • Paper",on_click=lambda e:chart_paper_trade("SELL"),bgcolor=RED,color=BG),ft.OutlinedButton("Exit",on_click=lambda e:chart_paper_trade("EXIT"))],wrap=True),
                 txt(chart_position_text(),12,GOLD),chart_paper_status,
                 note("Simulation only • no real orders")
             ])))
-            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Yahoo Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
             content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
-            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol's Yahoo trend with the current chart.")])))
+            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol trend with the current chart.")])))
         elif chart_tab[0]=="Levels":
             content.append(section("Market Levels",note("Verified support and resistance calculations are not yet enabled.")))
         else:
@@ -1029,9 +1000,9 @@ def app_main(page:ft.Page):
     async def load_chart():
         try:
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Yahoo chart updated"
+            chart_message.value="Broker chart updated"
         except Exception as exc:
-            chart_message.value="Yahoo candles unavailable; check connection or rate limits"
+            chart_message.value="Broker candles unavailable; check broker connection"
         select(5)
     async def load_comparison():
         try:
@@ -1125,9 +1096,7 @@ def app_main(page:ft.Page):
         context=option_chart_context();generation=provider_generation[0]
         key=(generation,context)
         message=""
-        if source.value=="Yahoo Finance":
-            message="Select Auto or Broker API to load Angel One option history."
-        elif not angel_feed.connected:
+        if not angel_feed.connected:
             message="Connect Angel One in Settings before loading option history."
         else:
             try:
@@ -1172,8 +1141,7 @@ def app_main(page:ft.Page):
         if feedback:
             controls.append(unavailable(feedback["message"]) if feedback["state"]=="UNAVAILABLE" else note(feedback["message"]))
         elif not bars:
-            if source.value=="Yahoo Finance":message="Yahoo has no verified NSE option history. Select Auto or Broker API and connect Angel One."
-            elif not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
+            if not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
             else:message="Enter a listed strike, choose CE or PE, then press Load option premium chart."
             controls.append(note(message))
         return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
@@ -1188,7 +1156,7 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
-            options=[ft.dropdown.Option(x) for x in ("Auto","Yahoo Finance","Broker API")])
+            options=[ft.dropdown.Option("Broker API")])
         def changed(e):
             source.value=e.control.value
             source.on_change(type("SourceChange",(),{"control":source})())
@@ -1196,7 +1164,7 @@ def app_main(page:ft.Page):
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Auto: Angel One first; Yahoo fallback for available underlying data. CE/PE requires a supported option feed. Options poll every 15 seconds while open during regular hours; not tick streaming. No live orders.")],
+            note("Broker-only data. Connect Angel One in Settings for verified quotes and CE/PE. No live orders.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         if option_feed_busy[0]:return
@@ -1206,7 +1174,7 @@ def app_main(page:ft.Page):
         selection=(sym,expiry_value,option_expiry_choice.value)
         option_feed_status[0]="Loading selected data..."
         try:
-            if angel_feed.connected and source.value!="Yahoo Finance" and option_expiry_choice.value!="Manual":
+            if angel_feed.connected and option_expiry_choice.value!="Manual":
                 dates=await asyncio.to_thread(angel_feed.expiries,sym)
                 if generation!=provider_generation[0] or selection!=(chain_symbol.value,expiry.value,option_expiry_choice.value):return
                 index=1 if option_expiry_choice.value=="Next" else 0
@@ -1218,10 +1186,10 @@ def app_main(page:ft.Page):
             hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
             quotes[sym]=hist
-            if source.value=="Yahoo Finance" or not angel_feed.connected:
+            if not angel_feed.connected:
                 option_feed.clear()
                 option_feed_status[0]="Yahoo underlying updated. Verified CE/PE and OI are not supplied by this Yahoo adapter."
-                health.finish(health_key,request_id,"UNAVAILABLE",source="Yahoo Finance",error="This source has no verified NSE option-chain data")
+                health.finish(health_key,request_id,"UNAVAILABLE",source="Broker API",error="Broker API not connected")
                 return
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
@@ -1321,7 +1289,7 @@ def app_main(page:ft.Page):
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
-    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option(x) for x in ["Auto","Yahoo Finance","Broker API"]])
+    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Broker API")])
     broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
@@ -2193,7 +2161,7 @@ console.log('BOT KING Lightweight Charts ready');
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
-        elif prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
+        elif prefs.get("source") not in ("Broker API",):
             next_text="PAUSED — broker feed not connected";scan_next_refresh[0]=None
         elif not regular_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
@@ -2665,7 +2633,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; Auto can use Yahoo")
+        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected")
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
@@ -2757,7 +2725,7 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(30)
                 continue
             initial=False
-            if prefs.get("source") in ("Auto","Yahoo Finance","Broker API"):
+            if prefs.get("source") in ("Broker API",):
                 generation=provider_generation[0]
                 successes=0
                 symbols=list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
@@ -2769,7 +2737,7 @@ console.log('BOT KING Lightweight Charts ready');
                     async with semaphore:
                         try:
                             data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
-                            if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):return False
+                            if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):return False
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
@@ -2779,7 +2747,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
@@ -2809,7 +2777,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
@@ -2823,7 +2791,7 @@ console.log('BOT KING Lightweight Charts ready');
                             combined=combine_analysis(candidate["symbol"],"5m",candidate,missing,missing)
                         return candidate,combined
                 enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Auto","Yahoo Finance","Broker API"):continue
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):continue
                 for candidate,combined in enriched:
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
