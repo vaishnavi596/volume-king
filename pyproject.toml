@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.0" # Dhan/Angel broker selection and separate paper/real trading safety
+version = "2.3.0" # Dhan/Angel broker selection and separate paper/real trading safety; option chart regression fix
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
