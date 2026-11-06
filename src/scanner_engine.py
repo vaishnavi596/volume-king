@@ -38,9 +38,11 @@ def analyze(bars, selected=None, timeframe="5m"):
     sig=ema(macd,9)[-1]
     add("MACD",1 if macd[-1]>sig else -1 if macd[-1]<sig else 0,f"MACD {macd[-1]:.2f}, signal {sig:.2f}")
     # Session VWAP must not blend previous days.
-    from datetime import datetime, timezone
-    last_day=datetime.fromtimestamp(clean[-1][0],timezone.utc).date()
-    session=[b for b in clean if datetime.fromtimestamp(b[0],timezone.utc).date()==last_day]
+    # NSE/BSE trading sessions follow Asia/Kolkata, not UTC calendar dates.
+    from datetime import timedelta
+    market_tz=timezone(timedelta(hours=5,minutes=30))
+    last_day=datetime.fromtimestamp(clean[-1][0],market_tz).date()
+    session=[b for b in clean if datetime.fromtimestamp(b[0],market_tz).date()==last_day]
     vtotal=sum(float(b[5] or 0) for b in session)
     if vtotal:
         vwap=sum((b[2]+b[3]+b[4])/3*float(b[5] or 0) for b in session)/vtotal
