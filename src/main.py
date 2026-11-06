@@ -2,6 +2,7 @@ import flet as ft
 import json
 import traceback
 import asyncio
+import urllib.request
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed
 from analysis_quality import quality_check, agreement_detail
