@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.1.0" # Provider selection and scanner regression repairs
+version = "2.1.0" # Yahoo dashboard refresh loop repaired
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
