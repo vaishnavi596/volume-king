@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.0.8" # Angel One-only release; legacy Yahoo snapshots excluded; regression tests aligned
+version = "2.0.8" # News regression fixed # Angel One-only release; legacy Yahoo snapshots excluded; regression tests aligned
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
