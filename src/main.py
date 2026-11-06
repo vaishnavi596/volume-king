@@ -229,7 +229,7 @@ def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
     page.window_width=420; page.window_height=850
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
-    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
+    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Broker API","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
@@ -460,10 +460,10 @@ def app_main(page:ft.Page):
                 health.finish(health_key,request_id,"UNAVAILABLE",error=failure)
                 raise
             result=dict(result,cached=True,cache_status="Last Angel One data • historical only; refresh failed")
-        if generation!=provider_generation[0] or selected!="Broker API":
+        if generation!=provider_generation[0]:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
-        state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
+        state="CACHED" if result.get("cached") else "AVAILABLE"
         quote_time=result.get("quote_timestamp")
         if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
             state="STALE";fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
@@ -1090,8 +1090,8 @@ def app_main(page:ft.Page):
         context=option_chart_context();generation=provider_generation[0]
         key=(generation,context)
         message=""
-        if False:
-            message="Select Auto or Broker API to load Angel One option history."
+        if not angel_feed.connected:
+            message="Connect Angel One in Settings to load option history."
         elif not angel_feed.connected:
             message="Connect Angel One in Settings before loading option history."
         else:
@@ -1137,7 +1137,7 @@ def app_main(page:ft.Page):
         if feedback:
             controls.append(unavailable(feedback["message"]) if feedback["state"]=="UNAVAILABLE" else note(feedback["message"]))
         elif not bars:
-            if False:message="Angel One has no verified NSE option history. Select Auto or Broker API and connect Angel One."
+            if not angel_feed.connected:message="Connect Angel One in Settings to load option history."
             elif not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
             else:message="Enter a listed strike, choose CE or PE, then press Load option premium chart."
             controls.append(note(message))
@@ -1183,7 +1183,7 @@ def app_main(page:ft.Page):
             hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
             quotes[sym]=hist
-            if False or not angel_feed.connected:
+            if not angel_feed.connected:
                 option_feed.clear()
                 option_feed_status[0]="Angel One disconnected. Verified CE/PE and OI unavailable."
                 health.finish(health_key,request_id,"UNAVAILABLE",source="Angel One",error="Broker disconnected")
@@ -2630,7 +2630,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; Auto can use Angel One")
+        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; connect Angel One")
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
@@ -2748,7 +2748,7 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
-                market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
+                market_status=f"{'Broker API'} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
                 scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
