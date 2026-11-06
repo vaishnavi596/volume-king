@@ -147,10 +147,13 @@ class AngelFeed:
         q=self.quotes(exchange,[token])
         if not q:raise FeedError("Broker quote unavailable")
         q=q[0];stamp=self.timestamp(q.get("exchFeedTime"))
-        if stamp is None or not 0<=time.time()-stamp<=90:
-            raise FeedError("Broker quote is stale; historical only")
+        # Exchange quotes are often older than 90 seconds after market close.
+        # Keep genuine broker candles available for chart history, but explicitly
+        # mark the quote as historical; never promote it to a live price.
+        historical_only=stamp is None or not 0<=time.time()-stamp<=90
         return {"price":self.number(q["ltp"]),"change":self.number(q.get("percentChange",0)),
             "high":q.get("high"),"low":q.get("low"),"bars":bars,"source":"Angel One",
+            "historical_only":historical_only,
             "quote_timestamp":stamp,"fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
     def option_chain(self,symbol,expiry,spot):
         if not self.connected:raise FeedError("Connect Angel One for verified live CE/PE data")
