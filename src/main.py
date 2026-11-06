@@ -697,7 +697,7 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Yahoo Finance")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
+        return section("MARKET & DATA STATUS",ft.Column([note(session_caption()),note("Provider: "+prefs.get("source","Broker API")),note(market_status),note("Broker data: "+("Angel One connected" if angel_feed.connected else "disconnected")+" • live orders: disabled"),note("News: public RSS headlines; experimental phrase cues"),note(component_status("market")),note("Last cache write: "+market_store.status),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data))],spacing=4))
     def system_health_panel():
         symbol=scan_symbol.value or "NIFTY"
         timeframe=scan_tf.value or "5m"
@@ -712,7 +712,7 @@ def app_main(page:ft.Page):
         rows=[
             txt("SYSTEM HEALTH & SECURITY",16,WHITE,True),
             txt("Broker session: "+("CONNECTED" if feed_ready else "DISCONNECTED"),12,GREEN if feed_ready else RED,True),
-            note("Provider: Angel One only • Yahoo fallback: OFF"),
+            note("Market data provider: Angel One"),
             txt("Selected market: "+symbol+" / "+timeframe+" • "+str(market_state),12,status_color,True),
             note("Last successful market request: "+last_ok_text),
             note("Market diagnostic: "+str(market_error)[:180]),
@@ -947,7 +947,7 @@ def app_main(page:ft.Page):
         q=quotes.get(symbol.value) or {}
         bars=q.get("bars") or []
         if len(bars)<2:
-            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Yahoo Finance • internet connection required")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Angel One broker candles • connection required")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value),height=230)
@@ -1921,7 +1921,7 @@ def app_main(page:ft.Page):
                 for name,value in modes.items():
                     if name in ALL_FILTERS and value in ("Analysis","Chart","Both") and (name=="EMA 9/21" or value=="Analysis"):filter_modes[name]=value
                 prefs["filter_modes"]=dict(filter_modes)
-            if data.get("chart_provider") in ("TradingView Lightweight","BOT KING / Yahoo"):
+            if data.get("chart_provider") in ("TradingView Lightweight","BOT KING Broker Chart"):
                 chart_provider[0]=data["chart_provider"];prefs["chart_provider"]=chart_provider[0]
             if data.get("scanner_chart_style") in ("Candlestick","Line"):
                 scanner_chart_style[0]=data["scanner_chart_style"];prefs["scanner_chart_style"]=scanner_chart_style[0]
@@ -2344,7 +2344,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in ["1m","3m","5m","15m","30m","1h","1d"]],wrap=True,spacing=2,run_spacing=2))
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
-            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
+            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING Broker Chart")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView Lightweight":
                 parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
                 parts.append(note("Chart/Analysis/Both is selected per filter below. Only EMA currently has a chart overlay."))
@@ -2355,7 +2355,7 @@ console.log('BOT KING Lightweight Charts ready');
                     tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
                 parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
-                parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
+                parts.append(note("If the embedded chart fails, select BOT KING Broker Chart."))
                 return section("LIGHTWEIGHT CHART • "+sym,ft.Column(parts,spacing=4))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
