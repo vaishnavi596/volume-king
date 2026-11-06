@@ -118,8 +118,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         state["last"] = now
 
     def run(header, method, *args):
-        if not lock.acquire(blocking=False):
-            raise HTTPException(429, "Server busy; retry later")
+        # Read-only broker calls are serialized because the broker session and
+        # instrument cache are shared. Wait briefly instead of rejecting every
+        # concurrent scanner request immediately. This does not bypass broker
+        # rate limits or allow simultaneous broker requests.
+        if not lock.acquire(timeout=12):
+            raise HTTPException(429, "Market data queue busy; retry later")
         try:
             authorized(header)
             if any(isinstance(v, float) and not math.isfinite(v) for v in args):
