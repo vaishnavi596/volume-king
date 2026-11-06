@@ -63,9 +63,9 @@ class ServerAngelFeed(AngelFeed):
             if exc.code == 422:
                 raise FeedError("Invalid login fields (HTTP 422): verify all required fields and 6-digit TOTP") from None
             if exc.code == 429:
-                raise FeedError("Server busy or login rate limited (HTTP 429); wait before retrying") from None
+                raise FeedError(("Broker gateway queue busy; wait and retry" if path != "/v1/login" else "Login rate limited; wait before retrying") + " (HTTP 429)") from None
             if exc.code in (502, 503, 504):
-                raise FeedError("Gateway or upstream unavailable (HTTP " + str(exc.code) + ")") from None
+                raise FeedError("Broker market-data gateway failed (HTTP " + str(exc.code) + "); check Oracle service and Angel One market-data access") from None
             raise FeedError("Server rejected request (HTTP " + str(exc.code) + ")") from None
         except FeedError:
             raise
