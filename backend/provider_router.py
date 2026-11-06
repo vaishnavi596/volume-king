@@ -35,6 +35,8 @@ def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180):
     """
     if preferred not in PROVIDERS:
         raise ValueError("Unknown preferred provider")
+    if max_age_seconds < 0:
+        raise ValueError("Maximum quote age must be nonnegative")
     if now is None:
         import time
         now = time.time()
