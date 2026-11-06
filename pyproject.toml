@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.1" # Permanent release-signing verification build; no feature changes
+version = "2.3.2" # Read-only Dhan adapter groundwork and regression validation; Dhan login not yet enabled
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
