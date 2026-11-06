@@ -469,7 +469,7 @@ def app_main(page:ft.Page):
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
         state="CACHED" if result.get("cached") else "AVAILABLE"
         quote_time=result.get("quote_timestamp")
-        if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
+        if state not in ("CACHED",) and (result.get("historical_only") or not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
             state="STALE";fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
         health.finish(health_key,request_id,state,source=result.get("source",""),data_time=quote_time,error=fallback_reason)
         return result
@@ -1150,7 +1150,7 @@ def app_main(page:ft.Page):
         try:
             age=datetime.now(timezone.utc).timestamp()-float(stamp)
             when=datetime.fromtimestamp(float(stamp),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
-            return source_name+" • "+("Last saved quote" if q.get("cached") else "Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when+" • "+age_label(float(stamp))
+            return source_name+" • "+("Last saved quote" if q.get("cached") else "Historical quote (not live)" if q.get("historical_only") else "Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when+" • "+age_label(float(stamp))
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
