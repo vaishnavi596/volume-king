@@ -90,6 +90,18 @@ jobs:
             sleep $((attempt * 45))
           done
 
+      - name: Inspect APK identity and signing certificate
+        run: |
+          set -euo pipefail
+          APK="$(find build/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "APK: $APK"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -m 1 "^package:"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | grep -E 'Signer #1 certificate SHA-256 digest|Verified using'
+          echo "Compare package name, versionCode, and certificate SHA-256 with the currently installed APK before attempting an in-place update."
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
