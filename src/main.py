@@ -1188,7 +1188,7 @@ def app_main(page:ft.Page):
             quotes[sym]=hist
             if not angel_feed.connected:
                 option_feed.clear()
-                option_feed_status[0]="Yahoo underlying updated. Verified CE/PE and OI are not supplied by this Yahoo adapter."
+                option_feed_status[0]="Broker API disconnected. Verified CE/PE and OI unavailable."
                 health.finish(health_key,request_id,"UNAVAILABLE",source="Broker API",error="Broker API not connected")
                 return
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
@@ -1268,7 +1268,7 @@ def app_main(page:ft.Page):
         )
         return ft.Column([
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying prices use the selected data source; Yahoo history may be delayed."),
+            note("Underlying prices require a connected broker data feed."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else unavailable("Verified option-chain feed not connected; CE/PE premiums and OI are unavailable."),
             note(quote_caption(chain_symbol.value)),
@@ -1341,7 +1341,7 @@ def app_main(page:ft.Page):
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
         server_access.value="";server_trust.value=False
-        connection_status.value=remote_message+" Auto uses Yahoo underlying data."
+        connection_status.value=remote_message+" Broker data requires connection."
         connection_status.color=GREEN
         page.update()
     def clear_broker_credentials(e):
@@ -1349,7 +1349,7 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Only Angel One read-only integration is supported; Auto can use Yahoo."
+            connection_status.value="Only Angel One read-only integration is currently supported."
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
@@ -1623,7 +1623,7 @@ def app_main(page:ft.Page):
             sym=symbol.value
             q=quotes.get(sym)
             if not q or q.get("price") is None:
-                paper_status.value="Cannot simulate entry: Yahoo quote unavailable."
+                paper_status.value="Cannot simulate entry: verified quote unavailable."
                 paper_status.color=RED
             else:
                 paper_position.update(side=side,entry=q["price"],symbol=sym)
@@ -1858,7 +1858,7 @@ def app_main(page:ft.Page):
                 for name,value in modes.items():
                     if name in ALL_FILTERS and value in ("Analysis","Chart","Both") and (name=="EMA 9/21" or value=="Analysis"):filter_modes[name]=value
                 prefs["filter_modes"]=dict(filter_modes)
-            if data.get("chart_provider") in ("TradingView Lightweight","BOT KING / Yahoo"):
+            if data.get("chart_provider") in ("TradingView Lightweight","BOT KING / Broker"):
                 chart_provider[0]=data["chart_provider"];prefs["chart_provider"]=chart_provider[0]
             if data.get("scanner_chart_style") in ("Candlestick","Line"):
                 scanner_chart_style[0]=data["scanner_chart_style"];prefs["scanner_chart_style"]=scanner_chart_style[0]
@@ -1884,7 +1884,7 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
-            connection_status.value="Broker disconnected or session expired; reconnect. Auto may use Yahoo.";connection_status.color=GOLD
+            connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. The v2.3 gateway allows up to 2 hours idle and 8 hours total, but Angel One may expire sooner. Reconnection requires a fresh broker login; credentials are not stored. Other brokers are not integrated.')])))
         content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
@@ -2284,7 +2284,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in ["1m","3m","5m","15m","30m","1h","1d"]],wrap=True,spacing=2,run_spacing=2))
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
-            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Yahoo")],on_change=chart_provider_change,dense=True))
+            parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView Lightweight":
                 parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
                 parts.append(note("Chart/Analysis/Both is selected per filter below. Only EMA currently has a chart overlay."))
@@ -2295,7 +2295,7 @@ console.log('BOT KING Lightweight Charts ready');
                     tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
                 parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
-                parts.append(note("If chart loading fails, select BOT KING / Yahoo from Chart provider."))
+                parts.append(note("If chart loading fails, select BOT KING / Broker from Chart provider."))
                 return section("LIGHTWEIGHT CHART • "+sym,ft.Column(parts,spacing=4))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
@@ -2391,13 +2391,13 @@ console.log('BOT KING Lightweight Charts ready');
             sym=scan_symbol.value or "NIFTY"
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
-            # Yahoo supports limited intraday history; do not pretend 15m is daily.
+            # Intraday history depends on the connected broker feed.
             if interval in ("1m","3m") and period!="7d":
-                raise ValueError("Yahoo 1m history is limited. Select 7d; only recent candles may be returned.")
+                raise ValueError("Broker 1m history may be limited. Select 7d.")
             if interval=="5m" and period=="3mo":
-                raise ValueError("Yahoo 5m candles cannot cover 3 months. Choose 7d or 1mo.")
+                raise ValueError("Broker 5m candles may not cover 3 months. Choose 7d or 1mo.")
             if interval in ("5m","15m","30m") and period=="3mo":
-                raise ValueError("Yahoo intraday history is limited. Choose 7d or 1mo.")
+                raise ValueError("Broker intraday history may be limited. Choose 7d or 1mo.")
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
@@ -2414,7 +2414,7 @@ console.log('BOT KING Lightweight Charts ready');
                 except Exception as exc:
                     tv_set_status("Chart update failed: "+str(exc)[:120])
             closes=[float(b[4]) for b in bars if b[4] is not None and b[4]>0]
-            if len(closes)<8:raise ValueError("Not enough valid Yahoo candles. Choose a longer period or daily timeframe.")
+            if len(closes)<8:raise ValueError("Not enough valid broker candles. Choose a longer period or daily timeframe.")
             latest_timestamp=bars[-1][0]
             scan_last_candle[0]=latest_timestamp
             updated=datetime.fromtimestamp(latest_timestamp,timezone.utc)
@@ -2586,7 +2586,7 @@ console.log('BOT KING Lightweight Charts ready');
             if generation!=scan_generation[0]:return
             scan_status.value="Refresh failed • last results may be stale"
             if not scan_live.value or not scan_result.controls:
-                scan_result.controls=[card(unavailable("Scanner: "+safe_error(exc)),note("No signal was generated. Check filters, internet and Yahoo availability."))]
+                scan_result.controls=[card(unavailable("Scanner: "+safe_error(exc)),note("No signal was generated. Check filters, broker connection and data availability."))]
         finally:
             scan_busy[0]=False
             refresh_scan_age()
