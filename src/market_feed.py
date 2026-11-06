@@ -48,9 +48,25 @@ class AngelFeed:
             except urllib.error.HTTPError as exc:
                 if kind in ("candles", "quote"):
                     import logging
+                    # Never log response bodies, headers, tokens or request payloads.
+                    # A broker JSON error code is safe only if it matches AG + digits.
+                    safe_code = "unavailable"
+                    response_kind = "other"
+                    try:
+                        response_type = exc.headers.get_content_type()
+                        response_kind = "json" if response_type == "application/json" else (
+                            "html" if response_type == "text/html" else "other")
+                        if response_kind == "json":
+                            detail = json.loads(exc.read(4096).decode("utf-8"))
+                            if isinstance(detail, dict):
+                                code = str(detail.get("errorcode") or detail.get("errorCode") or "")
+                                if code.startswith("AG") and code[2:].isdigit() and len(code) <= 12:
+                                    safe_code = code
+                    except (ValueError, UnicodeError, OSError, TypeError):
+                        pass
                     logging.getLogger("botking.market").warning(
-                        "broker_read_failure operation=%s category=http status=%s",
-                        kind, int(exc.code))
+                        "broker_read_failure operation=%s category=http status=%s response_type=%s error_code=%s",
+                        kind, int(exc.code), response_kind, safe_code)
                 if exc.code == 401:
                     self.disconnect()
                     raise SessionExpired("Broker session expired; reconnect") from None
