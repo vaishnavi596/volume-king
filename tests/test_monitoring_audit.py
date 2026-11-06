@@ -66,7 +66,7 @@ class MonitoringAuditTests(unittest.TestCase):
     def test_market_health_and_explicit_broker_failure(self):
         _,v=start({'scanner_live':False,'source':'Broker API'})
         with self.assertRaises(Exception):v['get_market_data']('NIFTY')
-        self.assertEqual(v['health'].get('market:Angel One:NIFTY:5m')['state'],'UNAVAILABLE')
+        self.assertEqual(v['health'].get('market:Broker API:NIFTY:5m')['state'],'UNAVAILABLE')
         self.assertIn('last attempt',v['component_status']('market','NIFTY','5m'))
     def test_removed_capabilities_panel_keeps_execution_safety(self):
         _,v=start({'scanner_live':False})
