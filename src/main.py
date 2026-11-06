@@ -22,7 +22,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.3"
+    APP_VERSION = "2.3.4"
 from pathlib import Path
 
 #                                  Apache License
