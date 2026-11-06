@@ -271,7 +271,7 @@ def app_main(page:ft.Page):
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")=="Angel One"}
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==prefs.get("source","Yahoo Finance")}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -475,7 +475,8 @@ def app_main(page:ft.Page):
         state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
         quote_time=result.get("quote_timestamp")
         if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
-            state="STALE";fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
+            state="STALE"
+            fallback_reason=fallback_reason or ("Market closed • last available quote; historical display only" if not regular_hours() and isinstance(quote_time,(int,float)) and quote_time>0 else "Quote time is old, missing or invalid; historical display only")
         health.finish(health_key,request_id,state,source=result.get("source",""),data_time=quote_time,error=fallback_reason)
         return result
     def timeframe_spec(interval):
@@ -505,6 +506,7 @@ def app_main(page:ft.Page):
         return result
     def get_yahoo(ticker,interval="5m",range_="1d"):
         requested=interval
+        if interval=="1D":interval="1d"
         if interval=="3m":interval="1m";range_="7d"
         if interval=="1m":range_="7d"
         code=symbols_yahoo.get(ticker,ticker+".NS")
@@ -1030,7 +1032,7 @@ def app_main(page:ft.Page):
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
             chart_message.value="Chart updated • "+str(quotes[symbol.value].get("source","unknown"))
         except Exception as exc:
-            chart_message.value="Broker candles unavailable: "+safe_error(exc)
+            chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)
         select(5)
     async def load_comparison():
         try:
