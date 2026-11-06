@@ -3,7 +3,7 @@
 No broker tokens, login routes, orders, or live network calls.
 Deploy only after full tests and explicit approval.
 """
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel, Field
 import hmac
 
@@ -29,10 +29,12 @@ def create_provider_app(pairing_key: str):
         raise ValueError("Gateway pairing key must be at least 32 characters")
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
-    @app.post("/v2/providers/select")
-    def select(body: SourceRequest, x_botking_key: str | None = Header(default=None)):
+    def require_owner(x_botking_key: str | None = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key, pairing_key):
             raise HTTPException(403, "Server access denied")
+
+    @app.post("/v2/providers/select")
+    def select(body: SourceRequest, _owner=Depends(require_owner)):
         try:
             states = [ProviderState(x.provider, x.status, x.quote_timestamp, x.checked_at) for x in body.states]
             if len({x.provider for x in states}) != len(states):
@@ -42,9 +44,7 @@ def create_provider_app(pairing_key: str):
             raise HTTPException(422, "Invalid provider status") from None
 
     @app.get("/v2/providers/capabilities")
-    def capabilities(x_botking_key: str | None = Header(default=None)):
-        if not x_botking_key or not hmac.compare_digest(x_botking_key, pairing_key):
-            raise HTTPException(403, "Server access denied")
+    def capabilities(_owner=Depends(require_owner)):
         return {"providers": list(PROVIDERS), "dhan_login_enabled": False,
                 "live_orders_enabled": False, "mode": "offline-preparation"}
 
