@@ -90,6 +90,11 @@ jobs:
             sleep $((attempt * 45))
           done
 
+      - name: Report APK signing continuity limitation
+        run: |
+          echo "::warning::This runner uses the configured Flet signing behavior. Without the original installed APK private signing key, Android may reject an in-place update. Preserve the current app data before any uninstall."
+          echo "BOT KING 2.0.6: historical candles remain separate from live quote availability."
+
       - name: Inspect APK identity and signing certificate
         run: |
           set -euo pipefail
