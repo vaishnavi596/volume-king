@@ -332,12 +332,8 @@ class AuditTests(unittest.TestCase):
 
     def test_news_fetch_failure_does_not_invent_headlines(self):
         _,v=start()
-        request=v['fetch_news'].__globals__['urllib'].request
-        original=request.urlopen
-        def fail(*args,**kwargs):raise OSError('test failure')
-        request.urlopen=fail
-        try:result=v['fetch_news']('HDFCBANK')
-        finally:request.urlopen=original
+        with patch('urllib.request.urlopen',side_effect=OSError('test failure')):
+            result=v['fetch_news']('HDFCBANK')
         self.assertEqual(result['items'],[]);self.assertIn('Unavailable',result['status'])
 
     def test_scroll_layout_page_saves_and_no_tools(self):
