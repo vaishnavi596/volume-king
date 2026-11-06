@@ -448,6 +448,7 @@ def app_main(page:ft.Page):
         health_key="market:Angel One:"+ticker+":"+interval
         request_id=health.begin(health_key)
         failure=""
+        fallback_reason=""
         try:
             if not angel_feed.connected:
                 raise FeedError("Angel One disconnected; connect in Settings")
@@ -457,6 +458,7 @@ def app_main(page:ft.Page):
             broker_retry[0]=0
         except Exception as exc:
             failure=safe_error(exc)
+            fallback_reason=failure
             result=market_store.get("market",selected,ticker,interval,range_)
             if not result or result.get("source")!="Angel One":
                 health.finish(health_key,request_id,"UNAVAILABLE",error=failure)
@@ -1094,8 +1096,6 @@ def app_main(page:ft.Page):
         message=""
         if not angel_feed.connected:
             message="Connect Angel One in Settings to load option history."
-        elif not angel_feed.connected:
-            message="Connect Angel One in Settings before loading option history."
         else:
             try:
                 if finite(context[2])<=0:raise ValueError("strike")
@@ -1140,7 +1140,6 @@ def app_main(page:ft.Page):
             controls.append(unavailable(feedback["message"]) if feedback["state"]=="UNAVAILABLE" else note(feedback["message"]))
         elif not bars:
             if not angel_feed.connected:message="Connect Angel One in Settings to load option history."
-            elif not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
             else:message="Enter a listed strike, choose CE or PE, then press Load option premium chart."
             controls.append(note(message))
         return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
@@ -2160,7 +2159,7 @@ console.log('BOT KING Lightweight Charts ready');
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
-        elif prefs.get("source") not in ("Broker API",):
+        elif not angel_feed.connected:
             next_text="PAUSED — broker feed not connected";scan_next_refresh[0]=None
         elif not regular_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
