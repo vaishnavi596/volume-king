@@ -2671,6 +2671,7 @@ console.log('BOT KING Lightweight Charts ready');
     broker.on_change=broker_changed
     source_previous=source.on_change
     def source_change(e):
+        prefs["source"]=source.value
         source_previous(e);provider_changed(e)
     source.on_change=source_change
     pages=[dashboard,options,settings,scanner,watchlist,charts]
@@ -2765,7 +2766,7 @@ console.log('BOT KING Lightweight Charts ready');
                     async with semaphore:
                         try:
                             data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
-                            if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):return False
+                            if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):return False
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
@@ -2775,7 +2776,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
@@ -2805,7 +2806,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
@@ -2819,7 +2820,7 @@ console.log('BOT KING Lightweight Charts ready');
                             combined=combine_analysis(candidate["symbol"],"5m",candidate,missing,missing)
                         return candidate,combined
                 enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Broker API",):continue
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):continue
                 for candidate,combined in enriched:
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
