@@ -651,6 +651,24 @@ def app_main(page:ft.Page):
     saved_ranking=market_store.get("ranking","configured50") or {}
     top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[])][:5]
     top5_last_update=[saved_ranking.get("checked_at","—")]
+    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol")}
+    for r in top5_candidates:watch_signal_cache.setdefault(r["symbol"],r)
+    def signal_percentages(row):
+        votes=row.get("votes") or []
+        bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
+        bears=sum(v.get("vote")==-1 for v in votes if isinstance(v,dict))
+        total=bulls+bears
+        return (round(100*bulls/total),round(100*bears/total),total) if total else None
+    def strength_widget(row):
+        counts=signal_percentages(row or {})
+        if not counts:return note("Signal agreement unavailable")
+        bull,bear,total=counts
+        stamp=row.get("timestamp")
+        historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
+        bar=ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
+                    ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
+        return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,GREEN,True),txt("Bearish "+str(bear)+"%",11,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(("HISTORICAL • " if historical else "")+str(total)+" directional votes • filter agreement, NOT win probability")],spacing=2)
+
     def mark_ranking_historical():
         for row in top5_candidates:row["historical"]=True
     dashboard_index=["NIFTY"]
@@ -749,7 +767,7 @@ def app_main(page:ft.Page):
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
             color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+("NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"]),14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+("NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"]),14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason","")),strength_widget(row)],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -862,7 +880,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction)],expand=True,spacing=0),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change"),strength_widget(watch_signal_cache.get(sym,{}))],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -2809,6 +2827,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
                         if generation!=provider_generation[0]:return sym,None
                         ranking_results[sym]=result
+                        if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
@@ -2839,7 +2858,7 @@ console.log('BOT KING Lightweight Charts ready');
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 if available:
-                    market_store.put("ranking",("configured50",),{"rows":top5_candidates,"checked_at":top5_last_update[0]})
+                    market_store.put("ranking",("configured50",),{"rows":top5_candidates,"all_rows":list(watch_signal_cache.values()),"checked_at":top5_last_update[0]})
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
