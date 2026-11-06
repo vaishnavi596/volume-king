@@ -1320,26 +1320,17 @@ def app_main(page:ft.Page):
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API")])
-    broker_names=["Angel One","Dhan","Zerodha Kite","Upstox","FYERS","Alice Blue","5paisa","ICICI Direct","Kotak Neo","Motilal Oswal","Groww","Shoonya / Finvasia","Flattrade","SAMCO","IIFL Securities","Paytm Money","Pocketful","Nuvama","Tradejini","HDFC Securities","Sharekhan","Axis Direct","Zebu","Mastertrust","Choice Broking","Religare","Sahi","Custom API"]
-    broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One"),options=[ft.dropdown.Option(x) for x in broker_names])
+    broker_names=["Dhan","Angel One"]
+    broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One") if prefs.get("broker","Angel One") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
     server_trust=ft.Checkbox(label="I trust this server to receive my Angel One login",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
-        "Dhan":["Client ID","Access Token"],
-        "Zerodha Kite":["API Key","API Secret","Request Token (after official login)"],
-        "Upstox":["Client ID / API Key","Client Secret","Authorization Code"],
-        "FYERS":["App ID","Secret Key","Authorization Code"],
-        "ICICI Direct":["API Key","API Secret","Session Token"],
-        "Kotak Neo":["Consumer Key","Client ID","MPIN","TOTP"],
-        "Groww":["API Key","API Secret / Access Token"],
-        "Shoonya / Finvasia":["User ID","Vendor Code","API Secret","TOTP"],
-        "5paisa":["App Key","App Secret","Client Code","Session Token"],
-        "Custom API":["API Key","API Secret","Access Token"]
+        "Dhan":["Client ID","Access Token"]
     }
-    default_fields=["API Key / App ID","API Secret (if required)","Client ID (if required)","Access Token / Authorization Code"]
+    default_fields=["Client ID","Access Token"]
     credential_inputs={}
     credential_column=ft.Column(spacing=10)
     connection_status=txt("Not connected. Live broker login is not enabled in this build.",12,MUTED)
@@ -1354,7 +1345,7 @@ def app_main(page:ft.Page):
             credential_inputs[label]=field
             controls.append(field)
         credential_column.controls=controls
-        broker_info.value=name+" • Empty server address: direct broker login. With a server address: credentials pass through your trusted server to Angel One over HTTPS. Broker sessions stay in memory; no live orders."
+        broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • API integration pending verification. Do not enter tokens until secure Dhan connection is implemented. Live orders OFF.")
         connection_status.value="Not connected. Authentication adapter required for "+name+"."
         connection_status.color=MUTED
         if e is not None:page.update()
@@ -1379,7 +1370,7 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Only Angel One read-only integration is currently supported."
+            connection_status.value="Dhan integration not connected yet. No credentials were sent; live trading remains OFF."
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
@@ -1916,8 +1907,8 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Angel One market data only. A server address requires a server access key and your trust confirmation. With server mode, login passes via that server to Angel One; broker credentials are not saved to disk. The v2.3 gateway allows up to 2 hours idle and 8 hours total, but Angel One may expire sooner. Reconnection requires a fresh broker login; credentials are not stored. Other brokers are not integrated.')])))
-        content.extend([section('01  TRADING MODE', ft.Column([mode, note('Paper simulation only. Manual, Semi-Auto and Auto do not place real orders.')])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Available brokers: Dhan and Angel One. Angel One currently supports read-only data; Dhan connection is not yet implemented. Yahoo Finance remains available. No real orders are enabled. Never enter Dhan tokens before a verified secure adapter is installed.')])))
+        content.extend([section('01  PAPER BOT', ft.Column([mode, note('Paper trading is simulated; no real orders are sent.')])), section('REAL TRADING • NOT CONNECTED',ft.Column([note('Real BUY / SELL requires verified Dhan or Angel One trading authorization, static-IP configuration, order status and explicit confirmation. Live order submission is DISABLED in this build.'),ft.ElevatedButton('REAL BUY • DISABLED',disabled=True),ft.ElevatedButton('REAL SELL • DISABLED',disabled=True)])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
                 ft.ElevatedButton("Check PAPER position",on_click=check_paper_protection,bgcolor=GOLD,color=BG),ft.OutlinedButton("Confirm PAPER exit",on_click=lambda e:bot_paper_action("EXIT")),protection_status,
@@ -2743,7 +2734,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.2.0 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.3.0 • Live orders OFF")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
