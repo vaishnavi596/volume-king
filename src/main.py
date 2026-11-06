@@ -227,7 +227,7 @@ def app_main(page:ft.Page):
     page.title="BOT KING"; page.theme_mode=ft.ThemeMode.DARK; page.bgcolor=BG; page.padding=0; page.spacing=0
     page.window_width=420; page.window_height=850
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
-    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Auto","api_url":"","api_key":""}
+    prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Broker API","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
     prefs["source"]="Broker API"  # Migrate legacy provider selections.
     prefs["schema_version"]=2
@@ -268,7 +268,8 @@ def app_main(page:ft.Page):
         return ("Regular session hours • exchange holidays not verified" if regular_hours()
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
-    quotes=market_store.latest_markets()
+    # Legacy Yahoo snapshots must not be shown as Angel One market data.
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")=="Angel One"}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -440,14 +441,14 @@ def app_main(page:ft.Page):
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
-        selected=prefs.get("source","Auto")
+        selected="Broker API"
         generation=provider_generation[0]
         result=None
         health_key="market:"+selected+":"+ticker+":"+interval
         request_id=health.begin(health_key)
         fallback_reason=""
         try:
-            if selected=="Broker API" and angel_feed.connected:
+            if angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
                     broker_failures[0]=0;broker_retry[0]=0
@@ -455,17 +456,14 @@ def app_main(page:ft.Page):
                     broker_failures[0]+=1
                     broker_retry[0]=time.monotonic()+retry_delay(broker_failures[0])
                     fallback_reason=safe_error(exc)
-                    if selected=="Broker API":raise
+                    raise
             if result is None:
                 raise FeedError("Broker API not connected; connect Angel One in Settings")
             result["cached"]=False
         except Exception as exc:
             fallback_reason=safe_error(exc)
-            result=None  # No historical fallback from removed provider
-            if not result:
-                health.finish(health_key,request_id,"UNAVAILABLE",error=fallback_reason)
-                raise
-            result=dict(result,cached=True,cache_status="Last successful data • refresh failed; historical display only")
+            health.finish(health_key,request_id,"UNAVAILABLE",source="Angel One",error=fallback_reason)
+            raise
         if generation!=provider_generation[0] or prefs.get("source","Auto")!=selected:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
