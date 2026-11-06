@@ -1339,7 +1339,7 @@ def app_main(page:ft.Page):
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
         server_access.value="";server_trust.value=False
-        connection_status.value=remote_message+" Auto uses Angel One underlying data."
+        connection_status.value=remote_message+" Connect Angel One to resume market data."
         connection_status.color=GREEN
         page.update()
     def clear_broker_credentials(e):
@@ -1347,7 +1347,7 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Only Angel One read-only integration is supported; Auto can use Angel One."
+            connection_status.value="Only Angel One read-only integration is supported."
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
@@ -1375,7 +1375,7 @@ def app_main(page:ft.Page):
             connection_status.color=RED
         except Exception as exc:
             log_error("broker_login",exc)
-            connection_status.value="Connection failed unexpectedly. Check app diagnostics; Auto remains available."
+            connection_status.value="Connection failed unexpectedly. Check app diagnostics; reconnect Angel One."
             connection_status.color=RED
         finally:
             values.clear()
@@ -2708,7 +2708,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.4 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),note("AI Trading Assistant • v2.0.5 PAPER BOT")],spacing=0),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
