@@ -2774,7 +2774,7 @@ console.log('BOT KING Lightweight Charts ready');
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
-                            if current[0]==0 and market_completed[0]%5==0:request_view_refresh(0)
+                            if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
                             if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
@@ -2832,7 +2832,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if available:
                     market_store.put("ranking",("configured50",),{"rows":top5_candidates,"checked_at":top5_last_update[0]})
                 try:
-                    if current[0] in (0,1):request_view_refresh(current[0])
+                    if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
             await asyncio.sleep(120)
     page.run_task(refresh_market)
