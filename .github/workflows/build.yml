@@ -71,6 +71,26 @@ jobs:
           pip install -r backend/requirements.txt httpx==0.28.1
           python -m unittest discover -s tests -v
 
+      - name: Configure persistent Android signing (if secrets are present)
+        env:
+          BOTKING_KEYSTORE_BASE64: ${{ secrets.BOTKING_KEYSTORE_BASE64 }}
+          BOTKING_KEYSTORE_PASSWORD: ${{ secrets.BOTKING_KEYSTORE_PASSWORD }}
+          BOTKING_KEY_PASSWORD: ${{ secrets.BOTKING_KEY_PASSWORD }}
+          BOTKING_KEY_ALIAS: ${{ secrets.BOTKING_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$BOTKING_KEYSTORE_BASE64" && -n "$BOTKING_KEYSTORE_PASSWORD" && -n "$BOTKING_KEY_ALIAS" ]]; then
+            umask 077
+            printf '%s' "$BOTKING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/botking-release.jks"
+            echo "FLET_ANDROID_SIGNING_KEY_STORE=$RUNNER_TEMP/botking-release.jks" >> "$GITHUB_ENV"
+            echo "FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD=$BOTKING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "FLET_ANDROID_SIGNING_KEY_ALIAS=$BOTKING_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "FLET_ANDROID_SIGNING_KEY_PASSWORD=${BOTKING_KEY_PASSWORD:-$BOTKING_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+            echo "Persistent APK signing configured."
+          else
+            echo "::warning::No persistent signing keystore configured. APK may not upgrade the previously installed app."
+          fi
+
       - name: Build APK (retry transient Maven HTTP 429 errors)
         run: |
           set -euo pipefail
