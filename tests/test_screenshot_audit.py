@@ -22,7 +22,9 @@ class ScreenshotAuditTests(unittest.TestCase):
 
     def test_six_destinations_preserved(self):
         _, state = start({"scanner_live": False})
-        self.assertEqual(len(state["nav_items"]), 6)
+        for index in range(6):
+            state["select"](index)
+            self.assertEqual(state["current"][0], index)
 
 
 if __name__ == "__main__":
