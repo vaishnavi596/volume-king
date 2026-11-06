@@ -271,7 +271,7 @@ def app_main(page:ft.Page):
         return ("Regular session hours • exchange holidays not verified" if regular_hours()
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
-    quotes=market_store.latest_markets()
+    quotes={sym:q for sym,q in market_store.latest_markets().items() if q.get("source")=="Angel One"}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -2628,7 +2628,7 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
-        quotes.update(market_store.latest_markets());candles.clear();fusion_cache.clear();scan_generation[0]+=1
+        quotes.update({sym:q for sym,q in market_store.latest_markets().items() if q.get("source")=="Angel One"});candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_next_refresh[0]=None
         scan_result.controls.clear()
         connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected; connect Angel One")
