@@ -133,7 +133,13 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             except SessionExpired:
                 clear()
                 raise HTTPException(401, "Broker session expired; reconnect") from None
-            except Exception:
+            except Exception as exc:
+                # Diagnostic metadata only: never log broker payloads, credentials,
+                # authorization headers, session tokens, or exception messages.
+                import logging
+                logging.getLogger("botking.market").warning(
+                    "broker_market_failure method=%s exception_type=%s",
+                    method, type(exc).__name__)
                 raise HTTPException(502, "Market data unavailable; verify session and listed contract") from None
         finally:
             lock.release()
