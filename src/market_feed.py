@@ -144,17 +144,25 @@ class AngelFeed:
             ts=self.timestamp(row[0])
             if ts is not None:bars.append([ts]+[self.number(v) for v in row[1:6]])
         if not bars:raise FeedError("Broker candles unavailable")
-        q=self.quotes(exchange,[token])
-        if not q:raise FeedError("Broker quote unavailable")
-        q=q[0];stamp=self.timestamp(q.get("exchFeedTime"))
-        # Exchange quotes are often older than 90 seconds after market close.
-        # Keep genuine broker candles available for chart history, but explicitly
-        # mark the quote as historical; never promote it to a live price.
+        # Candles and the live quote are independent read operations. An
+        # unavailable quote must not erase genuine historical chart candles.
+        quote_error=False
+        try:
+            fetched=self.quotes(exchange,[token])
+            q=fetched[0] if fetched else None
+        except (FeedError, SessionExpired):
+            q=None
+            quote_error=True
+        stamp=self.timestamp(q.get("exchFeedTime")) if q else None
         historical_only=stamp is None or not 0<=time.time()-stamp<=90
-        return {"price":self.number(q["ltp"]),"change":self.number(q.get("percentChange",0)),
-            "high":q.get("high"),"low":q.get("low"),"bars":bars,"source":"Angel One",
-            "historical_only":historical_only,
-            "quote_timestamp":stamp,"fetched_at":time.time(),"time":datetime.now(IST).strftime("%H:%M IST")}
+        # The final candle close is explicitly historical, never a live LTP.
+        price=self.number(q["ltp"]) if q and q.get("ltp") is not None else bars[-1][4]
+        return {"price":price,"change":self.number(q.get("percentChange",0)) if q else None,
+            "high":q.get("high") if q else None,"low":q.get("low") if q else None,
+            "bars":bars,"source":"Angel One","historical_only":historical_only,
+            "quote_unavailable":quote_error or not q,
+            "quote_timestamp":stamp,"fetched_at":time.time(),
+            "time":datetime.now(IST).strftime("%H:%M IST")}
     def option_chain(self,symbol,expiry,spot):
         if not self.connected:raise FeedError("Connect Angel One for verified live CE/PE data")
         contracts=[]
