@@ -1,9 +1,8 @@
 
 name: Build APK
 
+# APK builds are manual only. Code edits must not trigger an APK build.
 on:
-  push:
-    branches: [ main, bot-king-final-five-redesign ]
   workflow_dispatch:
 
 jobs:
