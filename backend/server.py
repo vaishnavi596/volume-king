@@ -54,7 +54,7 @@ class History(Symbol):
 
 
 class DhanIntradayRequest(BaseModel):
-    symbol: Literal["NIFTY"]
+    symbol: Literal["NIFTY", "HDFCBANK", "RELIANCE", "ICICIBANK"]
     interval: Literal[1, 5, 15, 25, 60]
     from_date: date
     to_date: date
@@ -292,8 +292,14 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(503, "Dhan token file unavailable") from None
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
+        segment, sid, instrument = {
+            "NIFTY": ("IDX_I", 13, "INDEX"),
+            "HDFCBANK": ("NSE_EQ", 1333, "EQUITY"),
+            "RELIANCE": ("NSE_EQ", 2885, "EQUITY"),
+            "ICICIBANK": ("NSE_EQ", 4963, "EQUITY"),
+        }[body.symbol]
         payload = {
-            "securityId": "13", "exchangeSegment": "IDX_I", "instrument": "INDEX",
+            "securityId": str(sid), "exchangeSegment": segment, "instrument": instrument,
             "interval": str(body.interval),
             "fromDate": body.from_date.isoformat() + " 09:15:00",
             "toDate": body.to_date.isoformat() + " 15:30:00",
