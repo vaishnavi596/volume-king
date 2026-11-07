@@ -134,6 +134,13 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         finally:
             lock.release()
 
+    @app.get("/dhan/callback")
+    def dhan_callback(tokenId: Optional[str] = None):
+        # Reserved callback for Dhan individual OAuth. Do not log, echo, or
+        # consume tokenId until server-side consent state and secrets exist.
+        # A safe failure prevents accidental disclosure or account linking.
+        raise HTTPException(status_code=503, detail="Dhan OAuth is not configured")
+
     @app.get("/health")
     def health():
         return {
