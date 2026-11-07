@@ -19,11 +19,11 @@ class DhanBatchTests(unittest.TestCase):
             "2885": {"last_price": 1320},
             "1333": {"last_price": 788.25},
         }}}
-        with patch.dict("os.environ", {"BOTKING_PAIRING_KEY": "test-key", "DHAN_CLIENT_ID": "test-client"}), \
+        with patch.dict("os.environ", {"BOTKING_PAIRING_KEY": "test-pairing-key-with-at-least-32-characters", "DHAN_CLIENT_ID": "test-client"}), \
              patch.object(Path, "read_text", return_value="test-token"), \
              patch.object(server.DhanFeed, "_post", return_value=fake):
             app = server.create_app()
-            response = TestClient(app).post("/dhan/ltp-batch", headers={"X-BotKing-Key": "test-key"}, json={})
+            response = TestClient(app).post("/dhan/ltp-batch", headers={"X-BotKing-Key": "test-pairing-key-with-at-least-32-characters"}, json={})
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["quotes"]["RELIANCE"], 1320)
