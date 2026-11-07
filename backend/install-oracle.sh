@@ -116,6 +116,25 @@ if marker not in text:
     location / { return 404; }'''
     path.write_text(text.replace(target, block))
 PY
+# Expose only the reserved Dhan OAuth callback; disable access logs so
+# OAuth tokenId query strings are never written to the Nginx access log.
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+path = Path('/etc/nginx/conf.d/bot-king.conf')
+config = path.read_text()
+if 'location = /dhan/callback' not in config:
+    anchor = 'location / { return 404; }'
+    if config.count(anchor) != 1 or 'botkingrajesh.duckdns.org' not in config:
+        raise SystemExit('Unexpected Nginx configuration; Dhan callback not added')
+    block = '''location = /dhan/callback {
+        access_log off;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 10s;
+        proxy_pass http://127.0.0.1:8000/dhan/callback;
+    }
+    '''
+    path.write_text(config.replace(anchor, block + anchor))
+PY
 restorecon -RF "$appdir" /etc/nginx/conf.d /etc/systemd/system/bot-king.service.d /etc/bot-king
 nginx -t
 systemctl daemon-reload
