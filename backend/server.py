@@ -23,7 +23,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
-from market_feed import AngelFeed, FeedError, SessionExpired
+try:
+    from .market_feed import AngelFeed, FeedError, SessionExpired
+except ImportError:
+    try:
+        from src.market_feed import AngelFeed, FeedError, SessionExpired
+    except ImportError:
+        from market_feed import AngelFeed, FeedError, SessionExpired
 try:
     from .dhan_feed import DhanFeed, DhanFeedError
 except ImportError:  # Direct execution on the Oracle backend directory
