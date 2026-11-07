@@ -44,6 +44,13 @@ class History(Symbol):
     period: Literal["1d", "5d", "7d", "1mo", "3mo"]
 
 
+class DhanIntradayRequest(BaseModel):
+    symbol: Literal["NIFTY"]
+    interval: Literal[1, 5, 15, 25, 60]
+    from_date: date
+    to_date: date
+
+
 class Options(Symbol):
     expiry: date
     spot: float = Field(gt=0)
@@ -247,6 +254,61 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Invalid Dhan quote response") from None
         return {"symbol": body.symbol, "source": "dhan", "exchange_segment": segment,
                 "security_id": str(sid), "ltp": price, "freshness": "unverified",
+                "live_orders_enabled": False}
+
+    @app.post("/dhan/intraday")
+    def dhan_intraday(body: DhanIntradayRequest, x_botking_key: Optional[str] = Header(default=None)):
+        """Read-only historical candles; reject unverifiable and malformed responses."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if body.to_date < body.from_date or (body.to_date - body.from_date).days > 5:
+            raise HTTPException(422, "Invalid Dhan date range")
+        if body.to_date > date.today():
+            raise HTTPException(422, "Future candles are unavailable")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        try:
+            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            raise HTTPException(503, "Dhan token file unavailable") from None
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        payload = {
+            "securityId": "13", "exchangeSegment": "IDX_I", "instrument": "INDEX",
+            "interval": str(body.interval),
+            "fromDate": body.from_date.isoformat() + " 09:15:00",
+            "toDate": body.to_date.isoformat() + " 15:30:00",
+        }
+        try:
+            result = DhanFeed(client, token).intraday(payload)
+            keys = ("open", "high", "low", "close", "volume", "timestamp")
+            if result.get("status") == "failure":
+                raise ValueError("Provider failure")
+            arrays = [result[k] for k in keys]
+            if not all(isinstance(a, list) for a in arrays):
+                raise ValueError("Malformed candles")
+            n = len(arrays[0])
+            if not n or n > 5000 or any(len(a) != n for a in arrays):
+                raise ValueError("Malformed candle lengths")
+            bars = []
+            for row in zip(*arrays):
+                o, h, l, close, vol, ts = row
+                if any(isinstance(v, bool) for v in row):
+                    raise ValueError("Invalid candle values")
+                o, h, l, close, vol, ts = map(float, row)
+                if (not all(math.isfinite(v) for v in (o, h, l, close, vol, ts))
+                        or min(o, h, l, close) <= 0 or vol < 0
+                        or h < max(o, close, l) or l > min(o, close, h)
+                        or ts <= 0):
+                    raise ValueError("Invalid OHLC data")
+                bars.append([int(ts), o, h, l, close, vol])
+            if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars) - 1)):
+                raise ValueError("Candles out of order")
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan historical data unavailable or token expired") from None
+        except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
+            raise HTTPException(502, "Invalid Dhan historical response") from None
+        return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
+                "bars": bars, "freshness": "historical_unverified",
                 "live_orders_enabled": False}
 
     @app.get("/health")
