@@ -243,7 +243,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 raise ValueError("Invalid price")
         except DhanFeedError:
             raise HTTPException(502, "Dhan market data unavailable or token expired") from None
-        except (ValueError, TypeError, KeyError, OverflowError):
+        except (ValueError, TypeError, KeyError, OverflowError, AttributeError):
             raise HTTPException(502, "Invalid Dhan quote response") from None
         return {"symbol": body.symbol, "source": "dhan", "exchange_segment": segment,
                 "security_id": str(sid), "ltp": price, "freshness": "unverified",
