@@ -820,6 +820,19 @@ def app_main(page:ft.Page):
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
+    # Preserve existing user lists while migrating the old Tata Motors symbol.
+    watch_migrated=False
+    for group in watch_groups:
+        if "TATAMOTORS" in group:
+            expanded=[]
+            for item in group:
+                expanded.extend(["TMPV","TMCV"] if item=="TATAMOTORS" else [item])
+            group[:]=list(dict.fromkeys(expanded))
+            watch_migrated=True
+    if watch_migrated:
+        for i,group in enumerate(watch_groups,1):
+            prefs["watchlist_"+str(i)]=list(group)
+        save()
     active_watch=[0]
     watch_list=ft.Column(spacing=8)
     selected_watch=[""]
@@ -2952,7 +2965,7 @@ console.log('BOT KING Lightweight Charts ready');
                         publish_partial_ranking(ranking_results)
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in (list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
