@@ -23,7 +23,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.10"
+    APP_VERSION = "2.3.12"
 from pathlib import Path
 
 #                                  Apache License
@@ -1470,7 +1470,7 @@ def app_main(page:ft.Page):
                     connection_status.value=("Dhan NIFTY read-only LTP verified via server • "
                         +str(round(quote["ltp"],2))+" • quote timestamp unverified; not a live signal.")
                     connection_status.color=GREEN
-                    await asyncio.to_thread(dhan_feed.connect,endpoint,pairing_key)
+                    dhan_feed.activate_verified(endpoint,pairing_key,quote)
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
                     connection_status.value="Dhan connected • NIFTY read-only feed selected • timestamp unverified • other symbols unavailable"
