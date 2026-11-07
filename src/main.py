@@ -2906,9 +2906,9 @@ console.log('BOT KING Lightweight Charts ready');
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 successes=0
-                symbols=(["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
+                symbols=(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
-                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(symbols)),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
+                scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
                 market_completed=[0]
                 cycle_data={}
                 async def load_one(sym):
@@ -2932,7 +2932,7 @@ console.log('BOT KING Lightweight Charts ready');
                 market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
-                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state=("Analysing verified NIFTY only; 49 other watchlist mappings unavailable" if prefs.get("source")=="Dhan" else "Analysing configured companies"))
+                scan_progress.update(checked=0,total=(4 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state=("Analysing 4 mapped Dhan instruments; remaining watchlist mappings unavailable" if prefs.get("source")=="Dhan" else "Analysing configured companies"))
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
@@ -2955,7 +2955,7 @@ console.log('BOT KING Lightweight Charts ready');
                         publish_partial_ranking(ranking_results)
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in (["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in (["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"] if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
