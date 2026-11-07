@@ -1,5 +1,6 @@
 import flet as ft
 import json
+import time
 import math
 import traceback
 import asyncio
@@ -259,7 +260,7 @@ def app_main(page:ft.Page):
     broker_retry=[0.0]
     broker_failures=[0]
     health=FeedHealth()
-    scan_progress={"checked":0,"total":50,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
+    scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
     failed_symbols={}
     app_active=[True]
     resume_busy=[False]
