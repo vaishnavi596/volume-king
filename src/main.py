@@ -682,8 +682,8 @@ def app_main(page:ft.Page):
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
-        if prefs.get("source")=="Dhan" and (symbol!="NIFTY" or (row or {}).get("source")!="Dhan"):
-            return note("Dhan analysis unavailable • instrument not verified" if symbol!="NIFTY" else "Dhan analysis pending • no verified result")
+        if prefs.get("source")=="Dhan" and (symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") or (row or {}).get("source")!="Dhan"):
+            return note("Dhan analysis unavailable • instrument not verified" if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") else "Dhan analysis pending • no verified result")
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -917,11 +917,11 @@ def app_main(page:ft.Page):
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
             change=(quotes.get(sym) or {}).get("change")
-            direction="Bullish" if change is not None and change>0 else "Bearish" if change is not None and change<0 else "Neutral"
+            direction="Bullish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change>0 else "Bearish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change<0 else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Price change unavailable • direction unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
