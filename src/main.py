@@ -2937,7 +2937,8 @@ console.log('BOT KING Lightweight Charts ready');
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
-                semaphore=asyncio.Semaphore(5)
+                # Dhan candle calls are rate-sensitive; quote LTP is already batched.
+                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
                 market_completed=[0]
                 cycle_data={}
