@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.12" # Read-only Dhan NIFTY feed validation build; preserve app identity and release signing
+version = "2.3.13" # Dhan read-only connection fix; preserve app identity and release signing
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
