@@ -24,6 +24,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
 from market_feed import AngelFeed, FeedError, SessionExpired
+from dhan_feed import DhanFeed, DhanFeedError
+from pathlib import Path
 
 
 class Login(BaseModel):
@@ -214,6 +216,38 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"],
                     "live_orders_enabled": False}
+
+    @app.post("/dhan/ltp")
+    def dhan_ltp(body: Symbol, x_botking_key: Optional[str] = Header(default=None)):
+        """Read-only, paired endpoint. NIFTY mapping is verified; no guessed IDs."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        mapping = {"NIFTY": ("IDX_I", 13)}
+        if body.symbol not in mapping:
+            raise HTTPException(422, "Dhan instrument mapping not verified")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        try:
+            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            raise HTTPException(503, "Dhan token file unavailable") from None
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        segment, sid = mapping[body.symbol]
+        try:
+            data = DhanFeed(client, token).ltp(segment, sid)
+            price = data["data"][segment][str(sid)]["last_price"]
+            if data.get("status") != "success" or isinstance(price, bool):
+                raise ValueError("Invalid quote")
+            price = float(price)
+            if not math.isfinite(price) or price <= 0:
+                raise ValueError("Invalid price")
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan market data unavailable or token expired") from None
+        except (ValueError, TypeError, KeyError, OverflowError):
+            raise HTTPException(502, "Invalid Dhan quote response") from None
+        return {"symbol": body.symbol, "source": "dhan", "exchange_segment": segment,
+                "security_id": str(sid), "ltp": price, "freshness": "unverified",
+                "live_orders_enabled": False}
 
     @app.get("/health")
     def health():
