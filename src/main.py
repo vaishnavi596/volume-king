@@ -437,6 +437,8 @@ def app_main(page:ft.Page):
                 row=out[bucket];row[2]=max(row[2],h);row[3]=min(row[3],l);row[4]=c;row[5]+=v
         return list(out.values())
     market_recent={};market_locks={};market_registry_lock=RLock()
+    dhan_batch_cache={"generation":None,"updated":0.0,"quotes":{}}
+    dhan_batch_lock=RLock()
     def get_market_data(ticker,interval="5m",range_="1d"):
         import time,copy
         key=(provider_generation[0],angel_feed.epoch,dhan_feed.connected,prefs.get("source","Auto"),ticker,interval,range_)
@@ -465,7 +467,7 @@ def app_main(page:ft.Page):
             elif selected=="Dhan":
                 if not dhan_feed.connected:
                     raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
-                if ticker not in ("NIFTY", "HDFCBANK", "RELIANCE", "ICICIBANK"):
+                if ticker not in DHAN_VERIFIED_SYMBOLS:
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
                 if interval not in ("1m","5m","15m","1h"):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
@@ -477,7 +479,14 @@ def app_main(page:ft.Page):
                 if not bars:raise FeedError("Dhan returned no verified candles")
                 # Historical candles must not be presented as a verified live quote.
                 if bars[-1][0]>time.time()+300:raise FeedError("Dhan candle timestamp is in the future")
-                quote=dhan_feed.quote(ticker)
+                quote=None
+                if ticker!="NIFTY":
+                    with dhan_batch_lock:
+                        if (dhan_batch_cache["generation"]==generation
+                                and time.monotonic()-dhan_batch_cache["updated"]<90):
+                            quote=dhan_batch_cache["quotes"].get(ticker)
+                if quote is None:
+                    quote=dhan_feed.quote(ticker)
                 result={"price":quote["price"],"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
                         "fetched_at":time.time(),"freshness":"unverified","time":datetime.now().strftime("%H:%M")}
@@ -809,7 +818,7 @@ def app_main(page:ft.Page):
             quotes[symbol]=data;failed_symbols.pop(symbol,None)
             existing={r["symbol"]:r for r in top5_candidates if r.get("timestamp")}
             existing[symbol]=result;publish_partial_ranking(existing)
-            market_store.put("ranking",("configured50",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
+            market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
     def dashboard():
@@ -2915,6 +2924,17 @@ console.log('BOT KING Lightweight Charts ready');
             initial=False
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
+                if prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    try:
+                        batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        if generation==provider_generation[0] and prefs.get("source")=="Dhan":
+                            with dhan_batch_lock:
+                                dhan_batch_cache.update(generation=generation,
+                                                        updated=time.monotonic(),quotes=batch)
+                    except Exception as exc:
+                        log_error("dhan_batch",exc)
+                        with dhan_batch_lock:
+                            dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
@@ -2986,7 +3006,7 @@ console.log('BOT KING Lightweight Charts ready');
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 if available:
-                    market_store.put("ranking",("configured50",),{"rows":top5_candidates,"all_rows":list(watch_signal_cache.values()),"checked_at":top5_last_update[0]})
+                    market_store.put("ranking",("configured51",),{"rows":top5_candidates,"all_rows":list(watch_signal_cache.values()),"checked_at":top5_last_update[0]})
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
