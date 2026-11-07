@@ -125,6 +125,9 @@ class ServerAngelFeed(AngelFeed):
         return self._call("/v1/option-history", dict(symbol=symbol, expiry=expiry, strike=strike, side=side))
 
 
+DHAN_VERIFIED_SYMBOLS = frozenset(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"])
+
+
 class ServerDhanReadOnly:
     """Ephemeral, HTTPS-only Dhan gateway session; never persists pairing keys.
 
@@ -215,7 +218,7 @@ class ServerDhanReadOnly:
         self._origin, self._pairing_key = origin, pairing_key.strip()
 
     def quote(self, symbol):
-        if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK"):
+        if symbol not in DHAN_VERIFIED_SYMBOLS:
             raise FeedError("Dhan instrument mapping not verified for " + str(symbol)[:32])
         result = self._call("/dhan/ltp", {"symbol": symbol})
         price = result.get("ltp")
@@ -229,7 +232,7 @@ class ServerDhanReadOnly:
                 "quote_timestamp": None, "freshness": "unverified"}
 
     def intraday(self, symbol, interval, from_date, to_date):
-        if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") or interval not in (1, 5, 15, 25, 60):
+        if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in (1, 5, 15, 25, 60):
             raise FeedError("Dhan candle instrument or interval not verified")
         result = self._call("/dhan/intraday", {
             "symbol": symbol, "interval": interval,
