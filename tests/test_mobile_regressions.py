@@ -39,7 +39,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_full_company_list_available_in_every_picker_and_searchable(self):
         _,v=start({"scanner_live":False})
-        self.assertEqual(len(v["watch_symbols"]),50)
+        self.assertEqual(len(v["watch_symbols"]),51)
         for key in ("chain_symbol","scan_symbol","bot_symbol"):
             picker=v[key]
             self.assertTrue(set(v["watch_symbols"]).issubset({o.key for o in picker.options}))
