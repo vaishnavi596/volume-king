@@ -465,7 +465,7 @@ def app_main(page:ft.Page):
             elif selected=="Dhan":
                 if not dhan_feed.connected:
                     raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
-                if ticker!="NIFTY":
+                if ticker not in ("NIFTY", "HDFCBANK", "RELIANCE", "ICICIBANK"):
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
                 if interval not in ("1m","5m","15m","1h"):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
@@ -474,7 +474,7 @@ def app_main(page:ft.Page):
                 start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)  # Backend permits at most five days
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
                 bars=clean_bars(candle_result["bars"])
-                if not bars:raise FeedError("Dhan returned no NIFTY candles")
+                if not bars:raise FeedError("Dhan returned no verified candles")
                 # Historical candles must not be presented as a verified live quote.
                 if bars[-1][0]>time.time()+300:raise FeedError("Dhan candle timestamp is in the future")
                 quote=dhan_feed.quote(ticker)
@@ -739,7 +739,7 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note("Provider: "+prefs.get("source","Broker API")+" • "+("Dhan NIFTY only • "+("connected" if dhan_feed.connected else "reconnect required") if prefs.get("source")=="Dhan" else "Angel One connected" if angel_feed.connected else "broker disconnected")),note(session_caption()),note("Live orders OFF • historical quotes are not live signals"),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data)),ft.ExpansionTile(title=note("Detailed feed diagnostics"),controls=[note(market_status),note(component_status("market")),note("Last cache write: "+market_store.status),note("News: public RSS headlines; experimental phrase cues")])],spacing=3))
+        return section("MARKET & DATA STATUS",ft.Column([note("Provider: "+prefs.get("source","Broker API")+" • "+("Dhan verified symbols • "+("connected" if dhan_feed.connected else "reconnect required") if prefs.get("source")=="Dhan" else "Angel One connected" if angel_feed.connected else "broker disconnected")),note(session_caption()),note("Live orders OFF • historical quotes are not live signals"),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data)),ft.ExpansionTile(title=note("Detailed feed diagnostics"),controls=[note(market_status),note(component_status("market")),note("Last cache write: "+market_store.status),note("News: public RSS headlines; experimental phrase cues")])],spacing=3))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -1486,7 +1486,7 @@ def app_main(page:ft.Page):
                     dhan_feed.activate_verified(endpoint,pairing_key,quote)
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
-                    connection_status.value="Dhan connected • NIFTY read-only feed selected • timestamp unverified • other symbols unavailable"
+                    connection_status.value="Dhan connected • verified read-only symbols selected • timestamps unverified; remaining symbols unavailable"
                     connection_status.color=GREEN
                 else:
                     connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
@@ -2052,7 +2052,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only NIFTY chart/scanner requires Connect / Check and a server-side token. Other Dhan symbols are unavailable until verified instrument mappings exist. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only NIFTY, RELIANCE, HDFCBANK and ICICIBANK chart/scanner require Connect / Check and a server-side token. Other Dhan symbols remain unavailable until verified instrument mappings exist. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
         content.extend([section('01  PAPER BOT', ft.Column([mode, note('Paper trading is simulated; no real orders are sent.')])), section('REAL TRADING • NOT CONNECTED',ft.Column([note('Real BUY / SELL requires verified Dhan or Angel One trading authorization, static-IP configuration, order status and explicit confirmation. Live order submission is DISABLED in this build.'),ft.ElevatedButton('REAL BUY • DISABLED',disabled=True),ft.ElevatedButton('REAL SELL • DISABLED',disabled=True)])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
