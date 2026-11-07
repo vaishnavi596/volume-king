@@ -678,7 +678,10 @@ def app_main(page:ft.Page):
         bears=sum(v.get("vote")==-1 for v in votes if isinstance(v,dict))
         total=bulls+bears
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
-    def strength_widget(row):
+    def strength_widget(row, symbol=None):
+        # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
+        if prefs.get("source")=="Dhan" and (symbol!="NIFTY" or (row or {}).get("source")!="Dhan"):
+            return note("Dhan analysis unavailable • instrument not verified" if symbol!="NIFTY" else "Dhan analysis pending • no verified result")
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -783,6 +786,7 @@ def app_main(page:ft.Page):
         controls=[note(("Dhan: NIFTY-only verified mapping • other watchlist instruments unavailable" if prefs.get("source")=="Dhan" else "Configured 50-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
         for failed,reason in list(failed_symbols.items()):
+            if prefs.get("source")=="Dhan" and failed!="NIFTY":continue
             controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
@@ -904,7 +908,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change"),strength_widget(watch_signal_cache.get(sym,{}))],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
