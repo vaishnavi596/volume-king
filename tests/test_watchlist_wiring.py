@@ -47,9 +47,9 @@ class WatchlistWiringTests(unittest.TestCase):
 
     def test_dhan_client_allows_only_verified_watchlist_symbols(self):
         feed = (SOURCE.parent / "server_feed.py").read_text(encoding="utf-8")
-        allowed = '("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK")'
-        self.assertIn("if symbol not in " + allowed + ":", feed)
-        self.assertIn("if symbol not in " + allowed + " or interval not in", feed)
+        self.assertIn("DHAN_VERIFIED_SYMBOLS = frozenset(", feed)
+        self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS:", feed)
+        self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in", feed)
         self.assertIn('quote_timestamp": None', feed)
         self.assertIn('"freshness": "unverified"', feed)
 
@@ -59,7 +59,7 @@ class WatchlistWiringTests(unittest.TestCase):
                       and any(isinstance(t, ast.Name) and t.id == "watch_symbols"
                               for t in node.targets))
         symbols = ast.literal_eval(assign.value)
-        self.assertEqual(len(symbols), 50)
+        self.assertEqual(len(symbols), 51)
         self.assertEqual(len(set(symbols)), len(symbols))
 
 
