@@ -761,6 +761,11 @@ def app_main(page:ft.Page):
     def publish_partial_ranking(results):
         available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
+        if prefs.get("source")=="Dhan":
+            # Only NIFTY has a verified Dhan mapping. Never fill Dhan rankings
+            # with saved signals from other providers or unsupported symbols.
+            top5_candidates[:]=available[:1] if available else [{"symbol":"NIFTY","bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"Dhan NIFTY candles unavailable; no current signal","source":"Dhan","historical":True}]
+            return available
         previous=top5_candidates[:]
         if available:top5_candidates[:]=available[:5]
         used={row["symbol"] for row in top5_candidates}
