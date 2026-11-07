@@ -27,9 +27,9 @@ try:
     from .market_feed import AngelFeed, FeedError, SessionExpired
 except ImportError:
     try:
-        from src.market_feed import AngelFeed, FeedError, SessionExpired
-    except ImportError:
         from market_feed import AngelFeed, FeedError, SessionExpired
+    except ImportError:
+        from src.market_feed import AngelFeed, FeedError, SessionExpired
 try:
     from .dhan_feed import DhanFeed, DhanFeedError
 except ImportError:  # Direct execution on the Oracle backend directory
