@@ -149,7 +149,7 @@ class ServerDhanReadOnly:
     def _call(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
-        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/intraday"):
+        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
             raise FeedError("Unsupported Dhan read-only request")
         headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
         if payload is None:
@@ -230,6 +230,23 @@ class ServerDhanReadOnly:
         # The provider endpoint has no exchange timestamp: do not mark this live.
         return {"symbol": symbol, "price": price, "source": "Dhan",
                 "quote_timestamp": None, "freshness": "unverified"}
+
+    def batch_quotes(self):
+        """Read-only 51-equity LTP snapshot; missing symbols stay unavailable."""
+        import math
+        result = self._call("/dhan/ltp-batch", {})
+        raw = result.get("quotes")
+        if result.get("source") != "dhan" or not isinstance(raw, dict):
+            raise FeedError("Invalid Dhan batch response")
+        quotes = {}
+        for symbol, price in raw.items():
+            if (symbol not in DHAN_VERIFIED_SYMBOLS or symbol == "NIFTY"
+                    or isinstance(price, bool) or not isinstance(price, (int, float))
+                    or not math.isfinite(price) or price <= 0):
+                raise FeedError("Invalid Dhan batch quote")
+            quotes[symbol] = {"symbol": symbol, "price": price, "source": "Dhan",
+                              "quote_timestamp": None, "freshness": "unverified"}
+        return quotes
 
     def intraday(self, symbol, interval, from_date, to_date):
         if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in (1, 5, 15, 25, 60):
