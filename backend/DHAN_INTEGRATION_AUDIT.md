@@ -22,3 +22,10 @@
 7. The GitHub Actions APK build workflow is workflow_dispatch/manual; no build has been launched as part of this draft.
 
 Do not merge or deploy until blockers are resolved. Keep live order execution disabled.
+
+## Added in this iteration
+- Added paired POST /dhan/intraday with a verified NIFTY security-ID mapping and a bounded 5-day request window.
+- Validates OHLC array shapes, numerical values, timestamps, order, and high/low consistency before returning candles.
+- Returns historical_unverified rather than claiming live data.
+- The upstream /charts/intraday response has NOT yet been verified against the user's Oracle Dhan credentials; do not connect the Android scanner to this route until a real response and tests pass.
+- The Oracle service process may lack permission to read root-owned /etc/bot-king/dhan-token (mode 0600). Confirm service User and use systemd credentials or a dedicated restrictive group; do not make token world-readable.
