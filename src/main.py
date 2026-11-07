@@ -1406,7 +1406,35 @@ def app_main(page:ft.Page):
     async def connect_angel():
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
-            connection_status.value="Dhan integration not connected yet. No credentials were sent; live trading remains OFF."
+            endpoint=(api_url.value or "").strip()
+            if not endpoint or not server_access.value.strip():
+                connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
+                connection_status.color=GOLD
+                page.update();return
+            try:
+                from server_feed import server_origin, NoRedirect
+                import urllib.request, urllib.error, json
+                origin=server_origin(endpoint)
+                def check_dhan():
+                    req=urllib.request.Request(origin+"/dhan/status",
+                        headers={"X-BotKing-Key":server_access.value.strip(),"Accept":"application/json"},method="GET")
+                    with urllib.request.build_opener(NoRedirect()).open(req,timeout=12) as response:
+                        raw=response.read(8193)
+                        if len(raw)>8192:raise FeedError("Server status response too large")
+                        return json.loads(raw)
+                result=await asyncio.to_thread(check_dhan)
+                if not isinstance(result,dict) or result.get("live_orders_enabled") is not False:
+                    raise FeedError("Invalid Dhan server status")
+                connection_status.value=("Dhan server session authenticated • read-only; market data not yet verified."
+                    if result.get("authenticated") else
+                    "Dhan server reachable, but not authenticated. Complete secure Dhan login on your server.")
+                connection_status.color=GREEN if result.get("authenticated") else GOLD
+            except Exception as exc:
+                log_error("dhan_status",exc)
+                connection_status.value="Dhan status unavailable. Verify HTTPS server, server access key, and backend deployment."
+                connection_status.color=RED
+            finally:
+                server_access.value=""
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
