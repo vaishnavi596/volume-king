@@ -53,7 +53,7 @@ jobs:
           test -f "$SDK_ROOT/ndk/25.1.8937393/source.properties"
 
       - name: Install Flet
-        run: pip install flet==0.25.2
+        run: pip install flet==0.25.2 flet-webview==0.1.0
 
       - name: Verify Flet version
         run: flet --version
