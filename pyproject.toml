@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.9" # India-session VWAP correction; preserve existing Angel One gateway and UI
+version = "2.3.10" # India-session VWAP correction; preserve existing Angel One gateway and UI
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
