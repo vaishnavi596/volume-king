@@ -55,6 +55,10 @@ class DhanFeedTests(unittest.TestCase):
             feed.ltp("UNVERIFIED", 13)
         with self.assertRaises(DhanFeedError):
             feed.ltp("IDX_I", True)
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("IDX_I", 13.9)
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("IDX_I", "13.9")
 
     def test_rate_limit_is_safe(self):
         def opener(req, timeout):
