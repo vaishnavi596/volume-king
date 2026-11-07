@@ -36,6 +36,22 @@ class DhanEndpointTests(unittest.TestCase):
             "symbol": "NIFTY", "interval": 5, "from_date": "2026-01-01",
             "to_date": "2026-01-02"}).status_code, 403)
 
+    def test_status_distinguishes_server_token_from_consent(self):
+        self.assertEqual(self.client.get("/dhan/status").status_code, 403)
+        with patch("backend.server.Path.read_text", return_value="test-token"):
+            response = self.client.get("/dhan/status", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["market_data_configured"])
+        self.assertFalse(response.json()["authenticated"])
+        self.assertFalse(response.json()["live_orders_enabled"])
+        self.assertNotIn("test-token", response.text)
+
+    def test_status_unreadable_token_is_not_configured(self):
+        with patch("backend.server.Path.read_text", side_effect=PermissionError):
+            response = self.client.get("/dhan/status", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["market_data_configured"])
+
     def test_unknown_symbol_rejected(self):
         response = self.client.post("/dhan/ltp", json={"symbol": "UNKNOWN"}, headers=self.headers)
         self.assertEqual(response.status_code, 422)
