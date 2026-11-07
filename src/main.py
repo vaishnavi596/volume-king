@@ -765,6 +765,7 @@ def app_main(page:ft.Page):
         available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
+            available=[row for row in available if row.get("symbol")=="NIFTY" and row.get("source")=="Dhan"]
             # Only NIFTY has a verified Dhan mapping. Never fill Dhan rankings
             # with saved signals from other providers or unsupported symbols.
             top5_candidates[:]=available[:1] if available else [{"symbol":"NIFTY","bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"Dhan NIFTY candles unavailable; no current signal","source":"Dhan","historical":True}]
@@ -782,7 +783,7 @@ def app_main(page:ft.Page):
     def super_five_card():
         rows=top5_candidates[:]
         if not rows:
-            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
+            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in (["NIFTY"] if prefs.get("source")=="Dhan" else watch_symbols[:5])]
         controls=[note(("Dhan: NIFTY-only verified mapping • other watchlist instruments unavailable" if prefs.get("source")=="Dhan" else "Configured 50-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
         for failed,reason in list(failed_symbols.items()):
@@ -2492,7 +2493,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 controls.append(ft.Container(left=i*width/len(bars)+3,top=yy(z),width=3,height=3,bgcolor=color))
                     visual=ft.Stack(controls,width=width,height=height)
                 parts.append(ft.Container(content=visual,height=190,alignment=ft.alignment.center))
-                parts.append(note("Range ₹"+f"{low:,.2f}"+" – ₹"+f"{high:,.2f}"))
+                parts.append(note(f"Index range {low:,.2f} – {high:,.2f}" if (scan_symbol.value or "NIFTY") in ("NIFTY","BANKNIFTY","SENSEX") else f"Price range ₹{low:,.2f} – ₹{high:,.2f}"))
                 if "RSI 14" in scanner_chart_indicators and len(closes)>=15:
                     dif=[closes[i]-closes[i-1] for i in range(-14,0)]
                     gain=sum(max(0,x) for x in dif);loss=sum(max(0,-x) for x in dif)
@@ -2895,7 +2896,7 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
-                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
+                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(symbols)),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
                 market_completed=[0]
                 cycle_data={}
                 async def load_one(sym):
