@@ -475,6 +475,8 @@ def app_main(page:ft.Page):
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
                 bars=clean_bars(candle_result["bars"])
                 if not bars:raise FeedError("Dhan returned no NIFTY candles")
+                # Historical candles must not be presented as a verified live quote.
+                if bars[-1][0]>time.time()+300:raise FeedError("Dhan candle timestamp is in the future")
                 quote=dhan_feed.quote(ticker)
                 result={"price":quote["price"],"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
@@ -750,6 +752,7 @@ def app_main(page:ft.Page):
         live=analyze_current(raw,filter_selected[:],"5m")
         display=dict(live)
         completed=[bar for bar in raw if bar[0]+300<=datetime.now(timezone.utc).timestamp()]
+        quality={"usable":False,"bars":[]}
         if completed:
             quality=quality_check(completed,300,now=completed[-1][0]+300)
             if quality["usable"]:
@@ -1243,7 +1246,7 @@ def app_main(page:ft.Page):
     def quote_caption(sym):
         q=quotes.get(sym) or {}
         stamp=q.get("quote_timestamp");source_name=q.get("source","No data")
-        if not stamp:return source_name+" • quote time unavailable"
+        if not stamp:return source_name+" • quote timestamp unavailable • NOT VERIFIED LIVE"
         try:
             age=datetime.now(timezone.utc).timestamp()-float(stamp)
             when=datetime.fromtimestamp(float(stamp),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
