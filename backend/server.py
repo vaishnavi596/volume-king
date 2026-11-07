@@ -244,10 +244,11 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
 
     @app.post("/dhan/ltp")
     def dhan_ltp(body: Symbol, x_botking_key: Optional[str] = Header(default=None)):
-        """Read-only, paired endpoint. NIFTY mapping is verified; no guessed IDs."""
+        """Read-only paired quotes for Dhan instrument-master-verified IDs."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        mapping = {"NIFTY": ("IDX_I", 13)}
+        mapping = {"NIFTY": ("IDX_I", 13), "HDFCBANK": ("NSE_EQ", 1333),
+                   "RELIANCE": ("NSE_EQ", 2885), "ICICIBANK": ("NSE_EQ", 4963)}
         if body.symbol not in mapping:
             raise HTTPException(422, "Dhan instrument mapping not verified")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
