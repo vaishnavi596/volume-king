@@ -2932,6 +2932,16 @@ console.log('BOT KING Lightweight Charts ready');
                             with dhan_batch_lock:
                                 dhan_batch_cache.update(generation=generation,
                                                         updated=time.monotonic(),quotes=batch)
+                            # Watchlist LTP must not depend on historical candle success.
+                            # Keep verified Dhan quotes distinct from stale/cross-provider data.
+                            for ticker, snapshot in batch.items():
+                                if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan":
+                                    previous = quotes.get(ticker) or {}
+                                    quotes[ticker] = dict(snapshot, change=None,
+                                        bars=previous.get("bars", []) if previous.get("source") == "Dhan" else [],
+                                        fetched_at=time.time())
+                            if current[0] == 4:
+                                request_view_refresh(4)
                     except Exception as exc:
                         log_error("dhan_batch",exc)
                         with dhan_batch_lock:
