@@ -128,7 +128,7 @@ class ServerAngelFeed(AngelFeed):
 class ServerDhanReadOnly:
     """Ephemeral, HTTPS-only Dhan gateway session; never persists pairing keys.
 
-    Only NIFTY's verified instrument mapping is supported by the backend.
+    Only explicitly mapped instruments are supported by the backend.
     All other symbols fail closed rather than showing fabricated broker quotes.
     """
     def __init__(self):
@@ -215,7 +215,7 @@ class ServerDhanReadOnly:
         self._origin, self._pairing_key = origin, pairing_key.strip()
 
     def quote(self, symbol):
-        if symbol != "NIFTY":
+        if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK"):
             raise FeedError("Dhan instrument mapping not verified for " + str(symbol)[:32])
         result = self._call("/dhan/ltp", {"symbol": symbol})
         price = result.get("ltp")
@@ -229,7 +229,7 @@ class ServerDhanReadOnly:
                 "quote_timestamp": None, "freshness": "unverified"}
 
     def intraday(self, symbol, interval, from_date, to_date):
-        if symbol != "NIFTY" or interval not in (1, 5, 15, 25, 60):
+        if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") or interval not in (1, 5, 15, 25, 60):
             raise FeedError("Dhan candle instrument or interval not verified")
         result = self._call("/dhan/intraday", {
             "symbol": symbol, "interval": interval,
