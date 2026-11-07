@@ -15,7 +15,7 @@ from urllib.parse import quote
 from fastapi.responses import HTMLResponse
 from collections import deque
 from contextlib import asynccontextmanager, suppress
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from fastapi import FastAPI, Header, HTTPException
@@ -23,7 +23,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
-from market_feed import AngelFeed, FeedError, SessionExpired
+try:
+    from .market_feed import AngelFeed, FeedError, SessionExpired
+except ImportError:
+    try:
+        from market_feed import AngelFeed, FeedError, SessionExpired
+    except ImportError:
+        from src.market_feed import AngelFeed, FeedError, SessionExpired
+try:
+    from .dhan_feed import DhanFeed, DhanFeedError
+except ImportError:  # Direct execution on the Oracle backend directory
+    from dhan_feed import DhanFeed, DhanFeedError
+from pathlib import Path
 
 
 class Login(BaseModel):
@@ -40,6 +51,13 @@ class Symbol(BaseModel):
 class History(Symbol):
     interval: Literal["1m", "3m", "5m", "15m", "30m", "1h", "1d"]
     period: Literal["1d", "5d", "7d", "1mo", "3mo"]
+
+
+class DhanIntradayRequest(BaseModel):
+    symbol: Literal["NIFTY"]
+    interval: Literal[1, 5, 15, 25, 60]
+    from_date: date
+    to_date: date
 
 
 class Options(Symbol):
@@ -97,7 +115,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             length = int(request.headers.get("content-length", "0"))
         except ValueError:
             return JSONResponse(status_code=400, content={"detail": "Invalid request"})
-        if request.url.path.startswith("/v1/"):
+        if request.url.path.startswith(("/v1/", "/dhan/")):
             if length > 8192:
                 return JSONResponse(status_code=413, content={"detail": "Request too large"})
             body = await request.body()
@@ -214,6 +232,94 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"],
                     "live_orders_enabled": False}
+
+    @app.post("/dhan/ltp")
+    def dhan_ltp(body: Symbol, x_botking_key: Optional[str] = Header(default=None)):
+        """Read-only, paired endpoint. NIFTY mapping is verified; no guessed IDs."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        mapping = {"NIFTY": ("IDX_I", 13)}
+        if body.symbol not in mapping:
+            raise HTTPException(422, "Dhan instrument mapping not verified")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        try:
+            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            raise HTTPException(503, "Dhan token file unavailable") from None
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        segment, sid = mapping[body.symbol]
+        try:
+            data = DhanFeed(client, token).ltp(segment, sid)
+            price = data["data"][segment][str(sid)]["last_price"]
+            if data.get("status") != "success" or isinstance(price, bool):
+                raise ValueError("Invalid quote")
+            price = float(price)
+            if not math.isfinite(price) or price <= 0:
+                raise ValueError("Invalid price")
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan market data unavailable or token expired") from None
+        except (ValueError, TypeError, KeyError, OverflowError, AttributeError):
+            raise HTTPException(502, "Invalid Dhan quote response") from None
+        return {"symbol": body.symbol, "source": "dhan", "exchange_segment": segment,
+                "security_id": str(sid), "ltp": price, "freshness": "unverified",
+                "live_orders_enabled": False}
+
+    @app.post("/dhan/intraday")
+    def dhan_intraday(body: DhanIntradayRequest, x_botking_key: Optional[str] = Header(default=None)):
+        """Read-only historical candles; reject unverifiable and malformed responses."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if body.to_date < body.from_date or (body.to_date - body.from_date).days > 5:
+            raise HTTPException(422, "Invalid Dhan date range")
+        india_today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+        if body.to_date > india_today:
+            raise HTTPException(422, "Future candles are unavailable")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        try:
+            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            raise HTTPException(503, "Dhan token file unavailable") from None
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        payload = {
+            "securityId": "13", "exchangeSegment": "IDX_I", "instrument": "INDEX",
+            "interval": str(body.interval),
+            "fromDate": body.from_date.isoformat() + " 09:15:00",
+            "toDate": body.to_date.isoformat() + " 15:30:00",
+        }
+        try:
+            result = DhanFeed(client, token).intraday(payload)
+            keys = ("open", "high", "low", "close", "volume", "timestamp")
+            if result.get("status") == "failure":
+                raise ValueError("Provider failure")
+            arrays = [result[k] for k in keys]
+            if not all(isinstance(a, list) for a in arrays):
+                raise ValueError("Malformed candles")
+            n = len(arrays[0])
+            if not n or n > 5000 or any(len(a) != n for a in arrays):
+                raise ValueError("Malformed candle lengths")
+            bars = []
+            for row in zip(*arrays):
+                o, h, l, close, vol, ts = row
+                if any(isinstance(v, bool) for v in row):
+                    raise ValueError("Invalid candle values")
+                o, h, l, close, vol, ts = map(float, row)
+                if (not all(math.isfinite(v) for v in (o, h, l, close, vol, ts))
+                        or min(o, h, l, close) <= 0 or vol < 0
+                        or h < max(o, close, l) or l > min(o, close, h)
+                        or ts <= 0):
+                    raise ValueError("Invalid OHLC data")
+                bars.append([int(ts), o, h, l, close, vol])
+            if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars) - 1)):
+                raise ValueError("Candles out of order")
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan historical data unavailable or token expired") from None
+        except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
+            raise HTTPException(502, "Invalid Dhan historical response") from None
+        return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
+                "bars": bars, "freshness": "historical_unverified",
+                "live_orders_enabled": False}
 
     @app.get("/health")
     def health():

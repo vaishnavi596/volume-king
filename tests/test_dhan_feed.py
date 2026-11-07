@@ -49,6 +49,26 @@ class DhanFeedTests(unittest.TestCase):
         with self.assertRaises(DhanFeedError):
             feed.intraday({})
 
+    def test_invalid_segments_and_boolean_ids(self):
+        feed = DhanFeed("owner", "private-token", opener=lambda *a: self.fail("Network must not be used"))
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("UNVERIFIED", 13)
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("IDX_I", True)
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("IDX_I", 13.9)
+        with self.assertRaises(DhanFeedError):
+            feed.ltp("IDX_I", "13.9")
+
+    def test_rate_limit_is_safe(self):
+        def opener(req, timeout):
+            raise urllib.error.HTTPError(req.full_url, 429, "rate limit", {}, io.BytesIO(b"private-token"))
+        feed = DhanFeed("owner", "private-token", opener=opener)
+        with self.assertRaises(DhanFeedError) as caught:
+            feed.ltp("IDX_I", 13)
+        self.assertIn("rate limit", str(caught.exception).lower())
+        self.assertNotIn("private-token", str(caught.exception))
+
     def test_trading_endpoint_cannot_be_called(self):
         feed = DhanFeed("owner", "private-token", opener=lambda *a: self.fail("Network should not be used"))
         with self.assertRaises(DhanFeedError):
