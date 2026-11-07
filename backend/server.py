@@ -15,7 +15,7 @@ from urllib.parse import quote
 from fastapi.responses import HTMLResponse
 from collections import deque
 from contextlib import asynccontextmanager, suppress
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from fastapi import FastAPI, Header, HTTPException
@@ -24,7 +24,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, SecretStr
 
 from market_feed import AngelFeed, FeedError, SessionExpired
-from dhan_feed import DhanFeed, DhanFeedError
+try:
+    from .dhan_feed import DhanFeed, DhanFeedError
+except ImportError:  # Direct execution on the Oracle backend directory
+    from dhan_feed import DhanFeed, DhanFeedError
 from pathlib import Path
 
 
@@ -106,7 +109,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             length = int(request.headers.get("content-length", "0"))
         except ValueError:
             return JSONResponse(status_code=400, content={"detail": "Invalid request"})
-        if request.url.path.startswith("/v1/"):
+        if request.url.path.startswith(("/v1/", "/dhan/")):
             if length > 8192:
                 return JSONResponse(status_code=413, content={"detail": "Request too large"})
             body = await request.body()
@@ -263,7 +266,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(403, "Server access denied")
         if body.to_date < body.from_date or (body.to_date - body.from_date).days > 5:
             raise HTTPException(422, "Invalid Dhan date range")
-        if body.to_date > date.today():
+        india_today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+        if body.to_date > india_today:
             raise HTTPException(422, "Future candles are unavailable")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
         try:
