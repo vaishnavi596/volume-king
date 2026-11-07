@@ -227,8 +227,17 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     def dhan_status(x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
+        # A manually provisioned read-only token may be usable even when the
+        # interactive Dhan consent flow has not populated dhan_session.
+        # Never expose token contents, paths or account credentials.
+        try:
+            token_configured = bool(Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip())
+        except OSError:
+            token_configured = False
+        market_data_configured = bool(os.environ.get("DHAN_CLIENT_ID", "").strip()) and token_configured
         with lock:
             return {"authenticated": bool(dhan_session["access_token"]),
+                    "market_data_configured": market_data_configured,
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"],
                     "live_orders_enabled": False}
