@@ -60,13 +60,13 @@ class DhanFeed:
         return result
 
     def ltp(self, exchange_segment, security_id):
-        if not isinstance(exchange_segment, str) or not exchange_segment.strip():
+        if exchange_segment not in ("IDX_I", "NSE_EQ", "NSE_FNO", "BSE_EQ", "BSE_FNO", "BSE_I", "MCX_COMM"):
             raise DhanFeedError("Exchange segment required")
         try:
             sid = int(security_id)
         except (ValueError, TypeError):
             raise DhanFeedError("Valid Dhan security ID required") from None
-        if sid <= 0:
+        if isinstance(security_id, bool) or sid <= 0:
             raise DhanFeedError("Valid Dhan security ID required")
         return self._post("/marketfeed/ltp", {exchange_segment: [sid]})
 
