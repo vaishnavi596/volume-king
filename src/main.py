@@ -1361,7 +1361,7 @@ def app_main(page:ft.Page):
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One") if prefs.get("broker","Angel One") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
-    server_trust=ft.Checkbox(label="I trust this server to receive my Angel One login",value=False)
+    server_trust=ft.Checkbox(label="I trust this server for broker connection (Angel One login only)",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
@@ -1412,13 +1412,14 @@ def app_main(page:ft.Page):
                 connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
                 connection_status.color=GOLD
                 page.update();return
+            pairing_key=server_access.value.strip()
             try:
                 from server_feed import server_origin, NoRedirect
                 import urllib.request, urllib.error, json
                 origin=server_origin(endpoint)
                 def check_dhan():
                     req=urllib.request.Request(origin+"/dhan/status",
-                        headers={"X-BotKing-Key":server_access.value.strip(),"Accept":"application/json"},method="GET")
+                        headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="GET")
                     with urllib.request.build_opener(NoRedirect()).open(req,timeout=12) as response:
                         raw=response.read(8193)
                         if len(raw)>8192:raise FeedError("Server status response too large")
@@ -1433,7 +1434,7 @@ def app_main(page:ft.Page):
                     def check_ltp():
                         req=urllib.request.Request(origin+"/dhan/ltp",
                             data=b'{"symbol":"NIFTY"}',
-                            headers={"X-BotKing-Key":server_access.value.strip(),
+                            headers={"X-BotKing-Key":pairing_key,
                                      "Content-Type":"application/json","Accept":"application/json"},
                             method="POST")
                         with urllib.request.build_opener(NoRedirect()).open(req,timeout=15) as response:
@@ -1454,9 +1455,26 @@ def app_main(page:ft.Page):
                         if result.get("authenticated") else
                         "Dhan server reachable; read-only token not configured or inaccessible to service.")
                     connection_status.color=GOLD
+            except urllib.error.HTTPError as exc:
+                log_error("dhan_status_http",exc)
+                code=exc.code
+                if code==403:
+                    detail="Server Access Key rejected (HTTP 403). Check BOTKING_PAIRING_KEY; do not enter the Dhan token."
+                elif code==404:
+                    detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
+                elif code in (502,503,504):
+                    detail=f"Dhan upstream/backend error (HTTP {code}). Check server logs and Dhan token."
+                else:
+                    detail=f"Dhan server returned HTTP {code}. Check backend logs."
+                connection_status.value=detail
+                connection_status.color=RED
+            except (urllib.error.URLError,TimeoutError) as exc:
+                log_error("dhan_status_network",exc)
+                connection_status.value="Dhan network/TLS connection failed or timed out. Check phone internet, HTTPS certificate and server URL."
+                connection_status.color=RED
             except Exception as exc:
                 log_error("dhan_status",exc)
-                connection_status.value="Dhan status unavailable. Verify HTTPS server, server access key, and backend deployment."
+                connection_status.value="Dhan check failed ("+type(exc).__name__+"). Check server response format and app logs."
                 connection_status.color=RED
             finally:
                 server_access.value=""
