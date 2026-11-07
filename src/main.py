@@ -1361,7 +1361,7 @@ def app_main(page:ft.Page):
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One") if prefs.get("broker","Angel One") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
-    server_trust=ft.Checkbox(label="I trust this server for broker connection (Angel One login only)",value=False)
+    server_trust=ft.Checkbox(label="I trust this server to receive my Angel One login",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
@@ -1383,7 +1383,8 @@ def app_main(page:ft.Page):
             controls.append(field)
         credential_column.controls=controls
         broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • server-side read-only API is under verification. No token entry on this phone. Selecting Dhan here does not switch the Data provider from Yahoo Finance. Live orders OFF.")
-        connection_status.value="Not connected. Authentication adapter required for "+name+"."
+        server_trust.label=("I trust this server to receive my Angel One login" if name=="Angel One" else "Dhan uses server-side credentials; no broker token is sent from this phone")
+        connection_status.value=("Dhan: press Connect / Check to verify server status and NIFTY LTP. This does not enable Dhan charts or scanner." if name=="Dhan" else "Angel One: connect to enable broker read-only market data.")
         connection_status.color=MUTED
         if e is not None:page.update()
     broker.on_change=update_broker_info
@@ -2763,7 +2764,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value="Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected")
+        connection_status.value=("Data source: Yahoo Finance • Dhan server check does not change the chart/scanner feed" if broker.value=="Dhan" and source.value=="Yahoo Finance" else "Data source: Broker API • Dhan is not wired to chart/scanner; select Yahoo Finance for the existing feed" if broker.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
