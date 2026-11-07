@@ -195,6 +195,25 @@ class ServerDhanReadOnly:
             raise
         return quote
 
+    def activate_verified(self, endpoint, pairing_key, quote):
+        """Activate only after Settings has verified status and LTP over HTTPS.
+
+        Avoids a second NIFTY LTP request that can fail after a valid first one.
+        Credentials remain in memory and are never persisted.
+        """
+        import math
+        origin = server_origin(endpoint)
+        price = quote.get("ltp") if isinstance(quote, dict) else None
+        if (not isinstance(pairing_key, str) or not pairing_key.strip()
+                or not isinstance(quote, dict) or quote.get("source") != "dhan"
+                or quote.get("symbol") != "NIFTY"
+                or quote.get("live_orders_enabled") is not False
+                or isinstance(price, bool) or not isinstance(price, (int, float))
+                or not math.isfinite(price) or price <= 0):
+            raise FeedError("Cannot activate unverified Dhan read-only quote")
+        self.disconnect()
+        self._origin, self._pairing_key = origin, pairing_key.strip()
+
     def quote(self, symbol):
         if symbol != "NIFTY":
             raise FeedError("Dhan instrument mapping not verified for " + str(symbol)[:32])
