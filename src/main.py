@@ -874,9 +874,14 @@ def app_main(page:ft.Page):
         sync_symbol_choices()
         if sym not in [o.key for o in chain_symbol.options]:
             chain_symbol.options.append(ft.dropdown.Option(sym))
-        feedback.value=sym+" added and saved to List "+str(target_list+1)
-        add_symbol.value=""
-        select(4)
+        if active_watch[0]==target_list:
+            feedback.value=sym+" added and saved to List "+str(target_list+1)
+            if (add_symbol.value or "").strip().upper().removesuffix(".NS")==sym:
+                add_symbol.value=""
+            select(4)
+        else:
+            # Never jump away from the list the user selected while validation ran.
+            page.update()
     def add_watch(e):
         sym=(add_symbol.value or "").strip().upper().removesuffix(".NS")
         target_list=active_watch[0]
