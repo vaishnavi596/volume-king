@@ -856,33 +856,37 @@ def app_main(page:ft.Page):
         search.value=""
         feedback.value=""
         select(4)
-    async def validate_and_add(sym):
-        try:
-            q=await asyncio.to_thread(get_market_data,sym)
-            if q.get("price") is None:raise ValueError("No market price")
-            quotes[sym]=q
-        except Exception:
-            feedback.value="Quote not verified. Check symbol, internet or provider limits; not added."
-            page.update()
-            return
-        if sym not in watch_groups[active_watch[0]]:
-            watch_groups[active_watch[0]].append(sym)
+    async def validate_and_add(sym, target_list):
+        # Preserve the chosen list across asynchronous provider requests.
+        # Known NSE blue chips can be saved even when market data is unavailable.
+        if sym not in watch_symbols:
+            try:
+                q=await asyncio.to_thread(get_market_data,sym)
+                if q.get("price") is None:raise ValueError("No market price")
+                quotes[sym]=q
+            except Exception:
+                feedback.value="Symbol not verified. Check ticker or provider; not added."
+                page.update()
+                return
+        if sym not in watch_groups[target_list]:
+            watch_groups[target_list].append(sym)
             store_watch()
         sync_symbol_choices()
         if sym not in [o.key for o in chain_symbol.options]:
             chain_symbol.options.append(ft.dropdown.Option(sym))
-        feedback.value=sym+" added and saved to List "+str(active_watch[0]+1)
+        feedback.value=sym+" added and saved to List "+str(target_list+1)
         add_symbol.value=""
         select(4)
     def add_watch(e):
         sym=(add_symbol.value or "").strip().upper().removesuffix(".NS")
+        target_list=active_watch[0]
         if not sym or len(sym)>25 or not all(c.isalnum() or c in "-&." for c in sym):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
-        elif sym in watch_groups[active_watch[0]]:
+        elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
         else:
-            feedback.value="Checking market symbol..."
-            page.run_task(validate_and_add,sym)
+            feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
+            page.run_task(validate_and_add,sym,target_list)
         page.update()
     def set_filter(v):
         watch_filter[0]=v
