@@ -1364,9 +1364,9 @@ def app_main(page:ft.Page):
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
-        "Dhan":["Client ID","Access Token"]
+        "Dhan":[]  # Dhan credentials stay on the trusted server, never in the Android UI
     }
-    default_fields=["Client ID","Access Token"]
+    default_fields=[]
     credential_inputs={}
     credential_column=ft.Column(spacing=10)
     connection_status=txt("Not connected. Live broker login is not enabled in this build.",12,MUTED)
@@ -1381,7 +1381,7 @@ def app_main(page:ft.Page):
             credential_inputs[label]=field
             controls.append(field)
         credential_column.controls=controls
-        broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • API integration pending verification. Do not enter tokens until secure Dhan connection is implemented. Live orders OFF.")
+        broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • server-side read-only API is under verification. No token entry on this phone. Selecting Dhan here does not switch the Data provider from Yahoo Finance. Live orders OFF.")
         connection_status.value="Not connected. Authentication adapter required for "+name+"."
         connection_status.color=MUTED
         if e is not None:page.update()
