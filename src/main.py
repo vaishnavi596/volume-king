@@ -734,7 +734,7 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note("Provider: "+prefs.get("source","Broker API")+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected")),note(session_caption()),note("Live orders OFF • historical quotes are not live signals"),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data)),ft.ExpansionTile(title=note("Detailed feed diagnostics"),controls=[note(market_status),note(component_status("market")),note("Last cache write: "+market_store.status),note("News: public RSS headlines; experimental phrase cues")])],spacing=3))
+        return section("MARKET & DATA STATUS",ft.Column([note("Provider: "+prefs.get("source","Broker API")+" • "+("Dhan NIFTY only • "+("connected" if dhan_feed.connected else "reconnect required") if prefs.get("source")=="Dhan" else "Angel One connected" if angel_feed.connected else "broker disconnected")),note(session_caption()),note("Live orders OFF • historical quotes are not live signals"),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data)),ft.ExpansionTile(title=note("Detailed feed diagnostics"),controls=[note(market_status),note(component_status("market")),note("Last cache write: "+market_store.status),note("News: public RSS headlines; experimental phrase cues")])],spacing=3))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -1400,7 +1400,7 @@ def app_main(page:ft.Page):
             credential_inputs[label]=field
             controls.append(field)
         credential_column.controls=controls
-        broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • server-side read-only API is under verification. No token entry on this phone. Selecting Dhan here does not switch the Data provider from Yahoo Finance. Live orders OFF.")
+        broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • server-side read-only NIFTY chart/scanner only after Connect / Check. Other instruments not mapped. Timestamps unverified. Live orders OFF.")
         server_trust.label=("I trust this server to receive my Angel One login" if name=="Angel One" else "Dhan uses server-side credentials; no broker token is sent from this phone")
         connection_status.value=("Dhan: press Connect / Check to verify server status and NIFTY LTP. This does not enable Dhan charts or scanner." if name=="Dhan" else "Angel One: connect to enable broker read-only market data.")
         connection_status.color=MUTED
@@ -1414,6 +1414,7 @@ def app_main(page:ft.Page):
         except FeedError:
             remote_message="Local session cleared. Server unreachable; remote session expires automatically."
         broker_retry[0]=0
+        dhan_feed.disconnect()
         option_feed.clear();option_snapshots.clear()
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
@@ -2038,7 +2039,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Available brokers: Dhan and Angel One. Angel One currently supports read-only data; Dhan read-only server status and NIFTY LTP check are available when the updated backend is deployed. Dhan is not yet a selectable chart/scanner data feed. Yahoo Finance remains available. No real orders are enabled. Never enter Dhan tokens before a verified secure adapter is installed.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only NIFTY chart/scanner requires Connect / Check and a server-side token. Other Dhan symbols are unavailable until verified instrument mappings exist. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
         content.extend([section('01  PAPER BOT', ft.Column([mode, note('Paper trading is simulated; no real orders are sent.')])), section('REAL TRADING • NOT CONNECTED',ft.Column([note('Real BUY / SELL requires verified Dhan or Angel One trading authorization, static-IP configuration, order status and explicit confirmation. Live order submission is DISABLED in this build.'),ft.ElevatedButton('REAL BUY • DISABLED',disabled=True),ft.ElevatedButton('REAL SELL • DISABLED',disabled=True)])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
@@ -2883,7 +2884,7 @@ console.log('BOT KING Lightweight Charts ready');
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 successes=0
-                symbols=list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
+                symbols=(["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
                 scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Refreshing market quotes")
                 market_completed=[0]
@@ -2932,7 +2933,7 @@ console.log('BOT KING Lightweight Charts ready');
                         publish_partial_ranking(ranking_results)
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in (["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
