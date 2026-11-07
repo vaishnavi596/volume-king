@@ -6,7 +6,7 @@ import asyncio
 import urllib.request
 import urllib.parse
 from market_feed import FeedError, SessionExpired
-from server_feed import ServerAngelFeed, ServerDhanReadOnly
+from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
 from chart_indicators import chart_indicators
 from help_content import describe
