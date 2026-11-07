@@ -682,8 +682,8 @@ def app_main(page:ft.Page):
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
-        if prefs.get("source")=="Dhan" and (symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") or (row or {}).get("source")!="Dhan"):
-            return note("Dhan analysis unavailable • instrument not verified" if symbol not in ("NIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK") else "Dhan analysis pending • no verified result")
+        if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
+            return note("Dhan analysis unavailable • instrument not verified" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Dhan analysis pending • no verified result")
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -768,10 +768,8 @@ def app_main(page:ft.Page):
         available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
-            available=[row for row in available if row.get("symbol")=="NIFTY" and row.get("source")=="Dhan"]
-            # Only NIFTY has a verified Dhan mapping. Never fill Dhan rankings
-            # with saved signals from other providers or unsupported symbols.
-            top5_candidates[:]=available[:1] if available else [{"symbol":"NIFTY","bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"Dhan NIFTY candles unavailable; no current signal","source":"Dhan","historical":True}]
+            available=[row for row in available if row.get("source")=="Dhan"]
+            top5_candidates[:]=available[:5]
             return available
         previous=top5_candidates[:]
         if available:top5_candidates[:]=available[:5]
@@ -786,11 +784,10 @@ def app_main(page:ft.Page):
     def super_five_card():
         rows=top5_candidates[:]
         if not rows:
-            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in (["NIFTY"] if prefs.get("source")=="Dhan" else watch_symbols[:5])]
-        controls=[note(("Dhan: NIFTY-only verified mapping • other watchlist instruments unavailable" if prefs.get("source")=="Dhan" else "Configured 50-company watchlist") +" • last completed-candle analysis • not a trade order"),
+            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
+        controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
         for failed,reason in list(failed_symbols.items()):
-            if prefs.get("source")=="Dhan" and failed!="NIFTY":continue
             controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
@@ -821,7 +818,7 @@ def app_main(page:ft.Page):
         return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
-    watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TATAMOTORS","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
+    watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
     active_watch=[0]
     watch_list=ft.Column(spacing=8)
@@ -2906,7 +2903,7 @@ console.log('BOT KING Lightweight Charts ready');
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 successes=0
-                symbols=(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
+                symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
                 market_completed=[0]
@@ -2932,7 +2929,7 @@ console.log('BOT KING Lightweight Charts ready');
                 market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
-                scan_progress.update(checked=0,total=(4 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state=("Analysing 4 mapped Dhan instruments; remaining watchlist mappings unavailable" if prefs.get("source")=="Dhan" else "Analysing configured companies"))
+                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
@@ -2955,7 +2952,7 @@ console.log('BOT KING Lightweight Charts ready');
                         publish_partial_ranking(ranking_results)
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in (["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"] if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in (list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys(watch_symbols)))))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
