@@ -439,7 +439,7 @@ def app_main(page:ft.Page):
     market_recent={};market_locks={};market_registry_lock=RLock()
     def get_market_data(ticker,interval="5m",range_="1d"):
         import time,copy
-        key=(provider_generation[0],angel_feed.epoch,prefs.get("source","Auto"),ticker,interval,range_)
+        key=(provider_generation[0],angel_feed.epoch,dhan_feed.connected,prefs.get("source","Auto"),ticker,interval,range_)
         with market_registry_lock:lock=market_locks.setdefault(key,RLock())
         with lock:
             cached=market_recent.get(key)
@@ -471,7 +471,7 @@ def app_main(page:ft.Page):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
                 from datetime import timedelta
                 today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
-                start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)
+                start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)  # Backend permits at most five days
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
                 bars=clean_bars(candle_result["bars"])
                 if not bars:raise FeedError("Dhan returned no NIFTY candles")
