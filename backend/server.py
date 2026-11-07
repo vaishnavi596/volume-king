@@ -10,6 +10,9 @@ import os
 import secrets
 import threading
 import time
+import requests
+from urllib.parse import quote
+from fastapi.responses import HTMLResponse
 from collections import deque
 from contextlib import asynccontextmanager, suppress
 from datetime import date
@@ -58,6 +61,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     lock = threading.RLock()
     state = {"token": "", "issued": 0.0, "last": 0.0}
     attempts = deque()
+    dhan_pending = {"until": 0.0, "active": False}
+    dhan_session = {"access_token": "", "expires_at": ""}
 
     @asynccontextmanager
     async def lifespan(app):
@@ -134,12 +139,81 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         finally:
             lock.release()
 
-    @app.get("/dhan/callback")
+    def dhan_credentials():
+        vals = tuple(os.environ.get(n, "").strip() for n in
+                     ("DHAN_CLIENT_ID", "DHAN_API_KEY", "DHAN_API_SECRET"))
+        if not all(vals):
+            raise HTTPException(503, "Dhan credentials not configured")
+        return vals
+
+    @app.post("/dhan/start")
+    def dhan_start(x_botking_key: Optional[str] = Header(default=None)):
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        client, key, secret = dhan_credentials()
+        with lock:
+            if dhan_pending["active"] and clock() < dhan_pending["until"]:
+                raise HTTPException(409, "Dhan login already pending")
+            dhan_pending.update(active=False, until=0.0)
+            try:
+                response = requests.post(
+                    "https://auth.dhan.co/app/generate-consent",
+                    params={"client_id": client},
+                    headers={"app_id": key, "app_secret": secret},
+                    timeout=12,
+                )
+                response.raise_for_status()
+                consent = response.json().get("consentAppId")
+                if not isinstance(consent, str) or not consent or len(consent) > 200:
+                    raise ValueError("Missing consent ID")
+            except (requests.RequestException, ValueError):
+                raise HTTPException(502, "Dhan consent request failed") from None
+            dhan_pending.update(active=True, until=clock() + 300)
+        return {"login_url": "https://auth.dhan.co/login/consentApp-login?consentAppId=" + quote(consent, safe=""),
+                "expires_in": 300, "live_orders_enabled": False}
+
+    @app.get("/dhan/callback", response_class=HTMLResponse)
     def dhan_callback(tokenId: Optional[str] = None):
-        # Reserved callback for Dhan individual OAuth. Do not log, echo, or
-        # consume tokenId until server-side consent state and secrets exist.
-        # A safe failure prevents accidental disclosure or account linking.
-        raise HTTPException(status_code=503, detail="Dhan OAuth is not configured")
+        headers = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
+        with lock:
+            if not dhan_pending["active"] or clock() >= dhan_pending["until"]:
+                raise HTTPException(403, "No pending Dhan login")
+            dhan_pending.update(active=False, until=0.0)
+            if not tokenId or len(tokenId) > 2048:
+                raise HTTPException(400, "Invalid Dhan callback")
+            client, key, secret = dhan_credentials()
+            try:
+                response = requests.get(
+                    "https://auth.dhan.co/app/consumeApp-consent",
+                    params={"tokenId": tokenId},
+                    headers={"app_id": key, "app_secret": secret},
+                    timeout=12,
+                )
+                response.raise_for_status()
+                result = response.json()
+                token = result.get("accessToken")
+                if (not isinstance(token, str) or not token
+                        or str(result.get("dhanClientId")) != client):
+                    raise ValueError("Invalid Dhan account or token")
+            except (requests.RequestException, ValueError):
+                raise HTTPException(502, "Dhan authentication failed") from None
+            dhan_session.update(access_token=token, expires_at=str(result.get("expiryTime", "")))
+        return HTMLResponse(
+            "<!doctype html><html><head><meta name='referrer' content='no-referrer'></head>"
+            "<body><h2>BOT KING: Dhan login successful</h2>"
+            "<p>You may close this page. Trading remains disabled.</p></body></html>",
+            headers=headers,
+        )
+
+    @app.get("/dhan/status")
+    def dhan_status(x_botking_key: Optional[str] = Header(default=None)):
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        with lock:
+            return {"authenticated": bool(dhan_session["access_token"]),
+                    "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
+                    "expires_at": dhan_session["expires_at"],
+                    "live_orders_enabled": False}
 
     @app.get("/health")
     def health():
