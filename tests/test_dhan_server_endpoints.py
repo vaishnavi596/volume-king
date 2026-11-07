@@ -59,6 +59,24 @@ class DhanEndpointTests(unittest.TestCase):
         self.assertEqual(len(response.json()["bars"]), 2)
         self.assertEqual(response.json()["freshness"], "historical_unverified")
 
+    @patch("backend.server.Path.read_text", return_value="test-token")
+    @patch("backend.server.DhanFeed")
+    def test_malformed_candles_rejected(self, feed_class, read_text):
+        feed_class.return_value.intraday.return_value = {
+            "open": [100], "high": [99], "low": [98],
+            "close": [101], "volume": [50], "timestamp": [1760000000]}
+        response = self.client.post("/dhan/intraday", json={
+            "symbol": "NIFTY", "interval": 5, "from_date": "2026-01-01",
+            "to_date": "2026-01-02"}, headers=self.headers)
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn("test-token", response.text)
+
+    @patch("backend.server.Path.read_text", side_effect=PermissionError)
+    def test_unreadable_token_is_service_unavailable(self, read_text):
+        response = self.client.post("/dhan/ltp", json={"symbol": "NIFTY"}, headers=self.headers)
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("test-token", response.text)
+
     def test_invalid_date_range(self):
         response = self.client.post("/dhan/intraday", json={
             "symbol": "NIFTY", "interval": 5, "from_date": "2026-01-01",
