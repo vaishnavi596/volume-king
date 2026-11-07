@@ -330,6 +330,44 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "security_id": str(sid), "ltp": price, "freshness": "unverified",
                 "live_orders_enabled": False}
 
+    @app.post("/dhan/ltp-batch")
+    def dhan_ltp_batch(x_botking_key: Optional[str] = Header(default=None)):
+        """One read-only Dhan request for the verified equity watchlist."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        try:
+            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            raise HTTPException(503, "Dhan token file unavailable") from None
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
+        try:
+            data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan batch market data unavailable") from None
+        entries = data.get("data", {}).get("NSE_EQ", {})
+        if data.get("status") != "success" or not isinstance(entries, dict):
+            raise HTTPException(502, "Invalid Dhan batch quote response")
+        quotes = {}
+        unavailable = []
+        for symbol, (segment, sid, _) in DHAN_VERIFIED_INSTRUMENTS.items():
+            if segment != "NSE_EQ":
+                continue
+            try:
+                raw = entries[str(sid)]["last_price"]
+                if isinstance(raw, bool):
+                    raise ValueError("Boolean price")
+                price = float(raw)
+                if not math.isfinite(price) or price <= 0:
+                    raise ValueError("Invalid price")
+                quotes[symbol] = price
+            except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+                unavailable.append(symbol)
+        return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
+                "freshness": "unverified", "live_orders_enabled": False}
+
     @app.post("/dhan/intraday")
     def dhan_intraday(body: DhanIntradayRequest, x_botking_key: Optional[str] = Header(default=None)):
         """Read-only historical candles; reject unverifiable and malformed responses."""
