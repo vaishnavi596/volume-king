@@ -53,8 +53,64 @@ class History(Symbol):
     period: Literal["1d", "5d", "7d", "1mo", "3mo"]
 
 
+DHAN_VERIFIED_INSTRUMENTS = {
+    "NIFTY": ("IDX_I", 13, "INDEX"),
+    "RELIANCE": ("NSE_EQ", 2885, "EQUITY"),
+    "HDFCBANK": ("NSE_EQ", 1333, "EQUITY"),
+    "ICICIBANK": ("NSE_EQ", 4963, "EQUITY"),
+    "TCS": ("NSE_EQ", 11536, "EQUITY"),
+    "INFY": ("NSE_EQ", 1594, "EQUITY"),
+    "BHARTIARTL": ("NSE_EQ", 10604, "EQUITY"),
+    "SBIN": ("NSE_EQ", 3045, "EQUITY"),
+    "ITC": ("NSE_EQ", 1660, "EQUITY"),
+    "LT": ("NSE_EQ", 11483, "EQUITY"),
+    "AXISBANK": ("NSE_EQ", 5900, "EQUITY"),
+    "KOTAKBANK": ("NSE_EQ", 1922, "EQUITY"),
+    "HINDUNILVR": ("NSE_EQ", 1394, "EQUITY"),
+    "BAJFINANCE": ("NSE_EQ", 317, "EQUITY"),
+    "BAJAJFINSV": ("NSE_EQ", 16675, "EQUITY"),
+    "MARUTI": ("NSE_EQ", 10999, "EQUITY"),
+    "M&M": ("NSE_EQ", 2031, "EQUITY"),
+    "TITAN": ("NSE_EQ", 3506, "EQUITY"),
+    "SUNPHARMA": ("NSE_EQ", 3351, "EQUITY"),
+    "ULTRACEMCO": ("NSE_EQ", 11532, "EQUITY"),
+    "ASIANPAINT": ("NSE_EQ", 236, "EQUITY"),
+    "NTPC": ("NSE_EQ", 11630, "EQUITY"),
+    "POWERGRID": ("NSE_EQ", 14977, "EQUITY"),
+    "TMPV": ("NSE_EQ", 3456, "EQUITY"),
+    "TMCV": ("NSE_EQ", 759782, "EQUITY"),
+    "TATASTEEL": ("NSE_EQ", 3499, "EQUITY"),
+    "JSWSTEEL": ("NSE_EQ", 11723, "EQUITY"),
+    "HCLTECH": ("NSE_EQ", 7229, "EQUITY"),
+    "WIPRO": ("NSE_EQ", 3787, "EQUITY"),
+    "TECHM": ("NSE_EQ", 13538, "EQUITY"),
+    "NESTLEIND": ("NSE_EQ", 17963, "EQUITY"),
+    "HINDALCO": ("NSE_EQ", 1363, "EQUITY"),
+    "ONGC": ("NSE_EQ", 2475, "EQUITY"),
+    "COALINDIA": ("NSE_EQ", 20374, "EQUITY"),
+    "ADANIENT": ("NSE_EQ", 25, "EQUITY"),
+    "ADANIPORTS": ("NSE_EQ", 15083, "EQUITY"),
+    "BEL": ("NSE_EQ", 383, "EQUITY"),
+    "TRENT": ("NSE_EQ", 1964, "EQUITY"),
+    "EICHERMOT": ("NSE_EQ", 910, "EQUITY"),
+    "GRASIM": ("NSE_EQ", 1232, "EQUITY"),
+    "CIPLA": ("NSE_EQ", 694, "EQUITY"),
+    "DRREDDY": ("NSE_EQ", 881, "EQUITY"),
+    "APOLLOHOSP": ("NSE_EQ", 157, "EQUITY"),
+    "DIVISLAB": ("NSE_EQ", 10940, "EQUITY"),
+    "SBILIFE": ("NSE_EQ", 21808, "EQUITY"),
+    "HDFCLIFE": ("NSE_EQ", 467, "EQUITY"),
+    "BAJAJ-AUTO": ("NSE_EQ", 16669, "EQUITY"),
+    "HEROMOTOCO": ("NSE_EQ", 1348, "EQUITY"),
+    "BRITANNIA": ("NSE_EQ", 547, "EQUITY"),
+    "INDUSINDBK": ("NSE_EQ", 5258, "EQUITY"),
+    "SHRIRAMFIN": ("NSE_EQ", 4306, "EQUITY"),
+    "BPCL": ("NSE_EQ", 526, "EQUITY"),
+}
+
+
 class DhanIntradayRequest(BaseModel):
-    symbol: Literal["NIFTY", "HDFCBANK", "RELIANCE", "ICICIBANK"]
+    symbol: str = Field(min_length=1, max_length=32, pattern=r"^[A-Z0-9&_-]+$")
     interval: Literal[1, 5, 15, 25, 60]
     from_date: date
     to_date: date
@@ -247,8 +303,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         """Read-only paired quotes for Dhan instrument-master-verified IDs."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        mapping = {"NIFTY": ("IDX_I", 13), "HDFCBANK": ("NSE_EQ", 1333),
-                   "RELIANCE": ("NSE_EQ", 2885), "ICICIBANK": ("NSE_EQ", 4963)}
+        mapping = DHAN_VERIFIED_INSTRUMENTS
         if body.symbol not in mapping:
             raise HTTPException(422, "Dhan instrument mapping not verified")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
@@ -258,7 +313,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(503, "Dhan token file unavailable") from None
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
-        segment, sid = mapping[body.symbol]
+        segment, sid, _instrument = mapping[body.symbol]
         try:
             data = DhanFeed(client, token).ltp(segment, sid)
             price = data["data"][segment][str(sid)]["last_price"]
@@ -292,12 +347,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(503, "Dhan token file unavailable") from None
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
-        segment, sid, instrument = {
-            "NIFTY": ("IDX_I", 13, "INDEX"),
-            "HDFCBANK": ("NSE_EQ", 1333, "EQUITY"),
-            "RELIANCE": ("NSE_EQ", 2885, "EQUITY"),
-            "ICICIBANK": ("NSE_EQ", 4963, "EQUITY"),
-        }[body.symbol]
+        if body.symbol not in DHAN_VERIFIED_INSTRUMENTS:
+            raise HTTPException(422, "Dhan instrument mapping not verified")
+        segment, sid, instrument = DHAN_VERIFIED_INSTRUMENTS[body.symbol]
         payload = {
             "securityId": str(sid), "exchangeSegment": segment, "instrument": instrument,
             "interval": str(body.interval),
