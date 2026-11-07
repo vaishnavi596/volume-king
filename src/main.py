@@ -1425,10 +1425,34 @@ def app_main(page:ft.Page):
                 result=await asyncio.to_thread(check_dhan)
                 if not isinstance(result,dict) or result.get("live_orders_enabled") is not False:
                     raise FeedError("Invalid Dhan server status")
-                connection_status.value=("Dhan server session authenticated • read-only; market data not yet verified."
-                    if result.get("authenticated") else
-                    "Dhan server reachable, but not authenticated. Complete secure Dhan login on your server.")
-                connection_status.color=GREEN if result.get("authenticated") else GOLD
+                if result.get("market_data_configured") is True:
+                    connection_status.value="Dhan token configured on server • checking NIFTY read-only LTP..."
+                    connection_status.color=GOLD
+                    page.update()
+                    def check_ltp():
+                        req=urllib.request.Request(origin+"/dhan/ltp",
+                            data=b'{"symbol":"NIFTY"}',
+                            headers={"X-BotKing-Key":server_access.value.strip(),
+                                     "Content-Type":"application/json","Accept":"application/json"},
+                            method="POST")
+                        with urllib.request.build_opener(NoRedirect()).open(req,timeout=15) as response:
+                            raw=response.read(8193)
+                            if len(raw)>8192:raise FeedError("Dhan LTP response too large")
+                            return json.loads(raw)
+                    quote=await asyncio.to_thread(check_ltp)
+                    if (not isinstance(quote,dict) or quote.get("source")!="dhan"
+                            or quote.get("symbol")!="NIFTY" or quote.get("live_orders_enabled") is not False
+                            or not isinstance(quote.get("ltp"),(int,float))
+                            or isinstance(quote["ltp"],bool) or not math.isfinite(quote["ltp"]) or quote["ltp"]<=0):
+                        raise FeedError("Invalid Dhan quote response")
+                    connection_status.value=("Dhan NIFTY read-only LTP verified via server • "
+                        +str(round(quote["ltp"],2))+" • quote timestamp unverified; not a live signal.")
+                    connection_status.color=GREEN
+                else:
+                    connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
+                        if result.get("authenticated") else
+                        "Dhan server reachable; read-only token not configured or inaccessible to service.")
+                    connection_status.color=GOLD
             except Exception as exc:
                 log_error("dhan_status",exc)
                 connection_status.value="Dhan status unavailable. Verify HTTPS server, server access key, and backend deployment."
