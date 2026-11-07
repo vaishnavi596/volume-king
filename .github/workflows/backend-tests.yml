@@ -2,7 +2,7 @@ name: Backend regression checks (no APK)
 
 on:
   push:
-    branches: [ feature/dhan-market-data-audit ]
+    branches: [ main, feature/dhan-market-data-audit ]
     paths:
       - 'backend/**'
       - 'tests/**'
