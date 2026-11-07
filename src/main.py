@@ -775,7 +775,7 @@ def app_main(page:ft.Page):
         rows=top5_candidates[:]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
-        controls=[note("Configured 50-company watchlist • last completed-candle analysis • not a trade order"),
+        controls=[note(("Dhan: NIFTY-only verified mapping • other watchlist instruments unavailable" if prefs.get("source")=="Dhan" else "Configured 50-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
         for failed,reason in list(failed_symbols.items()):
             controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
@@ -2886,7 +2886,7 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(["NIFTY"] if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 semaphore=asyncio.Semaphore(5)
-                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Refreshing market quotes")
+                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
                 market_completed=[0]
                 cycle_data={}
                 async def load_one(sym):
@@ -2910,7 +2910,7 @@ console.log('BOT KING Lightweight Charts ready');
                 market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
-                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
+                scan_progress.update(checked=0,total=(1 if prefs.get("source")=="Dhan" else len(watch_symbols)),valid=0,failed=0,cached=0,state=("Analysing verified NIFTY only; 49 other watchlist mappings unavailable" if prefs.get("source")=="Dhan" else "Analysing configured companies"))
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
