@@ -123,3 +123,99 @@ class ServerAngelFeed(AngelFeed):
         if not self.server:
             return super().option_history(symbol, expiry, strike, side)
         return self._call("/v1/option-history", dict(symbol=symbol, expiry=expiry, strike=strike, side=side))
+
+
+class ServerDhanReadOnly:
+    """Ephemeral, HTTPS-only Dhan gateway session; never persists pairing keys.
+
+    Only NIFTY's verified instrument mapping is supported by the backend.
+    All other symbols fail closed rather than showing fabricated broker quotes.
+    """
+    def __init__(self):
+        self._origin = ""
+        self._pairing_key = ""
+
+    @property
+    def connected(self):
+        return bool(self._origin and self._pairing_key)
+
+    def disconnect(self):
+        self._origin = ""
+        self._pairing_key = ""
+
+    def _call(self, path, payload=None):
+        if not self.connected:
+            raise FeedError("Dhan server not connected; use Connect / Check in Settings")
+        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/intraday"):
+            raise FeedError("Unsupported Dhan read-only request")
+        headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
+        if payload is None:
+            req = urllib.request.Request(self._origin + path, headers=headers, method="GET")
+        else:
+            headers["Content-Type"] = "application/json"
+            req = urllib.request.Request(
+                self._origin + path, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
+                headers=headers, method="POST")
+        try:
+            with urllib.request.build_opener(NoRedirect()).open(req, timeout=15) as response:
+                raw = response.read(2_000_001)
+                if len(raw) > 2_000_000:
+                    raise FeedError("Dhan server response too large")
+                result = json.loads(raw)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 403:
+                self.disconnect()
+                raise FeedError("Dhan server key rejected (HTTP 403); reconnect") from None
+            if exc.code == 422:
+                raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
+            if exc.code in (502, 503, 504):
+                raise FeedError("Dhan upstream unavailable or token expired (HTTP " + str(exc.code) + ")") from None
+            raise FeedError("Dhan server HTTP " + str(exc.code)) from None
+        except FeedError:
+            raise
+        except (urllib.error.URLError, TimeoutError, ValueError, UnicodeError):
+            raise FeedError("Dhan HTTPS connection or response failed") from None
+        if not isinstance(result, dict) or result.get("live_orders_enabled") is not False:
+            raise FeedError("Unexpected Dhan read-only server response")
+        return result
+
+    def connect(self, endpoint, pairing_key):
+        self.disconnect()
+        origin = server_origin(endpoint)
+        if not isinstance(pairing_key, str) or not pairing_key.strip():
+            raise FeedError("Server Access Key required")
+        self._origin, self._pairing_key = origin, pairing_key.strip()
+        try:
+            status = self._call("/dhan/status")
+            if status.get("market_data_configured") is not True:
+                raise FeedError("Dhan market-data token unavailable on server")
+            quote = self.quote("NIFTY")
+        except Exception:
+            self.disconnect()
+            raise
+        return quote
+
+    def quote(self, symbol):
+        if symbol != "NIFTY":
+            raise FeedError("Dhan instrument mapping not verified for " + str(symbol)[:32])
+        result = self._call("/dhan/ltp", {"symbol": symbol})
+        price = result.get("ltp")
+        import math
+        if (result.get("source") != "dhan" or result.get("symbol") != symbol
+                or isinstance(price, bool) or not isinstance(price, (int, float))
+                or not math.isfinite(price) or price <= 0):
+            raise FeedError("Invalid Dhan quote; cannot use for signals")
+        # The provider endpoint has no exchange timestamp: do not mark this live.
+        return {"symbol": symbol, "price": price, "source": "Dhan",
+                "quote_timestamp": None, "freshness": "unverified"}
+
+    def intraday(self, symbol, interval, from_date, to_date):
+        if symbol != "NIFTY" or interval not in (1, 5, 15, 25, 60):
+            raise FeedError("Dhan candle instrument or interval not verified")
+        result = self._call("/dhan/intraday", {
+            "symbol": symbol, "interval": interval,
+            "from_date": str(from_date), "to_date": str(to_date)})
+        if (result.get("source") != "dhan" or result.get("symbol") != symbol
+                or not isinstance(result.get("bars"), list)):
+            raise FeedError("Invalid Dhan candle response")
+        return result
