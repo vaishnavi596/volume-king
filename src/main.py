@@ -6,7 +6,7 @@ import asyncio
 import urllib.request
 import urllib.parse
 from market_feed import FeedError, SessionExpired
-from server_feed import ServerAngelFeed
+from server_feed import ServerAngelFeed, ServerDhanReadOnly
 from analysis_quality import quality_check, agreement_detail
 from chart_indicators import chart_indicators
 from help_content import describe
@@ -239,7 +239,7 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Yahoo Finance","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
-    if prefs.get("source") not in ("Yahoo Finance","Broker API"):prefs["source"]="Yahoo Finance"
+    if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Yahoo Finance"
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
@@ -255,6 +255,7 @@ def app_main(page:ft.Page):
     scan_generation=[0]
     provider_generation=[0]
     angel_feed=ServerAngelFeed()
+    dhan_feed=ServerDhanReadOnly()
     broker_retry=[0.0]
     broker_failures=[0]
     health=FeedHealth()
@@ -279,7 +280,7 @@ def app_main(page:ft.Page):
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==("Angel One" if prefs.get("source")=="Broker API" else "Yahoo Finance")}
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -461,6 +462,23 @@ def app_main(page:ft.Page):
         try:
             if selected=="Yahoo Finance":
                 result=get_yahoo(ticker,interval,range_)
+            elif selected=="Dhan":
+                if not dhan_feed.connected:
+                    raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
+                if ticker!="NIFTY":
+                    raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
+                if interval not in ("1m","5m","15m","1h"):
+                    raise FeedError("Dhan chart interval not verified: "+str(interval))
+                from datetime import timedelta
+                today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
+                start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)
+                candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
+                bars=clean_bars(candle_result["bars"])
+                if not bars:raise FeedError("Dhan returned no NIFTY candles")
+                quote=dhan_feed.quote(ticker)
+                result={"price":quote["price"],"change":None,"high":None,"low":None,
+                        "bars":bars,"source":"Dhan","quote_timestamp":None,
+                        "fetched_at":time.time(),"freshness":"unverified","time":datetime.now().strftime("%H:%M")}
             elif angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
@@ -1356,7 +1374,7 @@ def app_main(page:ft.Page):
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
-    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API")])
+    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])
     broker_names=["Dhan","Angel One"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Angel One") if prefs.get("broker","Angel One") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
@@ -1450,6 +1468,11 @@ def app_main(page:ft.Page):
                         raise FeedError("Invalid Dhan quote response")
                     connection_status.value=("Dhan NIFTY read-only LTP verified via server • "
                         +str(round(quote["ltp"],2))+" • quote timestamp unverified; not a live signal.")
+                    connection_status.color=GREEN
+                    await asyncio.to_thread(dhan_feed.connect,endpoint,pairing_key)
+                    source.value="Dhan";prefs["source"]="Dhan";save()
+                    provider_changed(None)
+                    connection_status.value="Dhan connected • NIFTY read-only feed selected • timestamp unverified • other symbols unavailable"
                     connection_status.color=GREEN
                 else:
                     connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
@@ -2290,7 +2313,7 @@ console.log('BOT KING Lightweight Charts ready');
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
-        elif prefs.get("source") not in ("Yahoo Finance","Broker API"):
+        elif prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
             next_text="PAUSED — select a market feed";scan_next_refresh[0]=None
         elif not regular_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
@@ -2760,16 +2783,16 @@ console.log('BOT KING Lightweight Charts ready');
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
         quotes.clear();candles.clear();fusion_cache.clear();scan_generation[0]+=1
-        cached_source="Angel One" if source.value=="Broker API" else "Yahoo Finance"
+        cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value=("Data source: Yahoo Finance • Dhan server check does not change the chart/scanner feed" if broker.value=="Dhan" and source.value=="Yahoo Finance" else "Data source: Broker API • Dhan is not wired to chart/scanner; select Yahoo Finance for the existing feed" if broker.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
+        connection_status.value=("Dhan NIFTY only • read-only • "+("connected" if dhan_feed.connected else "reconnect required") if source.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
     def broker_changed(e):
-        angel_feed.disconnect();option_feed.clear();option_snapshots.clear()
+        angel_feed.disconnect();dhan_feed.disconnect();option_feed.clear();option_snapshots.clear()
         broker_previous(e);provider_changed(e)
     broker.on_change=broker_changed
     source_previous=source.on_change
@@ -2857,7 +2880,7 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(30)
                 continue
             initial=False
-            if prefs.get("source") in ("Yahoo Finance","Broker API"):
+            if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 successes=0
                 symbols=list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
@@ -2869,7 +2892,7 @@ console.log('BOT KING Lightweight Charts ready');
                     async with semaphore:
                         try:
                             data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
-                            if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):return False
+                            if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
@@ -2879,7 +2902,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
@@ -2910,7 +2933,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0]==0:request_view_refresh(0)
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in list(dict.fromkeys(watch_symbols))))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
@@ -2924,7 +2947,7 @@ console.log('BOT KING Lightweight Charts ready');
                             combined=combine_analysis(candidate["symbol"],"5m",candidate,missing,missing)
                         return candidate,combined
                 enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API"):continue
+                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):continue
                 for candidate,combined in enriched:
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
