@@ -680,7 +680,7 @@ def app_main(page:ft.Page):
     scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
     saved_ranking=market_store.get("ranking","configured51") or market_store.get("ranking","configured50") or {}
-    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[])][:5]
+    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))][:5]
     top5_last_update=[saved_ranking.get("checked_at","—")]
     watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))}
     for r in top5_candidates:
@@ -787,6 +787,7 @@ def app_main(page:ft.Page):
         if available:top5_candidates[:]=available[:5]
         used={row["symbol"] for row in top5_candidates}
         for row in previous+saved_ranking.get("rows",[]):
+            if row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")):continue
             if len(top5_candidates)>=5:break
             if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
         for sym in watch_symbols:
@@ -3037,6 +3038,11 @@ console.log('BOT KING Lightweight Charts ready');
             else:
                 data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
                 if generation==provider_generation[0] and sym==scan_symbol.value:quotes[sym]=data
+                if current[0]==5:
+                    chart_sym=symbol.value
+                    chart_tf=timeframe.value
+                    chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
+                    if generation==provider_generation[0] and chart_sym==symbol.value:quotes[chart_sym]=chart_data
             if generation==provider_generation[0] and app_active[0]:
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])
