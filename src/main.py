@@ -765,12 +765,14 @@ def app_main(page:ft.Page):
         if dhan and (not connected or valid<total):
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
         if diagnostics and (not connected or (dhan and valid<total)):problems.append("Last error: "+diagnostics[-1][:100])
+        if dhan and connected and valid>=total and "FeedError" in component_status("market"):
+            problems.append("Chart data request failed; scanner completion does not verify chart")
         details=[
-            note("Provider: "+prefs.get("source","Unknown")+" • "+("connected" if connected else "disconnected")),
-            note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" mapped LTP • timestamp unverified" if dhan else "Watchlist: check selected feed"),
+            note("Provider: "+prefs.get("source","Unknown")+" • "+("session active (quote freshness unverified)" if connected else "disconnected; reconnect required")),
+            note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" saved/displayed LTP • quote time unverified"+(" • DISCONNECTED; cached prices are not live" if not connected else "") if dhan else "Watchlist: check selected feed"),
             note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100] if dhan else "Candle scan: awaiting "+prefs.get("source","selected")+" analysis"),
             note("Chart: "+component_status("market")),
-            note("Super Five: historical until latest completed candle is verified"),
+            note("Super Five: historical analysis only until latest completed candle is verified"),
             note("Server: "+("HTTPS configured" if prefs.get("api_url") else "HTTPS not configured")+" • remote health not independently verified"),
             note("Settings: "+preference_writer.status+" • disk "+("saved" if preference_writer.disk_saved else "not confirmed")),
             note("UI version: "+APP_VERSION+" • verify APK package version"),
