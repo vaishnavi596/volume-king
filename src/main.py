@@ -513,8 +513,14 @@ def app_main(page:ft.Page):
         state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
         quote_time=result.get("quote_timestamp")
         if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
-            state="STALE"
-            fallback_reason=fallback_reason or ("Market closed • last available quote; historical display only" if not regular_hours() and isinstance(quote_time,(int,float)) and quote_time>0 else "Quote time is old, missing or invalid; historical display only")
+            # A closed-session candle history is not a failed live feed. Never
+            # infer a live quote timestamp from the candle or fetch time.
+            if not regular_hours() and result.get("bars") and not result.get("fallback"):
+                state="HISTORICAL"
+                fallback_reason=fallback_reason or "Market closed • last available candles only; live quote freshness unverified"
+            else:
+                state="STALE"
+                fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
         health.finish(health_key,request_id,state,source=result.get("source",""),data_time=quote_time,error=fallback_reason)
         return result
     def timeframe_spec(interval):
