@@ -1695,6 +1695,10 @@ def app_main(page:ft.Page):
                         # authenticated batch completes. A prior disconnected or
                         # in-flight generation must not suppress this scan.
                         provider_generation[0]+=1
+                        # Keep the just-verified equity batch in the new scan generation.
+                        # Otherwise the first historical refresh sees an empty batch.
+                        with dhan_batch_lock:
+                            dhan_batch_cache["generation"]=provider_generation[0]
                         scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                             failed=0,cached=0,state="Dhan connected; historical scan queued")
                 else:
