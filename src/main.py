@@ -3091,7 +3091,8 @@ console.log('BOT KING Lightweight Charts ready');
                 async def load_one(sym):
                     async with semaphore:
                         try:
-                            data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
+                            # Bound each history request so one stalled symbol cannot block all 51 rankings.
+                            data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             # Preserve the verified Dhan batch quote when historical candles refresh.
                             if prefs.get("source")=="Dhan":
@@ -3104,11 +3105,15 @@ console.log('BOT KING Lightweight Charts ready');
                                               freshness="unverified",fetched_at=time.time())
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
-                            scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
+                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(len(failed_symbols))+" failed; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
-                            if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
+                            if generation==provider_generation[0]:
+                                failed_symbols[sym]=safe_error(exc)
+                                market_completed[0]+=1
+                                scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(len(failed_symbols))+" failed; ranking follows"
+                                if current[0] in (0,4,5):request_view_refresh(current[0])
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
