@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.25" # Dhan watchlist LTP preservation regression build
+version = "2.3.26" # Version label and Dhan reconnect-state correction
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
