@@ -180,6 +180,16 @@ curl --fail --silent --show-error --max-time 10 --resolve botkingrajesh.duckdns.
 printf '\n'
 code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d '{"symbol":"NIFTY"}' https://botkingrajesh.duckdns.org/v1/expiries)
 test "$code" = 401
+# Ensure Nginx actually forwards protected Dhan paths to FastAPI.
+# No pairing key or broker credentials are sent: FastAPI must reject with 403.
+for route in status ltp ltp-batch intraday; do
+    if test "$route" = status; then
+        dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 "https://botkingrajesh.duckdns.org/dhan/$route")
+    else
+        dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d '{}' "https://botkingrajesh.duckdns.org/dhan/$route")
+    fi
+    test "$dhan_code" = 403 || { echo "Dhan route /dhan/$route failed protected routing check (HTTP $dhan_code)" >&2; exit 1; }
+done
 trap - ERR
 echo 'BOT KING gateway installed. Protected market-data endpoint returned 401 without a session, as expected.'
 echo 'Owner key is in /home/opc/bot-king-pairing-key.txt. Do not paste it into chat.'
