@@ -695,7 +695,7 @@ def app_main(page:ft.Page):
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
         if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
-            return note("Dhan instrument not supported" if symbol not in tuple(["NIFTY"]+watch_symbols) else ("Dhan candle scan: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • historical signal pending"))
+            return note("Unsupported Dhan symbol" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Candle analysis pending • see System Health")
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -703,7 +703,7 @@ def app_main(page:ft.Page):
         historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         bar=ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
-        return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,GREEN,True),txt("Bearish "+str(bear)+"%",11,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(("HISTORICAL • " if historical else "")+str(total)+" directional votes • filter agreement, NOT win probability")],spacing=2)
+        return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,GREEN,True),txt("Bearish "+str(bear)+"%",11,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(("HISTORICAL • " if historical else "")+str(total)+"/"+str(total)+" filter votes • not win probability")],spacing=2)
 
     def mark_ranking_historical():
         for row in top5_candidates:row["historical"]=True
@@ -761,10 +761,10 @@ def app_main(page:ft.Page):
         if not connected:problems.append("Provider disconnected; reconnect in Settings")
         if dhan and (not connected or valid<total):
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
-        if diagnostics:problems.append("Last error: "+diagnostics[-1][:100])
+        if diagnostics and (not connected or (dhan and valid<total)):problems.append("Last error: "+diagnostics[-1][:100])
         details=[
             note("Provider: "+prefs.get("source","Unknown")+" • "+("connected" if connected else "disconnected")),
-            note("Watchlist: "+str(sum(1 for symbol in DHAN_VERIFIED_SYMBOLS if symbol in quotes))+"/51 mapped LTP • timestamp unverified" if dhan else "Watchlist: check selected feed"),
+            note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" mapped LTP • timestamp unverified" if dhan else "Watchlist: check selected feed"),
             note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100]),
             note("Chart: "+component_status("market")),
             note("Super Five: historical until latest completed candle is verified"),
@@ -775,12 +775,12 @@ def app_main(page:ft.Page):
             note("Live orders OFF • historical data is not a live signal"),
             note("Cache: "+market_store.status),
             note("News: public RSS headlines; experimental phrase cues"),
-            note(market_status),note(component_status("market"))
+            note("Latest feed: "+market_status[:130])
         ]
         return section("SYSTEM HEALTH",ft.Column([
             ft.Row([ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED if problems else ft.Icons.CHECK_CIRCLE_OUTLINE,color=RED if problems else GREEN,size=17),ft.Container(content=txt(str(len(problems))+" issue(s) need attention" if problems else "No active errors reported",11,RED if problems else GREEN,True),expand=True),txt(prefs.get("source",""),10,MUTED)],spacing=5),
             *[txt(item,11,RED) for item in problems[:3]],
-            ft.ExpansionTile(title=note("Full diagnostics • "+str(total)+" scan targets"),controls=details),
+            ft.ExpansionTile(title=note("Full diagnostics • "+str(total)+" scan targets"),initially_expanded=False,controls=details),
             ft.TextButton("Retry data",on_click=lambda e:page.run_task(retry_selected_data))
         ],spacing=2))
     def news_event_overview():
@@ -976,7 +976,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Price change unavailable • direction unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Change unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
