@@ -52,7 +52,7 @@ class DhanEndpointTests(unittest.TestCase):
              patch("backend.server.requests.post", return_value=Response({"consentAppId": "consent"})), \
              patch("backend.server.requests.get", return_value=Response({
                  "accessToken": "consent-access-token", "dhanClientId": "test-client",
-                 "expiryTime": "2099-01-01T00:00:00"})), \
+                 "expiryTime": "2099-01-01T00:00:00Z"})), \
              patch("backend.server.Path.read_text", side_effect=PermissionError), \
              patch("backend.server.DhanFeed", CaptureDhan):
             self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
