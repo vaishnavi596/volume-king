@@ -5,7 +5,9 @@ name: Build APK
 on:
   push:
     branches: [ main ]
-    paths: [ pyproject.toml ]
+    paths:
+      - pyproject.toml
+      - .github/workflows/build.yml
   workflow_dispatch:
 
 jobs:
@@ -228,7 +230,7 @@ jobs:
             ls -lah "$BOOTSTRAP" "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
             cat "$RUNNER_TEMP/botking-bootstrap-watch.log" || true
             df -h . /tmp || true
-            if ! grep -Eq 'Gateway Time-out|Gateway Timeout|HTTP status code: 504|HTTP status code: 503|HTTP status code: 502|Connection timed out|Connection reset|Read timed out|SocketTimeoutException|Too Many Requests' /tmp/volume-king-build.log; then
+            if ! grep -Eiq 'Gateway Time-out|Gateway Timeout|HTTP status code: (504|503|502|429)|Connection timed out|Connection reset|Read timed out|SocketTimeoutException|Too Many Requests|downloadDistArchive_' /tmp/volume-king-build.log; then
               echo "::error::Non-transient APK build failure; stopping retries."
               exit 1
             fi
