@@ -46,6 +46,11 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('CONNECT DHAN', source)
         self.assertIn('Dhan disconnected • saved prices hidden', source)
 
+    def test_first_dhan_scan_not_blocked_by_stale_lifecycle(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected', source)
+        self.assertIn('if not app_active[0] and not pending_dhan_scan:', source)
+
     def test_fresh_install_defaults_to_dhan(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('"confidence":75,"source":"Dhan","api_url"', source)
