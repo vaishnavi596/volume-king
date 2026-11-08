@@ -32,6 +32,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('Ranking completed candles: 0 / ', source)
         self.assertIn('Loading candle histories: 0 / ', source)
 
+    def test_android_enum_lifecycle_resumed_does_not_pause_scanner(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('state.endswith(".resumed")', source)
+        self.assertIn('app_active[0]=True', source)
+        self.assertIn('log_error("lifecycle_unknown"', source)
+
 
     def test_android_app_private_storage_survives_restart_with_native_bridge_down(self):
         with tempfile.TemporaryDirectory() as directory:
