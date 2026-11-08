@@ -753,19 +753,22 @@ def app_main(page:ft.Page):
     def data_overview():
         # Compact error-first diagnostics; never display secrets.
         dhan=prefs.get("source")=="Dhan"
-        connected=dhan_feed.connected if dhan else angel_feed.connected if prefs.get("source")=="Broker API" else True
+        connected=dhan_feed.connected if dhan else angel_feed.connected if prefs.get("source")=="Broker API" else False
+        yahoo=prefs.get("source")=="Yahoo Finance"
+        if yahoo:
+            connected=any(row.get("source")=="Yahoo Finance" and isinstance(row.get("price"),(int,float)) for row in quotes.values())
         total=int(scan_progress.get("total",0) or 0)
         valid=int(scan_progress.get("valid",0) or 0)
         state=str(scan_progress.get("state","Waiting"))
         problems=[]
-        if not connected:problems.append("Provider disconnected; reconnect in Settings")
+        if not connected:problems.append("Yahoo quote not verified" if yahoo else "Provider disconnected; reconnect in Settings")
         if dhan and (not connected or valid<total):
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
         if diagnostics and (not connected or (dhan and valid<total)):problems.append("Last error: "+diagnostics[-1][:100])
         details=[
             note("Provider: "+prefs.get("source","Unknown")+" • "+("connected" if connected else "disconnected")),
             note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" mapped LTP • timestamp unverified" if dhan else "Watchlist: check selected feed"),
-            note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100]),
+            note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100] if dhan else "Candle scan: awaiting "+prefs.get("source","selected")+" analysis"),
             note("Chart: "+component_status("market")),
             note("Super Five: historical until latest completed candle is verified"),
             note("Server: "+("HTTPS configured" if prefs.get("api_url") else "HTTPS not configured")+" • remote health not independently verified"),
@@ -2924,6 +2927,9 @@ console.log('BOT KING Lightweight Charts ready');
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
         quotes.clear();candles.clear();fusion_cache.clear();scan_generation[0]+=1
+        scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Awaiting "+source.value+" candle scan")
+        failed_symbols.clear()
+        top5_candidates.clear()
         cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
