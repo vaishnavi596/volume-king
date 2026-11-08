@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.23" # Signed APK release with source-specific ranking fixes
+version = "2.3.24" # Signed APK release after historical ranking test correction
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
