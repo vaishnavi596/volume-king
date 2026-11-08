@@ -3084,11 +3084,16 @@ console.log('BOT KING Lightweight Charts ready');
                         data=None;result=None
                         try:
                             data=cycle_data.get(sym)
-                            if data is None:data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
+                            if data is None:
+                                # Do not repeat a failed Dhan history call during ranking.
+                                if prefs.get("source") == "Dhan":
+                                    raise FeedError("Dhan history failed in first pass; use Retry")
+                                data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
                             result=display_analysis(sym,data)
                         except Exception as exc:
                             log_error("super_five",exc)
-                            if generation==provider_generation[0]:failed_symbols[sym]=safe_error(exc)
+                            if generation==provider_generation[0] and sym not in failed_symbols:
+                                failed_symbols[sym]=safe_error(exc)
                         if generation!=provider_generation[0]:return sym,None
                         ranking_results[sym]=result
                         if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
