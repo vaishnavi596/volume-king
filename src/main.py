@@ -3061,11 +3061,15 @@ console.log('BOT KING Lightweight Charts ready');
                                and last_scanned_generation!=provider_generation[0])
             if not app_active[0] and not pending_dhan_scan:
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
-                    scan_progress["state"]="Dhan scan paused until foreground or new connection"
+                    scan_progress["state"]="Dhan scan waiting for app foreground • last completed results retained"
                 await asyncio.sleep(5);continue
             # Scan historical candles once after provider changes, even on closed days.
             current_generation=provider_generation[0]
             if not initial and not regular_hours() and last_scanned_generation==current_generation:
+                # Closed-market history does not change every two minutes.
+                # Keep the last successful result visible until resume or reconnect.
+                if prefs.get("source")=="Dhan" and scan_progress.get("state")=="Complete":
+                    scan_progress["state"]="Complete • market closed; next history scan on resume or reconnect"
                 await asyncio.sleep(5)
                 continue
             initial=False
@@ -3270,7 +3274,11 @@ console.log('BOT KING Lightweight Charts ready');
         # rather than leaving the scanner disabled or recording a false crash.
         if state=="resumed" or state.endswith(".resumed"):
             app_active[0]=True
-        elif state in ("inactive","paused","detached","hidden") or any(state.endswith("."+v) for v in ("inactive","paused","detached","hidden")):
+        elif state=="inactive" or state.endswith(".inactive"):
+            # Android briefly enters inactive during overlays and focus changes.
+            # Only a confirmed background/hidden state should suspend scanning.
+            return
+        elif state in ("paused","detached","hidden") or any(state.endswith("."+v) for v in ("paused","detached","hidden")):
             app_active[0]=False
         else:
             return
