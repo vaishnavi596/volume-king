@@ -512,7 +512,9 @@ class AuditTests(unittest.TestCase):
             ("Dhan HTTPS connection or response failed",
              "Dhan HTTPS connection failed or timed out; retry"),
             ("Invalid Dhan batch response",
-             "Dhan batch response failed validation"),
+             "Dhan batch response missing or invalid"),
+            ("Empty Dhan batch response",
+             "Dhan batch response missing or invalid"),
             ("Dhan server key rejected (HTTP 403); reconnect",
              "Dhan server access rejected (HTTP 403); reconnect"),
         ]
@@ -521,6 +523,18 @@ class AuditTests(unittest.TestCase):
                 self.assertEqual(safe_error(FeedError(raw)),expected)
         secret="token=never-display-this"
         self.assertNotIn(secret,safe_error(FeedError("Unknown error "+secret)))
+
+    def test_empty_dhan_batch_does_not_clear_active_failure(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        feed=v['dhan_feed']
+        feed._origin='https://example.invalid'
+        feed._pairing_key='test-only'
+        with patch.object(feed,'batch_quotes',return_value={}):
+            asyncio.run(v['refresh_watch_batch']())
+        self.assertEqual(v['dhan_batch_issue'][0],
+                         'Dhan batch response missing or invalid')
+        self.assertIn('batch failed',v['watch_batch_status'][0])
+        self.assertNotIn('LTP loaded',v['watch_batch_status'][0])
 
     def test_successful_dhan_watchlist_retry_clears_settings_error(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
