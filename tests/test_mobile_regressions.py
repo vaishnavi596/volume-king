@@ -22,6 +22,15 @@ def walk(control):
 
 
 class MobileRegressionTests(unittest.TestCase):
+    def test_historical_candle_time_is_visible_without_spoofing_quote_freshness(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('historical_time=float(result["bars"][-1][0])', source)
+        self.assertIn('data_time=quote_time if isinstance(quote_time,(int,float)) else historical_time', source)
+        self.assertIn('"quote_timestamp":None', source)
+        self.assertIn('state="HISTORICAL"', source)
+        self.assertNotIn('quote_timestamp=historical_time', source)
+
+
     def test_background_dhan_history_requests_are_bounded_and_progress_visible(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)', source)
