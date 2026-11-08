@@ -111,7 +111,7 @@ jobs:
               echo "APK build succeeded"
               exit 0
             fi
-            if ! grep -Eq '429|502|503|504|Too Many Requests|Gateway Time-out|Gateway Timeout|Bad Gateway|Service Unavailable|Could not GET|Read timed out|Connection reset|Connection timed out|downloadDistArchive|ClientProtocolException' /tmp/volume-king-build.log; then
+            if ! grep -Eq '429|502|503|504|Too Many Requests|Gateway Time-out|Gateway Timeout|Bad Gateway|Service Unavailable|Could not GET|Read timed out|Connection reset|Connection timed out|downloadDistArchive|ClientProtocolException|ProcessException: No such file or directory|Flet app package app/app.zip was not created' /tmp/volume-king-build.log; then
               echo "Non-network build failure; stopping retries"
               exit 1
             fi
@@ -119,6 +119,8 @@ jobs:
               echo "Build failed after 4 attempts"
               exit 1
             fi
+            # Discard partial Python bootstrap and Flutter outputs before retry.
+            rm -rf build/flutter/build/build_python_3.12.6 build/flutter/app build/site-packages
             sleep $((attempt * 45))
           done
 
