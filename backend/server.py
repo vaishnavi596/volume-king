@@ -279,6 +279,17 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             headers=headers,
         )
 
+    def dhan_market_token():
+        """Prefer a successful interactive login; support provisioned read-only tokens."""
+        with lock:
+            active = dhan_session["access_token"]
+        if active:
+            return active
+        try:
+            return Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
     @app.get("/dhan/status")
     def dhan_status(x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
@@ -286,10 +297,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         # A manually provisioned read-only token may be usable even when the
         # interactive Dhan consent flow has not populated dhan_session.
         # Never expose token contents, paths or account credentials.
-        try:
-            token_configured = bool(Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip())
-        except OSError:
-            token_configured = False
+        token_configured = bool(dhan_market_token())
         market_data_configured = bool(os.environ.get("DHAN_CLIENT_ID", "").strip()) and token_configured
         with lock:
             return {"authenticated": bool(dhan_session["access_token"]),
@@ -307,10 +315,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if body.symbol not in mapping:
             raise HTTPException(422, "Dhan instrument mapping not verified")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
-        try:
-            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
-        except OSError:
-            raise HTTPException(503, "Dhan token file unavailable") from None
+        token = dhan_market_token()
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
         segment, sid, _instrument = mapping[body.symbol]
@@ -336,10 +341,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
-        try:
-            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
-        except OSError:
-            raise HTTPException(503, "Dhan token file unavailable") from None
+        token = dhan_market_token()
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
         ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
@@ -379,10 +381,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if body.to_date > india_today:
             raise HTTPException(422, "Future candles are unavailable")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
-        try:
-            token = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
-        except OSError:
-            raise HTTPException(503, "Dhan token file unavailable") from None
+        token = dhan_market_token()
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
         if body.symbol not in DHAN_VERIFIED_INSTRUMENTS:
