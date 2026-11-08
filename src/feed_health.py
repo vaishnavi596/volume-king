@@ -41,7 +41,8 @@ def safe_error(exc):
         if "HTTPS connection or response failed" in detail:
             return "Dhan HTTPS connection failed or timed out; retry"
         if "response too large" in detail:return "Dhan response exceeded safety limit"
-        if "Invalid Dhan batch" in detail:return "Dhan batch response failed validation"
+        if "Invalid Dhan batch" in detail or "Empty Dhan batch" in detail:
+            return "Dhan batch response missing or invalid"
     return "Data request failed ("+type(exc).__name__+")"
 
 def retry_delay(failures):
