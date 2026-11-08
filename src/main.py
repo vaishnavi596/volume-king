@@ -2985,13 +2985,17 @@ console.log('BOT KING Lightweight Charts ready');
     async def refresh_market():
         nonlocal market_status
         initial=True
+        last_scanned_generation=None
         while True:
             if not app_active[0]:
                 await asyncio.sleep(5);continue
-            if not initial and not regular_hours():
-                await asyncio.sleep(30)
+            # Scan historical candles once after provider changes, even on closed days.
+            current_generation=provider_generation[0]
+            if not initial and not regular_hours() and last_scanned_generation==current_generation:
+                await asyncio.sleep(5)
                 continue
             initial=False
+            last_scanned_generation=current_generation
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
