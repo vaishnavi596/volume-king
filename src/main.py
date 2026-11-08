@@ -3239,12 +3239,18 @@ console.log('BOT KING Lightweight Charts ready');
             # provider generation after a 15-minute cooldown; never loop rapidly
             # over 51 rate-sensitive Dhan history endpoints.
             if (prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and not regular_hours() and scan_progress.get("valid",0)==0
+                    and not regular_hours() and successes==0
                     and closed_session_retry_generation!=generation):
                 closed_session_retry_generation=generation
-                last_scanned_generation=None
-                scan_progress["state"]="No valid histories • one automatic retry in 15 minutes"
-                await asyncio.sleep(900)
+                scan_progress["state"]="No fresh histories • one automatic retry in 15 minutes"
+                # Check for foreground reconnects/provider changes during the
+                # cooldown instead of blocking their new scan for 15 minutes.
+                for _ in range(180):
+                    if provider_generation[0]!=generation or prefs.get("source")!="Dhan":
+                        break
+                    await asyncio.sleep(5)
+                if provider_generation[0]==generation and prefs.get("source")=="Dhan":
+                    last_scanned_generation=None
             else:
                 await asyncio.sleep(120)
     async def supervised_market_refresh():
