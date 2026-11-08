@@ -48,7 +48,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(age_label(None),'Time unavailable')
         self.assertEqual(age_label(1001,now=1000),'Invalid future time')
     def test_five_rows_visible_before_first_fetch(self):
-        _,v=start({'scanner_live':False})
+        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         card=v['super_five_card']()
         import flet as ft
         rows=[c for c in card.content.controls[1].controls if isinstance(c,ft.Container)]
@@ -73,7 +73,7 @@ class SnapshotTests(unittest.TestCase):
             path=Path(d)/'cache.json'
             rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend','source':'Yahoo Finance'} for s in ['A','B','C','D','E']]
             SnapshotStore(path).put('ranking',('configured50',),{'rows':rows,'checked_at':'old'})
-            _,v=start({'scanner_live':False},cache_path=path)
+            _,v=start({'scanner_live':False,'source':'Yahoo Finance'},cache_path=path)
             self.assertEqual(len(v['top5_candidates']),5)
             self.assertTrue(all(r['historical'] for r in v['top5_candidates']))
             self.assertTrue(all(r['bias']=='BULLISH' for r in v['top5_candidates']))
