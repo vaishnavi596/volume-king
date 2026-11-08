@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.35"  # Keep synchronized with pyproject.toml for packaged APKs.
+    APP_VERSION = "2.3.53"  # Match current pyproject.toml when package metadata is unavailable.
 from pathlib import Path
 
 #                                  Apache License
@@ -578,11 +578,11 @@ def app_main(page:ft.Page):
     def txt(s,size=14,color=WHITE,bold=False):
         return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
-        return ft.Container(content=ft.Column(list(children),spacing=6,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),bgcolor=PANEL,border_radius=12,padding=10,border=ft.border.all(1,BORDER))
-    def heading(s):return txt(s,19,WHITE,True)
+        return ft.Container(content=ft.Column(list(children),spacing=4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),bgcolor=PANEL,border_radius=10,padding=7,border=ft.border.all(1,BORDER))
+    def heading(s):return txt(s,17,WHITE,True)
     def pill(s,selected=False):
         return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
-    def note(s):return txt(s,12,MUTED)
+    def note(s):return txt(s,11,MUTED)
     def unavailable(s):return txt("DATA UNAVAILABLE — "+s,13,RED)
     def quote_price(sym):
         q=quotes.get(sym)
@@ -647,7 +647,7 @@ def app_main(page:ft.Page):
         if hasattr(page,"close"):page.close(dialog)
         else:dialog.open=False;page.update()
     def section(title,child):
-        header=ft.Row([ft.Container(content=txt(title,15,GOLD,True),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_color=MUTED,tooltip="आसान जानकारी और वर्तमान स्थिति",on_click=lambda e:show_help(title))])
+        header=ft.Row([ft.Container(content=txt(title,13,GOLD,True),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_color=MUTED,tooltip="आसान जानकारी और वर्तमान स्थिति",on_click=lambda e:show_help(title))])
         return card(header,child)
     def decorate_help(control,parent_wrap=False):
         if getattr(control,"data",None)=="help_wrapper":return control
@@ -751,7 +751,38 @@ def app_main(page:ft.Page):
         if not scan_busy[0]:await scan_market()
         if current[0] in (0,1,3):select(current[0])
     def data_overview():
-        return section("MARKET & DATA STATUS",ft.Column([note("Provider: "+prefs.get("source","Broker API")+" • "+("Dhan verified symbols • "+("connected" if dhan_feed.connected else "reconnect required") if prefs.get("source")=="Dhan" else "Angel One connected" if angel_feed.connected else "broker disconnected")),note(session_caption()),note("Live orders OFF • historical quotes are not live signals"),ft.TextButton("Retry current data",on_click=lambda e:page.run_task(retry_selected_data)),ft.ExpansionTile(title=note("Detailed feed diagnostics"),controls=[note(market_status),note(component_status("market")),note("Last cache write: "+market_store.status),note("News: public RSS headlines; experimental phrase cues")])],spacing=3))
+        # Compact error-first diagnostics; never display secrets.
+        dhan=prefs.get("source")=="Dhan"
+        connected=dhan_feed.connected if dhan else angel_feed.connected if prefs.get("source")=="Broker API" else True
+        total=int(scan_progress.get("total",0) or 0)
+        valid=int(scan_progress.get("valid",0) or 0)
+        state=str(scan_progress.get("state","Waiting"))
+        problems=[]
+        if not connected:problems.append("Provider disconnected; reconnect in Settings")
+        if dhan and (not connected or valid<total):
+            problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
+        if diagnostics:problems.append("Last error: "+diagnostics[-1][:100])
+        details=[
+            note("Provider: "+prefs.get("source","Unknown")+" • "+("connected" if connected else "disconnected")),
+            note("Watchlist: "+str(sum(1 for symbol in DHAN_VERIFIED_SYMBOLS if symbol in quotes))+"/51 mapped LTP • timestamp unverified" if dhan else "Watchlist: check selected feed"),
+            note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100]),
+            note("Chart: "+component_status("market")),
+            note("Super Five: historical until latest completed candle is verified"),
+            note("Server: "+("HTTPS configured" if prefs.get("api_url") else "HTTPS not configured")+" • remote health not independently verified"),
+            note("Settings: "+preference_writer.status+" • disk "+("saved" if preference_writer.disk_saved else "not confirmed")),
+            note("UI version: "+APP_VERSION+" • verify APK package version"),
+            note(session_caption()),
+            note("Live orders OFF • historical data is not a live signal"),
+            note("Cache: "+market_store.status),
+            note("News: public RSS headlines; experimental phrase cues"),
+            note(market_status),note(component_status("market"))
+        ]
+        return section("SYSTEM HEALTH",ft.Column([
+            ft.Row([ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED if problems else ft.Icons.CHECK_CIRCLE_OUTLINE,color=RED if problems else GREEN,size=17),ft.Container(content=txt(str(len(problems))+" issue(s) need attention" if problems else "No active errors reported",11,RED if problems else GREEN,True),expand=True),txt(prefs.get("source",""),10,MUTED)],spacing=5),
+            *[txt(item,11,RED) for item in problems[:3]],
+            ft.ExpansionTile(title=note("Full diagnostics • "+str(total)+" scan targets"),controls=details),
+            ft.TextButton("Retry data",on_click=lambda e:page.run_task(retry_selected_data))
+        ],spacing=2))
     def news_event_overview():
         data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
@@ -945,7 +976,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Price change unavailable • direction unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=9,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Price change unavailable • direction unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
