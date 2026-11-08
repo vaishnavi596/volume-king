@@ -3248,10 +3248,12 @@ console.log('BOT KING Lightweight Charts ready');
                 # Check for foreground reconnects/provider changes during the
                 # cooldown instead of blocking their new scan for 15 minutes.
                 for _ in range(180):
-                    if provider_generation[0]!=generation or prefs.get("source")!="Dhan":
+                    if (provider_generation[0]!=generation or prefs.get("source")!="Dhan"
+                            or not dhan_feed.connected):
                         break
                     await asyncio.sleep(5)
-                if provider_generation[0]==generation and prefs.get("source")=="Dhan":
+                if (provider_generation[0]==generation and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected):
                     last_scanned_generation=None
             else:
                 await asyncio.sleep(120)
