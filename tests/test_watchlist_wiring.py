@@ -58,6 +58,11 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=None,', self.source)
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
+    def test_dhan_connect_settings_displays_partial_count(self):
+        self.assertIn('" equity LTP quotes returned • timestamps unverified"+',self.source)
+        self.assertIn('(" • PARTIAL" if dhan_batch_issue[0] else "")',self.source)
+        self.assertIn('connection_status.color=GOLD if dhan_batch_issue[0] else GREEN',self.source)
+
     def test_dhan_connect_keeps_batch_in_new_scan_generation(self):
         self.assertIn('dhan_batch_cache["generation"]=provider_generation[0]',self.source)
         self.assertIn('provider_generation[0]+=1',self.source)
