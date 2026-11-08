@@ -280,9 +280,25 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         )
 
     def dhan_market_token():
-        """Prefer a successful interactive login; support provisioned read-only tokens."""
+        """Use a non-expired consent token, otherwise a provisioned read-only token."""
         with lock:
             active = dhan_session["access_token"]
+            expiry = dhan_session["expires_at"]
+            if active and expiry:
+                try:
+                    expires = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+                    if expires.tzinfo is None:
+                        # Do not guess a timezone for an ambiguous provider timestamp.
+                        active = ""
+                    elif datetime.now(timezone.utc) >= expires.astimezone(timezone.utc):
+                        active = ""
+                except (TypeError, ValueError, OverflowError):
+                    active = ""
+            elif active:
+                # An unparseable/missing expiry cannot prove a token is still valid.
+                active = ""
+            if not active and dhan_session["access_token"]:
+                dhan_session.update(access_token="", expires_at="")
         if active:
             return active
         try:
