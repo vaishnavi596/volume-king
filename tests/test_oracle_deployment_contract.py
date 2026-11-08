@@ -23,6 +23,11 @@ class OracleDhanDeploymentContractTests(unittest.TestCase):
         self.assertIn('for entry in market_feed.py dhan_feed.py; do', self.installer)
         self.assertIn('"$backup/$entry" "$appdir/$entry"', self.installer)
 
+    def test_failed_dhan_proxy_check_restores_previous_gateway(self):
+        self.assertIn('if test "$dhan_code" != 403; then', self.installer)
+        self.assertIn('        rollback\n        exit 1', self.installer)
+        self.assertIn('rollback() {\n    trap - ERR', self.installer)
+
     def test_dhan_api_is_proxied_and_callback_preserved(self):
         for endpoint in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
             self.assertIn(endpoint, self.server)
