@@ -18,6 +18,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify APK display version matches project release version
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, tomllib
+          project = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          expected = project["project"]["version"]
+          source = pathlib.Path("src/main.py").read_text()
+          match = re.search(r'^\s*APP_VERSION = "(\d+\.\d+\.\d+)"\s*# Release fallback;', source, re.M)
+          if not match or match.group(1) != expected:
+              raise SystemExit(f"Version mismatch: project={expected}, runtime fallback={match.group(1) if match else 'missing'}")
+          print(f"Verified project and runtime fallback: {expected}")
+          PY
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
