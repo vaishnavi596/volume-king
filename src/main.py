@@ -3049,6 +3049,8 @@ console.log('BOT KING Lightweight Charts ready');
         last_scanned_generation=None
         while True:
             if not app_active[0]:
+                if prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    scan_progress["state"]="Dhan connected; background scan waiting for app foreground"
                 await asyncio.sleep(5);continue
             # Scan historical candles once after provider changes, even on closed days.
             current_generation=provider_generation[0]
