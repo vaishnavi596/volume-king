@@ -133,7 +133,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(page.client_storage.get('bot_king_preferences')['option_expiry'],v['expiry'].value)
 
     def test_inflight_dashboard_response_rejected_after_source_change(self):
-        page,v=start({'scanner_live':False})
+        page,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         async def run():
             original_thread=asyncio.to_thread;original_sleep=asyncio.sleep;switched=False
             async def delayed(fn,*args,**kwargs):
