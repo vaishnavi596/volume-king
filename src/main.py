@@ -1688,8 +1688,9 @@ def app_main(page:ft.Page):
                         connection_status.value=market_status
                         connection_status.color=RED
                     else:
-                        connection_status.value=("Dhan connected • "+str(len(batch))+
-                            " equity LTP quotes loaded • timestamps unverified")
+                        connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
+                            " equity LTP quotes returned • timestamps unverified"+
+                            (" • PARTIAL" if dhan_batch_issue[0] else ""))
                         connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
                         # Start a fresh historical-scan generation only after the
                         # authenticated batch completes. A prior disconnected or
