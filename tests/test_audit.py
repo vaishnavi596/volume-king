@@ -505,10 +505,11 @@ class AuditTests(unittest.TestCase):
             for child in control._get_children():walk(child)
         walk(widget)
         self.assertTrue(any('Historical votes' in value for value in values))
-        self.assertIn(v['MUTED'],colors)
-        self.assertIn(v['BORDER'],colors)
-        self.assertNotIn(v['GREEN'],colors)
-        self.assertNotIn(v['RED'],colors)
+        palette=v['strength_widget'].__globals__
+        self.assertIn(palette['MUTED'],colors)
+        self.assertIn(palette['BORDER'],colors)
+        self.assertNotIn(palette['GREEN'],colors)
+        self.assertNotIn(palette['RED'],colors)
 
     def test_palette_contrast(self):
         _,v=start()
