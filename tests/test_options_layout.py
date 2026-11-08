@@ -88,7 +88,7 @@ class OptionsLayoutTests(unittest.TestCase):
         for control in v['options']():walk(control)
 
     def test_missing_option_feed_keeps_table_without_fabricated_prices(self):
-        _,v=start({'scanner_live':False,'option_strike':'24000'})
+        _,v=start({'scanner_live':False,'source':'Yahoo Finance','option_strike':'24000'})
         preview=v['option_chain_preview']()
         table=preview.controls[2].controls[0]
         self.assertEqual([cell.content.value for cell in table.rows[0].cells],
