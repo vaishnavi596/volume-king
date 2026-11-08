@@ -3221,8 +3221,16 @@ console.log('BOT KING Lightweight Charts ready');
         finally:resume_busy[0]=False
     def lifecycle_changed(e):
         state=getattr(e,"state",None)
-        state=getattr(state,"value",str(state)).lower()
-        app_active[0]=state=="resumed"
+        state=str(getattr(state,"value",state)).strip().lower()
+        # Flet may emit enum-qualified names (AppLifecycleState.RESUMED).
+        # Unknown lifecycle events must not silently disable all market tasks.
+        if state=="resumed" or state.endswith(".resumed"):
+            app_active[0]=True
+        elif state in ("inactive","paused","detached","hidden") or any(state.endswith("."+v) for v in ("inactive","paused","detached","hidden")):
+            app_active[0]=False
+        else:
+            log_error("lifecycle_unknown",ValueError("Unrecognized app lifecycle state"))
+            return
         if not app_active[0]:
             protection_pending.clear()
             if paper_bot_state[0]=="Running":paper_bot_state[0]="Paused";paper_state_status.value="Paper bot paused on background; press Start after returning"
