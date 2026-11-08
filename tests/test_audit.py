@@ -490,6 +490,19 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('HISTORICAL' in value for value in rendered))
         self.assertFalse(any(value.startswith('BULLISH • 3/3') for value in rendered))
 
+    def test_options_underlying_provider_is_dhan_not_yahoo(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        values=[]
+        def walk(node):
+            value=getattr(node,'value',None)
+            if isinstance(value,str):values.append(value)
+            for child in node._get_children():walk(child)
+        walk(v['option_chain_preview']())
+        self.assertTrue(any('Underlying provider: Dhan' in x for x in values))
+        self.assertTrue(any('CE/PE quotes require' in x for x in values))
+        self.assertFalse(any('Underlying quotes may come from Yahoo Finance' in x for x in values))
+        self.assertTrue(any('Option chain not connected' in x for x in values))
+
     def test_dhan_batch_errors_are_specific_and_do_not_echo_secrets(self):
         from feed_health import safe_error
         from market_feed import FeedError
