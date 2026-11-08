@@ -956,6 +956,44 @@ def app_main(page:ft.Page):
     def clear_watch_search(e):
         search.value=""
         fill_watch()
+    watch_batch_busy=[False]
+    watch_batch_status=["Dhan batch not checked on this screen"]
+    async def refresh_watch_batch():
+        nonlocal market_status
+        if watch_batch_busy[0] or prefs.get("source")!="Dhan":
+            return
+        if not dhan_feed.connected:
+            watch_batch_status[0]="Dhan reconnect required in Settings"
+            request_view_refresh(4)
+            return
+        watch_batch_busy[0]=True
+        generation=provider_generation[0]
+        watch_batch_status[0]="Fetching Dhan equity LTP..."
+        request_view_refresh(4)
+        try:
+            batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                return
+            with dhan_batch_lock:
+                dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
+            for ticker,snapshot in batch.items():
+                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
+                    old=quotes.get(ticker) or {}
+                    quotes[ticker]=dict(snapshot,change=None,
+                        bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                        fetched_at=time.time())
+            count=sum(1 for ticker in all_watch_symbols() if
+                      (quotes.get(ticker) or {}).get("source")=="Dhan" and
+                      isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
+            watch_batch_status[0]=f"Dhan LTP loaded: {count}/{len(all_watch_symbols())} • timestamp unverified"
+            market_status=watch_batch_status[0]
+        except Exception as exc:
+            log_error("watchlist_dhan_batch",exc)
+            watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
+            market_status=watch_batch_status[0]
+        finally:
+            watch_batch_busy[0]=False
+            request_view_refresh(4)
     def watchlist():
         fill_watch()
         return [heading("Watchlist • 5 Lists"),
@@ -963,7 +1001,11 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(market_status+" • Quotes may be delayed"),watch_list]
+            note(market_status+" • Quotes may be delayed"),
+            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
+                disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
+                note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
+                wrap=True),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
@@ -1535,8 +1577,13 @@ def app_main(page:ft.Page):
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
-                    connection_status.value="Dhan connected • 51 NSE equities and NIFTY mapped • timestamps unverified"
-                    connection_status.color=GREEN
+                    if market_status.startswith("Dhan connected; watchlist batch failed"):
+                        connection_status.value=market_status
+                        connection_status.color=RED
+                    else:
+                        connection_status.value=("Dhan connected • "+str(len(batch))+
+                            " equity LTP quotes loaded • timestamps unverified")
+                        connection_status.color=GREEN
                 else:
                     connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
                         if result.get("authenticated") else
@@ -2922,6 +2969,8 @@ console.log('BOT KING Lightweight Charts ready');
         current[0]=i
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
+        if changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected:
+            page.run_task(refresh_watch_batch)
         for j,(icon,label) in enumerate(nav_items):
             icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
