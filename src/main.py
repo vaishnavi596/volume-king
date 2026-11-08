@@ -800,8 +800,9 @@ def app_main(page:ft.Page):
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
-        for failed,reason in list(failed_symbols.items()):
-            controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
+        if prefs.get('source')!='Dhan' or dhan_feed.connected:
+            for failed,reason in list(failed_symbols.items()):
+                controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
@@ -1518,6 +1519,21 @@ def app_main(page:ft.Page):
                     dhan_feed.activate_verified(endpoint,pairing_key,quote)
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
+                    # Verify watchlist batch independently of the login check.
+                    try:
+                        batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        with dhan_batch_lock:
+                            dhan_batch_cache.update(generation=provider_generation[0],
+                                                    updated=time.monotonic(),quotes=batch)
+                        for ticker,snapshot in batch.items():
+                            if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
+                                quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
+                        failed_symbols.clear()
+                        market_status='Dhan batch quotes received; timestamps unverified'
+                        if current[0] in (0,4):request_view_refresh(current[0])
+                    except Exception as exc:
+                        log_error('dhan_batch_after_connect',exc)
+                        market_status='Dhan connected; watchlist batch failed ('+type(exc).__name__+')'
                     connection_status.value="Dhan connected • 51 NSE equities and NIFTY mapped • timestamps unverified"
                     connection_status.color=GREEN
                 else:
