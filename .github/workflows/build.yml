@@ -150,55 +150,35 @@ jobs:
           echo "FLET_ANDROID_SIGNING_KEY_PASSWORD=$BOTKING_KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "Permanent signing verified; fingerprint is pinned."
 
-      - name: Preflight Flet Python 3.12.6 bootstrap archive
+      - name: Preflight Flet Python runtime
         run: |
           set -euo pipefail
           URL="https://github.com/indygreg/python-build-standalone/releases/download/20240909/cpython-3.12.6+20240909-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
-          ARCHIVE="$RUNNER_TEMP/botking-python-3.12.6.tar.gz"
-          echo "Downloading upstream Python runtime with HTTP status validation"
+          ARCHIVE="$RUNNER_TEMP/botking-python.tar.gz"
           curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 240 "$URL" -o "$ARCHIVE"
           test "$(stat -c%s "$ARCHIVE")" -gt 1000000
-          echo "Archive size: $(du -h "$ARCHIVE")"
-          echo "Inspecting archive layout:"
-          tar -tzf "$ARCHIVE" | head -n 15 || true
-          tar -tzf "$ARCHIVE" | grep -E '(^|/)python/bin/python3(\\.[0-9]+)?
+          mkdir -p "$RUNNER_TEMP/botking-python-extracted"
+          tar -xzf "$ARCHIVE" -C "$RUNNER_TEMP/botking-python-extracted"
+          PYBIN="$RUNNER_TEMP/botking-python-extracted/python/bin/python3"
+          ls -lah "$RUNNER_TEMP/botking-python-extracted/python/bin"
+          test -x "$PYBIN"
+          "$PYBIN" --version
+          echo "Python runtime archive preflight passed"
+
+      - name: Build APK with Python bootstrap diagnostics
         run: |
           set -euo pipefail
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
-          for attempt in 1; do
-            echo "APK build diagnostic attempt ${attempt}/1"
-            if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
-              echo "APK build succeeded"
-              exit 0
-            fi
+          if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
+            echo "APK build succeeded"
+          else
             echo "DIAGNOSTIC: Inspecting Flet Python bootstrap"
             BOOTSTRAP="build/flutter/build/build_python_3.12.6"
-            if [ -d "$BOOTSTRAP" ]; then
-              ls -lah "$BOOTSTRAP" || true
-              ls -lah "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
-              find "$BOOTSTRAP" -maxdepth 4 -type f -name 'python3*' -print 2>&1 || true
-              if [ -e "$BOOTSTRAP/python/bin/python3" ]; then
-                file "$BOOTSTRAP/python/bin/python3" || true
-                ldd "$BOOTSTRAP/python/bin/python3" || true
-                "$BOOTSTRAP/python/bin/python3" --version || true
-              fi
-            else
-              echo "Bootstrap directory missing after failed Flet packaging"
-            fi
+            ls -lah "$BOOTSTRAP" "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
+            find "$BOOTSTRAP" -maxdepth 4 -name 'python3*' -print 2>&1 || true
             df -h . /tmp || true
-            echo "DIAGNOSTIC: Inspection complete"
-            if ! grep -Eq '429|502|503|504|Too Many Requests|Gateway Time-out|Gateway Timeout|Bad Gateway|Service Unavailable|Could not GET|Read timed out|Connection reset|Connection timed out|downloadDistArchive|ClientProtocolException|ProcessException: No such file or directory|Flet app package app/app.zip was not created' /tmp/volume-king-build.log; then
-              echo "Non-network build failure; stopping retries"
-              exit 1
-            fi
-            if [ "$attempt" -eq 1 ]; then
-              echo "Build failed after 1 diagnostic attempt"
-              exit 1
-            fi
-            # Discard partial Python bootstrap and Flutter outputs before retry.
-            rm -rf build/flutter/build/build_python_3.12.6 build/flutter/app build/site-packages
-            sleep $((attempt * 45))
-          done
+            exit 1
+          fi
 
       - name: Upload Python packaging failure log
         if: failure()
