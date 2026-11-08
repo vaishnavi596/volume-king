@@ -38,6 +38,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('app_active[0]=True', source)
         self.assertIn('log_error("lifecycle_unknown"', source)
 
+    def test_background_market_task_recovers_from_unhandled_errors(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('async def supervised_market_refresh():', source)
+        self.assertIn('log_error("market_loop_crash",exc)', source)
+        self.assertIn('page.run_task(supervised_market_refresh)', source)
+        self.assertNotIn('page.run_task(refresh_market)', source)
+
 
     def test_android_app_private_storage_survives_restart_with_native_bridge_down(self):
         with tempfile.TemporaryDirectory() as directory:
