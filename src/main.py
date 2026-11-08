@@ -250,6 +250,7 @@ def app_main(page:ft.Page):
             return original_page_update(*args,**kwargs)
     page.update=localized_update
     diagnostics=[]
+    dhan_batch_issue=[None]  # Active batch failure; cleared only after a verified batch succeeds.
     from threading import RLock
     trade_lock=RLock()
     view_lock=RLock()
@@ -791,6 +792,8 @@ def app_main(page:ft.Page):
         valid=int(scan_progress.get("valid",0) or 0)
         state=str(scan_progress.get("state","Waiting"))
         problems=[]
+        if dhan and dhan_batch_issue[0]:
+            problems.append("Dhan watchlist batch: "+dhan_batch_issue[0])
         if not connected:problems.append("Yahoo quote not verified" if yahoo else "Provider disconnected; reconnect in Settings")
         if dhan and (not connected or valid<total):
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
@@ -1065,10 +1068,12 @@ def app_main(page:ft.Page):
             count=sum(1 for ticker in all_watch_symbols() if
                       (quotes.get(ticker) or {}).get("source")=="Dhan" and
                       isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
+            dhan_batch_issue[0]=None
             watch_batch_status[0]=f"Dhan LTP loaded: {count}/{len(all_watch_symbols())} • timestamp unverified"
             market_status=watch_batch_status[0]
         except Exception as exc:
             log_error("watchlist_dhan_batch",exc)
+            dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             market_status=watch_batch_status[0]
         finally:
@@ -1653,10 +1658,12 @@ def app_main(page:ft.Page):
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
                         failed_symbols.clear()
+                        dhan_batch_issue[0]=None
                         market_status='Dhan • '+str(len(batch))+' equity LTP quotes received; timestamps unverified'
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
+                        dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
                         connection_status.value=market_status
@@ -2977,6 +2984,7 @@ console.log('BOT KING Lightweight Charts ready');
     for control,key in bindings:bind_saved(control,key)
     def provider_changed(e):
         nonlocal market_status
+        dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
         quotes.clear();candles.clear();fusion_cache.clear();scan_generation[0]+=1
