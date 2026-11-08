@@ -33,7 +33,7 @@ class MonitoringAuditTests(unittest.TestCase):
         self.assertEqual(result['bias'],'WAIT')
         self.assertIn('too old',result['reason'])
     def test_partial_super_five_updates_preserve_five_rows(self):
-        _,v=start({'scanner_live':False})
+        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         result={'bias':'BULLISH','score':90,'timestamp':time.time()-300,'source':'Yahoo','reason':'trend','historical':False}
         v['publish_partial_ranking']({'TEST':result})
         self.assertEqual(len(v['top5_candidates']),5)
