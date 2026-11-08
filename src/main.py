@@ -3039,7 +3039,8 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(5)
                 continue
             initial=False
-            last_scanned_generation=current_generation
+            # Mark a closed-session scan as attempted only after its provider is ready.
+            # Otherwise the first disconnected launch suppresses the entire scan after login.
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -3070,6 +3071,8 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4):request_view_refresh(current[0])
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                # Connection is now ready: allow the first historical scan even on weekends.
+                last_scanned_generation=current_generation
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
