@@ -407,6 +407,29 @@ class AuditTests(unittest.TestCase):
         asyncio.run(run());self.assertEqual(v['bot_position']['side'],'BUY')
         self.assertIn('stale',v['protection_status'].value)
 
+    def test_android_inactive_does_not_pause_scanner(self):
+        page,v=start({'scanner_live':False,'source':'Dhan'})
+        active=v['app_active']
+        active[0]=True
+        before=len(page.tasks)
+        event=type('Lifecycle',(),{'state':'inactive'})()
+        v['lifecycle_changed'](event)
+        self.assertTrue(active[0])
+        self.assertEqual(len(page.tasks),before)
+        self.assertNotIn('backgrounded',v['runtime_status'].value.lower())
+
+    def test_android_paused_and_resumed_schedule_refresh(self):
+        page,v=start({'scanner_live':False,'source':'Dhan'})
+        v['app_active'][0]=True
+        v['lifecycle_changed'](type('Lifecycle',(),{'state':'paused'})())
+        self.assertFalse(v['app_active'][0])
+        self.assertIn('backgrounded',v['runtime_status'].value.lower())
+        before=len(page.tasks)
+        v['lifecycle_changed'](type('Lifecycle',(),{'state':'resumed'})())
+        self.assertTrue(v['app_active'][0])
+        self.assertGreater(len(page.tasks),before)
+        self.assertEqual(page.tasks[-1][0].__name__,'refresh_after_resume')
+
     def test_palette_contrast(self):
         _,v=start()
         colors=v['txt'].__globals__
