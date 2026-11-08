@@ -35,3 +35,13 @@ For each candidate file, record: original path, purpose, all static/dynamic impo
 - Run tests and inspect workflow result, signing identity, package ID and monotonic build number.
 
 **APK build not authorized by this report.**
+
+## 2026-11-08 verified follow-up
+
+- Recursive GitHub tree retrieval was complete (not truncated); this supersedes the older tree-unverified note above.
+- Backend CI run #38: SUCCESS: https://github.com/vaishnavi596/volume-king/actions/runs/42487944824
+- Backend CI run #39: SUCCESS: https://github.com/vaishnavi596/volume-king/actions/runs/42488104908
+- Dhan interactive consent tokens now feed market-data endpoints after strict offset-aware expiry validation; mocked tests pass. Provisioned token fallback remains. The older token-file-only finding above is superseded.
+- Legacy new-version/bot_app.py was archived as archive/retired/bot_app_legacy_gateway.py.txt before original removal. Other candidates remain unapproved.
+- Oracle read-only audit script was added but has NOT been run on Oracle. Real Dhan entitlement, fresh quotes, candles and Android runtime remain unverified.
+- No APK was built; maintain signing and version continuity until runtime validation.
