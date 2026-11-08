@@ -158,6 +158,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 --version
+          # pip 25.x detects Android wheel tags via platform.android_ver(),
+          # which is unavailable in this Linux-host bootstrap. Pin pip to the
+          # pre-Android-tag implementation used by the Flet 0.25 generation.
+          python3 -m pip install --disable-pip-version-check "pip==24.0"
           python3 -m pip --version
           # Flet 0.25.2 uses a host Python interpreter to install Android wheels.
           # The upstream distributive download can return an empty extraction.
