@@ -3236,16 +3236,19 @@ console.log('BOT KING Lightweight Charts ready');
             page.update()
         finally:resume_busy[0]=False
     def lifecycle_changed(e):
-        state=getattr(e,"state",None)
-        state=str(getattr(state,"value",state)).strip().lower()
-        # Flet may emit enum-qualified names (AppLifecycleState.RESUMED).
-        # Unknown lifecycle events must not silently disable all market tasks.
+        # Flet lifecycle events differ across Android/Flet versions: the state
+        # may be in e.state, e.data, or directly in an enum/string payload.
+        raw=getattr(e,"state",None)
+        if raw is None:raw=getattr(e,"data",None)
+        if raw is None:raw=e
+        state=str(getattr(raw,"value",raw)).strip().lower()
+        # Only known background states pause tasks. Unknown events are ignored
+        # rather than leaving the scanner disabled or recording a false crash.
         if state=="resumed" or state.endswith(".resumed"):
             app_active[0]=True
         elif state in ("inactive","paused","detached","hidden") or any(state.endswith("."+v) for v in ("inactive","paused","detached","hidden")):
             app_active[0]=False
         else:
-            log_error("lifecycle_unknown",ValueError("Unrecognized app lifecycle state"))
             return
         if not app_active[0]:
             protection_pending.clear()
