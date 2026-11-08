@@ -3194,7 +3194,23 @@ console.log('BOT KING Lightweight Charts ready');
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
             await asyncio.sleep(120)
-    page.run_task(refresh_market)
+    async def supervised_market_refresh():
+        # A single unhandled exception must not permanently stop all 51 scans.
+        while True:
+            try:
+                await refresh_market()
+                log_error("market_loop_exit",RuntimeError("Market refresh task exited unexpectedly"))
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("market_loop_crash",exc)
+            scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
+                                 failed=0,cached=0,state="Market scan task restarting after error; see diagnostics")
+            if current[0] in (0,4):
+                try:request_view_refresh(current[0])
+                except Exception:pass
+            await asyncio.sleep(5)
+    page.run_task(supervised_market_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
         if resume_busy[0]:return
