@@ -3165,12 +3165,15 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
+                cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
-                    market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
+                    market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
                 elif prefs.get("source")=="Dhan" and dhan_feed.connected:
                     with dhan_batch_lock:
                         batch_count=len(dhan_batch_cache["quotes"]) if dhan_batch_cache["generation"]==generation else 0
-                    market_status=("Dhan • "+str(batch_count)+" equity LTP quotes; historical candles unavailable"
+                    market_status=("Dhan • "+str(cached_histories)+" saved candle histories; no fresh histories fetched • "+str(batch_count)+" equity LTP quotes"
+                                   if cached_histories else
+                                   "Dhan • "+str(batch_count)+" equity LTP quotes; historical candles unavailable"
                                    if batch_count else "Dhan • LTP and candle data unavailable; check server diagnostics")
                 else:
                     market_status="Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
