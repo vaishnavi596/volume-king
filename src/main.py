@@ -3086,6 +3086,8 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(5)
                 continue
             initial=False
+            successes=0  # Defined even when no supported market provider is selected.
+            generation=current_generation
             # Mark a closed-session scan as attempted only after its provider is ready.
             # Otherwise the first disconnected launch suppresses the entire scan after login.
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
