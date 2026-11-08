@@ -17,7 +17,7 @@ class FeedHealth:
             row=self.rows.get(key,{})
             if row.get("request_id")!=request_id:return False
             row.update(state=state,source=source,data_time=data_time,error=error)
-            if state in ("AVAILABLE","FALLBACK","PARTIAL"):
+            if state in ("AVAILABLE","FALLBACK","PARTIAL","HISTORICAL"):
                 row["last_success"]=self.clock()
             return True
     def get(self,key):
