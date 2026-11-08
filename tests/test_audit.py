@@ -559,13 +559,26 @@ class AuditTests(unittest.TestCase):
         feed._pairing_key='test-only'
         v['dhan_batch_issue'][0]='Data request failed (FeedError)'
         v['connection_status'].value='Dhan connected; watchlist batch failed'
-        with patch.object(feed,'batch_quotes',return_value={
-                'RELIANCE':{'source':'Dhan','price':1234.5,'symbol':'RELIANCE'}}):
+        complete={symbol:{'source':'Dhan','price':1234.5,'symbol':symbol}
+                  for symbol in v['all_watch_symbols']()}
+        with patch.object(feed,'batch_quotes',return_value=complete):
             asyncio.run(v['refresh_watch_batch']())
         self.assertIsNone(v['dhan_batch_issue'][0])
         self.assertIn('Dhan connected',v['connection_status'].value)
-        self.assertIn('equity LTP quotes loaded',v['connection_status'].value)
+        self.assertIn('equity LTP quotes returned',v['connection_status'].value)
         self.assertNotIn('batch failed',v['connection_status'].value)
+
+    def test_partial_dhan_batch_is_not_reported_as_complete(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        feed=v['dhan_feed']
+        feed._origin='https://example.invalid'
+        feed._pairing_key='test-only'
+        with patch.object(feed,'batch_quotes',return_value={
+                'RELIANCE':{'source':'Dhan','price':1234.5,'symbol':'RELIANCE'}}):
+            asyncio.run(v['refresh_watch_batch']())
+        self.assertIn('Partial Dhan batch: 1/',v['dhan_batch_issue'][0])
+        self.assertIn('Dhan LTP partial: 1/',v['watch_batch_status'][0])
+        self.assertNotIn('LTP loaded:',v['watch_batch_status'][0])
 
     def test_dhan_batch_failure_stays_visible_until_recovery(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
