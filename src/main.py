@@ -3048,9 +3048,14 @@ console.log('BOT KING Lightweight Charts ready');
         initial=True
         last_scanned_generation=None
         while True:
-            if not app_active[0]:
+            # Android can report a transient inactive lifecycle state while the
+            # visible app is still in use. Never strand the first authenticated
+            # Dhan historical scan behind that flag; allow one generation scan.
+            pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected
+                               and last_scanned_generation!=provider_generation[0])
+            if not app_active[0] and not pending_dhan_scan:
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
-                    scan_progress["state"]="Dhan connected; background scan waiting for app foreground"
+                    scan_progress["state"]="Dhan scan paused until foreground or new connection"
                 await asyncio.sleep(5);continue
             # Scan historical candles once after provider changes, even on closed days.
             current_generation=provider_generation[0]
