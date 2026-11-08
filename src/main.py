@@ -1055,6 +1055,8 @@ def app_main(page:ft.Page):
         request_view_refresh(4)
         try:
             batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            if not batch:
+                raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
             with dhan_batch_lock:
@@ -1654,6 +1656,8 @@ def app_main(page:ft.Page):
                     # Verify watchlist batch independently of the login check.
                     try:
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        if not batch:
+                            raise FeedError("Empty Dhan batch response")
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=provider_generation[0],
                                                     updated=time.monotonic(),quotes=batch)
