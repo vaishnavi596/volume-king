@@ -41,6 +41,7 @@ if test -e "$dropin"; then cp -p "$dropin" "$backup/gateway.conf"; fi
 if test -e "$limits"; then cp -p "$limits" "$backup/limits.conf"; fi
 
 rollback() {
+    trap - ERR
     echo "Installation failed. Restoring previous server/configuration. Backup: $backup" >&2
     cp -p "$backup/server.py" "$appdir/server.py"
     cp -p "$backup/nginx.conf" "$nginxconf"
@@ -188,7 +189,11 @@ for route in status ltp ltp-batch intraday; do
     else
         dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d '{}' "https://botkingrajesh.duckdns.org/dhan/$route")
     fi
-    test "$dhan_code" = 403 || { echo "Dhan route /dhan/$route failed protected routing check (HTTP $dhan_code)" >&2; exit 1; }
+    if test "$dhan_code" != 403; then
+        echo "Dhan route /dhan/$route failed protected routing check (HTTP $dhan_code)" >&2
+        rollback
+        exit 1
+    fi
 done
 trap - ERR
 echo 'BOT KING gateway installed. Protected market-data endpoint returned 401 without a session, as expected.'
