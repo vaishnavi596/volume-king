@@ -19,8 +19,9 @@ trap 'rm -rf "$stage"' EXIT
 base="https://raw.githubusercontent.com/vaishnavi596/volume-king/$release"
 curl --fail --silent --show-error --max-time 60 "$base/backend/server.py" -o "$stage/server.py"
 curl --fail --silent --show-error --max-time 60 "$base/src/market_feed.py" -o "$stage/market_feed.py"
+curl --fail --silent --show-error --max-time 60 "$base/backend/dhan_feed.py" -o "$stage/dhan_feed.py"
 curl --fail --silent --show-error --max-time 60 "$base/backend/requirements.txt" -o "$stage/requirements.txt"
-/usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py"
+/usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py" "$stage/dhan_feed.py"
 
 # Only these Python packages change; existing SmartAPI packages are retained.
 install -o opc -g opc -m 600 "$stage/requirements.txt" "$appdir/gateway-requirements.txt"
@@ -31,7 +32,7 @@ backup="/var/backups/bot-king/gateway-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 install -d -m 700 "$backup"
 cp -p "$appdir/server.py" "$backup/server.py"
 cp -p "$nginxconf" "$backup/nginx.conf"
-for entry in market_feed.py; do
+for entry in market_feed.py dhan_feed.py; do
     if test -e "$appdir/$entry"; then cp -p "$appdir/$entry" "$backup/$entry"; fi
 done
 if test -e "$dropin"; then cp -p "$dropin" "$backup/gateway.conf"; fi
@@ -41,7 +42,9 @@ rollback() {
     echo "Installation failed. Restoring previous server/configuration. Backup: $backup" >&2
     cp -p "$backup/server.py" "$appdir/server.py"
     cp -p "$backup/nginx.conf" "$nginxconf"
-    if test -f "$backup/market_feed.py"; then cp -p "$backup/market_feed.py" "$appdir/market_feed.py"; else rm -f "$appdir/market_feed.py"; fi
+    for entry in market_feed.py dhan_feed.py; do
+        if test -f "$backup/$entry"; then cp -p "$backup/$entry" "$appdir/$entry"; else rm -f "$appdir/$entry"; fi
+    done
     if test -f "$backup/gateway.conf"; then cp -p "$backup/gateway.conf" "$dropin"; else rm -f "$dropin"; fi
     if test -f "$backup/limits.conf"; then cp -p "$backup/limits.conf" "$limits"; else rm -f "$limits"; fi
     restorecon -RF "$appdir" /etc/nginx/conf.d /etc/systemd/system/bot-king.service.d || true
@@ -74,6 +77,7 @@ chown opc:opc /home/opc/bot-king-pairing-key.txt
 chmod 600 /home/opc/bot-king-pairing-key.txt
 install -o opc -g opc -m 644 "$stage/server.py" "$appdir/server.py"
 install -o opc -g opc -m 644 "$stage/market_feed.py" "$appdir/market_feed.py"
+install -o opc -g opc -m 644 "$stage/dhan_feed.py" "$appdir/dhan_feed.py"
 install -d -m 755 /etc/systemd/system/bot-king.service.d
 cat > "$dropin" <<'UNIT'
 [Service]
@@ -131,6 +135,26 @@ if 'location = /dhan/callback' not in config:
         proxy_connect_timeout 3s;
         proxy_read_timeout 10s;
         proxy_pass http://127.0.0.1:8000/dhan/callback;
+    }
+    '''
+    path.write_text(config.replace(anchor, block + anchor))
+PY
+# Route authenticated Dhan read-only endpoints to the same local gateway.
+# Exact /dhan/callback location above takes precedence over this prefix.
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+path = Path('/etc/nginx/conf.d/bot-king.conf')
+config = path.read_text()
+if 'location /dhan/ {' not in config:
+    anchor = 'location / { return 404; }'
+    if config.count(anchor) != 1 or 'botkingrajesh.duckdns.org' not in config:
+        raise SystemExit('Unexpected Nginx configuration; Dhan proxy not added')
+    block = '''location /dhan/ {
+        client_max_body_size 8k;
+        access_log off;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 45s;
+        proxy_pass http://127.0.0.1:8000;
     }
     '''
     path.write_text(config.replace(anchor, block + anchor))
