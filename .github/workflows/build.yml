@@ -150,6 +150,129 @@ jobs:
           echo "FLET_ANDROID_SIGNING_KEY_PASSWORD=$BOTKING_KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "Permanent signing verified; fingerprint is pinned."
 
+      - name: Preflight Flet Python 3.12.6 bootstrap archive
+        run: |
+          set -euo pipefail
+          URL="https://github.com/indygreg/python-build-standalone/releases/download/20240909/cpython-3.12.6+20240909-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+          ARCHIVE="$RUNNER_TEMP/botking-python-3.12.6.tar.gz"
+          echo "Downloading upstream Python runtime with HTTP status validation"
+          curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 240 "$URL" -o "$ARCHIVE"
+          test "$(stat -c%s "$ARCHIVE")" -gt 1000000
+          echo "Archive size: $(du -h "$ARCHIVE")"
+          echo "Inspecting archive layout:"
+          tar -tzf "$ARCHIVE" | head -n 15 || true
+          tar -tzf "$ARCHIVE" | grep -E '(^|/)python/bin/python3(\\.[0-9]+)?
+        run: |
+          set -euo pipefail
+          BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          for attempt in 1; do
+            echo "APK build diagnostic attempt ${attempt}/1"
+            if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
+              echo "APK build succeeded"
+              exit 0
+            fi
+            echo "DIAGNOSTIC: Inspecting Flet Python bootstrap"
+            BOOTSTRAP="build/flutter/build/build_python_3.12.6"
+            if [ -d "$BOOTSTRAP" ]; then
+              ls -lah "$BOOTSTRAP" || true
+              ls -lah "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
+              find "$BOOTSTRAP" -maxdepth 4 -type f -name 'python3*' -print 2>&1 || true
+              if [ -e "$BOOTSTRAP/python/bin/python3" ]; then
+                file "$BOOTSTRAP/python/bin/python3" || true
+                ldd "$BOOTSTRAP/python/bin/python3" || true
+                "$BOOTSTRAP/python/bin/python3" --version || true
+              fi
+            else
+              echo "Bootstrap directory missing after failed Flet packaging"
+            fi
+            df -h . /tmp || true
+            echo "DIAGNOSTIC: Inspection complete"
+            if ! grep -Eq '429|502|503|504|Too Many Requests|Gateway Time-out|Gateway Timeout|Bad Gateway|Service Unavailable|Could not GET|Read timed out|Connection reset|Connection timed out|downloadDistArchive|ClientProtocolException|ProcessException: No such file or directory|Flet app package app/app.zip was not created' /tmp/volume-king-build.log; then
+              echo "Non-network build failure; stopping retries"
+              exit 1
+            fi
+            if [ "$attempt" -eq 1 ]; then
+              echo "Build failed after 1 diagnostic attempt"
+              exit 1
+            fi
+            # Discard partial Python bootstrap and Flutter outputs before retry.
+            rm -rf build/flutter/build/build_python_3.12.6 build/flutter/app build/site-packages
+            sleep $((attempt * 45))
+          done
+
+      - name: Upload Python packaging failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: botking-python-bootstrap-diagnostics
+          path: /tmp/volume-king-build.log
+          if-no-files-found: warn
+
+      - name: Sign APK with permanent release keystore
+        env:
+          BOTKING_KEYSTORE_PASSWORD: ${{ secrets.BOTKING_KEYSTORE_PASSWORD }}
+          BOTKING_KEY_PASSWORD: ${{ secrets.BOTKING_KEY_PASSWORD }}
+          BOTKING_KEY_ALIAS: ${{ secrets.BOTKING_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          APK="$(find build/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          # Flet currently produces a debug-signed APK. Remove that signature and
+          # sign the final artifact with our pinned permanent key.
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" "$RUNNER_TEMP/botking-aligned.apk"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$RUNNER_TEMP/botking-release.jks" \
+            --ks-key-alias "$BOTKING_KEY_ALIAS" \
+            --ks-pass env:BOTKING_KEYSTORE_PASSWORD \
+            --key-pass env:BOTKING_KEY_PASSWORD \
+            --out "$RUNNER_TEMP/botking-signed.apk" \
+            "$RUNNER_TEMP/botking-aligned.apk"
+          cp "$RUNNER_TEMP/botking-signed.apk" "$APK"
+
+      - name: Inspect APK identity and signing certificate
+        run: |
+          set -euo pipefail
+          APK="$(find build/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "APK: $APK"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" > /tmp/botking-apk-badging.txt
+          grep "^package:" /tmp/botking-apk-badging.txt
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" > /tmp/botking-apk-signature.txt 2>&1 || {
+            cat /tmp/botking-apk-signature.txt
+            echo "::error::APK signature verification failed; refusing to upload."
+            exit 1
+          }
+          cat /tmp/botking-apk-signature.txt
+          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' /tmp/botking-apk-signature.txt | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED="$(printf '%s' "${{ secrets.BOTKING_SIGNING_SHA256 }}" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if [[ -z "$ACTUAL" || "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "::error::APK signing certificate mismatch; refusing to upload."
+            exit 1
+          fi
+          echo "Compare package name, versionCode, and certificate SHA-256 with the currently installed APK before attempting an in-place update."
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: volume-king-apk
+          path: build/apk/*.apk
+          if-no-files-found: error
+ | head -n 5 || true
+          mkdir -p "$RUNNER_TEMP/botking-python-extracted"
+          tar -xzf "$ARCHIVE" -C "$RUNNER_TEMP/botking-python-extracted"
+          find "$RUNNER_TEMP/botking-python-extracted" -maxdepth 4 -name 'python3*' -print
+          PYBIN="$RUNNER_TEMP/botking-python-extracted/python/bin/python3"
+          if [ ! -x "$PYBIN" ]; then
+            echo "::error::Upstream Python runtime archive did not provide executable python/bin/python3"
+            exit 1
+          fi
+          "$PYBIN" --version
+          echo "Upstream Python runtime archive verified before Flet packaging"
+
       - name: Build APK (retry transient dependency download errors)
         run: |
           set -euo pipefail
