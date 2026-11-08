@@ -490,6 +490,26 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('HISTORICAL' in value for value in rendered))
         self.assertFalse(any(value.startswith('BULLISH • 3/3') for value in rendered))
 
+    def test_historical_strength_widget_mutes_bars_and_labels(self):
+        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
+        row={'source':'Yahoo Finance','timestamp':1,'historical':True,
+             'votes':[{'vote':1},{'vote':-1}]}
+        widget=v['strength_widget'](row,'NIFTY')
+        values=[]
+        colors=[]
+        def walk(control):
+            value=getattr(control,'value',None)
+            if isinstance(value,str):values.append(value)
+            color=getattr(control,'bgcolor',None)
+            if color is not None:colors.append(color)
+            for child in control._get_children():walk(child)
+        walk(widget)
+        self.assertTrue(any('Historical votes' in value for value in values))
+        self.assertIn(v['MUTED'],colors)
+        self.assertIn(v['BORDER'],colors)
+        self.assertNotIn(v['GREEN'],colors)
+        self.assertNotIn(v['RED'],colors)
+
     def test_palette_contrast(self):
         _,v=start()
         colors=v['txt'].__globals__
