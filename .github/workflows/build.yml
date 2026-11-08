@@ -34,6 +34,47 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache verified Gradle 8.7 distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists/gradle-8.7-bin
+          key: botking-gradle-8.7-bin-544c35d6-v1
+
+      - name: Preload Gradle 8.7 from official CDN
+        run: |
+          set -euo pipefail
+          # Flet 0.25.2 generates a wrapper pointing to the Gradle 8.7 services URL.
+          # The services URL redirects to GitHub Releases, which returned HTTP 504.
+          # Download from the official Gradle CDN into that wrapper URL's cache slot.
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          url = "https://services.gradle.org/distributions/gradle-8.7-bin.zip"
+          n = int.from_bytes(hashlib.md5(url.encode()).digest(), "big")
+          digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+          result = ""
+          while n:
+              n, rem = divmod(n, 36)
+              result = digits[rem] + result
+          path = Path.home() / ".gradle" / "wrapper" / "dists" / "gradle-8.7-bin" / result
+          path.mkdir(parents=True, exist_ok=True)
+          with open("/tmp/botking-gradle-cache-dir", "w") as out:
+              out.write(str(path))
+          print("Gradle wrapper distribution cache:", path)
+          PY
+          DIST_DIR="$(cat /tmp/botking-gradle-cache-dir)"
+          DIST_ZIP="$DIST_DIR/gradle-8.7-bin.zip"
+          EXPECTED_SHA="544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d"
+          if ! echo "$EXPECTED_SHA  $DIST_ZIP" | sha256sum --check --status 2>/dev/null; then
+            rm -f "$DIST_ZIP"
+            curl -fL --retry 6 --retry-all-errors --retry-delay 10 \
+              --connect-timeout 30 --max-time 480 \
+              "https://downloads.gradle.org/distributions/gradle-8.7-bin.zip" \
+              --output "$DIST_ZIP"
+            echo "$EXPECTED_SHA  $DIST_ZIP" | sha256sum --check
+          fi
+          echo "Verified official Gradle 8.7 ZIP preloaded."
+
       - name: Accept Android licenses
         run: yes | flutter doctor --android-licenses || true
 
