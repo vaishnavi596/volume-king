@@ -524,6 +524,22 @@ class AuditTests(unittest.TestCase):
         secret="token=never-display-this"
         self.assertNotIn(secret,safe_error(FeedError("Unknown error "+secret)))
 
+    def test_dhan_adapter_rejects_empty_and_accepts_partial_batch(self):
+        from server_feed import ServerDhanReadOnly
+        from market_feed import FeedError
+        feed=ServerDhanReadOnly()
+        with patch.object(feed,'_call',return_value={
+                'source':'dhan','quotes':{},'live_orders_enabled':False}):
+            with self.assertRaisesRegex(FeedError,'Empty Dhan batch response'):
+                feed.batch_quotes()
+        with patch.object(feed,'_call',return_value={
+                'source':'dhan','quotes':{'RELIANCE':1234.5},
+                'live_orders_enabled':False}):
+            result=feed.batch_quotes()
+        self.assertEqual(list(result),['RELIANCE'])
+        self.assertIsNone(result['RELIANCE']['quote_timestamp'])
+        self.assertEqual(result['RELIANCE']['freshness'],'unverified')
+
     def test_empty_dhan_batch_does_not_clear_active_failure(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         feed=v['dhan_feed']
