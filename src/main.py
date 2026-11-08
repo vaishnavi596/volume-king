@@ -1633,6 +1633,12 @@ def app_main(page:ft.Page):
                         connection_status.value=("Dhan connected • "+str(len(batch))+
                             " equity LTP quotes loaded • timestamps unverified")
                         connection_status.color=GREEN
+                        # Start a fresh historical-scan generation only after the
+                        # authenticated batch completes. A prior disconnected or
+                        # in-flight generation must not suppress this scan.
+                        provider_generation[0]+=1
+                        scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
+                            failed=0,cached=0,state="Dhan connected; historical scan queued")
                 else:
                     connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
                         if result.get("authenticated") else
