@@ -27,6 +27,10 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)', source)
         self.assertIn('scan_progress["state"]="Loading histories: "', source)
         self.assertIn('market_completed[0]+=1', source)
+        self.assertIn('history_failed=[0]', source)
+        self.assertIn('history_failed[0]+=1', source)
+        self.assertIn('Ranking completed candles: 0 / ', source)
+        self.assertIn('Loading candle histories: 0 / ', source)
 
 
     def test_android_app_private_storage_survives_restart_with_native_bridge_down(self):
