@@ -402,8 +402,11 @@ def app_main(page:ft.Page):
             candle_note=("Candles: "+scan_shared["direction"]+" • "+scan_shared["basis"] if scan_shared.get("symbol")==symbol and scan_shared.get("tf")==interval else "Candle analysis not available for this selection yet")
             return section("COMBINED ANALYSIS • "+symbol,ft.Column([note(candle_note),note("News analysis pending or unavailable. Options require a verified broker feed.")],spacing=5))
         data=dict(data)
-        if datetime.now(timezone.utc).timestamp()-data.get("timestamp",0)>timeframe_spec(interval)["fresh_seconds"]:
-            data.update(reason="HISTORICAL combined result: "+age_label(data.get("timestamp"))+" • old conclusion only; not a current signal. "+data.get("reason",""))
+        combined_age=datetime.now(timezone.utc).timestamp()-(data.get("timestamp") or 0)
+        if combined_age<0 or combined_age>timeframe_spec(interval)["fresh_seconds"]:
+            previous_direction=data.get("overall","WAIT")
+            data.update(overall="WAIT",reason="HISTORICAL combined result: "+age_label(data.get("timestamp"))+
+                        " • previous direction "+previous_direction+" is not a current signal. "+data.get("reason",""))
         controls=[txt(data["overall"]+" • "+str(data["coverage"])+"/3 directional inputs",16,GOLD,True),
             note("Candles: "+data["candle"]["bias"]+" | Options: "+data["options"]["bias"]+" | News cues: "+data["news"]["bias"]),note(data["reason"])]
         if not compact:
