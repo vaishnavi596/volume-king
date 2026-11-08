@@ -32,7 +32,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Cache verified Gradle 8.7 distribution
         uses: actions/cache@v4
@@ -154,6 +154,40 @@ jobs:
       # Do not block the entire APK build on an extra diagnostic download.
       # Flet handles its own bootstrap; failures are captured below.
 
+      - name: Prepare local Python 3.12 bootstrap fallback
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 -m pip --version
+          # Flet 0.25.2 uses a host Python interpreter to install Android wheels.
+          # The upstream distributive download can return an empty extraction.
+          # Watch for its bootstrap directory and provide the runner's Python
+          # 3.12 interpreter when the upstream executable is missing.
+          cat > "$RUNNER_TEMP/botking-bootstrap-watch.py" <<'PY'
+          import os
+          import pathlib
+          import shutil
+          import sys
+          import time
+          root = pathlib.Path.cwd() / "build/flutter/build/build_python_3.12.6/python/bin"
+          source = pathlib.Path(sys.executable).resolve()
+          deadline = time.monotonic() + 1200
+          while time.monotonic() < deadline:
+              parent = root.parent.parent
+              if parent.exists():
+                  root.mkdir(parents=True, exist_ok=True)
+                  target = root / "python3"
+                  if not target.exists():
+                      try:
+                          target.symlink_to(source)
+                          print(f"Fallback Python bootstrap: {target} -> {source}", flush=True)
+                      except OSError as exc:
+                          print(f"Fallback bootstrap retry: {exc}", flush=True)
+              time.sleep(0.05)
+          PY
+          nohup python3 -u "$RUNNER_TEMP/botking-bootstrap-watch.py" > "$RUNNER_TEMP/botking-bootstrap-watch.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/botking-bootstrap-watch.pid"
+
       - name: Build APK with Python bootstrap diagnostics
         run: |
           set -euo pipefail
@@ -165,6 +199,7 @@ jobs:
             BOOTSTRAP="build/flutter/build/build_python_3.12.6"
             ls -lah "$BOOTSTRAP" "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
             find "$BOOTSTRAP" -maxdepth 4 -name 'python3*' -print 2>&1 || true
+            cat "$RUNNER_TEMP/botking-bootstrap-watch.log" || true
             df -h . /tmp || true
             exit 1
           fi
