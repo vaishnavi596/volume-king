@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.42" # Pin Ubuntu 22.04 runner for Flet Python bootstrap
+version = "2.3.43" # Diagnose Flet Python bootstrap extraction failure
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
