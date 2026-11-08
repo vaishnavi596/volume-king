@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.26"  # Fallback matches APK release.
+    APP_VERSION = "2.3.27"  # Fallback matches APK release.
 from pathlib import Path
 
 #                                  Apache License
@@ -1471,6 +1471,7 @@ def app_main(page:ft.Page):
     def clear_broker_credentials(e):
         page.run_task(revoke_and_clear)
     async def connect_angel():
+        nonlocal market_status
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
             endpoint=(api_url.value or "").strip()
