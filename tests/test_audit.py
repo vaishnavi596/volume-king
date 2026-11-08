@@ -470,6 +470,26 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(row['data_time'],12000)
         self.assertNotEqual(row['state'],'AVAILABLE')
 
+    def test_stale_combined_fusion_card_suppresses_direction(self):
+        page,v=start({'scanner_live':False})
+        symbol='NIFTY'
+        v['fusion_cache'][symbol+':5m']={
+            'overall':'BULLISH','coverage':3,'timestamp':1,
+            'candle':{'bias':'BULLISH','timestamp':1},
+            'options':{'bias':'BULLISH','available':False},
+            'news':{'bias':'POSITIVE'},'reason':'Old agreement',
+        }
+        card=v['fusion_card'](symbol,'5m',compact=True)
+        rendered=[]
+        def walk(control):
+            value=getattr(control,'value',None)
+            if isinstance(value,str):rendered.append(value)
+            for child in control._get_children():walk(child)
+        walk(card)
+        self.assertTrue(any('WAIT' in value for value in rendered))
+        self.assertTrue(any('HISTORICAL' in value for value in rendered))
+        self.assertFalse(any(value.startswith('BULLISH • 3/3') for value in rendered))
+
     def test_palette_contrast(self):
         _,v=start()
         colors=v['txt'].__globals__
