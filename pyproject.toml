@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.53" # Validate compact watchlist and diagnostics; signing must remain unchanged
+version = "2.3.53" # Validate provider-switch reset and Yahoo health; signing unchanged
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
