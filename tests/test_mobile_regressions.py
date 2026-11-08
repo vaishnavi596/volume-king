@@ -39,6 +39,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('if raw is None:raw=getattr(e,"data",None)', source)
         self.assertNotIn('log_error("lifecycle_unknown"', source)
 
+    def test_disconnected_dhan_hides_saved_quote_prices(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('def dhan_offline():', source)
+        self.assertIn('q=None if dhan_offline() else quotes.get(sym)', source)
+        self.assertIn('CONNECT DHAN', source)
+        self.assertIn('Dhan disconnected • saved prices hidden', source)
+
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('state="Dhan connected; historical scan queued"', source)
