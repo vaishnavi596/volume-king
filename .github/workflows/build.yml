@@ -150,20 +150,9 @@ jobs:
           echo "FLET_ANDROID_SIGNING_KEY_PASSWORD=$BOTKING_KEY_PASSWORD" >> "$GITHUB_ENV"
           echo "Permanent signing verified; fingerprint is pinned."
 
-      - name: Preflight Flet Python runtime
-        run: |
-          set -euo pipefail
-          URL="https://github.com/indygreg/python-build-standalone/releases/download/20240909/cpython-3.12.6+20240909-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
-          ARCHIVE="$RUNNER_TEMP/botking-python.tar.gz"
-          curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 240 "$URL" -o "$ARCHIVE"
-          test "$(stat -c%s "$ARCHIVE")" -gt 1000000
-          mkdir -p "$RUNNER_TEMP/botking-python-extracted"
-          tar -xzf "$ARCHIVE" -C "$RUNNER_TEMP/botking-python-extracted"
-          PYBIN="$RUNNER_TEMP/botking-python-extracted/python/bin/python3"
-          ls -lah "$RUNNER_TEMP/botking-python-extracted/python/bin"
-          test -x "$PYBIN"
-          "$PYBIN" --version
-          echo "Python runtime archive preflight passed"
+      # The upstream Python release endpoint intermittently returns HTTP 504.
+      # Do not block the entire APK build on an extra diagnostic download.
+      # Flet handles its own bootstrap; failures are captured below.
 
       - name: Build APK with Python bootstrap diagnostics
         run: |
