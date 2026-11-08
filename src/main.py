@@ -1070,11 +1070,18 @@ def app_main(page:ft.Page):
             count=sum(1 for ticker in all_watch_symbols() if
                       (quotes.get(ticker) or {}).get("source")=="Dhan" and
                       isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
-            dhan_batch_issue[0]=None
+            total_symbols=len(all_watch_symbols())
+            # A partial batch is not a complete refresh even if older quotes remain cached.
+            received=len(set(batch).intersection(all_watch_symbols()))
+            dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} symbols returned"
+                                 if received<total_symbols else None)
             if dhan_feed.connected:
-                connection_status.value=f"Dhan connected • {count} equity LTP quotes loaded • timestamps unverified"
-                connection_status.color=GREEN
-            watch_batch_status[0]=f"Dhan LTP loaded: {count}/{len(all_watch_symbols())} • timestamp unverified"
+                connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
+                                         "timestamps unverified")
+                connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • cached prices may remain • timestamp unverified"
+                                   if dhan_batch_issue[0] else
+                                   f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
         except Exception as exc:
             log_error("watchlist_dhan_batch",exc)
@@ -1665,8 +1672,13 @@ def app_main(page:ft.Page):
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
                         failed_symbols.clear()
-                        dhan_batch_issue[0]=None
-                        market_status='Dhan • '+str(len(batch))+' equity LTP quotes received; timestamps unverified'
+                        expected=len(all_watch_symbols())
+                        received=len(set(batch).intersection(all_watch_symbols()))
+                        dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{expected} symbols returned"
+                                             if received<expected else None)
+                        market_status=('Dhan • '+str(received)+'/'+str(expected)+
+                                       ' equity LTP quotes returned; timestamps unverified'+
+                                       (' • PARTIAL' if dhan_batch_issue[0] else ''))
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
@@ -1678,7 +1690,7 @@ def app_main(page:ft.Page):
                     else:
                         connection_status.value=("Dhan connected • "+str(len(batch))+
                             " equity LTP quotes loaded • timestamps unverified")
-                        connection_status.color=GREEN
+                        connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
                         # Start a fresh historical-scan generation only after the
                         # authenticated batch completes. A prior disconnected or
                         # in-flight generation must not suppress this scan.
