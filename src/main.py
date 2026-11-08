@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.53"  # Match current pyproject.toml when package metadata is unavailable.
+    APP_VERSION = "2.3.54"  # Match current pyproject.toml when package metadata is unavailable.
 from pathlib import Path
 
 #                                  Apache License
@@ -767,8 +767,13 @@ def app_main(page:ft.Page):
         if diagnostics and (not connected or (dhan and valid<total)):problems.append("Last error: "+diagnostics[-1][:100])
         if dhan and connected and valid>=total and "FeedError" in component_status("market"):
             problems.append("Chart data request failed; scanner completion does not verify chart")
+        market_health=component_status("market")
+        if "STALE" in market_health or "UNAVAILABLE" in market_health:
+            problems.append("Chart warning: historical or unavailable data; not verified live")
+        if yahoo and ("awaiting" in state.lower() or valid==0):
+            problems.append("Yahoo scanner analysis pending; historical quotes are not live")
         details=[
-            note("Provider: "+prefs.get("source","Unknown")+" • "+("session active (quote freshness unverified)" if connected else "disconnected; reconnect required")),
+            note("Provider: "+prefs.get("source","Unknown")+" • "+(("quote available; freshness unverified" if yahoo else "session active (quote freshness unverified)") if connected else ("quote not verified" if yahoo else "disconnected; reconnect required"))),
             note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" saved/displayed LTP • quote time unverified"+(" • DISCONNECTED; cached prices are not live" if not connected else "") if dhan else "Watchlist: check selected feed"),
             note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100] if dhan else "Candle scan: awaiting "+prefs.get("source","selected")+" analysis"),
             note("Chart: "+component_status("market")),
