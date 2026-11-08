@@ -32,6 +32,16 @@ def safe_error(exc):
         return "Provider HTTP error "+str(exc.code)
     if isinstance(exc,TimeoutError):return "Network timeout"
     if type(exc).__name__=="SessionExpired":return "Broker session expired; reconnect"
+    if type(exc).__name__=="FeedError":
+        # Match only known adapter phrases; never echo raw URLs or credentials.
+        detail=str(exc)
+        if "HTTP 403" in detail:return "Dhan server access rejected (HTTP 403); reconnect"
+        if any("HTTP "+str(code) in detail for code in (502,503,504)):
+            return "Dhan upstream temporarily unavailable; retry later"
+        if "HTTPS connection or response failed" in detail:
+            return "Dhan HTTPS connection failed or timed out; retry"
+        if "response too large" in detail:return "Dhan response exceeded safety limit"
+        if "Invalid Dhan batch" in detail:return "Dhan batch response failed validation"
     return "Data request failed ("+type(exc).__name__+")"
 
 def retry_delay(failures):
