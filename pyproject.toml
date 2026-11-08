@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.40" # Cache verified Gradle 8.7 distribution to avoid HTTP 504
+version = "2.3.41" # SHA-256 verified Gradle distribution mirror fallback
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
