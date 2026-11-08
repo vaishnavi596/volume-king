@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.27"  # Fallback matches APK release.
+    APP_VERSION = "2.3.28"  # Fallback matches APK release.
 from pathlib import Path
 
 #                                  Apache License
@@ -1530,11 +1530,11 @@ def app_main(page:ft.Page):
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
                         failed_symbols.clear()
-                        market_status='Dhan batch quotes received; timestamps unverified'
+                        market_status='Dhan • '+str(len(batch))+' equity LTP quotes received; timestamps unverified'
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
-                        market_status='Dhan connected; watchlist batch failed ('+type(exc).__name__+')'
+                        market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     connection_status.value="Dhan connected • 51 NSE equities and NIFTY mapped • timestamps unverified"
                     connection_status.color=GREEN
                 else:
@@ -2964,6 +2964,8 @@ console.log('BOT KING Lightweight Charts ready');
                                 request_view_refresh(4)
                     except Exception as exc:
                         log_error("dhan_batch",exc)
+                        market_status="Dhan batch LTP unavailable: "+safe_error(exc)
+                        if current[0] in (0,4):request_view_refresh(current[0])
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
                 successes=0
