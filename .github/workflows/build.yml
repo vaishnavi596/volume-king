@@ -192,6 +192,27 @@ jobs:
           nohup python3 -u "$RUNNER_TEMP/botking-bootstrap-watch.py" > "$RUNNER_TEMP/botking-bootstrap-watch.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/botking-bootstrap-watch.pid"
 
+      - name: Configure Gradle Android runtime download retries
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.gradle/init.d"
+          cat > "$HOME/.gradle/init.d/botking-runtime-download.gradle" <<'GRADLE'
+          allprojects { project ->
+              project.tasks.configureEach { task ->
+                  if (task.name.startsWith('downloadDistArchive_')) {
+                      try {
+                          task.retries = 12
+                          task.retryDelay = 15000
+                          logger.lifecycle("BOT KING: configured 12 retries (15s delay) for ${task.path}")
+                      } catch (Exception e) {
+                          logger.warn("BOT KING: download task does not expose retry properties: ${e.message}")
+                      }
+                  }
+              }
+          }
+          GRADLE
+          echo "Gradle init script installed to retry failed Python Android archive transfers."
+
       - name: Build APK with Python bootstrap diagnostics
         run: |
           set -euo pipefail
