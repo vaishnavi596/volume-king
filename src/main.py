@@ -810,7 +810,7 @@ def app_main(page:ft.Page):
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
             color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+("NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"]),14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason","")),strength_widget(row)],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+("NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"]),14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason","")),strength_widget(row,row.get("symbol"))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
