@@ -490,6 +490,25 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('HISTORICAL' in value for value in rendered))
         self.assertFalse(any(value.startswith('BULLISH • 3/3') for value in rendered))
 
+    def test_dhan_batch_errors_are_specific_and_do_not_echo_secrets(self):
+        from feed_health import safe_error
+        from market_feed import FeedError
+        cases=[
+            ("Dhan upstream unavailable or token expired (HTTP 503)",
+             "Dhan upstream temporarily unavailable; retry later"),
+            ("Dhan HTTPS connection or response failed",
+             "Dhan HTTPS connection failed or timed out; retry"),
+            ("Invalid Dhan batch response",
+             "Dhan batch response failed validation"),
+            ("Dhan server key rejected (HTTP 403); reconnect",
+             "Dhan server access rejected (HTTP 403); reconnect"),
+        ]
+        for raw,expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(safe_error(FeedError(raw)),expected)
+        secret="token=never-display-this"
+        self.assertNotIn(secret,safe_error(FeedError("Unknown error "+secret)))
+
     def test_dhan_batch_failure_stays_visible_until_recovery(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         def texts(control):
