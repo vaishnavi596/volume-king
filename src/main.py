@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.28"  # Fallback matches APK release.
+    APP_VERSION = "2.3.34"  # Keep synchronized with pyproject.toml for packaged APKs.
 from pathlib import Path
 
 #                                  Apache License
