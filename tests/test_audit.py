@@ -522,6 +522,21 @@ class AuditTests(unittest.TestCase):
         secret="token=never-display-this"
         self.assertNotIn(secret,safe_error(FeedError("Unknown error "+secret)))
 
+    def test_successful_dhan_watchlist_retry_clears_settings_error(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        feed=v['dhan_feed']
+        feed._origin='https://example.invalid'
+        feed._pairing_key='test-only'
+        v['dhan_batch_issue'][0]='Data request failed (FeedError)'
+        v['connection_status'].value='Dhan connected; watchlist batch failed'
+        with patch.object(feed,'batch_quotes',return_value={
+                'RELIANCE':{'source':'Dhan','price':1234.5,'symbol':'RELIANCE'}}):
+            asyncio.run(v['refresh_watch_batch']())
+        self.assertIsNone(v['dhan_batch_issue'][0])
+        self.assertIn('Dhan connected',v['connection_status'].value)
+        self.assertIn('equity LTP quotes loaded',v['connection_status'].value)
+        self.assertNotIn('batch failed',v['connection_status'].value)
+
     def test_dhan_batch_failure_stays_visible_until_recovery(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         def texts(control):
