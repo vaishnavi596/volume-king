@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.24"  # Fallback when package metadata is unavailable.
+    APP_VERSION = "2.3.26"  # Fallback matches APK release.
 from pathlib import Path
 
 #                                  Apache License
@@ -2984,6 +2984,13 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 successes=sum(results)
                 market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
+                # Do not classify a disconnected Dhan feed as 51 failed symbols.
+                if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
+                                         failed=0,cached=0,state="Dhan reconnect required; scan paused")
+                    if current[0] in (0,4):request_view_refresh(current[0])
+                    await asyncio.sleep(15)
+                    continue
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
                 scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
