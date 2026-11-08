@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.32" # Super Five Dhan bullish bearish display correction
+version = "2.3.33" # Super Five LTP and bullish bearish visibility
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
