@@ -246,6 +246,8 @@ class ServerDhanReadOnly:
         raw = result.get("quotes")
         if result.get("source") != "dhan" or not isinstance(raw, dict):
             raise FeedError("Invalid Dhan batch response")
+        if not raw:
+            raise FeedError("Empty Dhan batch response")
         quotes = {}
         for symbol, price in raw.items():
             if (symbol not in DHAN_VERIFIED_SYMBOLS or symbol == "NIFTY"
