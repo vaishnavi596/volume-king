@@ -22,6 +22,13 @@ def walk(control):
 
 
 class MobileRegressionTests(unittest.TestCase):
+    def test_background_dhan_history_requests_are_bounded_and_progress_visible(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)', source)
+        self.assertIn('scan_progress["state"]="Loading histories: "', source)
+        self.assertIn('market_completed[0]+=1', source)
+
+
     def test_android_app_private_storage_survives_restart_with_native_bridge_down(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch.dict(os.environ, {"FLET_APP_STORAGE_DATA": directory}), patch("pathlib.Path.home", side_effect=PermissionError()):
