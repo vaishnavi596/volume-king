@@ -63,6 +63,11 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("log_error('dhan_batch_after_connect',exc)", self.source)
         self.assertIn('failed_symbols.clear()', self.source)
 
+    def test_batch_quote_health_is_not_overwritten_by_candle_failures(self):
+        self.assertIn('batch_count=len(dhan_batch_cache["quotes"])', self.source)
+        self.assertIn('historical candles unavailable', self.source)
+        self.assertIn('watchlist batch failed:', self.source)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
