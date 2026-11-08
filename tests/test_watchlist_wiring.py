@@ -53,6 +53,11 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('quote_timestamp": None', feed)
         self.assertIn('"freshness": "unverified"', feed)
 
+    def test_dhan_batch_ltp_survives_history_refresh(self):
+        self.assertIn('latest=dhan_batch_cache["quotes"].get(sym)', self.source)
+        self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=None,', self.source)
+        self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
