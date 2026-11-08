@@ -584,15 +584,17 @@ def app_main(page:ft.Page):
         return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
     def note(s):return txt(s,11,MUTED)
     def unavailable(s):return txt("DATA UNAVAILABLE — "+s,13,RED)
+    def dhan_offline():
+        return prefs.get("source")=="Dhan" and not dhan_feed.connected
     def quote_price(sym):
-        q=quotes.get(sym)
+        q=None if dhan_offline() else quotes.get(sym)
         return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
     def quote_change(sym):
-        q=quotes.get(sym)
+        q=None if dhan_offline() else quotes.get(sym)
         v=q.get("change") if q else None
         return f'{v:+.2f}%' if v is not None else "—"
     def price_color(sym):
-        q=quotes.get(sym)
+        q=None if dhan_offline() else quotes.get(sym)
         v=q.get("change") if q else None
         return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
     def tiny_chart(sym):
@@ -989,12 +991,12 @@ def app_main(page:ft.Page):
         visible_count=0
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
-            change=(quotes.get(sym) or {}).get("change")
+            change=(quotes.get(sym) or {}).get("change") if not dhan_offline() else None
             direction="Bullish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change>0 else "Bearish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change<0 else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Change unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt(quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Change unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -1368,6 +1370,7 @@ def app_main(page:ft.Page):
             controls.append(note(message))
         return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def quote_caption(sym):
+        if dhan_offline():return "Dhan disconnected • saved prices hidden • connect to verify"
         q=quotes.get(sym) or {}
         stamp=q.get("quote_timestamp");source_name=q.get("source","No data")
         if not stamp:return source_name+" • quote timestamp unavailable • NOT VERIFIED LIVE"
