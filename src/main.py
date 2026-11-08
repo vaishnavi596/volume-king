@@ -1548,7 +1548,7 @@ def app_main(page:ft.Page):
         credential_column.controls=controls
         broker_info.value=(name+" • Read-only Angel One market data. Live orders OFF." if name=="Angel One" else "Dhan • server-side read-only quotes and historical candles for 51 verified NSE equities and NIFTY after Connect / Check. Timestamps unverified. Live orders OFF.")
         server_trust.label=("I trust this server to receive my Angel One login" if name=="Angel One" else "Dhan uses server-side credentials; no broker token is sent from this phone")
-        connection_status.value=("Dhan: press Connect / Check to verify server status and NIFTY LTP. This does not enable Dhan charts or scanner." if name=="Dhan" else "Angel One: connect to enable broker read-only market data.")
+        connection_status.value=("Dhan: Connect / Check verifies server and NIFTY LTP, then loads watchlist quotes and queues a historical candle scan. Quote timestamps remain unverified; live orders OFF." if name=="Dhan" else "Angel One: connect to enable broker read-only market data.")
         connection_status.color=MUTED
         if e is not None:page.update()
     broker.on_change=update_broker_info
