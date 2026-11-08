@@ -219,7 +219,7 @@ jobs:
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
           for attempt in 1 2 3 4; do
             echo "BOT KING APK build attempt $attempt/4"
-            if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
+            if flet build apk --include-packages flet_webview --split-per-abi --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
               echo "APK build succeeded"
               break
             fi
@@ -228,7 +228,7 @@ jobs:
             ls -lah "$BOOTSTRAP" "$BOOTSTRAP/python" "$BOOTSTRAP/python/bin" 2>&1 || true
             cat "$RUNNER_TEMP/botking-bootstrap-watch.log" || true
             df -h . /tmp || true
-            if ! grep -Eq 'Gateway Time-out|Gateway Timeout|HTTP status code: 504|HTTP status code: 503|HTTP status code: 502|Connection timed out|Connection reset|Too Many Requests' /tmp/volume-king-build.log; then
+            if ! grep -Eq 'Gateway Time-out|Gateway Timeout|HTTP status code: 504|HTTP status code: 503|HTTP status code: 502|Connection timed out|Connection reset|Read timed out|SocketTimeoutException|Too Many Requests' /tmp/volume-king-build.log; then
               echo "::error::Non-transient APK build failure; stopping retries."
               exit 1
             fi
