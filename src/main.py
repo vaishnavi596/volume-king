@@ -1069,6 +1069,9 @@ def app_main(page:ft.Page):
                       (quotes.get(ticker) or {}).get("source")=="Dhan" and
                       isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
             dhan_batch_issue[0]=None
+            if dhan_feed.connected:
+                connection_status.value=f"Dhan connected • {count} equity LTP quotes loaded • timestamps unverified"
+                connection_status.color=GREEN
             watch_batch_status[0]=f"Dhan LTP loaded: {count}/{len(all_watch_symbols())} • timestamp unverified"
             market_status=watch_batch_status[0]
         except Exception as exc:
