@@ -3085,8 +3085,9 @@ console.log('BOT KING Lightweight Charts ready');
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
-                scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Refreshing supported market quotes")
+                scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
+                history_failed=[0]
                 cycle_data={}
                 async def load_one(sym):
                     async with semaphore:
@@ -3105,14 +3106,15 @@ console.log('BOT KING Lightweight Charts ready');
                                               freshness="unverified",fetched_at=time.time())
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
-                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(len(failed_symbols))+" failed; ranking follows"
+                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
                             if generation==provider_generation[0]:
                                 failed_symbols[sym]=safe_error(exc)
+                                history_failed[0]+=1
                                 market_completed[0]+=1
-                                scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(len(failed_symbols))+" failed; ranking follows"
+                                scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed; ranking follows"
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
@@ -3138,7 +3140,7 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
-                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Analysing configured companies")
+                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Ranking completed candles: 0 / "+str(len(watch_symbols))+" • "+str(history_failed[0])+" history fetch failures")
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
