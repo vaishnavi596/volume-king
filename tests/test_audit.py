@@ -581,6 +581,27 @@ class AuditTests(unittest.TestCase):
         self.assertIn('Dhan LTP partial: 1/',v['watch_batch_status'][0])
         self.assertNotIn('LTP loaded:',v['watch_batch_status'][0])
 
+    def test_nifty_retry_failure_surfaces_despite_complete_equity_scan(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        v['dhan_feed']._origin='https://example.invalid'
+        v['dhan_feed']._pairing_key='test-only'
+        v['scan_progress'].update(total=51,valid=51,checked=51,failed=0,state='Complete')
+        v['failed_symbols']['NIFTY']='Dhan upstream temporarily unavailable; retry later'
+        def text_values(control):
+            values=[]
+            def walk(node):
+                value=getattr(node,'value',None)
+                if isinstance(value,str):values.append(value)
+                for child in node._get_children():walk(child)
+            walk(control)
+            return values
+        shown=text_values(v['data_overview']())
+        self.assertTrue(any('Market data NIFTY:' in x for x in shown))
+        self.assertFalse(any('No active errors reported' in x for x in shown))
+        v['failed_symbols'].pop('NIFTY')
+        recovered=text_values(v['data_overview']())
+        self.assertFalse(any('Market data NIFTY:' in x for x in recovered))
+
     def test_dhan_batch_failure_stays_visible_until_recovery(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         def texts(control):
