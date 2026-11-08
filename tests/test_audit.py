@@ -453,8 +453,9 @@ class AuditTests(unittest.TestCase):
                           and 'closed_session_retry_generation' in ast.unparse(node.test)
                           and 'successes == 0' in ast.unparse(node.test)]
         self.assertEqual(len(retry_conditions),1)
-        self.assertIn('provider_generation[0] != generation',
-                      ast.unparse(retry_conditions[0]))
+        retry_source=ast.unparse(retry_conditions[0])
+        self.assertIn('provider_generation[0] != generation',retry_source)
+        self.assertIn('not dhan_feed.connected',retry_source)
 
     def test_palette_contrast(self):
         _,v=start()
