@@ -7,6 +7,7 @@ on:
     branches: [ main ]
     paths:
       - pyproject.toml
+      - src/main.py
       - .github/workflows/build.yml
   workflow_dispatch:
 
