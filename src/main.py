@@ -521,7 +521,19 @@ def app_main(page:ft.Page):
             else:
                 state="STALE"
                 fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
-        health.finish(health_key,request_id,state,source=result.get("source",""),data_time=quote_time,error=fallback_reason)
+        # Record historical candle time when no verified quote timestamp exists.
+        # Candle time must never certify live quote freshness.
+        historical_time=None
+        if result.get("bars"):
+            try:
+                historical_time=float(result["bars"][-1][0])
+                if not 0<historical_time<=time.time()+300:
+                    historical_time=None
+            except (TypeError,ValueError,IndexError):
+                historical_time=None
+        health.finish(health_key,request_id,state,source=result.get("source",""),
+                      data_time=quote_time if isinstance(quote_time,(int,float)) else historical_time,
+                      error=fallback_reason)
         return result
     def timeframe_spec(interval):
         specs={
