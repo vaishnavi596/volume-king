@@ -563,8 +563,9 @@ class AuditTests(unittest.TestCase):
                   for symbol in v['all_watch_symbols']()}
         with patch.object(feed,'batch_quotes',return_value=complete):
             asyncio.run(v['refresh_watch_batch']())
+        self.assertEqual(len(complete),51)
         self.assertIsNone(v['dhan_batch_issue'][0])
-        self.assertIn('Dhan connected',v['connection_status'].value)
+        self.assertIn('Dhan connected • 51/51',v['connection_status'].value)
         self.assertIn('equity LTP quotes returned',v['connection_status'].value)
         self.assertNotIn('batch failed',v['connection_status'].value)
 
