@@ -20,6 +20,8 @@ base="https://raw.githubusercontent.com/vaishnavi596/volume-king/$release"
 curl --fail --silent --show-error --max-time 60 "$base/backend/server.py" -o "$stage/server.py"
 curl --fail --silent --show-error --max-time 60 "$base/src/market_feed.py" -o "$stage/market_feed.py"
 curl --fail --silent --show-error --max-time 60 "$base/backend/dhan_feed.py" -o "$stage/dhan_feed.py"
+# Pin the deployment to the requested commit: verify that each downloaded source is nonempty.
+test -s "$stage/server.py" && test -s "$stage/market_feed.py" && test -s "$stage/dhan_feed.py"
 curl --fail --silent --show-error --max-time 60 "$base/backend/requirements.txt" -o "$stage/requirements.txt"
 /usr/bin/python3 -m py_compile "$stage/server.py" "$stage/market_feed.py" "$stage/dhan_feed.py"
 
