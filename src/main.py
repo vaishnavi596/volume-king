@@ -724,8 +724,12 @@ def app_main(page:ft.Page):
         bull,bear,total=counts
         stamp=row.get("timestamp")
         historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
-        bar=ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
-                    ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
+        # Historical filter ratios are context, not a current directional signal.
+        # Mute the bar as well as the captions to avoid a live-looking indicator.
+        bull_bar_color=MUTED if historical else GREEN
+        bear_bar_color=BORDER if historical else RED
+        bar=ft.Row([ft.Container(bgcolor=bull_bar_color,expand=bull) if bull else ft.Container(width=0),
+                    ft.Container(bgcolor=bear_bar_color,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
         label_prefix="Historical votes • " if historical else "Filter votes • "
         label_color=MUTED if historical else GREEN
         bear_color=MUTED if historical else RED
