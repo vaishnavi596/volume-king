@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.36" # Recheck Dhan candle scan on Android app resume
+version = "2.3.37" # Avoid duplicate Dhan history calls during Super Five ranking
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
