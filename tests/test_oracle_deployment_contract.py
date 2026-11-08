@@ -14,6 +14,15 @@ class OracleDhanDeploymentContractTests(unittest.TestCase):
         cls.installer = (ROOT / "backend" / "install-oracle.sh").read_text(encoding="utf-8")
         cls.server = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
 
+    def test_readonly_audit_never_outputs_credentials(self):
+        audit = (ROOT / "backend" / "audit-oracle-dhan-readonly.sh").read_text(encoding="utf-8")
+        self.assertIn('runuser -u "$user" -- test -r "$token"', audit)
+        self.assertIn('local gateway health:', audit)
+        self.assertNotIn('cat "$token"', audit)
+        self.assertNotIn('echo "$token"', audit)
+        self.assertNotIn('chmod ', audit)
+        self.assertNotIn('chown ', audit)
+
     def test_required_dhan_adapter_is_staged_and_installed(self):
         self.assertIn('"$base/backend/dhan_feed.py" -o "$stage/dhan_feed.py"', self.installer)
         self.assertIn('"$stage/dhan_feed.py" "$appdir/dhan_feed.py"', self.installer)
