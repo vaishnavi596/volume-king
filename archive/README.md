@@ -13,3 +13,11 @@ This directory is for **verified unused source files only**. It is not part of t
 ## Retired files
 
 None yet. Audit is ongoing; no file has been confirmed safe to retire.
+
+### 2026-11-08 — Legacy standalone gateway
+
+- Original: `new-version/bot_app.py`
+- Archived copy: `archive/retired/bot_app_legacy_gateway.py.txt` (plain text; not importable as Python).
+- Reason: historical standalone FastAPI gateway, not the configured Flet entry point (`src/main.py`) or Oracle installer entry point (`backend/server.py`). Provider gateway modules remain active because dedicated tests import them.
+- Restore: copy archived text back to the original path and review against the current backend before use. Git history also preserves the original.
+- Verification: static entry-point and installer review; complete automated regression suite and deployed Oracle state **not yet verified**.
