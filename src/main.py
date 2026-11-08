@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.34"  # Keep synchronized with pyproject.toml for packaged APKs.
+    APP_VERSION = "2.3.35"  # Keep synchronized with pyproject.toml for packaged APKs.
 from pathlib import Path
 
 #                                  Apache License
@@ -695,7 +695,7 @@ def app_main(page:ft.Page):
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
         if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
-            return note("Dhan analysis unavailable • instrument not verified" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Dhan analysis pending • no verified result")
+            return note("Dhan instrument not supported" if symbol not in tuple(["NIFTY"]+watch_symbols) else ("Dhan candle scan: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • historical signal pending"))
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -1005,7 +1005,7 @@ def app_main(page:ft.Page):
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
-                wrap=True),watch_list]
+                wrap=True),note("Candle analysis: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
@@ -3099,7 +3099,7 @@ console.log('BOT KING Lightweight Charts ready');
                         scan_progress["failed"]+=int(not bool(result and result.get("timestamp")))
                         scan_progress["cached"]+=int(bool(data and data.get("cached")))
                         publish_partial_ranking(ranking_results)
-                        if current[0]==0:request_view_refresh(0)
+                        if current[0] in (0,4):request_view_refresh(current[0])
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
