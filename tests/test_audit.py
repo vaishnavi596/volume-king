@@ -457,6 +457,19 @@ class AuditTests(unittest.TestCase):
         self.assertIn('provider_generation[0] != generation',retry_source)
         self.assertIn('not dhan_feed.connected',retry_source)
 
+    def test_historical_health_records_success_without_claiming_live(self):
+        from feed_health import FeedHealth
+        health=FeedHealth(clock=lambda:12345)
+        request=health.begin('Dhan:HDFCBANK:5m')
+        self.assertTrue(health.finish('Dhan:HDFCBANK:5m',request,'HISTORICAL',
+                                      source='Dhan',data_time=12000,
+                                      error='Market closed; historical only'))
+        row=health.get('Dhan:HDFCBANK:5m')
+        self.assertEqual(row['state'],'HISTORICAL')
+        self.assertEqual(row['last_success'],12345)
+        self.assertEqual(row['data_time'],12000)
+        self.assertNotEqual(row['state'],'AVAILABLE')
+
     def test_palette_contrast(self):
         _,v=start()
         colors=v['txt'].__globals__
