@@ -3002,7 +3002,15 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
-                market_status=f"{prefs.get('source','Auto')} • {successes} instruments updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST") if successes else "Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
+                if successes:
+                    market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
+                elif prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    with dhan_batch_lock:
+                        batch_count=len(dhan_batch_cache["quotes"]) if dhan_batch_cache["generation"]==generation else 0
+                    market_status=("Dhan • "+str(batch_count)+" equity LTP quotes; historical candles unavailable"
+                                   if batch_count else "Dhan • LTP and candle data unavailable; check server diagnostics")
+                else:
+                    market_status="Data unavailable • "+next(iter(failed_symbols.values()),"No successful response")
                 # Do not classify a disconnected Dhan feed as 51 failed symbols.
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
