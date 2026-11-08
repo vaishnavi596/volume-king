@@ -30,6 +30,41 @@ class DhanEndpointTests(unittest.TestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
 
+    def test_successful_consent_token_is_used_for_ltp_without_token_file(self):
+        class Response:
+            def __init__(self, data):
+                self.data = data
+            def raise_for_status(self): pass
+            def json(self): return self.data
+
+        class CaptureDhan(FakeDhan):
+            def __init__(self, client, token):
+                self.token = token
+                self.client = client
+            def ltp(self, segment, sid):
+                self.__class__.seen_token = self.token
+                return super().ltp(segment, sid)
+
+        credentials = {"DHAN_CLIENT_ID": "test-client",
+                       "DHAN_API_KEY": "test-api-key",
+                       "DHAN_API_SECRET": "test-api-secret"}
+        with patch.dict(os.environ, credentials), \
+             patch("backend.server.requests.post", return_value=Response({"consentAppId": "consent"})), \
+             patch("backend.server.requests.get", return_value=Response({
+                 "accessToken": "consent-access-token", "dhanClientId": "test-client",
+                 "expiryTime": "2099-01-01T00:00:00"})), \
+             patch("backend.server.Path.read_text", side_effect=PermissionError), \
+             patch("backend.server.DhanFeed", CaptureDhan):
+            self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
+            self.assertEqual(self.client.get("/dhan/callback?tokenId=token-id").status_code, 200)
+            status = self.client.get("/dhan/status", headers=self.headers).json()
+            self.assertTrue(status["authenticated"])
+            self.assertTrue(status["market_data_configured"])
+            response = self.client.post("/dhan/ltp", json={"symbol": "NIFTY"}, headers=self.headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(CaptureDhan.seen_token, "consent-access-token")
+            self.assertNotIn("consent-access-token", response.text)
+
     def test_pairing_required(self):
         self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"}).status_code, 403)
         self.assertEqual(self.client.post("/dhan/intraday", json={
