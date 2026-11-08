@@ -16,6 +16,27 @@ fi
 if ! id "$user" >/dev/null 2>&1; then echo 'service user: invalid'; exit 2; fi
 if [[ ! -f "$token" ]]; then echo 'Dhan token file: missing'; exit 2; fi
 echo 'Dhan token file: present'
+# A present token is unusable if the service cannot traverse its parent directory.
+if [[ $(id -u) == 0 ]] && command -v runuser >/dev/null; then
+    if runuser -u "$user" -- test -x /etc/bot-king; then
+        echo 'Dhan credential directory traversable by service user: yes'
+    else
+        echo 'Dhan credential directory traversable by service user: NO'
+        exit 2
+    fi
+fi
+# Only report whether Dhan client configuration exists; never display its value.
+if [[ -f /etc/bot-king/server.env ]]; then
+    if grep -Eq '^DHAN_CLIENT_ID=[^[:space:]]+' /etc/bot-king/server.env; then
+        echo 'Dhan client ID setting: present'
+    else
+        echo 'Dhan client ID setting: missing or empty'
+        exit 2
+    fi
+else
+    echo 'Server environment file: missing'
+    exit 2
+fi
 # Check effective readability without displaying credentials.
 if [[ $(id -u) == 0 ]]; then
     if command -v runuser >/dev/null && runuser -u "$user" -- test -r "$token"; then
