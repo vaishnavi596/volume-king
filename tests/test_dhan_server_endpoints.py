@@ -65,6 +65,29 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(CaptureDhan.seen_token, "consent-access-token")
             self.assertNotIn("consent-access-token", response.text)
 
+    def test_expired_consent_token_is_not_used_for_market_data(self):
+        class Response:
+            def __init__(self, data): self.data = data
+            def raise_for_status(self): pass
+            def json(self): return self.data
+
+        with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client",
+                                      "DHAN_API_KEY": "test-key",
+                                      "DHAN_API_SECRET": "test-secret"}), \
+             patch("backend.server.requests.post", return_value=Response({"consentAppId": "consent"})), \
+             patch("backend.server.requests.get", return_value=Response({
+                 "accessToken": "expired-consent-token", "dhanClientId": "test-client",
+                 "expiryTime": "2020-01-01T00:00:00Z"})), \
+             patch("backend.server.Path.read_text", side_effect=PermissionError), \
+             patch("backend.server.DhanFeed") as dhan:
+            self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
+            self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 200)
+            status = self.client.get("/dhan/status", headers=self.headers).json()
+            self.assertFalse(status["market_data_configured"])
+            self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"},
+                                              headers=self.headers).status_code, 503)
+            dhan.assert_not_called()
+
     def test_pairing_required(self):
         self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"}).status_code, 403)
         self.assertEqual(self.client.post("/dhan/intraday", json={
