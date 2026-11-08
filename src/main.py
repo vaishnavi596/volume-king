@@ -3053,6 +3053,7 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         initial=True
         last_scanned_generation=None
+        closed_session_retry_generation=None
         while True:
             # Android can report a transient inactive lifecycle state while the
             # visible app is still in use. Never strand the first authenticated
@@ -3221,7 +3222,19 @@ console.log('BOT KING Lightweight Charts ready');
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
-            await asyncio.sleep(120)
+            # On a closed session, one transient all-symbol failure should not
+            # strand the scanner until the user reconnects. Retry only once per
+            # provider generation after a 15-minute cooldown; never loop rapidly
+            # over 51 rate-sensitive Dhan history endpoints.
+            if (prefs.get("source")=="Dhan" and dhan_feed.connected
+                    and not regular_hours() and scan_progress.get("valid",0)==0
+                    and closed_session_retry_generation!=generation):
+                closed_session_retry_generation=generation
+                last_scanned_generation=None
+                scan_progress["state"]="No valid histories • one automatic retry in 15 minutes"
+                await asyncio.sleep(900)
+            else:
+                await asyncio.sleep(120)
     async def supervised_market_refresh():
         # A single unhandled exception must not permanently stop all 51 scans.
         while True:
