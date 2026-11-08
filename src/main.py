@@ -1447,7 +1447,7 @@ def app_main(page:ft.Page):
             quotes[sym]=hist
             if prefs.get("source")!="Broker API" or not angel_feed.connected:
                 option_feed.clear()
-                option_feed_status[0]="Verified CE/PE and OI require Broker API mode and a connected broker."
+                option_feed_status[0]=("Dhan mode provides read-only equity/index quotes and candles, not verified CE/PE option-chain data." if prefs.get("source")=="Dhan" else "Verified CE/PE and OI require Broker API mode and a connected broker.")
                 health.finish(health_key,request_id,"UNAVAILABLE",source="Broker API",error="Broker API not connected")
                 return
             data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
@@ -1489,7 +1489,7 @@ def app_main(page:ft.Page):
         return previous.get("rows",[])
     def option_metrics(kind):
         rows=selected_option_rows()
-        if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. Yahoo provides underlying quotes and candles only; no values are estimated.")
+        if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. The selected quote provider does not supply verified option-chain data; no values are estimated.")
         old=any(r.get("timestamp") is None or not 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90 for r in rows)
         prefix="HISTORICAL • quotes are old • " if old else ""
         coverage=option_feed if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value else (market_store.get("options",chain_symbol.value,expiry.value) or {})
@@ -1527,7 +1527,7 @@ def app_main(page:ft.Page):
         )
         return ft.Column([
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying quotes may come from Yahoo Finance and can be delayed. Verified option quotes require Broker API mode."),
+            note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • CE/PE premiums and OI are unavailable. No synthetic values are shown."),
             note(quote_caption(chain_symbol.value)),
