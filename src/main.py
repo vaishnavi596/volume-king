@@ -679,11 +679,13 @@ def app_main(page:ft.Page):
         return control
     scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
-    saved_ranking=market_store.get("ranking","configured50") or {}
+    saved_ranking=market_store.get("ranking","configured51") or market_store.get("ranking","configured50") or {}
     top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[])][:5]
     top5_last_update=[saved_ranking.get("checked_at","—")]
-    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol")}
-    for r in top5_candidates:watch_signal_cache.setdefault(r["symbol"],r)
+    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))}
+    for r in top5_candidates:
+        if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")):
+            watch_signal_cache.setdefault(r["symbol"],r)
     def signal_percentages(row):
         votes=row.get("votes") or []
         bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
