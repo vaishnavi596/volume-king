@@ -794,6 +794,11 @@ def app_main(page:ft.Page):
         problems=[]
         if dhan and dhan_batch_issue[0]:
             problems.append("Dhan watchlist batch: "+dhan_batch_issue[0])
+        # Individual index/stock retries can fail even when the 51-equity scan
+        # completed. Keep their failures visible until that symbol succeeds.
+        if connected and failed_symbols:
+            for failed,reason in list(failed_symbols.items())[:3]:
+                problems.append("Market data "+str(failed)+": "+str(reason)[:100])
         if not connected:problems.append("Yahoo quote not verified" if yahoo else "Provider disconnected; reconnect in Settings")
         if dhan and (not connected or valid<total):
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
