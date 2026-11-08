@@ -160,7 +160,7 @@ class ServerDhanReadOnly:
                 self._origin + path, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
                 headers=headers, method="POST")
         try:
-            with urllib.request.build_opener(NoRedirect()).open(req, timeout=15) as response:
+            with urllib.request.build_opener(NoRedirect()).open(req, timeout=30 if path == "/dhan/ltp-batch" else 15) as response:
                 raw = response.read(2_000_001)
                 if len(raw) > 2_000_000:
                     raise FeedError("Dhan server response too large")
@@ -234,7 +234,15 @@ class ServerDhanReadOnly:
     def batch_quotes(self):
         """Read-only 51-equity LTP snapshot; missing symbols stay unavailable."""
         import math
-        result = self._call("/dhan/ltp-batch", {})
+        # Retry only transient upstream failures for this read-only snapshot.
+        import time
+        try:
+            result = self._call("/dhan/ltp-batch", {})
+        except FeedError as exc:
+            if not any(("HTTP " + str(code)) in str(exc) for code in (502, 503, 504)):
+                raise
+            time.sleep(1.5)
+            result = self._call("/dhan/ltp-batch", {})
         raw = result.get("quotes")
         if result.get("source") != "dhan" or not isinstance(raw, dict):
             raise FeedError("Invalid Dhan batch response")
