@@ -490,6 +490,25 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('HISTORICAL' in value for value in rendered))
         self.assertFalse(any(value.startswith('BULLISH • 3/3') for value in rendered))
 
+    def test_dhan_batch_failure_stays_visible_until_recovery(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        def texts(control):
+            found=[]
+            def walk(node):
+                value=getattr(node,'value',None)
+                if isinstance(value,str):found.append(value)
+                for child in node._get_children():walk(child)
+            walk(control)
+            return found
+        v['dhan_batch_issue'][0]='Data request failed (FeedError)'
+        shown=texts(v['data_overview']())
+        self.assertTrue(any('Dhan watchlist batch:' in value and 'FeedError' in value
+                            for value in shown))
+        self.assertFalse(any('No active errors reported' in value for value in shown))
+        v['dhan_batch_issue'][0]=None
+        recovered=texts(v['data_overview']())
+        self.assertFalse(any('Dhan watchlist batch:' in value for value in recovered))
+
     def test_historical_strength_widget_mutes_bars_and_labels(self):
         _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         row={'source':'Yahoo Finance','timestamp':1,'historical':True,
