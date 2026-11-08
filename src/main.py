@@ -3062,6 +3062,7 @@ console.log('BOT KING Lightweight Charts ready');
             # Otherwise the first disconnected launch suppresses the entire scan after login.
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
+                scan_progress["state"]="Starting historical scan • provider "+str(prefs.get("source"))
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Dhan reconnect required; scan paused")
                     if current[0] in (0,4):request_view_refresh(current[0])
@@ -3069,7 +3070,8 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
                     try:
-                        batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        scan_progress["state"]="Checking Dhan batch before historical scan"
+                        batch=await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes),timeout=20)
                         if generation==provider_generation[0] and prefs.get("source")=="Dhan":
                             with dhan_batch_lock:
                                 dhan_batch_cache.update(generation=generation,
