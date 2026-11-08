@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.28" # Dhan LTP versus historical candle diagnostics
+version = "2.3.29" # Dhan watchlist batch refresh and diagnostics
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
