@@ -836,6 +836,14 @@ def app_main(page:ft.Page):
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
     def super_five_card():
+        # A disconnected broker must never display restored directional rankings
+        # as actionable Super Five candidates, even when snapshots survived restore.
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            return section("SUPER FIVE • CONNECTION REQUIRED",ft.Column([
+                note("Dhan disconnected • connect and verify the feed in Settings before scanning."),
+                note("Saved historical rankings are hidden while disconnected; no live signal is available."),
+                note("Scan progress: 0 / "+str(len(watch_symbols))+" • paused")
+            ],spacing=7))
         rows=top5_candidates[:]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
