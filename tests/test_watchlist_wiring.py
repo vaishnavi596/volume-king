@@ -58,6 +58,15 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=None,', self.source)
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
+    def test_dhan_connect_keeps_batch_in_new_scan_generation(self):
+        self.assertIn('dhan_batch_cache["generation"]=provider_generation[0]',self.source)
+        self.assertIn('provider_generation[0]+=1',self.source)
+        connect=self.source.index('dhan_batch_cache.update(generation=provider_generation[0]')
+        bump=self.source.index('provider_generation[0]+=1',connect)
+        keep=self.source.index('dhan_batch_cache["generation"]=provider_generation[0]',bump)
+        self.assertLess(connect,bump)
+        self.assertLess(bump,keep)
+
     def test_dhan_connect_fetches_watchlist_batch(self):
         self.assertIn('batch=await asyncio.to_thread(dhan_feed.batch_quotes)', self.source)
         self.assertIn("log_error('dhan_batch_after_connect',exc)", self.source)
