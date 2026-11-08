@@ -36,7 +36,8 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('state.endswith(".resumed")', source)
         self.assertIn('app_active[0]=True', source)
-        self.assertIn('log_error("lifecycle_unknown"', source)
+        self.assertIn('if raw is None:raw=getattr(e,"data",None)', source)
+        self.assertNotIn('log_error("lifecycle_unknown"', source)
 
     def test_background_market_task_recovers_from_unhandled_errors(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
