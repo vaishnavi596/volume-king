@@ -430,6 +430,32 @@ class AuditTests(unittest.TestCase):
         self.assertGreater(len(page.tasks),before)
         self.assertEqual(page.tasks[-1][0].__name__,'refresh_after_resume')
 
+    def test_closed_session_dhan_retry_has_cooldown_and_generation_guard(self):
+        # Inspect the actual coroutine AST without starting network requests.
+        source=(ROOT/'src/main.py').read_text()
+        tree=ast.parse(source)
+        funcs=[node for node in ast.walk(tree)
+               if isinstance(node,ast.AsyncFunctionDef) and node.name=='refresh_market']
+        self.assertEqual(len(funcs),1)
+        body=funcs[0]
+        names={node.id for node in ast.walk(body) if isinstance(node,ast.Name)}
+        self.assertTrue({'closed_session_retry_generation','last_scanned_generation',
+                         'provider_generation','successes'}.issubset(names))
+        waits=[node for node in ast.walk(body)
+               if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute)
+               and node.func.attr=='sleep' and node.args]
+        self.assertTrue(any(isinstance(node.args[0],ast.Constant)
+                            and node.args[0].value==5 for node in waits))
+        self.assertTrue(any(isinstance(node,ast.Constant) and node.value==180
+                            for node in ast.walk(body)))
+        retry_conditions=[node for node in ast.walk(body)
+                          if isinstance(node,ast.If)
+                          and 'closed_session_retry_generation' in ast.unparse(node.test)
+                          and 'successes == 0' in ast.unparse(node.test)]
+        self.assertEqual(len(retry_conditions),1)
+        self.assertIn('provider_generation[0] != generation',
+                      ast.unparse(retry_conditions[0]))
+
     def test_palette_contrast(self):
         _,v=start()
         colors=v['txt'].__globals__
