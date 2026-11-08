@@ -6,11 +6,11 @@ from test_audit import start
 from market_feed import AngelFeed,FeedError
 
 class FeedTests(unittest.TestCase):
-    def test_legacy_auto_selection_migrates_to_yahoo(self):
+    def test_legacy_auto_selection_migrates_to_dhan(self):
         _,v=start({'source':'Auto','scanner_live':False})
-        self.assertEqual(v['prefs']['source'],'Yahoo Finance')
-        with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:{'source':'Yahoo Finance','price':100,'bars':[],'quote_timestamp':time.time()}}):
-            self.assertEqual(v['get_market_data']('NIFTY')['source'],'Yahoo Finance')
+        self.assertEqual(v['prefs']['source'],'Dhan')
+        with self.assertRaises(FeedError):
+            v['get_market_data']('NIFTY')
 
     def test_yahoo_without_broker_login(self):
         _,v=start({'source':'Yahoo Finance','scanner_live':False})
