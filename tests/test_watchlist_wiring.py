@@ -58,6 +58,11 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=None,', self.source)
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
+    def test_dhan_connect_fetches_watchlist_batch(self):
+        self.assertIn('batch=await asyncio.to_thread(dhan_feed.batch_quotes)', self.source)
+        self.assertIn("log_error('dhan_batch_after_connect',exc)", self.source)
+        self.assertIn('failed_symbols.clear()', self.source)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
