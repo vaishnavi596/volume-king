@@ -2998,6 +2998,11 @@ console.log('BOT KING Lightweight Charts ready');
             last_scanned_generation=current_generation
             if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
                 generation=provider_generation[0]
+                if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Dhan reconnect required; scan paused")
+                    if current[0] in (0,4):request_view_refresh(current[0])
+                    await asyncio.sleep(3)
+                    continue
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
                     try:
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
