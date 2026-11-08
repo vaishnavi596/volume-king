@@ -726,7 +726,10 @@ def app_main(page:ft.Page):
         historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         bar=ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
-        return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,GREEN,True),txt("Bearish "+str(bear)+"%",11,RED,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(("HISTORICAL • " if historical else "")+str(total)+"/"+str(total)+" filter votes • not win probability")],spacing=2)
+        label_prefix="Historical votes • " if historical else "Filter votes • "
+        label_color=MUTED if historical else GREEN
+        bear_color=MUTED if historical else RED
+        return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,label_color,True),txt("Bearish "+str(bear)+"%",11,bear_color,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(label_prefix+str(total)+" directional filters • not win probability")],spacing=2)
 
     def mark_ranking_historical():
         for row in top5_candidates:row["historical"]=True
