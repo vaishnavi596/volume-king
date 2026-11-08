@@ -2961,6 +2961,15 @@ console.log('BOT KING Lightweight Charts ready');
                         try:
                             data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
+                            # Preserve the verified Dhan batch quote when historical candles refresh.
+                            if prefs.get("source")=="Dhan":
+                                with dhan_batch_lock:
+                                    latest=dhan_batch_cache["quotes"].get(sym) if (
+                                        dhan_batch_cache["generation"]==generation and
+                                        time.monotonic()-dhan_batch_cache["updated"]<90) else None
+                                if latest and latest.get("source")=="Dhan":
+                                    data=dict(data,price=latest["price"],quote_timestamp=None,
+                                              freshness="unverified",fetched_at=time.time())
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Market quotes: "+str(market_completed[0])+" / "+str(len(symbols))+" • ranking follows"
