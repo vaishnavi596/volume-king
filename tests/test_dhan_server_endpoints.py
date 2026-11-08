@@ -84,6 +84,7 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 200)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["market_data_configured"])
+            self.assertFalse(status["authenticated"])
             self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"},
                                               headers=self.headers).status_code, 503)
             dhan.assert_not_called()
