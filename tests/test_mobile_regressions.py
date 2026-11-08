@@ -46,6 +46,11 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('CONNECT DHAN', source)
         self.assertIn('Dhan disconnected • saved prices hidden', source)
 
+    def test_fresh_install_defaults_to_dhan(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('"confidence":75,"source":"Dhan","api_url"', source)
+        self.assertIn('prefs["source"]="Dhan"', source)
+
     def test_dhan_history_startup_has_bounded_batch_wait(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('Checking Dhan batch before historical scan', source)
