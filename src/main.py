@@ -519,9 +519,11 @@ def app_main(page:ft.Page):
         if state not in ("CACHED",) and (not isinstance(quote_time,(int,float)) or not 0<=time.time()-quote_time<=90):
             # A closed-session candle history is not a failed live feed. Never
             # infer a live quote timestamp from the candle or fetch time.
-            if not regular_hours() and result.get("bars") and not result.get("fallback"):
+            if result.get("bars") and not result.get("fallback"):
+                # Successful historical candles are not a failed chart request.
+                # Quote freshness remains unverified even during market hours.
                 state="HISTORICAL"
-                fallback_reason=fallback_reason or "Market closed • last available candles only; live quote freshness unverified"
+                fallback_reason=fallback_reason or "Candles available • quote timestamp unverified; not verified live"
             else:
                 state="STALE"
                 fallback_reason=fallback_reason or "Quote time is old, missing or invalid; historical display only"
@@ -808,6 +810,9 @@ def app_main(page:ft.Page):
         market_health=component_status("market")
         if "STALE" in market_health or "UNAVAILABLE" in market_health:
             problems.append("Chart warning: historical or unavailable data; not verified live")
+        # HISTORICAL is a successful candle fetch, not a live-price verification.
+        # Keep that limitation visible in the detailed chart status without
+        # counting it as a broken chart or an active error.
         if yahoo and ("awaiting" in state.lower() or valid==0):
             problems.append("Yahoo scanner analysis pending; historical quotes are not live")
         details=[
