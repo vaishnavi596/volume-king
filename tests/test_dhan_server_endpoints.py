@@ -153,7 +153,7 @@ class DhanEndpointTests(unittest.TestCase):
              patch("backend.server.Path.read_text", side_effect=PermissionError), \
              patch("backend.server.DhanFeed") as dhan:
             self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
-            self.assertEqual(self.client.get("/dhan/callback?tokenId=missing-expiry").status_code, 200)
+            self.assertEqual(self.client.get("/dhan/callback?tokenId=missing-expiry").status_code, 502)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["authenticated"])
             self.assertEqual(status["expires_at"], "")
