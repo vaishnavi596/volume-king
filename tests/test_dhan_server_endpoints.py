@@ -126,7 +126,7 @@ class DhanEndpointTests(unittest.TestCase):
              patch("backend.server.Path.read_text", side_effect=PermissionError), \
              patch("backend.server.DhanFeed") as dhan:
             self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
-            self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 200)
+            self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 502)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["market_data_configured"])
             self.assertFalse(status["authenticated"])
@@ -197,7 +197,7 @@ class DhanEndpointTests(unittest.TestCase):
                  "expiryTime": "2020-01-01T00:00:00Z"})), \
              patch("backend.server.Path.read_text", return_value="provisioned-token"):
             self.assertEqual(self.client.post("/dhan/start", headers=self.headers).status_code, 200)
-            self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 200)
+            self.assertEqual(self.client.get("/dhan/callback?tokenId=expired-id").status_code, 502)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["authenticated"])
             self.assertTrue(status["market_data_configured"])
