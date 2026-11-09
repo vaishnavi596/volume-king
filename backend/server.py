@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse
 from collections import deque
 from contextlib import asynccontextmanager, suppress
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Literal, Optional
 
 from fastapi import FastAPI, Header, HTTPException
@@ -288,9 +289,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 try:
                     expires = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
                     if expires.tzinfo is None:
-                        # Do not guess a timezone for an ambiguous provider timestamp.
-                        active = ""
-                    elif datetime.now(timezone.utc) >= expires.astimezone(timezone.utc):
+                        # Dhan documents OAuth expiryTime as an IST timestamp.
+                        expires = expires.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+                    if datetime.now(timezone.utc) >= expires.astimezone(timezone.utc):
                         active = ""
                 except (TypeError, ValueError, OverflowError):
                     active = ""
