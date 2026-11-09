@@ -319,7 +319,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             return {"authenticated": bool(dhan_session["access_token"]),
                     "market_data_configured": market_data_configured,
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
-                    "expires_at": dhan_session["expires_at"],
+                    "expires_at": dhan_session["expires_at"] if dhan_session["access_token"] else "",
                     "live_orders_enabled": False}
 
     @app.post("/dhan/ltp")
