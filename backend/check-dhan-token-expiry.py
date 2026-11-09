@@ -29,6 +29,13 @@ def parse_expiry(value):
     return None
 
 
+def expiry_alert(expiry, now, timezone_name, warning_seconds=21600):
+    """Compute a warning only with an explicitly configured IANA timezone."""
+    tz = ZoneInfo(timezone_name)
+    remaining = (expiry.replace(tzinfo=tz) - now.astimezone(timezone.utc)).total_seconds()
+    return max(0, int(remaining // 3600)), remaining <= warning_seconds
+
+
 def main():
     try:
         token = TOKEN_PATH.read_text(encoding="utf-8").strip()
@@ -59,11 +66,10 @@ def main():
         configured_tz = os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip()
         if configured_tz:
             try:
-                tz = ZoneInfo(configured_tz)
-                seconds_left = (expiry.replace(tzinfo=tz) - datetime.now(timezone.utc)).total_seconds()
+                hours_left, warning = expiry_alert(expiry, datetime.now(timezone.utc), configured_tz)
                 print("DHAN_EXPIRY_TIMEZONE=configured:" + configured_tz)
-                print("DHAN_TOKEN_HOURS_REMAINING=" + str(max(0, int(seconds_left // 3600))))
-                print("DHAN_TOKEN_EXPIRY_ALERT=" + ("yes" if seconds_left <= 21600 else "no"))
+                print("DHAN_TOKEN_HOURS_REMAINING=" + str(hours_left))
+                print("DHAN_TOKEN_EXPIRY_ALERT=" + ("yes" if warning else "no"))
             except (KeyError, ValueError):
                 print("DHAN_EXPIRY_TIMEZONE=invalid_configuration")
                 return 3
