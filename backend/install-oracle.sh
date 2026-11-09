@@ -59,12 +59,6 @@ trap 'rollback' ERR
 
 # A separate owner key protects login. Broker credentials never enter this file.
 install -d -m 700 /etc/bot-king
-# OAuth consent sessions survive service restarts in a private, opc-owned directory.
-# The pairing key remains separately protected in /etc/bot-king/server.env.
-install -d -o opc -g opc -m 700 /var/lib/bot-king
-if ! grep -q '^DHAN_SESSION_FILE=' /etc/bot-king/server.env 2>/dev/null; then
-    printf '%s\n' 'DHAN_SESSION_FILE=/var/lib/bot-king/dhan-session.json' >> /etc/bot-king/server.env
-fi
 if ! test -f /etc/bot-king/server.env; then
     /usr/bin/python3 - <<'PY'
 from pathlib import Path
@@ -72,6 +66,11 @@ import secrets
 value = secrets.token_urlsafe(48)
 Path('/etc/bot-king/server.env').write_text('BOTKING_PAIRING_KEY=' + value + '\n')
 PY
+fi
+# Store consent tokens only in a private directory owned by the service account.
+install -d -o opc -g opc -m 700 /var/lib/bot-king
+if ! grep -q '^DHAN_SESSION_FILE=' /etc/bot-king/server.env; then
+    printf '%s\n' 'DHAN_SESSION_FILE=/var/lib/bot-king/dhan-session.json' >> /etc/bot-king/server.env
 fi
 chmod 600 /etc/bot-king/server.env
 /usr/bin/python3 - <<'PY'
