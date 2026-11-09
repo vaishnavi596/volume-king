@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install pinned Flet runtime for bridge contract tests
+        run: python -m pip install 'flet==0.25.2'
       - name: Compile secure pairing modules
         run: python -m py_compile src/secure_credentials.py src/secure_dhan_pairing.py
       - name: Test credential store and verified pairing behavior
