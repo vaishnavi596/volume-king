@@ -3,7 +3,7 @@
 
 Run on Oracle with permissions to read /etc/bot-king/dhan-token.
 Does not renew tokens, write files, restart services, or place orders.
-Exit: 0 accepted; 2 rejected; 3 unknown/error. Optional DHAN_PROFILE_TIMEZONE enables 6h alert.
+Exit: 0 accepted and not expired; 2 rejected/expired; 3 unknown/error.
 """
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -81,10 +81,14 @@ def main():
         configured_tz = os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip()
         if configured_tz:
             try:
-                hours_left, warning = expiry_alert(expiry, datetime.now(timezone.utc), configured_tz)
+                status, hours_left = expiry_assessment(expiry, configured_tz)
                 print("DHAN_EXPIRY_TIMEZONE=configured:" + configured_tz)
                 print("DHAN_TOKEN_HOURS_REMAINING=" + str(hours_left))
-                print("DHAN_TOKEN_EXPIRY_ALERT=" + ("yes" if warning else "no"))
+                print("DHAN_TOKEN_EXPIRY_STATE=" + status)
+                print("DHAN_TOKEN_EXPIRY_ALERT=" + ("yes" if status != "healthy" else "no"))
+                if status == "expired":
+                    print("DHAN_AUTO_RENEWAL=not_enabled")
+                    return 2
             except (KeyError, ValueError):
                 print("DHAN_EXPIRY_TIMEZONE=invalid_configuration")
                 return 3
