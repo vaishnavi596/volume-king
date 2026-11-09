@@ -272,7 +272,16 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     raise ValueError("Invalid Dhan account or token")
             except (requests.RequestException, ValueError):
                 raise HTTPException(502, "Dhan authentication failed") from None
-            dhan_session.update(access_token=token, expires_at=str(result.get("expiryTime", "")))
+            expiry = str(result.get("expiryTime", ""))
+            try:
+                expiry_dt = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+                if expiry_dt.tzinfo is None:
+                    expiry_dt = expiry_dt.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+                if datetime.now(timezone.utc) >= expiry_dt.astimezone(timezone.utc):
+                    raise ValueError("Expired token")
+            except (TypeError, ValueError, OverflowError):
+                raise HTTPException(502, "Dhan returned invalid token expiry") from None
+            dhan_session.update(access_token=token, expires_at=expiry)
         return HTMLResponse(
             "<!doctype html><html><head><meta name='referrer' content='no-referrer'></head>"
             "<body><h2>BOT KING: Dhan login successful</h2>"
