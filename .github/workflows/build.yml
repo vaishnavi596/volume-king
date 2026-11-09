@@ -235,7 +235,7 @@ jobs:
           BUILD_CODE=$((10000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
           for attempt in 1 2 3 4; do
             echo "BOT KING APK build attempt $attempt/4"
-            if flet build apk --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
+            if flet build apk --arch arm64-v8a --include-packages flet_webview --verbose --build-number "$BUILD_CODE" 2>&1 | tee /tmp/volume-king-build.log; then
               echo "APK build succeeded"
               break
             fi
