@@ -70,7 +70,7 @@ class TokenStorageTests(unittest.TestCase):
             os.chmod(target, 0o644)
             with self.assertRaises(PermissionError):
                 atomic_store_token(target, "NEW_FAKE_TOKEN")
-            self.assertEqual(target.read_text(), "OLD_FAKE_TOKEN\\n")
+            self.assertEqual(target.read_text(), "OLD_FAKE_TOKEN\n")
 
     def test_reject_symlink_target(self):
         with tempfile.TemporaryDirectory() as folder:
