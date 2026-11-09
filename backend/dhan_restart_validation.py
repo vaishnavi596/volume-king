@@ -6,6 +6,7 @@ token is only a candidate until Dhan confirms the expected account and a
 timezone-aware future expiry. Do not treat file presence as authentication.
 """
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 try:
     from .dhan_token_storage import read_persisted_token
@@ -13,7 +14,7 @@ except ImportError:
     from dhan_token_storage import read_persisted_token
 
 
-def verify_persisted_session(token_path, expected_client_id, profile_lookup, now=None):
+def verify_persisted_session(token_path, expected_client_id, profile_lookup, now=None, provider_timezone=None):
     """Return validated token and UTC expiry or raise ValueError.
 
     profile_lookup(token) must return Dhan profile fields including dhanClientId
@@ -34,9 +35,23 @@ def verify_persisted_session(token_path, expected_client_id, profile_lookup, now
     try:
         expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        raise ValueError("Invalid Dhan profile expiry") from None
+        expiry = None
+    if expiry is None:
+        for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"):
+            try:
+                expiry = datetime.strptime(raw, fmt)
+                break
+            except ValueError:
+                continue
+    if expiry is None:
+        raise ValueError("Invalid Dhan profile expiry")
     if expiry.tzinfo is None:
-        raise ValueError("Dhan profile expiry timezone unverified")
+        if not provider_timezone:
+            raise ValueError("Dhan profile expiry timezone unverified")
+        try:
+            expiry = expiry.replace(tzinfo=ZoneInfo(provider_timezone))
+        except (KeyError, ValueError):
+            raise ValueError("Invalid verified Dhan timezone") from None
     current = now if now is not None else datetime.now(timezone.utc)
     if current.tzinfo is None:
         raise ValueError("Current time must have timezone")
