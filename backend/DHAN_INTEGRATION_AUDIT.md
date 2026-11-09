@@ -29,3 +29,12 @@ Do not merge or deploy until blockers are resolved. Keep live order execution di
 - Returns historical_unverified rather than claiming live data.
 - The upstream /charts/intraday response has NOT yet been verified against the user's Oracle Dhan credentials; do not connect the Android scanner to this route until a real response and tests pass.
 - The Oracle service process may lack permission to read root-owned /etc/bot-king/dhan-token (mode 0600). Confirm service User and use systemd credentials or a dedicated restrictive group; do not make token world-readable.
+
+## Token renewal review (2026-11-10; source audit, not deployed)
+Official reference: https://dhanhq.co/docs/v2/authentication/
+
+- Dhan Web-generated tokens: GET https://api.dhan.co/v2/RenewToken with access-token and dhanClientId headers. Renewal invalidates the old token, works only while it remains active, and issues another 24-hour token. Implement atomic credential replacement and proactive scheduling only for this confirmed token origin.
+- OAuth app-key/secret consent tokens: the official RenewToken documentation explicitly limits this endpoint to Dhan Web-generated tokens. Do NOT silently apply it to the current /dhan/callback OAuth session. Reauthentication/consent is required unless Dhan explicitly documents a supported noninteractive renewal flow for that token type.
+- Current backend/server.py stores OAuth session tokens only in process memory, so restart loses them. It may fall back to /etc/bot-king/dhan-token without confirming freshness; /dhan/status reports configured state, not verified live authorization.
+- Prior to code/deployment: determine token provenance, validate actual expiry/profile and timezone, ensure secret storage readable only by the service, design atomic rotation with rollback, distinguish expired/unauthorized from transport errors, and test restart/recovery without logging secrets.
+- Never store PIN/TOTP seed in GitHub or APK. Do not automate interactive 2FA circumvention. No live order execution, server deployment, or APK build was performed by this audit.
