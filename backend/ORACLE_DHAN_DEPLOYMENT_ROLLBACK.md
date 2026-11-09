@@ -62,3 +62,9 @@ All audit-branch commits and offline tests are nonproduction. Production file ch
 - A cached token is never returned past its independently verified expiry. Timeout or verification failure after cache TTL expires returns no token; no stale-on-error fallback.
 - A per-process lock serializes verification for that process. Separate workers each have their own cache, so profile API load still needs operational monitoring.
 - This reduces repeated Dhan profile calls but **does not guarantee low latency on cache misses**, and is not proof of live quote freshness. Production rollout remains unapproved.
+
+## Documented consent IST expiry opt-in (audit branch only)
+- Dhan's API key/secret consent documentation describes `expiryTime` as IST. `DHAN_CONSENT_NAIVE_EXPIRY_TIMEZONE=Asia/Kolkata` explicitly enables interpreting **offset-free consent expiryTime only** as IST when `DHAN_PERSIST_CONSENT_TOKEN=1` is separately enabled.
+- Default remains fail-closed for naive expiry. Unsupported timezone strings are rejected. Already offset-aware timestamps retain their explicit offset. The normalized expiry is returned in UTC.
+- This setting does **not** interpret the separate `/v2/profile` `tokenValidity` field; its timezone remains unverified and strict file-token verification must not infer it from consent documentation.
+- No auto-renewal, unattended login, credential rotation or production activation is introduced.
