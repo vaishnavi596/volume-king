@@ -323,6 +323,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "expires_at": dhan_session["expires_at"] if authenticated else "",
                     "token_source": "oauth_consent" if authenticated else ("provisioned_unverified" if token_configured else "none"),
                     "renewal_supported": False,
+                    "reauthentication_required": not authenticated and not token_configured,
+                    "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
 
     @app.post("/dhan/ltp")
