@@ -4,6 +4,7 @@ on:
     branches:
       - audit/oracle-dhan-credential-readiness
     paths:
+      - backend/server.py
       - backend/check-dhan-token-expiry.py
       - backend/test_dhan_token_monitor.py
       - backend/dhan_token_storage.py
@@ -25,6 +26,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Compile monitor and tests
-        run: python -m py_compile backend/check-dhan-token-expiry.py backend/test_dhan_token_monitor.py backend/dhan_token_storage.py backend/test_dhan_token_storage.py backend/dhan_consent_validation.py backend/test_dhan_consent_validation.py backend/dhan_session_bridge.py backend/test_dhan_session_bridge.py
+        run: python -m py_compile backend/server.py backend/check-dhan-token-expiry.py backend/test_dhan_token_monitor.py backend/dhan_token_storage.py backend/test_dhan_token_storage.py backend/dhan_consent_validation.py backend/test_dhan_consent_validation.py backend/dhan_session_bridge.py backend/test_dhan_session_bridge.py
       - name: Run offline unit tests without credentials or network
         run: python -m unittest discover -s backend -p 'test_dhan_*.py' -v
