@@ -802,13 +802,17 @@ def app_main(page:ft.Page):
             for failed,reason in list(failed_symbols.items())[:3]:
                 problems.append("Market data "+str(failed)+": "+str(reason)[:100])
         if not connected:problems.append("Yahoo quote not verified" if yahoo else "Provider disconnected; reconnect in Settings")
-        if dhan and (not connected or valid<total):
+        # A disconnected Dhan session is one root cause, not four independent
+        # failures. Preserve the detailed diagnostics but avoid alarming users
+        # with derivative scan/quote/chart errors until re-authentication.
+        if dhan and connected and valid<total:
             problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
-        if diagnostics and (not connected or (dhan and valid<total)):problems.append("Last error: "+diagnostics[-1][:100])
+        if diagnostics and connected and dhan and valid<total:
+            problems.append("Last error: "+diagnostics[-1][:100])
         if dhan and connected and valid>=total and "FeedError" in component_status("market"):
             problems.append("Chart data request failed; scanner completion does not verify chart")
         market_health=component_status("market")
-        if "STALE" in market_health or "UNAVAILABLE" in market_health:
+        if connected and ("STALE" in market_health or "UNAVAILABLE" in market_health):
             problems.append("Chart warning: historical or unavailable data; not verified live")
         # HISTORICAL is a successful candle fetch, not a live-price verification.
         # Keep that limitation visible in the detailed chart status without
