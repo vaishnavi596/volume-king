@@ -44,10 +44,14 @@ class _KeystoreControlState extends State<KeystoreControl> {
             final value = args['value'];
             if (value is! String || value.isEmpty) return null;
             await storage.write(key: key, value: value);
-            return '1';
+            // A successful write call alone does not prove persistence.
+            final saved = await storage.read(key: key);
+            return saved == value ? '1' : null;
           case 'delete':
             await storage.delete(key: key);
-            return '1';
+            // Fail closed if the credential remains in encrypted storage.
+            final remaining = await storage.read(key: key);
+            return remaining == null ? '1' : null;
         }
       } catch (_) {
         // Fail closed; never expose native exception text or secrets.
