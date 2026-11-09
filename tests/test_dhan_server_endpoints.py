@@ -1,5 +1,7 @@
 """Read-only Dhan endpoint contract tests, with mocked token and upstream."""
 import os
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -29,6 +31,34 @@ class DhanEndpointTests(unittest.TestCase):
         self.env = patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"})
         self.env.start()
         self.addCleanup(self.env.stop)
+
+    def test_dhan_session_restores_after_server_restart(self):
+        class Response:
+            def __init__(self, data): self.data = data
+            def raise_for_status(self): pass
+            def json(self): return self.data
+
+        with tempfile.TemporaryDirectory() as directory:
+            session_file = str(Path(directory) / "dhan-session.json")
+            credentials = {"DHAN_CLIENT_ID": "test-client",
+                           "DHAN_API_KEY": "test-api-key",
+                           "DHAN_API_SECRET": "test-api-secret",
+                           "DHAN_SESSION_FILE": session_file}
+            with patch.dict(os.environ, credentials), \
+                 patch("backend.server.requests.post", return_value=Response({"consentAppId": "consent"})), \
+                 patch("backend.server.requests.get", return_value=Response({
+                     "accessToken": "durable-token", "dhanClientId": "test-client",
+                     "expiryTime": "2099-01-01T00:00:00Z"})):
+                first = TestClient(create_app(pairing_key=PAIRING_KEY, feed=StubAngel()))
+                self.assertEqual(first.post("/dhan/start", headers=self.headers).status_code, 200)
+                self.assertEqual(first.get("/dhan/callback?tokenId=token-id").status_code, 200)
+                self.assertEqual(Path(session_file).stat().st_mode & 0o077, 0)
+                self.assertTrue(Path(session_file).exists())
+                restarted = TestClient(create_app(pairing_key=PAIRING_KEY, feed=StubAngel()))
+                status = restarted.get("/dhan/status", headers=self.headers).json()
+                self.assertTrue(status["authenticated"])
+                self.assertEqual(status["token_source"], "oauth_consent")
+                self.assertNotIn("durable-token", str(status))
 
     def test_successful_consent_token_is_used_for_ltp_without_token_file(self):
         class Response:
