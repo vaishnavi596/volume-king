@@ -9,6 +9,7 @@ on:
       - tests/test_secure_credentials.py
       - tests/test_secure_dhan_pairing.py
       - tests/test_keystore_bridge_contract.py
+      - tests/test_keystore_runtime_gate.py
       - src/keystore_control.py
       - .github/workflows/secure-pairing-tests.yml
   workflow_dispatch:
@@ -28,3 +29,4 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_secure*.py' -v
           python -m unittest discover -s tests -p 'test_keystore_bridge_contract.py' -v
+          python -m unittest discover -s tests -p 'test_keystore_runtime_gate.py' -v
