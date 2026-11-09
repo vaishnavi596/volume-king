@@ -332,22 +332,16 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         token_configured = bool(dhan_market_token())
         client_id = os.environ.get("DHAN_CLIENT_ID", "").strip()
         market_data_configured = bool(client_id) and token_configured
-        verification = "not_checked"
-        if os.environ.get("DHAN_VERIFY_PERSISTED_SESSION", "").strip() == "1":
-            try:
-                try:
-                    from .dhan_restart_validation import verify_persisted_session_with_dhan
-                except ImportError:
-                    from dhan_restart_validation import verify_persisted_session_with_dhan
-                verify_persisted_session_with_dhan(
-                    os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token"),
-                    client_id,
-                    provider_timezone=os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip() or None,
-                )
-                verification = "verified"
-            except Exception:
-                # Never disclose tokens, profile bodies, network exceptions or paths.
-                verification = "unverified"
+        try:
+            from .dhan_status_policy import persisted_session_status
+        except ImportError:
+            from dhan_status_policy import persisted_session_status
+        verification = persisted_session_status(
+            os.environ.get("DHAN_VERIFY_PERSISTED_SESSION", "").strip() == "1",
+            os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token"),
+            client_id,
+            provider_timezone=os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip() or None,
+        )
         with lock:
             return {"authenticated": bool(dhan_session["access_token"]),
                     "market_data_configured": market_data_configured,
