@@ -56,3 +56,12 @@ class SecurePairingTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(outcome.connected)
         self.assertFalse(outcome.stored)
         self.assertIn("unavailable", outcome.message)
+
+    async def test_connect_network_failure_never_saves(self):
+        store = MemoryNativeStub()
+        async def outage(secret):
+            raise TimeoutError("unreachable")
+        outcome = await SecureDhanPairing(store, outage).connect("valid")
+        self.assertFalse(outcome.connected)
+        self.assertFalse(outcome.stored)
+        self.assertEqual(store.data, {})
