@@ -1,8 +1,7 @@
 name: Secure Storage Compatibility Probe
+# Legacy Flet-upgrade probe retained for reference; manual-only.
+# The chosen path preserves production Flet 0.25.2.
 on:
-  push:
-    branches:
-      - experiment/android-secure-storage-compat
   workflow_dispatch:
 jobs:
   probe:
