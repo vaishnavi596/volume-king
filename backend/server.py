@@ -145,6 +145,11 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     attempts = deque()
     dhan_pending = {"until": 0.0, "active": False}
     dhan_session = {"access_token": "", "expires_at": ""}
+    try:
+        from .dhan_token_selector import VerifiedTokenCache
+    except ImportError:
+        from dhan_token_selector import VerifiedTokenCache
+    dhan_file_token_cache = VerifiedTokenCache(ttl_seconds=30)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -326,6 +331,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             os.environ.get("DHAN_CLIENT_ID", "").strip(),
             strict=os.environ.get("DHAN_REQUIRE_VERIFIED_FILE_TOKEN", "").strip() == "1",
             provider_timezone=os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip() or None,
+            cache=dhan_file_token_cache,
         )
 
     @app.get("/dhan/status")
