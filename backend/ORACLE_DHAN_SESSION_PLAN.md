@@ -26,6 +26,16 @@ Status: audit-only; not deployed. Branch: audit/oracle-dhan-credential-readiness
 - Owner ran backend/check-dhan-token-expiry.py: DHAN_TOKEN_STATUS=accepted; DHAN_AUTO_RENEWAL=not_enabled.
 - Do not assume the provider-local expiry string is UTC/IST until documented; do not run renewal on an unverified token type.
 
+## Verified Dhan authentication contract (official docs, checked 2026-11-09)
+- Source: https://dhanhq.co/docs/v2/authentication/
+- Web-generated access tokens are valid for 24 hours. GET /v2/RenewToken accepts only an active **web-generated** token; the previous token becomes invalid when renewed. Never probe this endpoint against the production token to discover its origin.
+- API key/secret consent flow has generate-consent, interactive browser login, then consumeApp-consent; it is not documented as eligible for RenewToken.
+- Dhan also documents POST /app/generateAccessToken with Dhan client ID, PIN and TOTP, when TOTP is enabled. This requires separate sensitive credentials and explicit opt-in; do not silently collect PIN/TOTP seeds or use the flow without security review.
+- Source: https://dhan.co/support/platforms/dhanhq-api/what-is-the-maximum-validity-of-an-api-access-token-in-dhan-apis/
+- Dhan support describes API key/secret-based token generation as automatable, but the consent-flow docs still require browser verification. Verify which flow is authorized for this account before claiming unattended renewal.
+- Current production token origin is unknown. No token replacement or renewal attempt is authorized by these read-only checks.
+- Avoid printing client ID, PIN, TOTP, API secret, JWT, consent token or raw Dhan response bodies in diagnostics.
+
 ## Current limitations
 - GitHub repository inspection does not establish the state of the running Oracle VM.
 - Oracle results above were supplied by the owner from the live server; no production deployment or renewal was performed by the assistant.
