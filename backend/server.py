@@ -5,6 +5,7 @@
 """
 import asyncio
 import hmac
+import json
 import math
 import os
 import secrets
@@ -138,6 +139,52 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     attempts = deque()
     dhan_pending = {"until": 0.0, "active": False}
     dhan_session = {"access_token": "", "expires_at": ""}
+    dhan_session_file = os.environ.get("DHAN_SESSION_FILE", "").strip()
+
+    def valid_dhan_expiry(expiry):
+        try:
+            expires = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+            return datetime.now(timezone.utc) < expires.astimezone(timezone.utc)
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return False
+
+    def persist_dhan_session():
+        """Optional owner-only storage; fail closed if durable storage fails."""
+        if not dhan_session_file:
+            return
+        target = Path(dhan_session_file)
+        if not target.is_absolute():
+            raise OSError("DHAN_SESSION_FILE must be absolute")
+        payload = json.dumps(dhan_session).encode("utf-8")
+        temporary = target.with_name(target.name + ".tmp-" + secrets.token_hex(8))
+        try:
+            fd = os.open(str(temporary), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    if dhan_session_file:
+        try:
+            session_path = Path(dhan_session_file)
+            if not session_path.is_absolute():
+                raise OSError("DHAN_SESSION_FILE must be absolute")
+            stat = session_path.stat()
+            if stat.st_mode & 0o077 or stat.st_uid != os.geteuid():
+                raise OSError("Dhan session file has unsafe permissions or owner")
+            restored = json.loads(session_path.read_text(encoding="utf-8"))
+            if (isinstance(restored, dict) and isinstance(restored.get("access_token"), str)
+                    and restored["access_token"] and valid_dhan_expiry(restored.get("expires_at"))):
+                dhan_session.update(access_token=restored["access_token"],
+                                    expires_at=restored["expires_at"])
+        except (OSError, ValueError, TypeError):
+            pass
+
 
     @asynccontextmanager
     async def lifespan(app):
@@ -281,7 +328,13 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     raise ValueError("Expired token")
             except (TypeError, ValueError, OverflowError):
                 raise HTTPException(502, "Dhan returned invalid token expiry") from None
+            previous = dhan_session.copy()
             dhan_session.update(access_token=token, expires_at=expiry)
+            try:
+                persist_dhan_session()
+            except OSError:
+                dhan_session.update(previous)
+                raise HTTPException(503, "Secure Dhan session storage unavailable") from None
         return HTMLResponse(
             "<!doctype html><html><head><meta name='referrer' content='no-referrer'></head>"
             "<body><h2>BOT KING: Dhan login successful</h2>"
