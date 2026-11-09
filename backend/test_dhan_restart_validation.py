@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from dhan_restart_validation import verify_persisted_session
+from dhan_restart_validation import verify_persisted_session, verify_persisted_session_with_dhan
 from dhan_token_storage import atomic_store_token
 
 
@@ -73,6 +73,31 @@ class RestartValidationTests(unittest.TestCase):
                 raise ConnectionError("simulated")
             with self.assertRaises(ConnectionError):
                 verify_persisted_session(path, "TEST_ACCOUNT", network_failure, self.now)
+
+    def test_integration_adapter_validates_profile_after_restart(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            calls = []
+            def fake_lookup(token):
+                calls.append(token)
+                return dict(self.profile, tokenValidity="10/11/2026 09:43")
+            token, expiry = verify_persisted_session_with_dhan(
+                path, "TEST_ACCOUNT", now=self.now,
+                provider_timezone="Asia/Kolkata", profile_lookup=fake_lookup)
+            self.assertEqual(calls, ["FAKE_TOKEN"])
+            self.assertEqual(token, "FAKE_TOKEN")
+            self.assertEqual(expiry, datetime(2026, 11, 10, 4, 13, tzinfo=timezone.utc))
+
+    def test_integration_fails_closed_without_verified_timezone(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            profile = dict(self.profile, tokenValidity="10/11/2026 09:43")
+            with self.assertRaises(ValueError):
+                verify_persisted_session_with_dhan(
+                    path, "TEST_ACCOUNT", now=self.now,
+                    profile_lookup=lambda token: profile)
 
     def test_missing_token_fails_before_profile_lookup(self):
         with tempfile.TemporaryDirectory() as folder:
