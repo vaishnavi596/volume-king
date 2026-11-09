@@ -79,3 +79,54 @@ def test_native_adapter_fails_closed_without_service():
         pass
     else:
         raise AssertionError("Native storage must be mandatory")
+
+
+def test_native_adapter_rejects_non_string_response():
+    from secure_credentials import VerifiedNativeCredentialStore
+
+    class MalformedNative:
+        async def get(self, key):
+            return {"secret": "unexpected"}
+
+        async def set(self, key, value):
+            return None
+
+        async def delete(self, key):
+            return None
+
+    async def exercise():
+        store = VerifiedNativeCredentialStore(MalformedNative())
+        try:
+            await store.read("dhan.server_access_key")
+        except SecureStorageUnavailable:
+            return
+        raise AssertionError("Malformed secure storage data must fail closed")
+
+    asyncio.run(exercise())
+
+
+def test_native_adapter_rejects_empty_credentials():
+    from secure_credentials import VerifiedNativeCredentialStore
+
+    class FakeNative:
+        async def get(self, key):
+            return None
+
+        async def set(self, key, value):
+            raise AssertionError("Empty credential reached native storage")
+
+        async def delete(self, key):
+            return None
+
+    async def exercise():
+        store = VerifiedNativeCredentialStore(FakeNative())
+        for invalid in ("", None, 123):
+            try:
+                await store.write("dhan.server_access_key", invalid)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Invalid credential was accepted")
+
+    asyncio.run(exercise()
+    )
