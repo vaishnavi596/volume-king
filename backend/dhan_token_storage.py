@@ -42,3 +42,29 @@ def atomic_store_token(path, token):
     finally:
         if tmp is not None:
             os.unlink(tmp)
+
+
+def read_persisted_token(path):
+    """Read a previously stored token without following symlinks.
+
+    Fails closed on insecure file modes, unexpected file types and empty tokens.
+    No token is printed or returned in exception messages.
+    """
+    import stat
+    target = Path(path)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(target, flags)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) & 0o077:
+            raise PermissionError("Unsafe token file permissions or type")
+        with os.fdopen(os.dup(fd), "r", encoding="utf-8") as handle:
+            raw = handle.read(8193)
+        if len(raw) > 8192:
+            raise ValueError("Token file exceeds size limit")
+        token = raw.strip()
+        if not token or "\n" in token or "\r" in token:
+            raise ValueError("Invalid stored token")
+        return token
+    finally:
+        os.close(fd)
