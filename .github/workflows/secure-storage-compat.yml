@@ -26,3 +26,25 @@ jobs:
           from flet_secure_storage import SecureStorage
           print("Extension import OK:", SecureStorage)
           PY
+
+      - name: Audit BOT KING Flet control API against upgraded runtime
+        run: |
+          python - <<'PY'
+          import ast
+          import pathlib
+          import flet as ft
+          source = pathlib.Path("src/main.py").read_text(encoding="utf-8")
+          ast.parse(source)
+          tree = ast.parse(source)
+          controls = sorted({
+              node.attr for node in ast.walk(tree)
+              if isinstance(node, ast.Attribute)
+              and isinstance(node.value, ast.Name)
+              and node.value.id == "ft"
+          })
+          missing = [name for name in controls if not hasattr(ft, name)]
+          print("Flet attributes referenced:", len(controls))
+          print("Missing from upgraded Flet:", missing)
+          if missing:
+              raise SystemExit("BOT KING requires API migration before Flet 1.1.2 upgrade")
+          PY
