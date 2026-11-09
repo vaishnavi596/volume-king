@@ -85,6 +85,7 @@ class DhanEndpointTests(unittest.TestCase):
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["market_data_configured"])
             self.assertFalse(status["authenticated"])
+            self.assertEqual(status["expires_at"], "")
             self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"},
                                               headers=self.headers).status_code, 503)
             dhan.assert_not_called()
@@ -107,6 +108,7 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(self.client.get("/dhan/callback?tokenId=missing-expiry").status_code, 200)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["authenticated"])
+            self.assertEqual(status["expires_at"], "")
             self.assertFalse(status["market_data_configured"])
             self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"},
                                               headers=self.headers).status_code, 503)
