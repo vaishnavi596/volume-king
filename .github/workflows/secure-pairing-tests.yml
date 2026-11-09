@@ -23,5 +23,6 @@ jobs:
       - name: Compile secure pairing modules
         run: python -m py_compile src/secure_credentials.py src/secure_dhan_pairing.py
       - name: Test credential store and verified pairing behavior
-        run: python -m unittest discover -s tests -p 'test_secure*.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_secure*.py' -v
           python -m unittest discover -s tests -p 'test_keystore_bridge_contract.py' -v
