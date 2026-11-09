@@ -40,3 +40,9 @@ Status: audit-only; not deployed. Branch: audit/oracle-dhan-credential-readiness
 - GitHub repository inspection does not establish the state of the running Oracle VM.
 - Oracle results above were supplied by the owner from the live server; no production deployment or renewal was performed by the assistant.
 - The audit script is intentionally read-only and cannot fix an expired token.
+
+## Read-only monitor hardening (2026-11-09)
+- The optional `DHAN_PROFILE_TIMEZONE` must only be set after verifying Dhan's clock; otherwise output remains provider-local and does not compute a misleading countdown.
+- Once configured, the monitor now differentiates healthy (>6 hours), warning (0–6 hours), and expired (at or past expiry); an expired state returns exit 2. This is a **local clock assessment**, not a Dhan renewal or live-quote validation.
+- Offline tests cover expiry boundaries, India versus UTC clock interpretation, invalid timezone, missing token and date parsing.
+- No systemd timer, notification destination, token write, service restart, production deployment or unattended renewal is enabled by these branch changes.
