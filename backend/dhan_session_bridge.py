@@ -13,9 +13,9 @@ except ImportError:
     from dhan_token_storage import atomic_store_token, read_persisted_token
 
 
-def persist_verified_consent(payload, expected_client_id, token_path, now=None):
+def persist_verified_consent(payload, expected_client_id, token_path, now=None, naive_expiry_timezone=None):
     """Validate before writing. Return only the verified UTC expiry, never token."""
-    token, expiry = validate_consent_response(payload, expected_client_id, now=now)
+    token, expiry = validate_consent_response(payload, expected_client_id, now=now, naive_expiry_timezone=naive_expiry_timezone)
     atomic_store_token(Path(token_path), token)
     return expiry
 
@@ -34,4 +34,5 @@ def persist_consent_if_enabled(payload, expected_client_id, environ=None, now=No
     if env.get("DHAN_PERSIST_CONSENT_TOKEN", "").strip() != "1":
         return None
     path = env.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token")
-    return persist_verified_consent(payload, expected_client_id, path, now=now)
+    return persist_verified_consent(payload, expected_client_id, path, now=now,
+        naive_expiry_timezone=env.get('DHAN_CONSENT_NAIVE_EXPIRY_TIMEZONE', '').strip() or None)
