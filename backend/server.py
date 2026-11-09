@@ -330,10 +330,28 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         # interactive Dhan consent flow has not populated dhan_session.
         # Never expose token contents, paths or account credentials.
         token_configured = bool(dhan_market_token())
-        market_data_configured = bool(os.environ.get("DHAN_CLIENT_ID", "").strip()) and token_configured
+        client_id = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        market_data_configured = bool(client_id) and token_configured
+        verification = "not_checked"
+        if os.environ.get("DHAN_VERIFY_PERSISTED_SESSION", "").strip() == "1":
+            try:
+                try:
+                    from .dhan_restart_validation import verify_persisted_session_with_dhan
+                except ImportError:
+                    from dhan_restart_validation import verify_persisted_session_with_dhan
+                verify_persisted_session_with_dhan(
+                    os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token"),
+                    client_id,
+                    provider_timezone=os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip() or None,
+                )
+                verification = "verified"
+            except Exception:
+                # Never disclose tokens, profile bodies, network exceptions or paths.
+                verification = "unverified"
         with lock:
             return {"authenticated": bool(dhan_session["access_token"]),
                     "market_data_configured": market_data_configured,
+                    "persisted_session_verification": verification,
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"],
                     "live_orders_enabled": False}
