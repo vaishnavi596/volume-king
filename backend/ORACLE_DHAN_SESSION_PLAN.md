@@ -20,7 +20,13 @@ Status: audit-only; not deployed. Branch: audit/oracle-dhan-credential-readiness
 7. Validate Oracle service health and read-only Dhan quote/candle freshness independently; do not enable trading orders.
 8. Obtain explicit deployment approval after reviewing tests and rollback. Preserve production Android version and signing.
 
+## Oracle validation observed 2026-11-09
+- Owner ran read-only audit: token file present and readable by service user; restricted token and environment permissions; Dhan client ID, API key and secret configured; nginx syntax valid; local gateway health successful.
+- Owner ran Dhan /v2/profile: HTTP 200, tokenValidity 10/11/2026 09:43 (provider-local timezone unverified), dataPlan Active, dataValidity 2026-12-05 20:54:01.0.
+- Owner ran backend/check-dhan-token-expiry.py: DHAN_TOKEN_STATUS=accepted; DHAN_AUTO_RENEWAL=not_enabled.
+- Do not assume the provider-local expiry string is UTC/IST until documented; do not run renewal on an unverified token type.
+
 ## Current limitations
 - GitHub repository inspection does not establish the state of the running Oracle VM.
-- No live Oracle access, Dhan token validity test, or production deployment was performed.
+- Oracle results above were supplied by the owner from the live server; no production deployment or renewal was performed by the assistant.
 - The audit script is intentionally read-only and cannot fix an expired token.
