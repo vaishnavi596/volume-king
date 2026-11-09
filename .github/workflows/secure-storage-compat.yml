@@ -14,7 +14,7 @@ jobs:
           python-version: '3.12'
       - name: Install pinned app runtime and native extension Python API
         run: |
-          python -m pip install "flet==0.25.2" "flet-secure-storage==0.1.0"
+          python -m pip install "flet==0.25.2" "flet-secure-storage==1.1.2"
           python -m pip check
       - name: Prove extension imports against the pinned Flet runtime
         run: |
@@ -22,7 +22,7 @@ jobs:
           import importlib.metadata as m
           print("Flet:", m.version("flet"))
           print("Secure storage:", m.version("flet-secure-storage"))
-          assert m.version("flet") == "0.25.2", "Resolver upgraded production Flet"
+          assert m.version("flet") == "0.25.2", "Extension incompatible with pinned production Flet"
           from flet_secure_storage import SecureStorage
           print("Extension import OK:", SecureStorage)
           PY
