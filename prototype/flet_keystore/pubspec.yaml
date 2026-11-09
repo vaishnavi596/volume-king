@@ -1,0 +1,12 @@
+name: botking_flet_keystore
+description: Experimental Flet 0.25.2 secure credential control
+version: 0.0.1
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+  flutter: ">=3.19.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  flet:
+    path: ../flet
+  flutter_secure_storage: 9.2.4
