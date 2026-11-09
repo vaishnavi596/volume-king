@@ -28,3 +28,17 @@ def test_unavailable_secure_storage_never_persists_secret():
 def test_session_metadata_has_no_secret_field():
     record = DhanSessionRecord("https://example.invalid")
     assert set(vars(record)) == {"server_origin", "provider"}
+
+
+def test_no_plaintext_dhan_pairing_key_in_preferences():
+    """Reject accidental persistence of the pairing key in JSON preferences."""
+    source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+    forbidden = (
+        'prefs["pairing_key"]',
+        "prefs['pairing_key']",
+        'prefs["server_access_key"]',
+        "prefs['server_access_key']",
+        'prefs["server_access"]',
+        "prefs['server_access']",
+    )
+    assert all(pattern not in source for pattern in forbidden)
