@@ -32,6 +32,38 @@ class DhanGatewayWiringTests(unittest.TestCase):
             for n in ast.walk(function)
         )
 
+    def test_existing_api_routes_remain_registered(self):
+        """Protect the known gateway route contract during Dhan refactoring."""
+        expected = {
+            ("post", "/dhan/start"),
+            ("get", "/dhan/callback"),
+            ("get", "/dhan/status"),
+            ("post", "/dhan/ltp"),
+            ("post", "/dhan/ltp-batch"),
+            ("post", "/dhan/intraday"),
+            ("get", "/health"),
+            ("post", "/v1/login"),
+            ("post", "/v1/ping"),
+            ("post", "/v1/logout"),
+            ("post", "/v1/history"),
+            ("post", "/v1/expiries"),
+            ("post", "/v1/options"),
+            ("post", "/v1/option-history"),
+        }
+        actual = set()
+        for function in self.functions.values():
+            for decorator in function.decorator_list:
+                if not isinstance(decorator, ast.Call):
+                    continue
+                target = decorator.func
+                if not isinstance(target, ast.Attribute) or target.attr not in {"get", "post"}:
+                    continue
+                if not isinstance(target.value, ast.Name) or target.value.id != "app":
+                    continue
+                if decorator.args and isinstance(decorator.args[0], ast.Constant):
+                    actual.add((target.attr, decorator.args[0].value))
+        self.assertTrue(expected.issubset(actual), f"Missing gateway routes: {sorted(expected - actual)}")
+
     def test_all_market_data_routes_share_token_selector(self):
         for name in ("dhan_ltp", "dhan_ltp_batch", "dhan_intraday"):
             with self.subTest(route=name):
