@@ -3,6 +3,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import tempfile
+import threading
+import time
 from dhan_token_storage import atomic_store_token
 from dhan_token_selector import select_persisted_token, VerifiedTokenCache
 
@@ -89,6 +91,66 @@ class TokenSelectorTests(unittest.TestCase):
             cache = VerifiedTokenCache()
             self.assertEqual(select_persisted_token(path, "CLIENT", strict=True, cache=cache,
                 verifier=lambda *a, **k: ("FAKE_TOKEN", datetime.now(timezone.utc) - timedelta(seconds=1))), "")
+
+    def test_concurrent_requests_share_one_verification(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            cache = VerifiedTokenCache(ttl_seconds=30)
+            calls = [0]
+            barrier = threading.Barrier(8)
+            results = []
+            errors = []
+            def verifier(*args, **kwargs):
+                calls[0] += 1
+                time.sleep(0.04)
+                return "FAKE_TOKEN", datetime.now(timezone.utc) + timedelta(hours=1)
+            def worker():
+                try:
+                    barrier.wait(timeout=3)
+                    results.append(select_persisted_token(
+                        path, "CLIENT", strict=True, verifier=verifier, cache=cache))
+                except Exception as exc:
+                    errors.append(type(exc).__name__)
+            threads = [threading.Thread(target=worker) for _ in range(8)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=5)
+            self.assertFalse(errors)
+            self.assertTrue(all(not thread.is_alive() for thread in threads))
+            self.assertEqual(results, ["FAKE_TOKEN"] * 8)
+            self.assertEqual(calls[0], 1)
+
+    def test_concurrent_timeout_never_returns_stale_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            clock = [0]
+            cache = VerifiedTokenCache(ttl_seconds=10, monotonic=lambda: clock[0])
+            calls = [0]
+            def verifier(*args, **kwargs):
+                calls[0] += 1
+                if calls[0] == 1:
+                    return "FAKE_TOKEN", datetime.now(timezone.utc) + timedelta(hours=1)
+                time.sleep(0.02)
+                raise TimeoutError("SIMULATED_SECRET")
+            choose = lambda: select_persisted_token(path, "CLIENT", strict=True, verifier=verifier, cache=cache)
+            self.assertEqual(choose(), "FAKE_TOKEN")
+            clock[0] = 11
+            barrier = threading.Barrier(5)
+            results = []
+            def worker():
+                barrier.wait(timeout=3)
+                results.append(choose())
+            threads = [threading.Thread(target=worker) for _ in range(5)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=5)
+            self.assertTrue(all(not thread.is_alive() for thread in threads))
+            self.assertEqual(results, [""] * 5)
+            self.assertEqual(calls[0], 6)
 
     def test_default_missing_file_returns_empty(self):
         def missing(path):
