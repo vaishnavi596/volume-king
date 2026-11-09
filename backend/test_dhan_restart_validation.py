@@ -36,6 +36,27 @@ class RestartValidationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_persisted_session(path, "TEST_ACCOUNT", lambda t: profile, self.now)
 
+    def test_provider_date_requires_explicit_timezone(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            profile = dict(self.profile, tokenValidity="10/11/2026 09:43")
+            token, expiry = verify_persisted_session(
+                path, "TEST_ACCOUNT", lambda t: profile, self.now,
+                provider_timezone="Asia/Kolkata")
+            self.assertEqual(token, "FAKE_TOKEN")
+            self.assertEqual(expiry, datetime(2026, 11, 10, 4, 13, tzinfo=timezone.utc))
+
+    def test_invalid_provider_timezone_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "token"
+            atomic_store_token(path, "FAKE_TOKEN")
+            profile = dict(self.profile, tokenValidity="10/11/2026 09:43")
+            with self.assertRaises(ValueError):
+                verify_persisted_session(
+                    path, "TEST_ACCOUNT", lambda t: profile, self.now,
+                    provider_timezone="Not/A_Real_Zone")
+
     def test_expired_token_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "token"
