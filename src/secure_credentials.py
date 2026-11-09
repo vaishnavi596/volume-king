@@ -38,3 +38,34 @@ class UnavailableCredentialStore:
 
     async def delete(self, key: str) -> None:
         return None
+
+
+class VerifiedNativeCredentialStore:
+    """Adapter for an already-verified native Keystore service.
+
+    The service must implement async get/set/delete and be registered with
+    the Flet runtime. Merely installing a Python package is insufficient.
+    No filesystem fallback is allowed.
+    """
+
+    def __init__(self, native_service):
+        if native_service is None or not all(
+            callable(getattr(native_service, method, None))
+            for method in ("get", "set", "delete")
+        ):
+            raise SecureStorageUnavailable("Native secure storage service missing")
+        self._native = native_service
+
+    async def read(self, key: str) -> str | None:
+        value = await self._native.get(key)
+        if value is not None and not isinstance(value, str):
+            raise SecureStorageUnavailable("Unexpected native storage response")
+        return value
+
+    async def write(self, key: str, value: str) -> None:
+        if not isinstance(value, str) or not value:
+            raise ValueError("Cannot store an empty credential")
+        await self._native.set(key, value)
+
+    async def delete(self, key: str) -> None:
+        await self._native.delete(key)
