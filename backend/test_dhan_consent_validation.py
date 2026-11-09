@@ -27,6 +27,25 @@ class ConsentValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_consent_response(payload, "FAKE_CLIENT", self.now)
 
+    def test_explicit_ist_naive_expiry_is_normalized(self):
+        payload = dict(self.payload, expiryTime="2026-11-10T17:30:00")
+        token, expiry = validate_consent_response(
+            payload, "FAKE_CLIENT", self.now, naive_expiry_timezone="Asia/Kolkata")
+        self.assertEqual(token, "FAKE_TEST_TOKEN")
+        self.assertEqual(expiry, datetime(2026, 11, 10, 12, tzinfo=timezone.utc))
+
+    def test_unsupported_timezone_rejected(self):
+        payload = dict(self.payload, expiryTime="2026-11-10T17:30:00")
+        with self.assertRaises(ValueError):
+            validate_consent_response(
+                payload, "FAKE_CLIENT", self.now, naive_expiry_timezone="UTC")
+
+    def test_expired_naive_ist_rejected(self):
+        payload = dict(self.payload, expiryTime="2026-11-09T17:29:00")
+        with self.assertRaises(ValueError):
+            validate_consent_response(
+                payload, "FAKE_CLIENT", self.now, naive_expiry_timezone="Asia/Kolkata")
+
     def test_expired_consent_rejected(self):
         payload = dict(self.payload, expiryTime="2026-11-08T12:00:00Z")
         with self.assertRaises(ValueError):
