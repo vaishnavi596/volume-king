@@ -6,6 +6,7 @@ expiry/account have been validated by the gateway. Never log token contents.
 import os
 from pathlib import Path
 import tempfile
+import stat
 
 
 def atomic_store_token(path, token):
@@ -22,6 +23,14 @@ def atomic_store_token(path, token):
         raise FileNotFoundError("Token directory missing")
     if parent.is_symlink() or target.is_symlink():
         raise ValueError("Symlink paths not permitted")
+    if target.exists():
+        existing = target.stat()
+        if not stat.S_ISREG(existing.st_mode):
+            raise ValueError("Existing token path is not a regular file")
+        if existing.st_uid != os.geteuid():
+            raise PermissionError("Existing token file owner differs from writer")
+        if stat.S_IMODE(existing.st_mode) & 0o077:
+            raise PermissionError("Existing token file permissions are too broad")
     if os.stat(parent).st_mode & 0o022:
         raise PermissionError("Token directory must not be group/world writable")
     tmp = None
@@ -50,7 +59,6 @@ def read_persisted_token(path):
     Fails closed on insecure file modes, unexpected file types and empty tokens.
     No token is printed or returned in exception messages.
     """
-    import stat
     target = Path(path)
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(target, flags)
