@@ -1,6 +1,7 @@
 """Offline tests for isolated token storage; no real credentials or Oracle writes."""
 import os
 from pathlib import Path
+from unittest.mock import patch
 import stat
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ class TokenStorageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "dhan-token"
             target.write_text("OLD_FAKE_TOKEN\n")
+            os.chmod(target, 0o600)
             atomic_store_token(target, "NEW_FAKE_TOKEN")
             self.assertEqual(target.read_text(), "NEW_FAKE_TOKEN\n")
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
@@ -45,11 +47,30 @@ class TokenStorageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "dhan-token"
             target.write_text("ORIGINAL\n")
+            os.chmod(target, 0o600)
             for token in ("", " leading", "trailing ", "two\nlines", None):
                 with self.subTest(token=repr(token)):
                     with self.assertRaises(ValueError):
                         atomic_store_token(target, token)
                     self.assertEqual(target.read_text(), "ORIGINAL\n")
+
+    def test_existing_token_wrong_owner_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "dhan-token"
+            atomic_store_token(target, "OLD_FAKE_TOKEN")
+            with patch("dhan_token_storage.os.geteuid", return_value=-1):
+                with self.assertRaises(PermissionError):
+                    atomic_store_token(target, "NEW_FAKE_TOKEN")
+            self.assertEqual(read_persisted_token(target), "OLD_FAKE_TOKEN")
+
+    def test_existing_token_insecure_mode_is_not_replaced(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "dhan-token"
+            atomic_store_token(target, "OLD_FAKE_TOKEN")
+            os.chmod(target, 0o644)
+            with self.assertRaises(PermissionError):
+                atomic_store_token(target, "NEW_FAKE_TOKEN")
+            self.assertEqual(target.read_text(), "OLD_FAKE_TOKEN\\n")
 
     def test_reject_symlink_target(self):
         with tempfile.TemporaryDirectory() as folder:
