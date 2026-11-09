@@ -59,6 +59,8 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(self.client.get("/dhan/callback?tokenId=token-id").status_code, 200)
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertTrue(status["authenticated"])
+            self.assertEqual(status["token_source"], "oauth_consent")
+            self.assertFalse(status["renewal_supported"])
             self.assertTrue(status["market_data_configured"])
             response = self.client.post("/dhan/ltp", json={"symbol": "NIFTY"}, headers=self.headers)
             self.assertEqual(response.status_code, 200)
@@ -85,6 +87,7 @@ class DhanEndpointTests(unittest.TestCase):
             status = self.client.get("/dhan/status", headers=self.headers).json()
             self.assertFalse(status["market_data_configured"])
             self.assertFalse(status["authenticated"])
+            self.assertEqual(status["token_source"], "none")
             self.assertEqual(status["expires_at"], "")
             self.assertEqual(self.client.post("/dhan/ltp", json={"symbol": "NIFTY"},
                                               headers=self.headers).status_code, 503)
@@ -127,6 +130,8 @@ class DhanEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["market_data_configured"])
         self.assertFalse(response.json()["authenticated"])
+        self.assertEqual(response.json()["token_source"], "provisioned_unverified")
+        self.assertFalse(response.json()["renewal_supported"])
         self.assertFalse(response.json()["live_orders_enabled"])
         self.assertNotIn("test-token", response.text)
 
