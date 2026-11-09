@@ -5,7 +5,7 @@ import stat
 import tempfile
 import unittest
 
-from dhan_token_storage import atomic_store_token
+from dhan_token_storage import atomic_store_token, read_persisted_token
 
 
 class TokenStorageTests(unittest.TestCase):
@@ -17,6 +17,29 @@ class TokenStorageTests(unittest.TestCase):
             self.assertEqual(target.read_text(), "NEW_FAKE_TOKEN\n")
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
             self.assertEqual(list(Path(folder).glob(".dhan-token-*")), [])
+
+    def test_restart_roundtrip_from_disk(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "dhan-token"
+            atomic_store_token(target, "FAKE_SESSION_TOKEN")
+            self.assertEqual(read_persisted_token(target), "FAKE_SESSION_TOKEN")
+
+    def test_reader_rejects_insecure_permissions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "dhan-token"
+            target.write_text("FAKE_TOKEN")
+            os.chmod(target, 0o644)
+            with self.assertRaises(PermissionError):
+                read_persisted_token(target)
+
+    def test_reader_rejects_symlink(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "token"
+            atomic_store_token(target, "FAKE_TOKEN")
+            link = Path(folder) / "link"
+            link.symlink_to(target)
+            with self.assertRaises(OSError):
+                read_persisted_token(link)
 
     def test_reject_invalid_tokens_without_touching_existing(self):
         with tempfile.TemporaryDirectory() as folder:
