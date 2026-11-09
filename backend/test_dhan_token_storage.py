@@ -20,6 +20,14 @@ class TokenStorageTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
             self.assertEqual(list(Path(folder).glob(".dhan-token-*")), [])
 
+    def test_oversized_token_does_not_overwrite(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "dhan-token"
+            atomic_store_token(target, "OLD_FAKE_TOKEN")
+            with self.assertRaises(ValueError):
+                atomic_store_token(target, "X" * 8192)
+            self.assertEqual(read_persisted_token(target), "OLD_FAKE_TOKEN")
+
     def test_restart_roundtrip_from_disk(self):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "dhan-token"
