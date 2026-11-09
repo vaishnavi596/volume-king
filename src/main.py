@@ -3200,7 +3200,7 @@ console.log('BOT KING Lightweight Charts ready');
                                               freshness="unverified",fetched_at=time.time())
                             quotes[sym]=data;cycle_data[sym]=data
                             market_completed[0]+=1
-                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed; ranking follows"
+                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
@@ -3208,7 +3208,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 failed_symbols[sym]=safe_error(exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
-                                scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed; ranking follows"
+                                scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
                             return False
                 results=await asyncio.gather(*(load_one(sym) for sym in symbols))
