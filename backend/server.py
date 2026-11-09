@@ -318,9 +318,15 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if active:
             return active
         try:
-            return Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
-        except OSError:
-            return ""
+            from .dhan_token_selector import select_persisted_token
+        except ImportError:
+            from dhan_token_selector import select_persisted_token
+        return select_persisted_token(
+            os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token"),
+            os.environ.get("DHAN_CLIENT_ID", "").strip(),
+            strict=os.environ.get("DHAN_REQUIRE_VERIFIED_FILE_TOKEN", "").strip() == "1",
+            provider_timezone=os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip() or None,
+        )
 
     @app.get("/dhan/status")
     def dhan_status(x_botking_key: Optional[str] = Header(default=None)):
