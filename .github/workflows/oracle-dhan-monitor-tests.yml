@@ -6,6 +6,8 @@ on:
     paths:
       - backend/check-dhan-token-expiry.py
       - backend/test_dhan_token_monitor.py
+      - backend/dhan_token_storage.py
+      - backend/test_dhan_token_storage.py
       - .github/workflows/oracle-dhan-monitor-tests.yml
   workflow_dispatch:
 jobs:
@@ -19,6 +21,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Compile monitor and tests
-        run: python -m py_compile backend/check-dhan-token-expiry.py backend/test_dhan_token_monitor.py
+        run: python -m py_compile backend/check-dhan-token-expiry.py backend/test_dhan_token_monitor.py backend/dhan_token_storage.py backend/test_dhan_token_storage.py
       - name: Run offline unit tests without credentials or network
-        run: python -m unittest discover -s backend -p 'test_dhan_token_monitor.py' -v
+        run: python -m unittest discover -s backend -p 'test_dhan_token_*.py' -v
