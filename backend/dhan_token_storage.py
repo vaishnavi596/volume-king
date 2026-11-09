@@ -18,6 +18,8 @@ def atomic_store_token(path, token):
     target = Path(path)
     if not isinstance(token, str) or not token or token != token.strip() or "\n" in token or "\r" in token:
         raise ValueError("Invalid token")
+    if len(token.encode("utf-8")) + 1 > 8192:
+        raise ValueError("Token exceeds size limit")
     parent = target.parent
     if not parent.is_dir():
         raise FileNotFoundError("Token directory missing")
