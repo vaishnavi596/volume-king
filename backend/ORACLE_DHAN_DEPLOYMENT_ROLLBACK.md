@@ -48,3 +48,10 @@ All audit-branch commits and offline tests are nonproduction. Production file ch
 - For Dhan's offset-free profile date, `DHAN_PROFILE_TIMEZONE` must be independently confirmed before setting it; do not assume `Asia/Kolkata` from examples.
 - This opt-in check can add up to 12 seconds of network latency to a status request. It does **not** enable renewal, change the market-data token selector, or certify quote/candle freshness. `market_data_configured` continues to mean credentials are present, not that they are valid.
 - Do not enable on production until callback tests, timeout behavior, rate limits and service-user file permissions are reviewed.
+
+## Optional strict file-token selector (audit branch only)
+- `DHAN_REQUIRE_VERIFIED_FILE_TOKEN=1` makes the file-token fallback verify the Dhan profile and account before returning the token. The default is OFF; existing token selection remains compatible.
+- Strict mode never falls back to an unverified file token on timeout, expiry, account mismatch, missing client ID or ambiguous provider timezone.
+- In-memory consent tokens still follow the existing expiry logic; this flag covers **file-backed fallback only**. Do not describe it as complete authentication verification.
+- Each strict fallback can incur a Dhan profile request and up to 12 seconds of latency. **Do not enable in production** until request-rate, concurrency and caching are tested and Dhan profile timezone is verified.
+- `market_data_configured` is still configuration, not confirmed quote freshness. No renewal or orders are enabled.
