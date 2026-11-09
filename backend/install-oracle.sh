@@ -192,7 +192,15 @@ for route in status ltp ltp-batch intraday; do
     if test "$route" = status; then
         dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 "https://botkingrajesh.duckdns.org/dhan/$route")
     else
-        dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d '{}' "https://botkingrajesh.duckdns.org/dhan/$route")
+        # FastAPI validates typed request bodies before entering the endpoint's
+        # pairing-key guard. Supply a valid body to actually test HTTP 403.
+        payload='{}'
+        if test "$route" = ltp; then
+            payload='{"symbol":"NIFTY"}'
+        elif test "$route" = intraday; then
+            payload='{"symbol":"NIFTY","interval":5,"from_date":"2020-01-01","to_date":"2020-01-01"}'
+        fi
+        dhan_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 -H 'Content-Type: application/json' -d "$payload" "https://botkingrajesh.duckdns.org/dhan/$route")
     fi
     if test "$dhan_code" != 403; then
         echo "Dhan route /dhan/$route failed protected routing check (HTTP $dhan_code)" >&2
