@@ -36,7 +36,9 @@ def main(page: ft.Page):
             status.value = (
                 "Read verified: stored value matches temporary test token."
                 if expected[0] is not None and saved == expected[0]
-                else ("Read after restart verified: test token persisted."\n                      if expected[0] is None and isinstance(saved, str) and saved.startswith("smoke-") and len(saved) == 38\n                      else "Read not verified: missing or unexpected test token.")
+                else ("Read after restart verified: test token persisted."
+                      if expected[0] is None and isinstance(saved, str) and saved.startswith("smoke-") and len(saved) == 38
+                      else "Read not verified: missing or unexpected test token.")
             )
         except Exception:
             status.value = "Encrypted read FAILED."
