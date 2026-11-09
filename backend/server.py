@@ -127,6 +127,18 @@ class OptionHistory(Symbol):
     side: Literal["CE", "PE"]
 
 
+def _persist_dhan_consent_if_enabled(result, client):
+    """Explicit opt-in only; never persist ambiguous or unverified consent."""
+    if os.environ.get("DHAN_PERSIST_CONSENT_TOKEN", "").strip() != "1":
+        return None
+    try:
+        from .dhan_session_bridge import persist_verified_consent
+    except ImportError:
+        from dhan_session_bridge import persist_verified_consent
+    path = os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token")
+    return persist_verified_consent(result, client, path)
+
+
 def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     pairing_key = pairing_key or os.environ.get("BOTKING_PAIRING_KEY", "")
     if len(pairing_key) < 32:
@@ -271,7 +283,15 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     raise ValueError("Invalid Dhan account or token")
             except (requests.RequestException, ValueError):
                 raise HTTPException(502, "Dhan authentication failed") from None
-            dhan_session.update(access_token=token, expires_at=str(result.get("expiryTime", "")))
+            try:
+                verified_expiry = _persist_dhan_consent_if_enabled(result, client)
+            except (ValueError, OSError) as exc:
+                # Do not expose token, path, or credentials in the HTTP response.
+                raise HTTPException(502, "Dhan session could not be safely saved") from None
+            dhan_session.update(
+                access_token=token,
+                expires_at=verified_expiry.isoformat() if verified_expiry else str(result.get("expiryTime", "")),
+            )
         return HTMLResponse(
             "<!doctype html><html><head><meta name='referrer' content='no-referrer'></head>"
             "<body><h2>BOT KING: Dhan login successful</h2>"
