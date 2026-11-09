@@ -3,9 +3,9 @@
 
 Run on Oracle with permissions to read /etc/bot-king/dhan-token.
 Does not renew tokens, write files, restart services, or place orders.
-Exit: 0 valid with >6h remaining; 2 expiry near/expired; 3 unknown/error.
+Exit: 0 accepted with provider-local expiry displayed; 2 rejected; 3 unknown/error.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -14,7 +14,6 @@ import sys
 
 TOKEN_PATH = Path("/etc/bot-king/dhan-token")
 PROFILE_URL = "https://api.dhan.co/v2/profile"
-WARNING_HOURS = 6
 
 
 def parse_expiry(value):
