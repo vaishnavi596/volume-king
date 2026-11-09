@@ -3,9 +3,11 @@
 
 Run on Oracle with permissions to read /etc/bot-king/dhan-token.
 Does not renew tokens, write files, restart services, or place orders.
-Exit: 0 accepted with provider-local expiry displayed; 2 rejected; 3 unknown/error.
+Exit: 0 accepted; 2 rejected; 3 unknown/error. Optional DHAN_PROFILE_TIMEZONE enables 6h alert.
 """
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+import os
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -54,7 +56,19 @@ def main():
         # Report the provider's expiry clock and ask for a verified timezone before scheduling.
         print("DHAN_TOKEN_STATUS=accepted")
         print("DHAN_TOKEN_EXPIRY_PROVIDER_LOCAL=" + expiry.strftime("%Y-%m-%d %H:%M"))
-        print("DHAN_EXPIRY_TIMEZONE=unverified")
+        configured_tz = os.environ.get("DHAN_PROFILE_TIMEZONE", "").strip()
+        if configured_tz:
+            try:
+                tz = ZoneInfo(configured_tz)
+                seconds_left = (expiry.replace(tzinfo=tz) - datetime.now(timezone.utc)).total_seconds()
+                print("DHAN_EXPIRY_TIMEZONE=configured:" + configured_tz)
+                print("DHAN_TOKEN_HOURS_REMAINING=" + str(max(0, int(seconds_left // 3600))))
+                print("DHAN_TOKEN_EXPIRY_ALERT=" + ("yes" if seconds_left <= 21600 else "no"))
+            except (KeyError, ValueError):
+                print("DHAN_EXPIRY_TIMEZONE=invalid_configuration")
+                return 3
+        else:
+            print("DHAN_EXPIRY_TIMEZONE=unverified")
         print("DHAN_AUTO_RENEWAL=not_enabled")
         return 0
     except HTTPError as exc:
