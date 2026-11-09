@@ -42,3 +42,40 @@ def test_no_plaintext_dhan_pairing_key_in_preferences():
         "prefs['server_access']",
     )
     assert all(pattern not in source for pattern in forbidden)
+
+
+def test_native_adapter_round_trip_and_explicit_delete():
+    from secure_credentials import VerifiedNativeCredentialStore
+
+    class FakeNative:
+        def __init__(self):
+            self.values = {}
+
+        async def get(self, key):
+            return self.values.get(key)
+
+        async def set(self, key, value):
+            self.values[key] = value
+
+        async def delete(self, key):
+            self.values.pop(key, None)
+
+    async def exercise():
+        native = FakeNative()
+        store = VerifiedNativeCredentialStore(native)
+        await store.write("dhan.server_access_key", "test-only-value")
+        assert await store.read("dhan.server_access_key") == "test-only-value"
+        await store.delete("dhan.server_access_key")
+        assert await store.read("dhan.server_access_key") is None
+
+    asyncio.run(exercise())
+
+
+def test_native_adapter_fails_closed_without_service():
+    from secure_credentials import VerifiedNativeCredentialStore
+    try:
+        VerifiedNativeCredentialStore(None)
+    except SecureStorageUnavailable:
+        pass
+    else:
+        raise AssertionError("Native storage must be mandatory")
