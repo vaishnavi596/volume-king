@@ -82,7 +82,7 @@ if [[ $(id -u) == 0 ]]; then
             *) echo 'Server environment file permissions: REVIEW REQUIRED'; exit 2 ;;
         esac
         for setting in DHAN_API_KEY DHAN_API_SECRET; do
-            if grep -Eq "^\${setting}=[^[:space:]]+" /etc/bot-king/server.env; then
+            if grep -Eq "^${setting}=[^[:space:]]+" /etc/bot-king/server.env; then
                 echo "$setting: configured"
             else
                 echo "$setting: not configured (consent-based login may be unavailable)"
