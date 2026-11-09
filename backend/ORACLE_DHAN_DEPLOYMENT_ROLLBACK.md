@@ -55,3 +55,10 @@ All audit-branch commits and offline tests are nonproduction. Production file ch
 - In-memory consent tokens still follow the existing expiry logic; this flag covers **file-backed fallback only**. Do not describe it as complete authentication verification.
 - Each strict fallback can incur a Dhan profile request and up to 12 seconds of latency. **Do not enable in production** until request-rate, concurrency and caching are tested and Dhan profile timezone is verified.
 - `market_data_configured` is still configuration, not confirmed quote freshness. No renewal or orders are enabled.
+
+## Strict token verification cache (audit branch only)
+- A per-process 30-second cache is used **only** when `DHAN_REQUIRE_VERIFIED_FILE_TOKEN=1`. The legacy path remains unchanged by default.
+- The cache key includes the absolute credential path, Dhan client ID, configured provider timezone, and token-file device/inode/size/mtime/ctime metadata. Atomic token replacement invalidates it; it does not survive service restart.
+- A cached token is never returned past its independently verified expiry. Timeout or verification failure after cache TTL expires returns no token; no stale-on-error fallback.
+- A per-process lock serializes verification for that process. Separate workers each have their own cache, so profile API load still needs operational monitoring.
+- This reduces repeated Dhan profile calls but **does not guarantee low latency on cache misses**, and is not proof of live quote freshness. Production rollout remains unapproved.
