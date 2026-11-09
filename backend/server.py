@@ -128,16 +128,12 @@ class OptionHistory(Symbol):
 
 
 def _persist_dhan_consent_if_enabled(result, client):
-    """Explicit opt-in only; never persist ambiguous or unverified consent."""
-    if os.environ.get("DHAN_PERSIST_CONSENT_TOKEN", "").strip() != "1":
-        return None
+    """Disabled by default; validate and persist only when explicitly opted in."""
     try:
-        from .dhan_session_bridge import persist_verified_consent
+        from .dhan_session_bridge import persist_consent_if_enabled
     except ImportError:
-        from dhan_session_bridge import persist_verified_consent
-    path = os.environ.get("DHAN_TOKEN_FILE", "/etc/bot-king/dhan-token")
-    return persist_verified_consent(result, client, path)
-
+        from dhan_session_bridge import persist_consent_if_enabled
+    return persist_consent_if_enabled(result, client)
 
 def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     pairing_key = pairing_key or os.environ.get("BOTKING_PAIRING_KEY", "")
