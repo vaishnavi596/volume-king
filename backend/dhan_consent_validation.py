@@ -3,9 +3,10 @@
 No network, token replacement, service restart or renewal is performed here.
 """
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
-def validate_consent_response(payload, expected_client_id, now=None):
+def validate_consent_response(payload, expected_client_id, now=None, naive_expiry_timezone=None):
     """Return (token, UTC expiry) only for an explicitly matching account.
 
     Reject absent/ambiguous expiry timestamps instead of silently accepting
@@ -28,7 +29,10 @@ def validate_consent_response(payload, expected_client_id, now=None):
     except ValueError:
         raise ValueError("Invalid Dhan expiry") from None
     if expiry.tzinfo is None:
-        raise ValueError("Ambiguous Dhan expiry timezone")
+        if naive_expiry_timezone != "Asia/Kolkata":
+            raise ValueError("Ambiguous Dhan expiry timezone")
+        # Explicit opt-in only: Dhan documents consent expiryTime as IST.
+        expiry = expiry.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
     now = now or datetime.now(timezone.utc)
     if expiry.astimezone(timezone.utc) <= now.astimezone(timezone.utc):
         raise ValueError("Expired Dhan consent token")
