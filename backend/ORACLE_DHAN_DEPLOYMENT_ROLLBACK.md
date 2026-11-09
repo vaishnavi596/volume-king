@@ -41,3 +41,10 @@
 
 ## Approval boundary
 All audit-branch commits and offline tests are nonproduction. Production file changes, token replacement, service restart, scheduler activation and any live order require separate explicit authorization.
+
+## Opt-in read-only gateway status verification (audit branch only)
+- `DHAN_VERIFY_PERSISTED_SESSION=1` makes `GET /dhan/status` call the Dhan profile endpoint to check the **file-backed** token. The default is off and reports `persisted_session_verification=not_checked`.
+- Result is `verified` only when the Dhan profile account matches and the expiry is in the future with a verified timezone. Any failure reports `unverified`, without exposing secrets.
+- For Dhan's offset-free profile date, `DHAN_PROFILE_TIMEZONE` must be independently confirmed before setting it; do not assume `Asia/Kolkata` from examples.
+- This opt-in check can add up to 12 seconds of network latency to a status request. It does **not** enable renewal, change the market-data token selector, or certify quote/candle freshness. `market_data_configured` continues to mean credentials are present, not that they are valid.
+- Do not enable on production until callback tests, timeout behavior, rate limits and service-user file permissions are reviewed.
