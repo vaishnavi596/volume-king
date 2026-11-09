@@ -1,0 +1,46 @@
+"""Fail-closed restart validation of a persisted Dhan token.
+
+Offline reusable policy: the caller supplies a Dhan profile lookup function.
+No network is performed here, no renewal, and no token is logged. A stored
+token is only a candidate until Dhan confirms the expected account and a
+timezone-aware future expiry. Do not treat file presence as authentication.
+"""
+from datetime import datetime, timezone
+
+try:
+    from .dhan_token_storage import read_persisted_token
+except ImportError:
+    from dhan_token_storage import read_persisted_token
+
+
+def verify_persisted_session(token_path, expected_client_id, profile_lookup, now=None):
+    """Return validated token and UTC expiry or raise ValueError.
+
+    profile_lookup(token) must return Dhan profile fields including dhanClientId
+    and tokenValidity. Any failed network request must propagate as failure;
+    callers must not silently downgrade to file-presence-based success.
+    """
+    if not isinstance(expected_client_id, str) or not expected_client_id:
+        raise ValueError("Expected Dhan account missing")
+    token = read_persisted_token(token_path)
+    profile = profile_lookup(token)
+    if not isinstance(profile, dict):
+        raise ValueError("Invalid Dhan profile")
+    if str(profile.get("dhanClientId", "")) != expected_client_id:
+        raise ValueError("Dhan profile account mismatch")
+    raw = profile.get("tokenValidity")
+    if not isinstance(raw, str) or not raw:
+        raise ValueError("Dhan profile expiry missing")
+    try:
+        expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("Invalid Dhan profile expiry") from None
+    if expiry.tzinfo is None:
+        raise ValueError("Dhan profile expiry timezone unverified")
+    current = now if now is not None else datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise ValueError("Current time must have timezone")
+    expiry = expiry.astimezone(timezone.utc)
+    if expiry <= current.astimezone(timezone.utc):
+        raise ValueError("Dhan token expired")
+    return token, expiry
