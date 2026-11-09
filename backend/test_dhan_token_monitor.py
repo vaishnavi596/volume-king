@@ -6,8 +6,10 @@ No network, token file, Oracle deployment or credentials required.
 import importlib.util
 from pathlib import Path
 import unittest
+import io
+from contextlib import redirect_stdout
 from unittest.mock import patch
-from datetime import datetime, timezone, timedelta, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 
 MODULE = Path(__file__).with_name("check-dhan-token-expiry.py")
 spec = importlib.util.spec_from_file_location("dhan_token_monitor", MODULE)
@@ -70,6 +72,26 @@ class TokenExpiryParsingTests(unittest.TestCase):
     def test_invalid_timezone_fails_closed(self):
         with self.assertRaises(KeyError):
             monitor.expiry_assessment(datetime(2026, 11, 10), "Invalid/Timezone")
+
+    def test_expired_profile_is_not_reported_healthy(self):
+        class Response:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, _limit):
+                return b'{"tokenValidity":"01/01/2020 00:00"}'
+
+        output = io.StringIO()
+        with patch.object(monitor.TOKEN_PATH.__class__, "read_text", return_value="FAKE_TEST_TOKEN"):
+            with patch.object(monitor, "urlopen", return_value=Response()):
+                with patch.dict(monitor.os.environ, {"DHAN_PROFILE_TIMEZONE": "Asia/Kolkata"}):
+                    with redirect_stdout(output):
+                        result = monitor.main()
+        self.assertEqual(result, 2)
+        self.assertIn("DHAN_TOKEN_EXPIRY_STATE=expired", output.getvalue())
+        self.assertNotIn("FAKE_TEST_TOKEN", output.getvalue())
 
     def test_no_token_file_returns_unknown_without_network(self):
         with patch.object(monitor.TOKEN_PATH.__class__, "read_text", side_effect=FileNotFoundError):
