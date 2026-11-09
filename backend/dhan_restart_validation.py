@@ -59,3 +59,21 @@ def verify_persisted_session(token_path, expected_client_id, profile_lookup, now
     if expiry <= current.astimezone(timezone.utc):
         raise ValueError("Dhan token expired")
     return token, expiry
+
+
+def verify_persisted_session_with_dhan(token_path, expected_client_id, now=None, provider_timezone=None, profile_lookup=None):
+    """Explicit read-only Dhan profile verification; never renew or write tokens.
+
+    Network adapter is injected for deterministic offline tests. The caller
+    must opt in to using this function; it is not wired into production.
+    """
+    if profile_lookup is None:
+        try:
+            from .dhan_profile_lookup import fetch_dhan_profile
+        except ImportError:
+            from dhan_profile_lookup import fetch_dhan_profile
+        profile_lookup = fetch_dhan_profile
+    return verify_persisted_session(
+        token_path, expected_client_id, profile_lookup,
+        now=now, provider_timezone=provider_timezone,
+    )
