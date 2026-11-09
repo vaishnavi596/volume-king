@@ -68,3 +68,26 @@ All audit-branch commits and offline tests are nonproduction. Production file ch
 - Default remains fail-closed for naive expiry. Unsupported timezone strings are rejected. Already offset-aware timestamps retain their explicit offset. The normalized expiry is returned in UTC.
 - This setting does **not** interpret the separate `/v2/profile` `tokenValidity` field; its timezone remains unverified and strict file-token verification must not infer it from consent documentation.
 - No auto-renewal, unattended login, credential rotation or production activation is introduced.
+
+## Oracle read-only observations — 2026-11-09 (operator-reported, not independently SSH-verified)
+- `bot-king.service` runs as `opc`, `Restart=on-failure`, `NoNewPrivileges=yes`, `ProtectSystem=no`, one Uvicorn worker. Last observed `/health` returned HTTP 200.
+- Current `/opt/bot-king-server/server.py` is **not a Git worktree** and is owned by root. The installed service uses `/etc/bot-king/server.env`. The current Python server source references the **hard-coded** `/etc/bot-king/dhan-token` path for status, LTP, batch LTP and intraday candles; the callback stores consent token in memory only.
+- `/etc/bot-king` is root:root mode 710 and not writable by `opc`. Existing `/etc/bot-king/dhan-token` is opc:opc mode 600, readable by `opc`. Environment file is root:root mode 600. **Do not make the entire /etc/bot-king directory writable.**
+- A new `/var/lib/bot-king/dhan-credentials` directory exists as opc:opc mode 700, and `opc` passed a write-access check. It is **not yet used by the running service**. No token migration has occurred.
+- All six new persistence/verification helper modules were reported missing from the running Oracle installation. They must be staged with a reviewed, compatible server change; merely adding an environment variable to the old server does not wire up the new token path.
+- Existing `server.py` and `server.py.backup-20261107` both passed syntax-only checks. This does not prove the backup can restore the live application. The `live-orders.sqlite3` file must be preserved and never overwritten during a code-only deployment.
+- JWT payload `exp` was observed as `2026-11-10T04:13:43Z` (09:43:43 IST). JWT decoding is **not signature verification** or a Dhan provider-validity check. The token may be revoked sooner.
+- Recorded production source hashes for drift/rollback checks:
+  - `server.py`: `b8e5ac4caba2c9d4f84d11b239e01882824685d19ca5b115868f634f0e41d05a`
+  - `server.py.backup-20261107`: `666cc3bd74d9cb99224ec6ed3723a9165f48ae71a60b7a6929dd562683011ce6`
+  - `dhan_feed.py`: `3bc59748eef0cd80525c763d3987571d96cf9105595450d919dc77b051546815`
+  - `market_feed.py`: `9fcc25fe07f63df1aedbfdbebec820d9566d43eca49ff7428ceca3b30b24d47e`
+
+### Required staging decisions before any production write
+1. Prepare a **complete deployable snapshot** of the production server, preserving endpoint contracts, security checks and the existing database. Do not replace the 23 KB production server with an audit-branch file without comparing both versions.
+2. Wire the consent callback and **all three quote/candle paths** to one explicitly configured, securely readable token source. Test login, token replacement, restart, bad consent, timeout and quote freshness in staging.
+3. Use the new private directory only after secure backup, verified service-user read/write checks, correct SELinux context and explicit approval. Never copy a token into logs, GitHub, or chat.
+4. Keep all opt-in flags disabled in the first approved deployment. Require a separate go/no-go decision before enabling persistence and a fresh interactive consent login.
+5. Treat **renewal as a separate unresolved feature**: the deployed flow uses `generate-consent` and `consumeApp-consent`; the JWT structure does not establish eligibility for Dhan `/v2/RenewToken`. Do not call that endpoint on the production token as a diagnostic. A reminder for re-login before expiry is safer until Dhan confirms an approved automatic method.
+6. Re-check health and token-provider validity after any authorized deployment. Roll back code/config if degraded; restoring a revoked token file cannot restore its validity.
+
