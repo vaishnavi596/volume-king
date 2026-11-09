@@ -36,6 +36,21 @@ def expiry_alert(expiry, now, timezone_name, warning_seconds=21600):
     return max(0, int(remaining // 3600)), remaining <= warning_seconds
 
 
+def expiry_assessment(expiry, timezone_name, now=None):
+    """Classify expiry only with an explicitly verified IANA timezone.
+
+    Returns (status, hours_remaining); status is expired, warning or healthy.
+    """
+    tz = ZoneInfo(timezone_name)
+    now = now if now is not None else datetime.now(timezone.utc)
+    remaining = (expiry.replace(tzinfo=tz) - now).total_seconds()
+    if remaining <= 0:
+        return "expired", 0
+    if remaining <= 6 * 3600:
+        return "warning", int(remaining // 3600)
+    return "healthy", int(remaining // 3600)
+
+
 def main():
     try:
         token = TOKEN_PATH.read_text(encoding="utf-8").strip()
