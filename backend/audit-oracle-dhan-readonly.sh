@@ -60,4 +60,34 @@ else
     echo 'local gateway health: unavailable'
     exit 2
 fi
-echo 'Readiness checks passed; token validity and live quotes remain unverified.'
+# Check configuration and token-file metadata without reading or printing secrets.
+# These checks do not authenticate with Dhan or modify the running service.
+if [[ $(id -u) == 0 ]]; then
+    token_mode=$(stat -c '%a' "$token")
+    token_owner=$(stat -c '%U' "$token")
+    case "$token_mode" in
+        600|400|640|440) echo 'Dhan token file permissions: restricted' ;;
+        *) echo 'Dhan token file permissions: REVIEW REQUIRED'; exit 2 ;;
+    esac
+    if [[ "$token_owner" == root || "$token_owner" == "$user" ]]; then
+        echo 'Dhan token file owner: acceptable (verify threat model)'
+    else
+        echo 'Dhan token file owner: REVIEW REQUIRED'
+        exit 2
+    fi
+    if [[ -f /etc/bot-king/server.env ]]; then
+        env_mode=$(stat -c '%a' /etc/bot-king/server.env)
+        case "$env_mode" in
+            600|400|640|440) echo 'Server environment file permissions: restricted' ;;
+            *) echo 'Server environment file permissions: REVIEW REQUIRED'; exit 2 ;;
+        esac
+        for setting in DHAN_API_KEY DHAN_API_SECRET; do
+            if grep -Eq "^\${setting}=[^[:space:]]+" /etc/bot-king/server.env; then
+                echo "$setting: configured"
+            else
+                echo "$setting: not configured (consent-based login may be unavailable)"
+            fi
+        done
+    fi
+fi
+echo 'Read-only readiness checks completed; Dhan token validity, auto-renewal and live quotes remain unverified.'
