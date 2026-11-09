@@ -27,7 +27,11 @@ class SecureDhanPairing:
         if not isinstance(secret, str) or not secret.strip():
             return PairingOutcome(False, "Server access key required")
         secret = secret.strip()
-        if not await self._verify(secret):
+        try:
+            verified = await self._verify(secret)
+        except Exception:
+            return PairingOutcome(False, "Dhan verification unavailable; nothing saved")
+        if not verified:
             return PairingOutcome(False, "Dhan status and NIFTY quote not verified")
         try:
             await self._store.write(KEY_NAME, secret)
