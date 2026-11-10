@@ -69,7 +69,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
-    return {"status": "renewed", "token_saved": True, "profile_verified": True}
+    return {"status": "renewed", "token_saved": True, "profile_verified": True,\n            "expiry_time": profile.get("tokenValidity"),\n            "client_id_verified": client_id.strip()}
 
 
 
