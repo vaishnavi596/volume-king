@@ -42,7 +42,15 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
         raise ValueError("Renewal did not return a distinct access token")
     profile = request_json(API + "/profile", {"access-token": new}, opener=opener)
     if not isinstance(profile, dict) or str(profile.get("dhanClientId", "")).strip() != client_id.strip():
-        # RenewToken can invalidate the original token immediately. Preserve the\n        # replacement privately for manual recovery instead of losing both.\n        recovery = path.with_name(path.name + ".recovery")\n        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL\n        fd_recovery = os.open(str(recovery), flags, 0o600)\n        with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:\n            handle.write(new + "\n")\n            handle.flush()\n            os.fsync(handle.fileno())\n        raise ValueError("Renewed token failed account validation; private recovery file saved")
+        # Preserve replacement for manual recovery if account validation fails.
+        recovery = path.with_name(path.name + ".recovery")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        fd_recovery = os.open(str(recovery), flags, 0o600)
+        with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:
+            handle.write(new + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        raise ValueError("Renewed token failed account validation; private recovery file saved")
     fd, temporary = tempfile.mkstemp(prefix=".dhan-token-", dir=str(path.parent))
     try:
         os.fchmod(fd, stat.st_mode & 0o777)
