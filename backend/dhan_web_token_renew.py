@@ -12,6 +12,9 @@ import tempfile
 import urllib.error
 import urllib.request
 
+from backend.dhan_token_expiry import parse_profile_expiry
+from backend.dhan_expiry_store import save_expiry_metadata
+
 API = "https://api.dhan.co/v2"
 TOKEN_FILE = Path("/etc/bot-king/dhan-token")
 
@@ -22,7 +25,7 @@ def request_json(url, headers, opener=urllib.request.urlopen):
         return json.loads(response.read(100_000))
 
 
-def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen):
+def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen, expiry_path=None):
     if not client_id or not client_id.strip():
         raise ValueError("Client ID required")
     path = Path(token_path)
@@ -52,6 +55,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     profile = request_json(API + "/profile", {"access-token": new}, opener=opener)
     if not isinstance(profile, dict) or str(profile.get("dhanClientId", "")).strip() != client_id.strip():
         raise ValueError("Renewed token failed account validation; private recovery file saved")
+    verified_expiry = parse_profile_expiry(profile.get("tokenValidity")) if expiry_path is not None else None
     fd, temporary = tempfile.mkstemp(prefix=".dhan-token-", dir=str(path.parent))
     try:
         os.fchmod(fd, stat.st_mode & 0o777)
@@ -69,6 +73,8 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+    if expiry_path is not None:
+        save_expiry_metadata(expiry_path, verified_expiry)
     recovery.unlink()
     return {"status": "renewed", "token_saved": True, "profile_verified": True,
             "expiry_time": profile.get("tokenValidity"),
@@ -76,7 +82,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
 
 
 
-def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen):
+def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen, expiry_path=None):
     """Serialize all cooperating renewal processes before touching Dhan."""
     path = Path(token_path)
     lock_path = path.with_name(path.name + ".lock")
@@ -88,7 +94,7 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError("Another token renewal is already running") from None
-        return _renew_unlocked(client_id, token_path, opener)
+        return _renew_unlocked(client_id, token_path, opener, expiry_path=expiry_path)
     finally:
         os.close(fd)
 
