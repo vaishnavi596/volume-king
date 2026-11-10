@@ -1648,7 +1648,10 @@ def app_main(page:ft.Page):
                 result=await asyncio.to_thread(check_dhan)
                 if not isinstance(result,dict) or result.get("live_orders_enabled") is not False:
                     raise FeedError("Invalid Dhan server status")
-                if result.get("market_data_configured") is True:
+                if result.get("reauthentication_required") is True:
+                    connection_status.value="Dhan: Re-login Required • token missing or expired. Press Authorize Dhan API."
+                    connection_status.color=GOLD
+                elif result.get("market_data_configured") is True:
                     connection_status.value="Dhan token configured on server • checking NIFTY read-only LTP..."
                     connection_status.color=GOLD
                     page.update()
@@ -1717,9 +1720,9 @@ def app_main(page:ft.Page):
                         scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                             failed=0,cached=0,state="Dhan connected; historical scan queued")
                 else:
-                    connection_status.value=("Dhan consent session exists, but read-only token file is not configured."
+                    connection_status.value=("Dhan Connected (OAuth), but market-data token is unavailable."
                         if result.get("authenticated") else
-                        "Dhan server reachable; read-only token not configured or inaccessible to service.")
+                        "Dhan: Not Connected • press Authorize Dhan API to sign in.")
                     connection_status.color=GOLD
             except urllib.error.HTTPError as exc:
                 log_error("dhan_status_http",exc)
