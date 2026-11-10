@@ -453,6 +453,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         entries = data.get("data", {}).get("NSE_EQ", {})
         if data.get("status") != "success" or not isinstance(entries, dict):
             raise HTTPException(502, "Invalid Dhan batch quote response")
+        if not entries:
+            raise HTTPException(502, "Dhan returned no market data for verified NSE equities")
         quotes = {}
         unavailable = []
         for symbol, (segment, sid, _) in DHAN_VERIFIED_INSTRUMENTS.items():
