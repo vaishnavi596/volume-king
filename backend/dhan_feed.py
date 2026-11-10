@@ -6,6 +6,8 @@ Market-data entitlement is checked by the provider; errors do not fall back to
 fabricated quotes. A provider token's expiry cannot be extended by this client.
 """
 import json
+import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -14,7 +16,14 @@ class DhanFeedError(RuntimeError):
     pass
 
 
+class DhanRateLimitError(DhanFeedError):
+    """Provider throttled requests; callers must not retry immediately."""
+
+
 class DhanFeed:
+    _rate_lock = threading.Lock()
+    _retry_after = 0.0
+    RATE_LIMIT_COOLDOWN_SECONDS = 30
     ROOT = "https://api.dhan.co/v2"
 
     def __init__(self, client_id, access_token, opener=None):
@@ -27,6 +36,9 @@ class DhanFeed:
     def _post(self, endpoint, payload):
         if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical"):
             raise DhanFeedError("Unsupported read-only endpoint")
+        with self._rate_lock:
+            if time.monotonic() < self._retry_after:
+                raise DhanRateLimitError("Dhan rate limit cooldown active")
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         request = urllib.request.Request(
             self.ROOT + endpoint,
@@ -49,7 +61,9 @@ class DhanFeed:
             if exc.code in (401, 403):
                 raise DhanFeedError("Dhan token expired or data access not entitled") from None
             if exc.code == 429:
-                raise DhanFeedError("Dhan rate limit reached") from None
+                with self._rate_lock:
+                    DhanFeed._retry_after = max(DhanFeed._retry_after, time.monotonic() + self.RATE_LIMIT_COOLDOWN_SECONDS)
+                raise DhanRateLimitError("Dhan rate limit reached") from None
             raise DhanFeedError("Dhan market data unavailable") from None
         except (urllib.error.URLError, TimeoutError, ValueError, UnicodeError):
             raise DhanFeedError("Dhan market data request failed") from None
