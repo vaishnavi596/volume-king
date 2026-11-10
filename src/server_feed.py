@@ -137,14 +137,20 @@ class ServerDhanReadOnly:
     def __init__(self):
         self._origin = ""
         self._pairing_key = ""
+        self._historical_only = False
 
     @property
     def connected(self):
         return bool(self._origin and self._pairing_key)
 
+    @property
+    def historical_only(self):
+        return self.connected and self._historical_only
+
     def disconnect(self):
         self._origin = ""
         self._pairing_key = ""
+        self._historical_only = False
 
     def _call(self, path, payload=None):
         if not self.connected:
@@ -245,6 +251,7 @@ class ServerDhanReadOnly:
             raise FeedError("Cannot activate empty or invalid Dhan candles")
         self.disconnect()
         self._origin, self._pairing_key = origin, pairing_key.strip()
+        self._historical_only = True
 
     def quote(self, symbol):
         if symbol not in DHAN_VERIFIED_SYMBOLS:
