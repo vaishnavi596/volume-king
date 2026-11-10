@@ -1,4 +1,4 @@
-"""Offline release gates for BOT KING 2.3.67 three-provider recovery."""
+"""Offline release gates for BOT KING three-provider recovery."""
 from pathlib import Path
 import re
 import tomllib
@@ -13,8 +13,9 @@ class ThreeProviderReleaseTests(unittest.TestCase):
         cls.project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     def test_version_synchronized(self):
-        self.assertEqual(self.project["project"]["version"], "2.3.67")
-        self.assertRegex(self.app, r'APP_VERSION = "2\.3\.67"\s*# Release fallback;')
+        version = self.project["project"]["version"]
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        self.assertIn(f'APP_VERSION = "{version}"  # Release fallback;', self.app)
 
     def test_all_three_sources_selectable(self):
         for provider in ("Yahoo Finance", "Broker API", "Dhan"):
