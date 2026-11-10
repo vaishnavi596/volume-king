@@ -15,7 +15,9 @@ base="https://raw.githubusercontent.com/vaishnavi596/volume-king/$release"
 files=(__init__.py dhan_renewal_policy.py dhan_token_expiry.py dhan_expiry_store.py dhan_web_token_renew.py dhan_renewal_scheduler.py)
 for name in "${files[@]}"; do
     curl -fsSL --max-time 60 "$base/backend/$name" -o "$stage/$name"
-    test -s "$stage/$name" || { echo "Missing $name"; exit 1; }
+    if [[ "$name" != "__init__.py" ]]; then
+        test -s "$stage/$name" || { echo "Missing $name"; exit 1; }
+    fi
 done
 for name in botking-dhan-renewal.service.example botking-dhan-renewal.timer.example; do
     curl -fsSL --max-time 60 "$base/backend/systemd/$name" -o "$stage/$name"
