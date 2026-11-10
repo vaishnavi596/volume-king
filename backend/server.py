@@ -322,7 +322,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     raise ValueError("Invalid Dhan account or token")
             except requests.HTTPError as exc:
                 status = exc.response.status_code if exc.response is not None else "unknown"
-                _dhan_auth_logger.warning("Dhan token exchange rejected: HTTP status=%s", status)
+                _dhan_auth_logger.warning("Dhan token exchange rejected: HTTP status=%s; verify OAuth app key/secret pairing, callback registration, and single-use consent token (response body suppressed)", status)
                 raise HTTPException(502, "Dhan authentication failed") from None
             except requests.Timeout:
                 _dhan_auth_logger.warning("Dhan token exchange timed out")
