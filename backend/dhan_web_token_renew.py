@@ -4,6 +4,7 @@ Explicit operator invocation only. No automatic activation, no order endpoints.
 The current token is preserved unless the replacement token passes profile validation.
 """
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -28,7 +29,7 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     stat = path.stat()
     if not path.is_file() or stat.st_mode & 0o077:
         raise ValueError("Token file must be private")
-    old = path.read_text(encoding="utf-8").strip()
+    # Lock the existing inode so simultaneous renewal attempts cannot race.\n    # The lock is advisory; the production scheduler must also serialize runs.\n    old = path.read_text(encoding="utf-8").strip()
     if not old:
         raise ValueError("Token file is empty")
     # This call revokes the old token: never call without operator authorization.
@@ -42,7 +43,7 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
         raise ValueError("Renewal did not return a distinct access token")
     profile = request_json(API + "/profile", {"access-token": new}, opener=opener)
     if not isinstance(profile, dict) or str(profile.get("dhanClientId", "")).strip() != client_id.strip():
-        raise ValueError("Renewed token failed account validation")
+        # RenewToken can invalidate the original token immediately. Preserve the\n        # replacement privately for manual recovery instead of losing both.\n        recovery = path.with_name(path.name + ".recovery")\n        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL\n        fd_recovery = os.open(str(recovery), flags, 0o600)\n        with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:\n            handle.write(new + "\\n")\n            handle.flush()\n            os.fsync(handle.fileno())\n        raise ValueError("Renewed token failed account validation; private recovery file saved")
     fd, temporary = tempfile.mkstemp(prefix=".dhan-token-", dir=str(path.parent))
     try:
         os.fchmod(fd, stat.st_mode & 0o777)
