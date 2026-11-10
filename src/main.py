@@ -3312,13 +3312,16 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
-                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
+                semaphore=asyncio.Semaphore(1 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
                 cycle_data={}
+                dhan_history_throttled=[False]
                 async def load_one(sym):
                     async with semaphore:
+                        if prefs.get("source")=="Dhan" and dhan_history_throttled[0]:
+                            return False
                         try:
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
                             # Pace Dhan historical calls to avoid a burst of 51 requests.
@@ -3342,6 +3345,9 @@ console.log('BOT KING Lightweight Charts ready');
                             return not data.get("cached")
                         except Exception as exc:
                             if generation==provider_generation[0]:
+                                if prefs.get("source")=="Dhan" and "429" in safe_error(exc):
+                                    dhan_history_throttled[0]=True
+                                    scan_progress["state"]="Dhan HTTP 429 • history scan paused; wait for cooldown before retry"
                                 failed_symbols[sym]=safe_error(exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
@@ -3353,6 +3359,9 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
+                if dhan_history_throttled[0]:
+                    market_status="Dhan HTTP 429 • stopped remaining history requests; wait before reconnecting"
+                    scan_progress["state"]="Dhan history paused due to rate limit • no immediate retry"
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
                     market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
