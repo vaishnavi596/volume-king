@@ -26,7 +26,7 @@ class HelpQualityTests(unittest.TestCase):
         v['close_help'](dialog);self.assertFalse(dialog.open)
     def test_help_does_not_reveal_credentials(self):
         _,v=start({'scanner_live':False})
-        field=next(iter(v['credential_inputs'].values()));field.value='PRIVATE_SECRET'
+        field=v['server_access'];field.value='PRIVATE_SECRET'
         dialog=v['show_help']('API Key',field)
         self.assertNotIn('PRIVATE_SECRET',str([c.value for c in dialog.content.controls]))
     def test_missing_and_stale_options_help_is_dynamic(self):
