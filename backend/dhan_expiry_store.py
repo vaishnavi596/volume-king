@@ -47,3 +47,25 @@ def save_expiry_metadata(path, expiry_utc, source="dhan_web"):
         if os.path.exists(temporary):
             os.unlink(temporary)
     return {"saved": True, "expires_at": payload["expires_at"]}
+
+def load_expiry_metadata(path):
+    """Read only trusted, owner-private metadata; never infer provenance."""
+    target = Path(path)
+    if target.is_symlink() or not target.is_file():
+        raise ValueError("Expiry metadata must be a regular file")
+    st = target.stat()
+    if st.st_mode & 0o077 or st.st_uid != os.geteuid():
+        raise ValueError("Expiry metadata must be owner-private")
+    with target.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, dict) or set(data) != {"source", "expires_at"}:
+        raise ValueError("Unexpected expiry metadata")
+    if data["source"] != "dhan_web":
+        raise ValueError("Unverified expiry provenance")
+    try:
+        expiry = datetime.fromisoformat(data["expires_at"])
+    except (TypeError, ValueError):
+        raise ValueError("Invalid stored expiry") from None
+    if expiry.tzinfo is None:
+        raise ValueError("Stored expiry must have timezone")
+    return {"source": "dhan_web", "expires_at": expiry.astimezone(timezone.utc).isoformat()}
