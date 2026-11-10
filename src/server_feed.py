@@ -237,7 +237,7 @@ class ServerDhanReadOnly:
                            and all(isinstance(v, (int, float)) and not isinstance(v, bool)
                                    and math.isfinite(v) for v in row[:5])
                            and row[0] > 0 and min(row[1:5]) > 0
-                           and row[5] >= 0 if len(row) >= 6 else False
+                           and len(row) >= 6 and row[5] >= 0
                            for row in bars)
                 or any(row[2] < max(row[1], row[4], row[3])
                        or row[3] > min(row[1], row[4], row[2])
