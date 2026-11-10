@@ -531,8 +531,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 bars.append([int(ts), o, h, l, close, vol])
             if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars) - 1)):
                 raise ValueError("Candles out of order")
-        except DhanFeedError:
-            raise HTTPException(502, "Dhan historical data unavailable or token expired") from None
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan historical data rate limited; retry later", headers={"Retry-After": "30"}) from None
+        except DhanFeedError as exc:
+            if "token expired or data access not entitled" in str(exc):
+                raise HTTPException(403, "Dhan token expired or historical-data entitlement missing") from None
+            raise HTTPException(502, "Dhan historical data unavailable") from None
         except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
             raise HTTPException(502, "Invalid Dhan historical response") from None
         return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
