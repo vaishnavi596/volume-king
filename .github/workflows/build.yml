@@ -4,10 +4,11 @@ name: Build APK
 # Build on app, regression-test, and workflow changes; manual dispatch is also supported.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dhan-only ]
     paths:
       - pyproject.toml
       - src/main.py
+      - backend/provider_router.py
       - .github/workflows/build.yml
   workflow_dispatch:
 
