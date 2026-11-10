@@ -1737,6 +1737,7 @@ def app_main(page:ft.Page):
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
                     # Verify watchlist batch independently of the login check.
+                    batch_failure_detail=""
                     try:
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
                         if not batch:
@@ -1758,14 +1759,15 @@ def app_main(page:ft.Page):
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
-                        dhan_batch_issue[0]=safe_error(exc)
-                        market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
+                        batch_failure_detail=safe_error(exc)
+                        dhan_batch_issue[0]=batch_failure_detail
+                        market_status='Dhan connected; watchlist batch failed: '+batch_failure_detail
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
                         connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
                                                   if live_ltp_verified else
                                                   "Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
                                                   "watchlist prices unavailable; historical scan queued • LTP "+ltp_failure_reason+
-                                                  " • batch "+safe_error(exc)[:110]))
+                                                  " • batch "+batch_failure_detail[:110]))
                         connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
