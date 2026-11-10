@@ -38,6 +38,25 @@ class DhanActivationTests(unittest.TestCase):
                     feed.activate_historical_verified("https://example.org", "test-pairing-key", bad)
                 self.assertFalse(feed.connected)
 
+    def test_historical_activation_rejects_malformed_ohlc(self):
+        base = {"source": "dhan", "symbol": "RELIANCE",
+                "live_orders_enabled": False, "freshness": "historical_unverified"}
+        for bars in ([[1762500000, 100, 102, 99, 101]],
+                     [[1762500000, 0, 102, 99, 101, 500]],
+                     [[1762500000, 100, float("nan"), 99, 101, 500]],
+                     [[1762500000, 100, True, 99, 101, 500]]):
+            with self.subTest(bars=bars):
+                feed = ServerDhanReadOnly()
+                with self.assertRaises(FeedError):
+                    feed.activate_historical_verified("https://example.org", "key", dict(base, bars=[bars]))
+                self.assertFalse(feed.connected)
+
+    def test_historical_only_contract_in_main(self):
+        main = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn("activate_historical_verified(endpoint,pairing_key,candles)", main)
+        self.assertIn('"freshness":"unverified" if quote else "historical_unverified"', main)
+        self.assertIn("Dhan historical scan queued; LTP independently checked", main)
+
     def test_rejects_unverified_or_live_order_responses(self):
         for quote in (
             {"source": "dhan", "symbol": "NIFTY", "ltp": 25030.35,
