@@ -48,7 +48,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(age_label(None),'Time unavailable')
         self.assertEqual(age_label(1001,now=1000),'Invalid future time')
     def test_five_rows_visible_before_first_fetch(self):
-        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
+        _,v=start({'scanner_live':False,'source':'Dhan'})
         card=v['super_five_card']()
         import flet as ft
         rows=[c for c in card.content.controls[1].controls if isinstance(c,ft.Container)]
@@ -57,23 +57,23 @@ class SnapshotTests(unittest.TestCase):
     def test_restart_keeps_historical_snapshot_but_broker_failure_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
-            _,v=start({'scanner_live':False,'source':'Broker API'},cache_path=path)
-            historical=dict(self.market(),source='Angel One')
-            v['market_store'].put('market',('Broker API','NIFTY','5m','7d'),historical)
-            _,restored=start({'scanner_live':False,'source':'Broker API'},cache_path=path)
+            _,v=start({'scanner_live':False,'source':'Dhan'},cache_path=path)
+            historical=dict(self.market(),source='Dhan')
+            v['market_store'].put('market',('Dhan','NIFTY','5m','7d'),historical)
+            _,restored=start({'scanner_live':False,'source':'Dhan'},cache_path=path)
             self.assertEqual(restored['quotes']['NIFTY']['price'],100)
             self.assertTrue(restored['quotes']['NIFTY']['cached'])
             with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
-                with self.assertRaisesRegex(RuntimeError,'Broker API not connected'):
+                with self.assertRaisesRegex(Exception,'Dhan disconnected'):
                     restored['get_market_data']('NIFTY','5m','7d')
             self.assertIn('Last saved',restored['quote_caption']('NIFTY'))
 
     def test_ranked_directions_survive_restart_as_historical(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
-            rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend','source':'Yahoo Finance'} for s in ['A','B','C','D','E']]
+            rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend','source':'Dhan'} for s in ['A','B','C','D','E']]
             SnapshotStore(path).put('ranking',('configured50',),{'rows':rows,'checked_at':'old'})
-            _,v=start({'scanner_live':False,'source':'Yahoo Finance'},cache_path=path)
+            _,v=start({'scanner_live':False,'source':'Dhan'},cache_path=path)
             self.assertEqual(len(v['top5_candidates']),5)
             self.assertTrue(all(r['historical'] for r in v['top5_candidates']))
             self.assertTrue(all(r['bias']=='BULLISH' for r in v['top5_candidates']))
