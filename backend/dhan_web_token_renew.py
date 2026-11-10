@@ -35,6 +35,9 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     old = path.read_text(encoding="utf-8").strip()
     if not old:
         raise ValueError("Token file is empty")
+    recovery = path.with_name(path.name + ".recovery")
+    if recovery.exists() or recovery.is_symlink():
+        raise ValueError("Unresolved renewal recovery file; manual reconciliation required")
     # This call revokes the old token: never call without operator authorization.
     renewed = request_json(API + "/RenewToken",
                            {"access-token": old, "dhanClientId": client_id.strip()},
@@ -46,7 +49,6 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
         raise ValueError("Renewal did not return a distinct access token")
     # RenewToken revokes the previous credential. Save a private recovery copy
     # BEFORE profile verification or any further network call can fail.
-    recovery = path.with_name(path.name + ".recovery")
     fd_recovery = os.open(str(recovery), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:
         handle.write(new + "\n")
