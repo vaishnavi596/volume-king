@@ -54,8 +54,10 @@ def main(argv=None):
         if not args.execute:
             print("Renewal due; dry run only")
             return 0
+        if not args.expiry_file:
+            raise ValueError("Execution requires owner-private expiry file for atomic update")
         client_id = os.environ.get(args.client_id_env, "").strip()
-        result = renew_web_token(client_id, Path(args.token_file))
+        result = renew_web_token(client_id, Path(args.token_file), expiry_path=Path(args.expiry_file))
         print("Renewal completed and profile verified" if result["profile_verified"] else "Renewal failed")
         return 0
     except (OSError, ValueError) as exc:
