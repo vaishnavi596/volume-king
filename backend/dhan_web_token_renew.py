@@ -4,7 +4,6 @@ Explicit operator invocation only. No automatic activation, no order endpoints.
 The current token is preserved unless the replacement token passes profile validation.
 """
 import argparse
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -29,7 +28,7 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     stat = path.stat()
     if not path.is_file() or stat.st_mode & 0o077:
         raise ValueError("Token file must be private")
-    # Lock the existing inode so simultaneous renewal attempts cannot race.\n    # The lock is advisory; the production scheduler must also serialize runs.\n    old = path.read_text(encoding="utf-8").strip()
+    old = path.read_text(encoding="utf-8").strip()
     if not old:
         raise ValueError("Token file is empty")
     # This call revokes the old token: never call without operator authorization.
