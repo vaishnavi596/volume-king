@@ -1790,6 +1790,9 @@ def app_main(page:ft.Page):
                     detail="Server Access Key rejected (HTTP 403). Check BOTKING_PAIRING_KEY; do not enter the Dhan token."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
+                elif code==429:
+                    detail=("Dhan rate limit (HTTP 429). Stop repeated Connect / Check requests; "
+                            "wait for server cooldown and retry once. Check backend rate-limit logs.")
                 elif code in (502,503,504):
                     detail=f"Dhan upstream/backend error (HTTP {code}). Check server logs and Dhan token."
                 else:
