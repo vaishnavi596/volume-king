@@ -149,7 +149,7 @@ class AuditTests(unittest.TestCase):
                 with self.assertRaises(StopLoop):await v['refresh_market']()
             finally:asyncio.to_thread=original_thread;asyncio.sleep=original_sleep
         asyncio.run(run())
-        self.assertEqual(v['prefs']['source'],'Broker API')
+        self.assertEqual(v['prefs']['source'],'Dhan')
         self.assertEqual(v['quotes'],{})
         self.assertEqual(v['top5_candidates'],[])
 
@@ -622,8 +622,8 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(any('Dhan watchlist batch:' in value for value in recovered))
 
     def test_historical_strength_widget_mutes_bars_and_labels(self):
-        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
-        row={'source':'Yahoo Finance','timestamp':1,'historical':True,
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        row={'source':'Dhan','timestamp':1,'historical':True,
              'votes':[{'vote':1},{'vote':-1}]}
         widget=v['strength_widget'](row,'NIFTY')
         values=[]
