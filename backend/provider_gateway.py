@@ -1,4 +1,4 @@
-"""Offline-only provider state gateway, separate from legacy Angel One routes.
+"""Dhan-only provider state gateway; never falls back to other feeds.
 
 No broker tokens, login routes, orders, or live network calls.
 Deploy only after full tests and explicit approval.
@@ -21,7 +21,7 @@ class SourceRequest(BaseModel):
     preferred: str = "Dhan"
     now: float = Field(gt=0)
     max_age_seconds: float = Field(default=180, ge=0, le=86400)
-    states: list[SourceState] = Field(max_length=3)
+    states: list[SourceState] = Field(max_length=1)
 
 
 def create_provider_app(pairing_key: str):
