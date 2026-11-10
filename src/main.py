@@ -897,6 +897,12 @@ def app_main(page:ft.Page):
         if prefs.get("source")=="Dhan":
             available=[row for row in available if row.get("source")=="Dhan"]
             top5_candidates[:]=available[:5]
+            used={row["symbol"] for row in top5_candidates}
+            for sym in watch_symbols:
+                if len(top5_candidates)>=5:break
+                if sym not in used:
+                    top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"reason":"Dhan data not verified","source":"Dhan","historical":True})
+                    used.add(sym)
             return available
         previous=top5_candidates[:]
         if available:top5_candidates[:]=available[:5]
