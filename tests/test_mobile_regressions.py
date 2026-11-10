@@ -72,7 +72,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('state="Dhan connected; historical scan queued"', source)
+        self.assertIn('state="Dhan historical scan queued; LTP independently checked"', source)
         self.assertIn('provider_generation[0]+=1', source)
 
     def test_background_market_task_recovers_from_unhandled_errors(self):
