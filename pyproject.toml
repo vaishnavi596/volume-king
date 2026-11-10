@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.66" # Runtime display-version sync guard; preserve signing and package identity
+version = "2.3.67" # Runtime display-version sync guard; preserve signing and package identity
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

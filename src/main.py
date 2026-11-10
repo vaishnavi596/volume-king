@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.66"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.67"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -1139,8 +1139,8 @@ def app_main(page:ft.Page):
         return [heading("Watchlist • 5 Lists"),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
-            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
-            ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
+            ft.Row([ft.Container(content=search,expand=True),ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
+            ft.Row([ft.Container(content=add_symbol,expand=True),ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
@@ -1709,6 +1709,11 @@ def app_main(page:ft.Page):
                         connection_status.color=GREEN
                     except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as ltp_exc:
                         log_error("dhan_ltp_connect",ltp_exc)
+                        ltp_failure_reason = (
+                            "HTTP " + str(ltp_exc.code) if isinstance(ltp_exc, urllib.error.HTTPError)
+                            else "network timeout" if isinstance(ltp_exc, (urllib.error.URLError, TimeoutError))
+                            else "invalid response"
+                        )
                         # Read-only historical access can work when Dhan LTP is unavailable.
                         # Verify a real candle response before enabling it; never fake an LTP.
                         from datetime import timedelta
@@ -1759,7 +1764,8 @@ def app_main(page:ft.Page):
                         connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
                                                   if live_ltp_verified else
                                                   "Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
-                                                  "watchlist prices unavailable; historical scan queued"))
+                                                  "watchlist prices unavailable; historical scan queued • LTP "+ltp_failure_reason+
+                                                  " • batch "+safe_error(exc)[:110]))
                         connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
@@ -1784,6 +1790,11 @@ def app_main(page:ft.Page):
                     detail="Server Access Key rejected (HTTP 403). Check BOTKING_PAIRING_KEY; do not enter the Dhan token."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
+                elif code==429:
+                    retry_after=(exc.headers.get("Retry-After","") if exc.headers else "").strip()
+                    wait_hint=(" Retry-After: "+retry_after+" seconds." if retry_after.isdigit() and int(retry_after)<=3600 else "")
+                    detail=("BOT KING /dhan/status returned HTTP 429 (source not yet verified)."
+                            +wait_hint+" Do not repeatedly reconnect; inspect HTTPS proxy and Oracle logs.")
                 elif code in (502,503,504):
                     detail=f"Dhan upstream/backend error (HTTP {code}). Check server logs and Dhan token."
                 else:
@@ -3301,13 +3312,16 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
-                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
+                semaphore=asyncio.Semaphore(1 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
                 cycle_data={}
+                dhan_history_throttled=[False]
                 async def load_one(sym):
                     async with semaphore:
+                        if prefs.get("source")=="Dhan" and dhan_history_throttled[0]:
+                            return False
                         try:
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
                             # Pace Dhan historical calls to avoid a burst of 51 requests.
@@ -3331,6 +3345,9 @@ console.log('BOT KING Lightweight Charts ready');
                             return not data.get("cached")
                         except Exception as exc:
                             if generation==provider_generation[0]:
+                                if prefs.get("source")=="Dhan" and "429" in safe_error(exc):
+                                    dhan_history_throttled[0]=True
+                                    scan_progress["state"]="Dhan HTTP 429 • history scan paused; wait for cooldown before retry"
                                 failed_symbols[sym]=safe_error(exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
@@ -3342,6 +3359,9 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 successes=sum(results)
+                if dhan_history_throttled[0]:
+                    market_status="Dhan HTTP 429 • stopped remaining history requests; wait before reconnecting"
+                    scan_progress["state"]="Dhan history paused due to rate limit • no immediate retry"
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
                     market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")

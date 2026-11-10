@@ -2,11 +2,13 @@ name: Backend regression checks (no APK)
 
 on:
   push:
-    branches: [ main, feature/dhan-market-data-audit ]
+    branches: [ main, feature/dhan-market-data-audit, botking-2-3-67-three-provider-release ]
     paths:
       - 'backend/**'
       - 'tests/**'
       - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
