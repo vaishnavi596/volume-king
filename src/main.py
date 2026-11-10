@@ -3112,7 +3112,7 @@ console.log('BOT KING Lightweight Charts ready');
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
         scan_result.controls.clear()
-        connection_status.value=("Dhan read-only • 51 equities mapped • "+("connected" if dhan_feed.connected else "reconnect required") if source.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
+        connection_status.value=("Dhan read-only • 51 equities mapped • "+("HISTORICAL ONLY • LIVE LTP UNAVAILABLE" if dhan_feed.historical_only else "LTP verified • quote timestamp unverified" if dhan_feed.connected else "reconnect required") if source.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
         scan_status.value=connection_status.value
         select(current[0])
     broker_previous=broker.on_change
