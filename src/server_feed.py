@@ -177,6 +177,8 @@ class ServerDhanReadOnly:
                 raise FeedError("Dhan server key rejected (HTTP 403); reconnect") from None
             if exc.code == 422:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
+            if exc.code == 429:
+                raise FeedError("Dhan live quote rate limited (HTTP 429); wait before retrying") from None
             if exc.code in (502, 503, 504):
                 raise FeedError("Dhan upstream unavailable or token expired (HTTP " + str(exc.code) + ")") from None
             raise FeedError("Dhan server HTTP " + str(exc.code)) from None
