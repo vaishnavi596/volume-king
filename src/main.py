@@ -827,6 +827,23 @@ def app_main(page:ft.Page):
         # counting it as a broken chart or an active error.
         if yahoo and ("awaiting" in state.lower() or valid==0):
             problems.append("Yahoo scanner analysis pending; historical quotes are not live")
+        # Feature availability is distinct from feed readiness. Never label a
+        # visible control LIVE merely because its page can open.
+        feature_rows=[
+            ("Dashboard", "ENABLED", "health and navigation"),
+            ("Watchlist", "ENABLED" if connected else "DEGRADED", "quotes require verified provider and freshness"),
+            ("Charts", "DEGRADED" if ("UNAVAILABLE" in market_health or "STALE" in market_health or not connected) else "ENABLED", market_health[:95]),
+            ("Scanner", "DEGRADED" if not connected or valid==0 else "ENABLED", str(valid)+"/"+str(total)+" targets; candle freshness unverified"),
+            ("Super Five", "DEGRADED" if not connected or valid==0 else "ENABLED", "historical candidates; not verified live"),
+            ("Settings", "ENABLED", "provider selection and preferences"),
+            ("Paper trading", "ENABLED", "simulation only; no broker orders"),
+            ("Real BUY / SELL", "DISABLED", "live order execution intentionally unavailable"),
+            ("News analysis", "EXPERIMENTAL", "RSS phrase cues, not verified trading signals"),
+            ("Dhan token auto-renewal", "NOT VERIFIED", "Oracle timer activation cannot be checked from this app"),
+            ("Server health", "NOT VERIFIED", "configured URL does not prove server availability"),
+        ]
+        feature_details=[note("FEATURE STATUS • enabled means UI available, not verified live feed")]
+        feature_details.extend(note(label+": "+status+" • "+reason) for label,status,reason in feature_rows)
         details=[
             note("Provider: "+prefs.get("source","Unknown")+" • "+(("quote available; freshness unverified" if yahoo else "session active (quote freshness unverified)") if connected else ("quote not verified" if yahoo else "disconnected; reconnect required"))),
             note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" saved/displayed LTP • quote time unverified"+(" • DISCONNECTED; cached prices are not live" if not connected else "") if dhan else "Watchlist: check selected feed"),
@@ -840,7 +857,8 @@ def app_main(page:ft.Page):
             note("Live orders OFF • historical data is not a live signal"),
             note("Cache: "+market_store.status),
             note("News: public RSS headlines; experimental phrase cues"),
-            note("Latest feed: "+market_status[:130])
+            note("Latest feed: "+market_status[:130]),
+            *feature_details
         ]
         return section("SYSTEM HEALTH",ft.Column([
             ft.Row([ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED if problems else ft.Icons.CHECK_CIRCLE_OUTLINE,color=RED if problems else GREEN,size=17),ft.Container(content=txt(str(len(problems))+" issue(s) need attention" if problems else "No active errors reported",11,RED if problems else GREEN,True),expand=True),txt(prefs.get("source",""),10,MUTED)],spacing=5),
