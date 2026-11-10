@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+from backend.dhan_expiry_store import load_expiry_metadata
 from backend.dhan_web_token_renew import renew_web_token
 
 
@@ -65,6 +68,23 @@ class RenewalTests(unittest.TestCase):
         recovery = self.path.with_name(self.path.name + ".recovery")
         self.assertEqual(recovery.read_text().strip(), self.new)
         self.assertEqual(recovery.stat().st_mode & 0o777, 0o600)
+
+    def test_expiry_persisted_and_recovery_removed(self):
+        expiry = (datetime.now(ZoneInfo("Asia/Kolkata")) + timedelta(hours=20)).strftime("%d/%m/%Y %H:%M")
+        metadata_path = self.path.with_name("expiry.json")
+        def opener(req, timeout):
+            if req.full_url.endswith("/RenewToken"):
+                return Response({"accessToken": self.new})
+            return Response({"dhanClientId": "12345", "tokenValidity": expiry})
+        renew_web_token("12345", self.path, opener, expiry_path=metadata_path)
+        self.assertEqual(self.path.read_text().strip(), self.new)
+        self.assertFalse(self.path.with_name(self.path.name + ".recovery").exists())
+        self.assertEqual(load_expiry_metadata(metadata_path)["source"], "dhan_web")
+
+    def test_recovery_blocks_repeat_renewal_before_network(self):
+        self.path.with_name(self.path.name + ".recovery").write_text(self.new)
+        with self.assertRaisesRegex(ValueError, "recovery"):
+            renew_web_token("12345", self.path, lambda req, timeout: self.fail("network called"))
 
     def test_invalid_renewal_response_does_not_replace_token(self):
         with self.assertRaises(ValueError):
