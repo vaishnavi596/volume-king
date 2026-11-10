@@ -33,8 +33,8 @@ class MonitoringAuditTests(unittest.TestCase):
         self.assertEqual(result['bias'],'WAIT')
         self.assertIn('too old',result['reason'])
     def test_partial_super_five_updates_preserve_five_rows(self):
-        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
-        result={'bias':'BULLISH','score':90,'timestamp':time.time()-300,'source':'Yahoo','reason':'trend','historical':False}
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        result={'bias':'BULLISH','score':90,'timestamp':time.time()-300,'source':'Dhan','reason':'historical trend','historical':True}
         v['publish_partial_ranking']({'TEST':result})
         self.assertEqual(len(v['top5_candidates']),5)
         self.assertEqual(v['top5_candidates'][0]['symbol'],'TEST')
@@ -64,9 +64,9 @@ class MonitoringAuditTests(unittest.TestCase):
             with self.assertRaises(SessionExpired):feed.request('quote',{})
         self.assertFalse(feed.connected);self.assertFalse(feed.token)
     def test_market_health_and_explicit_broker_failure(self):
-        _,v=start({'scanner_live':False,'source':'Broker API'})
+        _,v=start({'scanner_live':False,'source':'Dhan'})
         with self.assertRaises(Exception):v['get_market_data']('NIFTY')
-        self.assertEqual(v['health'].get('market:Broker API:NIFTY:5m')['state'],'UNAVAILABLE')
+        self.assertEqual(v['health'].get('market:Dhan:NIFTY:5m')['state'],'UNAVAILABLE')
         self.assertIn('last attempt',v['component_status']('market','NIFTY','5m'))
     def test_removed_capabilities_panel_keeps_execution_safety(self):
         _,v=start({'scanner_live':False})
