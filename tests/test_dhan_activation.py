@@ -54,6 +54,23 @@ class DhanActivationTests(unittest.TestCase):
                     feed.activate_historical_verified("https://example.org", "key", dict(base, bars=bars))
                 self.assertFalse(feed.connected)
 
+    def test_historical_activation_rejects_bad_order_and_price_geometry(self):
+        base = {"source": "dhan", "symbol": "RELIANCE",
+                "live_orders_enabled": False, "freshness": "historical_unverified"}
+        valid = [1762500000, 100, 102, 99, 101, 500]
+        for bars in (
+            [[0, 100, 102, 99, 101, 500]],
+            [[1762500000, 100, 100, 99, 101, 500]],
+            [[1762500000, 100, 102, 101, 101, 500]],
+            [valid, valid],
+            [[1762500300, 100, 102, 99, 101, 500], valid],
+        ):
+            with self.subTest(bars=bars):
+                feed = ServerDhanReadOnly()
+                with self.assertRaises(FeedError):
+                    feed.activate_historical_verified("https://example.org", "key", dict(base, bars=bars))
+                self.assertFalse(feed.connected)
+
     def test_historical_only_contract_in_main(self):
         main = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn("activate_historical_verified(endpoint,pairing_key,candles)", main)
