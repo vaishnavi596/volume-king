@@ -49,6 +49,9 @@ class RenewalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             renew_web_token("12345", self.path, opener)
         self.assertEqual(self.path.read_text(), self.old)
+        recovery = self.path.with_name(self.path.name + ".recovery")
+        self.assertEqual(recovery.read_text().strip(), self.new)
+        self.assertEqual(recovery.stat().st_mode & 0o777, 0o600)
 
     def test_invalid_renewal_response_does_not_replace_token(self):
         with self.assertRaises(ValueError):
