@@ -66,7 +66,7 @@ class SnapshotTests(unittest.TestCase):
             with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
                 with self.assertRaisesRegex(Exception,'Dhan disconnected'):
                     restored['get_market_data']('NIFTY','5m','7d')
-            self.assertIn('Last saved',restored['quote_caption']('NIFTY'))
+            self.assertIn('saved prices hidden',restored['quote_caption']('NIFTY'))
 
     def test_ranked_directions_survive_restart_as_historical(self):
         with tempfile.TemporaryDirectory() as d:
