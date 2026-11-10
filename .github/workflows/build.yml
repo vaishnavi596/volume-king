@@ -8,6 +8,8 @@ on:
     paths:
       - pyproject.toml
       - src/main.py
+      - src/server_feed.py
+      - tests/test_dhan_mobile_cooldown.py
       - .github/workflows/build.yml
       - '.github/workflows/backend-tests.yml'
   workflow_dispatch:
