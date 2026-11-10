@@ -6,6 +6,7 @@
 import asyncio
 import hmac
 import json
+import logging
 import math
 import os
 import secrets
@@ -37,6 +38,8 @@ try:
 except ImportError:  # Direct execution on the Oracle backend directory
     from dhan_feed import DhanFeed, DhanFeedError
 from pathlib import Path
+
+_dhan_auth_logger = logging.getLogger("botking.dhan.auth")
 
 
 class Login(BaseModel):
@@ -317,7 +320,21 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 if (not isinstance(token, str) or not token
                         or str(result.get("dhanClientId")) != client):
                     raise ValueError("Invalid Dhan account or token")
-            except (requests.RequestException, ValueError):
+            except requests.HTTPError as exc:
+                status = exc.response.status_code if exc.response is not None else "unknown"
+                _dhan_auth_logger.warning("Dhan token exchange rejected: HTTP status=%s", status)
+                raise HTTPException(502, "Dhan authentication failed") from None
+            except requests.Timeout:
+                _dhan_auth_logger.warning("Dhan token exchange timed out")
+                raise HTTPException(502, "Dhan authentication failed") from None
+            except requests.ConnectionError:
+                _dhan_auth_logger.warning("Dhan token exchange connection failed")
+                raise HTTPException(502, "Dhan authentication failed") from None
+            except requests.RequestException:
+                _dhan_auth_logger.warning("Dhan token exchange request failed")
+                raise HTTPException(502, "Dhan authentication failed") from None
+            except (ValueError, TypeError, AttributeError):
+                _dhan_auth_logger.warning("Dhan token exchange returned invalid JSON, token, or client ID")
                 raise HTTPException(502, "Dhan authentication failed") from None
             expiry = str(result.get("expiryTime", ""))
             try:
