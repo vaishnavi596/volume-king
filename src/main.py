@@ -1673,6 +1673,7 @@ def app_main(page:ft.Page):
                             raw=response.read(8193)
                             if len(raw)>8192:raise FeedError("Dhan LTP response too large")
                             return json.loads(raw)
+                    live_ltp_verified=False
                     try:
                         quote=await asyncio.to_thread(check_ltp)
                         if (not isinstance(quote,dict) or quote.get("source")!="dhan"
@@ -1681,6 +1682,7 @@ def app_main(page:ft.Page):
                                 or isinstance(quote["ltp"],bool) or not math.isfinite(quote["ltp"]) or quote["ltp"]<=0):
                             raise FeedError("Invalid Dhan quote response")
                         dhan_feed.activate_verified(endpoint,pairing_key,quote)
+                        live_ltp_verified=True
                         connection_status.value=("Dhan NIFTY LTP verified via server • "
                             +str(round(quote["ltp"],2))+" • timestamp unverified; not a live signal.")
                         connection_status.color=GREEN
@@ -1691,7 +1693,7 @@ def app_main(page:ft.Page):
                         from datetime import timedelta
                         today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
                         payload={"symbol":"RELIANCE","interval":5,
-                                 "from_date":str(today-timedelta(days=3)),"to_date":str(today)}
+                                 "from_date":str(today-timedelta(days=5)),"to_date":str(today)}
                         def check_candles():
                             req=urllib.request.Request(origin+"/dhan/intraday",
                                 data=json.dumps(payload).encode("utf-8"),
@@ -1733,8 +1735,10 @@ def app_main(page:ft.Page):
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
-                        connection_status.value=("Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
-                                                 "watchlist prices unavailable; historical scan queued")
+                        connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
+                                                  if live_ltp_verified else
+                                                  "Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
+                                                  "watchlist prices unavailable; historical scan queued"))
                         connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
