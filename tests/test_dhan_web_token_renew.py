@@ -1,5 +1,6 @@
 """Offline tests for opt-in Dhan Web token rotation."""
 import json
+import fcntl
 import os
 from pathlib import Path
 import tempfile
@@ -56,6 +57,15 @@ class RenewalTests(unittest.TestCase):
     def test_invalid_renewal_response_does_not_replace_token(self):
         with self.assertRaises(ValueError):
             renew_web_token("12345", self.path, lambda req, timeout: Response({"status": "error"}))
+        self.assertEqual(self.path.read_text(), self.old)
+
+    def test_existing_lock_blocks_second_renewal(self):
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with open(lock_path, "w") as held:
+            fcntl.flock(held.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, "already running"):
+                renew_web_token("12345", self.path,
+                                lambda req, timeout: self.fail("network called"))
         self.assertEqual(self.path.read_text(), self.old)
 
     def test_public_token_file_rejected_before_network(self):
