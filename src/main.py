@@ -1740,16 +1740,12 @@ def app_main(page:ft.Page):
                             " equity LTP quotes returned • timestamps unverified"+
                             (" • PARTIAL" if dhan_batch_issue[0] else ""))
                         connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-                        # Start a fresh historical-scan generation only after the
-                        # authenticated batch completes. A prior disconnected or
-                        # in-flight generation must not suppress this scan.
-                        provider_generation[0]+=1
-                        # Keep the just-verified equity batch in the new scan generation.
-                        # Otherwise the first historical refresh sees an empty batch.
-                        with dhan_batch_lock:
-                            dhan_batch_cache["generation"]=provider_generation[0]
-                        scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
-                            failed=0,cached=0,state="Dhan connected; historical scan queued")
+                    # Historical scan must run even if the independent LTP batch fails.
+                    provider_generation[0]+=1
+                    with dhan_batch_lock:
+                        dhan_batch_cache["generation"]=provider_generation[0]
+                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
+                        failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
                     connection_status.value=("Dhan Connected (OAuth), but market-data token is unavailable."
                         if result.get("authenticated") else
