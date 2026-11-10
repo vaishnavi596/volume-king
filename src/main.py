@@ -1733,8 +1733,9 @@ def app_main(page:ft.Page):
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
-                        connection_status.value=market_status
-                        connection_status.color=RED
+                        connection_status.value=("Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
+                                                 "watchlist prices unavailable; historical scan queued")
+                        connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
                             " equity LTP quotes returned • timestamps unverified"+
