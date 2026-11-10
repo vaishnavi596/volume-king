@@ -3263,7 +3263,7 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
-                semaphore=asyncio.Semaphore(1 if prefs.get("source")=="Dhan" else 5)
+                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
