@@ -9,6 +9,7 @@ on:
       - pyproject.toml
       - src/main.py
       - .github/workflows/build.yml
+      - '.github/workflows/backend-tests.yml'
   workflow_dispatch:
 
 jobs:
