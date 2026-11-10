@@ -4,6 +4,7 @@ Explicit operator invocation only. No automatic activation, no order endpoints.
 The current token is preserved unless the replacement token passes profile validation.
 """
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -21,7 +22,7 @@ def request_json(url, headers, opener=urllib.request.urlopen):
         return json.loads(response.read(100_000))
 
 
-def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen):
+def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen):
     if not client_id or not client_id.strip():
         raise ValueError("Client ID required")
     path = Path(token_path)
@@ -69,6 +70,24 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
         if os.path.exists(temporary):
             os.unlink(temporary)
     return {"status": "renewed", "token_saved": True, "profile_verified": True}
+
+
+
+def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen):
+    """Serialize all cooperating renewal processes before touching Dhan."""
+    path = Path(token_path)
+    lock_path = path.with_name(path.name + ".lock")
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if os.fstat(fd).st_mode & 0o077:
+            raise ValueError("Renewal lock file must be private")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError("Another token renewal is already running") from None
+        return _renew_unlocked(client_id, token_path, opener)
+    finally:
+        os.close(fd)
 
 
 def main():
