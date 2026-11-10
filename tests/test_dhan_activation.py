@@ -48,7 +48,7 @@ class DhanActivationTests(unittest.TestCase):
             with self.subTest(bars=bars):
                 feed = ServerDhanReadOnly()
                 with self.assertRaises(FeedError):
-                    feed.activate_historical_verified("https://example.org", "key", dict(base, bars=[bars]))
+                    feed.activate_historical_verified("https://example.org", "key", dict(base, bars=bars))
                 self.assertFalse(feed.connected)
 
     def test_historical_only_contract_in_main(self):
