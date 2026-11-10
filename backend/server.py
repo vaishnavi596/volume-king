@@ -454,11 +454,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
         except DhanFeedError:
             raise HTTPException(502, "Dhan batch market data unavailable") from None
-        entries = data.get("data", {}).get("NSE_EQ", {})
+        payload = data.get("data")
+        entries = payload.get("NSE_EQ") if isinstance(payload, dict) else None
         if data.get("status") != "success" or not isinstance(entries, dict):
-            raise HTTPException(502, "Invalid Dhan batch quote response")
+            raise HTTPException(502, "Dhan LTP response missing NSE_EQ segment or success status; check marketfeed entitlement and instrument IDs")
         if not entries:
-            raise HTTPException(502, "Dhan returned no market data for verified NSE equities")
+            raise HTTPException(502, "Dhan LTP returned empty NSE_EQ segment; check marketfeed entitlement, token and instrument IDs")
         quotes = {}
         unavailable = []
         for symbol, (segment, sid, _) in DHAN_VERIFIED_INSTRUMENTS.items():
