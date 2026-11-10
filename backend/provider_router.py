@@ -6,11 +6,11 @@ Never silently relabel Yahoo data as Dhan or Angel One data.
 from dataclasses import dataclass
 from typing import Literal
 
-Provider = Literal["Yahoo Finance", "Dhan", "Angel One"]
+Provider = Literal["Dhan"]
 Status = Literal["NOT_CONFIGURED", "CONNECTED", "EXPIRED", "UNAVAILABLE", "RATE_LIMITED"]
 
-PROVIDERS = ("Yahoo Finance", "Dhan", "Angel One")
-BROKER_PROVIDERS = ("Dhan", "Angel One")
+PROVIDERS = ("Dhan",)
+BROKER_PROVIDERS = ("Dhan",)
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180):
         import time
         now = time.time()
     by_name = {s.provider: s for s in states}
-    order = (preferred,) + tuple(p for p in PROVIDERS if p != preferred)
+    order = ("Dhan",)
     for provider in order:
         state = by_name.get(provider)
         if not state or state.status != "CONNECTED" or state.quote_timestamp is None:
