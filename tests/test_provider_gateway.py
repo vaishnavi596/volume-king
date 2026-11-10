@@ -19,19 +19,19 @@ class ProviderGatewayTests(unittest.TestCase):
 
     def test_fresh_dhan_selected(self):
         payload = {"preferred": "Dhan", "now": 1000, "states": [
-            {"provider": "Dhan", "status": "CONNECTED", "quote_timestamp": 999},
-            {"provider": "Yahoo Finance", "status": "CONNECTED", "quote_timestamp": 995}]}
+            {"provider": "Dhan", "status": "CONNECTED", "quote_timestamp": 999}]}
         result = self.client.post("/v2/providers/select", json=payload, headers=self.headers)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()["provider"], "Dhan")
 
-    def test_expired_dhan_falls_back_with_label(self):
+    def test_expired_dhan_does_not_fallback(self):
         payload = {"preferred": "Dhan", "now": 1000, "states": [
-            {"provider": "Dhan", "status": "EXPIRED", "quote_timestamp": 999},
-            {"provider": "Yahoo Finance", "status": "CONNECTED", "quote_timestamp": 995}]}
+            {"provider": "Dhan", "status": "EXPIRED", "quote_timestamp": 999}]}
         result = self.client.post("/v2/providers/select", json=payload, headers=self.headers)
-        self.assertEqual(result.json()["provider"], "Yahoo Finance")
-        self.assertTrue(result.json()["fallback"])
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["status"], "UNAVAILABLE")
+        self.assertIsNone(result.json()["provider"])
+        self.assertFalse(result.json()["fallback"])
 
     def test_duplicate_provider_rejected(self):
         payload = {"now": 1000, "states": [
