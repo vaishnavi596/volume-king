@@ -34,9 +34,9 @@ except ImportError:
     except ImportError:
         from src.market_feed import AngelFeed, FeedError, SessionExpired
 try:
-    from .dhan_feed import DhanFeed, DhanFeedError
+    from .dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 except ImportError:  # Direct execution on the Oracle backend directory
-    from dhan_feed import DhanFeed, DhanFeedError
+    from dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 from pathlib import Path
 
 _dhan_auth_logger = logging.getLogger("botking.dhan.auth")
@@ -428,6 +428,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             price = float(price)
             if not math.isfinite(price) or price <= 0:
                 raise ValueError("Invalid price")
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
         except DhanFeedError:
             raise HTTPException(502, "Dhan market data unavailable or token expired") from None
         except (ValueError, TypeError, KeyError, OverflowError, AttributeError):
@@ -448,6 +450,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
         try:
             data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
         except DhanFeedError:
             raise HTTPException(502, "Dhan batch market data unavailable") from None
         entries = data.get("data", {}).get("NSE_EQ", {})
