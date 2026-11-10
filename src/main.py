@@ -912,13 +912,10 @@ def app_main(page:ft.Page):
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
-        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
-            return section("SUPER FIVE • CONNECTION REQUIRED",ft.Column([
-                note("Dhan disconnected • connect and verify the feed in Settings before scanning."),
-                note("Saved historical rankings are hidden while disconnected; no live signal is available."),
-                note("Scan progress: 0 / "+str(len(watch_symbols))+" • paused")
-            ],spacing=7))
-        rows=top5_candidates[:]
+        disconnected=prefs.get("source")=="Dhan" and not dhan_feed.connected
+        # Always show five non-actionable placeholders while disconnected.
+        # Never expose restored directional rankings as live candidates.
+        rows=([{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"Dhan disconnected • connect and verify the feed in Settings","timestamp":None,"source":"Dhan","historical":True} for sym in watch_symbols[:5]] if disconnected else top5_candidates[:])
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
@@ -936,7 +933,7 @@ def app_main(page:ft.Page):
             direction=("HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH") else "NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"])
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol"))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
-        return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
+        return section("SUPER FIVE • CONNECTION REQUIRED" if disconnected else "SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
         generation=provider_generation[0]
         try:
