@@ -56,12 +56,18 @@ def main():
                    and not isinstance(quote.get("ltp"), bool)
                    and quote["ltp"] > 0)
     print("NIFTY LTP HTTP:", code, "valid:", valid_quote)
+    if code in (429, 502, 503):
+        print("Further market-data checks skipped after NIFTY LTP failure; avoid rate-limit amplification")
+        return 2
     code, batch = request("/dhan/ltp-batch", key, {})
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
     unavailable = batch.get("unavailable") if isinstance(batch, dict) else None
     print("51-equity batch HTTP:", code,
           "quotes:", len(quotes) if isinstance(quotes, dict) else "invalid",
           "unavailable:", len(unavailable) if isinstance(unavailable, list) else "invalid")
+    if code in (429, 502, 503):
+        print("Historical candle check skipped after batch failure; avoid rate-limit amplification")
+        return 2
     india_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=5, minutes=30)))
     day = india_now.date() - dt.timedelta(days=1)
     while day.weekday() >= 5:
