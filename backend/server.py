@@ -452,7 +452,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
-        except DhanFeedError:
+        except DhanFeedError as exc:
+            message = str(exc)
+            if "token expired or data access not entitled" in message:
+                raise HTTPException(403, "Dhan token expired or market-data entitlement missing") from None
+            if "rejected market data request" in message:
+                raise HTTPException(502, "Dhan rejected marketfeed request; verify entitlement and IDs") from None
             raise HTTPException(502, "Dhan batch market data unavailable") from None
         payload = data.get("data")
         entries = payload.get("NSE_EQ") if isinstance(payload, dict) else None
