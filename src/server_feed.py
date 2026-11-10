@@ -217,6 +217,31 @@ class ServerDhanReadOnly:
         self.disconnect()
         self._origin, self._pairing_key = origin, pairing_key.strip()
 
+    def activate_historical_verified(self, endpoint, pairing_key, candles):
+        """Allow historical-only read access after an actual Dhan candle response.
+
+        This is NOT a live-quote verification and must never enable orders.
+        """
+        import math
+        origin = server_origin(endpoint)
+        if (not isinstance(pairing_key, str) or not pairing_key.strip()
+                or not isinstance(candles, dict)
+                or candles.get("source") != "dhan"
+                or candles.get("symbol") != "RELIANCE"
+                or candles.get("live_orders_enabled") is not False
+                or candles.get("freshness") != "historical_unverified"):
+            raise FeedError("Cannot activate unverified Dhan historical feed")
+        bars = candles.get("bars")
+        if (not isinstance(bars, list) or not bars
+                or not all(isinstance(row, list) and len(row) >= 5
+                           and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                   and math.isfinite(v) for v in row[:5])
+                           and row[1] > 0 and row[2] > 0 and row[3] > 0 and row[4] > 0
+                           for row in bars)):
+            raise FeedError("Cannot activate empty or invalid Dhan candles")
+        self.disconnect()
+        self._origin, self._pairing_key = origin, pairing_key.strip()
+
     def quote(self, symbol):
         if symbol not in DHAN_VERIFIED_SYMBOLS:
             raise FeedError("Dhan instrument mapping not verified for " + str(symbol)[:32])
