@@ -9,6 +9,8 @@ on:
       - pyproject.toml
       - src/main.py
       - backend/provider_router.py
+      - backend/provider_gateway.py
+      - tests/**
       - .github/workflows/build.yml
   workflow_dispatch:
 
