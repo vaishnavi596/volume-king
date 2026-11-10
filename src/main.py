@@ -1145,7 +1145,7 @@ def app_main(page:ft.Page):
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
-                wrap=True),note("Candle analysis: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
+                wrap=True),note("Candle analysis: processed "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • valid "+str(scan_progress["valid"])+" • cached "+str(scan_progress["cached"])+" • failed "+str(scan_progress["failed"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
