@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
-from backend.dhan_expiry_store import save_expiry_metadata
+from backend.dhan_expiry_store import save_expiry_metadata, load_expiry_metadata
 
 
 class DhanExpiryStoreTests(unittest.TestCase):
@@ -20,6 +20,7 @@ class DhanExpiryStoreTests(unittest.TestCase):
             self.assertEqual(data["source"], "dhan_web")
             self.assertEqual(data["expires_at"], expiry)
             self.assertNotIn("access_token", data)
+            self.assertEqual(load_expiry_metadata(target)["expires_at"], expiry)
 
     def test_reject_bad_or_expired(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -37,6 +38,22 @@ class DhanExpiryStoreTests(unittest.TestCase):
             expiry = (datetime.now(timezone.utc) + timedelta(hours=20)).isoformat()
             with self.assertRaises(ValueError):
                 save_expiry_metadata(target, expiry)
+
+    def test_reject_tampered_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            target.write_text('{"source":"oauth_consent","expires_at":"2030-01-01T00:00:00+00:00"}')
+            target.chmod(0o600)
+            with self.assertRaises(ValueError):
+                load_expiry_metadata(target)
+
+    def test_reject_public_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            target.write_text("{}")
+            target.chmod(0o644)
+            with self.assertRaises(ValueError):
+                load_expiry_metadata(target)
 
     def test_reject_unknown_source(self):
         with tempfile.TemporaryDirectory() as directory:
