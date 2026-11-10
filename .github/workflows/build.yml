@@ -1,13 +1,14 @@
 
 name: Build APK
 
-# APK builds are manual only. Code edits must not trigger an APK build.
+# Build on app, regression-test, and workflow changes; manual dispatch is also supported.
 on:
   push:
     branches: [ main ]
     paths:
       - pyproject.toml
       - src/main.py
+      - 'tests/**'
       - .github/workflows/build.yml
   workflow_dispatch:
 
