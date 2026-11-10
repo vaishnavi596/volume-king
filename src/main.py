@@ -870,7 +870,7 @@ def app_main(page:ft.Page):
         if not completed or not quality["usable"]:
             display.update(bias="DATA UNAVAILABLE",score=0,timestamp=None,reason="Insufficient or invalid completed candles; last valid result retained")
         age=datetime.now(timezone.utc).timestamp()-(display.get("timestamp") or 0)
-        display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
+        display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or (data.get("source")=="Dhan" and data.get("freshness")=="historical_unverified") or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
         return display
     def publish_partial_ranking(results):
         available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
