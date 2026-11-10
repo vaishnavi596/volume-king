@@ -62,6 +62,7 @@ class RenewalTests(unittest.TestCase):
     def test_existing_lock_blocks_second_renewal(self):
         lock_path = self.path.with_name(self.path.name + ".lock")
         with open(lock_path, "w") as held:
+            lock_path.chmod(0o600)
             fcntl.flock(held.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             with self.assertRaisesRegex(ValueError, "already running"):
                 renew_web_token("12345", self.path,
