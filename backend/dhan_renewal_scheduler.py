@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 
 from backend.dhan_renewal_policy import renewal_decision
+from backend.dhan_expiry_store import load_expiry_metadata
 from backend.dhan_web_token_renew import renew_web_token
 
 
@@ -26,15 +27,23 @@ def scheduled_decision(source, expiry, now=None, lead_minutes=90):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Guarded Dhan Web renewal")
-    parser.add_argument("--source", required=True, choices=["dhan_web", "oauth_consent", "totp_generated", "unknown"])
-    parser.add_argument("--expires-at", required=True)
+    parser.add_argument("--source", choices=["dhan_web", "oauth_consent", "totp_generated", "unknown"])
+    parser.add_argument("--expires-at")
+    parser.add_argument("--expiry-file", help="Read owner-private trusted expiry metadata")
     parser.add_argument("--client-id-env", default="DHAN_CLIENT_ID")
     parser.add_argument("--token-file", default="/etc/bot-king/dhan-token")
     parser.add_argument("--lead-minutes", type=int, default=90)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
     try:
-        decision = scheduled_decision(args.source, args.expires_at, lead_minutes=args.lead_minutes)
+        if args.expiry_file:
+            if args.source or args.expires_at:
+                raise ValueError("Use expiry file or explicit expiry, not both")
+            metadata = load_expiry_metadata(args.expiry_file)
+            source, expiry = metadata["source"], metadata["expires_at"]
+        else:
+            source, expiry = args.source, args.expires_at
+        decision = scheduled_decision(source, expiry, lead_minutes=args.lead_minutes)
         state = decision["state"]
         if state == "valid":
             print("Renewal not due")
