@@ -236,8 +236,13 @@ class ServerDhanReadOnly:
                 or not all(isinstance(row, list) and len(row) >= 5
                            and all(isinstance(v, (int, float)) and not isinstance(v, bool)
                                    and math.isfinite(v) for v in row[:5])
-                           and row[1] > 0 and row[2] > 0 and row[3] > 0 and row[4] > 0
-                           for row in bars)):
+                           and row[0] > 0 and min(row[1:5]) > 0
+                           and row[5] >= 0 if len(row) >= 6 else False
+                           for row in bars)
+                or any(row[2] < max(row[1], row[4], row[3])
+                       or row[3] > min(row[1], row[4], row[2])
+                       for row in bars)
+                or any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars) - 1))):
             raise FeedError("Cannot activate empty or invalid Dhan candles")
         self.disconnect()
         self._origin, self._pairing_key = origin, pairing_key.strip()
