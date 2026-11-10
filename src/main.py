@@ -1791,8 +1791,10 @@ def app_main(page:ft.Page):
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code==429:
-                    detail=("Dhan rate limit (HTTP 429). Stop repeated Connect / Check requests; "
-                            "wait for server cooldown and retry once. Check backend rate-limit logs.")
+                    retry_after=(exc.headers.get("Retry-After","") if exc.headers else "").strip()
+                    wait_hint=(" Retry-After: "+retry_after+" seconds." if retry_after.isdigit() and int(retry_after)<=3600 else "")
+                    detail=("BOT KING /dhan/status returned HTTP 429 (source not yet verified)."
+                            +wait_hint+" Do not repeatedly reconnect; inspect HTTPS proxy and Oracle logs.")
                 elif code in (502,503,504):
                     detail=f"Dhan upstream/backend error (HTTP {code}). Check server logs and Dhan token."
                 else:
