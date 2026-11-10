@@ -95,5 +95,5 @@ class OptionsLayoutTests(unittest.TestCase):
                          ['—','—','24000 (manual)','—','—'])
         self.assertEqual(len(table.columns),5)
         self.assertIn('not connected',preview.controls[3].value)
-        v['quotes']['NIFTY']={'price':24123.45}
-        self.assertIn('24,123.45',v['option_chain_preview']().controls[0].value)
+        v['quotes']['NIFTY']={'price':24123.45,'source':'Yahoo Finance'}
+        self.assertIn('Underlying: NIFTY • —',v['option_chain_preview']().controls[0].value)
