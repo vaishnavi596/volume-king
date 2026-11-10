@@ -1709,6 +1709,11 @@ def app_main(page:ft.Page):
                         connection_status.color=GREEN
                     except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as ltp_exc:
                         log_error("dhan_ltp_connect",ltp_exc)
+                        ltp_failure_reason = (
+                            "HTTP " + str(ltp_exc.code) if isinstance(ltp_exc, urllib.error.HTTPError)
+                            else "network timeout" if isinstance(ltp_exc, (urllib.error.URLError, TimeoutError))
+                            else "invalid response"
+                        )
                         # Read-only historical access can work when Dhan LTP is unavailable.
                         # Verify a real candle response before enabling it; never fake an LTP.
                         from datetime import timedelta
@@ -1759,7 +1764,8 @@ def app_main(page:ft.Page):
                         connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
                                                   if live_ltp_verified else
                                                   "Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
-                                                  "watchlist prices unavailable; historical scan queued"))
+                                                  "watchlist prices unavailable; historical scan queued • LTP "+ltp_failure_reason+
+                                                  " • batch "+safe_error(exc)[:110]))
                         connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
