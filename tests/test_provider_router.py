@@ -5,20 +5,19 @@ from backend.provider_router import ProviderState, choose_source
 
 class ProviderRouterTests(unittest.TestCase):
     def test_prefers_fresh_dhan(self):
-        states = [ProviderState("Yahoo Finance", "CONNECTED", 90),
-                  ProviderState("Dhan", "CONNECTED", 99)]
+        states = [ProviderState("Dhan", "CONNECTED", 99)]
         self.assertEqual(choose_source(states, now=100)["provider"], "Dhan")
 
-    def test_yahoo_fallback_is_explicit(self):
-        states = [ProviderState("Dhan", "EXPIRED", 99),
-                  ProviderState("Yahoo Finance", "CONNECTED", 95)]
+    def test_expired_dhan_has_no_fallback(self):
+        states = [ProviderState("Dhan", "EXPIRED", 99)]
         result = choose_source(states, now=100)
-        self.assertEqual(result["provider"], "Yahoo Finance")
-        self.assertTrue(result["fallback"])
+        self.assertIsNone(result["provider"])
+        self.assertFalse(result["fallback"])
 
-    def test_angel_one_remains_optional(self):
-        states = [ProviderState("Angel One", "CONNECTED", 99)]
-        self.assertEqual(choose_source(states, preferred="Angel One", now=100)["provider"], "Angel One")
+    def test_legacy_provider_rejected(self):
+        for name in ("Yahoo Finance", "Angel One"):
+            with self.assertRaises(ValueError):
+                ProviderState(name, "CONNECTED", 99)
 
     def test_stale_and_future_data_are_not_live(self):
         for timestamp in (1, 101):
