@@ -38,6 +38,23 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     recovery = path.with_name(path.name + ".recovery")
     if recovery.exists() or recovery.is_symlink():
         raise ValueError("Unresolved renewal recovery file; manual reconciliation required")
+    # Fail closed before a potentially irreversible remote token rotation.
+    # A successful preflight cannot guarantee the later write, so recovery
+    # still remains mandatory immediately after receiving the replacement.
+    if not os.access(path.parent, os.W_OK | os.X_OK):
+        raise ValueError("Token directory is not writable for recovery")
+    probe_fd, probe_name = tempfile.mkstemp(prefix=".dhan-recovery-preflight-", dir=str(path.parent))
+    try:
+        os.fchmod(probe_fd, 0o600)
+        with os.fdopen(probe_fd, "w", encoding="utf-8") as probe:
+            probe.write("preflight\\n")
+            probe.flush()
+            os.fsync(probe.fileno())
+        probe_fd = -1
+    finally:
+        if probe_fd >= 0:
+            os.close(probe_fd)
+        os.unlink(probe_name)
     # This call revokes the old token: never call without operator authorization.
     renewed = request_json(API + "/RenewToken",
                            {"access-token": old, "dhanClientId": client_id.strip()},
