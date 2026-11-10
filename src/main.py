@@ -491,10 +491,18 @@ def app_main(page:ft.Page):
                                 and time.monotonic()-dhan_batch_cache["updated"]<90):
                             quote=dhan_batch_cache["quotes"].get(ticker)
                 if quote is None:
-                    quote=dhan_feed.quote(ticker)
-                result={"price":quote["price"],"change":None,"high":None,"low":None,
+                    try:
+                        quote=dhan_feed.quote(ticker)
+                    except FeedError as exc:
+                        # Historical chart remains available if live LTP is missing.
+                        # Never represent candle close as a verified live quote.
+                        log_error("dhan_chart_ltp",exc)
+                        quote=None
+                result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
-                        "fetched_at":time.time(),"freshness":"unverified","time":datetime.now().strftime("%H:%M")}
+                        "fetched_at":time.time(),
+                        "freshness":"unverified" if quote else "historical_unverified",
+                        "time":datetime.now().strftime("%H:%M")}
             elif angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
