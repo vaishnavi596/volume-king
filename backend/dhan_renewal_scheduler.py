@@ -7,6 +7,8 @@ wrapper, not the raw renewal executor.
 import argparse
 from datetime import datetime
 import os
+import json
+import urllib.error
 from pathlib import Path
 import sys
 
@@ -60,7 +62,7 @@ def main(argv=None):
         result = renew_web_token(client_id, Path(args.token_file), expiry_path=Path(args.expiry_file))
         print("Renewal completed and profile verified" if result["profile_verified"] else "Renewal failed")
         return 0
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
         print("Renewal blocked or failed:", type(exc).__name__, "(no secrets logged)")
         return 1
 
