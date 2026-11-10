@@ -1777,6 +1777,50 @@ def app_main(page:ft.Page):
             values.clear()
             broker_connect_busy[0]=False
         page.update()
+    async def start_dhan_authorization():
+        if broker.value!="Dhan":
+            connection_status.value="Select Dhan as the broker before authorization."
+            page.update();return
+        endpoint=(api_url.value or "").strip()
+        pairing_key=(server_access.value or "").strip()
+        if not endpoint or not pairing_key:
+            connection_status.value="Enter the BOT KING HTTPS server URL and Server Access Key first."
+            connection_status.color=GOLD
+            page.update();return
+        try:
+            from server_feed import server_origin, NoRedirect
+            import urllib.request, urllib.error, json
+            from urllib.parse import urlsplit
+            origin=server_origin(endpoint)
+            def request_consent():
+                req=urllib.request.Request(origin+"/dhan/start",data=b"",
+                    headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="POST")
+                with urllib.request.build_opener(NoRedirect()).open(req,timeout=15) as response:
+                    raw=response.read(8193)
+                    if len(raw)>8192:raise FeedError("Dhan consent response too large")
+                    return json.loads(raw)
+            result=await asyncio.to_thread(request_consent)
+            login_url=result.get("login_url","") if isinstance(result,dict) else ""
+            parsed=urlsplit(login_url)
+            if (parsed.scheme!="https" or parsed.hostname!="auth.dhan.co"
+                    or parsed.username or parsed.password or parsed.port):
+                raise FeedError("Unexpected Dhan authorization URL")
+            connection_status.value="Dhan authorization opened in browser. Complete consent, then return and press Connect / Check."
+            connection_status.color=GOLD
+            page.update()
+            page.launch_url(login_url)
+        except urllib.error.HTTPError as exc:
+            connection_status.value=("Server Access Key rejected (HTTP 403)." if exc.code==403 else
+                "Dhan authorization could not start (HTTP "+str(exc.code)+"). Check server Dhan credentials and pending login.")
+            connection_status.color=RED
+            page.update()
+        except Exception as exc:
+            log_error("dhan_oauth_start",exc)
+            connection_status.value="Dhan authorization could not start. Check HTTPS connection and server configuration."
+            connection_status.color=RED
+            page.update()
+    def open_dhan_authorization(e):
+        page.run_task(start_dhan_authorization)
     def explain_broker_connection(e):
         page.run_task(connect_angel)
 
@@ -2280,7 +2324,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only charts/scanner support 51 mapped NSE equities and NIFTY after Connect / Check with a server-side token. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Authorize Dhan API (browser)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only charts/scanner support 51 mapped NSE equities and NIFTY after Connect / Check with a server-side token. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
         content.extend([section('01  PAPER BOT', ft.Column([mode, note('Paper trading is simulated; no real orders are sent.')])), section('REAL TRADING • NOT CONNECTED',ft.Column([note('Real BUY / SELL requires verified Dhan or Angel One trading authorization, static-IP configuration, order status and explicit confirmation. Live order submission is DISABLED in this build.'),ft.ElevatedButton('REAL BUY • DISABLED',disabled=True),ft.ElevatedButton('REAL SELL • DISABLED',disabled=True)])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
             section("POSITION PROTECTION • PAPER DEMONSTRATION",ft.Column([protection_mode,protection_enabled,protection_loss,protection_profit,protection_trail,protection_timeout,protection_no_reply,
