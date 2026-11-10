@@ -1,5 +1,7 @@
 """Optional owner-operated HTTPS transport for the read-only Angel adapter."""
 import json
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -134,6 +136,9 @@ class ServerDhanReadOnly:
     Only explicitly mapped instruments are supported by the backend.
     All other symbols fail closed rather than showing fabricated broker quotes.
     """
+    _cooldown_lock = threading.Lock()
+    _cooldown_until = 0.0
+
     def __init__(self):
         self._origin = ""
         self._pairing_key = ""
@@ -157,6 +162,13 @@ class ServerDhanReadOnly:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
             raise FeedError("Unsupported Dhan read-only request")
+        # One shared cooldown for all Dhan market-data paths and feed instances.
+        # Status remains available so users can diagnose server authentication.
+        if path != "/dhan/status":
+            with type(self)._cooldown_lock:
+                remaining = type(self)._cooldown_until - time.monotonic()
+            if remaining > 0:
+                raise FeedError("Dhan market data cooldown (HTTP 429); retry after " + str(int(remaining) + 1) + " seconds")
         headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
         if payload is None:
             req = urllib.request.Request(self._origin + path, headers=headers, method="GET")
@@ -178,7 +190,11 @@ class ServerDhanReadOnly:
             if exc.code == 422:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
             if exc.code == 429:
-                raise FeedError("Dhan live quote rate limited (HTTP 429); wait before retrying") from None
+                hint = exc.headers.get("Retry-After", "") if exc.headers else ""
+                seconds = min(300, max(30, int(hint))) if hint.isdigit() else 30
+                with type(self)._cooldown_lock:
+                    type(self)._cooldown_until = max(type(self)._cooldown_until, time.monotonic() + seconds)
+                raise FeedError("Dhan market data rate limited (HTTP 429); retry after " + str(seconds) + " seconds") from None
             if exc.code in (502, 503, 504):
                 raise FeedError("Dhan upstream unavailable or token expired (HTTP " + str(exc.code) + ")") from None
             raise FeedError("Dhan server HTTP " + str(exc.code)) from None
