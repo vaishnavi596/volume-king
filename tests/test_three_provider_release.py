@@ -14,7 +14,7 @@ class ThreeProviderReleaseTests(unittest.TestCase):
 
     def test_version_synchronized(self):
         self.assertEqual(self.project["project"]["version"], "2.3.67")
-        self.assertRegex(self.app, r'APP_VERSION = "2\\.3\\.67"\\s*# Release fallback;')
+        self.assertRegex(self.app, r'APP_VERSION = "2\.3\.67"\s*# Release fallback;')
 
     def test_all_three_sources_selectable(self):
         for provider in ("Yahoo Finance", "Broker API", "Dhan"):
