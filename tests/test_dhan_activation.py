@@ -17,6 +17,7 @@ class DhanActivationTests(unittest.TestCase):
         with patch.object(feed, "_call", side_effect=AssertionError("duplicate request")):
             feed.activate_verified("https://example.org", "test-pairing-key", quote)
         self.assertTrue(feed.connected)
+        self.assertFalse(feed.historical_only)
         feed.disconnect()
         self.assertFalse(feed.connected)
 
@@ -28,7 +29,9 @@ class DhanActivationTests(unittest.TestCase):
                    "bars": [[1762500000, 100.0, 102.0, 99.0, 101.0, 500]]}
         feed.activate_historical_verified("https://example.org", "test-pairing-key", candles)
         self.assertTrue(feed.connected)
+        self.assertTrue(feed.historical_only)
         feed.disconnect()
+        self.assertFalse(feed.historical_only)
         for bad in (dict(candles, bars=[]),
                     dict(candles, live_orders_enabled=True),
                     dict(candles, freshness="live"),
