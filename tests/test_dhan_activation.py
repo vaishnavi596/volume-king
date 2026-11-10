@@ -20,6 +20,24 @@ class DhanActivationTests(unittest.TestCase):
         feed.disconnect()
         self.assertFalse(feed.connected)
 
+    def test_historical_activation_requires_real_read_only_candles(self):
+        feed = ServerDhanReadOnly()
+        candles = {"source": "dhan", "symbol": "RELIANCE",
+                   "live_orders_enabled": False,
+                   "freshness": "historical_unverified",
+                   "bars": [[1762500000, 100.0, 102.0, 99.0, 101.0, 500]]}
+        feed.activate_historical_verified("https://example.org", "test-pairing-key", candles)
+        self.assertTrue(feed.connected)
+        feed.disconnect()
+        for bad in (dict(candles, bars=[]),
+                    dict(candles, live_orders_enabled=True),
+                    dict(candles, freshness="live"),
+                    dict(candles, symbol="NIFTY")):
+            with self.subTest(bad=bad):
+                with self.assertRaises(FeedError):
+                    feed.activate_historical_verified("https://example.org", "test-pairing-key", bad)
+                self.assertFalse(feed.connected)
+
     def test_rejects_unverified_or_live_order_responses(self):
         for quote in (
             {"source": "dhan", "symbol": "NIFTY", "ltp": 25030.35,
