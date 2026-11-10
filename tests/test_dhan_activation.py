@@ -44,7 +44,10 @@ class DhanActivationTests(unittest.TestCase):
         for bars in ([[1762500000, 100, 102, 99, 101]],
                      [[1762500000, 0, 102, 99, 101, 500]],
                      [[1762500000, 100, float("nan"), 99, 101, 500]],
-                     [[1762500000, 100, True, 99, 101, 500]]):
+                     [[1762500000, 100, True, 99, 101, 500]],
+                     [[1762500000, 100, 102, 99, 101, "500"]],
+                     [[1762500000, 100, 102, 99, 101, -1]],
+                     [[1762500000, 100, 102, 99, 101, float("inf")]]):
             with self.subTest(bars=bars):
                 feed = ServerDhanReadOnly()
                 with self.assertRaises(FeedError):
