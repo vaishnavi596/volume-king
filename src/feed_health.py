@@ -36,6 +36,10 @@ def safe_error(exc):
         # Match only known adapter phrases; never echo raw URLs or credentials.
         detail=str(exc)
         if "HTTP 403" in detail:return "Dhan server access rejected (HTTP 403); reconnect"
+        if "HTTP 429" in detail or "rate limited" in detail or "cooldown" in detail:
+            return "Dhan market data rate limited (HTTP 429); wait before retrying"
+        if "Invalid Dhan quote" in detail:return "Dhan quote response missing or invalid"
+        if "Invalid Dhan status" in detail:return "Dhan status response missing or invalid"
         if any("HTTP "+str(code) in detail for code in (502,503,504)):
             return "Dhan upstream temporarily unavailable; retry later"
         if "HTTPS connection or response failed" in detail:
