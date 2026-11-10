@@ -12,19 +12,20 @@ class FeedTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             v['get_market_data']('NIFTY')
 
-    def test_yahoo_without_broker_login(self):
+    def test_legacy_yahoo_selection_is_rejected_without_fallback(self):
         _,v=start({'source':'Yahoo Finance','scanner_live':False})
-        with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:{'source':'Yahoo Finance','price':100,'bars':[],'quote_timestamp':time.time()}}):
-            self.assertEqual(v['fetch_market_data_uncached']('NIFTY')['source'],'Yahoo Finance')
+        self.assertEqual(v['prefs']['source'],'Dhan')
+        with patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:(_ for _ in ()).throw(AssertionError('Yahoo must not run'))}):
+            with self.assertRaisesRegex(FeedError,'Dhan disconnected'):
+                v['fetch_market_data_uncached']('NIFTY')
 
-    def test_explicit_broker_mode_does_not_fallback_to_yahoo(self):
+    def test_legacy_broker_selection_is_rejected_without_angel_call(self):
         _,v=start({'source':'Broker API','scanner_live':False})
-        feed=v['angel_feed'];feed.key='test';feed.token='test'
-        with patch.object(feed,'history',side_effect=FeedError('offline')) as broker, patch.dict(v['get_market_data'].__globals__,{'get_yahoo':lambda *args:(_ for _ in ()).throw(AssertionError('No Yahoo fallback'))}):
-            with self.assertRaises(FeedError):v['get_market_data']('NIFTY')
-        self.assertEqual(broker.call_count,1)
-        feed.disconnect()
-        with self.assertRaisesRegex(FeedError,'Broker API not connected'):v['get_market_data']('NIFTY')
+        self.assertEqual(v['prefs']['source'],'Dhan')
+        with patch.object(v['angel_feed'],'history',side_effect=AssertionError('Angel must not run')) as broker:
+            with self.assertRaisesRegex(FeedError,'Dhan disconnected'):
+                v['get_market_data']('NIFTY')
+            broker.assert_not_called()
 
     def test_no_order_endpoints_and_disconnect_clears_session(self):
         feed=AngelFeed();feed.key='test';feed.token='test'
