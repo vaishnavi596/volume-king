@@ -35,9 +35,9 @@ class RenewalTests(unittest.TestCase):
             seen.append(req.full_url)
             if req.full_url.endswith("/RenewToken"):
                 return Response({"accessToken": self.new})
-            return Response({"dhanClientId": "12345"})
+            return Response({"dhanClientId": "12345", "tokenValidity": "11/11/2026 12:01"})
         result = renew_web_token("12345", self.path, opener)
-        self.assertTrue(result["profile_verified"])
+        self.assertTrue(result["profile_verified"])\n        self.assertEqual(result["expiry_time"], "11/11/2026 12:01")
         self.assertEqual(self.path.read_text().strip(), self.new)
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
         self.assertEqual(len(seen), 2)
