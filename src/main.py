@@ -2375,7 +2375,7 @@ def app_main(page:ft.Page):
             refresh_option_expiry();update_expiry()
             protection_pending.clear();protection_sample.clear();protection_peak[0]=0
             source.value="Dhan";prefs["source"]="Dhan"
-        market_status="Data source: Dhan • waiting for refresh"
+            market_status="Data source: Dhan • waiting for refresh"
             connection_status.value=market_status
             provider_generation[0]+=1;scan_generation[0]+=1
             quotes.clear();candles.clear();fusion_cache.clear();mark_ranking_historical();scan_result.controls.clear()
