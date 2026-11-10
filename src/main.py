@@ -1673,16 +1673,39 @@ def app_main(page:ft.Page):
                             raw=response.read(8193)
                             if len(raw)>8192:raise FeedError("Dhan LTP response too large")
                             return json.loads(raw)
-                    quote=await asyncio.to_thread(check_ltp)
-                    if (not isinstance(quote,dict) or quote.get("source")!="dhan"
-                            or quote.get("symbol")!="NIFTY" or quote.get("live_orders_enabled") is not False
-                            or not isinstance(quote.get("ltp"),(int,float))
-                            or isinstance(quote["ltp"],bool) or not math.isfinite(quote["ltp"]) or quote["ltp"]<=0):
-                        raise FeedError("Invalid Dhan quote response")
-                    connection_status.value=("Dhan NIFTY read-only LTP verified via server • "
-                        +str(round(quote["ltp"],2))+" • quote timestamp unverified; not a live signal.")
-                    connection_status.color=GREEN
-                    dhan_feed.activate_verified(endpoint,pairing_key,quote)
+                    try:
+                        quote=await asyncio.to_thread(check_ltp)
+                        if (not isinstance(quote,dict) or quote.get("source")!="dhan"
+                                or quote.get("symbol")!="NIFTY" or quote.get("live_orders_enabled") is not False
+                                or not isinstance(quote.get("ltp"),(int,float))
+                                or isinstance(quote["ltp"],bool) or not math.isfinite(quote["ltp"]) or quote["ltp"]<=0):
+                            raise FeedError("Invalid Dhan quote response")
+                        dhan_feed.activate_verified(endpoint,pairing_key,quote)
+                        connection_status.value=("Dhan NIFTY LTP verified via server • "
+                            +str(round(quote["ltp"],2))+" • timestamp unverified; not a live signal.")
+                        connection_status.color=GREEN
+                    except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as ltp_exc:
+                        log_error("dhan_ltp_connect",ltp_exc)
+                        # Read-only historical access can work when Dhan LTP is unavailable.
+                        # Verify a real candle response before enabling it; never fake an LTP.
+                        from datetime import timedelta
+                        today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
+                        payload={"symbol":"RELIANCE","interval":5,
+                                 "from_date":str(today-timedelta(days=3)),"to_date":str(today)}
+                        def check_candles():
+                            req=urllib.request.Request(origin+"/dhan/intraday",
+                                data=json.dumps(payload).encode("utf-8"),
+                                headers={"X-BotKing-Key":pairing_key,
+                                         "Content-Type":"application/json","Accept":"application/json"},
+                                method="POST")
+                            with urllib.request.build_opener(NoRedirect()).open(req,timeout=30) as response:
+                                raw=response.read(2_000_001)
+                                if len(raw)>2_000_000:raise FeedError("Dhan candles response too large")
+                                return json.loads(raw)
+                        candles=await asyncio.to_thread(check_candles)
+                        dhan_feed.activate_historical_verified(endpoint,pairing_key,candles)
+                        connection_status.value="Dhan historical candles verified • LIVE LTP UNAVAILABLE • read-only charts only"
+                        connection_status.color=GOLD
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
                     # Verify watchlist batch independently of the login check.
