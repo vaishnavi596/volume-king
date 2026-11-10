@@ -41,16 +41,16 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     new = renewed.get("accessToken")
     if not isinstance(new, str) or len(new) < 20 or new == old:
         raise ValueError("Renewal did not return a distinct access token")
+    # RenewToken revokes the previous credential. Save a private recovery copy
+    # BEFORE profile verification or any further network call can fail.
+    recovery = path.with_name(path.name + ".recovery")
+    fd_recovery = os.open(str(recovery), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:
+        handle.write(new + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
     profile = request_json(API + "/profile", {"access-token": new}, opener=opener)
     if not isinstance(profile, dict) or str(profile.get("dhanClientId", "")).strip() != client_id.strip():
-        # Preserve replacement for manual recovery if account validation fails.
-        recovery = path.with_name(path.name + ".recovery")
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        fd_recovery = os.open(str(recovery), flags, 0o600)
-        with os.fdopen(fd_recovery, "w", encoding="utf-8") as handle:
-            handle.write(new + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
         raise ValueError("Renewed token failed account validation; private recovery file saved")
     fd, temporary = tempfile.mkstemp(prefix=".dhan-token-", dir=str(path.parent))
     try:
@@ -69,6 +69,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+    recovery.unlink()
     return {"status": "renewed", "token_saved": True, "profile_verified": True,
             "expiry_time": profile.get("tokenValidity"),
             "client_id_verified": client_id.strip()}
