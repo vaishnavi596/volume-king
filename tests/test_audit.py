@@ -104,7 +104,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(result['bias'],'WAIT')
 
     def test_superseded_scan_cannot_publish(self):
-        page,v=start({'scanner_live':False})
+        page,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         before=list(v['scan_result'].controls)
         async def run():
             original=asyncio.to_thread
@@ -208,7 +208,7 @@ class AuditTests(unittest.TestCase):
             return ' | '.join(out)
         for tf in ['1m','3m','5m','15m','30m','1h','1d']:
             with self.subTest(timeframe=tf):
-                page,v=start({'scanner_live':False,'scanner_timeframe':tf,'scanner_budget':'Any'})
+                page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':tf,'scanner_budget':'Any'})
                 async def run():
                     original=asyncio.to_thread
                     async def history(fn,*args,**kwargs):
@@ -226,7 +226,7 @@ class AuditTests(unittest.TestCase):
 
     def test_stale_wait_reason_is_not_sideways(self):
         import time
-        page,v=start({'scanner_live':False,'scanner_timeframe':'3m','scanner_budget':'Any'})
+        page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':'3m','scanner_budget':'Any'})
         async def run():
             original=asyncio.to_thread
             async def history(*args,**kwargs):
