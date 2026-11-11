@@ -2427,6 +2427,9 @@ def app_main(page:ft.Page):
         elif paper_position["side"]:
             paper_status.value="Exit the existing quick paper position before another entry."
             paper_status.color=RED
+        elif emergency_stop.value:
+            paper_status.value="Emergency stop active. Quick paper entries blocked."
+            paper_status.color=RED
         else:
             sym=symbol.value
             q=quotes.get(sym)
