@@ -4,10 +4,28 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from feed_health import FeedHealth
+from feed_health import FeedHealth, safe_error
 
 
 class FeedHealthStaleTests(unittest.TestCase):
+    def test_safe_dhan_batch_diagnostics(self):
+        class FeedError(Exception):
+            pass
+        for detail in (
+            "Dhan token expired or market-data permission missing",
+            "Dhan batch rejected; check entitlement and instrument mapping",
+            "Dhan batch response invalid or too large",
+            "Dhan batch network request failed",
+            "Dhan server credentials not configured",
+            "Dhan batch returned no NSE equity quotes",
+            "Dhan batch response invalid",
+        ):
+            self.assertEqual(safe_error(FeedError(detail + " (HTTP 502)")), detail)
+        self.assertEqual(
+            safe_error(FeedError("Dhan upstream unavailable or token expired (HTTP 502)")),
+            "Dhan upstream temporarily unavailable; retry later",
+        )
+
     def test_stale_does_not_advance_last_success(self):
         clock = [100.0]
         health = FeedHealth(clock=lambda: clock[0])
