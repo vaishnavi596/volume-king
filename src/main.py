@@ -1303,8 +1303,13 @@ def app_main(page:ft.Page):
         select(5)
     chart_style=[prefs.get("chart_type","Candlestick")]
     chart_style_picker=ft.Dropdown(label="Chart type",value=prefs.get("chart_type","Candlestick"),options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
-    symbol.on_change=persist_chart_settings
-    timeframe.on_change=persist_chart_settings
+    def chart_selection_changed(e):
+        persist_chart_settings(e)
+        if current[0]==5:
+            chart_message.value="Loading selected chart candles..."
+            page.run_task(load_chart)
+    symbol.on_change=chart_selection_changed
+    timeframe.on_change=chart_selection_changed
     def chart_style_apply(e):
         chart_style[0]=chart_style_picker.value
         prefs["chart_type"]=chart_style_picker.value
@@ -1314,7 +1319,7 @@ def app_main(page:ft.Page):
         q=quotes.get(symbol.value) or {}
         bars=q.get("bars") or []
         if len(bars)<2:
-            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Select Yahoo Finance for indicative candles or connect Angel One")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Selected provider candles unavailable • check source and refresh status")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value),height=230)
@@ -1437,13 +1442,33 @@ def app_main(page:ft.Page):
         else:
             content.append(chart_analysis_panel("Signals"))
         return content
+    chart_load_busy=[False]
     async def load_chart():
+        if chart_load_busy[0]:
+            chart_message.value="Chart request already running..."
+            page.update()
+            return
+        chart_load_busy[0]=True
+        sym=symbol.value;tf=timeframe.value;generation=provider_generation[0]
         try:
-            quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Chart updated • "+str(quotes[symbol.value].get("source","unknown"))
+            chart_message.value="Loading "+str(sym)+" "+str(tf)+" candles..."
+            if current[0]==5:page.update()
+            data=await asyncio.to_thread(get_market_data,sym,tf,"5d" if tf in ["1m","5m","15m"] else "1mo")
+            if generation!=provider_generation[0] or sym!=symbol.value or tf!=timeframe.value:
+                return
+            quotes[sym]=data
+            bars=data.get("bars") or []
+            chart_message.value=("Chart updated • "+str(data.get("source","unknown"))+
+                                 " • "+str(len(bars))+" candles • "+str(data.get("freshness","unverified"))+
+                                 " • verify timestamp before trading")
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
+            log_error("load_chart",exc)
             chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+" • last available chart retained if cached"
-        select(5)
+        finally:
+            chart_load_busy[0]=False
+            if current[0]==5:request_view_refresh(5)
     async def load_comparison():
         try:
             quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
@@ -3379,6 +3404,11 @@ console.log('BOT KING Lightweight Charts ready');
         body.controls[:]=controls
         if changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected:
             page.run_task(refresh_watch_batch)
+        if changed and i==5 and not chart_load_busy[0]:
+            snapshot=quotes.get(symbol.value) or {}
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            if snapshot.get("source")!=expected or not snapshot.get("bars"):
+                page.run_task(load_chart)
         for j,(icon,label) in enumerate(nav_items):
             icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
