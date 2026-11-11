@@ -2024,6 +2024,7 @@ def app_main(page:ft.Page):
                         raw=response.read(8193)
                         if len(raw)>8192:raise FeedError("Server status response too large")
                         return json.loads(raw)
+                dhan_check_endpoint="/dhan/status"
                 result=await asyncio.to_thread(check_dhan)
                 if not isinstance(result,dict) or result.get("live_orders_enabled") is not False:
                     raise FeedError("Invalid Dhan server status")
@@ -2045,6 +2046,7 @@ def app_main(page:ft.Page):
                             if len(raw)>8192:raise FeedError("Dhan LTP response too large")
                             return json.loads(raw)
                     live_ltp_verified=False
+                    dhan_check_endpoint="/dhan/ltp"
                     try:
                         quote=await asyncio.to_thread(check_ltp)
                         if (not isinstance(quote,dict) or quote.get("source")!="dhan"
@@ -2059,6 +2061,10 @@ def app_main(page:ft.Page):
                         connection_status.color=GREEN
                     except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as ltp_exc:
                         log_error("dhan_ltp_connect",ltp_exc)
+                        # Never compound a rate limit with another upstream request.
+                        if isinstance(ltp_exc, urllib.error.HTTPError) and ltp_exc.code==429:
+                            raise
+                        dhan_check_endpoint="/dhan/intraday"
                         # Read-only historical access can work when Dhan LTP is unavailable.
                         # Verify a real candle response before enabling it; never fake an LTP.
                         from datetime import timedelta
@@ -2133,7 +2139,7 @@ def app_main(page:ft.Page):
                 if code==403:
                     detail="Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint."
                 elif code==429:
-                    detail="Dhan Connect / Check HTTP 429 • status or candle fallback throttled; wait before retrying."
+                    detail=f"Dhan {dhan_check_endpoint} HTTP 429 • rate limited; wait before retrying. No extra fallback request sent after LTP 429."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code in (502,503,504):
