@@ -1459,6 +1459,18 @@ def app_main(page:ft.Page):
                 price=float(price)
                 sl_price=price*(1-sl_pct/100 if side=="BUY" else 1+sl_pct/100)
                 target_price=price*(1+target_pct/100 if side=="BUY" else 1-target_pct/100)
+                validate_field(limit,"max_trades",limit.value)
+                validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
+                ledger=paper_risk_ledger()
+                if int(ledger["entries"])>=int(limit.value):
+                    raise ValueError("Daily paper entry limit reached")
+                planned_risk=check_trade_risk(price,qty,sl_price)
+                if float(ledger.get("realized_loss",0))>=float(max_daily_loss.value):
+                    raise ValueError("Daily realized paper loss limit reached")
+                if planned_risk>float(max_daily_loss.value)-float(ledger["planned_risk_used"])+1e-9:
+                    raise ValueError("Daily paper planned-risk budget exceeded")
+                ledger["entries"]+=1
+                ledger["planned_risk_used"]+=planned_risk
                 open_positions()[sym]={"symbol":sym,"side":side,"entry":price,"qty":qty,"sl":sl_price,"target":target_price,"time":datetime.now().isoformat(timespec="seconds")}
                 trade_history().append({"event":side,"symbol":sym,"side":side,"qty":qty,"price":price,"time":datetime.now().isoformat(timespec="seconds")})
                 saved=save()
