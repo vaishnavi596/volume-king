@@ -57,3 +57,52 @@ Each release: test result, APK run, versionCode, signing, update install, rollba
 5. Fix data timestamps/chart refresh and verify scanner before any live trading work.
 
 This is an engineering audit based on repository, GitHub Actions and previously observed Oracle/mobile evidence, not a full live device/Oracle penetration or functional test.
+
+
+## Final Master Roadmap Addendum — Approved 2026-11-11
+This addendum consolidates the earlier mobile app audit/release plan with the user's approved Oracle-first centralized data architecture. Existing release gates G0–G6 above remain mandatory.
+
+### Product architecture and source of truth
+- Dhan authorized market feed (WebSocket where supported, otherwise bounded HTTP polling) -> Oracle centralized collector -> quote cache, candle store, scanner and analysis workers -> versioned snapshot/push API -> BOT KING Android.
+- Mobile Dashboard, Watchlists, Charts, Scanner, Super Five, Options and paper trading consume the same timestamped Oracle snapshots; no duplicate per-screen direct Dhan polling.
+- One authoritative instrument mapping per exchange/security ID. Verify NIFTY/BANKNIFTY and option instruments; never fabricate or infer unavailable mappings.
+- Each quote/candle carries provider, exchange, instrument, event time, received time, source age and freshness state. Closed market, disconnected, rate limited and stale must be distinguishable.
+- Oracle can maintain a last-known snapshot 24/7; it must not label closed-market or disconnected cached quotes as live.
+
+### Data delivery and refresh targets (not promises or verified Dhan limits)
+- Prefer Dhan streaming for subscribed live quotes when permitted. Aim for 1–3 second server-side update visibility where feasible; fallback HTTP 3–10 seconds only within official rate limits.
+- Active mobile charts: push or 3–5 second snapshot refresh; active watchlists: 5–10 seconds; general app snapshot: 30 seconds; power saving: 60 seconds.
+- Scanner calculations triggered by changed inputs/new candle; Super Five ranking target 15–30 seconds, avoiding full 51-symbol rescans on the handset.
+- Candle persistence: incremental 1m, 5m, 15m, daily data with deduplication, gap checks, and no cross-timeframe contamination.
+- Server-side shared request coordinator, backoff on 429, bounded concurrency, circuit breaker, deduplication, caching and instrumentation. Track feed-to-cache, cache-to-device and end-to-end latency percentiles.
+- Faster quotes improve timeliness, not guaranteed trading accuracy. Backtesting and paper performance must validate signals.
+
+### Android UX and central error handling
+- Remove intrusive visible 'Scanning 1/51' progress from watchlist. Render last verified snapshot immediately; update silently when Oracle publishes new data.
+- Show compact symbol row: LTP, percentage change, bullish/bearish signal where validated, freshness/last update, and per-symbol error if relevant.
+- Dashboard central error monitor: Oracle connectivity, Dhan auth/entitlement, 429 cooldown, missing instruments, quote freshness, candle gaps, scanner job state and retry status.
+- Charts auto-load on tap, preserve timeframe isolation, do not require tab-switch/retry to show initial data. Keep five persisted watchlists and three configurable dashboard slots.
+- Keep all major buttons functional, fixed compact navigation, readable typography, consistent visual states, and accessibility. Do not clear valid prices on transient failures; mark stale with timestamps.
+
+### Secure device login
+- One-time device pairing over TLS. Store device-bound limited-scope credentials with Android Keystore; do not permanently store Oracle master pairing key, SSH key, Dhan access token or plaintext PIN in app.
+- Six-digit PIN or supported biometrics unlock local secure session; device credentials are revocable, expiring and renewable with rotation. Rate-limit PIN attempts and provide secure recovery/re-pairing.
+- Broker Dhan OAuth consent remains a separate requirement and may require explicit reauthorization when expired. App unlock does not bypass broker authentication.
+- Upgrade/restart should retain valid device session; data clear/new device requires pairing. No live orders from unlocking the app.
+
+### Ordered implementation plan
+P0. Verify existing 2.3.79 signed APK, upgrade installation and real-device Dhan error evidence; do not assume GitHub success proves mobile operation.
+P1. Audit every existing mobile/backend data fetch path, Oracle deployed commit, Dhan limits and provider fallback; produce measured baseline and rollback.
+P2. Implement Oracle shared quote collector, freshness metadata, cache, bounded refresh and one snapshot API. Test 51 symbols and index mapping.
+P3. Implement durable historical candles, incremental synchronization, scanner queue and Super Five server-side ranking.
+P4. Migrate Android Dashboard, Watchlists, Charts, Scanner and Options to shared snapshots, remove scan progress, centralize errors, test foreground/background/reconnect.
+P5. Implement device pairing, PIN/biometric unlock, session revocation and upgrade persistence.
+P6. Validate option chain/OI/premium/news inputs with provider provenance; paper trading, backtesting and risk rules.
+P7. Run G0–G5 release gates and two open-market acceptance sessions, preserve signed rollback APK; G6 live trading only after separate explicit approval.
+
+### Delivery workflow and operational safety
+- User approved a streamlined GitHub workflow: audit, edit, isolate unused legacy files, test, fix, build and verify without asking OK after every routine change.
+- Do not claim continuous unattended execution when no active session/tool run exists. Report only evidenced PASS/FAIL/BLOCKED.
+- Oracle deployment must be backed up and reversible; never print/commit keys or tokens. Provide small command groups or a reviewed idempotent deployment script, verify service and endpoints before/after.
+- No order placement; live_orders_enabled remains false unless separate explicit owner approval and controlled G6 validation.
+- Maintain release ledger with exact source commit, Oracle deployed revision, CI results, artifact, signing fingerprint, device install result and open-market data freshness.
