@@ -227,6 +227,15 @@ for route in status ltp ltp-batch intraday; do
         exit 1
     fi
 done
+# Public v2 endpoints must be routed, but never disclose data without pairing.
+for route in snapshot candles/NIFTY/5; do
+    v2_code=$(curl --silent --max-time 10 --output /dev/null --write-out '%{http_code}' --resolve botkingrajesh.duckdns.org:443:127.0.0.1 "https://botkingrajesh.duckdns.org/v2/$route")
+    if test "$v2_code" != 403; then
+        echo "Protected v2 route /v2/$route returned HTTP $v2_code (expected 403)" >&2
+        rollback
+        exit 1
+    fi
+done
 trap - ERR
 echo 'BOT KING gateway installed. Protected market-data endpoint returned 401 without a session, as expected.'
 echo 'Owner key is in /home/opc/bot-king-pairing-key.txt. Do not paste it into chat.'
