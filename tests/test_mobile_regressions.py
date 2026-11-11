@@ -75,6 +75,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('("NIFTY","BANKNIFTY","SENSEX")', source)
         self.assertIn("delay=min(60,15*2**min(failures[sym]-1,2))", source)
         self.assertIn("exchange timestamp unverified", source)
+        self.assertIn("if sym not in DHAN_VERIFIED_SYMBOLS:", source)
+        self.assertIn("Dhan instrument mapping not verified", source)
 
     def test_super_five_uses_independent_minute_cached_refresh(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
