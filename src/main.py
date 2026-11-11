@@ -1141,6 +1141,14 @@ def app_main(page:ft.Page):
         finally:
             watch_batch_busy[0]=False
             request_view_refresh(4)
+    def manual_watch_refresh(e):
+        if watch_batch_busy[0]:
+            watch_batch_status[0]="Dhan LTP refresh already running; please wait"
+            request_view_refresh(4)
+            return
+        watch_batch_status[0]="Manual Dhan LTP refresh requested..."
+        request_view_refresh(4)
+        page.run_task(refresh_watch_batch)
     def watchlist():
         fill_watch()
         return [heading("Watchlist • 5 Lists"),
@@ -1149,8 +1157,8 @@ def app_main(page:ft.Page):
             ft.Row([ft.Container(content=search,expand=True),ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([ft.Container(content=add_symbol,expand=True),ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),
-            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
-                disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
+            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=manual_watch_refresh,
+                disabled=prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
                 wrap=True),note("Candle analysis: processed "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • valid "+str(scan_progress["valid"])+" • cached "+str(scan_progress["cached"])+" • failed "+str(scan_progress["failed"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
