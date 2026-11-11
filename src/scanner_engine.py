@@ -60,7 +60,6 @@ def analyze(bars, selected=None, timeframe="5m"):
     add("MACD",1 if macd[-1]>sig else -1 if macd[-1]<sig else 0,f"MACD {macd[-1]:.2f}, signal {sig:.2f}")
     # Session VWAP must not blend previous days.
     # NSE/BSE trading sessions follow Asia/Kolkata, not UTC calendar dates.
-    from datetime import timedelta
     market_tz=timezone(timedelta(hours=5,minutes=30))
     last_day=datetime.fromtimestamp(clean[-1][0],market_tz).date()
     session=[b for b in clean if datetime.fromtimestamp(b[0],market_tz).date()==last_day]
