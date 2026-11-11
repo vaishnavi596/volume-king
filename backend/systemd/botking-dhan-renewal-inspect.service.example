@@ -1,0 +1,21 @@
+# BOT KING — Dhan renewal inspection timer (monitor-only)
+#
+# This is a template, NOT an enabled production timer.
+# The inspection module needs a trusted expiry timestamp and verified source.
+# Never put access tokens, PINs, or TOTP secrets in systemd unit arguments.
+#
+# Installation requires explicit operator review. Do not enable until a secure
+# source-of-truth for expiry/provenance and an alert delivery mechanism exist.
+
+[Unit]
+Description=BOT KING Dhan token renewal inspection (read-only)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+Group=opc
+WorkingDirectory=/opt/bot-king-server
+# Intentionally no ExecStart: no credentials or provenance source configured.
+# A production service must supply a verified, non-secret expiry/source and
+# invoke the inspect module without logging any authentication material.
