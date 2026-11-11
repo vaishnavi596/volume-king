@@ -269,6 +269,7 @@ def app_main(page:ft.Page):
     option_feed={}
     option_feed_busy=[False]
     broker_connect_busy=[False]
+    dhan_status_retry_until=[0.0]
     option_feed_status=["Connect Angel One for verified CE/PE quotes."]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
@@ -1684,6 +1685,11 @@ def app_main(page:ft.Page):
         nonlocal market_status
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
+            remaining=max(0,math.ceil(dhan_status_retry_until[0]-time.monotonic()))
+            if remaining:
+                connection_status.value=f"Dhan status rate limited • wait {remaining}s before Connect / Check. Saved data remains available."
+                connection_status.color=GOLD
+                page.update();return
             endpoint=(api_url.value or "").strip()
             if not endpoint or not server_access.value.strip():
                 connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
@@ -1822,6 +1828,7 @@ def app_main(page:ft.Page):
                 elif code==429:
                     retry_after=(exc.headers.get("Retry-After","") if exc.headers else "").strip()
                     wait_hint=(" Retry-After: "+retry_after+" seconds." if retry_after.isdigit() and int(retry_after)<=3600 else "")
+                    dhan_status_retry_until[0]=time.monotonic()+(int(retry_after) if retry_after.isdigit() and 1<=int(retry_after)<=3600 else 60)
                     detail=("BOT KING /dhan/status returned HTTP 429 (source not yet verified)."
                             +wait_hint+" Do not repeatedly reconnect; inspect HTTPS proxy and Oracle logs.")
                 elif code in (502,503,504):
