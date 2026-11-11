@@ -989,16 +989,39 @@ def app_main(page:ft.Page):
         if current[0]==0:request_view_refresh(0)
     def dashboard_index_analysis():
         panels=[]
-        for sym in ("NIFTY","BANKNIFTY","SENSEX"):
+        # Three independent persisted slots; restrict selections to the verified
+        # blue-chip universe plus supported/requested indexes.
+        choices=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
+        defaults=("NIFTY","RELIANCE","HDFCBANK")
+        for slot in range(3):
+            key="dashboard_analysis_slot_"+str(slot+1)
+            sym=prefs.get(key,defaults[slot])
+            if sym not in choices:
+                sym=defaults[slot]
+            def select_slot(e,setting=key):
+                selected=e.control.value
+                if selected not in choices:
+                    return
+                prefs[setting]=selected
+                save()
+                request_view_refresh(0)
+            picker=ft.Dropdown(
+                label="Analysis "+str(slot+1)+" • select stock / index",
+                value=sym,
+                options=[ft.dropdown.Option(x) for x in choices],
+                on_change=select_slot,
+                dense=True,
+                expand=True,
+            )
             snapshot=quotes.get(sym) or {}
             source=snapshot.get("source")
             valid_source=source=={"Dhan":"Dhan","Broker API":"Angel One",
                                   "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
-            rows=[ft.Row([txt(sym,13,GOLD,True),
+            rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
             if prefs.get("source")=="Dhan":
-                rows.append(note(index_quote_status.get(sym,"Waiting for index quote")))
+                rows.append(note(index_quote_status.get(sym,"Waiting for index quote")) if sym in index_quote_status else "Dhan stock quote • see freshness status below")
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
             else:
