@@ -26,6 +26,17 @@ class ScannerSafetyTests(unittest.TestCase):
     def test_nan(self):
         b = candles(); b[-1][4] = math.nan
         self.assertEqual(analyze(b)["count"], 34)
+    def test_malformed_bar_ignored(self):
+        b = candles(); b[-1] = None
+        self.assertEqual(analyze(b)["count"], 34)
+    def test_invalid_ranking_vote_is_excluded(self):
+        now = datetime.now(timezone.utc).timestamp()
+        r = {"bias":"BULLISH","timestamp":now,"count":35,"score":95,"votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":-1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
+    def test_ranking_ties_are_deterministic(self):
+        now = datetime.now(timezone.utc).timestamp()
+        r = {"bias":"BULLISH","timestamp":now,"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1}]}
+        self.assertEqual([x["symbol"] for x in rank_candidates({"ZZZ":r,"AAA":r})], ["AAA","ZZZ"])
     def test_insufficient_ranking(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":5,"score":99,"votes":[]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
