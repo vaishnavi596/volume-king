@@ -68,6 +68,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_watchlist_chart_navigation_does_not_double_fetch(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def open_stock(sym):")
+        end = source.index("    def remove_stock(sym):", start)
+        block = source[start:end]
+        self.assertIn("if current[0]==5:", block)
+        self.assertIn("page.run_task(load_chart)", block)
+        self.assertIn("else:\n            select(5)", block)
+
     def test_watchlist_hides_quotes_from_previous_provider(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('quote_price(sym) if quote_source==expected_quote_source else "—"', source)
