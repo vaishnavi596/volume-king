@@ -466,8 +466,11 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             if "market data request failed" in reason:
                 raise HTTPException(502, "Dhan batch network request failed") from None
             raise HTTPException(502, "Dhan batch market data unavailable") from None
-        entries = data.get("data", {}).get("NSE_EQ", {})
-        if data.get("status") != "success" or not isinstance(entries, dict):
+        # Upstream can return a successful HTTP status with malformed JSON shape.
+        # Reject it as unavailable instead of crashing the batch endpoint.
+        payload = data.get("data") if isinstance(data, dict) else None
+        entries = payload.get("NSE_EQ", {}) if isinstance(payload, dict) else None
+        if not isinstance(data, dict) or data.get("status") != "success" or not isinstance(entries, dict):
             raise HTTPException(502, "Invalid Dhan batch quote response")
         if not entries:
             raise HTTPException(502, "Dhan returned no market data for verified NSE equities")
