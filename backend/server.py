@@ -496,6 +496,10 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "unavailable": list(snapshot_cache["unavailable"]), "observed_at": snapshot_cache["observed_at"],
                     "age_seconds": round(age, 1) if age is not None else None,
                     "freshness": "unverified" if age is not None and age <= 30 else "stale_or_missing",
+                    "collection_status": ("not_collected" if age is None else
+                                          "recently_collected" if age <= 30 else
+                                          "awaiting_next_collection" if age <= max(60, min(900, int(os.environ.get("BOTKING_226_INGEST_SECONDS", "90")))) + 15 else
+                                          "collection_overdue"),
                     "error": snapshot_cache["error"], "live_orders_enabled": False}
 
     @app.post("/dhan/ltp-batch")
