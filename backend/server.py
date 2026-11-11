@@ -531,7 +531,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             if not all(isinstance(a, list) for a in arrays):
                 raise ValueError("Malformed candles")
             n = len(arrays[0])
-            if not n or n > 5000 or any(len(a) != n for a in arrays):
+            if n == 0 and all(len(a) == 0 for a in arrays):
+                return {"symbol": body.symbol, "source": "dhan",
+                        "interval": str(body.interval) + "m", "bars": [],
+                        "freshness": "no_candles_available",
+                        "live_orders_enabled": False}
+            if n > 5000 or any(len(a) != n for a in arrays):
                 raise ValueError("Malformed candle lengths")
             bars = []
             for row in zip(*arrays):
