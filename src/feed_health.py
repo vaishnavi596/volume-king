@@ -50,6 +50,18 @@ def safe_error(exc):
                 return message
         if "HTTP 429" in detail or "rate limited" in detail or "cooldown" in detail:
             return "Dhan market data rate limited (HTTP 429); wait before retrying"
+        if detail.startswith("Dhan has no candles for requested dates "):
+            return "Dhan historical candles unavailable for requested dates"
+        if detail == "Dhan returned no verified candles":
+            return "Dhan returned no usable historical candles"
+        if detail.startswith("Dhan history failed in first pass"):
+            return "Dhan historical scan failed; no duplicate request made"
+        if "Invalid Dhan candle response" in detail:
+            return "Dhan historical response invalid"
+        if "Dhan candle timestamp is in the future" in detail:
+            return "Dhan candle timestamp invalid"
+        if "Dhan candle instrument or interval not verified" in detail:
+            return "Dhan instrument or candle interval unsupported"
         if "Invalid Dhan quote" in detail:return "Dhan quote response missing or invalid"
         if "Invalid Dhan status" in detail:return "Dhan status response missing or invalid"
         if any("HTTP "+str(code) in detail for code in (502,503,504)):
