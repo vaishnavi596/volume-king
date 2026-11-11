@@ -891,7 +891,13 @@ def app_main(page:ft.Page):
             display.update(bias="WAIT",score=0,
                            reason=str(display.get("reason",""))+" • Dhan historical-only; live LTP not verified")
         age=datetime.now(timezone.utc).timestamp()-(display.get("timestamp") or 0)
-        display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or (data.get("source")=="Dhan" and (dhan_feed.historical_only or data.get("freshness")=="historical_unverified")) or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
+        # Quote freshness is not established by a recent historical candle.
+        provider_unverified = data.get("source") == "Dhan" and data.get("freshness") not in ("verified_live", "live_verified")
+        display.update(symbol=sym,source=data.get("source","Unavailable"),
+                       freshness=data.get("freshness","unverified"),
+                       historical=bool(data.get("cached")) or provider_unverified or
+                       (data.get("source")=="Dhan" and dhan_feed.historical_only) or
+                       not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
         return display
     def publish_partial_ranking(results):
         expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
