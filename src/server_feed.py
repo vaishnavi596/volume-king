@@ -176,7 +176,7 @@ class ServerDhanReadOnly:
                 self._origin + path, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
                 headers=headers, method="POST")
         try:
-            with urllib.request.build_opener(NoRedirect()).open(req, timeout=30 if path == "/dhan/ltp-batch" else 15) as response:
+            with direct_https_opener().open(req, timeout=30 if path == "/dhan/ltp-batch" else 15) as response:
                 raw = response.read(2_000_001)
                 if len(raw) > 2_000_000:
                     raise FeedError("Dhan server response too large")
