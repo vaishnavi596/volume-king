@@ -3380,10 +3380,12 @@ console.log('BOT KING Lightweight Charts ready');
                 cycle_data={}
                 dhan_history_throttled=[False]
                 dhan_history_skipped=[0]
+                dhan_history_skipped_symbols=set()
                 async def load_one(sym):
                     async with semaphore:
                         if prefs.get("source")=="Dhan" and dhan_history_throttled[0]:
                             dhan_history_skipped[0]+=1
+                            dhan_history_skipped_symbols.add(sym)
                             market_completed[0]+=1
                             scan_progress["state"]="Dhan HTTP 429 cooldown • "+str(dhan_history_skipped[0])+" histories skipped (not requested)"
                             return False
@@ -3473,8 +3475,7 @@ console.log('BOT KING Lightweight Charts ready');
                         scan_progress["valid"]+=int(bool(result and result.get("timestamp")))
                         # A provider cooldown skips upstream requests; skipped histories
                         # are not failed requests. Retained signals remain historical.
-                        skipped_by_cooldown=(prefs.get("source")=="Dhan" and dhan_history_throttled[0]
-                                             and sym not in cycle_data and sym not in failed_symbols)
+                        skipped_by_cooldown=sym in dhan_history_skipped_symbols
                         scan_progress["failed"]+=int(not bool(result and result.get("timestamp")) and not skipped_by_cooldown)
                         scan_progress["cached"]+=int(bool(data and data.get("cached")))
                         publish_partial_ranking(ranking_results)
