@@ -4,7 +4,7 @@ name: Build APK
 # Build on app, regression-test, and workflow changes; manual dispatch is also supported.
 on:
   push:
-    branches: [ main, botking-2-3-67-three-provider-release ]
+    branches: [ main, botking-2-3-67-three-provider-release, audit/integrate-2-3-68-dhan-diagnostics ]
     paths:
       - pyproject.toml
       - src/main.py
