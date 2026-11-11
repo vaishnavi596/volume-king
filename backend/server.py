@@ -452,7 +452,19 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
-        except DhanFeedError:
+        except DhanFeedError as exc:
+            # Classify safe adapter errors without exposing upstream bodies or tokens.
+            reason = str(exc).lower()
+            if "credentials are not configured" in reason:
+                raise HTTPException(503, "Dhan credentials not configured") from None
+            if "token expired or data access not entitled" in reason:
+                raise HTTPException(502, "Dhan token expired or market data not entitled") from None
+            if "rejected market data request" in reason:
+                raise HTTPException(502, "Dhan rejected batch quote request; check entitlement and instruments") from None
+            if "response exceeds size limit" in reason or "invalid dhan response" in reason:
+                raise HTTPException(502, "Dhan batch response malformed or too large") from None
+            if "market data request failed" in reason:
+                raise HTTPException(502, "Dhan batch network request failed") from None
             raise HTTPException(502, "Dhan batch market data unavailable") from None
         entries = data.get("data", {}).get("NSE_EQ", {})
         if data.get("status") != "success" or not isinstance(entries, dict):
