@@ -911,6 +911,38 @@ def app_main(page:ft.Page):
             if len(top5_candidates)>=5:break
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
+    async def super_five_minute_refresh():
+        # Re-rank cached, completed 5m candles independently every minute.
+        # Never issue another 51-symbol historical API burst from this task.
+        while True:
+            await asyncio.sleep(60)
+            try:
+                if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                    continue
+                generation=provider_generation[0]
+                expected_source={"Dhan":"Dhan","Broker API":"Angel One",
+                                 "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+                if not expected_source:
+                    continue
+                results={}
+                for sym in watch_symbols:
+                    snapshot=quotes.get(sym) or {}
+                    if snapshot.get("source")!=expected_source or not snapshot.get("bars"):
+                        continue
+                    result=display_analysis(sym,snapshot)
+                    if result.get("timestamp"):
+                        results[sym]=result
+                if generation!=provider_generation[0] or not results:
+                    continue
+                publish_partial_ranking(results)
+                if current[0]==0:
+                    request_view_refresh(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("super_five_minute_refresh",exc)
+                if current[0]==0:
+                    request_view_refresh(0)
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
@@ -3498,6 +3530,7 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
         if resume_busy[0]:return
