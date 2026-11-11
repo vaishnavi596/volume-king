@@ -556,6 +556,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     # Historical candles are cached only after provider validation succeeds.
     candle_cache = {}
     candle_lock = threading.RLock()
+    candle_cache_max_entries = 100
 
     @app.get("/v2/candles/{symbol}/{interval}")
     def cached_candles(symbol: str, interval: str, x_botking_key: Optional[str] = Header(default=None)):
@@ -568,10 +569,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             if entry is None:
                 return {"symbol": symbol, "interval": interval + "m", "bars": [],
                         "source": "dhan", "freshness": "stale_or_missing",
-                        "observed_at": None, "live_orders_enabled": False}
+                        "observed_at": None, "from_date": None, "to_date": None,
+                        "live_orders_enabled": False}
             return {"symbol": symbol, "interval": interval + "m",
                     "bars": [list(bar) for bar in entry["bars"]], "source": "dhan",
                     "freshness": "historical_unverified", "observed_at": entry["observed_at"],
+                    "from_date": entry["from_date"], "to_date": entry["to_date"],
                     "live_orders_enabled": False}
 
     @app.post("/dhan/intraday")
@@ -634,11 +637,19 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Dhan historical data unavailable or token expired") from None
         except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
             raise HTTPException(502, "Invalid Dhan historical response") from None
-        with candle_lock:
-            candle_cache[(body.symbol, str(body.interval))] = {
-                "bars": [list(bar) for bar in bars],
-                "observed_at": datetime.now(timezone.utc).isoformat(),
-            }
+        if bars:
+            with candle_lock:
+                key = (body.symbol, str(body.interval))
+                # The cache holds the latest validated request window, not a merged history.
+                candle_cache.pop(key, None)
+                candle_cache[key] = {
+                    "bars": [list(bar) for bar in bars],
+                    "from_date": body.from_date.isoformat(),
+                    "to_date": body.to_date.isoformat(),
+                    "observed_at": datetime.now(timezone.utc).isoformat(),
+                }
+                while len(candle_cache) > candle_cache_max_entries:
+                    candle_cache.pop(next(iter(candle_cache)))
         return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
                 "bars": bars, "freshness": "historical_unverified",
                 "live_orders_enabled": False}
