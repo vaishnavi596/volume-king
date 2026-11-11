@@ -486,6 +486,11 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     snapshot_cache = {"quotes": {}, "unavailable": [], "observed_at": "", "updated_monotonic": 0.0, "error": "not_collected"}
     snapshot_refresh_lock = threading.Lock()
 
+    try:
+        snapshot_collection_interval = max(60, min(900, int(os.environ.get("BOTKING_226_INGEST_SECONDS", "90"))))
+    except ValueError:
+        snapshot_collection_interval = 90
+
     @app.get("/v2/snapshot")
     def botking_snapshot(x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
@@ -498,7 +503,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "freshness": "unverified" if age is not None and age <= 30 else "stale_or_missing",
                     "collection_status": ("not_collected" if age is None else
                                           "recently_collected" if age <= 30 else
-                                          "awaiting_next_collection" if age <= max(60, min(900, int(os.environ.get("BOTKING_226_INGEST_SECONDS", "90")))) + 15 else
+                                          "awaiting_next_collection" if age <= snapshot_collection_interval + 15 else
                                           "collection_overdue"),
                     "error": snapshot_cache["error"], "live_orders_enabled": False}
 
