@@ -30,7 +30,8 @@ class HelpQualityTests(unittest.TestCase):
         dialog=v['show_help']('API Key',field)
         self.assertNotIn('PRIVATE_SECRET',str([c.value for c in dialog.content.controls]))
     def test_missing_and_stale_options_help_is_dynamic(self):
-        _,v=start({'scanner_live':False})
+        _,v=start({'source':'Broker API','scanner_live':False})
+        v['angel_feed'].key='test';v['angel_feed'].token='test'
         self.assertIn('उपलब्ध नहीं',v['help_status']('OI Analysis'))
         v['option_feed'].update(symbol=v['chain_symbol'].value,expiry=v['expiry'].value,rows=[{'timestamp':1}])
         self.assertIn('पुराने',v['help_status']('OI Analysis'))
