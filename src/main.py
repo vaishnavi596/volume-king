@@ -984,10 +984,42 @@ def app_main(page:ft.Page):
             market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
+    def dashboard_index_analysis():
+        panels=[]
+        for sym in ("NIFTY","BANKNIFTY","SENSEX"):
+            snapshot=quotes.get(sym) or {}
+            source=snapshot.get("source")
+            valid_source=source=={"Dhan":"Dhan","Broker API":"Angel One",
+                                  "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            rows=[ft.Row([txt(sym,13,GOLD,True),
+                          ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
+                          txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
+            if prefs.get("source")=="Dhan":
+                rows.append(note(index_quote_status.get(sym,"Waiting for index quote")))
+            if not valid_source or not snapshot.get("bars"):
+                rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
+            else:
+                try:
+                    analysis=display_analysis(sym,snapshot)
+                    if not analysis.get("timestamp"):
+                        rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
+                    else:
+                        historical=analysis.get("historical",True)
+                        rows.append(note(("HISTORICAL • " if historical else "5m • ")+
+                                         str(analysis.get("bias","WAIT"))+
+                                         " • "+age_label(analysis["timestamp"])))
+                        if historical:
+                            rows.append(note("Previous candle direction is not a current signal"))
+                except Exception as exc:
+                    log_error("dashboard_index_analysis_"+sym,exc)
+                    rows.append(note("Candle analysis unavailable • see diagnostics"))
+            panels.append(ft.Container(content=ft.Column(rows,spacing=3),
+                                       bgcolor=PANEL2,border_radius=10,padding=10))
+        return section("INDEX ANALYSIS • AUTO STATUS",ft.Column(panels,spacing=8))
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]),note(index_quote_status.get(x,'Not checked') if prefs.get('source')=='Dhan' else quote_caption(x))],spacing=2) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']],spacing=9)), section('API STATUS & ERROR MONITOR', ft.Column([note(market_status + ' • Public news fetched separately; option status is shown on Options'),note('Latest diagnostic: '+diagnostics[-1] if diagnostics else 'No runtime exceptions recorded in this session'),note('Dhan batch: '+str(dhan_batch_issue[0]) if prefs.get('source')=='Dhan' and dhan_batch_issue[0] else 'Dhan batch: no reported failure' if prefs.get('source')=='Dhan' else 'Provider: '+str(prefs.get('source'))),note('Scanner: '+str(scan_progress.get('state','Waiting'))+' • '+str(scan_progress.get('valid',0))+'/'+str(scan_progress.get('total',0))+' valid')],spacing=4)), risk_overview(), news_event_overview()]
+        return [data_overview(), dashboard_index_analysis(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]),note(index_quote_status.get(x,'Not checked') if prefs.get('source')=='Dhan' else quote_caption(x))],spacing=2) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']],spacing=9)), section('API STATUS & ERROR MONITOR', ft.Column([note(market_status + ' • Public news fetched separately; option status is shown on Options'),note('Latest diagnostic: '+diagnostics[-1] if diagnostics else 'No runtime exceptions recorded in this session'),note('Dhan batch: '+str(dhan_batch_issue[0]) if prefs.get('source')=='Dhan' and dhan_batch_issue[0] else 'Dhan batch: no reported failure' if prefs.get('source')=='Dhan' else 'Provider: '+str(prefs.get('source'))),note('Scanner: '+str(scan_progress.get('state','Waiting'))+' • '+str(scan_progress.get('valid',0))+'/'+str(scan_progress.get('total',0))+' valid')],spacing=4)), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
