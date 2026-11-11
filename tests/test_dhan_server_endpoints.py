@@ -32,6 +32,23 @@ class DhanEndpointTests(unittest.TestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
 
+    def test_v2_snapshot_requires_pairing_and_starts_empty(self):
+        denied = self.client.get("/v2/snapshot")
+        self.assertEqual(denied.status_code, 403)
+        response = self.client.get("/v2/snapshot", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["protocol"], 2)
+        self.assertEqual(data["quotes"], {})
+        self.assertEqual(data["freshness"], "stale_or_missing")
+        self.assertFalse(data["live_orders_enabled"])
+
+    def test_v2_snapshot_does_not_call_upstream_dhan(self):
+        with patch("backend.server.DhanFeed", side_effect=AssertionError("snapshot must not poll Dhan")):
+            response = self.client.get("/v2/snapshot", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["quotes"], {})
+
     def test_dhan_session_restores_after_server_restart(self):
         class Response:
             def __init__(self, data): self.data = data
