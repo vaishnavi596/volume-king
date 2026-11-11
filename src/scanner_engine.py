@@ -114,9 +114,15 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
     good=[]
     for symbol, result in candidates.items():
-        if result.get("bias")=="WAIT" or result.get("timestamp") is None:continue
-        if result.get("count", 0) < 30 or not isinstance(result.get("timestamp"), (int, float)):continue
-        age=now-result["timestamp"]
+        if not isinstance(result, dict) or result.get("bias") not in ("BULLISH", "BEARISH"):continue
+        timestamp=result.get("timestamp")
+        score=result.get("score")
+        votes=result.get("votes")
+        if not isinstance(result.get("count"), int) or result["count"] < 30:continue
+        if not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):continue
+        if not isinstance(score, (int, float)) or not math.isfinite(score) or not 0 <= score <= 100:continue
+        if not isinstance(votes, list) or not votes:continue
+        age=now-timestamp
         if age<0 or age>max_age_seconds:continue
         good.append({"symbol":symbol,**result,"age":int(age)})
     good.sort(key=lambda x:(x["score"],len([v for v in x["votes"] if v["vote"] in (-1,1)])),reverse=True)
