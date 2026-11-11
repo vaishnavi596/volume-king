@@ -3553,6 +3553,9 @@ console.log('BOT KING Lightweight Charts ready');
         generation=provider_generation[0];sym=scan_symbol.value or "NIFTY"
         scan_next_refresh[0]=None
         try:
+            # Resume LTP independently of index history; a history 429 must not block quotes.
+            if prefs.get("source")=="Dhan" and dhan_feed.connected and app_active[0]:
+                await refresh_watch_batch()
             if current[0]==1:await refresh_selected_options()
             else:
                 data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
