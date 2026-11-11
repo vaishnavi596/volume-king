@@ -102,6 +102,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('not 0<=age<=90', block)
         self.assertIn("return None", block)
 
+    def test_chart_paper_exit_updates_daily_loss_ledger(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        block = source[source.index("    def exit_paper(sym):"):source.index("    def chart_paper_trade(side):")]
+        self.assertIn("ledger=paper_risk_ledger()", block)
+        self.assertIn('ledger["unknown_exits"]=', block)
+        self.assertIn('ledger["realized_loss"]=', block)
+        self.assertIn("max(0,-pnl)", block)
+
     def test_chart_paper_exit_marks_unverified_pnl_unknown(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         block = source[source.index("    def exit_paper(sym):"):source.index("    def chart_paper_trade(side):")]
