@@ -894,10 +894,11 @@ def app_main(page:ft.Page):
         display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or (data.get("source")=="Dhan" and (dhan_feed.historical_only or data.get("freshness")=="historical_unverified")) or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
         return display
     def publish_partial_ranking(results):
-        available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
+        expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+        available=[dict(res,symbol=sym) for sym,res in results.items()
+                   if res and res.get("timestamp") and res.get("source")==expected_source]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
-            available=[row for row in available if row.get("source")=="Dhan"]
             top5_candidates[:]=available[:5]
             return available
         previous=top5_candidates[:]
