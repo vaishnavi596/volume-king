@@ -149,6 +149,7 @@ class ServerDhanReadOnly:
         self._origin = ""
         self._pairing_key = ""
         self._historical_only = False
+        self._cooldown_until = {}
 
     @property
     def connected(self):
