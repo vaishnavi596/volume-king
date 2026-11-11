@@ -72,6 +72,32 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(BatchFeed.calls, 1)
             self.assertFalse(snapshot.json()["live_orders_enabled"])
 
+    def test_v2_candles_requires_auth_and_does_not_poll_upstream(self):
+        self.assertEqual(self.client.get("/v2/candles/NIFTY/5").status_code, 403)
+        self.assertEqual(self.client.get("/v2/candles/NIFTY/2", headers=self.headers).status_code, 422)
+        with patch("backend.server.DhanFeed", side_effect=AssertionError("cache read must not poll")):
+            response = self.client.get("/v2/candles/NIFTY/5", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["bars"], [])
+        self.assertEqual(response.json()["freshness"], "stale_or_missing")
+        self.assertFalse(response.json()["live_orders_enabled"])
+
+    def test_v2_candles_reuses_validated_history_with_coverage(self):
+        with (patch("backend.server.Path.read_text", return_value="fake-token"),
+              patch("backend.server.DhanFeed", FakeDhan)):
+            request = {"symbol": "NIFTY", "interval": 5,
+                       "from_date": "2025-10-09", "to_date": "2025-10-09"}
+            response = self.client.post("/dhan/intraday", json=request, headers=self.headers)
+            self.assertEqual(response.status_code, 200, response.text)
+            with patch("backend.server.DhanFeed", side_effect=AssertionError("cache read must not poll")):
+                cached = self.client.get("/v2/candles/NIFTY/5", headers=self.headers)
+            self.assertEqual(cached.status_code, 200)
+            self.assertEqual(cached.json()["bars"], response.json()["bars"])
+            self.assertEqual(cached.json()["from_date"], "2025-10-09")
+            self.assertEqual(cached.json()["to_date"], "2025-10-09")
+            self.assertEqual(cached.json()["freshness"], "historical_unverified")
+            self.assertFalse(cached.json()["live_orders_enabled"])
+
     def test_dhan_session_restores_after_server_restart(self):
         class Response:
             def __init__(self, data): self.data = data
