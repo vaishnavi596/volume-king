@@ -956,7 +956,7 @@ def app_main(page:ft.Page):
             quotes[symbol]=data;failed_symbols.pop(symbol,None)
             existing={r["symbol"]:r for r in top5_candidates if r.get("timestamp")}
             existing[symbol]=result;publish_partial_ranking(existing)
-            market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
+            market_store.put("ranking",("configured51",),{"rows":top5_candidates,"all_rows":list(watch_signal_cache.values()),"checked_at":datetime.now().strftime("%d %b %H:%M")})
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
     def dashboard():
@@ -3467,6 +3467,10 @@ console.log('BOT KING Lightweight Charts ready');
                             if generation==provider_generation[0] and sym not in failed_symbols:
                                 failed_symbols[sym]=safe_error(exc)
                         if generation!=provider_generation[0]:return sym,None
+                        if sym in dhan_history_skipped_symbols:
+                            failed_symbols.pop(sym,None)
+                            previous=watch_signal_cache.get(sym)
+                            result=dict(previous,historical=True) if previous and previous.get("timestamp") else None
                         ranking_results[sym]=result
                         if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
