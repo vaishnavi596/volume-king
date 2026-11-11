@@ -25,6 +25,20 @@ class DhanBatchTests(unittest.TestCase):
         self.assertIn("no market data", response.json()["detail"])
         self.assertNotIn("test-token", response.text)
 
+    def test_malformed_upstream_data_is_safe_502(self):
+        from pathlib import Path
+        for fake in (None, [], {"status": "success", "data": None},
+                     {"status": "success", "data": []},
+                     {"status": "success", "data": {"NSE_EQ": []}}):
+            with self.subTest(payload=fake), \
+                 patch.dict("os.environ", {"BOTKING_PAIRING_KEY": "test-pairing-key-with-at-least-32-characters", "DHAN_CLIENT_ID": "test-client"}), \
+                 patch.object(Path, "read_text", return_value="test-token"), \
+                 patch.object(server.DhanFeed, "_post", return_value=fake):
+                app = server.create_app()
+                response = TestClient(app).post("/dhan/ltp-batch", headers={"X-BotKing-Key": "test-pairing-key-with-at-least-32-characters"}, json={})
+            self.assertEqual(response.status_code, 502)
+            self.assertEqual(response.json()["detail"], "Invalid Dhan batch quote response")
+
     def test_batch_endpoint_validates_quotes_and_does_not_trade(self):
         # The batch endpoint must not invent prices for absent instruments.
         from pathlib import Path
