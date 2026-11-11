@@ -1,5 +1,5 @@
 """Transparent, candle-only screening. No broker quotes or probability claims."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import math
 
 DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
@@ -27,6 +27,16 @@ def analyze(bars, selected=None, timeframe="5m"):
     if any(clean[i][0] <= clean[i-1][0] for i in range(1, len(clean))):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Candles out of order or duplicated",
                 "count":len(clean),"timeframe":timeframe,"timestamp":None}
+    # Detect missing bars only inside the same NSE session; overnight gaps are normal.
+    market_tz = timezone(timedelta(hours=5, minutes=30))
+    interval_seconds = {"1m":60, "3m":180, "5m":300, "15m":900, "30m":1800, "1h":3600}.get(timeframe)
+    if interval_seconds is not None:
+        for previous, current in zip(clean, clean[1:]):
+            same_session = (datetime.fromtimestamp(previous[0], market_tz).date() ==
+                            datetime.fromtimestamp(current[0], market_tz).date())
+            if same_session and current[0] - previous[0] > interval_seconds * 2:
+                return {"bias":"WAIT","score":0,"votes":[],"reason":"Missing candles within trading session",
+                        "count":len(clean),"timeframe":timeframe,"timestamp":None}
     if len(clean)<30:
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
     close=[float(b[4]) for b in clean]
