@@ -3461,16 +3461,16 @@ console.log('BOT KING Lightweight Charts ready');
                 except Exception:pass
             # On a closed session, one transient all-symbol failure should not
             # strand the scanner until the user reconnects. Retry only once per
-            # provider generation after a 15-minute cooldown; never loop rapidly
+            # provider generation after a 3-minute cooldown; never loop rapidly
             # over 51 rate-sensitive Dhan history endpoints.
             if (prefs.get("source")=="Dhan" and dhan_feed.connected
                     and not regular_hours() and successes==0
                     and closed_session_retry_generation!=generation):
                 closed_session_retry_generation=generation
-                scan_progress["state"]="No fresh histories • one automatic retry in 15 minutes"
+                scan_progress["state"]="No fresh histories • one automatic retry in 3 minutes"
                 # Check for foreground reconnects/provider changes during the
-                # cooldown instead of blocking their new scan for 15 minutes.
-                for _ in range(180):
+                # cooldown instead of blocking their new scan for 3 minutes.
+                for _ in range(36):
                     if (provider_generation[0]!=generation or prefs.get("source")!="Dhan"
                             or not dhan_feed.connected):
                         break
