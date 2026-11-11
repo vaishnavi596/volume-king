@@ -138,8 +138,16 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         if type(result.get("count")) is not int or result["count"] < 30:continue
         if type(timestamp) not in (int, float) or not math.isfinite(timestamp):continue
         if type(score) not in (int, float) or not math.isfinite(score) or not 0 <= score <= 100:continue
+        # Explicitly stale or unverified provider data must never become a live Top Five pick.
+        if result.get("freshness") in ("stale", "stale_or_missing", "unverified", "historical_unverified"):
+            continue
+        if result.get("live_verified") is False:
+            continue
         if not isinstance(votes, list) or not votes:continue
         if any(not isinstance(v, dict) or "vote" not in v or type(v["vote"]) is not int and v["vote"] is not None or v["vote"] not in (-1, 0, 1, None) for v in votes):continue
+        # A repeated indicator must not count as multiple independent confirmations.
+        names = [v.get("name") for v in votes]
+        if any(not isinstance(name, str) or not name.strip() for name in names) or len(set(names)) != len(names):continue
         matching_votes=sum(v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes)
         directional_votes=sum(v["vote"] in (-1, 1) for v in votes)
         if matching_votes < 3 or not directional_votes or matching_votes / directional_votes < .7:continue
