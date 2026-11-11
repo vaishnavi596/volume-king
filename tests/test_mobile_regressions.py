@@ -68,6 +68,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_chart_indicators_distinguish_calculated_from_unimplemented(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('result=chart_indicators(snapshot.get("bars") or [])', source)
+        self.assertIn('result["ema20"]', source)
+        self.assertIn('result["rsi14"]', source)
+        self.assertIn('result["atr14"]', source)
+        self.assertIn("Not calculated/displayed on this chart:", source)
+        self.assertIn("Indicator overlays are not drawn on the candlestick chart yet.", source)
+
     def test_chart_compare_renders_both_provider_trends(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("tiny_chart(symbol.value)", source)
