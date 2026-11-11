@@ -1134,6 +1134,21 @@ def app_main(page:ft.Page):
         finally:
             watch_batch_busy[0]=False
             request_view_refresh(4)
+    async def dhan_quote_poll():
+        # Quote cadence is independent of the expensive 51-symbol candle-history scan.
+        # Only poll while the Android app is foregrounded and Dhan is connected.
+        while True:
+            try:
+                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    await refresh_watch_batch()
+                    if current[0]==0:
+                        request_view_refresh(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dhan_quote_poll",exc)
+            await asyncio.sleep(30)
+
     def watchlist():
         fill_watch()
         return [heading("Watchlist • 5 Lists"),
@@ -3470,6 +3485,7 @@ console.log('BOT KING Lightweight Charts ready');
                 except Exception:pass
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
+    page.run_task(dhan_quote_poll)
     page.run_task(option_poll)
     async def refresh_after_resume():
         if resume_busy[0]:return
