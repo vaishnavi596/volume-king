@@ -36,6 +36,18 @@ def safe_error(exc):
         # Match only known adapter phrases; never echo raw URLs or credentials.
         detail=str(exc)
         if "HTTP 403" in detail:return "Dhan server access rejected (HTTP 403); reconnect"
+        # Only these adapter-generated, allowlisted messages may be displayed.
+        for message in (
+            "Dhan token expired or market-data permission missing",
+            "Dhan batch rejected; check entitlement and instrument mapping",
+            "Dhan batch response invalid or too large",
+            "Dhan batch network request failed",
+            "Dhan server credentials not configured",
+            "Dhan batch returned no NSE equity quotes",
+            "Dhan batch response invalid",
+        ):
+            if detail.startswith(message + " (HTTP "):
+                return message
         if "HTTP 429" in detail or "rate limited" in detail or "cooldown" in detail:
             return "Dhan market data rate limited (HTTP 429); wait before retrying"
         if "Invalid Dhan quote" in detail:return "Dhan quote response missing or invalid"
