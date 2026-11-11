@@ -557,6 +557,79 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     candle_cache = {}
     candle_lock = threading.RLock()
     candle_cache_max_entries = 100
+    candle_cache_file = os.environ.get("BOTKING_CANDLE_CACHE_FILE", "").strip()
+
+    # Persistence is opt-in; never trust or serve unvalidated disk contents.
+    if candle_cache_file:
+        try:
+            disk_path = Path(candle_cache_file)
+            if not disk_path.is_absolute() or disk_path.is_symlink():
+                raise ValueError("Cache path must be an absolute regular path")
+            if disk_path.is_file() and disk_path.stat().st_size <= 5_000_000:
+                stored = json.loads(disk_path.read_text(encoding="utf-8"))
+                if isinstance(stored, dict) and stored.get("version") == 1:
+                    for item in stored.get("entries", [])[:candle_cache_max_entries]:
+                        if not isinstance(item, dict):
+                            continue
+                        symbol, interval = item.get("symbol"), item.get("interval")
+                        bars = item.get("bars")
+                        if (symbol not in DHAN_VERIFIED_INSTRUMENTS or
+                                interval not in ("1", "5", "15", "25", "60") or
+                                not isinstance(bars, list) or not 0 < len(bars) <= 5000):
+                            continue
+                        try:
+                            dates = (date.fromisoformat(item["from_date"]),
+                                     date.fromisoformat(item["to_date"]))
+                            observed = datetime.fromisoformat(item["observed_at"])
+                            if dates[1] < dates[0] or observed.tzinfo is None:
+                                continue
+                            previous = 0
+                            for bar in bars:
+                                if not isinstance(bar, list) or len(bar) != 6:
+                                    raise ValueError("Invalid candle")
+                                ts, o, h, low, close, vol = bar
+                                if (any(isinstance(v, bool) or not isinstance(v, (int, float))
+                                        or not math.isfinite(v) for v in bar)
+                                        or ts <= previous or min(o, h, low, close) <= 0
+                                        or vol < 0 or h < max(o, low, close)
+                                        or low > min(o, h, close)):
+                                    raise ValueError("Invalid candle")
+                                previous = ts
+                        except (ValueError, TypeError, KeyError, OverflowError):
+                            continue
+                        candle_cache[(symbol, interval)] = {
+                            "bars": [list(bar) for bar in bars],
+                            "from_date": item["from_date"], "to_date": item["to_date"],
+                            "observed_at": item["observed_at"]}
+        except (OSError, ValueError, TypeError, UnicodeError):
+            logging.getLogger(__name__).warning("Candle cache recovery unavailable")
+
+    def persist_candle_cache():
+        if not candle_cache_file:
+            return
+        target = Path(candle_cache_file)
+        if not target.is_absolute() or target.is_symlink():
+            return
+        entries = [dict(symbol=symbol, interval=interval, **entry)
+                   for (symbol, interval), entry in candle_cache.items()]
+        payload = json.dumps({"version": 1, "entries": entries}, separators=(",", ":")).encode()
+        if len(payload) > 5_000_000:
+            return
+        temporary = target.with_name(target.name + ".tmp-" + secrets.token_hex(8))
+        try:
+            fd = os.open(str(temporary), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as output:
+                output.write(payload)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(str(temporary), str(target))
+        except OSError:
+            logging.getLogger(__name__).warning("Candle cache persistence unavailable")
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+
 
     @app.get("/v2/candles/{symbol}/{interval}")
     def cached_candles(symbol: str, interval: str, x_botking_key: Optional[str] = Header(default=None)):
@@ -650,6 +723,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 }
                 while len(candle_cache) > candle_cache_max_entries:
                     candle_cache.pop(next(iter(candle_cache)))
+                persist_candle_cache()
         return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
                 "bars": bars, "freshness": "historical_unverified",
                 "live_orders_enabled": False}
