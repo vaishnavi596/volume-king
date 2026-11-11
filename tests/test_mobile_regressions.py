@@ -68,6 +68,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_dashboard_has_three_independent_index_analysis_panels(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("def dashboard_index_analysis():", source)
+        self.assertIn("dashboard_index_analysis(),", source)
+        self.assertIn('("NIFTY","BANKNIFTY","SENSEX")', source)
+        self.assertIn("Previous candle direction is not a current signal", source)
+        self.assertIn("no verified 5m candle series", source)
+
     def test_dashboard_indexes_auto_fetch_with_bounded_retry(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("async def dashboard_index_quote_poll():", source)
