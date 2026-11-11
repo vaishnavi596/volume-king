@@ -1141,6 +1141,15 @@ def app_main(page:ft.Page):
             # Price movement and candle-filter agreement are different signals.
             valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
             direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
+            quote_row=quotes.get(sym) or {}
+            quote_source=quote_row.get("source")
+            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+            quote_age=time.time()-quote_row.get("fetched_at",0) if isinstance(quote_row.get("fetched_at"),(int,float)) else None
+            quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
+                         and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
+                         and not dhan_offline())
+            quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
+                         "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
@@ -1153,7 +1162,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • "+("change verified" if valid_change else "change unverified")) if valid_change else "Price change unverified"),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • "+("change verified" if valid_change else "change unverified")) if valid_change else "Price change unverified"),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
