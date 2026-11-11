@@ -2424,6 +2424,9 @@ def app_main(page:ft.Page):
                 paper_position.update(side=None,entry=None,symbol=None)
                 paper_status.color=GREEN
             else:paper_status.value="No paper position to exit."
+        elif paper_position["side"]:
+            paper_status.value="Exit the existing quick paper position before another entry."
+            paper_status.color=RED
         else:
             sym=symbol.value
             q=quotes.get(sym)
