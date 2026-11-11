@@ -1,0 +1,15 @@
+# BOT KING — review-only schedule template
+#
+# DO NOT ENABLE until the paired inspection service has an audited ExecStart.
+# This schedule does not renew tokens; it is for eventual read-only monitoring.
+
+[Unit]
+Description=Schedule BOT KING Dhan renewal inspection
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=botking-dhan-renewal-inspect.service
+
+[Install]
+WantedBy=timers.target
