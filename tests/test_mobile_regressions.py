@@ -137,7 +137,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_chart_compare_renders_both_provider_trends(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("tiny_chart(symbol.value)", source)
-        self.assertIn("tiny_chart(peer)", source)
+        self.assertIn("tiny_chart(peer,peer_quote)", source)
         self.assertIn("Separate price trends", source)
         self.assertIn("Comparison unavailable • both symbols require verified provider candle history", source)
         self.assertIn("log_error(\"chart_comparison\",exc)", source)
