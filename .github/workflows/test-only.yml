@@ -2,7 +2,7 @@ name: BOT KING Offline Regression Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, audit/integrate-2-3-68-dhan-diagnostics]
     paths:
       - 'src/**'
       - 'tests/**'
