@@ -68,6 +68,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_chart_compare_renders_both_provider_trends(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("tiny_chart(symbol.value)", source)
+        self.assertIn("tiny_chart(peer)", source)
+        self.assertIn("Separate price trends", source)
+        self.assertIn("Comparison unavailable • both symbols require verified provider candle history", source)
+        self.assertIn("log_error(\"chart_comparison\",exc)", source)
+
     def test_chart_auto_loads_on_open_and_selection_change(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("def chart_selection_changed(e):", source)
