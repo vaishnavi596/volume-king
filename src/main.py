@@ -2128,12 +2128,12 @@ def app_main(page:ft.Page):
                         "Dhan: Not Connected • press Authorize Dhan API to sign in.")
                     connection_status.color=GOLD
             except urllib.error.HTTPError as exc:
-                log_error("dhan_status_http",exc)
+                log_error("dhan_connect_http",exc)
                 code=exc.code
                 if code==403:
                     detail="Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint."
                 elif code==429:
-                    detail="Dhan /status HTTP 429 • gateway or server throttled the status check; wait before retrying."
+                    detail="Dhan Connect / Check HTTP 429 • status or candle fallback throttled; wait before retrying."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code in (502,503,504):
