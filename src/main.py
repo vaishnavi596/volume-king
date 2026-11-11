@@ -629,8 +629,8 @@ def app_main(page:ft.Page):
         q=None if dhan_offline() else quotes.get(sym)
         v=q.get("change") if q else None
         return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
-    def tiny_chart(sym):
-        q=quotes.get(sym) or {}
+    def tiny_chart(sym,snapshot=None):
+        q=snapshot if snapshot is not None else (quotes.get(sym) or {})
         bars=q.get("bars") or []
         values=[b[4] for b in bars[-30:]]
         if len(values)<2:return note("Chart unavailable")
@@ -1347,14 +1347,17 @@ def app_main(page:ft.Page):
         prefs["chart_type"]=chart_style_picker.value
         persist_chart_settings()
         select(5)
+    chart_snapshots={}
+    def chart_snapshot(sym):
+        return chart_snapshots.get((sym,timeframe.value,provider_generation[0])) or {}
     def chart_candles():
-        q=quotes.get(symbol.value) or {}
+        q=chart_snapshot(symbol.value)
         bars=q.get("bars") or []
         if len(bars)<2:
             return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Selected provider candles unavailable • check source and refresh status")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
-            return ft.Container(content=tiny_chart(symbol.value),height=230)
+            return ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=230)
         low=min(b[3] for b in bars);high=max(b[2] for b in bars)
         spread=max(high-low,.001)
         width=324; height=230
@@ -1458,7 +1461,7 @@ def app_main(page:ft.Page):
             controls.append(note(h.get("time","")+" • "+h.get("event","")+" "+h.get("symbol","")+" ×"+str(h.get("qty",""))))
         return section("My Positions • Paper Only",ft.Column(controls,spacing=9))
     def chart_analysis_panel(kind):
-        quote=quotes.get(symbol.value) or {}
+        quote=chart_snapshot(symbol.value)
         result=chart_indicators(quote.get("bars") or [])
         if result["status"]!="AVAILABLE":
             return section(kind,note("Analysis unavailable: "+result["reason"]))
@@ -1480,13 +1483,13 @@ def app_main(page:ft.Page):
                 txt(chart_position_text(),12,GOLD),chart_paper_status,
                 note("Simulation only • no real orders")
             ])))
-            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
             selected=[n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value]
             indicator_rows=[ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,
                             ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),
                             note("Selected: "+(", ".join(selected) if selected else "None"))]
-            snapshot=quotes.get(symbol.value) or {}
+            snapshot=chart_snapshot(symbol.value)
             expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
             if snapshot.get("source")!=expected:
                 indicator_rows.append(note("Indicator values unavailable • selected provider data not loaded"))
@@ -1514,8 +1517,8 @@ def app_main(page:ft.Page):
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Horizontal: latest candle close • Vertical: latest candle • Fibonacci: visible high/low range • Trendline touch drawing unavailable"),note("Switch to Chart tab to see candle reference guides; not draggable."),chart_message])))
         elif chart_tab[0]=="Compare":
             peer=compare_symbol.value
-            peer_quote=quotes.get(peer) or {}
-            current_quote=quotes.get(symbol.value) or {}
+            peer_quote=chart_snapshot(peer)
+            current_quote=chart_snapshot(symbol.value)
             peer_bars=peer_quote.get("bars") or []
             base_bars=current_quote.get("bars") or []
             peer_source=peer_quote.get("source")
@@ -1529,7 +1532,7 @@ def app_main(page:ft.Page):
                 comparison.extend([note(symbol.value+" • "+str(len(base_bars))+" candles • "+str(current_quote.get("freshness","unverified"))),
                                    ft.Container(content=tiny_chart(symbol.value),height=120),
                                    note(peer+" • "+str(len(peer_bars))+" candles • "+str(peer_quote.get("freshness","unverified"))),
-                                   ft.Container(content=tiny_chart(peer),height=120),
+                                   ft.Container(content=tiny_chart(peer,peer_quote),height=120),
                                    note("Separate price trends • not normalized returns or a live signal")])
             comparison.append(chart_message)
             content.append(section("Compare Symbols",ft.Column(comparison,spacing=5)))
@@ -1555,7 +1558,7 @@ def app_main(page:ft.Page):
             data=await asyncio.to_thread(get_market_data,sym,tf,"5d" if tf in ["1m","5m","15m"] else "1mo")
             if generation!=provider_generation[0] or sym!=symbol.value or tf!=timeframe.value:
                 return
-            quotes[sym]=data
+            chart_snapshots[(sym,tf,generation)]=data
             bars=data.get("bars") or []
             chart_message.value=("Chart updated • "+str(data.get("source","unknown"))+
                                  " • "+str(len(bars))+" candles • "+str(data.get("freshness","unverified"))+
@@ -1584,7 +1587,7 @@ def app_main(page:ft.Page):
             data=await asyncio.to_thread(get_market_data,peer,tf,"5d" if tf in ("1m","5m","15m") else "1mo")
             if generation!=provider_generation[0] or peer!=compare_symbol.value or tf!=timeframe.value:
                 return
-            quotes[peer]=data
+            chart_snapshots[(peer,tf,generation)]=data
             chart_message.value=peer+" comparison loaded • "+str(len(data.get("bars") or []))+" candles • "+str(data.get("freshness","unverified"))
         except asyncio.CancelledError:
             raise
@@ -3775,7 +3778,7 @@ console.log('BOT KING Lightweight Charts ready');
                     chart_sym=symbol.value
                     chart_tf=timeframe.value
                     chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
-                    if generation==provider_generation[0] and chart_sym==symbol.value:quotes[chart_sym]=chart_data
+                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
             if generation==provider_generation[0] and app_active[0]:
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])
