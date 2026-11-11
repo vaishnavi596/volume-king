@@ -124,6 +124,8 @@ def analyze(bars, selected=None, timeframe="5m"):
 
 def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
+    if not isinstance(candidates, dict) or type(max_results) is not int or max_results <= 0:
+        return []
     if not isinstance(max_age_seconds, (int, float)) or not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
         return []
     good=[]
@@ -134,10 +136,10 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         score=result.get("score")
         votes=result.get("votes")
         if type(result.get("count")) is not int or result["count"] < 30:continue
-        if not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):continue
-        if not isinstance(score, (int, float)) or not math.isfinite(score) or not 0 <= score <= 100:continue
+        if type(timestamp) not in (int, float) or not math.isfinite(timestamp):continue
+        if type(score) not in (int, float) or not math.isfinite(score) or not 0 <= score <= 100:continue
         if not isinstance(votes, list) or not votes:continue
-        if any(not isinstance(v, dict) or v.get("vote") not in (-1, 0, 1, None) for v in votes):continue
+        if any(not isinstance(v, dict) or "vote" not in v or type(v["vote"]) is not int and v["vote"] is not None or v["vote"] not in (-1, 0, 1, None) for v in votes):continue
         matching_votes=sum(v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes)
         directional_votes=sum(v["vote"] in (-1, 1) for v in votes)
         if matching_votes < 3 or not directional_votes or matching_votes / directional_votes < .7:continue
