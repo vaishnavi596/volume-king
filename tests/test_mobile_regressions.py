@@ -68,6 +68,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_chart_drawing_guides_do_not_claim_touch_support(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('drawing_mode[0]="None" if v=="Clear" else v', source)
+        self.assertIn('if mode=="Horizontal":', source)
+        self.assertIn('elif mode=="Vertical":', source)
+        self.assertIn('elif mode=="Fibonacci":', source)
+        self.assertIn("Trendline touch drawing is not implemented", source)
+        self.assertIn("not draggable", source)
+
     def test_chart_indicators_distinguish_calculated_from_unimplemented(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('result=chart_indicators(snapshot.get("bars") or [])', source)
