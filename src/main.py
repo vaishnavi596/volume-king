@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.71"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.72"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -1781,7 +1781,7 @@ def app_main(page:ft.Page):
                 log_error("dhan_status_http",exc)
                 code=exc.code
                 if code==403:
-                    detail="Server Access Key rejected (HTTP 403). Check BOTKING_PAIRING_KEY; do not enter the Dhan token."
+                    detail="Dhan /status returned HTTP 403. Server pairing works separately; inspect this phone request and header."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code in (502,503,504):
@@ -1860,6 +1860,8 @@ def app_main(page:ft.Page):
             existing=await asyncio.to_thread(check_existing_token)
             if not isinstance(existing,dict) or existing.get("live_orders_enabled") is not False:
                 raise FeedError("Invalid Dhan status response")
+            # Status authorization succeeded. Any later HTTP 403 belongs to
+            # /dhan/start, not /dhan/status; report the failing stage precisely.
             # Explicit Dhan authorization must always request fresh consent.
             # The server's market_data_configured flag only means a token file
             # exists; an expired/revoked token can still set it to True.
@@ -1871,7 +1873,12 @@ def app_main(page:ft.Page):
                     raw=response.read(8193)
                     if len(raw)>8192:raise FeedError("Dhan consent response too large")
                     return json.loads(raw)
-            result=await asyncio.to_thread(request_consent)
+            try:
+                result=await asyncio.to_thread(request_consent)
+            except urllib.error.HTTPError as exc:
+                if exc.code == 403:
+                    raise FeedError("Dhan /start rejected the pairing key (HTTP 403), although /status accepted it. Check server route and request logs.") from None
+                raise
             login_url=result.get("login_url","") if isinstance(result,dict) else ""
             parsed=urlsplit(login_url)
             if (parsed.scheme!="https" or parsed.hostname!="auth.dhan.co"
@@ -1882,7 +1889,7 @@ def app_main(page:ft.Page):
             page.update()
             page.launch_url(login_url)
         except urllib.error.HTTPError as exc:
-            connection_status.value=("Server Access Key rejected (HTTP 403)." if exc.code==403 else
+            connection_status.value=("Dhan /status rejected the server key (HTTP 403); verify request header and endpoint." if exc.code==403 else
                 "Dhan authorization could not start (HTTP "+str(exc.code)+"). Check server Dhan credentials and pending login.")
             connection_status.color=RED
             page.update()
