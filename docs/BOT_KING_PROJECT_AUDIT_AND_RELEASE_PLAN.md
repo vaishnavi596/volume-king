@@ -1,5 +1,8 @@
-# BOT KING — Project Audit, Release Gates and Recovery Plan
+# BOT KING 226 — Master Project Roadmap, Audit, Release Gates and Recovery Plan
 Date: 2026-11-11
+## Project identity and short command
+Official short name: **BOT KING 226** (alias: **226**). When the owner says “226 पर काम आगे बढ़ाएँ”, continue the approved BOT KING Oracle-centralized data, Android app, secure PIN login and release roadmap in this repository. Do not confuse 226 with an APK version; release versions remain independently numbered. Review current CI, deployed Oracle state and mobile test evidence before changes.
+
 Repository: vaishnavi596/volume-king (main)
 Last audited release source: 2.3.76, commit 2d3c696bb069fa890c5be4bd6358de0feb5f8229
 
