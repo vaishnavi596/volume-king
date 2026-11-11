@@ -1423,8 +1423,17 @@ def app_main(page:ft.Page):
             else:chart_paper_status.value="No open position for "+sym
         else:
             try:
+                if mode.value!="Paper" or emergency_stop.value:
+                    raise ValueError("Paper mode required and emergency stop must be off")
+                quote=quotes.get(sym) or {}
+                expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+                stamp=quote.get("quote_timestamp")
+                age=time.time()-float(stamp) if stamp is not None else float("inf")
+                if (quote.get("source")!=expected or quote.get("cached")
+                        or not 0<=age<=90):
+                    raise ValueError("Recent current-provider quote unavailable")
                 qty=int(chart_quantity.value)
-                price=(quotes.get(sym) or {}).get("price")
+                price=finite(quote.get("price"),"Paper quote",.000001)
                 sl_pct=float(chart_sl.value);target_pct=float(chart_target.value)
                 if qty<1 or qty>100000 or price is None or not (0<sl_pct<=100 and 0<target_pct<=100):raise ValueError()
                 if sym in open_positions():
