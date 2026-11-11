@@ -16,8 +16,11 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
+    # Do not evaluate candles with timestamps in the future.
+    now = datetime.now(timezone.utc).timestamp()
     clean = [b for b in bars if isinstance(b, (list, tuple)) and len(b) >= 6
              and all(isinstance(b[i], (int, float)) and math.isfinite(b[i]) and b[i] > 0 for i in (0,1,2,3,4))
+             and b[0] <= now + 60
              and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
              and isinstance(b[5], (int, float)) and math.isfinite(b[5]) and b[5] >= 0]
     # Out-of-order or duplicate bars can create false crossovers and invalid freshness.
@@ -112,6 +115,8 @@ def analyze(bars, selected=None, timeframe="5m"):
 
 def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
+    if not isinstance(max_age_seconds, (int, float)) or not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
+        return []
     good=[]
     for symbol, result in candidates.items():
         if not isinstance(symbol, str) or not symbol.strip():continue
@@ -127,6 +132,8 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         matching_votes=sum(v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes)
         directional_votes=sum(v["vote"] in (-1, 1) for v in votes)
         if matching_votes < 3 or not directional_votes or matching_votes / directional_votes < .7:continue
+        # A claimed strength score cannot exceed the actual directional agreement.
+        if score > round(100 * matching_votes / directional_votes) + 1:continue
         if not any(v.get("name") in ("Supertrend", "SMC Structure", "EMA 9/21") and v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes):continue
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
