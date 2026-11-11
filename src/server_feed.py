@@ -191,7 +191,7 @@ class ServerDhanReadOnly:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
             if exc.code == 429:
                 hint = exc.headers.get("Retry-After", "") if exc.headers else ""
-                seconds = min(300, max(30, int(hint))) if hint.isdigit() else 30
+                seconds = min(900, max(300, int(hint))) if hint.isdigit() else 300
                 with type(self)._cooldown_lock:
                     type(self)._cooldown_until = max(type(self)._cooldown_until, time.monotonic() + seconds)
                 raise FeedError("Dhan market data rate limited (HTTP 429); retry after " + str(seconds) + " seconds") from None
