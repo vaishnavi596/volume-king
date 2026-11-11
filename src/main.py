@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.73"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.74"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -1669,13 +1669,13 @@ def app_main(page:ft.Page):
                 page.update();return
             pairing_key=server_access.value.strip()
             try:
-                from server_feed import server_origin, NoRedirect
+                from server_feed import server_origin, direct_https_opener
                 import urllib.request, urllib.error, json
                 origin=server_origin(endpoint)
                 def check_dhan():
                     req=urllib.request.Request(origin+"/dhan/status",
                         headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="GET")
-                    with urllib.request.build_opener(NoRedirect()).open(req,timeout=12) as response:
+                    with direct_https_opener().open(req,timeout=12) as response:
                         raw=response.read(8193)
                         if len(raw)>8192:raise FeedError("Server status response too large")
                         return json.loads(raw)
@@ -1695,7 +1695,7 @@ def app_main(page:ft.Page):
                             headers={"X-BotKing-Key":pairing_key,
                                      "Content-Type":"application/json","Accept":"application/json"},
                             method="POST")
-                        with urllib.request.build_opener(NoRedirect()).open(req,timeout=15) as response:
+                        with direct_https_opener().open(req,timeout=15) as response:
                             raw=response.read(8193)
                             if len(raw)>8192:raise FeedError("Dhan LTP response too large")
                             return json.loads(raw)
@@ -1726,7 +1726,7 @@ def app_main(page:ft.Page):
                                 headers={"X-BotKing-Key":pairing_key,
                                          "Content-Type":"application/json","Accept":"application/json"},
                                 method="POST")
-                            with urllib.request.build_opener(NoRedirect()).open(req,timeout=30) as response:
+                            with direct_https_opener().open(req,timeout=30) as response:
                                 raw=response.read(2_000_001)
                                 if len(raw)>2_000_000:raise FeedError("Dhan candles response too large")
                                 return json.loads(raw)
@@ -1849,7 +1849,7 @@ def app_main(page:ft.Page):
             connection_status.color=GOLD
             page.update();return
         try:
-            from server_feed import server_origin, NoRedirect
+            from server_feed import server_origin, direct_https_opener
             import urllib.request, urllib.error, json
             from urllib.parse import urlsplit
             origin=server_origin(endpoint)
@@ -1858,7 +1858,7 @@ def app_main(page:ft.Page):
             def check_existing_token():
                 req=urllib.request.Request(origin+"/dhan/status",
                     headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="GET")
-                with urllib.request.build_opener(NoRedirect()).open(req,timeout=12) as response:
+                with direct_https_opener().open(req,timeout=12) as response:
                     raw=response.read(8193)
                     if len(raw)>8192:raise FeedError("Dhan status response too large")
                     return json.loads(raw)
@@ -1874,7 +1874,7 @@ def app_main(page:ft.Page):
             def request_consent():
                 req=urllib.request.Request(origin+"/dhan/start",data=b"",
                     headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="POST")
-                with urllib.request.build_opener(NoRedirect()).open(req,timeout=15) as response:
+                with direct_https_opener().open(req,timeout=15) as response:
                     raw=response.read(8193)
                     if len(raw)>8192:raise FeedError("Dhan consent response too large")
                     return json.loads(raw)

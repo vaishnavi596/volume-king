@@ -7,6 +7,16 @@ import urllib.request
 from market_feed import AngelFeed, FeedError, SessionExpired
 
 
+def direct_https_opener():
+    """Do not route BOT KING credentials through environment-configured proxies.
+
+    Android/Python can inherit HTTP(S)_PROXY settings. The owner-controlled
+    HTTPS origin is validated by server_origin before use. TLS certificate
+    validation remains enabled; redirects are refused.
+    """
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # Never forward a credential or session to another URL.
