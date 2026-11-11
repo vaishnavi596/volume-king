@@ -1083,6 +1083,11 @@ def app_main(page:ft.Page):
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
+            if len(watch_groups[target_list])>=50:
+                if active_watch[0]==target_list:
+                    feedback.value="List is full (50 symbols maximum). Remove a symbol first."
+                    page.update()
+                return
             watch_groups[target_list].append(sym)
             store_watch()
         sync_symbol_choices()
@@ -1103,6 +1108,8 @@ def app_main(page:ft.Page):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
         elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
+        elif len(watch_groups[target_list])>=50:
+            feedback.value="List is full (50 symbols maximum). Remove a symbol first."
         else:
             feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
             page.run_task(validate_and_add,sym,target_list)
