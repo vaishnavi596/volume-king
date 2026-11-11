@@ -45,6 +45,38 @@ class RenewalSchedulerTests(unittest.TestCase):
     def test_missing_metadata_blocks(self):
         self.assertEqual(main(["--expiry-file", "/tmp/nonexistent-botking-expiry"]), 1)
 
+    def test_due_metadata_dry_run_never_rotates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            save_expiry_metadata(target, expiry)
+            with patch("backend.dhan_renewal_scheduler.renew_web_token") as renew:
+                self.assertEqual(main(["--expiry-file", str(target)]), 0)
+                renew.assert_not_called()
+
+    def test_due_metadata_execute_calls_guarded_renewal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            token = Path(directory) / "token"
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            save_expiry_metadata(target, expiry)
+            with patch.dict("os.environ", {"DHAN_CLIENT_ID": "offline-test-id"}), \
+                 patch("backend.dhan_renewal_scheduler.renew_web_token",
+                       return_value={"profile_verified": True}) as renew:
+                self.assertEqual(main(["--expiry-file", str(target),
+                                       "--token-file", str(token), "--execute"]), 0)
+                renew.assert_called_once_with("offline-test-id", token, expiry_path=target)
+
+    def test_due_metadata_execute_failure_returns_nonzero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            save_expiry_metadata(target, expiry)
+            with patch.dict("os.environ", {"DHAN_CLIENT_ID": "offline-test-id"}), \
+                 patch("backend.dhan_renewal_scheduler.renew_web_token",
+                       side_effect=ValueError("simulated failure")):
+                self.assertEqual(main(["--expiry-file", str(target), "--execute"]), 1)
+
     def test_bad_expiry_fails_closed(self):
         with self.assertRaises(ValueError):
             scheduled_decision("dhan_web", "not-a-date", now=self.now)
