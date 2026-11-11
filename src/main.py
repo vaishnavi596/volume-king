@@ -963,7 +963,9 @@ def app_main(page:ft.Page):
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
-            historical=row.get("historical") or age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours()
+            expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            historical=(row.get("historical") or row.get("source")!=expected_source or
+                        age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
             color=MUTED if historical else GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
