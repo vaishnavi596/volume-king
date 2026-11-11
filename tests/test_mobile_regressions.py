@@ -94,6 +94,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn('market_store.get("options"', source[start:end])
         self.assertIn("return []", source[start:end])
 
+    def test_quick_paper_entry_honors_emergency_stop(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        block = source[source.index("    def paper_trade(side):"):source.index("    field_bindings=[]")]
+        self.assertIn("elif emergency_stop.value:", block)
+        self.assertIn("Quick paper entries blocked.", block)
+
     def test_quick_paper_entry_cannot_overwrite_open_position(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         block = source[source.index("    def paper_trade(side):"):source.index("    field_bindings=[]")]
