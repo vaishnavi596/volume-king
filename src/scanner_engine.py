@@ -1,5 +1,6 @@
 """Transparent, candle-only screening. No broker quotes or probability claims."""
 from datetime import datetime, timezone
+import math
 
 DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                    "SMC Structure", "Order Block", "Pivot Points", "FVG", "Liquidity Sweep"]
@@ -15,7 +16,14 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
-    clean = [b for b in bars if len(b)>=6 and all(isinstance(b[i],(int,float)) and b[i]>0 for i in (1,2,3,4))]
+    clean = [b for b in bars if len(b) >= 6
+             and all(isinstance(b[i], (int, float)) and math.isfinite(b[i]) and b[i] > 0 for i in (0,1,2,3,4))
+             and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
+             and isinstance(b[5], (int, float)) and math.isfinite(b[5]) and b[5] >= 0]
+    # Out-of-order or duplicate bars can create false crossovers and invalid freshness.
+    if any(clean[i][0] <= clean[i-1][0] for i in range(1, len(clean))):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Candles out of order or duplicated",
+                "count":len(clean),"timeframe":timeframe,"timestamp":None}
     if len(clean)<30:
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
     close=[float(b[4]) for b in clean]
@@ -106,7 +114,8 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
     good=[]
     for symbol, result in candidates.items():
-        if result["bias"]=="WAIT" or result["timestamp"] is None:continue
+        if result.get("bias")=="WAIT" or result.get("timestamp") is None:continue
+        if result.get("count", 0) < 30 or not isinstance(result.get("timestamp"), (int, float)):continue
         age=now-result["timestamp"]
         if age<0 or age>max_age_seconds:continue
         good.append({"symbol":symbol,**result,"age":int(age)})
