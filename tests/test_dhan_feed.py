@@ -3,8 +3,8 @@ import io
 import json
 import unittest
 import urllib.error
-from unittest.mock import Mock
-from backend.dhan_feed import DhanFeed, DhanFeedError
+from unittest.mock import patch
+from backend.dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 
 
 class FakeResponse:
@@ -16,6 +16,12 @@ class FakeResponse:
 
 
 class DhanFeedTests(unittest.TestCase):
+    def setUp(self):
+        # Global provider cooldown must not leak across independent offline tests.
+        self._previous_retry_after = DhanFeed._retry_after
+        DhanFeed._retry_after = 0.0
+        self.addCleanup(setattr, DhanFeed, "_retry_after", self._previous_retry_after)
+
     def test_missing_credentials(self):
         with self.assertRaises(DhanFeedError):
             DhanFeed("", "")
@@ -68,6 +74,35 @@ class DhanFeedTests(unittest.TestCase):
             feed.ltp("IDX_I", 13)
         self.assertIn("rate limit", str(caught.exception).lower())
         self.assertNotIn("private-token", str(caught.exception))
+
+    def test_rate_limit_cooldown_is_shared_across_instances(self):
+        calls = []
+        def throttled(req, timeout):
+            calls.append(req.full_url)
+            raise urllib.error.HTTPError(req.full_url, 429, "rate limit", {}, io.BytesIO(b"secret"))
+        first = DhanFeed("owner", "secret", opener=throttled)
+        second = DhanFeed("owner", "secret", opener=throttled)
+        with patch("backend.dhan_feed.time.monotonic", return_value=100.0):
+            with self.assertRaises(DhanRateLimitError):
+                first.ltp("IDX_I", 13)
+            with self.assertRaisesRegex(DhanRateLimitError, "cooldown"):
+                second.ltp("IDX_I", 13)
+        self.assertEqual(len(calls), 1, "Cooldown must prevent a second upstream call")
+        self.assertGreaterEqual(DhanFeed._retry_after, 130.0)
+
+    def test_rate_limit_cooldown_expires_without_live_network(self):
+        calls = []
+        def opener(req, timeout):
+            calls.append(1)
+            return FakeResponse({"status": "success", "data": {}})
+        feed = DhanFeed("owner", "secret", opener=opener)
+        DhanFeed._retry_after = 130.0
+        with patch("backend.dhan_feed.time.monotonic", return_value=129.9):
+            with self.assertRaises(DhanRateLimitError):
+                feed.ltp("IDX_I", 13)
+        with patch("backend.dhan_feed.time.monotonic", return_value=130.0):
+            feed.ltp("IDX_I", 13)
+        self.assertEqual(len(calls), 1)
 
     def test_trading_endpoint_cannot_be_called(self):
         feed = DhanFeed("owner", "private-token", opener=lambda *a: self.fail("Network should not be used"))
