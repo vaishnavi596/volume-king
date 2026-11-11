@@ -2,7 +2,7 @@ name: Backend regression checks (no APK)
 
 on:
   push:
-    branches: [ main, feature/dhan-market-data-audit, botking-2-3-67-three-provider-release ]
+    branches: [ main, feature/dhan-market-data-audit, botking-2-3-67-three-provider-release, audit/integrate-2-3-68-dhan-diagnostics ]
     paths:
       - 'backend/**'
       - 'tests/**'
