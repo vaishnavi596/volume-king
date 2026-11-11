@@ -63,6 +63,15 @@ class ScannerSafetyTests(unittest.TestCase):
         second = datetime(2026, 11, 11, 9, 15, tzinfo=ist).timestamp()
         for i, bar in enumerate(b): bar[0] = first + i * 300 if i < 10 else second + (i - 10) * 300
         self.assertEqual(analyze(b)["count"], 35)
+    def test_missing_vote_key_does_not_crash(self):
+        r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"votes":[{"name":"EMA 9/21"},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
+    def test_boolean_vote_is_rejected(self):
+        r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":True},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
+    def test_invalid_ranking_inputs_are_safe(self):
+        self.assertEqual(rank_candidates(None), [])
+        self.assertEqual(rank_candidates({}, max_results=0), [])
     def test_insufficient_ranking(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":5,"score":99,"votes":[]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
