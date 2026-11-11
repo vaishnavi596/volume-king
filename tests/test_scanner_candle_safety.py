@@ -72,6 +72,12 @@ class ScannerSafetyTests(unittest.TestCase):
     def test_invalid_ranking_inputs_are_safe(self):
         self.assertEqual(rank_candidates(None), [])
         self.assertEqual(rank_candidates({}, max_results=0), [])
+    def test_explicit_unverified_data_not_ranked(self):
+        r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"freshness":"unverified","votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
+    def test_duplicate_indicator_cannot_inflate_votes(self):
+        r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":1},{"name":"EMA 9/21","vote":1},{"name":"EMA 9/21","vote":1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
     def test_insufficient_ranking(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":5,"score":99,"votes":[]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
