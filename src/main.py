@@ -1336,11 +1336,29 @@ def app_main(page:ft.Page):
             color=GREEN if c>=o else RED
             controls.append(ft.Container(left=x+2,top=yhigh,width=2,height=max(1,ylow-yhigh),bgcolor=color))
             controls.append(ft.Container(left=x,top=min(yo,yc),width=max(3,width/len(bars)-2),height=max(2,abs(yc-yo)),bgcolor=color))
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness")],spacing=3)
+        # Fixed candle-derived reference guides, not interactive touch drawings.
+        mode=drawing_mode[0]
+        if mode=="Horizontal":
+            y=10+(high-bars[-1][4])/spread*195
+            controls.append(ft.Container(left=0,top=y,width=width,height=1,bgcolor=GOLD))
+        elif mode=="Vertical":
+            x=(len(bars)-1)*width/len(bars)+2
+            controls.append(ft.Container(left=x,top=0,width=1,height=height,bgcolor=GOLD))
+        elif mode=="Fibonacci":
+            for ratio in (0.236,0.382,0.5,0.618,0.786):
+                y=10+ratio*195
+                controls.append(ft.Container(left=0,top=y,width=width,height=1,bgcolor=GOLD))
+        guide=note("Guide: "+mode+" • candle-derived reference, not draggable") if mode in ("Horizontal","Vertical","Fibonacci") else note("Drawing overlays: none • touch drawing not implemented")
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness"),guide],spacing=3)
     def drawing_action(v):
-        drawing_mode[0]=v
-        chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
-        page.update()
+        drawing_mode[0]="None" if v=="Clear" else v
+        if v=="Trendline":
+            chart_message.value="Trendline touch drawing is not implemented • no line added"
+        elif v=="Clear":
+            chart_message.value="Candle reference guides cleared"
+        else:
+            chart_message.value="Selected "+v+" • reference guide uses loaded candles; not draggable"
+        select(5)
     chart_quantity=ft.TextField(label="Paper quantity",value="1",width=140,keyboard_type=ft.KeyboardType.NUMBER)
     chart_sl=ft.TextField(label="Stop loss % (paper)",value="2",width=150,keyboard_type=ft.KeyboardType.NUMBER)
     chart_target=ft.TextField(label="Target % (paper)",value="4",width=150,keyboard_type=ft.KeyboardType.NUMBER)
@@ -1461,7 +1479,7 @@ def app_main(page:ft.Page):
             indicator_rows.append(note("Indicator overlays are not drawn on the candlestick chart yet."))
             content.append(section("Indicators • Toggle On / Off",ft.Column(indicator_rows,spacing=5)))
         elif chart_tab[0]=="Drawing":
-            content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
+            content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Horizontal: latest candle close • Vertical: latest candle • Fibonacci: visible high/low range • Trendline touch drawing unavailable"),note("Switch to Chart tab to see candle reference guides; not draggable."),chart_message])))
         elif chart_tab[0]=="Compare":
             peer=compare_symbol.value
             peer_quote=quotes.get(peer) or {}
