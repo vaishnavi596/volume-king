@@ -49,6 +49,29 @@ class DhanEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["quotes"], {})
 
+    def test_v2_snapshot_reads_cached_batch_without_extra_upstream_requests(self):
+        class BatchFeed:
+            calls = 0
+            def __init__(self, client, token): pass
+            def _post(self, endpoint, payload):
+                self.__class__.calls += 1
+                self.assert_endpoint = endpoint
+                return {"status": "success", "data": {"NSE_EQ": {
+                    "2885": {"last_price": 1234.5}, "1333": {"last_price": 850.0}}}}
+
+        with patch("backend.server.dhan_market_token", return_value="fake-token"), \\
+             patch("backend.server.DhanFeed", BatchFeed):
+            batch = self.client.post("/dhan/ltp-batch", headers=self.headers)
+            self.assertEqual(batch.status_code, 200)
+            self.assertEqual(BatchFeed.calls, 1)
+            snapshot = self.client.get("/v2/snapshot", headers=self.headers)
+            self.assertEqual(snapshot.status_code, 200)
+            self.assertEqual(snapshot.json()["quotes"]["RELIANCE"], 1234.5)
+            self.assertEqual(snapshot.json()["quotes"]["HDFCBANK"], 850.0)
+            self.assertIsNone(snapshot.json()["error"])
+            self.assertEqual(BatchFeed.calls, 1)
+            self.assertFalse(snapshot.json()["live_orders_enabled"])
+
     def test_dhan_session_restores_after_server_restart(self):
         class Response:
             def __init__(self, data): self.data = data
