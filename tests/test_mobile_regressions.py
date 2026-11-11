@@ -68,6 +68,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_super_five_ranking_rejects_previous_provider_candidates(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def publish_partial_ranking(results):")
+        end = source.index("    async def super_five_minute_refresh():", start)
+        self.assertIn('res.get("source")==expected_source', source[start:end])
+
     def test_chart_timeframes_do_not_overwrite_scanner_quotes(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         chart_loader = source[source.index("    async def load_chart():"):source.index("    chain_symbol=ft.Dropdown(", source.index("    async def load_chart():"))]
