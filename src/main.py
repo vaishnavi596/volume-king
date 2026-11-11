@@ -1193,6 +1193,10 @@ def app_main(page:ft.Page):
                     generation=provider_generation[0]
                     now=time.monotonic()
                     for sym in index_quote_status:
+                        if sym not in DHAN_VERIFIED_SYMBOLS:
+                            # Never hammer the server with an unmapped index.
+                            index_quote_status[sym]="UNAVAILABLE • Dhan instrument mapping not verified"
+                            continue
                         if now<next_due[sym]:
                             continue
                         try:
