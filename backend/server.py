@@ -399,7 +399,15 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             # dhan_market_token() has already cleared an expired OAuth session.
             # A legacy token file is only configured, not authenticated.
             authenticated = bool(dhan_session["access_token"]) and valid_dhan_expiry(dhan_session["expires_at"])
+            expiry_minutes = None
+            if authenticated:
+                parsed_expiry = datetime.fromisoformat(dhan_session["expires_at"].replace("Z", "+00:00"))
+                if parsed_expiry.tzinfo is None:
+                    parsed_expiry = parsed_expiry.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+                expiry_minutes = max(0, int((parsed_expiry.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds() / 60))
             return {"authenticated": authenticated,
+                    "oauth_minutes_remaining": expiry_minutes,
+                    "oauth_expiry_warning": authenticated and expiry_minutes <= 120,
                     "market_data_configured": market_data_configured,
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"] if authenticated else "",
