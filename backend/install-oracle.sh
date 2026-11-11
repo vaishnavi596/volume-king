@@ -69,6 +69,11 @@ PY
 fi
 # Store consent tokens only in a private directory owned by the service account.
 install -d -o opc -g opc -m 700 /var/lib/bot-king
+# Opt-in disk-backed historical candles; preserve any existing operator setting.
+install -d -o opc -g opc -m 700 /var/lib/bot-king/candles
+if ! grep -q '^BOTKING_CANDLE_CACHE_FILE=' /etc/bot-king/server.env; then
+    printf '%s\n' 'BOTKING_CANDLE_CACHE_FILE=/var/lib/bot-king/candles/history-v1.json' >> /etc/bot-king/server.env
+fi
 if ! grep -q '^DHAN_SESSION_FILE=' /etc/bot-king/server.env; then
     printf '%s\n' 'DHAN_SESSION_FILE=/var/lib/bot-king/dhan-session.json' >> /etc/bot-king/server.env
 fi
