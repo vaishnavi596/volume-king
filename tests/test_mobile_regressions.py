@@ -66,7 +66,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('if prefs.get("source")=="Dhan" and not dhan_feed.connected:', source)
         self.assertIn('scan_status.value="Dhan login required • automatic scan paused"', source)
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
-        self.assertIn('scan_busy[0]=False\\n            return', source)
+        self.assertIn('scan_busy[0]=False\n            return', source)
 
     def test_fresh_install_defaults_to_dhan(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
@@ -162,7 +162,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertEqual(v["preference_writer"].revision,before)
 
     def test_candle_analysis_survives_news_failure(self):
-        _,v=start({"scanner_live":False})
+        _,v=start({"scanner_live":False,"source":"Yahoo Finance"})
         end=int(time.time()//300)*300-300
         bars=[[end-(39-i)*300,100+i,103+i,99+i,102+i,100] for i in range(40)]
         async def respond(fn,*args,**kwargs):
@@ -182,7 +182,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("13:05:40 IST",v["display_setting_time"]("2026-11-04T07:35:40+00:00"))
 
     def test_auto_scan_schedules_short_ticks_and_sets_next_due_time(self):
-        _,v=start({"scanner_live":True,"scanner_refresh":"60"})
+        _,v=start({"scanner_live":True,"scanner_refresh":"60","source":"Yahoo Finance"})
         class Clock(datetime):
             @classmethod
             def now(cls,tz=None):
