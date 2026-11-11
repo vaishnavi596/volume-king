@@ -76,6 +76,9 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("if changed and i==5 and not chart_load_busy[0]:", source)
         self.assertIn("page.run_task(load_chart)", source)
         self.assertIn("log_error(\"load_chart\",exc)", source)
+        self.assertIn("chart_load_pending=[False]", source)
+        self.assertIn("chart_load_pending[0]=True", source)
+        self.assertIn("if chart_load_pending[0]:", source)
 
     def test_dashboard_has_three_independent_index_analysis_panels(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
