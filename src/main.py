@@ -987,7 +987,7 @@ def app_main(page:ft.Page):
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS & ERROR MONITOR', ft.Column([note(market_status + ' • Public news fetched separately; option status is shown on Options'),note('Latest diagnostic: '+diagnostics[-1] if diagnostics else 'No runtime exceptions recorded in this session'),note('Dhan batch: '+str(dhan_batch_issue[0]) if prefs.get('source')=='Dhan' and dhan_batch_issue[0] else 'Dhan batch: no reported failure' if prefs.get('source')=='Dhan' else 'Provider: '+str(prefs.get('source'))),note('Scanner: '+str(scan_progress.get('state','Waiting'))+' • '+str(scan_progress.get('valid',0))+'/'+str(scan_progress.get('total',0))+' valid')],spacing=4)), risk_overview(), news_event_overview()]
+        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]),note(index_quote_status.get(x,'Not checked') if prefs.get('source')=='Dhan' else quote_caption(x))],spacing=2) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']],spacing=9)), section('API STATUS & ERROR MONITOR', ft.Column([note(market_status + ' • Public news fetched separately; option status is shown on Options'),note('Latest diagnostic: '+diagnostics[-1] if diagnostics else 'No runtime exceptions recorded in this session'),note('Dhan batch: '+str(dhan_batch_issue[0]) if prefs.get('source')=='Dhan' and dhan_batch_issue[0] else 'Dhan batch: no reported failure' if prefs.get('source')=='Dhan' else 'Provider: '+str(prefs.get('source'))),note('Scanner: '+str(scan_progress.get('state','Waiting'))+' • '+str(scan_progress.get('valid',0))+'/'+str(scan_progress.get('total',0))+' valid')],spacing=4)), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -1180,6 +1180,50 @@ def app_main(page:ft.Page):
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
             await asyncio.sleep(30)
+
+    index_quote_status={sym:"Waiting for first quote" for sym in ("NIFTY","BANKNIFTY","SENSEX")}
+    async def dashboard_index_quote_poll():
+        # The 51-equity Dhan batch does not contain index quotes.
+        # Fetch indexes independently at startup and retry transient failures.
+        failures={sym:0 for sym in index_quote_status}
+        next_due={sym:0.0 for sym in index_quote_status}
+        while True:
+            try:
+                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    generation=provider_generation[0]
+                    now=time.monotonic()
+                    for sym in index_quote_status:
+                        if now<next_due[sym]:
+                            continue
+                        try:
+                            snapshot=await asyncio.wait_for(asyncio.to_thread(dhan_feed.quote,sym),timeout=15)
+                            price=snapshot.get("price") if isinstance(snapshot,dict) else None
+                            if not isinstance(price,(int,float)) or isinstance(price,bool) or not math.isfinite(price) or price<=0:
+                                raise FeedError("Index quote missing a valid price")
+                            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                                break
+                            previous=quotes.get(sym) or {}
+                            quotes[sym]=dict(previous,price=price,change=None,source="Dhan",
+                                             fetched_at=time.time(),quote_timestamp=None,
+                                             freshness="unverified")
+                            failures[sym]=0
+                            next_due[sym]=time.monotonic()+60
+                            index_quote_status[sym]="Quote received • exchange timestamp unverified"
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:
+                            failures[sym]+=1
+                            delay=min(60,15*2**min(failures[sym]-1,2))
+                            next_due[sym]=time.monotonic()+delay
+                            index_quote_status[sym]="Quote unavailable • retry in "+str(delay)+"s • "+type(exc).__name__
+                            log_error("index_quote_"+sym,exc)
+                        if current[0]==0:
+                            request_view_refresh(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dashboard_index_poll",exc)
+            await asyncio.sleep(5)
 
     def watchlist():
         fill_watch()
@@ -3530,6 +3574,7 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    page.run_task(dashboard_index_quote_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
