@@ -1817,8 +1817,9 @@ def app_main(page:ft.Page):
             return []
         if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value:
             return option_feed.get("rows",[])
-        previous=market_store.get("options",chain_symbol.value,expiry.value) or {}
-        return previous.get("rows",[])
+        # A persisted strike window is historical evidence, not a fresh broker quote.
+        # Do not resurrect it as current option-chain data after reconnect or restart.
+        return []
     def option_metrics(kind):
         rows=selected_option_rows()
         if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. The selected quote provider does not supply verified option-chain data; no values are estimated.")
