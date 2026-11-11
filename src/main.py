@@ -1404,9 +1404,16 @@ def app_main(page:ft.Page):
     def trade_history():
         return prefs.setdefault("paper_history",[])
     def position_pnl(p):
-        price=(quotes.get(p["symbol"]) or {}).get("price")
-        if price is None:return None
-        return (float(price)-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1)
+        quote=quotes.get(p["symbol"]) or {}
+        expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+        try:
+            age=time.time()-float(quote.get("quote_timestamp"))
+            price=finite(quote.get("price"),"Paper mark",.000001)
+            if quote.get("source")!=expected or quote.get("cached") or not 0<=age<=90:
+                return None
+            return (price-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1)
+        except (ValueError,TypeError,OverflowError,KeyError):
+            return None
     def exit_paper(sym):
         p=open_positions().pop(sym,None)
         if p:
