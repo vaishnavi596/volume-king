@@ -1021,7 +1021,7 @@ def app_main(page:ft.Page):
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
             if prefs.get("source")=="Dhan":
-                rows.append(note(index_quote_status.get(sym,"Waiting for index quote")) if sym in index_quote_status else "Dhan stock quote • see freshness status below")
+                rows.append(note(index_quote_status.get(sym,"Waiting for index quote") if sym in index_quote_status else "Dhan stock quote • see freshness status below"))
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
             else:
