@@ -16,7 +16,7 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
-    clean = [b for b in bars if len(b) >= 6
+    clean = [b for b in bars if isinstance(b, (list, tuple)) and len(b) >= 6
              and all(isinstance(b[i], (int, float)) and math.isfinite(b[i]) and b[i] > 0 for i in (0,1,2,3,4))
              and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
              and isinstance(b[5], (int, float)) and math.isfinite(b[5]) and b[5] >= 0]
@@ -114,16 +114,22 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
     good=[]
     for symbol, result in candidates.items():
+        if not isinstance(symbol, str) or not symbol.strip():continue
         if not isinstance(result, dict) or result.get("bias") not in ("BULLISH", "BEARISH"):continue
         timestamp=result.get("timestamp")
         score=result.get("score")
         votes=result.get("votes")
-        if not isinstance(result.get("count"), int) or result["count"] < 30:continue
+        if type(result.get("count")) is not int or result["count"] < 30:continue
         if not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):continue
         if not isinstance(score, (int, float)) or not math.isfinite(score) or not 0 <= score <= 100:continue
         if not isinstance(votes, list) or not votes:continue
+        if any(not isinstance(v, dict) or v.get("vote") not in (-1, 0, 1, None) for v in votes):continue
+        matching_votes=sum(v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes)
+        directional_votes=sum(v["vote"] in (-1, 1) for v in votes)
+        if matching_votes < 3 or not directional_votes or matching_votes / directional_votes < .7:continue
+        if not any(v.get("name") in ("Supertrend", "SMC Structure", "EMA 9/21") and v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes):continue
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
         good.append({"symbol":symbol,**result,"age":int(age)})
-    good.sort(key=lambda x:(x["score"],len([v for v in x["votes"] if v["vote"] in (-1,1)])),reverse=True)
+    good.sort(key=lambda x:(-x["score"], -len([v for v in x["votes"] if v["vote"] in (-1,1)]), x["symbol"]))
     return good[:max_results]
