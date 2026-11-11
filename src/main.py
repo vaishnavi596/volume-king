@@ -2437,13 +2437,17 @@ def app_main(page:ft.Page):
                 quote_fresh=0<=age<=90
             except (TypeError,ValueError,OverflowError):
                 quote_fresh=False
-            if (not q or q.get("price") is None or not math.isfinite(float(q.get("price") or 0)) or float(q.get("price") or 0)<=0 or q.get("source")!=expected_source
+            try:
+                paper_price=finite(q.get("price"),"Paper quote",.000001) if q else None
+            except (ValueError,TypeError,OverflowError):
+                paper_price=None
+            if (paper_price is None or q.get("source")!=expected_source
                     or q.get("cached") or not quote_fresh):
                 paper_status.value="Cannot simulate entry: positive current-provider quote with recent timestamp unavailable; exchange verification not implied."
                 paper_status.color=RED
             else:
-                paper_position.update(side=side,entry=q["price"],symbol=sym)
-                paper_status.value=f"Paper {side} {sym} @ {q['price']:,.2f} • SL {sl.value}% • Target {target.value}% (not an actual order)"
+                paper_position.update(side=side,entry=paper_price,symbol=sym)
+                paper_status.value=f"Paper {side} {sym} @ {paper_price:,.2f} • SL {sl.value}% • Target {target.value}% (not an actual order)"
                 paper_status.color=GREEN
         page.update()
 
