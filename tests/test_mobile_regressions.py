@@ -68,6 +68,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_watchlist_candle_filter_is_not_daily_price_direction(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("signal_counts=signal_percentages(signal_row)", source)
+        self.assertIn('watch_filter[0]!=signal_direction', source)
+        self.assertIn('note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical"))', source)
+        self.assertIn("filters use fresh candle-filter votes, not daily price movement", source)
+
     def test_watchlist_enforces_fifty_symbol_limit_after_async_validation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("if len(watch_groups[target_list])>=50:", source)
