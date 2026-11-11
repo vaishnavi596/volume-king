@@ -87,6 +87,13 @@ class MobileRegressionTests(unittest.TestCase):
         end = source.index("    async def refresh_selected_options():", start)
         self.assertIn('ft.dropdown.Option("Dhan")', source[start:end])
 
+    def test_option_rows_do_not_restore_persisted_chain_as_live(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def selected_option_rows():")
+        end = source.index("    def option_metrics(kind):", start)
+        self.assertNotIn('market_store.get("options"', source[start:end])
+        self.assertIn("return []", source[start:end])
+
     def test_chart_timeframes_do_not_overwrite_scanner_quotes(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         chart_loader = source[source.index("    async def load_chart():"):source.index("    chain_symbol=ft.Dropdown(", source.index("    async def load_chart():"))]
