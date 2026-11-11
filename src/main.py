@@ -1428,6 +1428,11 @@ def app_main(page:ft.Page):
                 valid=False;mark=None
             pnl=(mark-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1) if valid else None
             trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":mark if valid else None,"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds"),"mark_status":"recent_provider_quote" if valid else "unknown"})
+            ledger=paper_risk_ledger()
+            if pnl is None:
+                ledger["unknown_exits"]=int(ledger.get("unknown_exits",0))+1
+            else:
+                ledger["realized_loss"]=float(ledger.get("realized_loss",0))+max(0,-pnl)
             save()
         select(current[0])
     def chart_paper_trade(side):
