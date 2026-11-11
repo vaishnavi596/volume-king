@@ -94,6 +94,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn('market_store.get("options"', source[start:end])
         self.assertIn("return []", source[start:end])
 
+    def test_quick_paper_entry_rejects_stale_and_cross_provider_quotes(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def paper_trade(side):")
+        end = source.index("    ", start + len("    def paper_trade(side):"))
+        block = source[start:source.index("    def ", start + 1)]
+        self.assertIn('q.get("source")!=expected_source', block)
+        self.assertIn('not quote_fresh', block)
+        self.assertIn('q.get("cached")', block)
+
     def test_chart_timeframes_do_not_overwrite_scanner_quotes(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         chart_loader = source[source.index("    async def load_chart():"):source.index("    chain_symbol=ft.Dropdown(", source.index("    async def load_chart():"))]
