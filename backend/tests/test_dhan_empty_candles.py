@@ -58,6 +58,23 @@ class DhanEmptyCandlesTests(unittest.TestCase):
             self.invoke({"open": []})
         self.assertEqual(error.exception.status_code, 502)
 
+    def test_valid_candle_remains_historical_unverified(self):
+        response = self.invoke({
+            "open": [100.0], "high": [102.0], "low": [99.0],
+            "close": [101.0], "volume": [250],
+            "timestamp": [1794378300]
+        })
+        self.assertEqual(len(response["bars"]), 1)
+        self.assertEqual(response["freshness"], "historical_unverified")
+        self.assertIs(response["live_orders_enabled"], False)
+
+    def test_provider_failure_is_not_treated_as_holiday(self):
+        with self.assertRaises(HTTPException) as error:
+            self.invoke({"status": "failure", "open": [], "high": [],
+                         "low": [], "close": [], "volume": [],
+                         "timestamp": []})
+        self.assertEqual(error.exception.status_code, 502)
+
     def test_pairing_key_required(self):
         with self.assertRaises(HTTPException) as error:
             self.endpoint(self.body, x_botking_key="invalid")
