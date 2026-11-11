@@ -396,14 +396,16 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         token_configured = bool(dhan_market_token())
         market_data_configured = bool(os.environ.get("DHAN_CLIENT_ID", "").strip()) and token_configured
         with lock:
-            authenticated = bool(dhan_session["access_token"])
+            # dhan_market_token() has already cleared an expired OAuth session.
+            # A legacy token file is only configured, not authenticated.
+            authenticated = bool(dhan_session["access_token"]) and valid_dhan_expiry(dhan_session["expires_at"])
             return {"authenticated": authenticated,
                     "market_data_configured": market_data_configured,
                     "login_pending": bool(dhan_pending["active"] and clock() < dhan_pending["until"]),
                     "expires_at": dhan_session["expires_at"] if authenticated else "",
                     "token_source": "oauth_consent" if authenticated else ("provisioned_unverified" if token_configured else "none"),
                     "renewal_supported": False,
-                    "reauthentication_required": not authenticated and not token_configured,
+                    "reauthentication_required": not authenticated,
                     "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
 
