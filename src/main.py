@@ -1138,11 +1138,22 @@ def app_main(page:ft.Page):
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
             change=(quotes.get(sym) or {}).get("change") if not dhan_offline() else None
-            direction="Bullish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change>0 else "Bearish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change<0 else "Neutral"
-            if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
+            # Price movement and candle-filter agreement are different signals.
+            valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
+            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
+            signal_row=watch_signal_cache.get(sym,{})
+            signal_counts=signal_percentages(signal_row)
+            signal_stamp=signal_row.get("timestamp")
+            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))
+                          and not signal_row.get("historical") and regular_hours()
+                          and isinstance(signal_stamp,(int,float))
+                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
+            signal_direction=("Bullish" if signal_counts and signal_counts[0]>signal_counts[1] else
+                              "Bearish" if signal_counts and signal_counts[1]>signal_counts[0] else "Neutral") if signal_fresh else "Neutral"
+            if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Change unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • "+("change verified" if valid_change else "change unverified")) if valid_change else "Price change unverified"),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -1273,7 +1284,7 @@ def app_main(page:ft.Page):
         return [heading("Watchlist • 5 Lists"),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
-            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
+            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
