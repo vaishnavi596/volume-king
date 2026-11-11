@@ -1,5 +1,6 @@
 """Optional owner-operated HTTPS transport for the read-only Angel adapter."""
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -161,12 +162,16 @@ class ServerDhanReadOnly:
         self._origin = ""
         self._pairing_key = ""
         self._historical_only = False
+        self._cooldown_until = {}
 
     def _call(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
             raise FeedError("Unsupported Dhan read-only request")
+        remaining = self._cooldown_until.get(path, 0.0) - time.monotonic()
+        if remaining > 0:
+            raise FeedError(f"{path} cooldown: retry in {int(remaining) + 1}s (HTTP 429)")
         headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
         if payload is None:
             req = urllib.request.Request(self._origin + path, headers=headers, method="GET")
@@ -188,7 +193,13 @@ class ServerDhanReadOnly:
             if exc.code == 422:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
             if exc.code == 429:
-                raise FeedError("Dhan live quote rate limited (HTTP 429); wait before retrying") from None
+                try:
+                    wait = int(exc.headers.get("Retry-After", "30"))
+                except (TypeError, ValueError, OverflowError):
+                    wait = 30
+                wait = max(1, min(wait, 120))
+                self._cooldown_until[path] = time.monotonic() + wait
+                raise FeedError(f"{path} HTTP 429; retry after {wait}s") from None
             if exc.code in (502, 503, 504):
                 # Read only the server's structured, allowlisted diagnostic.
                 # Never expose arbitrary upstream error bodies or credentials.
