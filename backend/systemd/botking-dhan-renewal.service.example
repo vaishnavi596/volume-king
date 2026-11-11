@@ -1,0 +1,19 @@
+[Unit]
+Description=BOT KING guarded Dhan Web token renewal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/bot-king-server
+EnvironmentFile=/etc/bot-king/server.env
+ExecStart=/opt/bot-king-server/.venv/bin/python -m backend.dhan_renewal_scheduler --expiry-file /etc/bot-king/dhan-expiry.json --token-file /etc/bot-king/dhan-token --execute
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/etc/bot-king
+TimeoutStartSec=90
