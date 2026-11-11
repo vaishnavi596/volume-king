@@ -1410,8 +1410,17 @@ def app_main(page:ft.Page):
     def exit_paper(sym):
         p=open_positions().pop(sym,None)
         if p:
-            pnl=position_pnl(p)
-            trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":(quotes.get(sym) or {}).get("price"),"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds")})
+            # Only record an exit P&L when the mark is positive, recent and from the active provider.
+            quote=quotes.get(sym) or {}
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            try:
+                age=time.time()-float(quote.get("quote_timestamp"))
+                mark=finite(quote.get("price"),"Exit mark",.000001)
+                valid=quote.get("source")==expected and not quote.get("cached") and 0<=age<=90
+            except (ValueError,TypeError,OverflowError):
+                valid=False;mark=None
+            pnl=(mark-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1) if valid else None
+            trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":mark if valid else None,"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds"),"mark_status":"recent_provider_quote" if valid else "unknown"})
             save()
         select(current[0])
     def chart_paper_trade(side):
