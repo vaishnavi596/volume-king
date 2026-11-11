@@ -68,6 +68,11 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_watchlist_hides_quotes_from_previous_provider(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('quote_price(sym) if quote_source==expected_quote_source else "—"', source)
+        self.assertIn('"SOURCE MISMATCH"', source)
+
     def test_watchlist_quote_age_is_not_claimed_as_exchange_freshness(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('quote_age=time.time()-quote_row.get("fetched_at",0)', source)
