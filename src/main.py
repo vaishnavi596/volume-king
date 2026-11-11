@@ -905,7 +905,10 @@ def app_main(page:ft.Page):
                    if res and res.get("timestamp") and res.get("source")==expected_source]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
-            top5_candidates[:]=available[:5]
+            # Do not surface unverified historical bullish/bearish calls as live picks.
+            top5_candidates[:]=[dict(row,bias="WAIT",score=0,
+                                     reason=str(row.get("reason",""))+" • Historical/unverified; no live signal")
+                                if row.get("historical") else row for row in available[:5]]
             return available
         previous=top5_candidates[:]
         if available:top5_candidates[:]=available[:5]
