@@ -60,6 +60,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected', source)
         self.assertIn('if not app_active[0] and not pending_dhan_scan:', source)
 
+    def test_dhan_scanner_requires_connection_and_defaults_to_30_seconds(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('value=str(prefs.get("scanner_refresh","30"))', source)
+        self.assertIn('if prefs.get("source")=="Dhan" and not dhan_feed.connected:', source)
+        self.assertIn('scan_status.value="Dhan login required • automatic scan paused"', source)
+        self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
+        self.assertIn('scan_busy[0]=False\\n            return', source)
+
     def test_fresh_install_defaults_to_dhan(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('"confidence":75,"source":"Dhan","api_url"', source)
