@@ -37,6 +37,14 @@ class ScannerSafetyTests(unittest.TestCase):
         now = datetime.now(timezone.utc).timestamp()
         r = {"bias":"BULLISH","timestamp":now,"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1}]}
         self.assertEqual([x["symbol"] for x in rank_candidates({"ZZZ":r,"AAA":r})], ["AAA","ZZZ"])
+    def test_future_candle_excluded(self):
+        b = candles(); b[-1][0] = datetime.now(timezone.utc).timestamp() + 3600
+        self.assertEqual(analyze(b)["count"], 34)
+    def test_invalid_freshness_limit(self):
+        self.assertEqual(rank_candidates({}, max_age_seconds=float("nan")), [])
+    def test_inflated_ranking_score(self):
+        r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1},{"name":"VWAP","vote":-1}]}
+        self.assertEqual(rank_candidates({"ABC":r}), [])
     def test_insufficient_ranking(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":5,"score":99,"votes":[]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
