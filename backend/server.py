@@ -202,12 +202,44 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     finally:
                         lock.release()
         task = asyncio.create_task(expire_idle())
+        # Opt-in 226 ingestion. Disabled until deployed and verified on Oracle.
+        ingest_enabled = os.environ.get("BOTKING_226_INGEST_ENABLED", "0") == "1"
+        try:
+            ingest_interval = max(60, min(900, int(os.environ.get("BOTKING_226_INGEST_SECONDS", "90"))))
+        except ValueError:
+            ingest_interval = 90
+
+        async def ingest_quotes():
+            # One server-side batch request per interval; clients only read cache.
+            await asyncio.sleep(5)
+            while True:
+                try:
+                    await asyncio.to_thread(dhan_ltp_batch, pairing_key)
+                except HTTPException as exc:
+                    with snapshot_lock:
+                        snapshot_cache["error"] = f"upstream_http_{exc.status_code}"
+                    # Honor rate-limit cooldown rather than multiplying requests.
+                    if exc.status_code == 429:
+                        await asyncio.sleep(max(ingest_interval, 120))
+                        continue
+                except Exception:
+                    logging.getLogger("botking.226.ingest").exception("Dhan snapshot ingest failed")
+                    with snapshot_lock:
+                        snapshot_cache["error"] = "ingest_unavailable"
+                await asyncio.sleep(ingest_interval)
+
+        ingest_task = asyncio.create_task(ingest_quotes()) if ingest_enabled else None
         try:
             yield
         finally:
             task.cancel()
+            if ingest_task is not None:
+                ingest_task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
+            if ingest_task is not None:
+                with suppress(asyncio.CancelledError):
+                    await ingest_task
             clear()
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
