@@ -2462,7 +2462,7 @@ def app_main(page:ft.Page):
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
-    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","60")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
+    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","30")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=11,color=MUTED)
     if not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
     scan_last_candle=[None]
@@ -2730,6 +2730,10 @@ console.log('BOT KING Lightweight Charts ready');
         # No background service: refresh runs only while this app/page is alive.
         initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
+            if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+                scan_next_refresh[0]=None
+                scan_status.value="Dhan login required • automatic scan paused"
+                await asyncio.sleep(5);continue
             if not app_active[0]:
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5);continue
@@ -2913,6 +2917,10 @@ console.log('BOT KING Lightweight Charts ready');
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            scan_status.value="Dhan login required • scan paused"
+            page.update()
+            return
         if scan_busy[0]:return
         scan_busy[0]=True
         if not scan_live.value:
@@ -2926,6 +2934,10 @@ console.log('BOT KING Lightweight Charts ready');
             await scan_market()
     async def scan_market():
         nonlocal market_status
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            scan_status.value="Dhan login required • scan paused"
+            scan_busy[0]=False
+            return
         generation=scan_generation[0]
         import math
         from datetime import timezone
