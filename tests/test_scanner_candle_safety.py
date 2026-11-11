@@ -45,6 +45,24 @@ class ScannerSafetyTests(unittest.TestCase):
     def test_inflated_ranking_score(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":35,"score":100,"votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"RSI 14","vote":1},{"name":"VWAP","vote":-1}]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
+    def test_intraday_gap_blocks_signal(self):
+        b = candles()
+        # Fixed same-session bars avoid midnight-dependent test behavior.
+        from datetime import timedelta
+        ist = timezone(timedelta(hours=5, minutes=30))
+        start = datetime(2026, 11, 11, 9, 15, tzinfo=ist).timestamp()
+        for i, bar in enumerate(b): bar[0] = start + i * 300
+        b[20][0] += 600
+        for i in range(21, len(b)): b[i][0] += 600
+        self.assertEqual(analyze(b)["bias"], "WAIT")
+    def test_overnight_gap_is_allowed(self):
+        b = candles()
+        from datetime import timedelta
+        ist = timezone(timedelta(hours=5, minutes=30))
+        first = datetime(2026, 11, 10, 14, 0, tzinfo=ist).timestamp()
+        second = datetime(2026, 11, 11, 9, 15, tzinfo=ist).timestamp()
+        for i, bar in enumerate(b): bar[0] = first + i * 300 if i < 10 else second + (i - 10) * 300
+        self.assertEqual(analyze(b)["count"], 35)
     def test_insufficient_ranking(self):
         r = {"bias":"BULLISH","timestamp":datetime.now(timezone.utc).timestamp(),"count":5,"score":99,"votes":[]}
         self.assertEqual(rank_candidates({"ABC":r}), [])
