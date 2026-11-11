@@ -3253,6 +3253,7 @@ console.log('BOT KING Lightweight Charts ready');
         initial=True
         last_scanned_generation=None
         closed_session_retry_generation=None
+        closed_session_quote_checked_at=0.0
         while True:
             # Android can report a transient inactive lifecycle state while the
             # visible app is still in use. Never strand the first authenticated
@@ -3266,10 +3267,41 @@ console.log('BOT KING Lightweight Charts ready');
             # Scan historical candles once after provider changes, even on closed days.
             current_generation=provider_generation[0]
             if not initial and not regular_hours() and last_scanned_generation==current_generation:
-                # Closed-market history does not change every two minutes.
-                # Keep the last successful result visible until resume or reconnect.
+                # Closed-market history need not rescan, but quotes must not be
+                # tied to the historical-scanner lifecycle. Poll conservatively:
+                # exchange-closed LTP is a snapshot, never a verified live tick.
+                if prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    now=time.monotonic()
+                    if now-closed_session_quote_checked_at>=300:
+                        closed_session_quote_checked_at=now
+                        try:
+                            batch=await asyncio.wait_for(
+                                asyncio.to_thread(dhan_feed.batch_quotes),timeout=20)
+                            if (current_generation==provider_generation[0]
+                                    and prefs.get("source")=="Dhan"):
+                                with dhan_batch_lock:
+                                    dhan_batch_cache.update(
+                                        generation=current_generation,
+                                        updated=time.monotonic(),quotes=batch)
+                                for ticker,snapshot in batch.items():
+                                    if (ticker in all_watch_symbols()
+                                            and snapshot.get("source")=="Dhan"):
+                                        previous=quotes.get(ticker) or {}
+                                        quotes[ticker]=dict(
+                                            snapshot,change=None,
+                                            bars=previous.get("bars",[])
+                                            if previous.get("source")=="Dhan" else [],
+                                            fetched_at=time.time(),
+                                            freshness="unverified")
+                                if current[0] in (0,4):
+                                    request_view_refresh(current[0])
+                        except Exception as exc:
+                            log_error("dhan_closed_session_batch",exc)
+                            market_status="Dhan closed-session quote check failed: "+safe_error(exc)
+                            if current[0] in (0,4):
+                                request_view_refresh(current[0])
                 if prefs.get("source")=="Dhan" and scan_progress.get("state")=="Complete":
-                    scan_progress["state"]="Complete • market closed; next history scan on resume or reconnect"
+                    scan_progress["state"]="Complete • market closed; historical scan paused"
                 await asyncio.sleep(5)
                 continue
             initial=False
