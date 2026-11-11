@@ -1467,6 +1467,8 @@ def app_main(page:ft.Page):
                 validate_field(limit,"max_trades",limit.value)
                 validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
                 ledger=paper_risk_ledger()
+                if int(ledger.get("unknown_exits",0))>0:
+                    raise ValueError("Unknown paper exit P&L: reconcile daily risk before another entry")
                 if int(ledger["entries"])>=int(limit.value):
                     raise ValueError("Daily paper entry limit reached")
                 planned_risk=check_trade_risk(price,qty,sl_price)
@@ -2418,6 +2420,8 @@ def app_main(page:ft.Page):
                 validate_field(limit,"max_trades",limit.value)
                 validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
                 ledger=paper_risk_ledger()
+                if int(ledger.get("unknown_exits",0))>0:
+                    raise ValueError("Unknown paper exit P&L: reconcile daily risk before another entry")
                 if int(ledger["entries"])>=int(limit.value):
                     raise ValueError("Daily paper entry limit reached. EXIT remains available.")
                 stop,take=levels(side,p,st,tg)
