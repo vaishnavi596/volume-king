@@ -553,6 +553,27 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
                 "freshness": "unverified", "live_orders_enabled": False}
 
+    # Historical candles are cached only after provider validation succeeds.
+    candle_cache = {}
+    candle_lock = threading.RLock()
+
+    @app.get("/v2/candles/{symbol}/{interval}")
+    def cached_candles(symbol: str, interval: str, x_botking_key: Optional[str] = Header(default=None)):
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if symbol not in DHAN_VERIFIED_INSTRUMENTS or interval not in ("1", "5", "15", "30", "60"):
+            raise HTTPException(422, "Unsupported candle instrument or interval")
+        with candle_lock:
+            entry = candle_cache.get((symbol, interval))
+            if entry is None:
+                return {"symbol": symbol, "interval": interval + "m", "bars": [],
+                        "source": "dhan", "freshness": "stale_or_missing",
+                        "observed_at": None, "live_orders_enabled": False}
+            return {"symbol": symbol, "interval": interval + "m",
+                    "bars": [list(bar) for bar in entry["bars"]], "source": "dhan",
+                    "freshness": "historical_unverified", "observed_at": entry["observed_at"],
+                    "live_orders_enabled": False}
+
     @app.post("/dhan/intraday")
     def dhan_intraday(body: DhanIntradayRequest, x_botking_key: Optional[str] = Header(default=None)):
         """Read-only historical candles; reject unverifiable and malformed responses."""
@@ -613,6 +634,11 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Dhan historical data unavailable or token expired") from None
         except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
             raise HTTPException(502, "Invalid Dhan historical response") from None
+        with candle_lock:
+            candle_cache[(body.symbol, str(body.interval))] = {
+                "bars": [list(bar) for bar in bars],
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+            }
         return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
                 "bars": bars, "freshness": "historical_unverified",
                 "live_orders_enabled": False}
