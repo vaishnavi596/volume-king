@@ -104,7 +104,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(result['bias'],'WAIT')
 
     def test_superseded_scan_cannot_publish(self):
-        page,v=start({'scanner_live':False})
+        page,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         before=list(v['scan_result'].controls)
         async def run():
             original=asyncio.to_thread
@@ -155,7 +155,7 @@ class AuditTests(unittest.TestCase):
 
     def test_daily_entry_limit_persists_and_exit_stays_available(self):
         page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','max_trades':1})
-        v['bot_paper_action']('BUY');v['bot_paper_action']('EXIT');v['bot_paper_action']('SELL')
+        v['bot_paper_action']('BUY');v['paper_exit_price'].value='100';v['bot_paper_action']('EXIT');v['bot_paper_action']('SELL')
         self.assertIsNone(v['bot_position']['side'])
         self.assertIn('Daily paper entry limit',v['bot_trade_status'].value)
         _,restored=start(page.client_storage.get('bot_king_preferences'))
@@ -163,12 +163,27 @@ class AuditTests(unittest.TestCase):
         self.assertIsNone(restored['bot_position']['side'])
         self.assertEqual(restored['paper_risk_ledger']()['entries'],1)
 
+    def test_unknown_exit_pnl_blocks_reentry_across_restart(self):
+        page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','max_trades':10})
+        v['bot_paper_action']('BUY')
+        self.assertEqual(v['bot_position']['side'],'BUY')
+        v['bot_paper_action']('EXIT')
+        self.assertIsNone(v['bot_position']['side'])
+        self.assertEqual(v['paper_risk_ledger']()['unknown_exits'],1)
+        v['bot_paper_action']('SELL')
+        self.assertIsNone(v['bot_position']['side'])
+        self.assertIn('Unknown paper exit P&L',v['bot_trade_status'].value)
+        _,restored=start(page.client_storage.get('bot_king_preferences'))
+        restored['bot_paper_action']('BUY')
+        self.assertIsNone(restored['bot_position']['side'])
+        self.assertIn('Unknown paper exit P&L',restored['bot_trade_status'].value)
+
     def test_daily_planned_risk_and_concurrent_entries(self):
         page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01','max_trades':10,'bot_premium':100,'bot_lots':2,'bot_lot_size':25,'max_total_lots':4,'max_daily_loss':100})
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(v['bot_paper_action'],['BUY']*8))
         self.assertEqual(v['paper_risk_ledger']()['entries'],1)
-        v['bot_paper_action']('EXIT');v['bot_paper_action']('BUY')
+        v['paper_exit_price'].value='100';v['bot_paper_action']('EXIT');v['bot_paper_action']('BUY')
         self.assertIsNone(v['bot_position']['side'])
         self.assertIn('planned-risk budget',v['bot_trade_status'].value)
         self.assertEqual(v['paper_risk_ledger']()['planned_risk_used'],100)
@@ -208,7 +223,7 @@ class AuditTests(unittest.TestCase):
             return ' | '.join(out)
         for tf in ['1m','3m','5m','15m','30m','1h','1d']:
             with self.subTest(timeframe=tf):
-                page,v=start({'scanner_live':False,'scanner_timeframe':tf,'scanner_budget':'Any'})
+                page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':tf,'scanner_budget':'Any'})
                 async def run():
                     original=asyncio.to_thread
                     async def history(fn,*args,**kwargs):
@@ -226,7 +241,7 @@ class AuditTests(unittest.TestCase):
 
     def test_stale_wait_reason_is_not_sideways(self):
         import time
-        page,v=start({'scanner_live':False,'scanner_timeframe':'3m','scanner_budget':'Any'})
+        page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':'3m','scanner_budget':'Any'})
         async def run():
             original=asyncio.to_thread
             async def history(*args,**kwargs):
@@ -446,7 +461,7 @@ class AuditTests(unittest.TestCase):
                and node.func.attr=='sleep' and node.args]
         self.assertTrue(any(isinstance(node.args[0],ast.Constant)
                             and node.args[0].value==5 for node in waits))
-        self.assertTrue(any(isinstance(node,ast.Constant) and node.value==180
+        self.assertTrue(any(isinstance(node,ast.Constant) and node.value==36
                             for node in ast.walk(body)))
         retry_conditions=[node for node in ast.walk(body)
                           if isinstance(node,ast.If)

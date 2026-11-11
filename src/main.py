@@ -629,8 +629,8 @@ def app_main(page:ft.Page):
         q=None if dhan_offline() else quotes.get(sym)
         v=q.get("change") if q else None
         return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
-    def tiny_chart(sym):
-        q=quotes.get(sym) or {}
+    def tiny_chart(sym,snapshot=None):
+        q=snapshot if snapshot is not None else (quotes.get(sym) or {})
         bars=q.get("bars") or []
         values=[b[4] for b in bars[-30:]]
         if len(values)<2:return note("Chart unavailable")
@@ -894,10 +894,11 @@ def app_main(page:ft.Page):
         display.update(symbol=sym,source=data.get("source","Unavailable"),historical=bool(data.get("cached")) or (data.get("source")=="Dhan" and (dhan_feed.historical_only or data.get("freshness")=="historical_unverified")) or not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
         return display
     def publish_partial_ranking(results):
-        available=[dict(res,symbol=sym) for sym,res in results.items() if res and res.get("timestamp")]
+        expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+        available=[dict(res,symbol=sym) for sym,res in results.items()
+                   if res and res.get("timestamp") and res.get("source")==expected_source]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
-            available=[row for row in available if row.get("source")=="Dhan"]
             top5_candidates[:]=available[:5]
             return available
         previous=top5_candidates[:]
@@ -911,6 +912,38 @@ def app_main(page:ft.Page):
             if len(top5_candidates)>=5:break
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
+    async def super_five_minute_refresh():
+        # Re-rank cached, completed 5m candles independently every minute.
+        # Never issue another 51-symbol historical API burst from this task.
+        while True:
+            await asyncio.sleep(60)
+            try:
+                if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                    continue
+                generation=provider_generation[0]
+                expected_source={"Dhan":"Dhan","Broker API":"Angel One",
+                                 "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+                if not expected_source:
+                    continue
+                results={}
+                for sym in watch_symbols:
+                    snapshot=quotes.get(sym) or {}
+                    if snapshot.get("source")!=expected_source or not snapshot.get("bars"):
+                        continue
+                    result=display_analysis(sym,snapshot)
+                    if result.get("timestamp"):
+                        results[sym]=result
+                if generation!=provider_generation[0] or not results:
+                    continue
+                publish_partial_ranking(results)
+                if current[0]==0:
+                    request_view_refresh(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("super_five_minute_refresh",exc)
+                if current[0]==0:
+                    request_view_refresh(0)
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
@@ -931,7 +964,9 @@ def app_main(page:ft.Page):
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
-            historical=row.get("historical") or age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours()
+            expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            historical=(row.get("historical") or row.get("source")!=expected_source or
+                        age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
             color=MUTED if historical else GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
@@ -952,10 +987,42 @@ def app_main(page:ft.Page):
             market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
+    def dashboard_index_analysis():
+        panels=[]
+        for sym in ("NIFTY","BANKNIFTY","SENSEX"):
+            snapshot=quotes.get(sym) or {}
+            source=snapshot.get("source")
+            valid_source=source=={"Dhan":"Dhan","Broker API":"Angel One",
+                                  "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            rows=[ft.Row([txt(sym,13,GOLD,True),
+                          ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
+                          txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
+            if prefs.get("source")=="Dhan":
+                rows.append(note(index_quote_status.get(sym,"Waiting for index quote")))
+            if not valid_source or not snapshot.get("bars"):
+                rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
+            else:
+                try:
+                    analysis=display_analysis(sym,snapshot)
+                    if not analysis.get("timestamp"):
+                        rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
+                    else:
+                        historical=analysis.get("historical",True)
+                        rows.append(note(("HISTORICAL • " if historical else "5m • ")+
+                                         str(analysis.get("bias","WAIT"))+
+                                         " • "+age_label(analysis["timestamp"])))
+                        if historical:
+                            rows.append(note("Previous candle direction is not a current signal"))
+                except Exception as exc:
+                    log_error("dashboard_index_analysis_"+sym,exc)
+                    rows.append(note("Candle analysis unavailable • see diagnostics"))
+            panels.append(ft.Container(content=ft.Column(rows,spacing=3),
+                                       bgcolor=PANEL2,border_radius=10,padding=10))
+        return section("INDEX ANALYSIS • AUTO STATUS",ft.Column(panels,spacing=8))
     def dashboard():
         def index(name):
             return ft.Container(content=ft.Column([txt(name,13,MUTED,True),txt(quote_price(name),16,GOLD,True),txt(quote_change(name),11,price_color(name),True)]),bgcolor=PANEL2,border_radius=12,padding=9,expand=True)
-        return [data_overview(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']])), section('API STATUS', note(market_status + ' • Public news fetched separately; option status is shown on Options')), risk_overview(), news_event_overview()]
+        return [data_overview(), dashboard_index_analysis(), note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')), fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True), section('CANDLE ANALYSIS • ' + scan_shared['direction'], ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'), note(scan_shared['basis']), note('Combined status uses the same engine as Scanner; news headline cues are experimental; options may be unavailable.')], spacing=4)), dashboard_positions(), section('OPTIONS DATA • '+str(chain_symbol.value),ft.Column([note(option_feed_status[0]),option_metrics('OI')])), super_five_card(), section('MARKET OVERVIEW', ft.Column([ft.Column([ft.Row([ft.Container(content=txt(x, 11, MUTED, True), width=100), ft.Container(content=txt(quote_price(x), 13, GOLD, True), expand=True), txt(quote_change(x), 11, price_color(x), True)]),note(index_quote_status.get(x,'Not checked') if prefs.get('source')=='Dhan' else quote_caption(x))],spacing=2) for x in ['NIFTY', 'BANKNIFTY', 'SENSEX']],spacing=9)), section('API STATUS & ERROR MONITOR', ft.Column([note(market_status + ' • Public news fetched separately; option status is shown on Options'),note('Latest diagnostic: '+diagnostics[-1] if diagnostics else 'No runtime exceptions recorded in this session'),note('Dhan batch: '+str(dhan_batch_issue[0]) if prefs.get('source')=='Dhan' and dhan_batch_issue[0] else 'Dhan batch: no reported failure' if prefs.get('source')=='Dhan' else 'Provider: '+str(prefs.get('source'))),note('Scanner: '+str(scan_progress.get('state','Waiting'))+' • '+str(scan_progress.get('valid',0))+'/'+str(scan_progress.get('total',0))+' valid')],spacing=4)), risk_overview(), news_event_overview()]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
@@ -1019,6 +1086,11 @@ def app_main(page:ft.Page):
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
+            if len(watch_groups[target_list])>=50:
+                if active_watch[0]==target_list:
+                    feedback.value="List is full (50 symbols maximum). Remove a symbol first."
+                    page.update()
+                return
             watch_groups[target_list].append(sym)
             store_watch()
         sync_symbol_choices()
@@ -1039,6 +1111,8 @@ def app_main(page:ft.Page):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
         elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
+        elif len(watch_groups[target_list])>=50:
+            feedback.value="List is full (50 symbols maximum). Remove a symbol first."
         else:
             feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
             page.run_task(validate_and_add,sym,target_list)
@@ -1052,8 +1126,11 @@ def app_main(page:ft.Page):
             symbol.options.append(ft.dropdown.Option(sym))
         symbol.value=sym
         chart_tab[0]="Chart"
-        select(5)
-        page.run_task(load_chart)
+        # Avoid a second request when render_page already schedules chart loading.
+        if current[0]==5:
+            page.run_task(load_chart)
+        else:
+            select(5)
     def remove_stock(sym):
         group=watch_groups[active_watch[0]]
         if sym in group:
@@ -1066,12 +1143,32 @@ def app_main(page:ft.Page):
         visible_count=0
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
-            change=(quotes.get(sym) or {}).get("change") if not dhan_offline() else None
-            direction="Bullish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change>0 else "Bearish" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) and change<0 else "Neutral"
-            if watch_filter[0]!="All" and watch_filter[0]!=direction:continue
+            quote_row=quotes.get(sym) or {}
+            quote_source=quote_row.get("source")
+            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+            change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
+            # Price movement and candle-filter agreement are different signals.
+            valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
+            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
+            quote_age=time.time()-quote_row.get("fetched_at",0) if isinstance(quote_row.get("fetched_at"),(int,float)) else None
+            quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
+                         and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
+                         and not dhan_offline())
+            quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
+                         "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
+            signal_row=watch_signal_cache.get(sym,{})
+            signal_counts=signal_percentages(signal_row)
+            signal_stamp=signal_row.get("timestamp")
+            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))
+                          and not signal_row.get("historical") and regular_hours()
+                          and isinstance(signal_stamp,(int,float))
+                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
+            signal_direction=("Bullish" if signal_counts and signal_counts[0]>signal_counts[1] else
+                              "Bearish" if signal_counts and signal_counts[1]>signal_counts[0] else "Neutral") if signal_fresh else "Neutral"
+            if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(direction+" • price change" if isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change) else "Change unverified"),strength_widget(watch_signal_cache.get(sym,{}),sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym),13,price_color(sym),True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym),10,price_color(sym))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • "+("change verified" if valid_change else "change unverified")) if valid_change else "Price change unverified"),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -1149,12 +1246,60 @@ def app_main(page:ft.Page):
                 log_error("dhan_quote_poll",exc)
             await asyncio.sleep(30)
 
+    index_quote_status={sym:"Waiting for first quote" for sym in ("NIFTY","BANKNIFTY","SENSEX")}
+    async def dashboard_index_quote_poll():
+        # The 51-equity Dhan batch does not contain index quotes.
+        # Fetch indexes independently at startup and retry transient failures.
+        failures={sym:0 for sym in index_quote_status}
+        next_due={sym:0.0 for sym in index_quote_status}
+        while True:
+            try:
+                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    generation=provider_generation[0]
+                    now=time.monotonic()
+                    for sym in index_quote_status:
+                        if sym not in DHAN_VERIFIED_SYMBOLS:
+                            # Never hammer the server with an unmapped index.
+                            index_quote_status[sym]="UNAVAILABLE • Dhan instrument mapping not verified"
+                            continue
+                        if now<next_due[sym]:
+                            continue
+                        try:
+                            snapshot=await asyncio.wait_for(asyncio.to_thread(dhan_feed.quote,sym),timeout=15)
+                            price=snapshot.get("price") if isinstance(snapshot,dict) else None
+                            if not isinstance(price,(int,float)) or isinstance(price,bool) or not math.isfinite(price) or price<=0:
+                                raise FeedError("Index quote missing a valid price")
+                            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                                break
+                            previous=quotes.get(sym) or {}
+                            quotes[sym]=dict(previous,price=price,change=None,source="Dhan",
+                                             fetched_at=time.time(),quote_timestamp=None,
+                                             freshness="unverified")
+                            failures[sym]=0
+                            next_due[sym]=time.monotonic()+60
+                            index_quote_status[sym]="Quote received • exchange timestamp unverified"
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:
+                            failures[sym]+=1
+                            delay=min(60,15*2**min(failures[sym]-1,2))
+                            next_due[sym]=time.monotonic()+delay
+                            index_quote_status[sym]="Quote unavailable • retry in "+str(delay)+"s • "+type(exc).__name__
+                            log_error("index_quote_"+sym,exc)
+                        if current[0]==0:
+                            request_view_refresh(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dashboard_index_poll",exc)
+            await asyncio.sleep(5)
+
     def watchlist():
         fill_watch()
         return [heading("Watchlist • 5 Lists"),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
-            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
+            ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
@@ -1191,21 +1336,29 @@ def app_main(page:ft.Page):
         select(5)
     chart_style=[prefs.get("chart_type","Candlestick")]
     chart_style_picker=ft.Dropdown(label="Chart type",value=prefs.get("chart_type","Candlestick"),options=[ft.dropdown.Option(x) for x in ["Candlestick","Line"]])
-    symbol.on_change=persist_chart_settings
-    timeframe.on_change=persist_chart_settings
+    def chart_selection_changed(e):
+        persist_chart_settings(e)
+        if current[0]==5:
+            chart_message.value="Loading selected chart candles..."
+            page.run_task(load_chart)
+    symbol.on_change=chart_selection_changed
+    timeframe.on_change=chart_selection_changed
     def chart_style_apply(e):
         chart_style[0]=chart_style_picker.value
         prefs["chart_type"]=chart_style_picker.value
         persist_chart_settings()
         select(5)
+    chart_snapshots={}
+    def chart_snapshot(sym):
+        return chart_snapshots.get((sym,timeframe.value,provider_generation[0])) or {}
     def chart_candles():
-        q=quotes.get(symbol.value) or {}
+        q=chart_snapshot(symbol.value)
         bars=q.get("bars") or []
         if len(bars)<2:
-            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Select Yahoo Finance for indicative candles or connect Angel One")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Selected provider candles unavailable • check source and refresh status")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
-            return ft.Container(content=tiny_chart(symbol.value),height=230)
+            return ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=230)
         low=min(b[3] for b in bars);high=max(b[2] for b in bars)
         spread=max(high-low,.001)
         width=324; height=230
@@ -1219,11 +1372,29 @@ def app_main(page:ft.Page):
             color=GREEN if c>=o else RED
             controls.append(ft.Container(left=x+2,top=yhigh,width=2,height=max(1,ylow-yhigh),bgcolor=color))
             controls.append(ft.Container(left=x,top=min(yo,yc),width=max(3,width/len(bars)-2),height=max(2,abs(yc-yo)),bgcolor=color))
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness")],spacing=3)
+        # Fixed candle-derived reference guides, not interactive touch drawings.
+        mode=drawing_mode[0]
+        if mode=="Horizontal":
+            y=10+(high-bars[-1][4])/spread*195
+            controls.append(ft.Container(left=0,top=y,width=width,height=1,bgcolor=GOLD))
+        elif mode=="Vertical":
+            x=(len(bars)-1)*width/len(bars)+2
+            controls.append(ft.Container(left=x,top=0,width=1,height=height,bgcolor=GOLD))
+        elif mode=="Fibonacci":
+            for ratio in (0.236,0.382,0.5,0.618,0.786):
+                y=10+ratio*195
+                controls.append(ft.Container(left=0,top=y,width=width,height=1,bgcolor=GOLD))
+        guide=note("Guide: "+mode+" • candle-derived reference, not draggable") if mode in ("Horizontal","Vertical","Fibonacci") else note("Drawing overlays: none • touch drawing not implemented")
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness"),guide],spacing=3)
     def drawing_action(v):
-        drawing_mode[0]=v
-        chart_message.value=f"Drawing tool: {v}. Select another tool to change mode."
-        page.update()
+        drawing_mode[0]="None" if v=="Clear" else v
+        if v=="Trendline":
+            chart_message.value="Trendline touch drawing is not implemented • no line added"
+        elif v=="Clear":
+            chart_message.value="Candle reference guides cleared"
+        else:
+            chart_message.value="Selected "+v+" • reference guide uses loaded candles; not draggable"
+        select(5)
     chart_quantity=ft.TextField(label="Paper quantity",value="1",width=140,keyboard_type=ft.KeyboardType.NUMBER)
     chart_sl=ft.TextField(label="Stop loss % (paper)",value="2",width=150,keyboard_type=ft.KeyboardType.NUMBER)
     chart_target=ft.TextField(label="Target % (paper)",value="4",width=150,keyboard_type=ft.KeyboardType.NUMBER)
@@ -1233,14 +1404,35 @@ def app_main(page:ft.Page):
     def trade_history():
         return prefs.setdefault("paper_history",[])
     def position_pnl(p):
-        price=(quotes.get(p["symbol"]) or {}).get("price")
-        if price is None:return None
-        return (float(price)-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1)
+        quote=quotes.get(p["symbol"]) or {}
+        expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+        try:
+            age=time.time()-float(quote.get("quote_timestamp"))
+            price=finite(quote.get("price"),"Paper mark",.000001)
+            if quote.get("source")!=expected or quote.get("cached") or not 0<=age<=90:
+                return None
+            return (price-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1)
+        except (ValueError,TypeError,OverflowError,KeyError):
+            return None
     def exit_paper(sym):
         p=open_positions().pop(sym,None)
         if p:
-            pnl=position_pnl(p)
-            trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":(quotes.get(sym) or {}).get("price"),"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds")})
+            # Only record an exit P&L when the mark is positive, recent and from the active provider.
+            quote=quotes.get(sym) or {}
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            try:
+                age=time.time()-float(quote.get("quote_timestamp"))
+                mark=finite(quote.get("price"),"Exit mark",.000001)
+                valid=quote.get("source")==expected and not quote.get("cached") and 0<=age<=90
+            except (ValueError,TypeError,OverflowError):
+                valid=False;mark=None
+            pnl=(mark-float(p["entry"]))*int(p["qty"])*(1 if p["side"]=="BUY" else -1) if valid else None
+            trade_history().append({"event":"EXIT","symbol":sym,"side":p["side"],"qty":p["qty"],"price":mark if valid else None,"pnl":pnl,"time":datetime.now().isoformat(timespec="seconds"),"mark_status":"recent_provider_quote" if valid else "unknown"})
+            ledger=paper_risk_ledger()
+            if pnl is None:
+                ledger["unknown_exits"]=int(ledger.get("unknown_exits",0))+1
+            else:
+                ledger["realized_loss"]=float(ledger.get("realized_loss",0))+max(0,-pnl)
             save()
         select(current[0])
     def chart_paper_trade(side):
@@ -1252,8 +1444,17 @@ def app_main(page:ft.Page):
             else:chart_paper_status.value="No open position for "+sym
         else:
             try:
+                if mode.value!="Paper" or emergency_stop.value:
+                    raise ValueError("Paper mode required and emergency stop must be off")
+                quote=quotes.get(sym) or {}
+                expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+                stamp=quote.get("quote_timestamp")
+                age=time.time()-float(stamp) if stamp is not None else float("inf")
+                if (quote.get("source")!=expected or quote.get("cached")
+                        or not 0<=age<=90):
+                    raise ValueError("Recent current-provider quote unavailable")
                 qty=int(chart_quantity.value)
-                price=(quotes.get(sym) or {}).get("price")
+                price=finite(quote.get("price"),"Paper quote",.000001)
                 sl_pct=float(chart_sl.value);target_pct=float(chart_target.value)
                 if qty<1 or qty>100000 or price is None or not (0<sl_pct<=100 and 0<target_pct<=100):raise ValueError()
                 if sym in open_positions():
@@ -1263,6 +1464,20 @@ def app_main(page:ft.Page):
                 price=float(price)
                 sl_price=price*(1-sl_pct/100 if side=="BUY" else 1+sl_pct/100)
                 target_price=price*(1+target_pct/100 if side=="BUY" else 1-target_pct/100)
+                validate_field(limit,"max_trades",limit.value)
+                validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
+                ledger=paper_risk_ledger()
+                if int(ledger.get("unknown_exits",0))>0:
+                    raise ValueError("Unknown paper exit P&L: reconcile daily risk before another entry")
+                if int(ledger["entries"])>=int(limit.value):
+                    raise ValueError("Daily paper entry limit reached")
+                planned_risk=check_trade_risk(price,qty,sl_price)
+                if float(ledger.get("realized_loss",0))>=float(max_daily_loss.value):
+                    raise ValueError("Daily realized paper loss limit reached")
+                if planned_risk>float(max_daily_loss.value)-float(ledger["planned_risk_used"])+1e-9:
+                    raise ValueError("Daily paper planned-risk budget exceeded")
+                ledger["entries"]+=1
+                ledger["planned_risk_used"]+=planned_risk
                 open_positions()[sym]={"symbol":sym,"side":side,"entry":price,"qty":qty,"sl":sl_price,"target":target_price,"time":datetime.now().isoformat(timespec="seconds")}
                 trade_history().append({"event":side,"symbol":sym,"side":side,"qty":qty,"price":price,"time":datetime.now().isoformat(timespec="seconds")})
                 saved=save()
@@ -1291,7 +1506,7 @@ def app_main(page:ft.Page):
             controls.append(note(h.get("time","")+" • "+h.get("event","")+" "+h.get("symbol","")+" ×"+str(h.get("qty",""))))
         return section("My Positions • Paper Only",ft.Column(controls,spacing=9))
     def chart_analysis_panel(kind):
-        quote=quotes.get(symbol.value) or {}
+        quote=chart_snapshot(symbol.value)
         result=chart_indicators(quote.get("bars") or [])
         if result["status"]!="AVAILABLE":
             return section(kind,note("Analysis unavailable: "+result["reason"]))
@@ -1313,31 +1528,119 @@ def app_main(page:ft.Page):
                 txt(chart_position_text(),12,GOLD),chart_paper_status,
                 note("Simulation only • no real orders")
             ])))
-            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
+            selected=[n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value]
+            indicator_rows=[ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,
+                            ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),
+                            note("Selected: "+(", ".join(selected) if selected else "None"))]
+            snapshot=chart_snapshot(symbol.value)
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            if snapshot.get("source")!=expected:
+                indicator_rows.append(note("Indicator values unavailable • selected provider data not loaded"))
+            else:
+                result=chart_indicators(snapshot.get("bars") or [])
+                if result.get("status")!="AVAILABLE":
+                    indicator_rows.append(note("Indicator values unavailable • "+str(result.get("reason","insufficient candles"))))
+                else:
+                    indicator_rows.append(note("Computed from "+str(result["count"])+" validated candles • "+
+                                               str(snapshot.get("freshness","unverified"))+" • not verified live"))
+                    if ema.value:
+                        indicator_rows.append(note("EMA20: "+format(result["ema20"],",.2f")+" • EMA50: "+format(result["ema50"],",.2f")))
+                    if rsi.value:
+                        indicator_rows.append(note("RSI14: "+format(result["rsi14"],".2f")))
+                    if atr.value:
+                        indicator_rows.append(note("ATR14: "+format(result["atr14"],",.2f")))
+            unsupported=[n for n,c in [("EMA200",ema200),("SMA50",sma50),("Bollinger",bollinger),
+                                         ("VWAP",vwap),("MACD",macd),("Volume overlay",volume),
+                                         ("Supertrend",supertrend)] if c.value]
+            if unsupported:
+                indicator_rows.append(note("Not calculated/displayed on this chart: "+", ".join(unsupported)))
+            indicator_rows.append(note("Indicator overlays are not drawn on the candlestick chart yet."))
+            content.append(section("Indicators • Toggle On / Off",ft.Column(indicator_rows,spacing=5)))
         elif chart_tab[0]=="Drawing":
-            content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
+            content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Horizontal: latest candle close • Vertical: latest candle • Fibonacci: visible high/low range • Trendline touch drawing unavailable"),note("Switch to Chart tab to see candle reference guides; not draggable."),chart_message])))
         elif chart_tab[0]=="Compare":
-            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol trend with the current chart.")])))
+            peer=compare_symbol.value
+            peer_quote=chart_snapshot(peer)
+            current_quote=chart_snapshot(symbol.value)
+            peer_bars=peer_quote.get("bars") or []
+            base_bars=current_quote.get("bars") or []
+            peer_source=peer_quote.get("source")
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            comparison=[compare_symbol,ft.ElevatedButton("Compare / Refresh",on_click=lambda e:page.run_task(load_comparison))]
+            if peer==symbol.value:
+                comparison.append(note("Choose a different symbol to compare."))
+            elif peer_source!=expected or len(peer_bars)<2 or current_quote.get("source")!=expected or len(base_bars)<2:
+                comparison.append(note("Comparison unavailable • both symbols require verified provider candle history"))
+            else:
+                comparison.extend([note(symbol.value+" • "+str(len(base_bars))+" candles • "+str(current_quote.get("freshness","unverified"))),
+                                   ft.Container(content=tiny_chart(symbol.value),height=120),
+                                   note(peer+" • "+str(len(peer_bars))+" candles • "+str(peer_quote.get("freshness","unverified"))),
+                                   ft.Container(content=tiny_chart(peer,peer_quote),height=120),
+                                   note("Separate price trends • not normalized returns or a live signal")])
+            comparison.append(chart_message)
+            content.append(section("Compare Symbols",ft.Column(comparison,spacing=5)))
         elif chart_tab[0]=="Levels":
             content.append(chart_analysis_panel("Market Levels"))
         else:
             content.append(chart_analysis_panel("Signals"))
         return content
+    chart_load_busy=[False]
+    chart_load_pending=[False]
     async def load_chart():
+        if chart_load_busy[0]:
+            # Queue the latest selection instead of silently dropping it.
+            chart_load_pending[0]=True
+            chart_message.value="Chart request queued for latest selection..."
+            page.update()
+            return
+        chart_load_busy[0]=True
+        sym=symbol.value;tf=timeframe.value;generation=provider_generation[0]
         try:
-            quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Chart updated • "+str(quotes[symbol.value].get("source","unknown"))
+            chart_message.value="Loading "+str(sym)+" "+str(tf)+" candles..."
+            if current[0]==5:page.update()
+            data=await asyncio.to_thread(get_market_data,sym,tf,"5d" if tf in ["1m","5m","15m"] else "1mo")
+            if generation!=provider_generation[0] or sym!=symbol.value or tf!=timeframe.value:
+                return
+            chart_snapshots[(sym,tf,generation)]=data
+            bars=data.get("bars") or []
+            chart_message.value=("Chart updated • "+str(data.get("source","unknown"))+
+                                 " • "+str(len(bars))+" candles • "+str(data.get("freshness","unverified"))+
+                                 " • verify timestamp before trading")
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
+            log_error("load_chart",exc)
             chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+" • last available chart retained if cached"
-        select(5)
+        finally:
+            chart_load_busy[0]=False
+            if current[0]==5:request_view_refresh(5)
+            if chart_load_pending[0]:
+                chart_load_pending[0]=False
+                if current[0]==5 and (sym!=symbol.value or tf!=timeframe.value or generation!=provider_generation[0]):
+                    page.run_task(load_chart)
     async def load_comparison():
+        peer=compare_symbol.value
+        tf=timeframe.value
+        generation=provider_generation[0]
+        if peer==symbol.value:
+            chart_message.value="Choose a different symbol to compare."
+            select(5)
+            return
         try:
-            quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
-            chart_message.value=f"{compare_symbol.value} loaded"
-        except Exception as exc:chart_message.value="Comparison data unavailable: "+safe_error(exc)
-        select(5)
+            data=await asyncio.to_thread(get_market_data,peer,tf,"5d" if tf in ("1m","5m","15m") else "1mo")
+            if generation!=provider_generation[0] or peer!=compare_symbol.value or tf!=timeframe.value:
+                return
+            chart_snapshots[(peer,tf,generation)]=data
+            chart_message.value=peer+" comparison loaded • "+str(len(data.get("bars") or []))+" candles • "+str(data.get("freshness","unverified"))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("chart_comparison",exc)
+            chart_message.value="Comparison data unavailable: "+safe_error(exc)
+        finally:
+            if current[0]==5:request_view_refresh(5)
     chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()])
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK")
     option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]])
@@ -1485,7 +1788,7 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
-            options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API")])
+            options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])
         def changed(e):
             source.value=e.control.value
             source.on_change(type("SourceChange",(),{"control":source})())
@@ -1553,10 +1856,14 @@ def app_main(page:ft.Page):
                 except Exception as exc:log_error("selected_quote",exc)
             await asyncio.sleep(15)
     def selected_option_rows():
+        # Cached Angel One contracts must never appear as current Dhan/Yahoo option data.
+        if prefs.get("source")!="Broker API" or not angel_feed.connected:
+            return []
         if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value:
             return option_feed.get("rows",[])
-        previous=market_store.get("options",chain_symbol.value,expiry.value) or {}
-        return previous.get("rows",[])
+        # A persisted strike window is historical evidence, not a fresh broker quote.
+        # Do not resurrect it as current option-chain data after reconnect or restart.
+        return []
     def option_metrics(kind):
         rows=selected_option_rows()
         if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. The selected quote provider does not supply verified option-chain data; no values are estimated.")
@@ -2113,6 +2420,8 @@ def app_main(page:ft.Page):
                 validate_field(limit,"max_trades",limit.value)
                 validate_field(max_daily_loss,"max_daily_loss",max_daily_loss.value)
                 ledger=paper_risk_ledger()
+                if int(ledger.get("unknown_exits",0))>0:
+                    raise ValueError("Unknown paper exit P&L: reconcile daily risk before another entry")
                 if int(ledger["entries"])>=int(limit.value):
                     raise ValueError("Daily paper entry limit reached. EXIT remains available.")
                 stop,take=levels(side,p,st,tg)
@@ -2161,15 +2470,33 @@ def app_main(page:ft.Page):
                 paper_position.update(side=None,entry=None,symbol=None)
                 paper_status.color=GREEN
             else:paper_status.value="No paper position to exit."
+        elif paper_position["side"]:
+            paper_status.value="Exit the existing quick paper position before another entry."
+            paper_status.color=RED
+        elif emergency_stop.value:
+            paper_status.value="Emergency stop active. Quick paper entries blocked."
+            paper_status.color=RED
         else:
             sym=symbol.value
             q=quotes.get(sym)
-            if not q or q.get("price") is None:
-                paper_status.value="Cannot simulate entry: verified quote unavailable."
+            expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            stamp=q.get("quote_timestamp") if q else None
+            try:
+                age=time.time()-float(stamp)
+                quote_fresh=0<=age<=90
+            except (TypeError,ValueError,OverflowError):
+                quote_fresh=False
+            try:
+                paper_price=finite(q.get("price"),"Paper quote",.000001) if q else None
+            except (ValueError,TypeError,OverflowError):
+                paper_price=None
+            if (paper_price is None or q.get("source")!=expected_source
+                    or q.get("cached") or not quote_fresh):
+                paper_status.value="Cannot simulate entry: positive current-provider quote with recent timestamp unavailable; exchange verification not implied."
                 paper_status.color=RED
             else:
-                paper_position.update(side=side,entry=q["price"],symbol=sym)
-                paper_status.value=f"Paper {side} {sym} @ {q['price']:,.2f} • SL {sl.value}% • Target {target.value}% (not an actual order)"
+                paper_position.update(side=side,entry=paper_price,symbol=sym)
+                paper_status.value=f"Paper {side} {sym} @ {paper_price:,.2f} • SL {sl.value}% • Target {target.value}% (not an actual order)"
                 paper_status.color=GREEN
         page.update()
 
@@ -2462,7 +2789,7 @@ def app_main(page:ft.Page):
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
-    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","60")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
+    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","30")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=11,color=MUTED)
     if not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
     scan_last_candle=[None]
@@ -2730,6 +3057,10 @@ console.log('BOT KING Lightweight Charts ready');
         # No background service: refresh runs only while this app/page is alive.
         initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
+            if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+                scan_next_refresh[0]=None
+                scan_status.value="Dhan login required • automatic scan paused"
+                await asyncio.sleep(5);continue
             if not app_active[0]:
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5);continue
@@ -2913,6 +3244,10 @@ console.log('BOT KING Lightweight Charts ready');
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            scan_status.value="Dhan login required • scan paused"
+            page.update()
+            return
         if scan_busy[0]:return
         scan_busy[0]=True
         if not scan_live.value:
@@ -2926,6 +3261,10 @@ console.log('BOT KING Lightweight Charts ready');
             await scan_market()
     async def scan_market():
         nonlocal market_status
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            scan_status.value="Dhan login required • scan paused"
+            scan_busy[0]=False
+            return
         generation=scan_generation[0]
         import math
         from datetime import timezone
@@ -3255,6 +3594,11 @@ console.log('BOT KING Lightweight Charts ready');
         body.controls[:]=controls
         if changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected:
             page.run_task(refresh_watch_batch)
+        if changed and i==5 and not chart_load_busy[0]:
+            snapshot=quotes.get(symbol.value) or {}
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            if snapshot.get("source")!=expected or not snapshot.get("bars"):
+                page.run_task(load_chart)
         for j,(icon,label) in enumerate(nav_items):
             icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
@@ -3449,16 +3793,16 @@ console.log('BOT KING Lightweight Charts ready');
                 except Exception:pass
             # On a closed session, one transient all-symbol failure should not
             # strand the scanner until the user reconnects. Retry only once per
-            # provider generation after a 15-minute cooldown; never loop rapidly
+            # provider generation after a 3-minute cooldown; never loop rapidly
             # over 51 rate-sensitive Dhan history endpoints.
             if (prefs.get("source")=="Dhan" and dhan_feed.connected
                     and not regular_hours() and successes==0
                     and closed_session_retry_generation!=generation):
                 closed_session_retry_generation=generation
-                scan_progress["state"]="No fresh histories • one automatic retry in 15 minutes"
+                scan_progress["state"]="No fresh histories • one automatic retry in 3 minutes"
                 # Check for foreground reconnects/provider changes during the
-                # cooldown instead of blocking their new scan for 15 minutes.
-                for _ in range(180):
+                # cooldown instead of blocking their new scan for 3 minutes.
+                for _ in range(36):
                     if (provider_generation[0]!=generation or prefs.get("source")!="Dhan"
                             or not dhan_feed.connected):
                         break
@@ -3486,6 +3830,8 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    page.run_task(dashboard_index_quote_poll)
+    page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
         if resume_busy[0]:return
@@ -3501,7 +3847,7 @@ console.log('BOT KING Lightweight Charts ready');
                     chart_sym=symbol.value
                     chart_tf=timeframe.value
                     chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
-                    if generation==provider_generation[0] and chart_sym==symbol.value:quotes[chart_sym]=chart_data
+                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
             if generation==provider_generation[0] and app_active[0]:
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])

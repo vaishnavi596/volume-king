@@ -2,7 +2,7 @@ name: BOT KING Offline Regression Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, botking-scanner-auth-30s-20261111]
     paths:
       - 'src/**'
       - 'tests/**'

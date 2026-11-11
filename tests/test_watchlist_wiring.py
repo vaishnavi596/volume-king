@@ -41,7 +41,7 @@ class WatchlistWiringTests(unittest.TestCase):
 
     def test_search_filter_and_chart_click_wired(self):
         self.assertIn("search.on_change=fill_watch", self.source)
-        self.assertIn("watch_filter[0]!=direction", self.source)
+        self.assertIn("watch_filter[0]!=signal_direction", self.source)
         self.assertIn("on_click=lambda e,v=sym:open_stock(v)", self.source)
         self.assertIn("on_click=lambda e,v=sym:remove_stock(v)", self.source)
 
