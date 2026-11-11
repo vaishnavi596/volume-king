@@ -446,7 +446,7 @@ class AuditTests(unittest.TestCase):
                and node.func.attr=='sleep' and node.args]
         self.assertTrue(any(isinstance(node.args[0],ast.Constant)
                             and node.args[0].value==5 for node in waits))
-        self.assertTrue(any(isinstance(node,ast.Constant) and node.value==180
+        self.assertTrue(any(isinstance(node,ast.Constant) and node.value==36
                             for node in ast.walk(body)))
         retry_conditions=[node for node in ast.walk(body)
                           if isinstance(node,ast.If)
