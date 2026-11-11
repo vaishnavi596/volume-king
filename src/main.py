@@ -1812,6 +1812,9 @@ def app_main(page:ft.Page):
                 except Exception as exc:log_error("selected_quote",exc)
             await asyncio.sleep(15)
     def selected_option_rows():
+        # Cached Angel One contracts must never appear as current Dhan/Yahoo option data.
+        if prefs.get("source")!="Broker API" or not angel_feed.connected:
+            return []
         if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value:
             return option_feed.get("rows",[])
         previous=market_store.get("options",chain_symbol.value,expiry.value) or {}
