@@ -1,0 +1,11 @@
+[Unit]
+Description=Check BOT KING Dhan Web token renewal every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=30
+Unit=botking-dhan-renewal.service
+
+[Install]
+WantedBy=timers.target
