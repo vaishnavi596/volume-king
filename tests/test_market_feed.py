@@ -34,7 +34,8 @@ class FeedTests(unittest.TestCase):
         with self.assertRaises(FeedError):feed.connect('','','','')
 
     def test_partial_stale_and_selected_window_pcr(self):
-        _,v=start({'scanner_live':False})
+        _,v=start({'source':'Broker API','scanner_live':False})
+        v['angel_feed'].key='test';v['angel_feed'].token='test'
         rows=[{'strike':24000,'side':side,'premium':100,'oi':oi,'timestamp':time.time()} for side,oi in [('CE',100),('PE',200)]]
         v['option_feed'].update(symbol=v['chain_symbol'].value,expiry=v['expiry'].value,rows=rows,complete=True)
         self.assertIn('2.000',v['option_metrics']('PCR').value)
