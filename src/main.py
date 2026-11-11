@@ -2427,8 +2427,16 @@ def app_main(page:ft.Page):
         else:
             sym=symbol.value
             q=quotes.get(sym)
-            if not q or q.get("price") is None:
-                paper_status.value="Cannot simulate entry: verified quote unavailable."
+            expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            stamp=q.get("quote_timestamp") if q else None
+            try:
+                age=time.time()-float(stamp)
+                quote_fresh=0<=age<=90
+            except (TypeError,ValueError,OverflowError):
+                quote_fresh=False
+            if (not q or q.get("price") is None or q.get("source")!=expected_source
+                    or q.get("cached") or not quote_fresh):
+                paper_status.value="Cannot simulate entry: current-provider quote with recent verified timestamp unavailable."
                 paper_status.color=RED
             else:
                 paper_position.update(side=side,entry=q["price"],symbol=sym)
