@@ -94,6 +94,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn('market_store.get("options"', source[start:end])
         self.assertIn("return []", source[start:end])
 
+    def test_chart_paper_entry_checks_source_freshness_and_stop(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        block = source[source.index("    def chart_paper_trade(side):"):source.index("    def chart_position_text():")]
+        self.assertIn('mode.value!="Paper" or emergency_stop.value', block)
+        self.assertIn('quote.get("source")!=expected', block)
+        self.assertIn('not 0<=age<=90', block)
+        self.assertIn('finite(quote.get("price")', block)
+
     def test_quick_paper_entry_honors_emergency_stop(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         block = source[source.index("    def paper_trade(side):"):source.index("    field_bindings=[]")]
