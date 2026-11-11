@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.72"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.73"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -1653,6 +1653,11 @@ def app_main(page:ft.Page):
         page.update()
     def clear_broker_credentials(e):
         page.run_task(revoke_and_clear)
+    def pairing_diagnostic(key):
+        # Display only a short digest and length, never the secret itself.
+        import hashlib
+        raw=key.encode("utf-8")
+        return "Key length "+str(len(raw))+" bytes • SHA256 first 12: "+hashlib.sha256(raw).hexdigest()[:12]
     async def connect_angel():
         nonlocal market_status
         if broker_connect_busy[0]:return
@@ -1781,7 +1786,7 @@ def app_main(page:ft.Page):
                 log_error("dhan_status_http",exc)
                 code=exc.code
                 if code==403:
-                    detail="Dhan /status returned HTTP 403. Server pairing works separately; inspect this phone request and header."
+                    detail="Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code in (502,503,504):
@@ -1877,7 +1882,7 @@ def app_main(page:ft.Page):
                 result=await asyncio.to_thread(request_consent)
             except urllib.error.HTTPError as exc:
                 if exc.code == 403:
-                    raise FeedError("Dhan /start rejected the pairing key (HTTP 403), although /status accepted it. Check server route and request logs.") from None
+                    raise FeedError("Dhan /start HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint.") from None
                 raise
             login_url=result.get("login_url","") if isinstance(result,dict) else ""
             parsed=urlsplit(login_url)
@@ -1889,8 +1894,13 @@ def app_main(page:ft.Page):
             page.update()
             page.launch_url(login_url)
         except urllib.error.HTTPError as exc:
-            connection_status.value=("Dhan /status rejected the server key (HTTP 403); verify request header and endpoint." if exc.code==403 else
+            connection_status.value=("Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint." if exc.code==403 else
                 "Dhan authorization could not start (HTTP "+str(exc.code)+"). Check server Dhan credentials and pending login.")
+            connection_status.color=RED
+            page.update()
+        except FeedError as exc:
+            log_error("dhan_oauth_start",exc)
+            connection_status.value=str(exc) if "Dhan /start HTTP 403" in str(exc) else "Dhan authorization could not start. Check HTTPS connection and server configuration."
             connection_status.color=RED
             page.update()
         except Exception as exc:
