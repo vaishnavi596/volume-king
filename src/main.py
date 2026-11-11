@@ -3371,9 +3371,13 @@ console.log('BOT KING Lightweight Charts ready');
                 history_failed=[0]
                 cycle_data={}
                 dhan_history_throttled=[False]
+                dhan_history_skipped=[0]
                 async def load_one(sym):
                     async with semaphore:
                         if prefs.get("source")=="Dhan" and dhan_history_throttled[0]:
+                            dhan_history_skipped[0]+=1
+                            market_completed[0]+=1
+                            scan_progress["state"]="Dhan HTTP 429 cooldown • "+str(dhan_history_skipped[0])+" histories skipped (not requested)"
                             return False
                         try:
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
@@ -3413,8 +3417,8 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 successes=sum(results)
                 if dhan_history_throttled[0]:
-                    market_status="Dhan HTTP 429 • stopped remaining history requests; wait before reconnecting"
-                    scan_progress["state"]="Dhan history paused due to rate limit • no immediate retry"
+                    market_status="Dhan HTTP 429 • "+str(dhan_history_skipped[0])+" history requests skipped during cooldown"
+                    scan_progress["state"]="Dhan rate limit • "+str(dhan_history_skipped[0])+" history requests skipped; no immediate retry"
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
                     market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
@@ -3469,7 +3473,10 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
-                scan_progress["state"]="Complete" if scan_progress["valid"] else "No valid data; last saved results retained"
+                scan_progress["state"]=("Complete • "+str(dhan_history_skipped[0])+" Dhan histories skipped by cooldown" if scan_progress["valid"] and dhan_history_skipped[0] else
+                    "Complete" if scan_progress["valid"] else
+                    "Dhan HTTP 429 • "+str(dhan_history_skipped[0])+" histories skipped (not requested); saved results retained" if dhan_history_throttled[0] else
+                    "No valid data; last saved results retained")
                 async def enrich(candidate):
                     async with semaphore:
                         try:combined=await asyncio.wait_for(load_combined(candidate["symbol"],"5m",candidate),timeout=20)
