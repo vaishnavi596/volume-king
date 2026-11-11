@@ -68,6 +68,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_watchlist_enforces_fifty_symbol_limit_after_async_validation(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("if len(watch_groups[target_list])>=50:", source)
+        self.assertIn("elif len(watch_groups[target_list])>=50:", source)
+        self.assertIn("List is full (50 symbols maximum). Remove a symbol first.", source)
+
     def test_chart_drawing_guides_do_not_claim_touch_support(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('drawing_mode[0]="None" if v=="Clear" else v', source)
