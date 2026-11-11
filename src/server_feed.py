@@ -196,6 +196,27 @@ class ServerDhanReadOnly:
                     type(self)._cooldown_until = max(type(self)._cooldown_until, time.monotonic() + seconds)
                 raise FeedError("Dhan market data rate limited (HTTP 429); retry after " + str(seconds) + " seconds") from None
             if exc.code in (502, 503, 504):
+                # Read only the server's structured, allowlisted diagnostic.
+                # Never expose arbitrary upstream error bodies or credentials.
+                diagnostic = ""
+                try:
+                    body = json.loads(exc.read(4096))
+                    if isinstance(body, dict):
+                        detail = body.get("detail")
+                        safe_details = {
+                            "Dhan token expired or market data not entitled": "Dhan token expired or market-data permission missing",
+                            "Dhan rejected batch quote request; check entitlement and instruments": "Dhan batch rejected; check entitlement and instrument mapping",
+                            "Dhan batch response malformed or too large": "Dhan batch response invalid or too large",
+                            "Dhan batch network request failed": "Dhan batch network request failed",
+                            "Dhan credentials not configured": "Dhan server credentials not configured",
+                            "Dhan returned no market data for verified NSE equities": "Dhan batch returned no NSE equity quotes",
+                            "Invalid Dhan batch quote response": "Dhan batch response invalid",
+                        }
+                        diagnostic = safe_details.get(detail, "") if isinstance(detail, str) else ""
+                except (ValueError, TypeError, UnicodeError, OSError):
+                    pass
+                if diagnostic:
+                    raise FeedError(diagnostic + " (HTTP " + str(exc.code) + ")") from None
                 raise FeedError("Dhan upstream unavailable or token expired (HTTP " + str(exc.code) + ")") from None
             raise FeedError("Dhan server HTTP " + str(exc.code)) from None
         except FeedError:
