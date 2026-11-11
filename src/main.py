@@ -1860,11 +1860,10 @@ def app_main(page:ft.Page):
             existing=await asyncio.to_thread(check_existing_token)
             if not isinstance(existing,dict) or existing.get("live_orders_enabled") is not False:
                 raise FeedError("Invalid Dhan status response")
-            if existing.get("market_data_configured") is True:
-                # Connect / Check verifies actual NIFTY LTP or real historical
-                # candles before activating the app; a token flag alone is not enough.
-                await connect_angel()
-                return
+            # Explicit Dhan authorization must always request fresh consent.
+            # The server's market_data_configured flag only means a token file
+            # exists; an expired/revoked token can still set it to True.
+            # Connect / Check remains a separate, quote-verified action.
             def request_consent():
                 req=urllib.request.Request(origin+"/dhan/start",data=b"",
                     headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="POST")
