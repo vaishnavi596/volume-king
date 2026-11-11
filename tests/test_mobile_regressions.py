@@ -118,6 +118,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('0<=age<=90', block)
         self.assertIn('"mark_status":"recent_provider_quote" if valid else "unknown"', block)
 
+    def test_unknown_paper_exits_block_chart_and_bot_reentry(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        chart = source[source.index("    def chart_paper_trade(side):"):source.index("    def chart_position_text():")]
+        bot = source[source.index("    def bot_paper_action_locked(side):"):source.index("    sl=ft.TextField(label=")]
+        guard = 'int(ledger.get("unknown_exits",0))>0'
+        self.assertIn(guard, chart)
+        self.assertIn(guard, bot)
+
     def test_chart_paper_entry_uses_shared_daily_risk_ledger(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         block = source[source.index("    def chart_paper_trade(side):"):source.index("    def chart_position_text():")]
