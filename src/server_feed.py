@@ -314,7 +314,14 @@ class ServerDhanReadOnly:
         try:
             result = self._call("/dhan/ltp-batch", {})
         except FeedError as exc:
-            if not any(("HTTP " + str(code)) in str(exc) for code in (502, 503, 504)):
+            # Do not retry invalid payloads, expired tokens, missing entitlement,
+            # or absent credentials: another request cannot repair these.
+            detail = str(exc)
+            transient = (
+                detail.startswith("Dhan upstream unavailable or token expired (HTTP 50")
+                or detail.startswith("Dhan batch network request failed (HTTP 50")
+            )
+            if not transient:
                 raise
             time.sleep(1.5)
             result = self._call("/dhan/ltp-batch", {})
