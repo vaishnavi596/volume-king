@@ -25,7 +25,7 @@ class HelpQualityTests(unittest.TestCase):
         self.assertIn('validation error',dialog.content.controls[2].value)
         v['close_help'](dialog);self.assertFalse(dialog.open)
     def test_help_does_not_reveal_credentials(self):
-        _,v=start({'scanner_live':False})
+        _,v=start({'scanner_live':False,'broker':'Angel One'})
         field=next(iter(v['credential_inputs'].values()));field.value='PRIVATE_SECRET'
         dialog=v['show_help']('API Key',field)
         self.assertNotIn('PRIVATE_SECRET',str([c.value for c in dialog.content.controls]))
