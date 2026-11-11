@@ -481,7 +481,14 @@ def app_main(page:ft.Page):
                 start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)  # Backend permits at most five days
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
                 bars=clean_bars(candle_result["bars"])
-                if not bars:raise FeedError("Dhan returned no verified candles")
+                if not bars:
+                    if candle_result.get("freshness")=="no_candles_available":
+                        raise FeedError(
+                            "Dhan has no candles for requested dates "+
+                            str(start)+" to "+str(today)+
+                            "; historical data unavailable, not a live feed"
+                        )
+                    raise FeedError("Dhan returned no verified candles")
                 # Historical candles must not be presented as a verified live quote.
                 if bars[-1][0]>time.time()+300:raise FeedError("Dhan candle timestamp is in the future")
                 quote=None
