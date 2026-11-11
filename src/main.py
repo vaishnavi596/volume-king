@@ -1123,8 +1123,11 @@ def app_main(page:ft.Page):
             symbol.options.append(ft.dropdown.Option(sym))
         symbol.value=sym
         chart_tab[0]="Chart"
-        select(5)
-        page.run_task(load_chart)
+        # Avoid a second request when render_page already schedules chart loading.
+        if current[0]==5:
+            page.run_task(load_chart)
+        else:
+            select(5)
     def remove_stock(sym):
         group=watch_groups[active_watch[0]]
         if sym in group:
@@ -1137,13 +1140,13 @@ def app_main(page:ft.Page):
         visible_count=0
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
-            change=(quotes.get(sym) or {}).get("change") if not dhan_offline() else None
-            # Price movement and candle-filter agreement are different signals.
-            valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
-            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
             quote_row=quotes.get(sym) or {}
             quote_source=quote_row.get("source")
             expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+            change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
+            # Price movement and candle-filter agreement are different signals.
+            valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
+            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
             quote_age=time.time()-quote_row.get("fetched_at",0) if isinstance(quote_row.get("fetched_at"),(int,float)) else None
             quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
                          and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
