@@ -3463,7 +3463,11 @@ console.log('BOT KING Lightweight Charts ready');
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
                         scan_progress["valid"]+=int(bool(result and result.get("timestamp")))
-                        scan_progress["failed"]+=int(not bool(result and result.get("timestamp")))
+                        # A provider cooldown skips upstream requests; skipped histories
+                        # are not failed requests. Retained signals remain historical.
+                        skipped_by_cooldown=(prefs.get("source")=="Dhan" and dhan_history_throttled[0]
+                                             and sym not in cycle_data and sym not in failed_symbols)
+                        scan_progress["failed"]+=int(not bool(result and result.get("timestamp")) and not skipped_by_cooldown)
                         scan_progress["cached"]+=int(bool(data and data.get("cached")))
                         publish_partial_ranking(ranking_results)
                         if current[0] in (0,4):request_view_refresh(current[0])
@@ -3475,7 +3479,7 @@ console.log('BOT KING Lightweight Charts ready');
                 available=publish_partial_ranking(ranking_results)
                 scan_progress["state"]=("Complete • "+str(dhan_history_skipped[0])+" Dhan histories skipped by cooldown" if scan_progress["valid"] and dhan_history_skipped[0] else
                     "Complete" if scan_progress["valid"] else
-                    "Dhan HTTP 429 • "+str(dhan_history_skipped[0])+" histories skipped (not requested); saved results retained" if dhan_history_throttled[0] else
+                    "Dhan HTTP 429 • "+str(dhan_history_skipped[0])+" histories skipped (not requested); saved results retained • no verified fresh analysis" if dhan_history_throttled[0] else
                     "No valid data; last saved results retained")
                 async def enrich(candidate):
                     async with semaphore:
