@@ -147,6 +147,25 @@ if 'location = /dhan/callback' not in config:
     '''
     path.write_text(config.replace(anchor, block + anchor))
 PY
+# BOT KING 226 snapshot and candle reads need an explicit Nginx route.
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+path = Path('/etc/nginx/conf.d/bot-king.conf')
+config = path.read_text()
+if 'location /v2/ {' not in config:
+    anchor = 'location / { return 404; }'
+    if config.count(anchor) != 1:
+        raise SystemExit('Unexpected Nginx configuration; v2 proxy not added')
+    block = '''location /v2/ {
+        client_max_body_size 8k;
+        access_log off;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+        proxy_pass http://127.0.0.1:8000;
+    }
+    '''
+    path.write_text(config.replace(anchor, block + anchor))
+PY
 # Route authenticated Dhan read-only endpoints to the same local gateway.
 # Exact /dhan/callback location above takes precedence over this prefix.
 /usr/bin/python3 - <<'PY'
