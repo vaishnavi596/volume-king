@@ -1313,7 +1313,19 @@ def app_main(page:ft.Page):
     async def load_chart():
         try:
             quotes[symbol.value]=await asyncio.to_thread(get_market_data,symbol.value,timeframe.value,"5d" if timeframe.value in ["1m","5m","15m"] else "1mo")
-            chart_message.value="Chart updated • "+str(quotes[symbol.value].get("source","unknown"))
+            chart_data=quotes[symbol.value]
+            chart_bars=chart_data.get("bars") or []
+            if chart_bars and prefs.get("source")=="Dhan":
+                from datetime import timezone as _chart_tz, timedelta as _chart_delta
+                candle_time=datetime.fromtimestamp(
+                    chart_bars[-1][0],_chart_tz(_chart_delta(hours=5,minutes=30))
+                ).strftime("%d %b %H:%M IST")
+                chart_message.value=(
+                    "Dhan historical candles • last candle "+candle_time+
+                    " • live candle freshness unverified"
+                )
+            else:
+                chart_message.value="Chart updated • "+str(chart_data.get("source","unknown"))
         except Exception as exc:
             chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+" • last available chart retained if cached"
         select(5)
