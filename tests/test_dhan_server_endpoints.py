@@ -59,7 +59,7 @@ class DhanEndpointTests(unittest.TestCase):
                 return {"status": "success", "data": {"NSE_EQ": {
                     "2885": {"last_price": 1234.5}, "1333": {"last_price": 850.0}}}}
 
-        with (patch("backend.server.dhan_market_token", return_value="fake-token"),
+        with (patch("backend.server.Path.read_text", return_value="fake-token"),
               patch("backend.server.DhanFeed", BatchFeed)):
             batch = self.client.post("/dhan/ltp-batch", headers=self.headers)
             self.assertEqual(batch.status_code, 200)
