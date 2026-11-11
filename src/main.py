@@ -1443,9 +1443,12 @@ def app_main(page:ft.Page):
             content.append(chart_analysis_panel("Signals"))
         return content
     chart_load_busy=[False]
+    chart_load_pending=[False]
     async def load_chart():
         if chart_load_busy[0]:
-            chart_message.value="Chart request already running..."
+            # Queue the latest selection instead of silently dropping it.
+            chart_load_pending[0]=True
+            chart_message.value="Chart request queued for latest selection..."
             page.update()
             return
         chart_load_busy[0]=True
@@ -1469,6 +1472,10 @@ def app_main(page:ft.Page):
         finally:
             chart_load_busy[0]=False
             if current[0]==5:request_view_refresh(5)
+            if chart_load_pending[0]:
+                chart_load_pending[0]=False
+                if current[0]==5 and (sym!=symbol.value or tf!=timeframe.value or generation!=provider_generation[0]):
+                    page.run_task(load_chart)
     async def load_comparison():
         try:
             quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
