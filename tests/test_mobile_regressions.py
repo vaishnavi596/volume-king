@@ -68,6 +68,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_closed_market_dhan_retry_uses_three_minute_cooldown(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('one automatic retry in 3 minutes', source)
+        self.assertIn('for _ in range(36):', source)
+        self.assertIn('await asyncio.sleep(5)', source)
+        self.assertNotIn('one automatic retry in 15 minutes', source)
+
     def test_fresh_install_defaults_to_dhan(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('"confidence":75,"source":"Dhan","api_url"', source)
