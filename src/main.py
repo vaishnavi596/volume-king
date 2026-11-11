@@ -3533,7 +3533,9 @@ console.log('BOT KING Lightweight Charts ready');
                         and dhan_feed.connected):
                     last_scanned_generation=None
             else:
-                await asyncio.sleep(120)
+                # Historical Dhan scans are expensive (51+ calls). Never repeat
+                # the entire scan on the short quote-refresh cadence.
+                await asyncio.sleep(900 if prefs.get("source")=="Dhan" else 120)
     async def supervised_market_refresh():
         # A single unhandled exception must not permanently stop all 51 scans.
         while True:
