@@ -1436,7 +1436,26 @@ def app_main(page:ft.Page):
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
-            content.append(section("Compare Symbols",ft.Column([compare_symbol,ft.ElevatedButton("Compare",on_click=lambda e:page.run_task(load_comparison)),note("Compare the selected symbol trend with the current chart.")])))
+            peer=compare_symbol.value
+            peer_quote=quotes.get(peer) or {}
+            current_quote=quotes.get(symbol.value) or {}
+            peer_bars=peer_quote.get("bars") or []
+            base_bars=current_quote.get("bars") or []
+            peer_source=peer_quote.get("source")
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            comparison=[compare_symbol,ft.ElevatedButton("Compare / Refresh",on_click=lambda e:page.run_task(load_comparison))]
+            if peer==symbol.value:
+                comparison.append(note("Choose a different symbol to compare."))
+            elif peer_source!=expected or len(peer_bars)<2 or current_quote.get("source")!=expected or len(base_bars)<2:
+                comparison.append(note("Comparison unavailable • both symbols require verified provider candle history"))
+            else:
+                comparison.extend([note(symbol.value+" • "+str(len(base_bars))+" candles • "+str(current_quote.get("freshness","unverified"))),
+                                   ft.Container(content=tiny_chart(symbol.value),height=120),
+                                   note(peer+" • "+str(len(peer_bars))+" candles • "+str(peer_quote.get("freshness","unverified"))),
+                                   ft.Container(content=tiny_chart(peer),height=120),
+                                   note("Separate price trends • not normalized returns or a live signal")])
+            comparison.append(chart_message)
+            content.append(section("Compare Symbols",ft.Column(comparison,spacing=5)))
         elif chart_tab[0]=="Levels":
             content.append(chart_analysis_panel("Market Levels"))
         else:
@@ -1477,11 +1496,26 @@ def app_main(page:ft.Page):
                 if current[0]==5 and (sym!=symbol.value or tf!=timeframe.value or generation!=provider_generation[0]):
                     page.run_task(load_chart)
     async def load_comparison():
+        peer=compare_symbol.value
+        tf=timeframe.value
+        generation=provider_generation[0]
+        if peer==symbol.value:
+            chart_message.value="Choose a different symbol to compare."
+            select(5)
+            return
         try:
-            quotes[compare_symbol.value]=await asyncio.to_thread(get_market_data,compare_symbol.value)
-            chart_message.value=f"{compare_symbol.value} loaded"
-        except Exception as exc:chart_message.value="Comparison data unavailable: "+safe_error(exc)
-        select(5)
+            data=await asyncio.to_thread(get_market_data,peer,tf,"5d" if tf in ("1m","5m","15m") else "1mo")
+            if generation!=provider_generation[0] or peer!=compare_symbol.value or tf!=timeframe.value:
+                return
+            quotes[peer]=data
+            chart_message.value=peer+" comparison loaded • "+str(len(data.get("bars") or []))+" candles • "+str(data.get("freshness","unverified"))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("chart_comparison",exc)
+            chart_message.value="Comparison data unavailable: "+safe_error(exc)
+        finally:
+            if current[0]==5:request_view_refresh(5)
     chain_symbol=ft.Dropdown(label="Index / Stock",value=prefs.get("option_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()])
     option_add_symbol=ft.TextField(label="Add symbol",hint_text="e.g. HDFCBANK")
     option_expiry_choice=ft.Dropdown(label="Expiry",value=prefs.get("option_expiry_choice","Nearest"),options=[ft.dropdown.Option(x) for x in ["Nearest","Next","Manual"]])
