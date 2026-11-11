@@ -1432,7 +1432,34 @@ def app_main(page:ft.Page):
             ])))
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            content.append(section("Indicators • Toggle On / Off",ft.Column([ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),note("Selected: "+", ".join(n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value)),note("Indicator calculations/overlays require separate implementation and validated candle history.")])))
+            selected=[n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value]
+            indicator_rows=[ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,
+                            ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),
+                            note("Selected: "+(", ".join(selected) if selected else "None"))]
+            snapshot=quotes.get(symbol.value) or {}
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            if snapshot.get("source")!=expected:
+                indicator_rows.append(note("Indicator values unavailable • selected provider data not loaded"))
+            else:
+                result=chart_indicators(snapshot.get("bars") or [])
+                if result.get("status")!="AVAILABLE":
+                    indicator_rows.append(note("Indicator values unavailable • "+str(result.get("reason","insufficient candles"))))
+                else:
+                    indicator_rows.append(note("Computed from "+str(result["count"])+" validated candles • "+
+                                               str(snapshot.get("freshness","unverified"))+" • not verified live"))
+                    if ema.value:
+                        indicator_rows.append(note("EMA20: "+format(result["ema20"],",.2f")+" • EMA50: "+format(result["ema50"],",.2f")))
+                    if rsi.value:
+                        indicator_rows.append(note("RSI14: "+format(result["rsi14"],".2f")))
+                    if atr.value:
+                        indicator_rows.append(note("ATR14: "+format(result["atr14"],",.2f")))
+            unsupported=[n for n,c in [("EMA200",ema200),("SMA50",sma50),("Bollinger",bollinger),
+                                         ("VWAP",vwap),("MACD",macd),("Volume overlay",volume),
+                                         ("Supertrend",supertrend)] if c.value]
+            if unsupported:
+                indicator_rows.append(note("Not calculated/displayed on this chart: "+", ".join(unsupported)))
+            indicator_rows.append(note("Indicator overlays are not drawn on the candlestick chart yet."))
+            content.append(section("Indicators • Toggle On / Off",ft.Column(indicator_rows,spacing=5)))
         elif chart_tab[0]=="Drawing":
             content.append(section("Drawing Tools",ft.Column([ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Trendline","Horizontal","Vertical"]],wrap=True),ft.Row([ft.ElevatedButton(x,on_click=lambda e,v=x:drawing_action(v)) for x in ["Fibonacci","Clear"]],wrap=True),note("Drawing selection works; chart-touch drawing is not yet implemented."),chart_message])))
         elif chart_tab[0]=="Compare":
