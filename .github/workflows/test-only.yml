@@ -35,3 +35,5 @@ jobs:
         run: python -m compileall -q src tests backend
       - name: Run offline regression suite (no APK build)
         run: python -m unittest discover -s tests -v
+
+# Integration branch: validate Dhan batch retry guard.
