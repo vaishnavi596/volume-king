@@ -109,3 +109,17 @@ P7. Run G0–G5 release gates and two open-market acceptance sessions, preserve 
 - Oracle deployment must be backed up and reversible; never print/commit keys or tokens. Provide small command groups or a reviewed idempotent deployment script, verify service and endpoints before/after.
 - No order placement; live_orders_enabled remains false unless separate explicit owner approval and controlled G6 validation.
 - Maintain release ledger with exact source commit, Oracle deployed revision, CI results, artifact, signing fingerprint, device install result and open-market data freshness.
+
+## 226 implementation correction — centralized architecture is NOT yet delivered (2026-11-11)
+The owner's Android screenshots of v2.3.79 prove the old mobile-side batch/historical scan and repeated server-key entry remain. The 429 patch is a legacy hotfix, not completion of 226. Do not label the current APK a 226 release.
+
+### Required staged deliverables and acceptance gates
+1. **Oracle read-only market engine**: a single bounded Dhan ingest scheduler, per-instrument quote cache with source/observed_at/exchange_at/freshness, persistent candle history, one 51/52-symbol scan queue, deduplicated requests, upstream Retry-After/backoff and provider-level circuit breaker. Never send 52 independent Dhan historical calls from Android.
+2. **Versioned mobile snapshot API**: authenticated `/v2/snapshot` (dashboard/watchlist/scan summary) and `/v2/symbol/{symbol}` (quote/candles/indicators), with server timestamp, market-session state, per-symbol errors and stale flags. Keep existing `/dhan/*` endpoints during migration; use feature flags and rollback. Reject unknown symbol, cap payload size and enforce access control.
+3. **Secure pairing + local unlock**: one-time server pairing over TLS, device-scoped revocable session credential stored with Android Keystore protection, optional PIN/biometric local unlock; no plaintext pairing key persistence or Dhan access token on mobile. PIN is NOT a Dhan OAuth login. Preserve upgrade compatibility; design revocation and lost-device recovery.
+4. **New Android screens**: consume Oracle snapshots instead of mobile Dhan batch/52-candle loops, show verified/stale/no-data states, timestamps, server scanner top-five, compact navigation and PIN/fingerprint entry. Remove repeated key prompt after pairing; expose diagnostics without revealing secrets.
+5. **Verification**: offline contract/security/regression tests, Oracle staging smoke test with read-only orders OFF, signed APK upgrade path (same package and signing key, incremented versionCode), real mobile pairing and live market-session freshness tests. No release claim until these gates pass.
+
+**Immediate screenshot evidence**: v2.3.79 watchlist says `Dhan batch failed: Data request failed (FeedError)`, `Loading histories: 38 / 52`, `38 failed`, and cached/unverified prices. Settings still says `Server access key (not saved)` and `Dhan LTP verified; batch quotes unavailable`. These are known failures, not a successful centralized release.
+
+**Security/operations**: Oracle deployment requires owner-operated SSH and backups. Dhan OAuth consent may require user action. Live orders remain OFF until separately authorized.
