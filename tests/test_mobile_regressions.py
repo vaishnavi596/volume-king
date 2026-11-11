@@ -81,6 +81,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('prefs.get("source")!="Broker API" or not angel_feed.connected', source[start:end])
         self.assertIn("return []", source[start:end])
 
+    def test_options_source_chooser_includes_dhan(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def data_source_panel(page_id=None):")
+        end = source.index("    async def refresh_selected_options():", start)
+        self.assertIn('ft.dropdown.Option("Dhan")', source[start:end])
+
     def test_chart_timeframes_do_not_overwrite_scanner_quotes(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         chart_loader = source[source.index("    async def load_chart():"):source.index("    chain_symbol=ft.Dropdown(", source.index("    async def load_chart():"))]
