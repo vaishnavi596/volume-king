@@ -94,6 +94,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn('market_store.get("options"', source[start:end])
         self.assertIn("return []", source[start:end])
 
+    def test_chart_paper_exit_marks_unverified_pnl_unknown(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        block = source[source.index("    def exit_paper(sym):"):source.index("    def chart_paper_trade(side):")]
+        self.assertIn('quote.get("source")==expected', block)
+        self.assertIn('not quote.get("cached")', block)
+        self.assertIn('0<=age<=90', block)
+        self.assertIn('"mark_status":"recent_provider_quote" if valid else "unknown"', block)
+
     def test_chart_paper_entry_checks_source_freshness_and_stop(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         block = source[source.index("    def chart_paper_trade(side):"):source.index("    def chart_position_text():")]
