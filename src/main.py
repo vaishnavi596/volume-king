@@ -24,7 +24,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.78"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.79"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -2132,6 +2132,8 @@ def app_main(page:ft.Page):
                 code=exc.code
                 if code==403:
                     detail="Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint."
+                elif code==429:
+                    detail="Dhan /status HTTP 429 • gateway or server throttled the status check; wait before retrying."
                 elif code==404:
                     detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
                 elif code in (502,503,504):
