@@ -448,6 +448,24 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "security_id": str(sid), "ltp": price, "freshness": "unverified",
                 "live_orders_enabled": False}
 
+    # BOT KING 226: server-owned bounded snapshot cache, no Dhan calls per mobile read.
+    # Cache is process-local until the persistent ingest worker is deployed.
+    snapshot_lock = threading.RLock()
+    snapshot_cache = {"quotes": {}, "unavailable": [], "observed_at": "", "updated_monotonic": 0.0, "error": "not_collected"}
+    snapshot_refresh_lock = threading.Lock()
+
+    @app.get("/v2/snapshot")
+    def botking_snapshot(x_botking_key: Optional[str] = Header(default=None)):
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        with snapshot_lock:
+            age = max(0.0, clock() - snapshot_cache["updated_monotonic"]) if snapshot_cache["updated_monotonic"] else None
+            return {"protocol": 2, "source": "dhan", "quotes": dict(snapshot_cache["quotes"]),
+                    "unavailable": list(snapshot_cache["unavailable"]), "observed_at": snapshot_cache["observed_at"],
+                    "age_seconds": round(age, 1) if age is not None else None,
+                    "freshness": "unverified" if age is not None and age <= 30 else "stale_or_missing",
+                    "error": snapshot_cache["error"], "live_orders_enabled": False}
+
     @app.post("/dhan/ltp-batch")
     def dhan_ltp_batch(x_botking_key: Optional[str] = Header(default=None)):
         """One read-only Dhan request for the verified equity watchlist."""
@@ -496,6 +514,10 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 quotes[symbol] = price
             except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
                 unavailable.append(symbol)
+        with snapshot_lock:
+            snapshot_cache.update(quotes=dict(quotes), unavailable=list(unavailable),
+                                  observed_at=datetime.now(timezone.utc).isoformat(),
+                                  updated_monotonic=clock(), error=None)
         return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
                 "freshness": "unverified", "live_orders_enabled": False}
 
