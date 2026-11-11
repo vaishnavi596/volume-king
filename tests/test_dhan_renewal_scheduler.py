@@ -77,6 +77,27 @@ class RenewalSchedulerTests(unittest.TestCase):
                        side_effect=ValueError("simulated failure")):
                 self.assertEqual(main(["--expiry-file", str(target), "--execute"]), 1)
 
+    def test_execute_unverified_profile_returns_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            save_expiry_metadata(target, expiry)
+            with patch.dict("os.environ", {"DHAN_CLIENT_ID": "offline-test-id"}), \
+                 patch("backend.dhan_renewal_scheduler.renew_web_token",
+                       return_value={"profile_verified": False}) as renew:
+                self.assertEqual(main(["--expiry-file", str(target), "--execute"]), 1)
+                renew.assert_called_once()
+
+    def test_execute_malformed_result_returns_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "expiry.json"
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            save_expiry_metadata(target, expiry)
+            with patch.dict("os.environ", {"DHAN_CLIENT_ID": "offline-test-id"}), \
+                 patch("backend.dhan_renewal_scheduler.renew_web_token",
+                       return_value=None):
+                self.assertEqual(main(["--expiry-file", str(target), "--execute"]), 1)
+
     def test_bad_expiry_fails_closed(self):
         with self.assertRaises(ValueError):
             scheduled_decision("dhan_web", "not-a-date", now=self.now)

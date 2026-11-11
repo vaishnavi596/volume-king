@@ -60,7 +60,10 @@ def main(argv=None):
             raise ValueError("Execution requires owner-private expiry file for atomic update")
         client_id = os.environ.get(args.client_id_env, "").strip()
         result = renew_web_token(client_id, Path(args.token_file), expiry_path=Path(args.expiry_file))
-        print("Renewal completed and profile verified" if result["profile_verified"] else "Renewal failed")
+        if not isinstance(result, dict) or result.get("profile_verified") is not True:
+            print("Renewal failed: profile not verified")
+            return 1
+        print("Renewal completed and profile verified")
         return 0
     except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
         print("Renewal blocked or failed:", type(exc).__name__, "(no secrets logged)")
