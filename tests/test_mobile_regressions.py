@@ -68,6 +68,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_dashboard_indexes_auto_fetch_with_bounded_retry(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("async def dashboard_index_quote_poll():", source)
+        self.assertIn("page.run_task(dashboard_index_quote_poll)", source)
+        self.assertIn('("NIFTY","BANKNIFTY","SENSEX")', source)
+        self.assertIn("delay=min(60,15*2**min(failures[sym]-1,2))", source)
+        self.assertIn("exchange timestamp unverified", source)
+
     def test_super_five_uses_independent_minute_cached_refresh(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("async def super_five_minute_refresh():", source)
