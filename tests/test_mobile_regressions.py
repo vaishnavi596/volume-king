@@ -68,6 +68,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
+    def test_chart_auto_loads_on_open_and_selection_change(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("def chart_selection_changed(e):", source)
+        self.assertIn("symbol.on_change=chart_selection_changed", source)
+        self.assertIn("timeframe.on_change=chart_selection_changed", source)
+        self.assertIn("if changed and i==5 and not chart_load_busy[0]:", source)
+        self.assertIn("page.run_task(load_chart)", source)
+        self.assertIn("log_error(\"load_chart\",exc)", source)
+
     def test_dashboard_has_three_independent_index_analysis_panels(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("def dashboard_index_analysis():", source)
