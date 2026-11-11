@@ -562,7 +562,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     def cached_candles(symbol: str, interval: str, x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        if symbol not in DHAN_VERIFIED_INSTRUMENTS or interval not in ("1", "5", "15", "30", "60"):
+        if symbol not in DHAN_VERIFIED_INSTRUMENTS or interval not in ("1", "5", "15", "25", "60"):
             raise HTTPException(422, "Unsupported candle instrument or interval")
         with candle_lock:
             entry = candle_cache.get((symbol, interval))
