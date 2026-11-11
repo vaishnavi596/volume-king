@@ -598,7 +598,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             "securityId": str(sid), "exchangeSegment": segment, "instrument": instrument,
             "interval": str(body.interval),
             "fromDate": body.from_date.isoformat() + " 09:15:00",
-            "toDate": body.to_date.isoformat() + " 15:30:00",
+            "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00",
         }
         try:
             result = DhanFeed(client, token).intraday(payload)
