@@ -60,6 +60,17 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_historical_votes_do_not_use_live_green_red_palette(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("def strength_widget(")
+        end=text.index("def mark_ranking_historical()",start)
+        widget=text[start:end]
+        self.assertIn("bull_bar_color=MUTED if historical else GREEN",widget)
+        self.assertIn("bear_bar_color=MUTED if historical else RED",widget)
+        self.assertIn("label_color=MUTED if historical else GREEN",widget)
+        self.assertIn('display_prefix="HISTORICAL • " if historical else ""',widget)
+        self.assertIn("not win probability",widget)
+
     def test_server_intraday_reuses_only_recent_exact_window(self):
         server=(Path(__file__).resolve().parents[1]/"backend"/"server.py").read_text(encoding="utf-8")
         start=server.index('@app.post("/dhan/intraday")')
