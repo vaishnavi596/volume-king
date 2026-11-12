@@ -14,6 +14,7 @@ from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
 from feed_health import FeedHealth,safe_error,retry_delay
+from error_doctor import diagnose
 from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
@@ -849,7 +850,10 @@ def app_main(page:ft.Page):
         ]
         feature_details=[note("FEATURE STATUS • enabled means UI available, not verified live feed")]
         feature_details.extend(note(label+": "+status+" • "+reason) for label,status,reason in feature_rows)
+        doctor_items=[diagnose(problem) for problem in problems[:3]]
         details=[
+            note("ERROR DOCTOR • rule-based local diagnosis; no remote AI or secret upload"),
+            *[note(code+" • "+cause+" • "+action) for code,cause,action in doctor_items],
             note("Provider: "+prefs.get("source","Unknown")+" • "+(("quote available; freshness unverified" if yahoo else "session active (quote freshness unverified)") if connected else ("quote not verified" if yahoo else "disconnected; reconnect required"))),
             note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" saved/displayed LTP • quote time unverified"+(" • DISCONNECTED; cached prices are not live" if not connected else "") if dhan else "Watchlist: check selected feed"),
             note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100] if dhan else "Candle scan: awaiting "+prefs.get("source","selected")+" analysis"),
