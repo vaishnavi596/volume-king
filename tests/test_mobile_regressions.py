@@ -358,6 +358,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_chart_navigation_checks_selected_timeframe_snapshot_not_watch_quote(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        navigation = source[source.index("    def render_page(i):"):source.index("    page.add(", source.index("    def render_page(i):"))]
+        self.assertIn("chart_key=(symbol.value,timeframe.value,provider_generation[0])", navigation)
+        self.assertIn("chart_snapshot=chart_snapshots.get(chart_key) or {}", navigation)
+        self.assertIn('if chart_snapshot.get("source")!=expected or not chart_snapshot.get("bars"):', navigation)
+        self.assertIn("page.run_task(load_chart)", navigation)
+
     def test_resume_dhan_chart_cannot_overwrite_newer_batch_quote(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         resume = source[source.index("    async def refresh_after_resume():"):source.index("    def lifecycle_changed(e):")]
