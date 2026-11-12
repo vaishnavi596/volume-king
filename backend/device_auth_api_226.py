@@ -3,7 +3,7 @@
 NOT included by the production server by default. Only mount after explicit
 owner-approved enrollment setup, HTTPS ingress and persistence review.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .device_login_226 import DeviceLoginError
@@ -17,10 +17,6 @@ class ChallengeRequest(BaseModel):
 class ProofRequest(ChallengeRequest):
     challenge: str = Field(min_length=32, max_length=256)
     signature: str = Field(min_length=64, max_length=256)
-
-
-class SessionRequest(ChallengeRequest):
-    session_token: str = Field(min_length=32, max_length=256)
 
 
 def build_device_auth_router(registry, login):
@@ -44,8 +40,11 @@ def build_device_auth_router(registry, login):
         return {"access_token": token, "token_type": "bearer", "expires_in_seconds": 900}
 
     @local_router.post("/validate")
-    def validate(body: SessionRequest):
-        if not registry.validate_session(body.device_id, body.session_token):
+    def validate(body: ChallengeRequest, authorization: str | None = Header(default=None)):
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(401, "Bearer token required")
+        token = authorization[7:]
+        if not registry.validate_session(body.device_id, token):
             raise HTTPException(401, "Device session invalid")
         return {"authenticated": True}
 
