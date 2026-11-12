@@ -58,6 +58,24 @@ def valid_batch_quotes(code, quotes):
                     for symbol, price in quotes.items()))
 
 
+def valid_candle_bars(code, bars):
+    if code != 200 or not isinstance(bars, list) or not bars or len(bars) > 5000:
+        return False
+    previous = 0
+    for row in bars:
+        if (not isinstance(row, list) or len(row) != 6
+                or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                       or not math.isfinite(v) for v in row)):
+            return False
+        ts, o, h, low, close, volume = row
+        if (ts <= previous or ts <= 0 or min(o, h, low, close) <= 0
+                or volume < 0 or h < max(o, low, close)
+                or low > min(o, h, close)):
+            return False
+        previous = ts
+    return True
+
+
 def main():
     try:
         key = KEY_FILE.read_text(encoding="utf-8").strip()
@@ -104,7 +122,7 @@ def main():
         "symbol": "NIFTY", "interval": 5,
         "from_date": day.isoformat(), "to_date": day.isoformat()})
     bars = candles.get("bars") if isinstance(candles, dict) else None
-    valid_candles = code == 200 and isinstance(bars, list) and len(bars) >= 1
+    valid_candles = valid_candle_bars(code, bars)
     print("NIFTY 5m candles HTTP:", code,
           "bars:", len(bars) if isinstance(bars, list) else "invalid",
           "(previous weekday; exchange holiday possible)")
