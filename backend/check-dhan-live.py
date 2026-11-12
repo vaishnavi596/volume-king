@@ -117,6 +117,9 @@ def main():
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
     unavailable = batch.get("unavailable") if isinstance(batch, dict) else None
     valid_batch = valid_batch_quotes(code, quotes, batch)
+    if isinstance(quotes, dict) and isinstance(unavailable, list):
+        valid_batch = valid_batch and all(isinstance(symbol, str) for symbol in unavailable)
+        valid_batch = valid_batch and not set(quotes).intersection(unavailable)
     print("51-equity batch HTTP:", code,
           "quotes:", len(quotes) if isinstance(quotes, dict) else "invalid",
           "unavailable:", len(unavailable) if isinstance(unavailable, list) else "invalid")
