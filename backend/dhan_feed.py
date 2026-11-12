@@ -73,18 +73,48 @@ class DhanFeed:
             raise DhanFeedError("Dhan rejected market data request; check entitlement and instrument")
         return result
 
+    def batch_ltp(self, instruments):
+        """Fetch multiple instruments in one read-only request.
+
+        Accepts an iterable of (exchange_segment, security_id) pairs.
+        Callers must inspect the returned provider data for missing quotes and
+        timestamps; a successful HTTP response is not proof of live pricing.
+        """
+        allowed = {"IDX_I", "NSE_EQ", "NSE_FNO", "BSE_EQ", "BSE_FNO", "BSE_I", "MCX_COMM"}
+        if isinstance(instruments, (str, bytes, dict)):
+            raise DhanFeedError("Instrument pairs required")
+        payload = {}
+        total = 0
+        try:
+            iterator = iter(instruments)
+        except TypeError:
+            raise DhanFeedError("Instrument pairs required") from None
+        for instrument in iterator:
+            if not isinstance(instrument, (tuple, list)) or len(instrument) != 2:
+                raise DhanFeedError("Instrument pair required")
+            segment, security_id = instrument
+            if segment not in allowed:
+                raise DhanFeedError("Exchange segment required")
+            if isinstance(security_id, bool) or not (
+                isinstance(security_id, int) or
+                (isinstance(security_id, str) and security_id.isascii() and security_id.isdecimal())
+            ):
+                raise DhanFeedError("Valid Dhan security ID required")
+            sid = int(security_id)
+            if sid <= 0:
+                raise DhanFeedError("Valid Dhan security ID required")
+            ids = payload.setdefault(segment, [])
+            if sid not in ids:
+                ids.append(sid)
+                total += 1
+            if total > 1000:
+                raise DhanFeedError("Too many instruments in one LTP request")
+        if not total:
+            raise DhanFeedError("At least one instrument required")
+        return self._post("/marketfeed/ltp", payload)
+
     def ltp(self, exchange_segment, security_id):
-        if exchange_segment not in ("IDX_I", "NSE_EQ", "NSE_FNO", "BSE_EQ", "BSE_FNO", "BSE_I", "MCX_COMM"):
-            raise DhanFeedError("Exchange segment required")
-        if isinstance(security_id, bool) or not (
-            isinstance(security_id, int) or
-            (isinstance(security_id, str) and security_id.isascii() and security_id.isdecimal())
-        ):
-            raise DhanFeedError("Valid Dhan security ID required")
-        sid = int(security_id)
-        if sid <= 0:
-            raise DhanFeedError("Valid Dhan security ID required")
-        return self._post("/marketfeed/ltp", {exchange_segment: [sid]})
+        return self.batch_ltp([(exchange_segment, security_id)])
 
     def intraday(self, payload):
         if not isinstance(payload, dict) or not payload.get("securityId"):
