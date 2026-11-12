@@ -45,9 +45,25 @@ def safe_error(exc):
             "Dhan server credentials not configured",
             "Dhan batch returned no NSE equity quotes",
             "Dhan batch response invalid",
+            "Dhan historical endpoint unavailable or token expired",
+            "Dhan historical candle response invalid",
         ):
             if detail.startswith(message + " (HTTP "):
                 return message
+        if detail.startswith("/dhan/") and " HTTP 429; retry after " in detail:
+            return "Dhan API rate limited (HTTP 429); wait before retry"
+        if detail.startswith("/dhan/") and " cooldown: retry in " in detail:
+            return "Dhan API cooldown active; wait before retry"
+        if "HTTP 422" in detail:
+            return "Dhan request rejected (HTTP 422); verify symbol and date range"
+        if "Dhan candle instrument or interval not verified" in detail:
+            return "Dhan candle mapping or timeframe unsupported"
+        if "Invalid Dhan candle response" in detail:
+            return "Dhan candle response missing or invalid"
+        if "Dhan server not connected" in detail:
+            return "Dhan server disconnected; reconnect in Settings"
+        if "Unexpected Dhan read-only server response" in detail:
+            return "Dhan server response failed read-only validation"
         if any("HTTP "+str(code) in detail for code in (502,503,504)):
             return "Dhan upstream temporarily unavailable; retry later"
         if "HTTPS connection or response failed" in detail:
