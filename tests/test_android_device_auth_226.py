@@ -41,6 +41,14 @@ class AndroidBridgeTests(unittest.TestCase):
         signature = asyncio.run(bridge.sign_login_challenge("android_device_226", challenge))
         self.assertTrue(signature)
 
+    def test_noncanonical_public_key_rejected(self):
+        class NoncanonicalKey(NativeStub):
+            async def generate_p256_key(self, device_id):
+                value = await super().generate_p256_key(device_id)
+                return value.replace("-", "+").replace("_", "/") if ("-" in value or "_" in value) else value.rstrip("=")
+        with self.assertRaises(AndroidAuthUnavailable):
+            asyncio.run(AndroidDeviceAuthBridge(NoncanonicalKey()).register_key("android_device_226"))
+
     def test_fake_public_key_rejected(self):
         class FakeKey(NativeStub):
             async def generate_p256_key(self, device_id):
