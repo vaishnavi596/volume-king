@@ -168,3 +168,36 @@ def test_native_adapter_rejects_explicit_failed_write_and_delete():
             raise AssertionError("Native rejection must never be reported as success")
 
     asyncio.run(exercise())
+
+
+def test_native_storage_exceptions_do_not_expose_secret_or_native_details():
+    from secure_credentials import VerifiedNativeCredentialStore
+
+    class FailingNative:
+        async def get(self, key):
+            raise RuntimeError("private native detail")
+
+        async def set(self, key, value):
+            raise RuntimeError("private native detail " + value)
+
+        async def delete(self, key):
+            raise RuntimeError("private native detail")
+
+    async def exercise():
+        store = VerifiedNativeCredentialStore(FailingNative())
+        actions = (
+            store.read("dhan.server_access_key"),
+            store.write("dhan.server_access_key", "test-only-secret"),
+            store.delete("dhan.server_access_key"),
+        )
+        for action in actions:
+            try:
+                await action
+            except SecureStorageUnavailable as exc:
+                assert "private native detail" not in str(exc)
+                assert "test-only-secret" not in str(exc)
+                assert exc.__cause__ is None
+            else:
+                raise AssertionError("Native failure must not report success")
+
+    asyncio.run(exercise())
