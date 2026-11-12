@@ -1,9 +1,16 @@
 """Offline PIN/session primitive tests; production auth routes are not enabled."""
-import sys
+import importlib.util
 import unittest
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from device_auth_226 import DeviceAuthError, hash_pin, verify_pin, new_session_token, session_token_digest
+_module_path = Path(__file__).resolve().parents[1] / "backend" / "device_auth_226.py"
+_spec = importlib.util.spec_from_file_location("botking_226_device_auth", _module_path)
+_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_module)
+DeviceAuthError = _module.DeviceAuthError
+hash_pin = _module.hash_pin
+verify_pin = _module.verify_pin
+new_session_token = _module.new_session_token
+session_token_digest = _module.session_token_digest
 
 
 class DeviceAuth226Tests(unittest.TestCase):
