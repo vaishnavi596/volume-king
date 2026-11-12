@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from android_device_auth_226 import AndroidDeviceAuthBridge, AndroidAuthUnavailable
 
@@ -54,6 +55,16 @@ class AndroidBridgeTests(unittest.TestCase):
         challenge = base64.urlsafe_b64encode(b"y" * 32).decode("ascii")
         with self.assertRaises(AndroidAuthUnavailable):
             asyncio.run(AndroidDeviceAuthBridge(FakeSignature()).sign_login_challenge(
+                "android_device_226", challenge))
+
+    def test_out_of_range_p256_signature_rejected(self):
+        order = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+        class OutOfRangeSignature(NativeStub):
+            async def sign_challenge_with_biometric(self, device_id, challenge):
+                return base64.urlsafe_b64encode(encode_dss_signature(order, 1)).decode("ascii")
+        challenge = base64.urlsafe_b64encode(b"y" * 32).decode("ascii")
+        with self.assertRaises(AndroidAuthUnavailable):
+            asyncio.run(AndroidDeviceAuthBridge(OutOfRangeSignature()).sign_login_challenge(
                 "android_device_226", challenge))
 
     def test_invalid_challenge_never_reaches_native(self):
