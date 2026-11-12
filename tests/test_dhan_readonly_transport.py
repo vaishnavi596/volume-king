@@ -26,6 +26,26 @@ class DhanAdapterTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             adapter.intraday("BANKNIFTY", 5, "2026-11-01", "2026-11-02")
 
+    def test_batch_rejects_conflicting_availability(self):
+        adapter = ServerDhanReadOnly()
+        adapter._origin = "https://example.com"
+        adapter._pairing_key = "temporary"
+        response = {"source": "dhan", "live_orders_enabled": False,
+                    "quotes": {"RELIANCE": 1200.0}, "unavailable": ["RELIANCE"]}
+        with patch.object(adapter, "_call", return_value=response):
+            with self.assertRaises(FeedError):
+                adapter.batch_quotes()
+
+    def test_batch_rejects_missing_unavailable_list(self):
+        adapter = ServerDhanReadOnly()
+        adapter._origin = "https://example.com"
+        adapter._pairing_key = "temporary"
+        response = {"source": "dhan", "live_orders_enabled": False,
+                    "quotes": {"RELIANCE": 1200.0}}
+        with patch.object(adapter, "_call", return_value=response):
+            with self.assertRaises(FeedError):
+                adapter.batch_quotes()
+
     def test_quote_timestamp_not_fabricated(self):
         adapter = ServerDhanReadOnly()
         adapter._origin = "https://example.com"
