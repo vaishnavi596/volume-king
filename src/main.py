@@ -3677,7 +3677,10 @@ console.log('BOT KING Lightweight Charts ready');
             # Dhan historical scan behind that flag; allow one generation scan.
             pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected
                                and last_scanned_generation!=provider_generation[0])
-            if not app_active[0] and not pending_dhan_scan:
+            if not app_active[0]:
+                # Do not initiate a new 51-symbol history scan while Android is
+                # backgrounded, even when a new Dhan generation is pending.
+                # The pending generation is retained for the next foreground pass.
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
                     scan_progress["state"]="Dhan scan waiting for app foreground • last completed results retained"
                 await asyncio.sleep(5);continue
