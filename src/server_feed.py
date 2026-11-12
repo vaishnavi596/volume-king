@@ -178,7 +178,7 @@ class ServerDhanReadOnly:
     def _call_serialized(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
-        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
+        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday", "/v2/snapshot"):
             raise FeedError("Unsupported Dhan read-only request")
         remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
