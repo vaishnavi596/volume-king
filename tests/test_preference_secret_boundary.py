@@ -29,6 +29,13 @@ class PreferenceSecretBoundaryTests(unittest.TestCase):
         self.assertEqual(public_preferences(values),
                          {"source":"Dhan","watchlist_1":["RELIANCE"]})
 
+    def test_nested_legacy_credentials_are_scrubbed(self):
+        values={"source":"Dhan","providers":[{"name":"Dhan","access_token":"secret"}],
+                "settings":{"PIN":"123456","watchlist":["NIFTY"]}}
+        cleaned=public_preferences(values)
+        self.assertEqual(cleaned["providers"],[{"name":"Dhan"}])
+        self.assertEqual(cleaned["settings"],{"watchlist":["NIFTY"]})
+
     def test_legacy_native_secrets_removed_on_load(self):
         storage=FakeStorage({"_prefs_revision":2,"source":"Dhan","mpin":"secret"})
         with patch("src.preference_store.Path.read_text",return_value='{}'):
