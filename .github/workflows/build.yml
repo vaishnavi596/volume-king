@@ -2,15 +2,9 @@
 
 name: Build APK
 
-# Build on app, regression-test, and workflow changes; manual dispatch is also supported.
+# Final release only: regular commits and PR merges run offline tests, not APK builds.
+# Trigger manually from GitHub Actions after all planned batches pass.
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - pyproject.toml
-      - src/main.py
-      - tests/test_help_quality.py
-      - .github/workflows/build.yml
   workflow_dispatch:
 
 jobs:
