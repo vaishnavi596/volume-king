@@ -25,6 +25,20 @@ class Registry226Tests(unittest.TestCase):
             self.device, self.public_key, owner_approved=True
         )
 
+    def test_challenge_single_use_across_restart(self):
+        self.enroll()
+        challenge = self.registry.issue_challenge(self.device)
+        restarted = DeviceRegistry(self.path, clock=lambda: self.now[0])
+        self.assertTrue(restarted.consume_challenge(self.device, challenge))
+        self.assertFalse(self.registry.consume_challenge(self.device, challenge))
+        self.assertNotIn(challenge.encode(), self.path.read_bytes())
+
+    def test_challenge_expires(self):
+        self.enroll()
+        challenge = self.registry.issue_challenge(self.device)
+        self.now[0] += 121
+        self.assertFalse(self.registry.consume_challenge(self.device, challenge))
+
     def test_persistent_login_lockout(self):
         self.enroll()
         for _ in range(4):
