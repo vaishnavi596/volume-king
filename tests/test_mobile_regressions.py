@@ -358,6 +358,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_dhan_history_pacing_skips_only_recent_same_generation_cache(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
+        self.assertIn('history_key=(generation,angel_feed.epoch,dhan_feed.connected,', scan)
+        self.assertIn('prefs.get("source","Auto"),sym,"5m","2d")', scan)
+        self.assertIn("time.monotonic()-cached_history[0]<87", scan)
+        self.assertIn("if not cache_ready:\n                            await asyncio.sleep(1.5)", scan)
+        self.assertIn("if lifecycle_background[0]:", scan)
+
     def test_dhan_history_preflight_checks_background_after_quote_batch(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]

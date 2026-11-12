@@ -3857,7 +3857,17 @@ console.log('BOT KING Lightweight Charts ready');
                                for err in failed_symbols.values()):
                             scan_progress["state"]="Dhan historical scan paused after HTTP 429 • waiting for provider cooldown"
                             break
-                        await asyncio.sleep(1.5)
+                        # The 1.5s pacing protects real upstream history calls.
+                        # A recent same-generation cached history needs no API
+                        # request and should not incur that network pacing delay.
+                        history_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                                     prefs.get("source","Auto"),sym,"5m","2d")
+                        with market_registry_lock:
+                            cached_history=market_recent.get(history_key)
+                            cache_ready=bool(cached_history and
+                                time.monotonic()-cached_history[0]<87)
+                        if not cache_ready:
+                            await asyncio.sleep(1.5)
                         if lifecycle_background[0]:
                             scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
                             last_scanned_generation=None
