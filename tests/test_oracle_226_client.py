@@ -29,6 +29,25 @@ class Oracle226Tests(unittest.TestCase):
     def setUp(self):
         self.client = Oracle226Client("https://example.org", "test-only-placeholder")
 
+    def test_device_session_uses_bearer_without_pairing_header(self):
+        client = Oracle226Client("https://example.org", "t" * 48,
+                                 auth_mode="device_session")
+        payload = {"protocol": 2, "quotes": {}, "freshness": "unverified",
+                   "live_orders_enabled": False}
+        with patch.object(client._opener, "open", return_value=Response(payload)) as opened:
+            client.snapshot()
+        headers = opened.call_args.args[0].headers
+        self.assertEqual(headers.get("Authorization"), "Bearer " + "t" * 48)
+        self.assertNotIn("X-botking-key", headers)
+        self.assertNotIn("X-BotKing-Key", headers)
+
+    def test_device_session_rejects_malformed_token(self):
+        for token in ("t" * 40 + " ", "t" * 40 + ".", "short"):
+            with self.subTest(token=repr(token[-1])):
+                with self.assertRaises(OracleCacheError):
+                    Oracle226Client("https://example.org", token,
+                                    auth_mode="device_session")
+
     def test_snapshot_preserves_unverified_freshness(self):
         payload = {"protocol": 2, "quotes": {"RELIANCE": {"price": 100}},
                    "freshness": "unverified", "live_orders_enabled": False}
