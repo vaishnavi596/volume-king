@@ -54,6 +54,15 @@ class DhanSmokeTransportTests(unittest.TestCase):
                 self.assertFalse(smoke.valid_batch_quotes(200, quotes))
         self.assertFalse(smoke.valid_batch_quotes(502, {"RELIANCE": 1234.5}))
 
+    def test_batch_envelope_requires_read_only_dhan(self):
+        good = {"source": "dhan", "live_orders_enabled": False, "unavailable": []}
+        self.assertTrue(smoke.valid_batch_quotes(200, {"RELIANCE": 123}, good))
+        for bad in ({"source": "yahoo", "live_orders_enabled": False, "unavailable": []},
+                    {"source": "dhan", "live_orders_enabled": True, "unavailable": []},
+                    {"source": "dhan", "live_orders_enabled": False, "unavailable": {}}):
+            with self.subTest(bad=bad):
+                self.assertFalse(smoke.valid_batch_quotes(200, {"RELIANCE": 123}, bad))
+
     def test_candle_schema_valid(self):
         bars = [[100, 100.0, 105.0, 98.0, 102.0, 200],
                 [200, 102.0, 106.0, 101.0, 105.0, 150]]
