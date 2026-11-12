@@ -363,6 +363,8 @@ class ServerDhanReadOnly:
             raise FeedError("Oracle Dhan snapshot missing, stale or invalid")
         if not raw:
             raise FeedError("Oracle Dhan snapshot contains no quotes")
+        # Partial quotes are usable, but must not imply complete coverage.
+        # Missing symbols remain absent from returned quotes, never synthesized.
         quotes = {}
         for symbol, price in raw.items():
             if (symbol not in DHAN_VERIFIED_SYMBOLS or symbol == "NIFTY"

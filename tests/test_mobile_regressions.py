@@ -358,6 +358,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_dhan_snapshot_requires_full_symbol_coverage(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "server_feed.py").read_text()
+        section = source[source.index("    def batch_quotes(self):"):source.index("    def intraday(self,", source.index("    def batch_quotes(self):"))]
+        self.assertNotIn('set(raw).union(unavailable) != (DHAN_VERIFIED_SYMBOLS - {"NIFTY"})', section)
+        self.assertIn('if not raw:', section)
+        self.assertIn('for symbol, price in raw.items():', section)
+        self.assertIn('set(raw).intersection(unavailable)', section)
+        self.assertIn('result.get("freshness") != "unverified"', section)
+
     def test_options_history_does_not_replace_newer_quote(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         section = source[source.index("    async def refresh_selected_options():"):source.index("    def selected_option_rows():")]
