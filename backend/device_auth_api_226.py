@@ -32,13 +32,19 @@ def build_device_auth_router(registry, login):
     """Routes intentionally exclude enrollment; owner must approve it out-of-band."""
     local_router = APIRouter(prefix="/v2/device", tags=["device-auth"])
 
+    def no_store_error(status_code, detail):
+        # FastAPI's injected Response headers do not survive HTTPException handling.
+        # Set no-store on the actual error response, including unauthorized failures.
+        return JSONResponse(status_code=status_code, content={"detail": detail},
+                            headers={"Cache-Control": "no-store"})
+
     @local_router.post("/challenge")
     def challenge(body: ChallengeRequest, response: Response):
         response.headers["Cache-Control"] = "no-store"
         try:
             value = login.begin(body.device_id)
         except DeviceLoginError:
-            raise HTTPException(403, "Device authentication unavailable") from None
+            return no_store_error(403, "Device authentication unavailable")
         return {"challenge": value, "expires_in_seconds": 120}
 
     @local_router.post("/session")
@@ -47,17 +53,17 @@ def build_device_auth_router(registry, login):
         try:
             token = login.complete(body.device_id, body.challenge, body.signature)
         except (DeviceLoginError, DeviceRegistryError):
-            raise HTTPException(403, "Device authentication failed") from None
+            return no_store_error(403, "Device authentication failed")
         return {"access_token": token, "token_type": "bearer", "expires_in_seconds": 900}
 
     @local_router.post("/validate")
     def validate(body: ChallengeRequest, response: Response, authorization: str | None = Header(default=None)):
         response.headers["Cache-Control"] = "no-store"
         if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(401, "Bearer token required")
+            return no_store_error(401, "Bearer token required")
         token = authorization[7:]
         if not registry.validate_session(body.device_id, token):
-            raise HTTPException(401, "Device session invalid")
+            return no_store_error(401, "Device session invalid")
         return {"authenticated": True}
 
     return local_router
