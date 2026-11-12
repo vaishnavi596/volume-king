@@ -350,6 +350,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
+    def test_dhan_background_interruption_persists_after_quick_resume(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
+        self.assertIn("background_interrupted=False", scan)
+        self.assertEqual(scan.count("background_interrupted=True"), 2)
+        self.assertIn('if prefs.get("source")=="Dhan" and (lifecycle_background[0] or background_interrupted):', scan)
+
     def test_background_interrupted_dhan_scan_does_not_publish_partial_ranking(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
