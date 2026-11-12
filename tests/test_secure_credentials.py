@@ -130,3 +130,13 @@ def test_native_adapter_rejects_empty_credentials():
 
     asyncio.run(exercise()
     )
+
+
+def test_preference_writer_excludes_pairing_and_broker_secrets():
+    source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+    section = source[source.index("    def save():"):source.index("    def txt(", source.index("    def save():"))]
+    for name in ("pairing_key", "server_access_key", "server_access",
+                 "botking_pairing_key", "dhan_token", "client_secret",
+                 "api_key", "api_secret", "access_token", "password", "totp"):
+        assert f'"{name}"' in section
+    assert "if k not in secret_fields" in section
