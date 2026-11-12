@@ -324,6 +324,12 @@ class ServerDhanReadOnly:
         return {"symbol": symbol, "price": price, "source": "Dhan",
                 "quote_timestamp": None, "freshness": "unverified"}
 
+    def cooldown_remaining(self, path):
+        """Seconds left before a rate-limited read-only endpoint may be retried."""
+        if path not in ("/dhan/ltp-batch", "/dhan/intraday"):
+            return 0
+        return max(0, int(self._cooldown_until.get(path, 0.0) - time.monotonic() + 0.999))
+
     def batch_quotes(self):
         """Read-only 51-equity LTP snapshot; missing symbols stay unavailable."""
         import math
