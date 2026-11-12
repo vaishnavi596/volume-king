@@ -25,6 +25,18 @@ class Registry226Tests(unittest.TestCase):
             self.device, self.public_key, owner_approved=True
         )
 
+    def test_persistent_login_lockout(self):
+        self.enroll()
+        for _ in range(4):
+            self.assertTrue(self.registry.record_login_failure(self.device))
+        self.assertFalse(self.registry.record_login_failure(self.device))
+        restarted = DeviceRegistry(self.path, clock=lambda: self.now[0])
+        self.assertFalse(restarted.login_allowed(self.device))
+        self.assertFalse(restarted.clear_login_failures(self.device))
+        self.now[0] += 901
+        self.assertTrue(restarted.login_allowed(self.device))
+        self.assertTrue(restarted.clear_login_failures(self.device))
+
     def test_private_database_permissions(self):
         self.assertEqual(self.path.stat().st_mode & 0o077, 0)
 
