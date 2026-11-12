@@ -96,6 +96,14 @@ class OracleDeviceLoginTests(unittest.TestCase):
             asyncio.run(client.login("android_owner_device_226", None))
         self.assertEqual(len(opener.requests), 0)
 
+    def test_transport_os_error_is_sanitized(self):
+        class BrokenOpener:
+            def open(self, req, timeout):
+                raise OSError("internal connection details")
+        client = OracleDeviceLogin226("https://example.com", opener=BrokenOpener())
+        with self.assertRaisesRegex(OracleDeviceLoginError, "Device authentication request failed"):
+            asyncio.run(client.login("android_owner_device_226", Native()))
+
     def test_native_biometric_failure_does_not_post_session(self):
         class FailingNative:
             async def sign_login_challenge(self, device_id, challenge):
