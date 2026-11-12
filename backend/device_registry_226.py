@@ -4,6 +4,8 @@ No public enrollment routes are exposed here. The caller must verify owner
 approval and cryptographic device proof before issuing any session.
 """
 import os
+import hashlib
+import secrets
 import re
 import stat
 import sqlite3
@@ -52,6 +54,9 @@ class DeviceRegistry:
                 device_id TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0,
                 first_failure_at INTEGER NOT NULL DEFAULT 0,
                 locked_until INTEGER NOT NULL DEFAULT 0)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS device_challenges (
+                challenge_digest TEXT PRIMARY KEY, device_id TEXT NOT NULL,
+                expires_at INTEGER NOT NULL)""")
         os.chmod(self.database_path, stat.S_IRUSR | stat.S_IWUSR)
 
     @contextmanager
@@ -75,6 +80,40 @@ class DeviceRegistry:
         with self._connect() as db:
             db.execute("INSERT INTO devices(device_id,public_key,enrolled_at) VALUES (?,?,?)",
                        (device_id, public_key, int(self.clock())))
+
+    def issue_challenge(self, device_id, ttl_seconds=120):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            raise DeviceRegistryError("Invalid device")
+        if not self.login_allowed(device_id) or self.active_public_key(device_id) is None:
+            raise DeviceRegistryError("Device unavailable")
+        if type(ttl_seconds) is not int or not 30 <= ttl_seconds <= 300:
+            raise DeviceRegistryError("Invalid challenge lifetime")
+        import base64
+        challenge = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
+        digest = hashlib.sha256(challenge.encode("ascii")).hexdigest()
+        with self._connect() as db:
+            db.execute("DELETE FROM device_challenges WHERE expires_at<=?",
+                       (int(self.clock()),))
+            db.execute("INSERT INTO device_challenges VALUES(?,?,?)",
+                       (digest, device_id, int(self.clock()) + ttl_seconds))
+        return challenge
+
+    def consume_challenge(self, device_id, challenge):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            return False
+        if not isinstance(challenge, str) or len(challenge) > 256:
+            return False
+        try:
+            digest = hashlib.sha256(challenge.encode("ascii")).hexdigest()
+        except UnicodeEncodeError:
+            return False
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT expires_at FROM device_challenges WHERE challenge_digest=? AND device_id=?",
+                             (digest, device_id)).fetchone()
+            db.execute("DELETE FROM device_challenges WHERE challenge_digest=? AND device_id=?",
+                       (digest, device_id))
+        return row is not None and int(self.clock()) < row[0]
 
     def login_allowed(self, device_id):
         if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
