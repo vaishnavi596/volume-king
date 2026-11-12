@@ -5,6 +5,7 @@ device enrollment and Keystore-backed sessions replace it. Never log secrets.
 """
 import json
 import math
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,11 +18,16 @@ class OracleCacheError(RuntimeError):
 
 
 class Oracle226Client:
-    def __init__(self, origin, access_key):
+    def __init__(self, origin, access_key, *, auth_mode="legacy_pairing"):
         self.origin = server_origin(origin)
         if not isinstance(access_key, str) or not access_key:
             raise OracleCacheError("Oracle device session is not configured")
+        if auth_mode not in ("legacy_pairing", "device_session"):
+            raise OracleCacheError("Unsupported Oracle authentication mode")
+        if auth_mode == "device_session" and re.fullmatch(r"[A-Za-z0-9_-]{32,256}", access_key) is None:
+            raise OracleCacheError("Invalid Oracle device session token")
         self._access_key = access_key
+        self._auth_mode = auth_mode
         self._opener = urllib.request.build_opener(
             urllib.request.ProxyHandler({}), NoRedirect()
         )
@@ -29,7 +35,10 @@ class Oracle226Client:
     def _read(self, path):
         req = urllib.request.Request(
             self.origin + path,
-            headers={"Accept": "application/json", "X-BotKing-Key": self._access_key},
+            headers={"Accept": "application/json", **(
+                {"Authorization": "Bearer " + self._access_key}
+                if self._auth_mode == "device_session"
+                else {"X-BotKing-Key": self._access_key})},
             method="GET",
         )
         try:
