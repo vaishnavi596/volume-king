@@ -1256,6 +1256,13 @@ def app_main(page:ft.Page):
                                    f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
         except Exception as exc:
+            # Android may suspend a network request when the app loses focus.
+            # Do not report that lifecycle interruption as a provider failure.
+            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                return
+            if not app_active[0]:
+                watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
+                return
             log_error("watchlist_dhan_batch",exc)
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
