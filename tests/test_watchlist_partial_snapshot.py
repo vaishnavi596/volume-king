@@ -30,6 +30,19 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn("Dhan batch LTP unavailable:",scanner)
         self.assertIn("dhan_batch_cache.update(generation=None,updated=0.0,quotes={})",scanner)
 
+    def test_dhan_snapshot_polling_is_foreground_only_and_rate_limited(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("    async def dhan_quote_poll():")
+        end=text.index("    def watchlist():",start)
+        poll=text[start:end]
+        self.assertIn('app_active[0] and prefs.get("source")=="Dhan"',poll)
+        self.assertIn('dhan_feed.connected',poll)
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0',poll)
+        self.assertIn('await refresh_watch_batch()',poll)
+        self.assertIn('await asyncio.sleep(45)',poll)
+        self.assertIn('except asyncio.CancelledError:',poll)
+        self.assertIn('raise',poll)
+
     def test_dhan_history_has_one_pacing_delay_not_two(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("                async def load_one(sym):")
