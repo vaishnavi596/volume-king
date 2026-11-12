@@ -140,3 +140,31 @@ def test_preference_writer_excludes_pairing_and_broker_secrets():
                  "api_key", "api_secret", "access_token", "password", "totp"):
         assert f'"{name}"' in section
     assert "if k not in secret_fields" in section
+
+
+def test_native_adapter_rejects_explicit_failed_write_and_delete():
+    from secure_credentials import VerifiedNativeCredentialStore
+
+    class RejectingNative:
+        async def get(self, key):
+            return None
+
+        async def set(self, key, value):
+            return False
+
+        async def delete(self, key):
+            return False
+
+    async def exercise():
+        store = VerifiedNativeCredentialStore(RejectingNative())
+        for operation in (
+            store.write("dhan.server_access_key", "test-only-value"),
+            store.delete("dhan.server_access_key"),
+        ):
+            try:
+                await operation
+            except SecureStorageUnavailable:
+                continue
+            raise AssertionError("Native rejection must never be reported as success")
+
+    asyncio.run(exercise())
