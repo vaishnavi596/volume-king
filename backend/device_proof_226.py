@@ -9,9 +9,14 @@ import time
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.exceptions import InvalidSignature
 except ImportError:
     Ed25519PublicKey = None
+    ec = None
+    hashes = None
+    serialization = None
     InvalidSignature = Exception
 
 
@@ -46,6 +51,36 @@ def verify_device_signature(public_key_b64, challenge_b64, signature_b64):
             signature, b"BOTKING226:DEVICE-AUTH:v1:" + challenge
         )
     except (InvalidSignature, ValueError) as exc:
+        return False
+    return True
+
+
+def verify_android_p256_signature(public_key_der_b64, challenge_b64, signature_der_b64):
+    """Android Keystore-compatible EC P-256 SHA256withECDSA proof.
+
+    Public key is DER SubjectPublicKeyInfo, signature is DER ECDSA.
+    """
+    if ec is None:
+        raise DeviceProofError("Cryptographic verification unavailable")
+    if not isinstance(public_key_der_b64, str) or len(public_key_der_b64) > 512:
+        raise DeviceProofError("Invalid device key encoding")
+    if not isinstance(signature_der_b64, str) or len(signature_der_b64) > 256:
+        raise DeviceProofError("Invalid signature encoding")
+    try:
+        key_bytes = base64.b64decode(public_key_der_b64, altchars=b"-_", validate=True)
+        sig_bytes = base64.b64decode(signature_der_b64, altchars=b"-_", validate=True)
+        public = serialization.load_der_public_key(key_bytes)
+    except (ValueError, TypeError, base64.binascii.Error) as exc:
+        raise DeviceProofError("Invalid device proof encoding") from exc
+    if not isinstance(public, ec.EllipticCurvePublicKey) or not isinstance(public.curve, ec.SECP256R1):
+        raise DeviceProofError("Unsupported device signing key")
+    if not 8 <= len(sig_bytes) <= 80:
+        raise DeviceProofError("Invalid signature length")
+    challenge = _decode(challenge_b64, 32)
+    try:
+        public.verify(sig_bytes, b"BOTKING226:DEVICE-AUTH:v1:" + challenge,
+                      ec.ECDSA(hashes.SHA256()))
+    except (InvalidSignature, ValueError):
         return False
     return True
 
