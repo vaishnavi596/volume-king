@@ -1313,7 +1313,7 @@ def app_main(page:ft.Page):
         while True:
             try:
                 if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and dhan_feed.cooldown_remaining("/dhan/ltp-batch")==0):
+                        and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
                     await refresh_watch_batch()
                     if current[0]==0:
                         request_view_refresh(0)
