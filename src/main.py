@@ -490,14 +490,16 @@ def app_main(page:ft.Page):
                         if (dhan_batch_cache["generation"]==generation
                                 and time.monotonic()-dhan_batch_cache["updated"]<90):
                             quote=dhan_batch_cache["quotes"].get(ticker)
-                if quote is None:
+                if quote is None and ticker=="NIFTY":
                     try:
                         quote=dhan_feed.quote(ticker)
                     except FeedError as exc:
-                        # Historical chart remains available if live LTP is missing.
-                        # Never represent candle close as a verified live quote.
+                        # Historical chart remains available if index LTP is missing.
                         log_error("dhan_chart_ltp",exc)
                         quote=None
+                # Equity quotes come from the dedicated batch poller. Never
+                # turn a 51-symbol candle scan into 51 extra individual LTP
+                # requests when the batch cache expires during scanning.
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
                         "fetched_at":time.time(),
