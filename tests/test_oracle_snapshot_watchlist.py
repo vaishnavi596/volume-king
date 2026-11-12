@@ -39,6 +39,11 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
         self.feed._cooldown_until["/v2/snapshot"]=now+12
         self.assertGreaterEqual(self.feed.cooldown_remaining("/v2/snapshot"), 11)
 
+    def test_accepts_snapshot_within_default_90_second_collection_cycle(self):
+        # Dhan upstream collection defaults to 90 seconds, not 30 seconds.
+        with patch.object(self.feed, "_call", return_value=self.snapshot(age_seconds=95)):
+            self.assertEqual(self.feed.batch_quotes()["RELIANCE"]["price"], 1333.7)
+
     def test_rejects_old_or_failed_snapshot(self):
         for changes in ({"age_seconds": 121}, {"age_seconds": None},
                         {"live_orders_enabled": True},
