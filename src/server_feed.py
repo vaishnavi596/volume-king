@@ -359,7 +359,8 @@ class ServerDhanReadOnly:
                 or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
                        or symbol == "NIFTY" for symbol in unavailable)
                 or len(unavailable) != len(set(unavailable))
-                or set(raw).intersection(unavailable)):
+                or set(raw).intersection(unavailable)
+                or set(raw).union(unavailable) != (DHAN_VERIFIED_SYMBOLS - {"NIFTY"})):
             raise FeedError("Oracle Dhan snapshot missing, stale or invalid")
         if not raw:
             raise FeedError("Oracle Dhan snapshot contains no quotes")
