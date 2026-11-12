@@ -3766,6 +3766,11 @@ console.log('BOT KING Lightweight Charts ready');
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
+                            # Android may suspend network work mid-request when the
+                            # user answers a call or opens another app. Do not turn
+                            # lifecycle interruption into a failed market symbol.
+                            if not app_active[0] or generation!=provider_generation[0]:
+                                return False
                             if generation==provider_generation[0]:
                                 failed_symbols[sym]=safe_error(exc)
                                 history_failed[0]+=1
