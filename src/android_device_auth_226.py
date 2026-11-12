@@ -30,7 +30,8 @@ class AndroidDeviceAuthBridge:
         self._native = native_service
 
     async def register_key(self, device_id):
-        if not isinstance(device_id, str) or not 16 <= len(device_id) <= 128:
+        if (not isinstance(device_id, str) or not 16 <= len(device_id) <= 128
+                or not all(ch.isascii() and (ch.isalnum() or ch in "_-") for ch in device_id)):
             raise ValueError("Invalid device ID")
         result = self._native.generate_p256_key(device_id)
         if not inspect.isawaitable(result):
@@ -53,7 +54,7 @@ class AndroidDeviceAuthBridge:
             raw = base64.b64decode(challenge, altchars=b"-_", validate=True)
         except (ValueError, base64.binascii.Error) as exc:
             raise ValueError("Invalid server challenge") from exc
-        if len(raw) != 32:
+        if len(raw) != 32 or base64.urlsafe_b64encode(raw).decode("ascii") != challenge:
             raise ValueError("Invalid server challenge")
         result = self._native.sign_challenge_with_biometric(device_id, challenge)
         if not inspect.isawaitable(result):
