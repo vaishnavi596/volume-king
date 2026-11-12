@@ -418,6 +418,32 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         except OSError:
             return ""
 
+    def dhan_readonly_with_auth_fallback(client, operation):
+        """Retry once with provisioned token only for an OAuth auth failure.
+
+        Never retry throttling, entitlement errors without a distinct token,
+        malformed data, or unrelated network failures.
+        """
+        primary = dhan_market_token()
+        if not primary:
+            raise DhanFeedError("Dhan credentials are not configured")
+        try:
+            return operation(DhanFeed(client, primary))
+        except DhanFeedError as exc:
+            if isinstance(exc, DhanRateLimitError) or str(exc) != "Dhan token expired or data access not entitled":
+                raise
+            with lock:
+                oauth_active = bool(dhan_session["access_token"]) and primary == dhan_session["access_token"]
+            if not oauth_active:
+                raise
+            try:
+                secondary = Path("/etc/bot-king/dhan-token").read_text(encoding="utf-8").strip()
+            except OSError:
+                raise exc
+            if not secondary or secondary == primary:
+                raise exc
+            return operation(DhanFeed(client, secondary))
+
     @app.get("/dhan/status")
     def dhan_status(x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
@@ -463,7 +489,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(503, "Dhan credentials not configured")
         segment, sid, _instrument = mapping[body.symbol]
         try:
-            data = DhanFeed(client, token).ltp(segment, sid)
+            data = dhan_readonly_with_auth_fallback(client, lambda feed: feed.ltp(segment, sid))
             price = data["data"][segment][str(sid)]["last_price"]
             if data.get("status") != "success" or isinstance(price, bool):
                 raise ValueError("Invalid quote")
@@ -519,7 +545,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(503, "Dhan credentials not configured")
         ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
         try:
-            data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
+            data = dhan_readonly_with_auth_fallback(client, lambda feed: feed._post("/marketfeed/ltp", {"NSE_EQ": ids}))
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
         except DhanFeedError as exc:
