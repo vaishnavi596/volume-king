@@ -3652,9 +3652,13 @@ console.log('BOT KING Lightweight Charts ready');
         if changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected:
             page.run_task(refresh_watch_batch)
         if changed and i==5 and not chart_load_busy[0]:
-            snapshot=quotes.get(symbol.value) or {}
+            # A watchlist quote may carry 5m bars, but it is not necessarily
+            # a loaded chart for the selected timeframe. Check the actual
+            # chart snapshot key rather than suppressing the first chart load.
+            chart_key=(symbol.value,timeframe.value,provider_generation[0])
+            chart_snapshot=chart_snapshots.get(chart_key) or {}
             expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
-            if snapshot.get("source")!=expected or not snapshot.get("bars"):
+            if chart_snapshot.get("source")!=expected or not chart_snapshot.get("bars"):
                 page.run_task(load_chart)
         for j,(icon,label) in enumerate(nav_items):
             icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
