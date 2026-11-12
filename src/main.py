@@ -1274,7 +1274,7 @@ def app_main(page:ft.Page):
             # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
             # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
-                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
+                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]):
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
@@ -3748,7 +3748,7 @@ console.log('BOT KING Lightweight Charts ready');
                             # snapshot data is not evidence of a new live quote.
                             # Keep verified Dhan quotes distinct from stale/cross-provider data.
                             for ticker, snapshot in batch.items():
-                                if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan":
+                                if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]):
                                     previous = quotes.get(ticker) or {}
                                     quotes[ticker] = dict(snapshot, change=None,
                                         bars=previous.get("bars", []) if previous.get("source") == "Dhan" else [],
