@@ -46,6 +46,15 @@ class OracleDeviceLoginTests(unittest.TestCase):
         self.assertNotIn("X-BotKing-Key", opener.requests[0].headers)
         self.assertIn(b'"signature"', opener.requests[1].data)
 
+    def test_invalid_device_ids_fail_before_network(self):
+        for device_id in ("a" * 15, "a" * 129, "android owner device", "android_é_device_226", "android/device_226"):
+            with self.subTest(device_id=device_id):
+                opener = Opener([])
+                client = OracleDeviceLogin226("https://example.com", opener=opener)
+                with self.assertRaises(OracleDeviceLoginError):
+                    asyncio.run(client.login(device_id, Native()))
+                self.assertEqual(opener.requests, [])
+
     def test_bad_challenge_fails_before_signing(self):
         opener = Opener([{"challenge": "bad"}])
         client = OracleDeviceLogin226("https://example.com", opener=opener)
