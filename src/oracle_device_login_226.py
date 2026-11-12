@@ -51,6 +51,8 @@ class OracleDeviceLogin226:
         if (not isinstance(device_id, str) or not 16 <= len(device_id) <= 128
                 or not all(ch.isascii() and (ch.isalnum() or ch in "_-") for ch in device_id)):
             raise OracleDeviceLoginError("Invalid device ID")
+        if native_bridge is None or not callable(getattr(native_bridge, "sign_login_challenge", None)):
+            raise OracleDeviceLoginError("Android biometric bridge unavailable")
         response = self._post("/v2/device/challenge", {"device_id": device_id})
         challenge = response.get("challenge")
         if not isinstance(challenge, str) or len(challenge) != 44:
@@ -61,8 +63,6 @@ class OracleDeviceLogin226:
             raise OracleDeviceLoginError("Invalid server challenge") from exc
         if len(challenge_bytes) != 32 or base64.urlsafe_b64encode(challenge_bytes).decode("ascii") != challenge:
             raise OracleDeviceLoginError("Invalid server challenge")
-        if native_bridge is None or not callable(getattr(native_bridge, "sign_login_challenge", None)):
-            raise OracleDeviceLoginError("Android biometric bridge unavailable")
         signature = await native_bridge.sign_login_challenge(device_id, challenge)
         if not isinstance(signature, str) or not 64 <= len(signature) <= 256:
             raise OracleDeviceLoginError("Invalid native device signature")
