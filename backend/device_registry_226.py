@@ -3,9 +3,7 @@
 No public enrollment routes are exposed here. The caller must verify owner
 approval and cryptographic device proof before issuing any session.
 """
-import hmac
 import re
-import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -85,10 +83,10 @@ class DeviceRegistry:
             return False
         with self._connect() as db:
             row = db.execute("""SELECT s.token_digest FROM sessions s JOIN devices d
-                ON s.device_id=d.device_id WHERE s.device_id=? AND
+                ON s.device_id=d.device_id WHERE s.device_id=? AND s.token_digest=? AND
                 s.revoked_at IS NULL AND d.revoked_at IS NULL AND s.expires_at>?""",
-                (device_id, int(self.clock()))).fetchone()
-        return bool(row and hmac.compare_digest(row[0], digest))
+                (device_id, digest, int(self.clock()))).fetchone()
+        return row is not None
 
     def revoke_device(self, device_id):
         with self._connect() as db:
