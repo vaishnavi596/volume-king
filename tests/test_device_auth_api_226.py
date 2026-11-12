@@ -83,9 +83,14 @@ class DeviceApiTests(unittest.TestCase):
             "device_id": self.device, "challenge": "x" * 44,
             "signature": "x" * 96})
         self.assertEqual(invalid_session.headers.get("cache-control"), "no-store")
+        self.assertEqual(invalid_session.status_code, 403)
         validation = self.client.post("/v2/device/validate",
                                       json={"device_id": self.device})
         self.assertEqual(validation.headers.get("cache-control"), "no-store")
+        self.assertEqual(validation.status_code, 401)
+        unknown = self.client.post("/v2/device/challenge", json={"device_id": "unknown_android_device_226"})
+        self.assertEqual(unknown.status_code, 403)
+        self.assertEqual(unknown.headers.get("cache-control"), "no-store")
 
     def test_malformed_bearer_header_rejected(self):
         for header in ("Bearer", "bearer abc", "Bearer  ", "Basic abc"):
