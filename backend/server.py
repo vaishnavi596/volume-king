@@ -392,7 +392,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         )
 
     def dhan_market_token():
-        """Use a non-expired consent token, otherwise a provisioned read-only token."""
+        """Prefer a non-expired OAuth token; fall back to the provisioned read-only token."""
         with lock:
             active = dhan_session["access_token"]
             expiry = dhan_session["expires_at"]
@@ -445,7 +445,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "expires_at": dhan_session["expires_at"] if authenticated else "",
                     "token_source": "oauth_consent" if authenticated else ("provisioned_unverified" if token_configured else "none"),
                     "renewal_supported": False,
-                    "reauthentication_required": not authenticated,
+                    "reauthentication_required": not market_data_configured,
                     "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
 
