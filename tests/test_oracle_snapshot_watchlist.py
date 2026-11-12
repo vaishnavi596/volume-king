@@ -33,6 +33,8 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
     def test_rejects_old_or_failed_snapshot(self):
         for changes in ({"age_seconds": 121}, {"age_seconds": None},
                         {"collection_status": "collection_overdue"},
+                        {"collection_status": "awaiting_next_collection"},
+                        {"freshness": "stale_or_missing"},
                         {"error": "upstream_http_429"}, {"quotes": {}},
                         {"quotes": {"RELIANCE": 0}},
                         {"unavailable": ["RELIANCE"]}):
