@@ -33,3 +33,18 @@ Status: **NOT VERIFIED**. This is a research checklist, not authorization to upg
 
 ## Current blockers
 Exact `flet-secure-storage` compatibility with Flet 0.25.2 or a pinned upgrade is not established. Native Android runtime testing has not been performed. Do not claim secure key persistence is complete.
+
+## Public package research (2026-11-12)
+- PyPI publishes official `flet-secure-storage==1.1.2` (Nov 6, 2026), Python >=3.10; the Flet service documentation says Android uses Keystore through Flutter `flutter_secure_storage`.
+- PyPI also publishes `flet==1.1.2`; official built-in extension documentation gives `flet>=1.0.0` in its example, **not** proof of a working Flet 0.25.2 integration.
+- Official example uses `flet_secure_storage.SecureStorage` and AndroidOptions. Its exact method signatures and runtime registration still require verification before implementing the BOT KING adapter.
+- Current `flet-webview==0.1.0` compatibility with Flet 1.1.2 and the app's `ft.WebView` usage is **not verified**. Do not blindly change dependency pins.
+- Official modern publishing documentation resolves Python versions differently from the existing 0.25.2 build. Changing Flet may also require a controlled Android toolchain migration.
+- A disposable local PyPI dependency resolution attempt was blocked by network DNS failure. It is **not** evidence of package incompatibility.
+
+References:
+- https://pypi.org/project/flet-secure-storage/1.1.2/
+- https://pypi.org/project/flet/1.1.2/
+- https://flet.dev/docs/services/securestorage/
+- https://flet.dev/docs/extend/built-in-extensions/
+- https://flet.dev/docs/publish/
