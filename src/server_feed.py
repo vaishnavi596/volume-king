@@ -327,12 +327,11 @@ class ServerDhanReadOnly:
         age = result.get("age_seconds")
         if (result.get("protocol") != 2 or result.get("source") != "dhan"
                 or result.get("error") is not None
-                or result.get("collection_status") not in
-                    ("recently_collected", "awaiting_next_collection")
+                or result.get("collection_status") != "recently_collected"
                 or isinstance(age, bool) or not isinstance(age, (int, float))
                 or not math.isfinite(age) or age < 0 or age > 120
                 or not isinstance(raw, dict) or not isinstance(unavailable, list)
-                or result.get("freshness") not in ("unverified", "stale_or_missing")
+                or result.get("freshness") != "unverified"
                 or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
                        or symbol == "NIFTY" for symbol in unavailable)
                 or len(unavailable) != len(set(unavailable))
