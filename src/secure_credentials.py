@@ -57,7 +57,10 @@ class VerifiedNativeCredentialStore:
         self._native = native_service
 
     async def read(self, key: str) -> str | None:
-        value = await self._native.get(key)
+        try:
+            value = await self._native.get(key)
+        except Exception:
+            raise SecureStorageUnavailable("Native secure storage read failed") from None
         if value is not None and not isinstance(value, str):
             raise SecureStorageUnavailable("Unexpected native storage response")
         return value
@@ -65,11 +68,17 @@ class VerifiedNativeCredentialStore:
     async def write(self, key: str, value: str) -> None:
         if not isinstance(value, str) or not value:
             raise ValueError("Cannot store an empty credential")
-        result = await self._native.set(key, value)
+        try:
+            result = await self._native.set(key, value)
+        except Exception:
+            raise SecureStorageUnavailable("Native secure storage write failed") from None
         if result is False:
             raise SecureStorageUnavailable("Native secure storage rejected write")
 
     async def delete(self, key: str) -> None:
-        result = await self._native.delete(key)
+        try:
+            result = await self._native.delete(key)
+        except Exception:
+            raise SecureStorageUnavailable("Native secure storage delete failed") from None
         if result is False:
             raise SecureStorageUnavailable("Native secure storage rejected delete")
