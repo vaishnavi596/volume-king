@@ -62,6 +62,14 @@ class OracleDeviceLogin226:
         if len(challenge_bytes) != 32 or base64.urlsafe_b64encode(challenge_bytes).decode("ascii") != challenge:
             raise OracleDeviceLoginError("Invalid server challenge")
         signature = await native_bridge.sign_login_challenge(device_id, challenge)
+        if not isinstance(signature, str) or not 64 <= len(signature) <= 256:
+            raise OracleDeviceLoginError("Invalid native device signature")
+        try:
+            signature_bytes = base64.b64decode(signature, altchars=b"-_", validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise OracleDeviceLoginError("Invalid native device signature") from exc
+        if not signature_bytes or base64.urlsafe_b64encode(signature_bytes).decode("ascii") != signature:
+            raise OracleDeviceLoginError("Invalid native device signature")
         session = self._post("/v2/device/session", {
             "device_id": device_id, "challenge": challenge, "signature": signature
         })
