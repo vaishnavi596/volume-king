@@ -32,6 +32,9 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
 
     def test_rejects_old_or_failed_snapshot(self):
         for changes in ({"age_seconds": 121}, {"age_seconds": None},
+                        {"live_orders_enabled": True},
+                        {"live_orders_enabled": None},
+                        {"protocol": 1}, {"source": "yahoo"},
                         {"collection_status": "collection_overdue"},
                         {"collection_status": "awaiting_next_collection"},
                         {"freshness": "stale_or_missing"},
