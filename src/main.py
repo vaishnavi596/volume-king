@@ -460,7 +460,7 @@ def app_main(page:ft.Page):
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
-        selected=prefs.get("source","Yahoo Finance")
+        selected=prefs.get("source","Dhan")
         generation=provider_generation[0]
         result=None
         health_key="market:"+selected+":"+ticker+":"+interval
@@ -2181,7 +2181,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value=prefs.get("source","Yahoo Finance");save()
+            source.value=prefs.get("source","Dhan");save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
