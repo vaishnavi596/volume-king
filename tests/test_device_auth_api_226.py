@@ -46,9 +46,15 @@ class DeviceApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         token = response.json()["access_token"]
         response = self.client.post("/v2/device/validate",
-                                    json={"device_id": self.device, "session_token": token})
+                                    json={"device_id": self.device},
+                                    headers={"Authorization": "Bearer " + token})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["authenticated"])
+        self.assertEqual(self.client.post("/v2/device/validate",
+            json={"device_id": self.device, "session_token": token}).status_code, 401)
+        self.assertEqual(self.client.post("/v2/device/validate",
+            json={"device_id": self.device},
+            headers={"Authorization": "Bearer wrong"}).status_code, 401)
         self.assertEqual(self.client.post("/v2/device/session", json=proof).status_code, 403)
 
     def test_unenrolled_device_rejected(self):
