@@ -4,6 +4,7 @@ NOT included by the production server by default. Only mount after explicit
 owner-approved enrollment setup, HTTPS ingress and persistence review.
 """
 from fastapi import APIRouter, Header, HTTPException, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .device_login_226 import DeviceLoginError
