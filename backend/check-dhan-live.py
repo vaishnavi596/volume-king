@@ -26,7 +26,7 @@ KEY_FILE = pathlib.Path("/home/opc/bot-king-pairing-key.txt")
 
 def request(path, key, payload=None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
-    headers = {"X-BotKing-Key": key, "Accept": "application/json"}
+    headers = {"X-BotKing-Key": key, "Accept": "application/json", "Cache-Control": "no-store"}
     if data is not None:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(BASE + path, data=data, headers=headers,
@@ -36,7 +36,10 @@ def request(path, key, payload=None):
             raw = response.read(65537)
             if len(raw) > 65536:
                 return 0, None
-            return response.status, json.loads(raw.decode("utf-8"))
+            parsed = json.loads(raw.decode("utf-8"), parse_constant=lambda value: (_ for _ in ()).throw(ValueError("Nonfinite JSON constant")))
+            if not isinstance(parsed, dict):
+                return 0, None
+            return response.status, parsed
     except urllib.error.HTTPError as exc:
         return exc.code, None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, UnicodeError):
