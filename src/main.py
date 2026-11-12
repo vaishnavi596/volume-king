@@ -1283,7 +1283,7 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • cached prices may remain • timestamp unverified"
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • missing prices cleared • timestamp unverified"
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
@@ -1296,6 +1296,11 @@ def app_main(page:ft.Page):
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
                 return
             log_error("watchlist_dhan_batch",exc)
+            with dhan_batch_lock:
+                dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+            for ticker in all_watch_symbols():
+                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             market_status=watch_batch_status[0]
@@ -2098,6 +2103,9 @@ def app_main(page:ft.Page):
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=provider_generation[0],
                                                     updated=time.monotonic(),quotes=batch)
+                        for ticker in all_watch_symbols():
+                            if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         for ticker,snapshot in batch.items():
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
