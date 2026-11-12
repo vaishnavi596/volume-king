@@ -1029,8 +1029,6 @@ def app_main(page:ft.Page):
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
-            if prefs.get("source")=="Dhan":
-                rows.append(note(index_quote_status.get(sym,"Waiting for index quote") if sym in index_quote_status else "Dhan stock quote • see freshness status below"))
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
             else:
@@ -1299,54 +1297,6 @@ def app_main(page:ft.Page):
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
             await asyncio.sleep(30)
-
-    index_quote_status={sym:"Waiting for first quote" for sym in ("NIFTY","BANKNIFTY","SENSEX")}
-    async def dashboard_index_quote_poll():
-        # The 51-equity Dhan batch does not contain index quotes.
-        # Fetch indexes independently at startup and retry transient failures.
-        failures={sym:0 for sym in index_quote_status}
-        next_due={sym:0.0 for sym in index_quote_status}
-        while True:
-            try:
-                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
-                    generation=provider_generation[0]
-                    now=time.monotonic()
-                    for sym in index_quote_status:
-                        if sym not in DHAN_VERIFIED_SYMBOLS:
-                            # Never hammer the server with an unmapped index.
-                            index_quote_status[sym]="UNAVAILABLE • Dhan instrument mapping not verified"
-                            continue
-                        if now<next_due[sym]:
-                            continue
-                        try:
-                            snapshot=await asyncio.wait_for(asyncio.to_thread(dhan_feed.quote,sym),timeout=15)
-                            price=snapshot.get("price") if isinstance(snapshot,dict) else None
-                            if not isinstance(price,(int,float)) or isinstance(price,bool) or not math.isfinite(price) or price<=0:
-                                raise FeedError("Index quote missing a valid price")
-                            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
-                                break
-                            previous=quotes.get(sym) or {}
-                            quotes[sym]=dict(previous,price=price,change=None,source="Dhan",
-                                             fetched_at=time.time(),quote_timestamp=None,
-                                             freshness="unverified")
-                            failures[sym]=0
-                            next_due[sym]=time.monotonic()+60
-                            index_quote_status[sym]="Quote received • exchange timestamp unverified"
-                        except asyncio.CancelledError:
-                            raise
-                        except Exception as exc:
-                            failures[sym]+=1
-                            delay=min(60,15*2**min(failures[sym]-1,2))
-                            next_due[sym]=time.monotonic()+delay
-                            index_quote_status[sym]="Quote unavailable • retry in "+str(delay)+"s • "+type(exc).__name__
-                            log_error("index_quote_"+sym,exc)
-                        if current[0]==0:
-                            request_view_refresh(0)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                log_error("dashboard_index_poll",exc)
-            await asyncio.sleep(5)
 
     def watchlist():
         fill_watch()
@@ -3929,7 +3879,6 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
-    page.run_task(dashboard_index_quote_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
