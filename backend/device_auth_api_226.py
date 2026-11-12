@@ -3,14 +3,11 @@
 NOT included by the production server by default. Only mount after explicit
 owner-approved enrollment setup, HTTPS ingress and persistence review.
 """
-import os
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .device_login_226 import DeviceLoginCoordinator, DeviceLoginError
-from .device_registry_226 import DeviceRegistry, DeviceRegistryError
-
-router = APIRouter(prefix="/v2/device", tags=["device-auth"])
+from .device_login_226 import DeviceLoginError
+from .device_registry_226 import DeviceRegistryError
 
 
 class ChallengeRequest(BaseModel):
