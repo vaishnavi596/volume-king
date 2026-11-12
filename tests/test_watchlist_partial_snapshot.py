@@ -60,6 +60,13 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_invalid_dhan_batch_prices_cannot_overwrite_last_good_quotes(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        guard='isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"])'
+        self.assertGreaterEqual(text.count(guard),2)
+        self.assertIn('if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and '+guard+':',text)
+        self.assertIn('if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan" and '+guard+':',text)
+
     def test_dhan_history_cooldown_does_not_rank_unattempted_symbols(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("                # Fail fast on a broken Dhan history endpoint.")
