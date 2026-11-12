@@ -65,7 +65,11 @@ class VerifiedNativeCredentialStore:
     async def write(self, key: str, value: str) -> None:
         if not isinstance(value, str) or not value:
             raise ValueError("Cannot store an empty credential")
-        await self._native.set(key, value)
+        result = await self._native.set(key, value)
+        if result is False:
+            raise SecureStorageUnavailable("Native secure storage rejected write")
 
     async def delete(self, key: str) -> None:
-        await self._native.delete(key)
+        result = await self._native.delete(key)
+        if result is False:
+            raise SecureStorageUnavailable("Native secure storage rejected delete")
