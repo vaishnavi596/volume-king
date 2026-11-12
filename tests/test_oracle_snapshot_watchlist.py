@@ -22,6 +22,24 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
         data.update(changes)
         return data
 
+    def test_real_transport_allows_snapshot_get_and_pairing_header(self):
+        import io
+        import json
+        from unittest.mock import MagicMock
+        response=MagicMock()
+        response.read.return_value=json.dumps(self.snapshot()).encode("utf-8")
+        response.__enter__.return_value=response
+        opener=MagicMock()
+        opener.open.return_value=response
+        with patch("server_feed.direct_https_opener",return_value=opener):
+            rows=self.feed.batch_quotes()
+        self.assertEqual(rows["RELIANCE"]["price"],1333.7)
+        request=opener.open.call_args.args[0]
+        self.assertEqual(request.get_method(),"GET")
+        self.assertEqual(request.full_url,"https://example.com/v2/snapshot")
+        self.assertEqual(request.get_header("X-botking-key"),"test-only")
+        self.assertIsNone(request.data)
+
     def test_uses_cached_get_not_upstream_batch_post(self):
         with patch.object(self.feed, "_call", return_value=self.snapshot()) as request:
             rows = self.feed.batch_quotes()
