@@ -358,6 +358,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_dhan_history_scan_cycle_waits_five_minutes_but_resume_interrupts(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
+        self.assertIn('wait_seconds=300 if prefs.get("source")=="Dhan" else 120', scan)
+        self.assertIn("for _ in range(wait_seconds//5):", scan)
+        self.assertIn("if provider_generation[0]!=generation:\n                        break", scan)
+        self.assertIn("await asyncio.sleep(5)", scan)
+
     def test_dhan_history_pacing_skips_only_recent_same_generation_cache(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
