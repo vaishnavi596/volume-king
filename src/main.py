@@ -3675,6 +3675,9 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(5)
                 continue
             initial=False
+            # Error diagnostics are scoped to each scan cycle. Previous provider
+            # failures must not survive a successful subsequent scan.
+            failed_symbols.clear()
             successes=0  # Defined even when no supported market provider is selected.
             generation=current_generation
             # Mark a closed-session scan as attempted only after its provider is ready.
