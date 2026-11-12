@@ -358,6 +358,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_super_five_render_masks_stale_dhan_direction(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
+        self.assertIn('direction=("NEUTRAL / WAIT" if prefs.get("source")=="Dhan" and historical', card)
+        self.assertIn('or not regular_hours()', card)
+
     def test_chart_navigation_checks_selected_timeframe_snapshot_not_watch_quote(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         navigation = source[source.index("    def render_page(i):"):source.index("    page.add(", source.index("    def render_page(i):"))]
