@@ -3680,7 +3680,15 @@ console.log('BOT KING Lightweight Charts ready');
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
                     try:
                         scan_progress["state"]="Checking Dhan batch before historical scan"
-                        batch=await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes),timeout=20)
+                        # Reuse the just-verified login/watchlist batch instead of immediately
+                        # issuing another Dhan request when the historical scan starts.
+                        with dhan_batch_lock:
+                            cached_batch = (dict(dhan_batch_cache["quotes"])
+                                if dhan_batch_cache["generation"] == generation
+                                and time.monotonic() - dhan_batch_cache["updated"] < 25
+                                else None)
+                        batch = (cached_batch if cached_batch is not None else
+                            await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20))
                         if generation==provider_generation[0] and prefs.get("source")=="Dhan":
                             with dhan_batch_lock:
                                 dhan_batch_cache.update(generation=generation,
