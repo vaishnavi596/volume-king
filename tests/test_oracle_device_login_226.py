@@ -96,6 +96,16 @@ class OracleDeviceLoginTests(unittest.TestCase):
             asyncio.run(client.login("android_owner_device_226", None))
         self.assertEqual(len(opener.requests), 0)
 
+    def test_native_biometric_failure_does_not_post_session(self):
+        class FailingNative:
+            async def sign_login_challenge(self, device_id, challenge):
+                raise RuntimeError("sensitive native failure")
+        opener = Opener([{"challenge": base64.urlsafe_b64encode(b"c" * 32).decode("ascii")}])
+        client = OracleDeviceLogin226("https://example.com", opener=opener)
+        with self.assertRaisesRegex(OracleDeviceLoginError, "Android biometric authentication failed"):
+            asyncio.run(client.login("android_owner_device_226", FailingNative()))
+        self.assertEqual(len(opener.requests), 1)
+
     def test_bad_native_signature_never_posts_session(self):
         class InvalidNative:
             async def sign_login_challenge(self, device_id, challenge):
