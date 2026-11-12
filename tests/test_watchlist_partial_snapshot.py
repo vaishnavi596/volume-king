@@ -11,7 +11,9 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         watch=text[start:end]
         self.assertNotIn("quotes.pop(ticker,None)",watch)
         self.assertIn("previous quotes retained",watch)
-        self.assertIn("received=len(set(batch).intersection(all_watch_symbols()))",watch)
+        self.assertIn('received=sum(1 for ticker in all_watch_symbols()',watch)
+        self.assertIn('snapshot.get("source")=="Dhan"',watch)
+        self.assertIn('math.isfinite(snapshot["price"])',watch)
         self.assertIn("received<total_symbols",watch)
         self.assertIn("timestamps unverified",watch)
         self.assertIn("Dhan quote refresh interrupted in background",watch)
