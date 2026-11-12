@@ -312,7 +312,7 @@ jobs:
           import pathlib, re, tomllib, os
           expected = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
           badging = pathlib.Path("/tmp/botking-apk-badging.txt").read_text()
-          match = re.search(r"^package:.*versionCode='(\\d+)'.*versionName='([^']+)'", badging, re.M)
+          match = re.search(r"^package:.*versionCode='(\d+)'.*versionName='([^']+)'", badging, re.M)
           if not match:
               raise SystemExit("APK package/version metadata missing")
           code, actual = int(match.group(1)), match.group(2)
