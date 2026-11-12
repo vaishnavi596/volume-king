@@ -1,4 +1,4 @@
-"""Guard against showing stale equity prices after a partial Dhan snapshot."""
+"""Guard last-valid Dhan prices without misreporting partial refresh coverage."""
 import unittest
 from pathlib import Path
 
@@ -11,6 +11,11 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         watch=text[start:end]
         self.assertNotIn("quotes.pop(ticker,None)",watch)
         self.assertIn("previous quotes retained",watch)
+        self.assertIn("received=len(set(batch).intersection(all_watch_symbols()))",watch)
+        self.assertIn("received<total_symbols",watch)
+        self.assertIn("timestamps unverified",watch)
+        self.assertIn("Dhan quote refresh interrupted in background",watch)
+        self.assertIn("if not app_active[0]:",watch)
         self.assertIn("Dhan batch failed:",watch)
         self.assertIn("dhan_batch_issue[0]=safe_error(exc)",watch)
         start=text.index("# Verify watchlist batch independently of the login check.")
