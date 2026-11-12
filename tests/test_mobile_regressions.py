@@ -298,6 +298,48 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 45', source)
         self.assertIn('await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20)', source)
 
+    def test_dhan_cached_quote_poll_is_foreground_only_and_45_seconds(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    async def dhan_quote_poll():")
+        end = source.index("    def watchlist():", start)
+        poll = source[start:end]
+        self.assertIn("app_active[0]", poll)
+        self.assertIn('prefs.get("source")=="Dhan"', poll)
+        self.assertIn("dhan_feed.connected", poll)
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', poll)
+        self.assertIn("await refresh_watch_batch()", poll)
+        self.assertIn("await asyncio.sleep(45)", poll)
+        self.assertNotIn("dhan_feed.intraday(", poll)
+
+    def test_dhan_history_429_pauses_without_scanning_remaining_symbols(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn("Dhan historical scan paused after HTTP 429", source)
+        self.assertIn("Dhan historical scan paused: HTTP 429 / cooldown", source)
+        self.assertIn("symbols not attempted", source)
+        self.assertIn("await asyncio.sleep(1.5)", source)
+
+    def test_super_five_cached_ranking_never_triggers_history_fetch(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    async def super_five_minute_refresh():")
+        end = source.index("    def super_five_card():", start)
+        refresh = source[start:end]
+        self.assertIn('snapshot=quotes.get(sym) or {}', refresh)
+        self.assertIn('snapshot.get("bars")', refresh)
+        self.assertIn("publish_partial_ranking(results)", refresh)
+        self.assertNotIn("get_market_data(", refresh)
+        self.assertNotIn("dhan_feed.intraday(", refresh)
+
+    def test_paper_bot_requires_manual_mark_and_never_enables_live_orders(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def paper_tick(e=None):")
+        end = source.index("    def paper_control_card():", start)
+        tick = source[start:end]
+        self.assertIn('paper_bot_state[0]!="Running"', tick)
+        self.assertIn('mode.value!="Paper"', tick)
+        self.assertIn("if not app_active[0]", tick)
+        self.assertIn('finite(paper_mark.value,"Manual mark"', tick)
+        self.assertIn("evaluate_mark(bot_position,mark,settings)", tick)
+
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('state="Dhan historical scan queued; LTP independently checked"', source)
