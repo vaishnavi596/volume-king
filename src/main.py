@@ -492,11 +492,17 @@ def app_main(page:ft.Page):
                             quote=dhan_batch_cache["quotes"].get(ticker)
                 if quote is None:
                     try:
-                        quote=dhan_feed.quote(ticker)
+                        # Equities use the same Oracle snapshot as the Watchlist.
+                        # Only the index, which is absent from the equity batch,
+                        # uses the dedicated read-only LTP endpoint.
+                        if ticker=="NIFTY":
+                            quote=dhan_feed.quote(ticker)
+                        else:
+                            quote=dhan_feed.batch_quotes().get(ticker)
                     except FeedError as exc:
-                        # Historical chart remains available if live LTP is missing.
-                        # Never represent candle close as a verified live quote.
-                        log_error("dhan_chart_ltp",exc)
+                        # Historical chart remains available if the snapshot/LTP
+                        # is unavailable; candle close is never a live quote.
+                        log_error("dhan_chart_quote",exc)
                         quote=None
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
