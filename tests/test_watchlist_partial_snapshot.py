@@ -60,6 +60,15 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_closed_session_dhan_429_does_not_schedule_auto_retry(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("# On a closed session, one transient all-symbol failure")
+        end=text.index("async def supervised_market_refresh():",start)
+        block=text[start:end]
+        self.assertIn('and not any("rate limited" in reason.lower() or "cooldown" in reason.lower()',block)
+        self.assertIn('or "http 429" in reason.lower()',block)
+        self.assertIn('closed_session_retry_generation!=generation',block)
+
     def test_history_refresh_rejects_invalid_cached_dhan_price(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("async def load_one(sym):")

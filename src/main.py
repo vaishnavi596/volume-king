@@ -4002,6 +4002,8 @@ console.log('BOT KING Lightweight Charts ready');
             # over 51 rate-sensitive Dhan history endpoints.
             if (prefs.get("source")=="Dhan" and dhan_feed.connected
                     and not regular_hours() and successes==0
+                    and not any("rate limited" in reason.lower() or "cooldown" in reason.lower()
+                                or "http 429" in reason.lower() for reason in failed_symbols.values())
                     and closed_session_retry_generation!=generation):
                 closed_session_retry_generation=generation
                 scan_progress["state"]="No fresh histories • one automatic retry in 3 minutes"
