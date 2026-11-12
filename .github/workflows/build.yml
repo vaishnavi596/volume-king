@@ -1,4 +1,4 @@
-# Build request: 2026-11-12 regression suite green; verify Android packaging and permanent signing.
+# Build request: 2026-11-12 commit 208ee4a tests green; package two-day Dhan scanner fix.
 
 name: Build APK
 
