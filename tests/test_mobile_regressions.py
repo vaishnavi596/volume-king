@@ -360,7 +360,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_background_interrupted_dhan_scan_does_not_publish_partial_ranking(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
-        guard = scan.index('if prefs.get("source")=="Dhan" and lifecycle_background[0]:')
+        guard = scan.index('if prefs.get("source")=="Dhan" and (lifecycle_background[0] or background_interrupted):')
         ranking = scan.index('ranking_results={}')
         self.assertLess(guard, ranking)
         self.assertIn("last_scanned_generation=None", scan[guard:ranking])
