@@ -742,14 +742,14 @@ def app_main(page:ft.Page):
         stamp=row.get("timestamp")
         historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         # Historical filter ratios are context, not a current directional signal.
-        # Mute the bar as well as the captions to avoid a live-looking indicator.
-        bull_bar_color=MUTED if historical else GREEN
-        bear_bar_color=BORDER if historical else RED
+        # Keep historical direction visible; the explicit HISTORICAL caption prevents a live claim.
+        bull_bar_color=GREEN
+        bear_bar_color=RED
         bar=ft.Row([ft.Container(bgcolor=bull_bar_color,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=bear_bar_color,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
         label_prefix="Historical votes • " if historical else "Filter votes • "
-        label_color=MUTED if historical else GREEN
-        bear_color=MUTED if historical else RED
+        label_color=GREEN
+        bear_color=RED
         return ft.Column([ft.Row([txt("Bullish "+str(bull)+"%",11,label_color,True),txt("Bearish "+str(bear)+"%",11,bear_color,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(label_prefix+str(total)+" directional filters • not win probability")],spacing=2)
 
     def mark_ranking_historical():
@@ -991,7 +991,7 @@ def app_main(page:ft.Page):
                         age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
-            color=MUTED if historical else GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
+            color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
             direction=("HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH") else "NEUTRAL / WAIT" if row["bias"]=="WAIT" else row["bias"])
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol"))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
@@ -1221,8 +1221,10 @@ def app_main(page:ft.Page):
                           and not signal_row.get("historical") and regular_hours()
                           and isinstance(signal_stamp,(int,float))
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
-            signal_direction=("Bullish" if signal_counts and signal_counts[0]>signal_counts[1] else
-                              "Bearish" if signal_counts and signal_counts[1]>signal_counts[0] else "Neutral") if signal_fresh else "Neutral"
+            signal_available=(signal_row.get("source")==expected_quote_source and
+                              isinstance(signal_stamp,(int,float)) and signal_counts is not None)
+            signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
+                              "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
