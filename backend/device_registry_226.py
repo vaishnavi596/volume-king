@@ -3,7 +3,9 @@
 No public enrollment routes are exposed here. The caller must verify owner
 approval and cryptographic device proof before issuing any session.
 """
+import os
 import re
+import stat
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -25,7 +27,14 @@ class DeviceRegistry:
     def __init__(self, database_path, clock=None):
         self.database_path = str(database_path)
         self.clock = clock or time.time
-        Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
+        if self.database_path == ":memory:":
+            raise DeviceRegistryError("Persistent device database required")
+        database = Path(self.database_path)
+        database.parent.mkdir(parents=True, exist_ok=True)
+        if database.is_symlink():
+            raise DeviceRegistryError("Symlink device database rejected")
+        if database.exists() and (not database.is_file() or database.stat().st_mode & 0o077):
+            raise DeviceRegistryError("Device database permissions must be private")
         with self._connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS devices (
                 device_id TEXT PRIMARY KEY,
@@ -39,10 +48,12 @@ class DeviceRegistry:
                 expires_at INTEGER NOT NULL,
                 revoked_at INTEGER
             )""")
+        os.chmod(self.database_path, stat.S_IRUSR | stat.S_IWUSR)
 
     @contextmanager
     def _connect(self):
         db = sqlite3.connect(self.database_path, timeout=5)
+        db.execute("PRAGMA busy_timeout=5000")
         try:
             db.execute("PRAGMA foreign_keys=ON")
             yield db
@@ -62,6 +73,8 @@ class DeviceRegistry:
                        (device_id, public_key, int(self.clock())))
 
     def issue_session(self, device_id, *, device_proof_verified=False, ttl_seconds=900):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            raise DeviceRegistryError("Invalid device ID")
         if device_proof_verified is not True:
             raise DeviceRegistryError("Device proof required")
         if type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 3600:
@@ -77,6 +90,8 @@ class DeviceRegistry:
         return token
 
     def validate_session(self, device_id, token):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            return False
         try:
             digest = session_token_digest(token)
         except (ValueError, TypeError):
