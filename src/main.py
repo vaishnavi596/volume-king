@@ -1854,7 +1854,13 @@ def app_main(page:ft.Page):
                 option_expiry_note.value="Expiry selected from Angel One instrument master; quote timestamps shown below."
             hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
             if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
-            quotes[sym]=hist
+            # Options history must not overwrite a newer quote snapshot.
+            previous=quotes.get(sym) or {}
+            if not (previous.get("source")==hist.get("source")
+                    and isinstance(previous.get("fetched_at"),(int,float))
+                    and previous["fetched_at"]>hist.get("fetched_at",0)
+                    and isinstance(previous.get("price"),(int,float))):
+                quotes[sym]=hist
             if prefs.get("source")!="Broker API" or not angel_feed.connected:
                 option_feed.clear()
                 option_feed_status[0]=("Dhan mode provides read-only equity/index quotes and candles, not verified CE/PE option-chain data." if prefs.get("source")=="Dhan" else "Verified CE/PE and OI require Broker API mode and a connected broker.")
