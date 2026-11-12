@@ -82,8 +82,8 @@ def main():
     except OSError:
         print("Pairing key: unavailable (contents not displayed)")
         return 2
-    if len(key) < 32:
-        print("Pairing key: invalid length")
+    if not 32 <= len(key) <= 512 or any(ord(ch) < 33 or ord(ch) > 126 for ch in key):
+        print("Pairing key: invalid format")
         return 2
     code, status = request("/dhan/status", key)
     print("Dhan status HTTP:", code)
