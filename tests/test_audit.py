@@ -544,12 +544,13 @@ class AuditTests(unittest.TestCase):
         from market_feed import FeedError
         feed=ServerDhanReadOnly()
         with patch.object(feed,'_call',return_value={
-                'source':'dhan','quotes':{},'live_orders_enabled':False}):
+                'source':'dhan','quotes':{},'unavailable':['RELIANCE'],
+                'live_orders_enabled':False}):
             with self.assertRaisesRegex(FeedError,'Empty Dhan batch response'):
                 feed.batch_quotes()
         with patch.object(feed,'_call',return_value={
                 'source':'dhan','quotes':{'RELIANCE':1234.5},
-                'live_orders_enabled':False}):
+                'unavailable':['HDFCBANK'],'live_orders_enabled':False}):
             result=feed.batch_quotes()
         self.assertEqual(list(result),['RELIANCE'])
         self.assertIsNone(result['RELIANCE']['quote_timestamp'])
