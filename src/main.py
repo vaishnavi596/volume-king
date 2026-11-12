@@ -967,9 +967,13 @@ def app_main(page:ft.Page):
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
-        if prefs.get('source')!='Dhan' or dhan_feed.connected:
-            for failed,reason in list(failed_symbols.items()):
-                controls.append(ft.Row([ft.Container(content=note(failed+": "+reason),expand=True),ft.TextButton("Retry",on_click=lambda e,s=failed:page.run_task(retry_failed_symbol,s))]))
+        # Keep Super Five focused on five candidates, not a scrolling wall
+        # of up to 51 provider errors and retry buttons. Full per-symbol
+        # diagnostics remain in System Health / Scanner.
+        if failed_symbols:
+            controls.append(note(str(len(failed_symbols))+
+                " candle histories unavailable • details in System Health / Scanner"))
+
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
