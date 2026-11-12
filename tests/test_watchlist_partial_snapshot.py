@@ -60,6 +60,16 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_history_refresh_rejects_invalid_cached_dhan_price(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("async def load_one(sym):")
+        end=text.index("# Fail fast on a broken Dhan history endpoint.",start)
+        history=text[start:end]
+        self.assertIn('isinstance(latest.get("price"),(int,float))',history)
+        self.assertIn('not isinstance(latest.get("price"),bool)',history)
+        self.assertIn('math.isfinite(latest["price"])',history)
+        self.assertIn('data=dict(data,price=latest["price"]',history)
+
     def test_invalid_dhan_batch_prices_cannot_overwrite_last_good_quotes(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         guard='isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"])'
