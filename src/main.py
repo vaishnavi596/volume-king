@@ -1284,7 +1284,11 @@ def app_main(page:ft.Page):
                       isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
             total_symbols=len(all_watch_symbols())
             # A partial batch is not a complete refresh even if older quotes remain cached.
-            received=len(set(batch).intersection(all_watch_symbols()))
+            received=sum(1 for ticker in all_watch_symbols() if
+                         (snapshot:=batch.get(ticker)) and snapshot.get("source")=="Dhan"
+                         and isinstance(snapshot.get("price"),(int,float))
+                         and not isinstance(snapshot.get("price"),bool)
+                         and math.isfinite(snapshot["price"]))
             dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} symbols returned"
                                  if received<total_symbols else None)
             if dhan_feed.connected:
