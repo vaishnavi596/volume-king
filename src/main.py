@@ -450,13 +450,16 @@ def app_main(page:ft.Page):
         with market_registry_lock:lock=market_locks.setdefault(key,RLock())
         with lock:
             cached=market_recent.get(key)
-            if cached and time.monotonic()-cached[0]<10:return copy.deepcopy(cached[1])
+            # Share recent same-provider candle results across Chart and Scanner.
+            # Historical candles remain explicitly unverified, never live quotes.
+            ttl=90 if prefs.get("source")=="Dhan" else 10
+            if cached and time.monotonic()-cached[0]<ttl:return copy.deepcopy(cached[1])
             result=fetch_market_data_uncached(ticker,interval,range_)
             if key[0]!=provider_generation[0]:raise RuntimeError("Obsolete market response")
             with market_registry_lock:
                 market_recent[key]=(time.monotonic(),copy.deepcopy(result))
                 for old in list(market_recent):
-                    if time.monotonic()-market_recent[old][0]>30:market_recent.pop(old,None)
+                    if time.monotonic()-market_recent[old][0]>(90 if old[3]=="Dhan" else 30):market_recent.pop(old,None)
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
