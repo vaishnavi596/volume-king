@@ -35,6 +35,15 @@ class ProviderGatewayTests(unittest.TestCase):
         self.assertIsNone(result.json()["provider"])
         self.assertFalse(result.json()["fallback"])
 
+    def test_fallback_only_with_explicit_opt_in(self):
+        payload = {"preferred": "Dhan", "now": 1000, "allow_fallback": True, "states": [
+            {"provider": "Dhan", "status": "EXPIRED", "quote_timestamp": 999},
+            {"provider": "Yahoo Finance", "status": "CONNECTED", "quote_timestamp": 995}]}
+        result = self.client.post("/v2/providers/select", json=payload, headers=self.headers)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["provider"], "Yahoo Finance")
+        self.assertTrue(result.json()["fallback"])
+
     def test_duplicate_provider_rejected(self):
         payload = {"now": 1000, "states": [
             {"provider": "Dhan", "status": "CONNECTED", "quote_timestamp": 999},
