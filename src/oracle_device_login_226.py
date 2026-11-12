@@ -5,6 +5,7 @@ Requires an Android native signing bridge before use on a real device.
 """
 import base64
 import json
+import re
 import urllib.error
 import urllib.request
 
@@ -66,7 +67,7 @@ class OracleDeviceLogin226:
         })
         token = session.get("access_token")
         if (not isinstance(token, str) or not 32 <= len(token) <= 256
-                or not token.isascii() or any(ch.isspace() for ch in token)
+                or re.fullmatch(r"[A-Za-z0-9_-]+", token) is None
                 or session.get("token_type") != "bearer"
                 or type(session.get("expires_in_seconds")) is not int
                 or not 0 < session["expires_in_seconds"] <= 900):
