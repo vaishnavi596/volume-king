@@ -1271,10 +1271,8 @@ def app_main(page:ft.Page):
                 return
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
-            # A partial snapshot must not leave previous equity LTP visible as current.
-            for ticker in all_watch_symbols():
-                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
-                    quotes.pop(ticker,None)
+            # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
+            # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
                 if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
                     old=quotes.get(ticker) or {}
@@ -1293,7 +1291,7 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • missing prices cleared • timestamp unverified"
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • timestamp unverified"
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
@@ -1308,9 +1306,7 @@ def app_main(page:ft.Page):
             log_error("watchlist_dhan_batch",exc)
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
-            for ticker in all_watch_symbols():
-                if (quotes.get(ticker) or {}).get("source")=="Dhan":
-                    quotes.pop(ticker,None)
+            # A failed poll must not blank the last valid displayed Dhan prices.
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             market_status=watch_batch_status[0]
@@ -3747,10 +3743,8 @@ console.log('BOT KING Lightweight Charts ready');
                                 dhan_batch_cache.update(generation=generation,
                                                         updated=time.monotonic(),quotes=batch)
                             # Watchlist LTP must not depend on historical candle success.
-                            # A partial snapshot must not retain an old Dhan quote.
-                            for ticker in all_watch_symbols():
-                                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
-                                    quotes.pop(ticker,None)
+                            # Retain last valid prices for missing symbols; partial
+                            # snapshot data is not evidence of a new live quote.
                             # Keep verified Dhan quotes distinct from stale/cross-provider data.
                             for ticker, snapshot in batch.items():
                                 if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan":
@@ -3767,10 +3761,8 @@ console.log('BOT KING Lightweight Charts ready');
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
                         if generation==provider_generation[0] and prefs.get("source")=="Dhan":
-                            # A failed snapshot must not leave old watchlist LTP visible.
-                            for ticker in all_watch_symbols():
-                                if (quotes.get(ticker) or {}).get("source")=="Dhan":
-                                    quotes.pop(ticker,None)
+                            # Keep last valid Dhan prices visible on feed failure.
+                            # market_status above explicitly reports unavailable LTP.
                             if current[0]==4:
                                 request_view_refresh(4)
                 # Connection is now ready: allow the first historical scan even on weekends.
