@@ -3823,6 +3823,13 @@ console.log('BOT KING Lightweight Charts ready');
                 # Fail fast on a broken Dhan history endpoint. One representative
                 # candle failure must not trigger another 50 doomed API calls.
                 if prefs.get("source")=="Dhan" and symbols:
+                    # Batch quote lookup can finish after Android backgrounds the
+                    # app. Avoid even the first rate-sensitive history request.
+                    if lifecycle_background[0]:
+                        scan_progress["state"]="Dhan history waiting for foreground • last ranking retained"
+                        last_scanned_generation=None
+                        await asyncio.sleep(5)
+                        continue
                     first_ok=await load_one(symbols[0])
                     if not first_ok and symbols[0] in failed_symbols:
                         reason=failed_symbols[symbols[0]]
