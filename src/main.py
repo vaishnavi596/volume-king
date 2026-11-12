@@ -3805,6 +3805,20 @@ console.log('BOT KING Lightweight Charts ready');
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
+                # A provider cooldown is not 51 individual candle failures. Do not
+                # rank unrequested symbols or overwrite last-good Super Five results.
+                if prefs.get("source")=="Dhan" and any(
+                    "rate limited" in reason.lower() or "cooldown" in reason.lower()
+                    or "http 429" in reason.lower() for reason in failed_symbols.values()
+                ):
+                    scan_progress.update(checked=market_completed[0],total=len(symbols),
+                        valid=0,failed=history_failed[0],cached=0,
+                        state="Dhan historical scan paused: HTTP 429 / cooldown; "
+                              +str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted")
+                    market_status="Dhan LTP remains available; candle scan paused by provider cooldown"
+                    if current[0] in (0,4,5):request_view_refresh(current[0])
+                    await asyncio.sleep(60)
+                    continue
                 successes=sum(results)
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
