@@ -60,6 +60,20 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_dhan_history_cooldown_does_not_rank_unattempted_symbols(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("                # Fail fast on a broken Dhan history endpoint.")
+        end=text.index("                # Fresh candle-only Top 5;",start)
+        history=text[start:end]
+        self.assertIn("if not first_ok and symbols[0] in failed_symbols:",history)
+        self.assertIn("Dhan historical feed unavailable",history)
+        self.assertIn("Dhan historical scan paused after HTTP 429",history)
+        self.assertIn("symbols not attempted",history)
+        self.assertIn("last_scanned_generation=None",history)
+        self.assertIn("last ranking retained",history)
+        self.assertIn("if not cache_ready:",history)
+        self.assertIn("await asyncio.sleep(1.5)",history)
+
     def test_dhan_history_has_one_pacing_delay_not_two(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("                async def load_one(sym):")
