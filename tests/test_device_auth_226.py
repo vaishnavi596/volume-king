@@ -11,6 +11,7 @@ hash_pin = _module.hash_pin
 verify_pin = _module.verify_pin
 new_session_token = _module.new_session_token
 session_token_digest = _module.session_token_digest
+PinAttemptLimiter = _module.PinAttemptLimiter
 
 
 class DeviceAuth226Tests(unittest.TestCase):
@@ -34,6 +35,30 @@ class DeviceAuth226Tests(unittest.TestCase):
 
     def test_corrupt_record_fails_closed(self):
         self.assertFalse(verify_pin("123456", {"algorithm": "pbkdf2-sha256"}))
+
+    def test_unicode_session_token_fails_closed(self):
+        with self.assertRaises(DeviceAuthError):
+            session_token_digest("😀" * 32)
+
+    def test_pin_attempt_lockout(self):
+        clock = [100.0]
+        limiter = PinAttemptLimiter(max_attempts=3, window_seconds=60, lock_seconds=120,
+                                    clock=lambda: clock[0])
+        self.assertTrue(limiter.record_failure("phone-1"))
+        self.assertTrue(limiter.record_failure("phone-1"))
+        self.assertFalse(limiter.record_failure("phone-1"))
+        self.assertFalse(limiter.allowed("phone-1"))
+        self.assertFalse(limiter.clear_after_success("phone-1"))
+        self.assertTrue(limiter.allowed("phone-2"))
+        clock[0] += 121
+        self.assertTrue(limiter.allowed("phone-1"))
+        self.assertTrue(limiter.clear_after_success("phone-1"))
+
+    def test_invalid_device_id_rejected(self):
+        limiter = PinAttemptLimiter()
+        self.assertFalse(limiter.allowed(""))
+        with self.assertRaises(DeviceAuthError):
+            limiter.record_failure("")
 
     def test_random_session_digest(self):
         a, b = new_session_token(), new_session_token()
