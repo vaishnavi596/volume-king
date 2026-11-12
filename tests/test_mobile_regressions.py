@@ -350,6 +350,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
+    def test_dhan_history_scan_pauses_between_symbols_in_background(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("for sym in symbols[1:]:"):source.index("results.append(await load_one(sym))") + len("results.append(await load_one(sym))")]
+        self.assertEqual(scan.count("if lifecycle_background[0]:"), 2)
+        self.assertIn("last_scanned_generation=None", scan)
+        self.assertIn("await asyncio.sleep(1.5)", scan)
+
     def test_pending_dhan_history_generation_waits_for_foreground(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         start = source.index("    async def refresh_market():")
