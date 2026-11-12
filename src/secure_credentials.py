@@ -25,6 +25,18 @@ class DhanSessionRecord:
     provider: str = "Dhan"
 
 
+
+def origin_scoped_pairing_key(origin: str) -> str:
+    """Non-secret Keystore alias scoped to one validated HTTPS server origin."""
+    import hashlib
+    from server_feed import server_origin
+
+    normalized = server_origin(origin)
+    # Hash the origin to keep hostnames out of storage aliases and logs.
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return "botking.pairing.v1." + digest
+
+
 class UnavailableCredentialStore:
     """Safe fallback: never persist or silently pretend a secret was saved."""
 
