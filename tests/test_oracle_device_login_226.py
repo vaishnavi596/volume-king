@@ -96,6 +96,13 @@ class OracleDeviceLoginTests(unittest.TestCase):
             asyncio.run(client.login("android_owner_device_226", None))
         self.assertEqual(len(opener.requests), 0)
 
+    def test_oversized_response_object_rejected(self):
+        opener = Opener([{str(i): i for i in range(17)}])
+        client = OracleDeviceLogin226("https://example.com", opener=opener)
+        with self.assertRaisesRegex(OracleDeviceLoginError, "Invalid device authentication response"):
+            asyncio.run(client.login("android_owner_device_226", Native()))
+        self.assertEqual(len(opener.requests), 1)
+
     def test_nonbytes_transport_response_rejected(self):
         class TextResponse(Response):
             def read(self, n):
