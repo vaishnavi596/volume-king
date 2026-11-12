@@ -3791,7 +3791,10 @@ console.log('BOT KING Lightweight Charts ready');
                                     latest=dhan_batch_cache["quotes"].get(sym) if (
                                         dhan_batch_cache["generation"]==generation and
                                         time.monotonic()-dhan_batch_cache["updated"]<90) else None
-                                if latest and latest.get("source")=="Dhan":
+                                if (latest and latest.get("source")=="Dhan" and
+                                        isinstance(latest.get("price"),(int,float)) and
+                                        not isinstance(latest.get("price"),bool) and
+                                        math.isfinite(latest["price"])):
                                     data=dict(data,price=latest["price"],quote_timestamp=None,
                                               freshness="unverified",fetched_at=time.time())
                             # Historical scans must never overwrite a newer live LTP
