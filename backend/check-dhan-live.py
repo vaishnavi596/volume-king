@@ -45,6 +45,7 @@ def main():
     if code != 200 or not isinstance(status, dict):
         return 2
     print("Consent authenticated:", status.get("authenticated") is True)
+    print("Reauthentication required:", status.get("reauthentication_required") is True)
     print("Market-data configured:", status.get("market_data_configured") is True)
     print("Live orders disabled:", status.get("live_orders_enabled") is False)
     if status.get("market_data_configured") is not True:
@@ -54,7 +55,8 @@ def main():
                    and quote.get("source") == "dhan"
                    and isinstance(quote.get("ltp"), (int, float))
                    and not isinstance(quote.get("ltp"), bool)
-                   and quote["ltp"] > 0)
+                   and quote["ltp"] > 0
+                   and __import__("math").isfinite(quote["ltp"]))
     print("NIFTY LTP HTTP:", code, "valid:", valid_quote)
     code, batch = request("/dhan/ltp-batch", key, {})
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
