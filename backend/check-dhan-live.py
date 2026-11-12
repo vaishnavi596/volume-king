@@ -49,6 +49,9 @@ def main():
     print("Reauthentication required:", status.get("reauthentication_required") is True)
     print("Market-data configured:", status.get("market_data_configured") is True)
     print("Live orders disabled:", status.get("live_orders_enabled") is False)
+    if status.get("live_orders_enabled") is not False:
+        print("SAFETY FAILURE: live orders not confirmed disabled")
+        return 2
     if status.get("market_data_configured") is not True:
         return 2
     code, quote = request("/dhan/ltp", key, {"symbol": "NIFTY"})
