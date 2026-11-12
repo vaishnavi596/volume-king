@@ -33,7 +33,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_background_dhan_history_requests_are_bounded_and_progress_visible(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)', source)
+        self.assertIn('asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","2d"),timeout=25)', source)
         self.assertIn('scan_progress["state"]="Loading histories: "', source)
         self.assertIn('market_completed[0]+=1', source)
         self.assertIn('history_failed=[0]', source)
