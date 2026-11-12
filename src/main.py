@@ -749,13 +749,13 @@ def app_main(page:ft.Page):
         historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         # Historical filter ratios are context, not a current directional signal.
         # Keep historical direction visible; the explicit HISTORICAL caption prevents a live claim.
-        bull_bar_color=GREY if historical else GREEN
-        bear_bar_color=GREY if historical else RED
+        bull_bar_color=MUTED if historical else GREEN
+        bear_bar_color=MUTED if historical else RED
         bar=ft.Row([ft.Container(bgcolor=bull_bar_color,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=bear_bar_color,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
         label_prefix="Historical votes • " if historical else "Filter votes • "
-        label_color=GREY if historical else GREEN
-        bear_color=GREY if historical else RED
+        label_color=MUTED if historical else GREEN
+        bear_color=MUTED if historical else RED
         display_prefix="HISTORICAL • " if historical else ""
         return ft.Column([ft.Row([txt(display_prefix+"Bullish "+str(bull)+"%",11,label_color,True),txt("Bearish "+str(bear)+"%",11,bear_color,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(label_prefix+str(total)+" directional filters • not win probability")],spacing=2)
 
