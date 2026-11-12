@@ -1251,7 +1251,7 @@ def app_main(page:ft.Page):
         fill_watch()
     watch_batch_busy=[False]
     watch_batch_status=["Dhan batch not checked on this screen"]
-    async def refresh_watch_batch():
+    async def refresh_watch_batch(reuse_recent=False):
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
             return
@@ -1264,7 +1264,15 @@ def app_main(page:ft.Page):
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
         try:
-            batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            # Automatic quote polling can reuse a recent scanner/login snapshot.
+            # Manual Refresh Dhan LTP still forces a new server read.
+            with dhan_batch_lock:
+                recent_batch=(dict(dhan_batch_cache["quotes"])
+                    if reuse_recent and dhan_batch_cache["generation"]==generation
+                    and time.monotonic()-dhan_batch_cache["updated"]<30
+                    and dhan_batch_cache["quotes"] else None)
+            batch=(recent_batch if recent_batch is not None
+                   else await asyncio.to_thread(dhan_feed.batch_quotes))
             if not batch:
                 raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
@@ -1320,7 +1328,7 @@ def app_main(page:ft.Page):
             try:
                 if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
                         and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
-                    await refresh_watch_batch()
+                    await refresh_watch_batch(reuse_recent=True)
                     if current[0]==0:
                         request_view_refresh(0)
             except asyncio.CancelledError:

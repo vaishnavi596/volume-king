@@ -6,7 +6,7 @@ from pathlib import Path
 class WatchlistPartialSnapshotTests(unittest.TestCase):
     def test_all_dhan_batch_paths_keep_last_valid_quote_and_report_failure(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        start=text.index("    async def refresh_watch_batch():")
+        start=text.index("    async def refresh_watch_batch(reuse_recent=False):")
         end=text.index("    async def dhan_quote_poll():",start)
         watch=text[start:end]
         self.assertNotIn("quotes.pop(ticker,None)",watch)

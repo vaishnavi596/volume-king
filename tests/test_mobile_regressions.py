@@ -267,7 +267,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn("async def dashboard_index_quote_poll():", source)
         self.assertNotIn("page.run_task(dashboard_index_quote_poll)", source)
         self.assertIn("async def dhan_quote_poll():", source)
-        self.assertIn("await refresh_watch_batch()", source)
+        self.assertIn("await refresh_watch_batch(reuse_recent=True)", source)
 
     def test_super_five_uses_independent_minute_cached_refresh(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
@@ -307,7 +307,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('prefs.get("source")=="Dhan"', poll)
         self.assertIn("dhan_feed.connected", poll)
         self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', poll)
-        self.assertIn("await refresh_watch_batch()", poll)
+        self.assertIn("await refresh_watch_batch(reuse_recent=True)", poll)
         self.assertIn("await asyncio.sleep(45)", poll)
         self.assertNotIn("dhan_feed.intraday(", poll)
 
