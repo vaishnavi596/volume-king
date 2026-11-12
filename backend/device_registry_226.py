@@ -48,6 +48,10 @@ class DeviceRegistry:
                 expires_at INTEGER NOT NULL,
                 revoked_at INTEGER
             )""")
+            db.execute("""CREATE TABLE IF NOT EXISTS login_limits (
+                device_id TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0,
+                first_failure_at INTEGER NOT NULL DEFAULT 0,
+                locked_until INTEGER NOT NULL DEFAULT 0)""")
         os.chmod(self.database_path, stat.S_IRUSR | stat.S_IWUSR)
 
     @contextmanager
@@ -71,6 +75,41 @@ class DeviceRegistry:
         with self._connect() as db:
             db.execute("INSERT INTO devices(device_id,public_key,enrolled_at) VALUES (?,?,?)",
                        (device_id, public_key, int(self.clock())))
+
+    def login_allowed(self, device_id):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            return False
+        with self._connect() as db:
+            row = db.execute("SELECT locked_until FROM login_limits WHERE device_id=?",
+                             (device_id,)).fetchone()
+        return row is None or int(self.clock()) >= row[0]
+
+    def record_login_failure(self, device_id, max_attempts=5, window_seconds=300,
+                             lock_seconds=900):
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            return False
+        now = int(self.clock())
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""SELECT failures,first_failure_at,locked_until
+                FROM login_limits WHERE device_id=?""", (device_id,)).fetchone()
+            if row and now < row[2]:
+                return False
+            count = row[0] + 1 if row and now - row[1] < window_seconds else 1
+            first = row[1] if row and now - row[1] < window_seconds else now
+            until = now + lock_seconds if count >= max_attempts else 0
+            db.execute("""INSERT INTO login_limits(device_id,failures,first_failure_at,locked_until)
+                VALUES(?,?,?,?) ON CONFLICT(device_id) DO UPDATE SET
+                failures=excluded.failures,first_failure_at=excluded.first_failure_at,
+                locked_until=excluded.locked_until""", (device_id, count, first, until))
+        return until == 0
+
+    def clear_login_failures(self, device_id):
+        if not self.login_allowed(device_id):
+            return False
+        with self._connect() as db:
+            db.execute("DELETE FROM login_limits WHERE device_id=?", (device_id,))
+        return True
 
     def active_public_key(self, device_id):
         """Read only an active enrolled device's public key."""
