@@ -6,6 +6,9 @@ exports a private key, or stores a PIN in Python preferences.
 import base64
 import inspect
 from dataclasses import dataclass
+from cryptography.hazmat.primitives.serialization import load_der_public_key
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 
 class AndroidAuthUnavailable(RuntimeError):
@@ -45,6 +48,12 @@ class AndroidDeviceAuthBridge:
             raise AndroidAuthUnavailable("Invalid Android public key encoding") from exc
         if not 80 <= len(raw) <= 160:
             raise AndroidAuthUnavailable("Invalid P-256 public key length")
+        try:
+            key = load_der_public_key(raw)
+        except (ValueError, TypeError) as exc:
+            raise AndroidAuthUnavailable("Invalid Android public key DER") from exc
+        if not isinstance(key, ec.EllipticCurvePublicKey) or not isinstance(key.curve, ec.SECP256R1):
+            raise AndroidAuthUnavailable("Android public key must use P-256")
         return DeviceKeyRegistration(device_id, "p256:" + public_key)
 
     async def sign_login_challenge(self, device_id, challenge):
@@ -69,6 +78,10 @@ class AndroidDeviceAuthBridge:
             encoded = base64.b64decode(signature, altchars=b"-_", validate=True)
         except (ValueError, base64.binascii.Error) as exc:
             raise AndroidAuthUnavailable("Invalid native signature encoding") from exc
-        if not 8 <= len(encoded) <= 80:
-            raise AndroidAuthUnavailable("Invalid native signature")
+        try:
+            r, s = decode_dss_signature(encoded)
+        except ValueError as exc:
+            raise AndroidAuthUnavailable("Invalid native P-256 signature DER") from exc
+        if r <= 0 or s <= 0:
+            raise AndroidAuthUnavailable("Invalid native P-256 signature")
         return signature
