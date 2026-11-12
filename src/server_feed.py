@@ -243,6 +243,8 @@ class ServerDhanReadOnly:
             status = self._call("/dhan/status")
             if status.get("market_data_configured") is not True:
                 raise FeedError("Dhan market-data token unavailable on server")
+            if status.get("reauthentication_required") is True:
+                raise FeedError("Dhan authentication expired; reconnect through Dhan")
             quote = self.quote("NIFTY")
         except Exception:
             self.disconnect()
