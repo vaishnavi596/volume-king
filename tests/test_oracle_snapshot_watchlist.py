@@ -30,6 +30,15 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
         self.assertIsNone(rows["RELIANCE"]["quote_timestamp"])
         self.assertEqual(rows["RELIANCE"]["freshness"], "unverified")
 
+    def test_snapshot_cooldown_respects_global_and_route_backoff(self):
+        import time
+        now=time.monotonic()
+        self.feed._global_cooldown_until=now+25
+        self.assertGreaterEqual(self.feed.cooldown_remaining("/v2/snapshot"), 24)
+        self.feed._global_cooldown_until=0
+        self.feed._cooldown_until["/v2/snapshot"]=now+12
+        self.assertGreaterEqual(self.feed.cooldown_remaining("/v2/snapshot"), 11)
+
     def test_rejects_old_or_failed_snapshot(self):
         for changes in ({"age_seconds": 121}, {"age_seconds": None},
                         {"live_orders_enabled": True},
