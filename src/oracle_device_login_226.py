@@ -47,7 +47,8 @@ class OracleDeviceLogin226:
         return result
 
     async def login(self, device_id, native_bridge):
-        if not isinstance(device_id, str) or not 16 <= len(device_id) <= 128:
+        if (not isinstance(device_id, str) or not 16 <= len(device_id) <= 128
+                or not all(ch.isascii() and (ch.isalnum() or ch in "_-") for ch in device_id)):
             raise OracleDeviceLoginError("Invalid device ID")
         response = self._post("/v2/device/challenge", {"device_id": device_id})
         challenge = response.get("challenge")
