@@ -3752,7 +3752,7 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+[selected for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1) for selected in [prefs.get("dashboard_analysis_slot_"+str(i),default)] if selected in watch_symbols]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
-                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
+                semaphore=asyncio.Semaphore(1 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
@@ -3763,7 +3763,7 @@ console.log('BOT KING Lightweight Charts ready');
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
                             # Pace Dhan historical calls to avoid a burst of 51 requests.
                             if prefs.get("source")=="Dhan":
-                                await asyncio.sleep(0.8)
+                                await asyncio.sleep(5.0)  # Five-symbol Oracle test passed at this spacing
                             data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             # Preserve the verified Dhan batch quote when historical candles refresh.
