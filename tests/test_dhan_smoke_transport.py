@@ -43,6 +43,17 @@ class DhanSmokeTransportTests(unittest.TestCase):
         with patch.object(smoke.OPENER, "open", return_value=FakeResponse(b"[]")):
             self.assertEqual(smoke.request("/dhan/status", "x" * 32), (0, None))
 
+    def test_batch_schema_accepts_numeric_prices(self):
+        self.assertTrue(smoke.valid_batch_quotes(200, {"RELIANCE": 1234.5}))
+
+    def test_batch_schema_rejects_invalid_prices(self):
+        for quotes in ({}, {"RELIANCE": True}, {"RELIANCE": float("nan")},
+                       {"RELIANCE": 0}, {"RELIANCE": {"ltp": 123}},
+                       {"NIFTY": 25000}):
+            with self.subTest(quotes=quotes):
+                self.assertFalse(smoke.valid_batch_quotes(200, quotes))
+        self.assertFalse(smoke.valid_batch_quotes(502, {"RELIANCE": 1234.5}))
+
     def test_redirect_is_disabled(self):
         self.assertIsNone(smoke.NoRedirect().redirect_request(None, None, 302, "redirect", {}, "https://example.org"))
 
