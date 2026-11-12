@@ -77,6 +77,8 @@ def main():
     code, batch = request("/dhan/ltp-batch", key, {})
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
     unavailable = batch.get("unavailable") if isinstance(batch, dict) else None
+    valid_batch = (code == 200 and isinstance(quotes, dict) and len(quotes) >= 1
+                   and all(isinstance(value, dict) for value in quotes.values()))
     print("51-equity batch HTTP:", code,
           "quotes:", len(quotes) if isinstance(quotes, dict) else "invalid",
           "unavailable:", len(unavailable) if isinstance(unavailable, list) else "invalid")
@@ -88,13 +90,14 @@ def main():
         "symbol": "NIFTY", "interval": 5,
         "from_date": day.isoformat(), "to_date": day.isoformat()})
     bars = candles.get("bars") if isinstance(candles, dict) else None
+    valid_candles = code == 200 and isinstance(bars, list) and len(bars) >= 1
     print("NIFTY 5m candles HTTP:", code,
           "bars:", len(bars) if isinstance(bars, list) else "invalid",
           "(previous weekday; exchange holiday possible)")
     print("Quote freshness:", "UNVERIFIED (provider exchange timestamp not supplied)")
     print("Market session:", "not inferred from smoke test; exchange calendar required")
     print("Android UI: NOT tested by this server-only diagnostic")
-    return 0 if valid_quote and isinstance(quotes, dict) and len(quotes) >= 1 and isinstance(bars, list) and len(bars) >= 1 else 2
+    return 0 if valid_quote and valid_batch and valid_candles else 2
 
 
 if __name__ == "__main__":
