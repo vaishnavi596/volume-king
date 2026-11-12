@@ -265,6 +265,7 @@ def app_main(page:ft.Page):
     scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
     failed_symbols={}
     app_active=[True]
+    lifecycle_background=[False]
     resume_busy=[False]
     runtime_status=ft.Text("While-open monitoring only; screen-lock continuity is not verified",size=12,color=MUTED)
     option_feed={}
@@ -3677,7 +3678,10 @@ console.log('BOT KING Lightweight Charts ready');
             # Dhan historical scan behind that flag; allow one generation scan.
             pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected
                                and last_scanned_generation!=provider_generation[0])
-            if not app_active[0] and not pending_dhan_scan:
+            if not app_active[0] and (lifecycle_background[0] or not pending_dhan_scan):
+                # Do not initiate a new 51-symbol history scan while Android is
+                # backgrounded, even when a new Dhan generation is pending.
+                # The pending generation is retained for the next foreground pass.
                 if prefs.get("source")=="Dhan" and dhan_feed.connected:
                     scan_progress["state"]="Dhan scan waiting for app foreground • last completed results retained"
                 await asyncio.sleep(5);continue
@@ -4012,12 +4016,14 @@ console.log('BOT KING Lightweight Charts ready');
             if app_active[0]:
                 return
             app_active[0]=True
+            lifecycle_background[0]=False
         elif state=="inactive" or state.endswith(".inactive"):
             # Android briefly enters inactive during overlays and focus changes.
             # Only a confirmed background/hidden state should suspend scanning.
             return
         elif state in ("paused","detached","hidden") or any(state.endswith("."+v) for v in ("paused","detached","hidden")):
             app_active[0]=False
+            lifecycle_background[0]=True
         else:
             return
         if not app_active[0]:

@@ -58,7 +58,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_first_dhan_scan_not_blocked_by_stale_lifecycle(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('pending_dhan_scan=(prefs.get("source")=="Dhan" and dhan_feed.connected', source)
-        self.assertIn('if not app_active[0] and not pending_dhan_scan:', source)
+        self.assertIn('if not app_active[0] and (lifecycle_background[0] or not pending_dhan_scan):', source)
 
     def test_dhan_scanner_requires_connection_and_defaults_to_30_seconds(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
@@ -349,6 +349,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("if app_active[0]:\n                return\n            app_active[0]=True", lifecycle)
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
+
+    def test_pending_dhan_history_generation_waits_for_foreground(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    async def refresh_market():")
+        end = source.index("    async def supervised_market_refresh():", start)
+        refresh = source[start:end]
+        self.assertIn("if not app_active[0] and (lifecycle_background[0] or not pending_dhan_scan):", refresh)
+        self.assertIn("Dhan scan waiting for app foreground", refresh)
+        self.assertIn("lifecycle_background[0]=True", source)
 
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
