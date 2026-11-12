@@ -25,7 +25,10 @@ class DeviceLoginCoordinator:
         key = self.registry.active_public_key(device_id)
         if key is None:
             raise DeviceLoginError("Device not enrolled or revoked")
-        return self.registry.issue_challenge(device_id)
+        try:
+            return self.registry.issue_challenge(device_id)
+        except DeviceRegistryError as exc:
+            raise DeviceLoginError("Device challenge unavailable") from exc
 
     def complete(self, device_id, challenge, signature):
         if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
