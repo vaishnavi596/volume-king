@@ -543,15 +543,18 @@ class AuditTests(unittest.TestCase):
         from server_feed import ServerDhanReadOnly
         from market_feed import FeedError
         feed=ServerDhanReadOnly()
+        snapshot={'protocol':2,'source':'dhan','age_seconds':5,
+                  'freshness':'unverified','collection_status':'recently_collected',
+                  'error':None,'live_orders_enabled':False}
         with patch.object(feed,'_call',return_value={
-                'source':'dhan','quotes':{},'unavailable':['RELIANCE'],
-                'live_orders_enabled':False}):
-            with self.assertRaisesRegex(FeedError,'Empty Dhan batch response'):
+                **snapshot,'quotes':{},'unavailable':['RELIANCE']}):
+            with self.assertRaisesRegex(FeedError,'snapshot contains no quotes'):
                 feed.batch_quotes()
         with patch.object(feed,'_call',return_value={
-                'source':'dhan','quotes':{'RELIANCE':1234.5},
-                'unavailable':['HDFCBANK'],'live_orders_enabled':False}):
+                **snapshot,'quotes':{'RELIANCE':1234.5},
+                'unavailable':['HDFCBANK']}) as request:
             result=feed.batch_quotes()
+        request.assert_called_once_with('/v2/snapshot')
         self.assertEqual(list(result),['RELIANCE'])
         self.assertIsNone(result['RELIANCE']['quote_timestamp'])
         self.assertEqual(result['RELIANCE']['freshness'],'unverified')
