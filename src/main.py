@@ -4038,7 +4038,16 @@ console.log('BOT KING Lightweight Charts ready');
             if current[0]==1:await refresh_selected_options()
             else:
                 data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
-                if generation==provider_generation[0] and sym==scan_symbol.value:quotes[sym]=data
+                if generation==provider_generation[0] and sym==scan_symbol.value:
+                    # Resume's historical chart fetch must not replace a newer
+                    # Dhan batch LTP with an older/unverified candle snapshot.
+                    previous=quotes.get(sym) or {}
+                    if not (prefs.get("source")=="Dhan"
+                            and previous.get("source")=="Dhan"
+                            and isinstance(previous.get("fetched_at"),(int,float))
+                            and previous["fetched_at"]>data.get("fetched_at",0)
+                            and isinstance(previous.get("price"),(int,float))):
+                        quotes[sym]=data
                 if current[0]==5:
                     chart_sym=symbol.value
                     chart_tf=timeframe.value
