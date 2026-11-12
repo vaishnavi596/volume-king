@@ -123,7 +123,7 @@ class DeviceApiTests(unittest.TestCase):
         self.assertEqual(unknown.headers.get("cache-control"), "no-store")
 
     def test_malformed_bearer_header_rejected(self):
-        for header in ("Bearer", "bearer abc", "Bearer  ", "Basic abc"):
+        for header in ("Bearer", "bearer abc", "Bearer  ", "Basic abc", "Bearer short", "Bearer " + "a" * 33 + ".", "Bearer " + "a" * 257):
             with self.subTest(header=header):
                 response = self.client.post("/v2/device/validate",
                     json={"device_id": self.device},
