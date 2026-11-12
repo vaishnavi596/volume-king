@@ -31,7 +31,8 @@ def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180, allow
     """Select a fresh, verified source or return an explicit unavailable result.
 
     Caller must supply provider-verified states and timestamps; this function
-    does not authenticate, refresh tokens, or combine mismatched contracts.\n    Fallback to another provider requires explicit allow_fallback=True.
+    does not authenticate, refresh tokens, or combine mismatched contracts.
+    Fallback to another provider requires explicit allow_fallback=True.
     """
     if preferred not in PROVIDERS:
         raise ValueError("Unknown preferred provider")
