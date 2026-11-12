@@ -35,7 +35,7 @@ class OracleDeviceLogin226:
                 if response.status != 200:
                     raise OracleDeviceLoginError("Device authentication unavailable")
                 payload = response.read(4097)
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
             raise OracleDeviceLoginError("Device authentication request failed") from exc
         if len(payload) > 4096:
             raise OracleDeviceLoginError("Device authentication response too large")
