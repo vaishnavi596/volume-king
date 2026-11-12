@@ -94,3 +94,22 @@ class VerifiedNativeCredentialStore:
             raise SecureStorageUnavailable("Native secure storage delete failed") from None
         if result is False:
             raise SecureStorageUnavailable("Native secure storage rejected delete")
+
+
+class OriginScopedPairingStore:
+    """Bind a pairing secret to an HTTPS origin, never to a global alias."""
+
+    def __init__(self, credentials: SecureCredentialStore, origin: str):
+        self._credentials = credentials
+        self._key = origin_scoped_pairing_key(origin)
+
+    async def read(self) -> str | None:
+        return await self._credentials.read(self._key)
+
+    async def write(self, value: str) -> None:
+        await self._credentials.write(self._key, value)
+
+    async def delete(self) -> None:
+        await self._credentials.delete(self._key)
+
+

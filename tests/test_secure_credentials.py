@@ -220,3 +220,40 @@ def test_native_storage_exceptions_do_not_expose_secret_or_native_details():
                 raise AssertionError("Native failure must not report success")
 
     asyncio.run(exercise())
+
+
+def test_origin_scoped_pairing_store_never_crosses_server_origins():
+    from secure_credentials import OriginScopedPairingStore, VerifiedNativeCredentialStore
+
+    class FakeNative:
+        def __init__(self):
+            self.values = {}
+
+        async def get(self, key):
+            return self.values.get(key)
+
+        async def set(self, key, value):
+            self.values[key] = value
+
+        async def delete(self, key):
+            self.values.pop(key, None)
+
+    async def exercise():
+        native = FakeNative()
+        credentials = VerifiedNativeCredentialStore(native)
+        first = OriginScopedPairingStore(credentials, "https://first.invalid")
+        second = OriginScopedPairingStore(credentials, "https://second.invalid")
+        await first.write("first-test-key")
+        assert await first.read() == "first-test-key"
+        assert await second.read() is None
+        await second.write("second-test-key")
+        await first.delete()
+        assert await first.read() is None
+        assert await second.read() == "second-test-key"
+        assert len(native.values) == 1
+        assert "first.invalid" not in str(native.values)
+        assert "second.invalid" not in str(native.values)
+
+    asyncio.run(exercise())
+
+
