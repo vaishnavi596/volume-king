@@ -3,6 +3,7 @@
 Uses HTTPS-only, no redirects/proxies, bounded JSON, no credential logging.
 Requires an Android native signing bridge before use on a real device.
 """
+import base64
 import json
 import urllib.error
 import urllib.request
@@ -52,12 +53,19 @@ class OracleDeviceLogin226:
         challenge = response.get("challenge")
         if not isinstance(challenge, str) or len(challenge) != 44:
             raise OracleDeviceLoginError("Invalid server challenge")
+        try:
+            challenge_bytes = base64.b64decode(challenge, altchars=b"-_", validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise OracleDeviceLoginError("Invalid server challenge") from exc
+        if len(challenge_bytes) != 32 or base64.urlsafe_b64encode(challenge_bytes).decode("ascii") != challenge:
+            raise OracleDeviceLoginError("Invalid server challenge")
         signature = await native_bridge.sign_login_challenge(device_id, challenge)
         session = self._post("/v2/device/session", {
             "device_id": device_id, "challenge": challenge, "signature": signature
         })
         token = session.get("access_token")
         if (not isinstance(token, str) or not 32 <= len(token) <= 256
+                or not token.isascii() or any(ch.isspace() for ch in token)
                 or session.get("token_type") != "bearer"
                 or type(session.get("expires_in_seconds")) is not int
                 or not 0 < session["expires_in_seconds"] <= 900):
