@@ -350,6 +350,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
+    def test_dhan_super_five_ranking_published_once_after_local_analysis(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
+        rank = scan[scan.index("async def rank_one(sym):"):scan.index("pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))")]
+        self.assertIn('if prefs.get("source")!="Dhan":', rank)
+        self.assertIn("publish_partial_ranking(ranking_results)", rank)
+        self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
+
     def test_dhan_history_preflight_checks_background_after_quote_batch(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
