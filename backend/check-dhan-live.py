@@ -52,7 +52,8 @@ def main():
     if status.get("live_orders_enabled") is not False:
         print("SAFETY FAILURE: live orders not confirmed disabled")
         return 2
-    if status.get("market_data_configured") is not True:
+    if status.get("market_data_configured") is not True or status.get("reauthentication_required") is True:
+        print("Dhan market-data readiness: not verified")
         return 2
     code, quote = request("/dhan/ltp", key, {"symbol": "NIFTY"})
     valid_quote = (code == 200 and isinstance(quote, dict)
