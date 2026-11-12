@@ -51,6 +51,9 @@ class DeviceApiTests(unittest.TestCase):
                                     headers={"Authorization": "Bearer " + token})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["authenticated"])
+        other = self.client.post("/v2/device/validate", json={"device_id": "another_android_device_226"}, headers={"Authorization": "Bearer " + token})
+        self.assertEqual(other.status_code, 401)
+        self.assertEqual(other.headers.get("cache-control"), "no-store")
         self.assertEqual(self.client.post("/v2/device/validate",
             json={"device_id": self.device, "session_token": token}).status_code, 401)
         self.assertEqual(self.client.post("/v2/device/validate",
