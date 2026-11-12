@@ -3763,6 +3763,7 @@ console.log('BOT KING Lightweight Charts ready');
                 market_completed=[0]
                 history_failed=[0]
                 cycle_data={}
+                background_interrupted=False
                 async def load_one(sym):
                     async with semaphore:
                         try:
@@ -3843,6 +3844,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if lifecycle_background[0]:
                             scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
                             last_scanned_generation=None
+                            background_interrupted=True
                             break
                         if any("rate limited" in err.lower() or "cooldown" in err.lower()
                                for err in failed_symbols.values()):
@@ -3852,6 +3854,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if lifecycle_background[0]:
                             scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
                             last_scanned_generation=None
+                            background_interrupted=True
                             break
                         results.append(await load_one(sym))
                 else:
@@ -3859,7 +3862,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # A background-interrupted Dhan pass is incomplete. Do not
                 # replace the last good Super Five ranking with partial results.
                 # The pending generation is retried after foreground resume.
-                if prefs.get("source")=="Dhan" and lifecycle_background[0]:
+                if prefs.get("source")=="Dhan" and (lifecycle_background[0] or background_interrupted):
                     scan_progress["state"]="Dhan historical scan paused in background • last ranking retained"
                     last_scanned_generation=None
                     await asyncio.sleep(5)
