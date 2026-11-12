@@ -4000,7 +4000,15 @@ console.log('BOT KING Lightweight Charts ready');
                         and dhan_feed.connected):
                     last_scanned_generation=None
             else:
-                await asyncio.sleep(120)
+                # 5-minute Dhan candles do not justify a full 51-symbol
+                # historical request cycle every 120 seconds. Quotes and
+                # Super Five cached analysis have independent fast refreshes.
+                # Check generation every 5s so reconnect/resume is not delayed.
+                wait_seconds=300 if prefs.get("source")=="Dhan" else 120
+                for _ in range(wait_seconds//5):
+                    if provider_generation[0]!=generation:
+                        break
+                    await asyncio.sleep(5)
     async def supervised_market_refresh():
         # A single unhandled exception must not permanently stop all 51 scans.
         while True:
