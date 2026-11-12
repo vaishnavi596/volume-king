@@ -77,6 +77,18 @@ class OracleDeviceLoginTests(unittest.TestCase):
         with self.assertRaises(OracleDeviceLoginError):
             asyncio.run(client.login("android_owner_device_226", Native()))
 
+    def test_control_character_and_punctuation_tokens_rejected(self):
+        challenge = base64.urlsafe_b64encode(b"c" * 32).decode("ascii")
+        for token in ("t" * 40 + "\u0000", "t" * 40 + ".", "t" * 40 + ":"):
+            with self.subTest(token_suffix=repr(token[-1])):
+                opener = Opener([
+                    {"challenge": challenge},
+                    {"access_token": token, "token_type": "bearer",
+                     "expires_in_seconds": 900}])
+                client = OracleDeviceLogin226("https://example.com", opener=opener)
+                with self.assertRaises(OracleDeviceLoginError):
+                    asyncio.run(client.login("android_owner_device_226", Native()))
+
     def test_bad_session_fails_closed(self):
         opener = Opener([{"challenge": base64.urlsafe_b64encode(b"c" * 32).decode("ascii")},
                          {"access_token": "t" * 48, "token_type": "bearer",
