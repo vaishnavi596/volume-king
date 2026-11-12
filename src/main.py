@@ -3559,11 +3559,19 @@ console.log('BOT KING Lightweight Charts ready');
         dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1
+        # Preserve the last displayed price while the new provider reconnects.
+        # Mark it as historical/unverified rather than implying that the old
+        # provider's quote is live data from the newly selected provider.
+        previous_quotes=dict(quotes)
         quotes.clear();candles.clear();fusion_cache.clear();scan_generation[0]+=1
         scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Awaiting "+source.value+" candle scan")
         failed_symbols.clear()
         top5_candidates.clear()
         cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
+        quotes.update({sym:dict(row,freshness="unverified") for sym,row in previous_quotes.items()
+                       if isinstance(row,dict) and isinstance(row.get("price"),(int,float))
+                       and not isinstance(row.get("price"),bool) and math.isfinite(row["price"])})
+        # Prefer last known snapshots from the newly selected provider.
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
         scan_result.controls.clear()
