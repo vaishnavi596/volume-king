@@ -1,3 +1,22 @@
+
+def test_pairing_storage_alias_is_origin_scoped_and_requires_https():
+    from secure_credentials import origin_scoped_pairing_key
+
+    first = origin_scoped_pairing_key("https://example.invalid")
+    assert first == origin_scoped_pairing_key("https://example.invalid/")
+    assert first != origin_scoped_pairing_key("https://other.invalid")
+    assert first.startswith("botking.pairing.v1.")
+    assert "example.invalid" not in first
+    for unsafe in ("http://example.invalid", "https://example.invalid/path",
+                   "https://name:pass@example.invalid", "https://example.invalid?x=1"):
+        try:
+            origin_scoped_pairing_key(unsafe)
+        except Exception:
+            pass
+        else:
+            raise AssertionError("Unsafe origin accepted for secure storage alias")
+
+
 """Security regression checks for the future native credential-store integration."""
 import asyncio
 import sys
