@@ -3,7 +3,7 @@ import io
 import json
 import unittest
 import urllib.error
-from dhan_feed import DhanFeed, DhanFeedError
+from dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 
 class Response:
     def __init__(self, data):
@@ -24,6 +24,30 @@ class DhanFeedTests(unittest.TestCase):
             return Response({"status": "success", "data": {"IDX_I": {"13": {"last_price": 25030.35}}}})
         result = DhanFeed("client", "secret", opener=opener).ltp("IDX_I", 13)
         self.assertEqual(result["data"]["IDX_I"]["13"]["last_price"], 25030.35)
+
+    def test_historical_rate_limit_does_not_block_ltp(self):
+        previous = (DhanFeed._retry_after, DhanFeed._historical_retry_after,
+                    DhanFeed._intraday_next_allowed)
+        calls = []
+        def opener(request, timeout):
+            calls.append(request.full_url)
+            if request.full_url.endswith("/charts/intraday"):
+                raise urllib.error.HTTPError(request.full_url, 429, "rate limit", {}, None)
+            return Response({"status": "success", "data": {"NSE_EQ": {}}})
+        try:
+            DhanFeed._retry_after = 0
+            DhanFeed._historical_retry_after = 0
+            DhanFeed._intraday_next_allowed = 0
+            feed = DhanFeed("client", "secret", opener=opener)
+            with self.assertRaises(DhanRateLimitError):
+                feed.intraday({"securityId": "2885"})
+            self.assertIn("data", feed.ltp("NSE_EQ", 2885))
+            with self.assertRaises(DhanRateLimitError):
+                feed.intraday({"securityId": "2885"})
+            self.assertEqual(len(calls), 2)
+        finally:
+            (DhanFeed._retry_after, DhanFeed._historical_retry_after,
+             DhanFeed._intraday_next_allowed) = previous
 
     def test_invalid_security_id(self):
         with self.assertRaises(DhanFeedError):

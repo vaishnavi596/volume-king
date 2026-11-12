@@ -460,7 +460,7 @@ def app_main(page:ft.Page):
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
-        selected=prefs.get("source","Yahoo Finance")
+        selected=prefs.get("source","Dhan")
         generation=provider_generation[0]
         result=None
         health_key="market:"+selected+":"+ticker+":"+interval
@@ -492,11 +492,17 @@ def app_main(page:ft.Page):
                             quote=dhan_batch_cache["quotes"].get(ticker)
                 if quote is None:
                     try:
-                        quote=dhan_feed.quote(ticker)
+                        # Equities use the same Oracle snapshot as the Watchlist.
+                        # Only the index, which is absent from the equity batch,
+                        # uses the dedicated read-only LTP endpoint.
+                        if ticker=="NIFTY":
+                            quote=dhan_feed.quote(ticker)
+                        else:
+                            quote=dhan_feed.batch_quotes().get(ticker)
                     except FeedError as exc:
-                        # Historical chart remains available if live LTP is missing.
-                        # Never represent candle close as a verified live quote.
-                        log_error("dhan_chart_ltp",exc)
+                        # Historical chart remains available if the snapshot/LTP
+                        # is unavailable; candle close is never a live quote.
+                        log_error("dhan_chart_quote",exc)
                         quote=None
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
@@ -1233,6 +1239,10 @@ def app_main(page:ft.Page):
                 return
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
+            # A partial snapshot must not leave previous equity LTP visible as current.
+            for ticker in all_watch_symbols():
+                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             for ticker,snapshot in batch.items():
                 if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
                     old=quotes.get(ticker) or {}
@@ -1251,12 +1261,18 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • cached prices may remain • timestamp unverified"
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • missing prices cleared • timestamp unverified"
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
         except Exception as exc:
             log_error("watchlist_dhan_batch",exc)
+            # Do not retain the last quote as current when Oracle collection fails.
+            with dhan_batch_lock:
+                dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+            for ticker in all_watch_symbols():
+                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             market_status=watch_batch_status[0]
@@ -2104,6 +2120,10 @@ def app_main(page:ft.Page):
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=provider_generation[0],
                                                     updated=time.monotonic(),quotes=batch)
+                        # A partial first snapshot must not preserve quotes from a prior session.
+                        for ticker in all_watch_symbols():
+                            if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         for ticker,snapshot in batch.items():
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
@@ -2118,6 +2138,11 @@ def app_main(page:ft.Page):
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
+                        with dhan_batch_lock:
+                            dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        for ticker in all_watch_symbols():
+                            if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
@@ -2181,7 +2206,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value=prefs.get("source","Yahoo Finance");save()
+            source.value=prefs.get("source","Dhan");save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
@@ -3645,7 +3670,7 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),txt("v"+APP_VERSION+" • Paper mode • Live OFF",11,MUTED)],spacing=0,expand=True),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=30),ft.Column([txt("BOT KING",19,GOLD,True),txt("v"+APP_VERSION+" • Paper trading • Orders OFF",11,MUTED)],spacing=0,expand=True),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),padding=ft.padding.only(left=14,right=14,top=32,bottom=7),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
@@ -3696,6 +3721,10 @@ console.log('BOT KING Lightweight Charts ready');
                                 dhan_batch_cache.update(generation=generation,
                                                         updated=time.monotonic(),quotes=batch)
                             # Watchlist LTP must not depend on historical candle success.
+                            # A partial snapshot must not retain an old Dhan quote.
+                            for ticker in all_watch_symbols():
+                                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                    quotes.pop(ticker,None)
                             # Keep verified Dhan quotes distinct from stale/cross-provider data.
                             for ticker, snapshot in batch.items():
                                 if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan":
@@ -3711,12 +3740,19 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4):request_view_refresh(current[0])
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        if generation==provider_generation[0] and prefs.get("source")=="Dhan":
+                            # A failed snapshot must not leave old watchlist LTP visible.
+                            for ticker in all_watch_symbols():
+                                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                    quotes.pop(ticker,None)
+                            if current[0]==4:
+                                request_view_refresh(4)
                 # Connection is now ready: allow the first historical scan even on weekends.
                 last_scanned_generation=current_generation
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+[selected for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1) for selected in [prefs.get("dashboard_analysis_slot_"+str(i),default)] if selected in watch_symbols]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
-                semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
+                semaphore=asyncio.Semaphore(1 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
@@ -3727,7 +3763,7 @@ console.log('BOT KING Lightweight Charts ready');
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
                             # Pace Dhan historical calls to avoid a burst of 51 requests.
                             if prefs.get("source")=="Dhan":
-                                await asyncio.sleep(0.8)
+                                await asyncio.sleep(5.0)  # Five-symbol Oracle test passed at this spacing
                             data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             # Preserve the verified Dhan batch quote when historical candles refresh.

@@ -27,11 +27,12 @@ class ProviderState:
             raise ValueError("Unknown provider status")
 
 
-def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180):
+def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180, allow_fallback=False):
     """Select a fresh, verified source or return an explicit unavailable result.
 
     Caller must supply provider-verified states and timestamps; this function
     does not authenticate, refresh tokens, or combine mismatched contracts.
+    Fallback to another provider requires explicit allow_fallback=True.
     """
     if preferred not in PROVIDERS:
         raise ValueError("Unknown preferred provider")
@@ -41,7 +42,7 @@ def choose_source(states, preferred="Dhan", now=None, max_age_seconds=180):
         import time
         now = time.time()
     by_name = {s.provider: s for s in states}
-    order = (preferred,) + tuple(p for p in PROVIDERS if p != preferred)
+    order = ((preferred,) + tuple(p for p in PROVIDERS if p != preferred)) if allow_fallback else (preferred,)
     for provider in order:
         state = by_name.get(provider)
         if not state or state.status != "CONNECTED" or state.quote_timestamp is None:

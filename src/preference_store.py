@@ -6,6 +6,27 @@ import os
 from pathlib import Path
 from threading import RLock
 
+# Centralized credentials must never enter JSON or client_storage preferences.
+# Legacy versions may have written some of these fields: scrub on read and write.
+_SECRET_FIELDS = frozenset((
+    "api_key", "api_secret", "access_token", "password", "totp",
+    "server_access_key", "server_key", "pairing_key", "botking_pairing_key",
+    "dhan_token", "refresh_token", "client_secret", "mpin", "pin",
+))
+
+def public_preferences(values):
+    """Remove sensitive fields recursively, including legacy nested broker settings."""
+    if not isinstance(values, dict):
+        return {}
+    def scrub(value):
+        if isinstance(value, dict):
+            return {key: scrub(item) for key, item in value.items()
+                    if isinstance(key, str) and key.lower() not in _SECRET_FIELDS}
+        if isinstance(value, list):
+            return [scrub(item) for item in value]
+        return value
+    return scrub(values)
+
 def load_preferences(path,storage):
     disk={};native={}
     try:
@@ -19,7 +40,7 @@ def load_preferences(path,storage):
     def revision(value):
         try:return max(0,int(value.get("_prefs_revision",0)))
         except (ValueError,TypeError,OverflowError):return 0
-    result=dict(disk if revision(disk)>revision(native) else native or disk)
+    result=public_preferences(disk if revision(disk)>revision(native) else native or disk)
     result["_prefs_revision"]=revision(result)
     return result
 
@@ -33,7 +54,7 @@ class PreferenceWriter:
         schedule=False
         with self.lock:
             self.revision+=1
-            snapshot=copy.deepcopy(values)
+            snapshot=copy.deepcopy(public_preferences(values))
             snapshot["_prefs_revision"]=self.revision
             self.disk_saved=False
             temp=self.path.with_name(self.path.name+".tmp")

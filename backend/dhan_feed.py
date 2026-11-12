@@ -23,6 +23,9 @@ class DhanRateLimitError(DhanFeedError):
 class DhanFeed:
     _rate_lock = threading.Lock()
     _retry_after = 0.0
+    _intraday_next_allowed = 0.0
+    _historical_retry_after = 0.0
+    INTRADAY_MIN_SPACING_SECONDS = 1.0
     RATE_LIMIT_COOLDOWN_SECONDS = 30
     ROOT = "https://api.dhan.co/v2"
 
@@ -37,8 +40,19 @@ class DhanFeed:
         if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical"):
             raise DhanFeedError("Unsupported read-only endpoint")
         with self._rate_lock:
-            if time.monotonic() < self._retry_after:
+            cooldown = (DhanFeed._historical_retry_after if endpoint in ("/charts/intraday", "/charts/historical")
+                        else DhanFeed._retry_after)
+            if time.monotonic() < cooldown:
                 raise DhanRateLimitError("Dhan rate limit cooldown active")
+        # Serialize historical provider requests across all DhanFeed instances.
+        # Do not sleep while holding the rate lock: return a retryable throttle
+        # instead of occupying FastAPI workers with a 51-symbol burst.
+        if endpoint in ("/charts/intraday", "/charts/historical"):
+            with self._rate_lock:
+                now = time.monotonic()
+                if now < DhanFeed._intraday_next_allowed:
+                    raise DhanRateLimitError("Historical request pacing active")
+                DhanFeed._intraday_next_allowed = now + self.INTRADAY_MIN_SPACING_SECONDS
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         request = urllib.request.Request(
             self.ROOT + endpoint,
@@ -62,7 +76,12 @@ class DhanFeed:
                 raise DhanFeedError("Dhan token expired or data access not entitled") from None
             if exc.code == 429:
                 with self._rate_lock:
-                    DhanFeed._retry_after = max(DhanFeed._retry_after, time.monotonic() + self.RATE_LIMIT_COOLDOWN_SECONDS)
+                    if endpoint in ("/charts/intraday", "/charts/historical"):
+                        DhanFeed._historical_retry_after = max(
+                            DhanFeed._historical_retry_after, time.monotonic() + self.RATE_LIMIT_COOLDOWN_SECONDS)
+                    else:
+                        DhanFeed._retry_after = max(
+                            DhanFeed._retry_after, time.monotonic() + self.RATE_LIMIT_COOLDOWN_SECONDS)
                 raise DhanRateLimitError("Dhan rate limit reached") from None
             raise DhanFeedError("Dhan market data unavailable") from None
         except (urllib.error.URLError, TimeoutError, ValueError, UnicodeError):

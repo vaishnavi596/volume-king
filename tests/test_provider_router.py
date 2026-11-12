@@ -12,9 +12,16 @@ class ProviderRouterTests(unittest.TestCase):
     def test_yahoo_fallback_is_explicit(self):
         states = [ProviderState("Dhan", "EXPIRED", 99),
                   ProviderState("Yahoo Finance", "CONNECTED", 95)]
-        result = choose_source(states, now=100)
+        result = choose_source(states, now=100, allow_fallback=True)
         self.assertEqual(result["provider"], "Yahoo Finance")
         self.assertTrue(result["fallback"])
+
+    def test_dhan_failure_does_not_silently_switch_to_yahoo(self):
+        states = [ProviderState("Dhan", "EXPIRED", 99),
+                  ProviderState("Yahoo Finance", "CONNECTED", 95)]
+        result = choose_source(states, now=100)
+        self.assertEqual(result["status"], "UNAVAILABLE")
+        self.assertIsNone(result["provider"])
 
     def test_angel_one_remains_optional(self):
         states = [ProviderState("Angel One", "CONNECTED", 99)]
