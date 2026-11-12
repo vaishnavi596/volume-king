@@ -1822,6 +1822,9 @@ def app_main(page:ft.Page):
         if dhan_offline():return "Dhan disconnected • saved prices hidden • connect to verify"
         q=quotes.get(sym) or {}
         stamp=q.get("quote_timestamp");source_name=q.get("source","No data")
+        # A recent timestamp alone does not prove exchange-verified live data.
+        if source_name=="Dhan" and q.get("freshness")!="exchange_verified":
+            return "Dhan • "+("quote timestamp unavailable" if not stamp else "quote timestamp unverified")+" • NOT VERIFIED LIVE"
         if not stamp:return source_name+" • quote timestamp unavailable • NOT VERIFIED LIVE"
         try:
             age=datetime.now(timezone.utc).timestamp()-float(stamp)
