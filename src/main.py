@@ -3856,6 +3856,14 @@ console.log('BOT KING Lightweight Charts ready');
                         results.append(await load_one(sym))
                 else:
                     results=await asyncio.gather(*(load_one(sym) for sym in symbols))
+                # A background-interrupted Dhan pass is incomplete. Do not
+                # replace the last good Super Five ranking with partial results.
+                # The pending generation is retried after foreground resume.
+                if prefs.get("source")=="Dhan" and lifecycle_background[0]:
+                    scan_progress["state"]="Dhan historical scan paused in background • last ranking retained"
+                    last_scanned_generation=None
+                    await asyncio.sleep(5)
+                    continue
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
