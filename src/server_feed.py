@@ -225,6 +225,8 @@ class ServerDhanReadOnly:
                             "Dhan credentials not configured": "Dhan server credentials not configured",
                             "Dhan returned no market data for verified NSE equities": "Dhan batch returned no NSE equity quotes",
                             "Invalid Dhan batch quote response": "Dhan batch response invalid",
+                            "Dhan historical data unavailable or token expired": "Dhan historical endpoint unavailable or token expired",
+                            "Invalid Dhan historical response": "Dhan historical candle response invalid",
                         }
                         diagnostic = safe_details.get(detail, "") if isinstance(detail, str) else ""
                 except (ValueError, TypeError, UnicodeError, OSError):
