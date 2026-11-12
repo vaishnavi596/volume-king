@@ -61,6 +61,33 @@ class DeviceApiTests(unittest.TestCase):
             headers={"Authorization": "Bearer wrong"}).status_code, 401)
         self.assertEqual(self.client.post("/v2/device/session", json=proof).status_code, 403)
 
+    def test_token_cannot_impersonate_another_enrolled_device(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
+        other_id = "another_enrolled_device_226"
+        other_key = Ed25519PrivateKey.generate().public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw)
+        self.registry.enroll_approved_device(
+            other_id, base64.urlsafe_b64encode(other_key).decode("ascii"),
+            owner_approved=True)
+        challenge = self.client.post("/v2/device/challenge",
+                                     json={"device_id": self.device}).json()["challenge"]
+        signature = self.private.sign(
+            b"BOTKING226:DEVICE-AUTH:v1:" + base64.urlsafe_b64decode(challenge))
+        session = self.client.post("/v2/device/session", json={
+            "device_id": self.device, "challenge": challenge,
+            "signature": base64.urlsafe_b64encode(signature).decode("ascii")})
+        self.assertEqual(session.status_code, 200)
+        bearer = {"Authorization": "Bearer " + session.json()["access_token"]}
+        other = self.client.post("/v2/device/validate",
+                                 json={"device_id": other_id}, headers=bearer)
+        self.assertEqual(other.status_code, 401)
+        self.assertEqual(other.headers.get("cache-control"), "no-store")
+        own = self.client.post("/v2/device/validate",
+                               json={"device_id": self.device}, headers=bearer)
+        self.assertEqual(own.status_code, 200)
+
     def test_readonly_bearer_validation_and_revocation(self):
         challenge = self.client.post("/v2/device/challenge",
                                      json={"device_id": self.device}).json()["challenge"]
