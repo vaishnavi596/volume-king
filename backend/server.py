@@ -674,6 +674,23 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         india_today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
         if body.to_date > india_today:
             raise HTTPException(422, "Future candles are unavailable")
+        # Only reuse validated candles for an identical date window and interval.
+        # Short TTL reduces duplicate mobile scans without implying live freshness.
+        with candle_lock:
+            cached = candle_cache.get((body.symbol, str(body.interval)))
+            if (cached and cached.get("from_date") == body.from_date.isoformat()
+                    and cached.get("to_date") == body.to_date.isoformat()):
+                try:
+                    observed = datetime.fromisoformat(cached["observed_at"])
+                    age = (datetime.now(timezone.utc) - observed).total_seconds()
+                except (ValueError, TypeError, KeyError):
+                    age = float("inf")
+                if 0 <= age < 60 and cached.get("bars"):
+                    return {"symbol": body.symbol, "source": "dhan",
+                            "interval": str(body.interval) + "m",
+                            "bars": [list(bar) for bar in cached["bars"]],
+                            "freshness": "historical_unverified",
+                            "live_orders_enabled": False}
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
         token = dhan_market_token()
         if not client or not token:
