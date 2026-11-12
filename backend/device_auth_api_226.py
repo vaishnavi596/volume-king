@@ -62,8 +62,8 @@ def build_device_auth_router(registry, login):
         response.headers["Cache-Control"] = "no-store"
         if not authorization or not authorization.startswith("Bearer "):
             return no_store_error(401, "Bearer token required")
-        token = authorization[7:]
-        if not registry.validate_session(body.device_id, token):
+        # Token ownership is established by server-side registry, not request body.
+        if not authorize_readonly_device_session(registry, authorization):
             return no_store_error(401, "Device session invalid")
         return {"authenticated": True}
 
