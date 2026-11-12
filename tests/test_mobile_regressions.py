@@ -295,7 +295,7 @@ class MobileRegressionTests(unittest.TestCase):
         # A fresh batch is reused after login; cache misses remain bounded by 20s.
         self.assertIn('cached_batch = (dict(dhan_batch_cache["quotes"])', source)
         self.assertIn('dhan_batch_cache["generation"] == generation', source)
-        self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 25', source)
+        self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 45', source)
         self.assertIn('await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20)', source)
 
     def test_dhan_connect_queues_new_history_generation(self):

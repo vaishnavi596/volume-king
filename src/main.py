@@ -3714,7 +3714,7 @@ console.log('BOT KING Lightweight Charts ready');
                         with dhan_batch_lock:
                             cached_batch = (dict(dhan_batch_cache["quotes"])
                                 if dhan_batch_cache["generation"] == generation
-                                and time.monotonic() - dhan_batch_cache["updated"] < 25
+                                and time.monotonic() - dhan_batch_cache["updated"] < 45
                                 else None)
                         batch = (cached_batch if cached_batch is not None else
                             await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20))
