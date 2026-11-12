@@ -338,34 +338,37 @@ class ServerDhanReadOnly:
                               self._global_cooldown_until) - time.monotonic() + 0.999))
 
     def batch_quotes(self):
-        """Read-only 51-equity LTP snapshot; missing symbols stay unavailable."""
+        """Read the Oracle-owned 51-equity snapshot without a new Dhan API call.
+
+        A recently collected server snapshot is not exchange-timestamp verified.
+        Fail closed on missing, overdue, partial or invalid snapshots.
+        """
         import math
-        # Retry only transient upstream failures for this read-only snapshot.
-        import time
-        try:
-            result = self._call("/dhan/ltp-batch", {})
-        except FeedError as exc:
-            if not any(("HTTP " + str(code)) in str(exc) for code in (502, 503, 504)):
-                raise
-            time.sleep(1.5)
-            result = self._call("/dhan/ltp-batch", {})
+        result = self._call("/v2/snapshot")
         raw = result.get("quotes")
         unavailable = result.get("unavailable")
-        if (result.get("source") != "dhan" or not isinstance(raw, dict)
-                or not isinstance(unavailable, list)
+        age = result.get("age_seconds")
+        if (result.get("protocol") != 2 or result.get("source") != "dhan"
+                or result.get("live_orders_enabled") is not False
+                or result.get("error") is not None
+                or result.get("collection_status") != "recently_collected"
+                or isinstance(age, bool) or not isinstance(age, (int, float))
+                or not math.isfinite(age) or age < 0 or age > 120
+                or not isinstance(raw, dict) or not isinstance(unavailable, list)
+                or result.get("freshness") != "unverified"
                 or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
                        or symbol == "NIFTY" for symbol in unavailable)
                 or len(unavailable) != len(set(unavailable))
-                or set(raw).intersection(unavailable)) :
-            raise FeedError("Invalid Dhan batch response")
+                or set(raw).intersection(unavailable)):
+            raise FeedError("Oracle Dhan snapshot missing, stale or invalid")
         if not raw:
-            raise FeedError("Empty Dhan batch response")
+            raise FeedError("Oracle Dhan snapshot contains no quotes")
         quotes = {}
         for symbol, price in raw.items():
             if (symbol not in DHAN_VERIFIED_SYMBOLS or symbol == "NIFTY"
                     or isinstance(price, bool) or not isinstance(price, (int, float))
                     or not math.isfinite(price) or price <= 0):
-                raise FeedError("Invalid Dhan batch quote")
+                raise FeedError("Invalid Oracle Dhan snapshot quote")
             quotes[symbol] = {"symbol": symbol, "price": price, "source": "Dhan",
                               "quote_timestamp": None, "freshness": "unverified"}
         return quotes
