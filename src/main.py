@@ -3938,8 +3938,12 @@ console.log('BOT KING Lightweight Charts ready');
                         scan_progress["valid"]+=int(bool(result and result.get("timestamp")))
                         scan_progress["failed"]+=int(not bool(result and result.get("timestamp")))
                         scan_progress["cached"]+=int(bool(data and data.get("cached")))
-                        publish_partial_ranking(ranking_results)
-                        if current[0] in (0,4):request_view_refresh(current[0])
+                        # Dhan already collected all histories in a paced pass.
+                        # Publish its ranking once after all 51 local analyses,
+                        # instead of rebuilding and redrawing Top Five 51 times.
+                        if prefs.get("source")!="Dhan":
+                            publish_partial_ranking(ranking_results)
+                            if current[0] in (0,4):request_view_refresh(current[0])
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
