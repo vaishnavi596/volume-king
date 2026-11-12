@@ -150,6 +150,7 @@ class ServerDhanReadOnly:
         self._pairing_key = ""
         self._historical_only = False
         self._cooldown_until = {}
+        self._global_cooldown_until = 0.0
         # One Dhan HTTPS request at a time across quote polling, scanner,
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
@@ -168,6 +169,7 @@ class ServerDhanReadOnly:
         self._pairing_key = ""
         self._historical_only = False
         self._cooldown_until = {}
+        self._global_cooldown_until = 0.0
 
     def _call(self, path, payload=None):
         with self._request_lock:
@@ -178,7 +180,7 @@ class ServerDhanReadOnly:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
             raise FeedError("Unsupported Dhan read-only request")
-        remaining = self._cooldown_until.get(path, 0.0) - time.monotonic()
+        remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
             raise FeedError(f"{path} cooldown: retry in {int(remaining) + 1}s (HTTP 429)")
         headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
@@ -208,6 +210,10 @@ class ServerDhanReadOnly:
                     wait = 30
                 wait = max(1, min(wait, 120))
                 self._cooldown_until[path] = time.monotonic() + wait
+                # A Dhan 429 may reflect an account-wide quota, not just this route.
+                # Pause all read-only data routes instead of letting the chart,
+                # scanner and quote poller trigger successive rate-limit errors.
+                self._global_cooldown_until = max(self._global_cooldown_until, time.monotonic() + wait)
                 raise FeedError(f"{path} HTTP 429; retry after {wait}s") from None
             if exc.code in (502, 503, 504):
                 # Read only the server's structured, allowlisted diagnostic.
@@ -328,7 +334,8 @@ class ServerDhanReadOnly:
         """Seconds left before a rate-limited read-only endpoint may be retried."""
         if path not in ("/dhan/ltp-batch", "/dhan/intraday"):
             return 0
-        return max(0, int(self._cooldown_until.get(path, 0.0) - time.monotonic() + 0.999))
+        return max(0, int(max(self._cooldown_until.get(path, 0.0),
+                              self._global_cooldown_until) - time.monotonic() + 0.999))
 
     def batch_quotes(self):
         """Read-only 51-equity LTP snapshot; missing symbols stay unavailable."""
