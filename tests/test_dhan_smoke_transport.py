@@ -35,6 +35,14 @@ class DhanSmokeTransportTests(unittest.TestCase):
         with patch.object(smoke.OPENER, "open", return_value=FakeResponse(b"\\xff")):
             self.assertEqual(smoke.request("/health", "x" * 32), (0, None))
 
+    def test_reject_nonfinite_json(self):
+        with patch.object(smoke.OPENER, "open", return_value=FakeResponse(b'{"ltp":NaN}')):
+            self.assertEqual(smoke.request("/dhan/ltp", "x" * 32), (0, None))
+
+    def test_reject_json_array(self):
+        with patch.object(smoke.OPENER, "open", return_value=FakeResponse(b"[]")):
+            self.assertEqual(smoke.request("/dhan/status", "x" * 32), (0, None))
+
     def test_redirect_is_disabled(self):
         self.assertIsNone(smoke.NoRedirect().redirect_request(None, None, 302, "redirect", {}, "https://example.org"))
 
