@@ -45,7 +45,7 @@ class OracleDeviceLogin226:
             result = json.loads(payload.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
             raise OracleDeviceLoginError("Invalid device authentication response") from exc
-        if not isinstance(result, dict):
+        if not isinstance(result, dict) or len(result) > 16:
             raise OracleDeviceLoginError("Invalid device authentication response")
         return result
 
