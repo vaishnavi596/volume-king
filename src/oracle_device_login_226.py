@@ -63,7 +63,10 @@ class OracleDeviceLogin226:
             raise OracleDeviceLoginError("Invalid server challenge") from exc
         if len(challenge_bytes) != 32 or base64.urlsafe_b64encode(challenge_bytes).decode("ascii") != challenge:
             raise OracleDeviceLoginError("Invalid server challenge")
-        signature = await native_bridge.sign_login_challenge(device_id, challenge)
+        try:
+            signature = await native_bridge.sign_login_challenge(device_id, challenge)
+        except Exception as exc:
+            raise OracleDeviceLoginError("Android biometric authentication failed") from exc
         if not isinstance(signature, str) or not 64 <= len(signature) <= 256:
             raise OracleDeviceLoginError("Invalid native device signature")
         try:
