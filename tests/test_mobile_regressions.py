@@ -340,6 +340,16 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('finite(paper_mark.value,"Manual mark"', tick)
         self.assertIn("evaluate_mark(bot_position,mark,settings)", tick)
 
+    def test_duplicate_android_resumed_event_does_not_restart_candle_scan(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    def lifecycle_changed(e):")
+        end = source.index("    page.on_app_lifecycle_state_change=lifecycle_changed", start)
+        lifecycle = source[start:end]
+        self.assertIn('if state=="resumed" or state.endswith(".resumed"):', lifecycle)
+        self.assertIn("if app_active[0]:\n                return\n            app_active[0]=True", lifecycle)
+        self.assertIn('provider_generation[0]+=1', lifecycle)
+        self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
+
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('state="Dhan historical scan queued; LTP independently checked"', source)

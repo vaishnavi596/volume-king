@@ -4007,6 +4007,10 @@ console.log('BOT KING Lightweight Charts ready');
         # Only known background states pause tasks. Unknown events are ignored
         # rather than leaving the scanner disabled or recording a false crash.
         if state=="resumed" or state.endswith(".resumed"):
+            # Duplicate Android RESUMED callbacks must not restart the entire
+            # 51-symbol candle scan or invalidate an in-flight provider generation.
+            if app_active[0]:
+                return
             app_active[0]=True
         elif state=="inactive" or state.endswith(".inactive"):
             # Android briefly enters inactive during overlays and focus changes.
