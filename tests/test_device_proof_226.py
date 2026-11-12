@@ -11,6 +11,23 @@ spec.loader.exec_module(proof)
 
 
 class DeviceProofTests(unittest.TestCase):
+    @unittest.skipUnless(proof.ec is not None, "cryptography unavailable")
+    def test_android_keystore_p256_signature(self):
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import hashes, serialization
+        private = ec.generate_private_key(ec.SECP256R1())
+        public = private.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        challenge = proof.new_challenge()
+        signature = private.sign(
+            b"BOTKING226:DEVICE-AUTH:v1:" + base64.urlsafe_b64decode(challenge),
+            ec.ECDSA(hashes.SHA256()))
+        encode = lambda data: base64.urlsafe_b64encode(data).decode("ascii")
+        self.assertTrue(proof.verify_android_p256_signature(
+            encode(public), challenge, encode(signature)))
+        self.assertFalse(proof.verify_android_p256_signature(
+            encode(public), proof.new_challenge(), encode(signature)))
+
     def test_challenge_unique(self):
         self.assertNotEqual(proof.new_challenge(), proof.new_challenge())
 
