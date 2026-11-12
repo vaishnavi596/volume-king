@@ -6,7 +6,6 @@ exports a private key, or stores a PIN in Python preferences.
 import base64
 import inspect
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
 
 class AndroidAuthUnavailable(RuntimeError):
