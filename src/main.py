@@ -2120,6 +2120,10 @@ def app_main(page:ft.Page):
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=provider_generation[0],
                                                     updated=time.monotonic(),quotes=batch)
+                        # A partial first snapshot must not preserve quotes from a prior session.
+                        for ticker in all_watch_symbols():
+                            if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         for ticker,snapshot in batch.items():
                             if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
@@ -2134,6 +2138,11 @@ def app_main(page:ft.Page):
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
+                        with dhan_batch_lock:
+                            dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        for ticker in all_watch_symbols():
+                            if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
