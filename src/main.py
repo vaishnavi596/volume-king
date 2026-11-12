@@ -478,7 +478,7 @@ def app_main(page:ft.Page):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
                 from datetime import timedelta
                 today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
-                start=today-timedelta(days=5 if range_ in ("5d","7d","1mo","3mo") else 1)  # Backend permits at most five days
+                start=today-timedelta(days=2 if range_=="2d" else 5 if range_ in ("5d","7d","1mo","3mo") else 1)  # Scanner uses tested 2-day window
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[interval],start,today)
                 bars=clean_bars(candle_result["bars"])
                 if not bars:raise FeedError("Dhan returned no verified candles")
@@ -3717,7 +3717,7 @@ console.log('BOT KING Lightweight Charts ready');
                             # Pace Dhan historical calls to avoid a burst of 51 requests.
                             if prefs.get("source")=="Dhan":
                                 await asyncio.sleep(0.8)
-                            data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","5d"),timeout=25)
+                            data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","2d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             # Preserve the verified Dhan batch quote when historical candles refresh.
                             if prefs.get("source")=="Dhan":
