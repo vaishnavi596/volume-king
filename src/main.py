@@ -3767,7 +3767,21 @@ console.log('BOT KING Lightweight Charts ready');
                                 scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
                             return False
-                results=await asyncio.gather(*(load_one(sym) for sym in symbols))
+                # Fail fast on a broken Dhan history endpoint. One representative
+                # candle failure must not trigger another 50 doomed API calls.
+                if prefs.get("source")=="Dhan" and symbols:
+                    first_ok=await load_one(symbols[0])
+                    if not first_ok and symbols[0] in failed_symbols:
+                        reason=failed_symbols[symbols[0]]
+                        scan_progress.update(checked=1,total=len(symbols),valid=0,
+                                             failed=1,state="Dhan historical feed unavailable • stopped after first error: "+reason[:110])
+                        market_status="Dhan candle history unavailable • "+reason[:110]+" • equity LTP remains separate"
+                        if current[0] in (0,4,5):request_view_refresh(current[0])
+                        await asyncio.sleep(30)
+                        continue
+                    results=[first_ok]+await asyncio.gather(*(load_one(sym) for sym in symbols[1:]))
+                else:
+                    results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
