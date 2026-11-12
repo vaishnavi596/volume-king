@@ -1261,6 +1261,10 @@ def app_main(page:ft.Page):
                 return
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
+            # A partial snapshot must not leave previous equity LTP visible as current.
+            for ticker in all_watch_symbols():
+                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             for ticker,snapshot in batch.items():
                 if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
                     old=quotes.get(ticker) or {}
@@ -2108,6 +2112,11 @@ def app_main(page:ft.Page):
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
+                        with dhan_batch_lock:
+                            dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        for ticker in all_watch_symbols():
+                            if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                quotes.pop(ticker,None)
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
@@ -3705,6 +3714,10 @@ console.log('BOT KING Lightweight Charts ready');
                                 dhan_batch_cache.update(generation=generation,
                                                         updated=time.monotonic(),quotes=batch)
                             # Watchlist LTP must not depend on historical candle success.
+                            # A partial snapshot must not retain an old Dhan quote.
+                            for ticker in all_watch_symbols():
+                                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                    quotes.pop(ticker,None)
                             # Keep verified Dhan quotes distinct from stale/cross-provider data.
                             for ticker, snapshot in batch.items():
                                 if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan":
@@ -3720,6 +3733,13 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4):request_view_refresh(current[0])
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        if generation==provider_generation[0] and prefs.get("source")=="Dhan":
+                            # A failed snapshot must not leave old watchlist LTP visible.
+                            for ticker in all_watch_symbols():
+                                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                    quotes.pop(ticker,None)
+                            if current[0]==4:
+                                request_view_refresh(4)
                 # Connection is now ready: allow the first historical scan even on weekends.
                 last_scanned_generation=current_generation
                 successes=0
