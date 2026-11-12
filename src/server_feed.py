@@ -56,7 +56,7 @@ class ServerAngelFeed(AngelFeed):
                                      data=json.dumps(payload, allow_nan=False).encode(),
                                      headers=headers, method="POST")
         try:
-            with urllib.request.build_opener(NoRedirect()).open(req, timeout=45) as response:
+            with direct_https_opener().open(req, timeout=45) as response:
                 raw = response.read(4 * 1024 * 1024 + 1)
                 if len(raw) > 4 * 1024 * 1024:
                     raise FeedError("Server response too large")
@@ -325,7 +325,13 @@ class ServerDhanReadOnly:
             time.sleep(1.5)
             result = self._call("/dhan/ltp-batch", {})
         raw = result.get("quotes")
-        if result.get("source") != "dhan" or not isinstance(raw, dict):
+        unavailable = result.get("unavailable")
+        if (result.get("source") != "dhan" or not isinstance(raw, dict)
+                or not isinstance(unavailable, list)
+                or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
+                       or symbol == "NIFTY" for symbol in unavailable)
+                or len(unavailable) != len(set(unavailable))
+                or set(raw).intersection(unavailable)) :
             raise FeedError("Invalid Dhan batch response")
         if not raw:
             raise FeedError("Empty Dhan batch response")
