@@ -292,7 +292,11 @@ class MobileRegressionTests(unittest.TestCase):
     def test_dhan_history_startup_has_bounded_batch_wait(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('Checking Dhan batch before historical scan', source)
-        self.assertIn('asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes),timeout=20)', source)
+        # A fresh batch is reused after login; cache misses remain bounded by 20s.
+        self.assertIn('cached_batch = (dict(dhan_batch_cache["quotes"])', source)
+        self.assertIn('dhan_batch_cache["generation"] == generation', source)
+        self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 25', source)
+        self.assertIn('await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20)', source)
 
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
