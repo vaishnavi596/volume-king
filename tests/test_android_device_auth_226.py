@@ -56,6 +56,16 @@ class AndroidBridgeTests(unittest.TestCase):
         with self.assertRaises(AndroidAuthUnavailable):
             asyncio.run(AndroidDeviceAuthBridge(FakeKey()).register_key("android_device_226"))
 
+    def test_noncanonical_signature_rejected(self):
+        class NoncanonicalSignature(NativeStub):
+            async def sign_challenge_with_biometric(self, device_id, challenge):
+                value = await super().sign_challenge_with_biometric(device_id, challenge)
+                return value.rstrip("=")
+        challenge = base64.urlsafe_b64encode(b"y" * 32).decode("ascii")
+        with self.assertRaises(AndroidAuthUnavailable):
+            asyncio.run(AndroidDeviceAuthBridge(NoncanonicalSignature()).sign_login_challenge(
+                "android_device_226", challenge))
+
     def test_fake_signature_rejected(self):
         class FakeSignature(NativeStub):
             async def sign_challenge_with_biometric(self, device_id, challenge):
