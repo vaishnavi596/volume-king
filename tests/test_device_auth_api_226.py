@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from backend.device_auth_api_226 import build_device_auth_router
+from backend.device_auth_api_226 import build_device_auth_router, authorize_readonly_device_session
 from backend.device_login_226 import DeviceLoginCoordinator
 from backend.device_registry_226 import DeviceRegistry
 from backend.device_proof_226 import Ed25519PublicKey
@@ -22,6 +22,7 @@ class DeviceApiTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         registry = DeviceRegistry(Path(self.temp.name) / "device.db")
+        self.registry = registry
         self.private = Ed25519PrivateKey.generate()
         pub = self.private.public_key().public_bytes(
             encoding=serialization.Encoding.Raw,
@@ -56,6 +57,23 @@ class DeviceApiTests(unittest.TestCase):
             json={"device_id": self.device},
             headers={"Authorization": "Bearer wrong"}).status_code, 401)
         self.assertEqual(self.client.post("/v2/device/session", json=proof).status_code, 403)
+
+    def test_readonly_bearer_validation_and_revocation(self):
+        challenge = self.client.post("/v2/device/challenge",
+                                     json={"device_id": self.device}).json()["challenge"]
+        signature = self.private.sign(
+            b"BOTKING226:DEVICE-AUTH:v1:" + base64.urlsafe_b64decode(challenge))
+        proof = {"device_id": self.device, "challenge": challenge,
+                 "signature": base64.urlsafe_b64encode(signature).decode("ascii")}
+        token = self.client.post("/v2/device/session", json=proof).json()["access_token"]
+        self.assertTrue(authorize_readonly_device_session(
+            self.registry, "Bearer " + token))
+        for bad in (None, "bearer " + token, "Bearer " + token + " ",
+                    "Bearer " + token + ".", "Bearer wrong"):
+            self.assertFalse(authorize_readonly_device_session(self.registry, bad))
+        self.registry.revoke_device(self.device)
+        self.assertFalse(authorize_readonly_device_session(
+            self.registry, "Bearer " + token))
 
     def test_auth_responses_disable_caching(self):
         challenge = self.client.post("/v2/device/challenge",
