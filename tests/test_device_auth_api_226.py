@@ -57,6 +57,26 @@ class DeviceApiTests(unittest.TestCase):
             headers={"Authorization": "Bearer wrong"}).status_code, 401)
         self.assertEqual(self.client.post("/v2/device/session", json=proof).status_code, 403)
 
+    def test_auth_responses_disable_caching(self):
+        challenge = self.client.post("/v2/device/challenge",
+                                     json={"device_id": self.device})
+        self.assertEqual(challenge.headers.get("cache-control"), "no-store")
+        invalid_session = self.client.post("/v2/device/session", json={
+            "device_id": self.device, "challenge": "x" * 44,
+            "signature": "x" * 96})
+        self.assertEqual(invalid_session.headers.get("cache-control"), "no-store")
+        validation = self.client.post("/v2/device/validate",
+                                      json={"device_id": self.device})
+        self.assertEqual(validation.headers.get("cache-control"), "no-store")
+
+    def test_malformed_bearer_header_rejected(self):
+        for header in ("Bearer", "bearer abc", "Bearer  ", "Basic abc"):
+            with self.subTest(header=header):
+                response = self.client.post("/v2/device/validate",
+                    json={"device_id": self.device},
+                    headers={"Authorization": header})
+                self.assertEqual(response.status_code, 401)
+
     def test_unenrolled_device_rejected(self):
         response = self.client.post("/v2/device/challenge",
                                     json={"device_id": "unknown_android_device_226"})
