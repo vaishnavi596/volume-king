@@ -3731,6 +3731,13 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4):request_view_refresh(current[0])
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+                        if generation==provider_generation[0] and prefs.get("source")=="Dhan":
+                            # A failed snapshot must not leave old watchlist LTP visible.
+                            for ticker in all_watch_symbols():
+                                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                                    quotes.pop(ticker,None)
+                            if current[0]==4:
+                                request_view_refresh(4)
                 # Connection is now ready: allow the first historical scan even on weekends.
                 last_scanned_generation=current_generation
                 successes=0
