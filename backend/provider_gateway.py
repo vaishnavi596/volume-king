@@ -19,6 +19,7 @@ class SourceState(BaseModel):
 
 class SourceRequest(BaseModel):
     preferred: str = "Dhan"
+    allow_fallback: bool = False
     now: float = Field(gt=0)
     max_age_seconds: float = Field(default=180, ge=0, le=86400)
     states: list[SourceState] = Field(max_length=3)
@@ -39,7 +40,7 @@ def create_provider_app(pairing_key: str):
             states = [ProviderState(x.provider, x.status, x.quote_timestamp, x.checked_at) for x in body.states]
             if len({x.provider for x in states}) != len(states):
                 raise ValueError("Duplicate provider")
-            return choose_source(states, body.preferred, body.now, body.max_age_seconds)
+            return choose_source(states, body.preferred, body.now, body.max_age_seconds, allow_fallback=body.allow_fallback)
         except (ValueError, TypeError):
             raise HTTPException(422, "Invalid provider status") from None
 
