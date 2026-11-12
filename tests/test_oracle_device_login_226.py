@@ -89,6 +89,13 @@ class OracleDeviceLoginTests(unittest.TestCase):
                 with self.assertRaises(OracleDeviceLoginError):
                     asyncio.run(client.login("android_owner_device_226", Native()))
 
+    def test_missing_native_bridge_never_posts_session(self):
+        opener = Opener([{"challenge": base64.urlsafe_b64encode(b"c" * 32).decode("ascii")}])
+        client = OracleDeviceLogin226("https://example.com", opener=opener)
+        with self.assertRaises(OracleDeviceLoginError):
+            asyncio.run(client.login("android_owner_device_226", None))
+        self.assertEqual(len(opener.requests), 1)
+
     def test_bad_native_signature_never_posts_session(self):
         class InvalidNative:
             async def sign_login_challenge(self, device_id, challenge):
