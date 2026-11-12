@@ -326,6 +326,7 @@ class ServerDhanReadOnly:
         unavailable = result.get("unavailable")
         age = result.get("age_seconds")
         if (result.get("protocol") != 2 or result.get("source") != "dhan"
+                or result.get("live_orders_enabled") is not False
                 or result.get("error") is not None
                 or result.get("collection_status") != "recently_collected"
                 or isinstance(age, bool) or not isinstance(age, (int, float))
