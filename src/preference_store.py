@@ -15,10 +15,17 @@ _SECRET_FIELDS = frozenset((
 ))
 
 def public_preferences(values):
+    """Remove sensitive fields recursively, including legacy nested broker settings."""
     if not isinstance(values, dict):
         return {}
-    return {key: value for key, value in values.items()
-            if isinstance(key, str) and key.lower() not in _SECRET_FIELDS}
+    def scrub(value):
+        if isinstance(value, dict):
+            return {key: scrub(item) for key, item in value.items()
+                    if isinstance(key, str) and key.lower() not in _SECRET_FIELDS}
+        if isinstance(value, list):
+            return [scrub(item) for item in value]
+        return value
+    return scrub(values)
 
 def load_preferences(path,storage):
     disk={};native={}
