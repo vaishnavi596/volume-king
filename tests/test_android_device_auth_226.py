@@ -45,7 +45,7 @@ class AndroidBridgeTests(unittest.TestCase):
         class NoncanonicalKey(NativeStub):
             async def generate_p256_key(self, device_id):
                 value = await super().generate_p256_key(device_id)
-                return value.replace("-", "+").replace("_", "/") if ("-" in value or "_" in value) else value.rstrip("=")
+                return value + "="
         with self.assertRaises(AndroidAuthUnavailable):
             asyncio.run(AndroidDeviceAuthBridge(NoncanonicalKey()).register_key("android_device_226"))
 
