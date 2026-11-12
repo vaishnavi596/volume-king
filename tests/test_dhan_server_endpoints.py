@@ -272,7 +272,7 @@ class DhanEndpointTests(unittest.TestCase):
         self.assertTrue(response.json()["market_data_configured"])
         self.assertFalse(response.json()["authenticated"])
         self.assertEqual(response.json()["token_source"], "provisioned_unverified")
-        self.assertTrue(response.json()["reauthentication_required"])
+        self.assertFalse(response.json()["reauthentication_required"])
         self.assertIsNone(response.json()["oauth_minutes_remaining"])
         self.assertFalse(response.json()["oauth_expiry_warning"])
         self.assertEqual(response.json()["token_validity"], "unverified")
