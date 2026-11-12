@@ -4,7 +4,7 @@ name: Build APK
 # Build on app, regression-test, and workflow changes; manual dispatch is also supported.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, botking-snapshot-token-compat-20261112 ]
     paths:
       - pyproject.toml
       - src/main.py
