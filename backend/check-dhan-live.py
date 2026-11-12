@@ -85,7 +85,10 @@ def main():
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
     unavailable = batch.get("unavailable") if isinstance(batch, dict) else None
     valid_batch = (code == 200 and isinstance(quotes, dict) and len(quotes) >= 1
-                   and all(isinstance(value, dict) for value in quotes.values()))
+                   and all(isinstance(symbol, str) and symbol != "NIFTY"
+                           and isinstance(price, (int, float)) and not isinstance(price, bool)
+                           and math.isfinite(price) and price > 0
+                           for symbol, price in quotes.items()))
     print("51-equity batch HTTP:", code,
           "quotes:", len(quotes) if isinstance(quotes, dict) else "invalid",
           "unavailable:", len(unavailable) if isinstance(unavailable, list) else "invalid")
