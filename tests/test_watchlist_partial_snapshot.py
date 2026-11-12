@@ -14,6 +14,15 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker,snapshot in batch.items():'))
         self.assertIn('missing prices cleared',body)
 
+    def test_failed_watchlist_snapshot_invalidates_cached_quotes(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("    async def refresh_watch_batch():")
+        end=text.index("    async def dhan_quote_poll():",start)
+        body=text[start:end]
+        error=body[body.index('log_error("watchlist_dhan_batch",exc)'):]
+        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
+        self.assertIn('quotes.pop(ticker,None)',error)
+
     def test_background_scanner_also_clears_missing_quotes(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
