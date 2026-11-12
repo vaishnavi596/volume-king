@@ -610,7 +610,12 @@ def app_main(page:ft.Page):
     preference_writer=PreferenceWriter(page,STATE,int(prefs.get("_prefs_revision",0)),lambda exc:log_error("preferences",exc))
     def save():
         # Never call synchronous native clientStorage RPC from async refresh tasks.
-        safe={k:v for k,v in prefs.items() if k not in ("api_key","api_secret","access_token","password","totp")}
+        # Defense in depth: never persist pairing or broker secrets, even if
+        # a future UI path accidentally inserts one into prefs.
+        secret_fields={"api_key","api_secret","access_token","password","totp",
+                       "pairing_key","server_access_key","server_access",
+                       "botking_pairing_key","dhan_token","client_secret"}
+        safe={k:v for k,v in prefs.items() if k not in secret_fields}
         result=preference_writer.save(safe)
         prefs["_prefs_revision"]=preference_writer.revision
         return result
