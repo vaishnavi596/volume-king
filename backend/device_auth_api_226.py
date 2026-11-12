@@ -19,6 +19,15 @@ class ProofRequest(ChallengeRequest):
     signature: str = Field(min_length=64, max_length=256)
 
 
+def authorize_readonly_device_session(registry, authorization):
+    """Validate an opaque Bearer token; never trust a client-supplied device ID."""
+    import re
+    if (not isinstance(authorization, str)
+            or re.fullmatch(r"Bearer [A-Za-z0-9_-]{32,256}", authorization) is None):
+        return False
+    return registry.validate_bearer_session(authorization[7:])
+
+
 def build_device_auth_router(registry, login):
     """Routes intentionally exclude enrollment; owner must approve it out-of-band."""
     local_router = APIRouter(prefix="/v2/device", tags=["device-auth"])
