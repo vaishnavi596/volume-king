@@ -81,6 +81,7 @@ def main():
           "bars:", len(bars) if isinstance(bars, list) else "invalid",
           "(previous weekday; exchange holiday possible)")
     print("Quote freshness:", "UNVERIFIED (provider exchange timestamp not supplied)")
+    print("Market session:", "not inferred from smoke test; exchange calendar required")
     print("Android UI: NOT tested by this server-only diagnostic")
     return 0 if valid_quote and isinstance(quotes, dict) and len(quotes) >= 1 and isinstance(bars, list) and len(bars) >= 1 else 2
 
