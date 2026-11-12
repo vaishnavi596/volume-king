@@ -54,6 +54,26 @@ class DhanSmokeTransportTests(unittest.TestCase):
                 self.assertFalse(smoke.valid_batch_quotes(200, quotes))
         self.assertFalse(smoke.valid_batch_quotes(502, {"RELIANCE": 1234.5}))
 
+    def test_candle_schema_valid(self):
+        bars = [[100, 100.0, 105.0, 98.0, 102.0, 200],
+                [200, 102.0, 106.0, 101.0, 105.0, 150]]
+        self.assertTrue(smoke.valid_candle_bars(200, bars))
+
+    def test_candle_schema_rejects_malformed_rows(self):
+        valid = [100, 100.0, 105.0, 98.0, 102.0, 200]
+        invalid = ([100, 100, 90, 98, 102, 200],
+                   [100, 100, 105, 101, 99, 200],
+                   [100, 100, 105, 98, 102, -1],
+                   [100, 100, 105, 98, 102, float("inf")],
+                   [True, 100, 105, 98, 102, 200],
+                   [100, 100, 105, 98, 102])
+        for row in invalid:
+            with self.subTest(row=row):
+                self.assertFalse(smoke.valid_candle_bars(200, [row]))
+        self.assertFalse(smoke.valid_candle_bars(200, [valid, valid]))
+        self.assertFalse(smoke.valid_candle_bars(502, [valid]))
+        self.assertFalse(smoke.valid_candle_bars(200, []))
+
     def test_redirect_is_disabled(self):
         self.assertIsNone(smoke.NoRedirect().redirect_request(None, None, 302, "redirect", {}, "https://example.org"))
 
