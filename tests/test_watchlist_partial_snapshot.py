@@ -14,6 +14,16 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker,snapshot in batch.items():'))
         self.assertIn('missing prices cleared',body)
 
+    def test_connect_batch_clears_missing_and_failed_quotes(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index('# Verify watchlist batch independently of the login check.')
+        end=text.index('                    if market_status.startswith("Dhan connected; watchlist batch failed"):',start)
+        body=text[start:end]
+        self.assertIn('if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":',body)
+        error=body[body.index("log_error('dhan_batch_after_connect',exc)"):]
+        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
+        self.assertIn('quotes.pop(ticker,None)',error)
+
     def test_failed_watchlist_snapshot_invalidates_cached_quotes(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("    async def refresh_watch_batch():")
