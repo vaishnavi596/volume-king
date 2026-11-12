@@ -60,6 +60,17 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_server_intraday_reuses_only_recent_exact_window(self):
+        server=(Path(__file__).resolve().parents[1]/"backend"/"server.py").read_text(encoding="utf-8")
+        start=server.index('@app.post("/dhan/intraday")')
+        end=server.index('@app.get("/health")',start)
+        block=server[start:end]
+        self.assertIn('cached.get("from_date") == body.from_date.isoformat()',block)
+        self.assertIn('cached.get("to_date") == body.to_date.isoformat()',block)
+        self.assertIn('0 <= age < 60',block)
+        self.assertIn('cached.get("bars")',block)
+        self.assertIn('freshness": "historical_unverified"',block)
+
     def test_closed_session_dhan_429_does_not_schedule_auto_retry(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("# On a closed session, one transient all-symbol failure")
