@@ -257,15 +257,17 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("Previous candle direction is not a current signal", source)
         self.assertIn("no verified 5m candle series", source)
 
-    def test_dashboard_indexes_auto_fetch_with_bounded_retry(self):
+    def test_dashboard_indexes_use_shared_quotes_without_duplicate_poll(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn("async def dashboard_index_quote_poll():", source)
-        self.assertIn("page.run_task(dashboard_index_quote_poll)", source)
-        self.assertIn('("NIFTY","BANKNIFTY","SENSEX")', source)
-        self.assertIn("delay=min(60,15*2**min(failures[sym]-1,2))", source)
-        self.assertIn("exchange timestamp unverified", source)
-        self.assertIn("if sym not in DHAN_VERIFIED_SYMBOLS:", source)
-        self.assertIn("Dhan instrument mapping not verified", source)
+        self.assertIn("def dashboard_index_analysis():", source)
+        self.assertIn('["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols', source)
+        self.assertIn('snapshot=quotes.get(sym) or {}', source)
+        self.assertIn("quote_price(sym)", source)
+        self.assertIn("quote_change(sym)", source)
+        self.assertNotIn("async def dashboard_index_quote_poll():", source)
+        self.assertNotIn("page.run_task(dashboard_index_quote_poll)", source)
+        self.assertIn("async def dhan_quote_poll():", source)
+        self.assertIn("await refresh_watch_batch()", source)
 
     def test_super_five_uses_independent_minute_cached_refresh(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
@@ -273,7 +275,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("page.run_task(super_five_minute_refresh)", source)
         self.assertIn("await asyncio.sleep(60)", source)
         self.assertIn("snapshot.get(\"bars\")", source)
-        self.assertIn("API STATUS & ERROR MONITOR", source)
+        self.assertNotIn("API STATUS & ERROR MONITOR", source)
 
     def test_closed_market_dhan_retry_uses_three_minute_cooldown(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
