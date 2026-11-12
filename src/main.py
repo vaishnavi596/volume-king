@@ -1267,6 +1267,12 @@ def app_main(page:ft.Page):
             market_status=watch_batch_status[0]
         except Exception as exc:
             log_error("watchlist_dhan_batch",exc)
+            # Do not retain the last quote as current when Oracle collection fails.
+            with dhan_batch_lock:
+                dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
+            for ticker in all_watch_symbols():
+                if (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             market_status=watch_batch_status[0]
