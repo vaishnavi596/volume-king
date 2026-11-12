@@ -3,6 +3,8 @@
 NOT included by the production server by default. Only mount after explicit
 owner-approved enrollment setup, HTTPS ingress and persistence review.
 """
+import re
+
 from fastapi import APIRouter, Header, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -22,7 +24,6 @@ class ProofRequest(ChallengeRequest):
 
 def authorize_readonly_device_session(registry, authorization):
     """Validate an opaque Bearer token; never trust a client-supplied device ID."""
-    import re
     if (not isinstance(authorization, str)
             or re.fullmatch(r"Bearer [A-Za-z0-9_-]{32,256}", authorization) is None):
         return False
@@ -60,7 +61,7 @@ def build_device_auth_router(registry, login):
     @local_router.post("/validate")
     def validate(body: ChallengeRequest, response: Response, authorization: str | None = Header(default=None)):
         response.headers["Cache-Control"] = "no-store"
-        if not isinstance(authorization, str) or not __import__("re").fullmatch(r"Bearer [A-Za-z0-9_-]{32,256}", authorization):
+        if not isinstance(authorization, str) or not re.fullmatch(r"Bearer [A-Za-z0-9_-]{32,256}", authorization):
             return no_store_error(401, "Bearer token required")
         # The session must belong to the exact enrolled device in the request.
         if not registry.validate_session(body.device_id, authorization[7:]):
