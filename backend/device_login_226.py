@@ -25,7 +25,7 @@ class DeviceLoginCoordinator:
         key = self.registry.active_public_key(device_id)
         if key is None:
             raise DeviceLoginError("Device not enrolled or revoked")
-        return self.challenges.issue(device_id)
+        return self.registry.issue_challenge(device_id)
 
     def complete(self, device_id, challenge, signature):
         if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
@@ -33,7 +33,7 @@ class DeviceLoginCoordinator:
         if not self.registry.login_allowed(device_id):
             raise DeviceLoginError("Device temporarily locked")
         # Consume before verification: a failed proof cannot be retried/replayed.
-        if not self.challenges.consume(device_id, challenge):
+        if not self.registry.consume_challenge(device_id, challenge):
             self.registry.record_login_failure(device_id)
             raise DeviceLoginError("Challenge expired or already used")
         key = self.registry.active_public_key(device_id)
