@@ -3837,11 +3837,22 @@ console.log('BOT KING Lightweight Charts ready');
                     for sym in symbols[1:]:
                         if generation!=provider_generation[0] or not dhan_feed.connected:
                             break
+                        # Android can move to background during a 51-symbol scan.
+                        # Keep its generation pending; do not issue more history
+                        # requests until foreground, even after the pacing sleep.
+                        if lifecycle_background[0]:
+                            scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
+                            last_scanned_generation=None
+                            break
                         if any("rate limited" in err.lower() or "cooldown" in err.lower()
                                for err in failed_symbols.values()):
                             scan_progress["state"]="Dhan historical scan paused after HTTP 429 • waiting for provider cooldown"
                             break
                         await asyncio.sleep(1.5)
+                        if lifecycle_background[0]:
+                            scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
+                            last_scanned_generation=None
+                            break
                         results.append(await load_one(sym))
                 else:
                     results=await asyncio.gather(*(load_one(sym) for sym in symbols))
