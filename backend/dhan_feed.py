@@ -23,6 +23,8 @@ class DhanRateLimitError(DhanFeedError):
 class DhanFeed:
     _rate_lock = threading.Lock()
     _retry_after = 0.0
+    _intraday_next_allowed = 0.0
+    INTRADAY_MIN_SPACING_SECONDS = 1.0
     RATE_LIMIT_COOLDOWN_SECONDS = 30
     ROOT = "https://api.dhan.co/v2"
 
@@ -39,6 +41,15 @@ class DhanFeed:
         with self._rate_lock:
             if time.monotonic() < self._retry_after:
                 raise DhanRateLimitError("Dhan rate limit cooldown active")
+        # Serialize historical provider requests across all DhanFeed instances.
+        # Do not sleep while holding the rate lock: return a retryable throttle
+        # instead of occupying FastAPI workers with a 51-symbol burst.
+        if endpoint in ("/charts/intraday", "/charts/historical"):
+            with self._rate_lock:
+                now = time.monotonic()
+                if now < DhanFeed._intraday_next_allowed:
+                    raise DhanRateLimitError("Historical request pacing active")
+                DhanFeed._intraday_next_allowed = now + self.INTRADAY_MIN_SPACING_SECONDS
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         request = urllib.request.Request(
             self.ROOT + endpoint,
