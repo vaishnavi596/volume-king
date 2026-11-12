@@ -82,6 +82,6 @@ class AndroidDeviceAuthBridge:
             r, s = decode_dss_signature(encoded)
         except ValueError as exc:
             raise AndroidAuthUnavailable("Invalid native P-256 signature DER") from exc
-        if r <= 0 or s <= 0:
+        if not (1 <= r < 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551 and 1 <= s < 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551):
             raise AndroidAuthUnavailable("Invalid native P-256 signature")
         return signature
