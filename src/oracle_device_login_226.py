@@ -37,12 +37,12 @@ class OracleDeviceLogin226:
                 payload = response.read(4097)
                 if not isinstance(payload, bytes):
                     raise OracleDeviceLoginError("Invalid device authentication response")
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ConnectionError) as exc:
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
             raise OracleDeviceLoginError("Device authentication request failed") from exc
         if len(payload) > 4096:
             raise OracleDeviceLoginError("Device authentication response too large")
         try:
-            result = json.loads(payload)
+            result = json.loads(payload.decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as exc:
             raise OracleDeviceLoginError("Invalid device authentication response") from exc
         if not isinstance(result, dict):
