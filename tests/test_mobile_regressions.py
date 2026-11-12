@@ -361,7 +361,9 @@ class MobileRegressionTests(unittest.TestCase):
     def test_dhan_snapshot_requires_full_symbol_coverage(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "server_feed.py").read_text()
         section = source[source.index("    def batch_quotes(self):"):source.index("    def intraday(self,", source.index("    def batch_quotes(self):"))]
-        self.assertIn('set(raw).union(unavailable) != (DHAN_VERIFIED_SYMBOLS - {"NIFTY"})', section)
+        self.assertNotIn('set(raw).union(unavailable) != (DHAN_VERIFIED_SYMBOLS - {"NIFTY"})', section)
+        self.assertIn('if not raw:', section)
+        self.assertIn('for symbol, price in raw.items():', section)
         self.assertIn('set(raw).intersection(unavailable)', section)
         self.assertIn('result.get("freshness") != "unverified"', section)
 
