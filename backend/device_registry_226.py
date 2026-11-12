@@ -72,6 +72,17 @@ class DeviceRegistry:
             db.execute("INSERT INTO devices(device_id,public_key,enrolled_at) VALUES (?,?,?)",
                        (device_id, public_key, int(self.clock())))
 
+    def active_public_key(self, device_id):
+        """Read only an active enrolled device's public key."""
+        if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
+            return None
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT public_key FROM devices WHERE device_id=? AND revoked_at IS NULL",
+                (device_id,)
+            ).fetchone()
+        return row[0] if row else None
+
     def issue_session(self, device_id, *, device_proof_verified=False, ttl_seconds=900):
         if not isinstance(device_id, str) or not DEVICE_ID.fullmatch(device_id):
             raise DeviceRegistryError("Invalid device ID")
