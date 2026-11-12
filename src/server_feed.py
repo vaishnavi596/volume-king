@@ -332,7 +332,7 @@ class ServerDhanReadOnly:
 
     def cooldown_remaining(self, path):
         """Seconds left before a rate-limited read-only endpoint may be retried."""
-        if path not in ("/dhan/ltp-batch", "/dhan/intraday"):
+        if path not in ("/v2/snapshot", "/dhan/ltp-batch", "/dhan/intraday"):
             return 0
         return max(0, int(max(self._cooldown_until.get(path, 0.0),
                               self._global_cooldown_until) - time.monotonic() + 0.999))
