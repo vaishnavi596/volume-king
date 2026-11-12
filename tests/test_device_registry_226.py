@@ -1,5 +1,5 @@
 """Offline registry tests; no Oracle production routes enabled."""
-import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -24,6 +24,19 @@ class Registry226Tests(unittest.TestCase):
         self.registry.enroll_approved_device(
             self.device, self.public_key, owner_approved=True
         )
+
+    def test_private_database_permissions(self):
+        self.assertEqual(self.path.stat().st_mode & 0o077, 0)
+
+    def test_existing_public_database_rejected(self):
+        os.chmod(self.path, 0o644)
+        with self.assertRaises(DeviceRegistryError):
+            DeviceRegistry(self.path)
+
+    def test_invalid_device_id_rejected(self):
+        self.assertFalse(self.registry.validate_session("../wrong", "x" * 40))
+        with self.assertRaises(DeviceRegistryError):
+            self.registry.issue_session("../wrong", device_proof_verified=True)
 
     def test_owner_approval_required(self):
         with self.assertRaises(DeviceRegistryError):
