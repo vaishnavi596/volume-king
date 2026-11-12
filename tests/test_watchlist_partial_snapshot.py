@@ -23,6 +23,16 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
         self.assertIn('quotes.pop(ticker,None)',error)
 
+    def test_background_scanner_failure_invalidates_old_quotes(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
+        end=text.index('                # Connection is now ready:',start)
+        body=text[start:end]
+        error=body[body.index('log_error("dhan_batch",exc)'):]
+        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
+        self.assertIn('if generation==provider_generation[0] and prefs.get("source")=="Dhan":',error)
+        self.assertIn('quotes.pop(ticker,None)',error)
+
     def test_background_scanner_also_clears_missing_quotes(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
