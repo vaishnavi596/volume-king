@@ -40,6 +40,12 @@ class AndroidBridgeTests(unittest.TestCase):
         challenge = base64.urlsafe_b64encode(b"y" * 32).decode("ascii")
         signature = asyncio.run(bridge.sign_login_challenge("android_device_226", challenge))
         self.assertTrue(signature)
+        from cryptography.hazmat.primitives.serialization import load_der_public_key
+        key_bytes = base64.urlsafe_b64decode(registered.public_key[5:])
+        public_key = load_der_public_key(key_bytes)
+        public_key.verify(base64.urlsafe_b64decode(signature),
+                          b"BOTKING226:DEVICE-AUTH:v1:" + base64.urlsafe_b64decode(challenge),
+                          ec.ECDSA(hashes.SHA256()))
 
     def test_noncanonical_public_key_rejected(self):
         class NoncanonicalKey(NativeStub):
