@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives.serialization import load_der_public_key
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
+P256_ORDER = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+
 
 class AndroidAuthUnavailable(RuntimeError):
     pass
@@ -82,6 +84,6 @@ class AndroidDeviceAuthBridge:
             r, s = decode_dss_signature(encoded)
         except ValueError as exc:
             raise AndroidAuthUnavailable("Invalid native P-256 signature DER") from exc
-        if not (1 <= r < 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551 and 1 <= s < 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551):
+        if not (1 <= r < P256_ORDER and 1 <= s < P256_ORDER):
             raise AndroidAuthUnavailable("Invalid native P-256 signature")
         return signature
