@@ -1321,9 +1321,10 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Dhan quote snapshots need not compete with historical candles
-            # every 30 seconds, especially when exchange timestamps are absent.
-            await asyncio.sleep(90)
+            # Poll the Oracle cached snapshot more often than its 90-second ingest cycle.
+            # This GET does not initiate a Dhan quote collection; keep historical
+            # candle scans on their separate rate-limited cadence.
+            await asyncio.sleep(45)
 
     def watchlist():
         fill_watch()
