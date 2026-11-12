@@ -60,7 +60,7 @@ class AndroidBridgeTests(unittest.TestCase):
         class NoncanonicalSignature(NativeStub):
             async def sign_challenge_with_biometric(self, device_id, challenge):
                 value = await super().sign_challenge_with_biometric(device_id, challenge)
-                return value.rstrip("=")
+                return value + "="
         challenge = base64.urlsafe_b64encode(b"y" * 32).decode("ascii")
         with self.assertRaises(AndroidAuthUnavailable):
             asyncio.run(AndroidDeviceAuthBridge(NoncanonicalSignature()).sign_login_challenge(
