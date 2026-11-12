@@ -350,6 +350,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
+    def test_dhan_history_preflight_checks_background_after_quote_batch(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
+        first = scan.index("first_ok=await load_one(symbols[0])")
+        preflight = scan.rfind("if lifecycle_background[0]:", 0, first)
+        self.assertGreater(preflight, scan.index('if prefs.get("source")=="Dhan" and symbols:'))
+        self.assertIn("last_scanned_generation=None", scan[preflight:first])
+        self.assertIn("continue", scan[preflight:first])
+
     def test_dhan_background_interruption_persists_after_quick_resume(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
