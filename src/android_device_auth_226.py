@@ -48,6 +48,9 @@ class AndroidDeviceAuthBridge:
         return DeviceKeyRegistration(device_id, "p256:" + public_key)
 
     async def sign_login_challenge(self, device_id, challenge):
+        if (not isinstance(device_id, str) or not 16 <= len(device_id) <= 128
+                or not all(ch.isascii() and (ch.isalnum() or ch in "_-") for ch in device_id)):
+            raise ValueError("Invalid device ID")
         if not isinstance(challenge, str) or len(challenge) != 44:
             raise ValueError("Invalid server challenge")
         try:
