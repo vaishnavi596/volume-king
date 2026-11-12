@@ -60,6 +60,13 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
+    def test_dhan_history_prioritizes_scanner_and_super_five_without_fanout(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        self.assertIn('priority=[scan_symbol.value or "NIFTY"]+[row.get("symbol") for row in top5_candidates',text)
+        self.assertIn('[sym for sym in priority if sym in symbols]+symbols',text)
+        self.assertIn('results.append(await load_one(sym))',text)
+        self.assertIn('await asyncio.sleep(1.5)',text)
+
     def test_historical_votes_do_not_use_live_green_red_palette(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("def strength_widget(")
