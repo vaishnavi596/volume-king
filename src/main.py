@@ -3779,7 +3779,18 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4,5):request_view_refresh(current[0])
                         await asyncio.sleep(30)
                         continue
-                    results=[first_ok]+await asyncio.gather(*(load_one(sym) for sym in symbols[1:]))
+                    results=[first_ok]
+                    # Dhan history is a rate-limited upstream API: serialize
+                    # calls and stop this cycle when its cooldown is triggered.
+                    for sym in symbols[1:]:
+                        if generation!=provider_generation[0] or not dhan_feed.connected:
+                            break
+                        if any("rate limited" in err.lower() or "cooldown" in err.lower()
+                               for err in failed_symbols.values()):
+                            scan_progress["state"]="Dhan historical scan paused after HTTP 429 • waiting for provider cooldown"
+                            break
+                        await asyncio.sleep(1.5)
+                        results.append(await load_one(sym))
                 else:
                     results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
