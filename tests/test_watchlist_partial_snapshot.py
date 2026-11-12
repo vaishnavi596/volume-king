@@ -4,56 +4,26 @@ from pathlib import Path
 
 
 class WatchlistPartialSnapshotTests(unittest.TestCase):
-    def test_missing_quotes_are_cleared_before_publishing_batch(self):
-        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        start=text.index("    async def refresh_watch_batch():")
-        end=text.index("        finally:",start)
-        body=text[start:end]
-        self.assertIn('if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":',body)
-        self.assertIn('quotes.pop(ticker,None)',body)
-        self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker,snapshot in batch.items():'))
-        self.assertIn('missing prices cleared',body)
-
-    def test_connect_batch_retains_previous_quotes_but_marks_partial_or_failed(self):
-        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        start=text.index('# Verify watchlist batch independently of the login check.')
-        end=text.index('                    if market_status.startswith("Dhan connected; watchlist batch failed"):',start)
-        body=text[start:end]
-        self.assertNotIn('quotes.pop(ticker,None)',body)
-        self.assertIn('Partial Dhan batch:',body)
-        error=body[body.index("log_error('dhan_batch_after_connect',exc)"):]
-        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
-        self.assertIn('dhan_batch_issue[0]=safe_error(exc)',error)
-        self.assertIn('watchlist batch failed:',error)
-
-    def test_failed_watchlist_snapshot_invalidates_cached_quotes(self):
+    def test_all_dhan_batch_paths_keep_last_valid_quote_and_report_failure(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("    async def refresh_watch_batch():")
         end=text.index("    async def dhan_quote_poll():",start)
-        body=text[start:end]
-        error=body[body.index('log_error("watchlist_dhan_batch",exc)'):]
-        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
-        self.assertIn('quotes.pop(ticker,None)',error)
-
-    def test_background_scanner_failure_invalidates_old_quotes(self):
-        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        watch=text[start:end]
+        self.assertNotIn("quotes.pop(ticker,None)",watch)
+        self.assertIn("previous quotes retained",watch)
+        self.assertIn("Dhan batch failed:",watch)
+        self.assertIn("dhan_batch_issue[0]=safe_error(exc)",watch)
+        start=text.index("# Verify watchlist batch independently of the login check.")
+        end=text.index('                    if market_status.startswith("Dhan connected; watchlist batch failed"):',start)
+        login=text[start:end]
+        self.assertNotIn("quotes.pop(ticker,None)",login)
+        self.assertIn("Partial Dhan batch:",login)
         start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
         end=text.index('                # Connection is now ready:',start)
-        body=text[start:end]
-        error=body[body.index('log_error("dhan_batch",exc)'):]
-        self.assertIn('dhan_batch_cache.update(generation=None,updated=0.0,quotes={})',error)
-        self.assertIn('if generation==provider_generation[0] and prefs.get("source")=="Dhan":',error)
-        self.assertIn('quotes.pop(ticker,None)',error)
-
-    def test_background_scanner_also_clears_missing_quotes(self):
-        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
-        end=text.index('                # Connection is now ready:',start)
-        body=text[start:end]
-        self.assertIn('if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":',body)
-        self.assertIn('quotes.pop(ticker,None)',body)
-        self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker, snapshot in batch.items():'))
-
+        scanner=text[start:end]
+        self.assertNotIn("quotes.pop(ticker,None)",scanner)
+        self.assertIn("Dhan batch LTP unavailable:",scanner)
+        self.assertIn("dhan_batch_cache.update(generation=None,updated=0.0,quotes={})",scanner)
 
     def test_dhan_history_has_one_pacing_delay_not_two(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
