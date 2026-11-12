@@ -1279,9 +1279,6 @@ def app_main(page:ft.Page):
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
                         fetched_at=time.time())
-            count=sum(1 for ticker in all_watch_symbols() if
-                      (quotes.get(ticker) or {}).get("source")=="Dhan" and
-                      isinstance((quotes.get(ticker) or {}).get("price"),(int,float)))
             total_symbols=len(all_watch_symbols())
             # A partial batch is not a complete refresh even if older quotes remain cached.
             received=sum(1 for ticker in all_watch_symbols() if
@@ -1289,15 +1286,15 @@ def app_main(page:ft.Page):
                          and isinstance(snapshot.get("price"),(int,float))
                          and not isinstance(snapshot.get("price"),bool)
                          and math.isfinite(snapshot["price"]))
-            dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} symbols returned"
+            dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} valid prices returned"
                                  if received<total_symbols else None)
             if dhan_feed.connected:
-                connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
+                connection_status.value=(f"Dhan connected • {received}/{total_symbols} valid equity LTP prices returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
             watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • timestamp unverified"
                                    if dhan_batch_issue[0] else
-                                   f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
+                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • timestamp unverified")
             market_status=watch_batch_status[0]
         except Exception as exc:
             # Android may suspend a network request when the app loses focus.
