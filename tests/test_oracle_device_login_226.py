@@ -94,7 +94,7 @@ class OracleDeviceLoginTests(unittest.TestCase):
         client = OracleDeviceLogin226("https://example.com", opener=opener)
         with self.assertRaises(OracleDeviceLoginError):
             asyncio.run(client.login("android_owner_device_226", None))
-        self.assertEqual(len(opener.requests), 1)
+        self.assertEqual(len(opener.requests), 0)
 
     def test_bad_native_signature_never_posts_session(self):
         class InvalidNative:
