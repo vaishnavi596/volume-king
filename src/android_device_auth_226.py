@@ -48,6 +48,8 @@ class AndroidDeviceAuthBridge:
             raw = base64.b64decode(public_key, altchars=b"-_", validate=True)
         except (ValueError, base64.binascii.Error) as exc:
             raise AndroidAuthUnavailable("Invalid Android public key encoding") from exc
+        if base64.urlsafe_b64encode(raw).decode("ascii") != public_key:
+            raise AndroidAuthUnavailable("Non-canonical Android public key encoding")
         if not 80 <= len(raw) <= 160:
             raise AndroidAuthUnavailable("Invalid P-256 public key length")
         try:
@@ -80,6 +82,8 @@ class AndroidDeviceAuthBridge:
             encoded = base64.b64decode(signature, altchars=b"-_", validate=True)
         except (ValueError, base64.binascii.Error) as exc:
             raise AndroidAuthUnavailable("Invalid native signature encoding") from exc
+        if base64.urlsafe_b64encode(encoded).decode("ascii") != signature:
+            raise AndroidAuthUnavailable("Non-canonical native signature encoding")
         try:
             r, s = decode_dss_signature(encoded)
         except ValueError as exc:
