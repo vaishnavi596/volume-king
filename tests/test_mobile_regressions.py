@@ -358,6 +358,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_options_history_does_not_replace_newer_quote(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        section = source[source.index("    async def refresh_selected_options():"):source.index("    def selected_option_rows():")]
+        self.assertIn('previous=quotes.get(sym) or {}', section)
+        self.assertIn('previous["fetched_at"]>hist.get("fetched_at",0)', section)
+        self.assertIn('previous.get("source")==hist.get("source")', section)
+
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
