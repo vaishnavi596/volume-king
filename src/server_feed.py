@@ -150,6 +150,10 @@ class ServerDhanReadOnly:
         self._pairing_key = ""
         self._historical_only = False
         self._cooldown_until = {}
+        # One Dhan HTTPS request at a time across quote polling, scanner,
+        # chart and manual refresh tasks; prevents overlapping gateway calls.
+        import threading
+        self._request_lock = threading.Lock()
 
     @property
     def connected(self):
@@ -166,6 +170,10 @@ class ServerDhanReadOnly:
         self._cooldown_until = {}
 
     def _call(self, path, payload=None):
+        with self._request_lock:
+            return self._call_serialized(path, payload)
+
+    def _call_serialized(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday"):
