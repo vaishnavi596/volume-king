@@ -555,6 +555,10 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 quotes[symbol] = price
             except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
                 unavailable.append(symbol)
+        # Never publish a successful snapshot when every returned quote is invalid.
+        # Preserve the last cache and let ingestion expose an upstream error.
+        if not quotes:
+            raise HTTPException(502, "Dhan returned no usable verified equity prices")
         with snapshot_lock:
             snapshot_cache.update(quotes=dict(quotes), unavailable=list(unavailable),
                                   observed_at=datetime.now(timezone.utc).isoformat(),
