@@ -1,4 +1,4 @@
-# Build request: 2026-11-12 Dhan serialized feed and dashboard regression validation.
+# Build request: 2026-11-12 regression suite green; verify Android packaging and permanent signing.
 
 name: Build APK
 
