@@ -358,6 +358,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("publish_partial_ranking(ranking_results)", rank)
         self.assertIn("available=publish_partial_ranking(ranking_results)", scan)
 
+    def test_resume_dhan_chart_cannot_overwrite_newer_batch_quote(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        resume = source[source.index("    async def refresh_after_resume():"):source.index("    def lifecycle_changed(e):")]
+        self.assertIn('previous=quotes.get(sym) or {}', resume)
+        self.assertIn('previous["fetched_at"]>data.get("fetched_at",0)', resume)
+        self.assertIn('and previous.get("source")=="Dhan"', resume)
+        self.assertIn('quotes[sym]=data', resume)
+
     def test_dhan_history_scan_cycle_waits_five_minutes_but_resume_interrupts(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
