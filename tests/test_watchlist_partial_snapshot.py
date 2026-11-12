@@ -14,6 +14,15 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker,snapshot in batch.items():'))
         self.assertIn('missing prices cleared',body)
 
+    def test_background_scanner_also_clears_missing_quotes(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
+        end=text.index('                # Connection is now ready:',start)
+        body=text[start:end]
+        self.assertIn('if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":',body)
+        self.assertIn('quotes.pop(ticker,None)',body)
+        self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker, snapshot in batch.items():'))
+
 
 if __name__=="__main__":
     unittest.main()
