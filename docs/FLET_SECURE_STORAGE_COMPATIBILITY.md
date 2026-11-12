@@ -48,3 +48,11 @@ References:
 - https://flet.dev/docs/services/securestorage/
 - https://flet.dev/docs/extend/built-in-extensions/
 - https://flet.dev/docs/publish/
+
+## Upstream package research (2026-11-12)
+- PyPI currently lists `flet-secure-storage==1.1.2` (released Nov 6, 2026); official Flet documentation confirms Android Keystore support.
+- PyPI currently lists `flet==1.1.2` and `flet-webview==1.0.0`. Official built-in extension documentation illustrates `flet>=1.0.0`; this is **not** proof that Flet 0.25.2 works with secure storage 1.1.2.
+- Modern WebView documentation uses `import flet_webview as fwv` and `fwv.WebView`. BOT KING uses older Flet controls; upgrading is a migration requiring UI regression, not a simple dependency swap.
+- Official current Flet publishing guidance selects bundled Python based on `requires-python`; with `>=3.11` the highest supported Python may be chosen, changing the Android runtime. Pin a tested Python target in any future experimental build.
+- References: https://pypi.org/project/flet-secure-storage/ ; https://pypi.org/project/flet/1.1.2/ ; https://pypi.org/project/flet-webview/ ; https://flet.dev/docs/services/securestorage/ ; https://flet.dev/docs/extend/built-in-extensions/ ; https://flet.dev/docs/publish/
+- **Decision:** keep `pyproject.toml` and Android workflow unchanged pending isolated dependency resolution and migration tests. No claim of Android runtime compatibility or credential persistence.
