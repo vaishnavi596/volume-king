@@ -3,7 +3,7 @@
 NOT included by the production server by default. Only mount after explicit
 owner-approved enrollment setup, HTTPS ingress and persistence review.
 """
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from .device_login_226 import DeviceLoginError
@@ -24,7 +24,8 @@ def build_device_auth_router(registry, login):
     local_router = APIRouter(prefix="/v2/device", tags=["device-auth"])
 
     @local_router.post("/challenge")
-    def challenge(body: ChallengeRequest):
+    def challenge(body: ChallengeRequest, response: Response):
+        response.headers["Cache-Control"] = "no-store"
         try:
             value = login.begin(body.device_id)
         except DeviceLoginError:
@@ -32,7 +33,8 @@ def build_device_auth_router(registry, login):
         return {"challenge": value, "expires_in_seconds": 120}
 
     @local_router.post("/session")
-    def session(body: ProofRequest):
+    def session(body: ProofRequest, response: Response):
+        response.headers["Cache-Control"] = "no-store"
         try:
             token = login.complete(body.device_id, body.challenge, body.signature)
         except (DeviceLoginError, DeviceRegistryError):
@@ -40,7 +42,8 @@ def build_device_auth_router(registry, login):
         return {"access_token": token, "token_type": "bearer", "expires_in_seconds": 900}
 
     @local_router.post("/validate")
-    def validate(body: ChallengeRequest, authorization: str | None = Header(default=None)):
+    def validate(body: ChallengeRequest, response: Response, authorization: str | None = Header(default=None)):
+        response.headers["Cache-Control"] = "no-store"
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "Bearer token required")
         token = authorization[7:]
