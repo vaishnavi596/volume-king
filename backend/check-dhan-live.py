@@ -12,6 +12,14 @@ import sys
 import urllib.error
 import urllib.request
 
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
 BASE = "http://127.0.0.1:8000"
 KEY_FILE = pathlib.Path("/home/opc/bot-king-pairing-key.txt")
 
@@ -24,11 +32,14 @@ def request(path, key, payload=None):
     req = urllib.request.Request(BASE + path, data=data, headers=headers,
                                  method="GET" if data is None else "POST")
     try:
-        with urllib.request.urlopen(req, timeout=25) as response:
-            return response.status, json.loads(response.read(2_000_001))
+        with OPENER.open(req, timeout=25) as response:
+            raw = response.read(65537)
+            if len(raw) > 65536:
+                return 0, None
+            return response.status, json.loads(raw.decode("utf-8"))
     except urllib.error.HTTPError as exc:
         return exc.code, None
-    except (urllib.error.URLError, TimeoutError, ValueError, UnicodeError):
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, UnicodeError):
         return 0, None
 
 
