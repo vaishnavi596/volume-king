@@ -4,7 +4,7 @@ Not mounted as FastAPI routes. The enrollment and challenge transports must
 be owner-authenticated and rate-limited before production deployment.
 """
 import re
-from .device_proof_226 import ChallengeStore, DeviceProofError, verify_device_signature
+from .device_proof_226 import ChallengeStore, DeviceProofError, verify_device_signature, verify_android_p256_signature
 from .device_registry_226 import DEVICE_ID, DeviceRegistryError
 
 
@@ -40,7 +40,9 @@ class DeviceLoginCoordinator:
         if key is None:
             raise DeviceLoginError("Device not enrolled or revoked")
         try:
-            valid = verify_device_signature(key, challenge, signature)
+            valid = (verify_android_p256_signature(key[5:], challenge, signature)
+                     if key.startswith("p256:") else
+                     verify_device_signature(key, challenge, signature))
         except DeviceProofError as exc:
             self.registry.record_login_failure(device_id)
             raise DeviceLoginError("Invalid device proof") from exc
