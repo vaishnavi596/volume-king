@@ -50,8 +50,11 @@ def request(path, key, payload=None):
         return 0, None
 
 
-def valid_batch_quotes(code, quotes):
-    return (code == 200 and isinstance(quotes, dict) and len(quotes) >= 1
+def valid_batch_quotes(code, quotes, envelope=None):
+    return (code == 200 and (envelope is None or
+            (isinstance(envelope, dict) and envelope.get("source") == "dhan"
+             and envelope.get("live_orders_enabled") is False
+             and isinstance(envelope.get("unavailable"), list))) and isinstance(quotes, dict) and len(quotes) >= 1
             and all(isinstance(symbol, str) and symbol != "NIFTY"
                     and isinstance(price, (int, float)) and not isinstance(price, bool)
                     and math.isfinite(price) and price > 0
@@ -102,6 +105,8 @@ def main():
     code, quote = request("/dhan/ltp", key, {"symbol": "NIFTY"})
     valid_quote = (code == 200 and isinstance(quote, dict)
                    and quote.get("source") == "dhan"
+                   and quote.get("symbol") == "NIFTY"
+                   and quote.get("live_orders_enabled") is False
                    and isinstance(quote.get("ltp"), (int, float))
                    and not isinstance(quote.get("ltp"), bool)
                    and quote["ltp"] > 0
@@ -110,7 +115,7 @@ def main():
     code, batch = request("/dhan/ltp-batch", key, {})
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
     unavailable = batch.get("unavailable") if isinstance(batch, dict) else None
-    valid_batch = valid_batch_quotes(code, quotes)
+    valid_batch = valid_batch_quotes(code, quotes, batch)
     print("51-equity batch HTTP:", code,
           "quotes:", len(quotes) if isinstance(quotes, dict) else "invalid",
           "unavailable:", len(unavailable) if isinstance(unavailable, list) else "invalid")
@@ -122,7 +127,11 @@ def main():
         "symbol": "NIFTY", "interval": 5,
         "from_date": day.isoformat(), "to_date": day.isoformat()})
     bars = candles.get("bars") if isinstance(candles, dict) else None
-    valid_candles = valid_candle_bars(code, bars)
+    valid_candles = (valid_candle_bars(code, bars)
+                     and candles.get("source") == "dhan"
+                     and candles.get("symbol") == "NIFTY"
+                     and candles.get("live_orders_enabled") is False
+                     and candles.get("freshness") == "historical_unverified")
     print("NIFTY 5m candles HTTP:", code,
           "bars:", len(bars) if isinstance(bars, list) else "invalid",
           "(previous weekday; exchange holiday possible)")
