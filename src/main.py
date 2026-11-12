@@ -3783,6 +3783,7 @@ console.log('BOT KING Lightweight Charts ready');
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
                 market_completed=[0]
                 history_failed=[0]
+                history_cached=[0]
                 cycle_data={}
                 background_interrupted=False
                 async def load_one(sym):
@@ -3828,7 +3829,8 @@ console.log('BOT KING Lightweight Charts ready');
                             else:
                                 quotes[sym]=data
                             market_completed[0]+=1
-                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
+                            history_cached[0]+=int(bool(data.get("cached")))
+                            scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed • "+str(history_cached[0])+" cached"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
                         except Exception as exc:
