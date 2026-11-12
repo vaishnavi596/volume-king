@@ -71,6 +71,17 @@ class DhanAdapterTests(unittest.TestCase):
         adapter.disconnect()
         self.assertFalse(adapter.connected)
 
+    def test_connect_rejects_explicit_reauthentication(self):
+        adapter = ServerDhanReadOnly()
+        with patch.object(adapter, "_call", return_value={
+            "live_orders_enabled": False, "market_data_configured": True,
+            "reauthentication_required": True,
+        }) as request:
+            with self.assertRaisesRegex(FeedError, "authentication expired"):
+                adapter.connect("https://example.com", "temporary")
+        self.assertEqual(request.call_count, 1)
+        self.assertFalse(adapter.connected)
+
     def test_connect_clears_credentials_after_failure(self):
         adapter = ServerDhanReadOnly()
         with patch.object(adapter, "_call", return_value={
