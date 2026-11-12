@@ -6,6 +6,7 @@ No orders, writes, external server changes, or fallback quotes.
 """
 import datetime as dt
 import json
+import math
 import pathlib
 import sys
 import urllib.error
@@ -56,7 +57,7 @@ def main():
                    and isinstance(quote.get("ltp"), (int, float))
                    and not isinstance(quote.get("ltp"), bool)
                    and quote["ltp"] > 0
-                   and __import__("math").isfinite(quote["ltp"]))
+                   and math.isfinite(quote["ltp"]))
     print("NIFTY LTP HTTP:", code, "valid:", valid_quote)
     code, batch = request("/dhan/ltp-batch", key, {})
     quotes = batch.get("quotes") if isinstance(batch, dict) else None
