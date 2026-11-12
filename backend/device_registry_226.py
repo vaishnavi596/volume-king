@@ -197,6 +197,19 @@ class DeviceRegistry:
                 (device_id, digest, int(self.clock()))).fetchone()
         return row is not None
 
+    def validate_bearer_session(self, token):
+        """Authenticate a session without trusting a client-supplied device ID."""
+        try:
+            digest = session_token_digest(token)
+        except (ValueError, TypeError):
+            return False
+        with self._connect() as db:
+            row = db.execute("""SELECT 1 FROM sessions s JOIN devices d
+                ON s.device_id=d.device_id WHERE s.token_digest=? AND
+                s.revoked_at IS NULL AND d.revoked_at IS NULL AND s.expires_at>?""",
+                (digest, int(self.clock()))).fetchone()
+        return row is not None
+
     def revoke_device(self, device_id):
         with self._connect() as db:
             now = int(self.clock())
