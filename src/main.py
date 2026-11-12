@@ -1294,7 +1294,8 @@ def app_main(page:ft.Page):
         # Only poll while the Android app is foregrounded and Dhan is connected.
         while True:
             try:
-                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and dhan_feed.cooldown_remaining("/dhan/ltp-batch")==0):
                     await refresh_watch_batch()
                     if current[0]==0:
                         request_view_refresh(0)
