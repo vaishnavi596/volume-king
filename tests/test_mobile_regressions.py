@@ -350,6 +350,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('provider_generation[0]+=1', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
+    def test_pending_dhan_history_generation_waits_for_foreground(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    async def refresh_market():")
+        end = source.index("    async def supervised_market_refresh():", start)
+        refresh = source[start:end]
+        self.assertIn("if not app_active[0]:", refresh)
+        self.assertIn("Dhan scan waiting for app foreground", refresh)
+        self.assertNotIn("if not app_active[0] and not pending_dhan_scan:", refresh)
+
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('state="Dhan historical scan queued; LTP independently checked"', source)
