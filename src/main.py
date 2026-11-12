@@ -3739,7 +3739,28 @@ console.log('BOT KING Lightweight Charts ready');
                                 if latest and latest.get("source")=="Dhan":
                                     data=dict(data,price=latest["price"],quote_timestamp=None,
                                               freshness="unverified",fetched_at=time.time())
-                            quotes[sym]=data;cycle_data[sym]=data
+                            # Historical scans must never overwrite a newer live LTP
+                            # published by the independent 30-second quote poll.
+                            # Keep candle data for ranking, but preserve the newest
+                            # same-provider price in the displayed quote snapshot.
+                            cycle_data[sym]=data
+                            previous_quote=quotes.get(sym) or {}
+                            previous_stamp=previous_quote.get("fetched_at")
+                            data_stamp=data.get("fetched_at") if isinstance(data,dict) else None
+                            if (prefs.get("source")=="Dhan"
+                                    and previous_quote.get("source")=="Dhan"
+                                    and isinstance(previous_stamp,(int,float))
+                                    and (not isinstance(data_stamp,(int,float)) or previous_stamp>data_stamp)
+                                    and isinstance(previous_quote.get("price"),(int,float))
+                                    and not isinstance(previous_quote.get("price"),bool)
+                                    and math.isfinite(previous_quote["price"])):
+                                quotes[sym]=dict(data,price=previous_quote["price"],
+                                                 fetched_at=previous_stamp,source="Dhan",
+                                                 quote_timestamp=previous_quote.get("quote_timestamp"),
+                                                 freshness=previous_quote.get("freshness","unverified"),
+                                                 change=previous_quote.get("change"))
+                            else:
+                                quotes[sym]=data
                             market_completed[0]+=1
                             scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
