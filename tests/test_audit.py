@@ -637,7 +637,7 @@ class AuditTests(unittest.TestCase):
         recovered=texts(v['data_overview']())
         self.assertFalse(any('Dhan watchlist batch:' in value for value in recovered))
 
-    def test_historical_strength_widget_mutes_bars_and_labels(self):
+    def test_historical_strength_widget_retains_direction_with_historical_label(self):
         _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
         row={'source':'Yahoo Finance','timestamp':1,'historical':True,
              'votes':[{'vote':1},{'vote':-1}]}
@@ -652,11 +652,10 @@ class AuditTests(unittest.TestCase):
             for child in control._get_children():walk(child)
         walk(widget)
         self.assertTrue(any('Historical votes' in value for value in values))
+        self.assertTrue(any('not win probability' in value for value in values))
         palette=v['strength_widget'].__globals__
-        self.assertIn(palette['MUTED'],colors)
-        self.assertIn(palette['BORDER'],colors)
-        self.assertNotIn(palette['GREEN'],colors)
-        self.assertNotIn(palette['RED'],colors)
+        self.assertIn(palette['GREEN'],colors)
+        self.assertIn(palette['RED'],colors)
 
     def test_palette_contrast(self):
         _,v=start()
