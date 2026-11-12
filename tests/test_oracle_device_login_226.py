@@ -1,5 +1,6 @@
 """Offline Oracle 226 device login transport tests; no network."""
 import asyncio
+import base64
 import io
 import json
 import sys
@@ -34,7 +35,7 @@ class Native:
 
 class OracleDeviceLoginTests(unittest.TestCase):
     def test_challenge_session_handshake(self):
-        challenge = "c" * 44
+        challenge = base64.urlsafe_b64encode(b"c" * 32).decode("ascii")
         opener = Opener([{"challenge": challenge},
                          {"access_token": "t" * 48, "token_type": "bearer",
                           "expires_in_seconds": 900}])
@@ -52,8 +53,23 @@ class OracleDeviceLoginTests(unittest.TestCase):
             asyncio.run(client.login("android_owner_device_226", Native()))
         self.assertEqual(len(opener.requests), 1)
 
+    def test_noncanonical_challenge_rejected(self):
+        opener = Opener([{"challenge": "c" * 44}])
+        client = OracleDeviceLogin226("https://example.com", opener=opener)
+        with self.assertRaises(OracleDeviceLoginError):
+            asyncio.run(client.login("android_owner_device_226", Native()))
+
+    def test_whitespace_token_rejected(self):
+        opener = Opener([
+            {"challenge": base64.urlsafe_b64encode(b"c" * 32).decode("ascii")},
+            {"access_token": "t" * 40 + " ", "token_type": "bearer",
+             "expires_in_seconds": 900}])
+        client = OracleDeviceLogin226("https://example.com", opener=opener)
+        with self.assertRaises(OracleDeviceLoginError):
+            asyncio.run(client.login("android_owner_device_226", Native()))
+
     def test_bad_session_fails_closed(self):
-        opener = Opener([{"challenge": "c" * 44},
+        opener = Opener([{"challenge": base64.urlsafe_b64encode(b"c" * 32).decode("ascii")},
                          {"access_token": "t" * 48, "token_type": "bearer",
                           "expires_in_seconds": 99999}])
         client = OracleDeviceLogin226("https://example.com", opener=opener)
