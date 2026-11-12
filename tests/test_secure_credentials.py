@@ -257,3 +257,14 @@ def test_origin_scoped_pairing_store_never_crosses_server_origins():
     asyncio.run(exercise())
 
 
+
+
+def test_pairing_alias_canonicalizes_equivalent_https_origins():
+    from secure_credentials import origin_scoped_pairing_key
+
+    alias = origin_scoped_pairing_key("https://example.invalid")
+    assert alias == origin_scoped_pairing_key("HTTPS://EXAMPLE.INVALID")
+    assert alias == origin_scoped_pairing_key("https://example.invalid:443/")
+    assert alias != origin_scoped_pairing_key("https://other.invalid")
+
+

@@ -29,9 +29,17 @@ class DhanSessionRecord:
 def origin_scoped_pairing_key(origin: str) -> str:
     """Non-secret Keystore alias scoped to one validated HTTPS server origin."""
     import hashlib
+    from urllib.parse import urlsplit
     from server_feed import server_origin
 
-    normalized = server_origin(origin)
+    validated = server_origin(origin)
+    parsed = urlsplit(validated)
+    # HTTPS hostnames are case-insensitive; :443 is the default port.
+    # Keep the alias stable across harmless URL spelling differences.
+    host = parsed.hostname.lower()
+    if ":" in host:
+        host = "[" + host + "]"
+    normalized = "https://" + host
     # Hash the origin to keep hostnames out of storage aliases and logs.
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     return "botking.pairing.v1." + digest
