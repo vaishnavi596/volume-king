@@ -92,8 +92,13 @@ class DeviceRegistry:
         challenge = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
         digest = hashlib.sha256(challenge.encode("ascii")).hexdigest()
         with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             db.execute("DELETE FROM device_challenges WHERE expires_at<=?",
                        (int(self.clock()),))
+            pending = db.execute("SELECT COUNT(*) FROM device_challenges WHERE device_id=?",
+                                 (device_id,)).fetchone()[0]
+            if pending >= 3:
+                raise DeviceRegistryError("Too many pending device challenges")
             db.execute("INSERT INTO device_challenges VALUES(?,?,?)",
                        (digest, device_id, int(self.clock()) + ttl_seconds))
         return challenge
