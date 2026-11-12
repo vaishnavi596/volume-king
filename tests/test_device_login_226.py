@@ -33,6 +33,27 @@ class DeviceLoginTests(unittest.TestCase):
         return base64.urlsafe_b64encode(self.private.sign(
             b"BOTKING226:DEVICE-AUTH:v1:" + raw)).decode("ascii")
 
+    def test_android_p256_login_issues_session(self):
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import hashes, serialization
+        private = ec.generate_private_key(ec.SECP256R1())
+        public = private.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        p256_device = "android_p256_device_226"
+        self.registry.enroll_approved_device(
+            p256_device, "p256:" + base64.urlsafe_b64encode(public).decode("ascii"),
+            owner_approved=True)
+        challenge = self.login.begin(p256_device)
+        signature = private.sign(
+            b"BOTKING226:DEVICE-AUTH:v1:" + base64.urlsafe_b64decode(challenge),
+            ec.ECDSA(hashes.SHA256()))
+        token = self.login.complete(
+            p256_device, challenge, base64.urlsafe_b64encode(signature).decode("ascii"))
+        self.assertTrue(self.registry.validate_session(p256_device, token))
+        with self.assertRaises(DeviceLoginError):
+            self.login.complete(
+                p256_device, challenge, base64.urlsafe_b64encode(signature).decode("ascii"))
+
     def test_signed_login_issues_session(self):
         challenge = self.login.begin(self.device)
         token = self.login.complete(self.device, challenge, self.signature(challenge))
