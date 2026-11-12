@@ -1306,7 +1306,9 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            await asyncio.sleep(30)
+            # Dhan quote snapshots need not compete with historical candles
+            # every 30 seconds, especially when exchange timestamps are absent.
+            await asyncio.sleep(90)
 
     def watchlist():
         fill_watch()
