@@ -3762,9 +3762,8 @@ console.log('BOT KING Lightweight Charts ready');
                     async with semaphore:
                         try:
                             # Bound each history request so one stalled symbol cannot block all 51 rankings.
-                            # Pace Dhan historical calls to avoid a burst of 51 requests.
-                            if prefs.get("source")=="Dhan":
-                                await asyncio.sleep(0.8)
+                            # Dhan history is serialized and paced once between
+                            # requests in the outer scan loop; avoid double sleeping.
                             data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","2d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
                             # Preserve the verified Dhan batch quote when historical candles refresh.

@@ -53,5 +53,15 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertLess(body.index('quotes.pop(ticker,None)'),body.index('for ticker, snapshot in batch.items():'))
 
 
+    def test_dhan_history_has_one_pacing_delay_not_two(self):
+        text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=text.index("                async def load_one(sym):")
+        end=text.index("                # Fail fast on a broken Dhan history endpoint.",start)
+        self.assertNotIn("await asyncio.sleep(0.8)",text[start:end])
+        start=text.index("                    for sym in symbols[1:]:",end)
+        end=text.index("                else:\n                    results=await asyncio.gather",start)
+        self.assertIn("await asyncio.sleep(1.5)",text[start:end])
+
+
 if __name__=="__main__":
     unittest.main()
