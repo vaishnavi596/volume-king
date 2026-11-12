@@ -33,6 +33,16 @@ class Registry226Tests(unittest.TestCase):
         self.assertFalse(self.registry.consume_challenge(self.device, challenge))
         self.assertNotIn(challenge.encode(), self.path.read_bytes())
 
+    def test_challenge_quota_and_expiry_recovery(self):
+        self.enroll()
+        challenges = [self.registry.issue_challenge(self.device) for _ in range(3)]
+        with self.assertRaises(DeviceRegistryError):
+            self.registry.issue_challenge(self.device)
+        self.assertTrue(self.registry.consume_challenge(self.device, challenges[0]))
+        self.registry.issue_challenge(self.device)
+        self.now[0] += 121
+        self.registry.issue_challenge(self.device)
+
     def test_challenge_expires(self):
         self.enroll()
         challenge = self.registry.issue_challenge(self.device)
