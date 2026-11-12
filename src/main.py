@@ -1239,6 +1239,10 @@ def app_main(page:ft.Page):
                 return
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
+            # A partial snapshot must not leave previous equity LTP visible as current.
+            for ticker in all_watch_symbols():
+                if ticker not in batch and (quotes.get(ticker) or {}).get("source")=="Dhan":
+                    quotes.pop(ticker,None)
             for ticker,snapshot in batch.items():
                 if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan":
                     old=quotes.get(ticker) or {}
@@ -1257,7 +1261,7 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} equity LTP quotes returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • cached prices may remain • timestamp unverified"
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • missing prices cleared • timestamp unverified"
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {count}/{total_symbols} • timestamp unverified")
             market_status=watch_batch_status[0]
