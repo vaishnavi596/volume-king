@@ -2230,7 +2230,11 @@ def app_main(page:ft.Page):
                                     fetched_at=time.time())
                         failed_symbols.clear()
                         expected=len(all_watch_symbols())
-                        received=len(set(batch).intersection(all_watch_symbols()))
+                        received=sum(1 for ticker in all_watch_symbols() if
+                                     (item:=batch.get(ticker)) and item.get('source')=='Dhan'
+                                     and isinstance(item.get('price'),(int,float))
+                                     and not isinstance(item.get('price'),bool)
+                                     and math.isfinite(item['price']) and item['price']>0)
                         dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{expected} symbols returned"
                                              if received<expected else None)
                         market_status=('Dhan • '+str(received)+'/'+str(expected)+
