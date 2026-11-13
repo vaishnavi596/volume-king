@@ -50,6 +50,13 @@ class ScannerSafetyTests(unittest.TestCase):
     def test_impossible_ohlc(self):
         b = candles(); b[-1][2] = 90.
         self.assertEqual(analyze(b)["count"], 34)
+    def test_boolean_ohlc_and_timestamp_are_rejected(self):
+        for column in (0,1,2,3,4):
+            bars=candles()
+            bars[-1][column]=True
+            result=analyze(bars)
+            self.assertEqual(result["count"],34)
+
     def test_nan(self):
         b = candles(); b[-1][4] = math.nan
         self.assertEqual(analyze(b)["count"], 34)
