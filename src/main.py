@@ -4118,8 +4118,10 @@ console.log('BOT KING Lightweight Charts ready');
                         # Resume fetches candles, not an independently verified
                         # live LTP. Preserve the last valid batch quote even when
                         # the candle response has a newer fetched_at timestamp.
-                        quotes[sym]=dict(previous,bars=data.get("bars",previous.get("bars",[])),
-                                         freshness="unverified")
+                        verified_bars=(data.get("bars") if data.get("source")=="Dhan"
+                                       and isinstance(data.get("bars"),list) else None)
+                        quotes[sym]=dict(previous,bars=verified_bars if verified_bars is not None
+                                         else previous.get("bars",[]),freshness="unverified")
                     else:
                         quotes[sym]=data
                 if current[0]==5:
