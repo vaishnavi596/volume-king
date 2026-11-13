@@ -1328,9 +1328,18 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} valid equity LTP prices returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • timestamp unverified"
+            # Snapshot age is the Oracle collection age, not an exchange timestamp.
+            snapshot_ages=[item.get("snapshot_age_seconds") for item in batch.values()
+                           if isinstance(item,dict) and isinstance(item.get("snapshot_age_seconds"),(int,float))
+                           and not isinstance(item.get("snapshot_age_seconds"),bool)
+                           and math.isfinite(item["snapshot_age_seconds"]) and item["snapshot_age_seconds"]>=0]
+            snapshot_age_label=(f"Oracle snapshot age {max(snapshot_ages):.0f}s • "
+                                if snapshot_ages else "Oracle snapshot age unknown • ")
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • "
+                                   +snapshot_age_label+"exchange timestamp unverified"
                                    if dhan_batch_issue[0] else
-                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
+                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • "+snapshot_age_label
+                                   +f"polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
             market_status=watch_batch_status[0]
             watch_batch_last_success[0]=time.monotonic()
         except Exception as exc:
@@ -1344,7 +1353,7 @@ def app_main(page:ft.Page):
                 if (isinstance(old,dict) and old.get("source")=="Dhan"
                         and isinstance(old.get("price"),(int,float))
                         and not isinstance(old.get("price"),bool)
-                        and math.isfinite(old["price"])):
+                        and math.isfinite(old["price"]) and old["price"]>0):
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
             if not app_active[0]:
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
@@ -2211,11 +2220,21 @@ def app_main(page:ft.Page):
                         # Keep previously valid Dhan quotes for symbols absent from
                         # a partial batch. They remain historical/unverified, not live.
                         for ticker,snapshot in batch.items():
-                            if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
-                                quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
+                            if (ticker in all_watch_symbols() and snapshot.get('source')=='Dhan'
+                                    and isinstance(snapshot.get('price'),(int,float))
+                                    and not isinstance(snapshot.get('price'),bool)
+                                    and math.isfinite(snapshot['price']) and snapshot['price']>0):
+                                previous=quotes.get(ticker) or {}
+                                quotes[ticker]=dict(snapshot,change=None,
+                                    bars=previous.get('bars',[]) if previous.get('source')=='Dhan' else [],
+                                    fetched_at=time.time())
                         failed_symbols.clear()
                         expected=len(all_watch_symbols())
-                        received=len(set(batch).intersection(all_watch_symbols()))
+                        received=sum(1 for ticker in all_watch_symbols() if
+                                     (item:=batch.get(ticker)) and item.get('source')=='Dhan'
+                                     and isinstance(item.get('price'),(int,float))
+                                     and not isinstance(item.get('price'),bool)
+                                     and math.isfinite(item['price']) and item['price']>0)
                         dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{expected} symbols returned"
                                              if received<expected else None)
                         market_status=('Dhan • '+str(received)+'/'+str(expected)+
@@ -3993,7 +4012,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 if (latest and latest.get("source")=="Dhan" and
                                         isinstance(latest.get("price"),(int,float)) and
                                         not isinstance(latest.get("price"),bool) and
-                                        math.isfinite(latest["price"])):
+                                        math.isfinite(latest["price"]) and latest["price"]>0):
                                     data=dict(data,price=latest["price"],quote_timestamp=None,
                                               freshness="unverified",fetched_at=time.time())
                             # Historical scans must never overwrite a newer live LTP
@@ -4010,7 +4029,7 @@ console.log('BOT KING Lightweight Charts ready');
                                     and (not isinstance(data_stamp,(int,float)) or previous_stamp>data_stamp)
                                     and isinstance(previous_quote.get("price"),(int,float))
                                     and not isinstance(previous_quote.get("price"),bool)
-                                    and math.isfinite(previous_quote["price"])):
+                                    and math.isfinite(previous_quote["price"]) and previous_quote["price"]>0):
                                 quotes[sym]=dict(data,price=previous_quote["price"],
                                                  fetched_at=previous_stamp,source="Dhan",
                                                  quote_timestamp=previous_quote.get("quote_timestamp"),
