@@ -4121,7 +4121,8 @@ console.log('BOT KING Lightweight Charts ready');
                                          and previous.get("source")=="Dhan"
                                          and isinstance(previous.get("price"),(int,float))
                                          and not isinstance(previous.get("price"),bool)
-                                         and math.isfinite(previous["price"]))
+                                         and math.isfinite(previous["price"])
+                                         and previous["price"]>0)
                     if previous_dhan_price:
                         # Resume fetches candles, not an independently verified
                         # live LTP. Preserve the last valid batch quote even when
