@@ -22,7 +22,7 @@ def analyze(bars, selected=None, timeframe="5m"):
              and all(type(b[i]) in (int, float) and math.isfinite(b[i]) and b[i] > 0 for i in (0,1,2,3,4))
              and b[0] <= now + 60
              and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
-             and isinstance(b[5], (int, float)) and math.isfinite(b[5]) and b[5] >= 0]
+             and type(b[5]) in (int, float) and math.isfinite(b[5]) and b[5] >= 0]
     # Out-of-order or duplicate bars can create false crossovers and invalid freshness.
     if any(clean[i][0] <= clean[i-1][0] for i in range(1, len(clean))):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Candles out of order or duplicated",
