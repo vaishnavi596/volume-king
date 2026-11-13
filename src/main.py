@@ -631,16 +631,25 @@ def app_main(page:ft.Page):
     def dhan_offline():
         return prefs.get("source")=="Dhan" and not dhan_feed.connected
     def quote_price(sym):
-        q=None if dhan_offline() else quotes.get(sym)
-        return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
+        # Retain the last valid Dhan price during temporary disconnects.
+        q=quotes.get(sym)
+        expected={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+        if not isinstance(q,dict) or q.get("source")!=expected:return "—"
+        v=q.get("price")
+        return f'{v:,.2f}' if isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) and v>0 else "—"
     def quote_change(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
-        return f'{v:+.2f}%' if v is not None else "—"
+        expected={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+        if not isinstance(q,dict) or q.get("source")!=expected:return "—"
+        v=q.get("change")
+        return f'{v:+.2f}%' if isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) else "—"
     def price_color(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
-        return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
+        expected={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+        if not isinstance(q,dict) or q.get("source")!=expected:return MUTED
+        v=q.get("change")
+        if not isinstance(v,(int,float)) or isinstance(v,bool) or not math.isfinite(v):return MUTED
+        return GREEN if v>=0 else RED
     def tiny_chart(sym,snapshot=None):
         q=snapshot if snapshot is not None else (quotes.get(sym) or {})
         bars=q.get("bars") or []
