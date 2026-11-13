@@ -758,7 +758,7 @@ def app_main(page:ft.Page):
         label_prefix="Historical candle agreement (NOT live signal) • " if historical else "Filter votes • "
         label_color=MUTED if historical else GREEN
         bear_color=MUTED if historical else RED
-        display_prefix="HISTORICAL FILTER VOTES • " if historical else ""
+        display_prefix="HISTORICAL • " if historical else ""
         return ft.Column([ft.Row([txt(display_prefix+"Bullish "+str(bull)+"%",11,label_color,True),txt("Bearish "+str(bear)+"%",11,bear_color,True)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),bar,note(label_prefix+str(total)+" directional filters • not win probability")],spacing=2)
 
     def mark_ranking_historical():
