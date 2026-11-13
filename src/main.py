@@ -3065,6 +3065,11 @@ console.log('BOT KING Lightweight Charts ready');
                 view.load_html(tradingview_widget_html(sym,tv_history[0][-tv_limit[0]:]),base_url="https://www.tradingview.com/")
                 loaded=True
                 tv_set_status("Saved chart visible • checking newer data...")
+            # Do not spend a doomed history request while the Dhan upstream
+            # cooldown is active. A saved candle chart remains usable.
+            if provider=="Dhan" and dhan_feed.cooldown_remaining("/charts/intraday")>0:
+                tv_set_status(("Saved historical chart • " if loaded else "Chart unavailable • no saved candles • ")+"Dhan API cooldown active; retry later")
+                return
             hist=await asyncio.to_thread(get_market_data,sym,interval,period)
             if view is not tv_view[0] or context!=tv_context[0] or generation!=provider_generation[0]:return
             candles["scanner_chart_"+sym]=hist;quotes[sym]=hist;tv_history[0]=hist.get("bars") or []
