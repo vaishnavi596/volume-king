@@ -1266,19 +1266,6 @@ def app_main(page:ft.Page):
     watch_batch_status=["Dhan batch not checked on this screen"]
     watch_batch_last_attempt=[0.0]
     watch_batch_last_success=[0.0]
-    watch_scroll_last_refresh=[0.0]
-    async def refresh_watch_on_scroll():
-        # Scrolling repaints cached data only; it must not make network requests.
-        # Dhan quote polling remains on the independent three-minute timer.
-        if current[0]!=4 or not app_active[0]:return
-        fill_watch()
-    def on_watch_scroll(e):
-        now=time.monotonic()
-        if now-watch_scroll_last_refresh[0]<1.5:return
-        watch_scroll_last_refresh[0]=now
-        if current[0]==4 and app_active[0]:
-            page.run_task(refresh_watch_on_scroll)
-    watch_list.on_scroll=on_watch_scroll
     async def refresh_watch_batch():
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
