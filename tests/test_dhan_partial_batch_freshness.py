@@ -26,6 +26,11 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
         self.assertIn('result.get("quote_timestamp") is not None',body)
         self.assertIn('len(raw) + len(unavailable) > 51',body)
 
+    def test_watchlist_displays_oracle_age_separately_from_poll_time(self):
+        self.assertIn('snapshot_age_seconds',self.body)
+        self.assertIn('Oracle snapshot age ',self.body)
+        self.assertIn('exchange timestamp unverified',self.body)
+
     def test_last_price_is_not_blank(self):
         self.assertNotIn('quotes.pop(ticker)',self.body)
 if __name__=="__main__":
