@@ -3214,7 +3214,9 @@ console.log('BOT KING Lightweight Charts ready');
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
         hist=candles.get("scanner_chart_"+sym) or market_store.get("market",prefs.get("source","Auto"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
-        bars=(hist.get("bars") or [])[-35:]
+        # Validate cached and persisted candles before either mini-chart renderer.
+        # Never allow duplicate, reversed, or malformed timestamps into a chart.
+        bars=clean_bars(hist.get("bars") or [])[-35:]
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
             parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in ["1m","3m","5m","15m","30m","1h","1d"]],wrap=True,spacing=2,run_spacing=2))
