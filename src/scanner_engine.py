@@ -149,7 +149,7 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         if result.get("live_verified") is False or result.get("historical") is True or result.get("cached") is True:
             continue
         # Dhan historical candles are not live-verified merely because a timestamp is recent.
-        if result.get("source")=="Dhan" and result.get("freshness") not in ("verified_live","live_verified"):
+        if result.get("source")=="Dhan" and (result.get("freshness") not in ("verified_live","live_verified") or result.get("live_verified") is not True):
             continue
         if not isinstance(votes, list) or not votes:continue
         if any(not isinstance(v, dict) or "vote" not in v or type(v["vote"]) is not int and v["vote"] is not None or v["vote"] not in (-1, 0, 1, None) for v in votes):continue
