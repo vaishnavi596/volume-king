@@ -465,7 +465,7 @@ def app_main(page:ft.Page):
             return result
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
-        selected=prefs.get("source","Yahoo Finance")
+        selected=prefs.get("source","Dhan")
         generation=provider_generation[0]
         result=None
         health_key="market:"+selected+":"+ticker+":"+interval
