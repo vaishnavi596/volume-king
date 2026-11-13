@@ -11,6 +11,13 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
     def test_validity_requires_dhan_finite_price(self):
         self.assertIn('snapshot.get("source")=="Dhan"',self.body)
         self.assertIn('math.isfinite(snapshot["price"])',self.body)
+    def test_server_snapshot_never_claims_live_without_exchange_timestamp(self):
+        server=(Path(__file__).resolve().parents[1]/"src"/"server_feed.py").read_text(encoding="utf-8")
+        body=server.split("    def batch_quotes(self):",1)[1].split("    def intraday(self,",1)[0]
+        self.assertIn('"quote_timestamp": None, "freshness": "unverified"',body)
+        self.assertIn('"live_verified": False',body)
+        self.assertIn('if any(type(symbol) is not str for symbol in raw):',body)
+
     def test_last_price_is_not_blank(self):
         self.assertNotIn('quotes.pop(ticker)',self.body)
 if __name__=="__main__":

@@ -363,6 +363,8 @@ class ServerDhanReadOnly:
             raise FeedError("Oracle Dhan snapshot missing, stale or invalid")
         if not raw:
             raise FeedError("Oracle Dhan snapshot contains no quotes")
+        if any(type(symbol) is not str for symbol in raw):
+            raise FeedError("Oracle Dhan snapshot contains invalid symbol keys")
         # Partial quotes are usable, but must not imply complete coverage.
         # Missing symbols remain absent from returned quotes, never synthesized.
         quotes = {}
@@ -372,7 +374,8 @@ class ServerDhanReadOnly:
                     or not math.isfinite(price) or price <= 0):
                 raise FeedError("Invalid Oracle Dhan snapshot quote")
             quotes[symbol] = {"symbol": symbol, "price": price, "source": "Dhan",
-                              "quote_timestamp": None, "freshness": "unverified"}
+                              "quote_timestamp": None, "freshness": "unverified",
+                              "live_verified": False}
         return quotes
 
     def intraday(self, symbol, interval, from_date, to_date):
