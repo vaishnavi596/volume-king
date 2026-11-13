@@ -1219,11 +1219,14 @@ def app_main(page:ft.Page):
             expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
             change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
             # Price movement and candle-filter agreement are different signals.
-            valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
+            valid_change=(quote_source==expected_quote_source and not dhan_offline()
+                          and isinstance(change,(int,float)) and not isinstance(change,bool)
+                          and math.isfinite(change))
             direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral" if valid_change else "Unavailable"
             quote_age=time.time()-quote_row.get("fetched_at",0) if isinstance(quote_row.get("fetched_at"),(int,float)) else None
             quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
-                         and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
+                         and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool)
+                          and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
             quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
@@ -1235,7 +1238,8 @@ def app_main(page:ft.Page):
                           and isinstance(signal_stamp,(int,float))
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
             signal_available=(signal_row.get("source")==expected_quote_source and
-                              isinstance(signal_stamp,(int,float)) and signal_counts is not None)
+                              isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
+                              and math.isfinite(signal_stamp) and signal_stamp>0 and signal_counts is not None)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
                               "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
