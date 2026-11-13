@@ -675,7 +675,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if body.to_date > india_today:
             raise HTTPException(422, "Future candles are unavailable")
         # Only reuse validated candles for an identical date window and interval.
-        # Short TTL reduces duplicate mobile scans without implying live freshness.
+        # A 3-minute validated historical cache prevents repeated scanner/chart
+        # requests from exhausting the upstream candle quota. Candle freshness
+        # remains historical_unverified, never a live trading signal.
         with candle_lock:
             cached = candle_cache.get((body.symbol, str(body.interval)))
             if (cached and cached.get("from_date") == body.from_date.isoformat()
@@ -685,7 +687,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     age = (datetime.now(timezone.utc) - observed).total_seconds()
                 except (ValueError, TypeError, KeyError):
                     age = float("inf")
-                if 0 <= age < 60 and cached.get("bars"):
+                if 0 <= age < 180 and cached.get("bars"):
                     return {"symbol": body.symbol, "source": "dhan",
                             "interval": str(body.interval) + "m",
                             "bars": [list(bar) for bar in cached["bars"]],
