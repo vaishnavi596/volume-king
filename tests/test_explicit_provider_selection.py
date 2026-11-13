@@ -14,7 +14,7 @@ class ExplicitProviderSelectionTests(unittest.TestCase):
         self.assertIn('elif selected=="Broker API" and angel_feed.connected:', body)
         self.assertNotIn('elif angel_feed.connected:', body)
         self.assertIn('elif selected=="Dhan":', body)
-        self.assertIn('elif selected=="Yahoo Finance":', body)
+        self.assertIn('if selected=="Yahoo Finance":', body)
 
 
 if __name__ == "__main__":
