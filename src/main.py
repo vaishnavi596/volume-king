@@ -3374,7 +3374,11 @@ console.log('BOT KING Lightweight Charts ready');
         trigger_scan(type("TimeframeChange",(),{"control":scan_tf})())
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
-        hist=candles.get("scanner_chart_"+sym) or market_store.get("market",prefs.get("source","Dhan"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
+        saved_chart=candles.get("scanner_chart_"+sym) or {}
+        if (saved_chart.get("_scanner_timeframe") != (scan_tf.value or "5m")
+                or saved_chart.get("_scanner_generation") != scan_generation[0]):
+            saved_chart={}
+        hist=saved_chart or market_store.get("market",prefs.get("source","Dhan"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
         # Validate cached and persisted candles before either mini-chart renderer.
         # Never allow duplicate, reversed, or malformed timestamps into a chart.
         bars=clean_bars(hist.get("bars") or [])[-35:]
@@ -3510,7 +3514,10 @@ console.log('BOT KING Lightweight Charts ready');
             bars=hist.get("bars") or []
             candles["scanner_chart_"+sym]=dict(hist,_scanner_timeframe=interval,
                                               _scanner_generation=generation)
-            quotes[sym]=hist
+            # Scanner historical candles must never replace the separately polled
+            # Dhan equity LTP with a missing/unverified history-only price.
+            if prefs.get("source")!="Dhan":
+                quotes[sym]=hist
             market_status="Data source: "+hist.get("source","Unavailable")+" • "+quote_caption(sym)
             # Push fresh bars into the existing chart without losing zoom or reloading.
             if (current[0]==3 and chart_provider[0]=="TradingView Lightweight"

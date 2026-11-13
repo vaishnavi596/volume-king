@@ -32,6 +32,12 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("Dhan quote refresh • every 30 sec while foreground", source)
         self.assertIn("exchange timestamp unverified", source)
 
+    def test_scanner_chart_cache_respects_timeframe_and_scan_generation(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('saved_chart.get("_scanner_timeframe") != (scan_tf.value or "5m")', source)
+        self.assertIn('saved_chart.get("_scanner_generation") != scan_generation[0]', source)
+        self.assertIn('if prefs.get("source")!="Dhan":\n                quotes[sym]=hist', source)
+
     def test_cooldown_path_also_reports_unattempted(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('+" symbols not attempted"', source)
