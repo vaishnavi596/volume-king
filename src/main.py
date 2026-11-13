@@ -284,7 +284,7 @@ def app_main(page:ft.Page):
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))}
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -528,7 +528,7 @@ def app_main(page:ft.Page):
             fallback_reason=safe_error(exc)
             health.finish(health_key,request_id,"UNAVAILABLE",source=selected,error=fallback_reason)
             raise
-        if generation!=provider_generation[0] or prefs.get("source","Auto")!=selected:
+        if generation!=provider_generation[0] or prefs.get("source","Dhan")!=selected:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
         state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
@@ -681,7 +681,7 @@ def app_main(page:ft.Page):
             fresh=all(r.get("timestamp") is not None and 0<=now-r["timestamp"]<=90 for r in rows)
             return ("हाल के option quotes उपलब्ध हैं। " if fresh else "Option quotes पुराने हैं या समय उपलब्ध नहीं है। ")+option_feed_status[0]+" • "+component_status("options")
         sym=chain_symbol.value if current[0]==1 else (scan_symbol.value or "NIFTY")
-        return quote_caption(sym)+" • स्रोत: "+str(prefs.get("source","Auto"))+" • broker "+("जुड़ा है" if angel_feed.connected else "जुड़ा नहीं है")
+        return quote_caption(sym)+" • स्रोत: "+str(prefs.get("source","Dhan"))+" • broker "+("जुड़ा है" if angel_feed.connected else "जुड़ा नहीं है")
     def show_help(title,control=None):
         message=describe(title,prefs.get("language","English"))
         dialog=ft.AlertDialog(title=txt("ⓘ "+str(title),17,GOLD,True),
@@ -728,11 +728,11 @@ def app_main(page:ft.Page):
     scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
     saved_ranking=market_store.get("ranking","configured51") or market_store.get("ranking","configured50") or {}
-    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))][:5]
+    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))][:5]
     top5_last_update=[saved_ranking.get("checked_at","—")]
-    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))}
+    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
     for r in top5_candidates:
-        if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")):
+        if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):
             watch_signal_cache.setdefault(r["symbol"],r)
     def signal_percentages(row):
         votes=row.get("votes") or []
@@ -789,7 +789,7 @@ def app_main(page:ft.Page):
         ],spacing=4))
     def component_status(kind,sym=None,interval=None):
         sym=sym or (scan_symbol.value or "NIFTY");interval=interval or (scan_tf.value or "5m")
-        if kind=="market":key="market:"+prefs.get("source","Auto")+":"+sym+":"+interval
+        if kind=="market":key="market:"+prefs.get("source","Dhan")+":"+sym+":"+interval
         elif kind=="options":key="options:"+chain_symbol.value+":"+str(expiry.value)
         elif kind=="option_chart":key="option_chart:"+chain_symbol.value+":"+str(expiry.value)+":"+str(option_strike.value)+":"+str(option_side.value)
         else:key="news:"+sym
@@ -932,7 +932,7 @@ def app_main(page:ft.Page):
         if available:top5_candidates[:]=available[:5]
         used={row["symbol"] for row in top5_candidates}
         for row in previous+saved_ranking.get("rows",[]):
-            if row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")):continue
+            if row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):continue
             if len(top5_candidates)>=5:break
             if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
         for sym in watch_symbols:
@@ -1216,7 +1216,7 @@ def app_main(page:ft.Page):
             if search.value and search.value.upper() not in sym:continue
             quote_row=quotes.get(sym) or {}
             quote_source=quote_row.get("source")
-            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
             change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
             # Price movement and candle-filter agreement are different signals.
             valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
@@ -1230,7 +1230,7 @@ def app_main(page:ft.Page):
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
-            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))
+            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))
                           and not signal_row.get("historical") and regular_hours()
                           and isinstance(signal_stamp,(int,float))
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
@@ -2208,7 +2208,7 @@ def app_main(page:ft.Page):
             for field in credential_inputs.values():field.value=""
             server_access.value=""
             broker_retry[0]=0
-            source.value=prefs.get("source","Yahoo Finance");save()
+            source.value=prefs.get("source","Dhan");save()
             provider_changed(None)
             connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
             connection_status.color=GREEN
@@ -3217,7 +3217,7 @@ console.log('BOT KING Lightweight Charts ready');
         trigger_scan(type("TimeframeChange",(),{"control":scan_tf})())
     def scanner_compact_chart():
         sym=scan_symbol.value or "NIFTY"
-        hist=candles.get("scanner_chart_"+sym) or market_store.get("market",prefs.get("source","Auto"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
+        hist=candles.get("scanner_chart_"+sym) or market_store.get("market",prefs.get("source","Dhan"),sym,scan_tf.value or "5m",scan_period.value or "7d") or {}
         # Validate cached and persisted candles before either mini-chart renderer.
         # Never allow duplicate, reversed, or malformed timestamps into a chart.
         bars=clean_bars(hist.get("bars") or [])[-35:]
@@ -3231,7 +3231,7 @@ console.log('BOT KING Lightweight Charts ready');
                 parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
                 parts.append(note("Chart/Analysis/Both is selected per filter below. Only EMA currently has a chart overlay."))
                 parts.append(tradingview_status)
-                context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Auto"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
+                context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Dhan"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
                 if tv_view[0] is None or tv_context[0]!=context:
                     tv_context[0]=context;tv_booted[0]=False;tv_ready[0]=False;tv_pending[0]=None;tv_limit[0]=300
                     tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
@@ -3893,7 +3893,7 @@ console.log('BOT KING Lightweight Charts ready');
                         # A recent same-generation cached history needs no API
                         # request and should not incur that network pacing delay.
                         history_key=(generation,angel_feed.epoch,dhan_feed.connected,
-                                     prefs.get("source","Auto"),sym,"5m","2d")
+                                     prefs.get("source","Dhan"),sym,"5m","2d")
                         with market_registry_lock:
                             cached_history=market_recent.get(history_key)
                             cache_ready=bool(cached_history and
@@ -3936,7 +3936,7 @@ console.log('BOT KING Lightweight Charts ready');
                 successes=sum(results)
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
-                    market_status=f"{prefs.get('source','Auto')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
+                    market_status=f"{prefs.get('source','Dhan')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
                 elif prefs.get("source")=="Dhan" and dhan_feed.connected:
                     with dhan_batch_lock:
                         batch_count=len(dhan_batch_cache["quotes"]) if dhan_batch_cache["generation"]==generation else 0
