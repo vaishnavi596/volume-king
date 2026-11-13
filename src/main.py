@@ -1328,9 +1328,18 @@ def app_main(page:ft.Page):
                 connection_status.value=(f"Dhan connected • {received}/{total_symbols} valid equity LTP prices returned • "
                                          "timestamps unverified")
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • timestamp unverified"
+            # Snapshot age is the Oracle collection age, not an exchange timestamp.
+            snapshot_ages=[item.get("snapshot_age_seconds") for item in batch.values()
+                           if isinstance(item,dict) and isinstance(item.get("snapshot_age_seconds"),(int,float))
+                           and not isinstance(item.get("snapshot_age_seconds"),bool)
+                           and math.isfinite(item["snapshot_age_seconds"]) and item["snapshot_age_seconds"]>=0]
+            snapshot_age_label=(f"Oracle snapshot age {max(snapshot_ages):.0f}s • "
+                                if snapshot_ages else "Oracle snapshot age unknown • ")
+            watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • "
+                                   +snapshot_age_label+"exchange timestamp unverified"
                                    if dhan_batch_issue[0] else
-                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
+                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • "+snapshot_age_label
+                                   +f"polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
             market_status=watch_batch_status[0]
             watch_batch_last_success[0]=time.monotonic()
         except Exception as exc:
