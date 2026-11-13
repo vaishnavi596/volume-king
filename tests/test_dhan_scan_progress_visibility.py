@@ -24,7 +24,10 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("await asyncio.sleep(30)", body)
         self.assertNotIn("await asyncio.sleep(180)", body)
         self.assertIn("await refresh_watch_batch()", body)
-        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', body)
+        self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")', body)
+        self.assertIn("if remaining==0:", body)
+        self.assertIn("Dhan snapshot cooling down", body)
+        self.assertIn("last valid prices retained", body)
 
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
