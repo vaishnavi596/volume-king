@@ -1240,7 +1240,7 @@ def app_main(page:ft.Page):
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
             signal_available=(signal_row.get("source")==expected_quote_source and
                               isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool) and math.isfinite(signal_stamp)
-                              and signal_counts is not None)
+                              and signal_counts is not None and signal_counts[2]>=2)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
                               "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available and signal_fresh else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
