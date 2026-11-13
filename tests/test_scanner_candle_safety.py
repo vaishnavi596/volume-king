@@ -62,7 +62,7 @@ class ScannerSafetyTests(unittest.TestCase):
         self.assertNotEqual(result.get("reason"),"Unsupported candle timeframe")
 
     def test_unsupported_timeframe_fails_closed(self):
-        for invalid in ("2m", "1d", "", None, 5):
+        for invalid in ("2m", "2h", "", None, 5):
             result=analyze(candles(),timeframe=invalid)
             self.assertEqual(result["bias"],"WAIT")
             self.assertEqual(result["reason"],"Unsupported candle timeframe")
