@@ -5,7 +5,7 @@ SOURCE = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(enc
 
 class WatchlistFreshTimestampTests(unittest.TestCase):
     def test_freshness_rejects_nonfinite_timestamps(self):
-        self.assertIn('and isinstance(signal_stamp,(int,float)) and math.isfinite(signal_stamp)\n                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp', SOURCE)
+        self.assertIn('and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool) and math.isfinite(signal_stamp)\n                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp', SOURCE)
         self.assertIn('if signal_available and signal_fresh else "Neutral"', SOURCE)
 
 if __name__ == "__main__":
