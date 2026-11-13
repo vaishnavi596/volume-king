@@ -18,6 +18,14 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
         self.assertIn('"live_verified": False',body)
         self.assertIn('if any(type(symbol) is not str for symbol in raw):',body)
 
+    def test_snapshot_validation_batch_rejects_misleading_provenance(self):
+        server=(Path(__file__).resolve().parents[1]/"src"/"server_feed.py").read_text(encoding="utf-8")
+        body=server.split("    def batch_quotes(self):",1)[1].split("    def intraday(self,",1)[0]
+        self.assertIn('if not isinstance(result, dict):',body)
+        self.assertIn('result.get("live_verified") is True',body)
+        self.assertIn('result.get("quote_timestamp") is not None',body)
+        self.assertIn('len(raw) + len(unavailable) > 51',body)
+
     def test_last_price_is_not_blank(self):
         self.assertNotIn('quotes.pop(ticker)',self.body)
 if __name__=="__main__":

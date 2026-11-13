@@ -345,6 +345,8 @@ class ServerDhanReadOnly:
         """
         import math
         result = self._call("/v2/snapshot")
+        if not isinstance(result, dict):
+            raise FeedError("Oracle Dhan snapshot response is not an object")
         raw = result.get("quotes")
         unavailable = result.get("unavailable")
         age = result.get("age_seconds")
@@ -352,14 +354,17 @@ class ServerDhanReadOnly:
                 or result.get("live_orders_enabled") is not False
                 or result.get("error") is not None
                 or result.get("collection_status") != "recently_collected"
+                or result.get("live_verified") is True
                 or isinstance(age, bool) or not isinstance(age, (int, float))
                 or not math.isfinite(age) or age < 0 or age > 120
                 or not isinstance(raw, dict) or not isinstance(unavailable, list)
                 or result.get("freshness") != "unverified"
+                or result.get("quote_timestamp") is not None
                 or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
                        or symbol == "NIFTY" for symbol in unavailable)
                 or len(unavailable) != len(set(unavailable))
-                or set(raw).intersection(unavailable)):
+                or set(raw).intersection(unavailable)
+                or len(raw) + len(unavailable) > 51):
             raise FeedError("Oracle Dhan snapshot missing, stale or invalid")
         if not raw:
             raise FeedError("Oracle Dhan snapshot contains no quotes")
