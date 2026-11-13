@@ -3860,7 +3860,7 @@ console.log('BOT KING Lightweight Charts ready');
                     if not first_ok and symbols[0] in failed_symbols:
                         reason=failed_symbols[symbols[0]]
                         scan_progress.update(checked=1,total=len(symbols),valid=0,
-                                             failed=1,state="Dhan historical feed unavailable • stopped after first error: "+reason[:110])
+                                             failed=1,state="Dhan historical scan paused • 1 failed • "+str(max(0,len(symbols)-1))+" not attempted • first error: "+reason[:110])
                         market_status="Dhan candle history unavailable • "+reason[:110]+" • equity LTP remains separate"
                         if current[0] in (0,4,5):request_view_refresh(current[0])
                         await asyncio.sleep(30)
