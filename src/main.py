@@ -2224,7 +2224,10 @@ def app_main(page:ft.Page):
                                     and isinstance(snapshot.get('price'),(int,float))
                                     and not isinstance(snapshot.get('price'),bool)
                                     and math.isfinite(snapshot['price']) and snapshot['price']>0):
-                                quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
+                                previous=quotes.get(ticker) or {}
+                                quotes[ticker]=dict(snapshot,change=None,
+                                    bars=previous.get('bars',[]) if previous.get('source')=='Dhan' else [],
+                                    fetched_at=time.time())
                         failed_symbols.clear()
                         expected=len(all_watch_symbols())
                         received=len(set(batch).intersection(all_watch_symbols()))
