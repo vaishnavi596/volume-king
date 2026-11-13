@@ -1,12 +1,21 @@
 """Dhan option-chain adapter is read-only and validates inputs before network access."""
 import unittest
 from unittest.mock import patch
-from backend.dhan_feed import DhanFeed, DhanFeedError
+from backend.dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 
 
 class OptionChainAdapterTests(unittest.TestCase):
     def setUp(self):
         self.feed = DhanFeed("client", "token")
+
+    def test_option_chain_pacing_is_shared_across_instances(self):
+        with patch("backend.dhan_feed.time.monotonic", return_value=1000.0):
+            with patch.object(DhanFeed, "_option_next_allowed", 0.0):
+                with patch.object(DhanFeed, "_post", return_value={"data": {}}) as post:
+                    self.feed.option_chain("IDX_I", 13, "2099-12-31")
+                    with self.assertRaises(DhanRateLimitError):
+                        DhanFeed("client", "token").option_chain("IDX_I", 13, "2099-12-31")
+                    post.assert_called_once()
 
     def test_valid_underlying_routes_only_to_optionchain(self):
         with patch.object(self.feed, "_post", return_value={"data": {}}) as post:
