@@ -26,6 +26,12 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("await refresh_watch_batch()", body)
         self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', body)
 
+    def test_dhan_history_scans_equities_before_index(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('symbols=[sym for sym in symbols if sym!="NIFTY"] + (["NIFTY"] if "NIFTY" in symbols else [])', source)
+        self.assertIn("Dhan quote refresh • every 30 sec while foreground", source)
+        self.assertIn("exchange timestamp unverified", source)
+
     def test_cooldown_path_also_reports_unattempted(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('+" symbols not attempted"', source)

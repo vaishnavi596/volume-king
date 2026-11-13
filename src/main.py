@@ -1330,7 +1330,7 @@ def app_main(page:ft.Page):
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
             watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • timestamp unverified"
                                    if dhan_batch_issue[0] else
-                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • timestamp unverified")
+                                   f"Dhan LTP loaded: {received}/{total_symbols} valid prices • polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
             market_status=watch_batch_status[0]
             watch_batch_last_success[0]=time.monotonic()
         except Exception as exc:
@@ -1405,7 +1405,7 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(("Dhan quote refresh • every 3 min while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
+            note(("Dhan quote refresh • every 30 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
@@ -3944,6 +3944,11 @@ console.log('BOT KING Lightweight Charts ready');
                     priority=[scan_symbol.value or "NIFTY"]+[row.get("symbol") for row in top5_candidates if isinstance(row,dict)]
                     symbols=list(dict.fromkeys(
                         [sym for sym in priority if sym in symbols]+symbols))
+                # An index-history failure must not prevent the 51 equity candles
+                # from being scanned. Probe a mapped equity first; defer NIFTY.
+                # Keep the existing first-equity fail-fast guard for provider outages.
+                if prefs.get("source")=="Dhan":
+                    symbols=[sym for sym in symbols if sym!="NIFTY"] + (["NIFTY"] if "NIFTY" in symbols else [])
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
