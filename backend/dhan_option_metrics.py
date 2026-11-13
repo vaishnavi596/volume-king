@@ -26,8 +26,8 @@ def calculate_option_metrics(response):
         raise OptionMetricsUnavailable("Dhan option chain not successful")
     data = response.get("data")
     chain = data.get("oc") if isinstance(data, dict) else None
-    if not isinstance(chain, dict) or len(chain) < 2:
-        raise OptionMetricsUnavailable("Incomplete Dhan option chain")
+    if not isinstance(chain, dict) or not 2 <= len(chain) <= 2000:
+        raise OptionMetricsUnavailable("Incomplete or oversized Dhan option chain")
     strikes = []
     for raw_strike, legs in chain.items():
         try:
@@ -44,7 +44,7 @@ def calculate_option_metrics(response):
         raise OptionMetricsUnavailable("Duplicate strikes")
     total_ce = sum(ce for _, ce, _ in strikes)
     total_pe = sum(pe for _, _, pe in strikes)
-    if not all(math.isfinite(v) for v in (total_ce, total_pe)) or total_ce <= 0:
+    if not all(math.isfinite(v) for v in (total_ce, total_pe)) or total_ce <= 0 or total_pe <= 0:
         raise OptionMetricsUnavailable("Insufficient call open interest")
     # At candidate settlement strike S, CE intrinsic payout is max(0,S-K),
     # and PE intrinsic payout is max(0,K-S), weighted by open interest.
