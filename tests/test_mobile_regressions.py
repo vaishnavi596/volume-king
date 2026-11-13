@@ -417,9 +417,12 @@ class MobileRegressionTests(unittest.TestCase):
     def test_options_history_does_not_replace_newer_quote(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         section = source[source.index("    async def refresh_selected_options():"):source.index("    def selected_option_rows():")]
-        self.assertIn('previous=quotes.get(sym) or {}', section)
-        self.assertIn('previous["fetched_at"]>hist.get("fetched_at",0)', section)
-        self.assertIn('previous.get("source")==hist.get("source")', section)
+        # Dhan options fetch metrics only; no historical candle fetch or
+        # quote assignment is permitted in this path.
+        self.assertIn('dhan_feed.option_chain_metrics', section)
+        self.assertNotIn('quotes[sym]=hist', section.split('    async def option_poll():')[0])
+        self.assertNotIn('get_market_data', section.split('    async def option_poll():')[0])
+        self.assertIn('generation!=provider_generation[0]', section)
 
     def test_dhan_scanner_offers_only_supported_candle_intervals(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
