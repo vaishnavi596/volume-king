@@ -2011,8 +2011,7 @@ def app_main(page:ft.Page):
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Dhan")])
-    # The new production broker selector is Dhan-only; archived adapters remain for tests.
-    broker_names=["Dhan"]
+    broker_names=["Dhan","Angel One"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Dhan") if prefs.get("broker","Dhan") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
