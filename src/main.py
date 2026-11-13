@@ -3875,13 +3875,13 @@ console.log('BOT KING Lightweight Charts ready');
                         # Keep its generation pending; do not issue more history
                         # requests until foreground, even after the pacing sleep.
                         if lifecycle_background[0]:
-                            scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
+                            scan_progress["state"]="Dhan historical scan paused in background • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted • resume to continue"
                             last_scanned_generation=None
                             background_interrupted=True
                             break
                         if any("rate limited" in err.lower() or "cooldown" in err.lower()
                                for err in failed_symbols.values()):
-                            scan_progress["state"]="Dhan historical scan paused after HTTP 429 • waiting for provider cooldown"
+                            scan_progress["state"]="Dhan historical scan paused after HTTP 429 • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted • waiting for provider cooldown"
                             break
                         # The 1.5s pacing protects real upstream history calls.
                         # A recent same-generation cached history needs no API
