@@ -662,6 +662,8 @@ def app_main(page:ft.Page):
         if q.get("source")!=expected:return note("Chart unavailable")
         bars=q.get("bars") or []
         if not isinstance(bars,(list,tuple)):return note("Chart unavailable")
+        if prefs.get("source")=="Dhan" and (dhan_offline() or q.get("historical")):
+            return note("Chart cached / unverified")
         recent=bars[-30:]
         if any(not isinstance(bar,(list,tuple)) or len(bar)<5
                or not isinstance(bar[4],(int,float)) or isinstance(bar[4],bool)
