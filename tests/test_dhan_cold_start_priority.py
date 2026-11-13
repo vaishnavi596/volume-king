@@ -7,5 +7,6 @@ def test_dashboard_symbols_precede_remaining_watchlist_on_cold_start():
     queue=source.split('dashboard_priority=[prefs.get("dashboard_analysis_slot_"',1)[1]
     assert 'priority=[scan_symbol.value or "NIFTY"]+dashboard_priority+' in queue
     assert 'symbols=list(dict.fromkeys(' in queue
-    assert 'symbols=[sym for sym in symbols if sym!="NIFTY"]' in queue
+    assert 'equities=[sym for sym in symbols if sym!="NIFTY"]' in queue
+    assert 'symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]' in queue
     assert 'await asyncio.sleep(1.5)' in queue
