@@ -338,7 +338,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("dhan_feed.connected", poll)
         self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', poll)
         self.assertIn("await refresh_watch_batch()", poll)
-        self.assertIn("await asyncio.sleep(180)", poll)
+        self.assertIn("await asyncio.sleep(30)", poll)
         self.assertNotIn("dhan_feed.intraday(", poll)
 
     def test_dhan_history_429_pauses_without_scanning_remaining_symbols(self):
