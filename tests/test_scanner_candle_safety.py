@@ -10,6 +10,21 @@ def candles():
     return [[start + i * 300, 100., 102., 99., 101., 1000.] for i in range(35)]
 
 class ScannerSafetyTests(unittest.TestCase):
+    def test_missing_volume_cannot_vote_neutral_or_directional(self):
+        bars=candles()
+        for bar in bars:
+            bar[5]=0.
+        result=analyze(bars,["VWAP","Volume"])
+        votes={v["name"]:v for v in result["votes"]}
+        self.assertIsNone(votes["VWAP"]["vote"])
+        self.assertIsNone(votes["Volume"]["vote"])
+        self.assertIn("UNAVAILABLE",votes["Volume"]["detail"])
+        self.assertEqual(result["bias"],"WAIT")
+    def test_real_volume_is_still_evaluated(self):
+        result=analyze(candles(),["VWAP","Volume"])
+        votes={v["name"]:v for v in result["votes"]}
+        self.assertIsNotNone(votes["VWAP"]["vote"])
+        self.assertIsNotNone(votes["Volume"]["vote"])
     def test_valid(self):
         self.assertEqual(analyze(candles())["count"], 35)
     def test_duplicate_timestamp(self):
