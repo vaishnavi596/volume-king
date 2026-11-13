@@ -741,6 +741,7 @@ def app_main(page:ft.Page):
         total=bulls+bears
         return (round(100*bulls/total),100-round(100*bulls/total),total) if total else None
     def strength_widget(row, symbol=None):
+        if not isinstance(row,dict):row={}
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
         if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
             return note("Unsupported Dhan symbol" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Candle analysis pending • see System Health")
@@ -748,7 +749,7 @@ def app_main(page:ft.Page):
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
         stamp=row.get("timestamp")
-        historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or not math.isfinite(stamp) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
+        historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or isinstance(stamp,bool) or not math.isfinite(stamp) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         # Historical filter ratios are context, not a current directional signal.
         # Keep historical direction visible; the explicit HISTORICAL caption prevents a live claim.
         bull_bar_color=MUTED if historical else GREEN
