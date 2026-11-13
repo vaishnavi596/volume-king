@@ -947,10 +947,10 @@ def app_main(page:ft.Page):
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
     async def super_five_minute_refresh():
-        # Re-rank cached, completed 5m candles independently every minute.
+        # Re-rank cached, completed 5m candles every 15 seconds (local only).
         # Never issue another 51-symbol historical API burst from this task.
         while True:
-            await asyncio.sleep(60)
+            await asyncio.sleep(15)
             try:
                 if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
                     continue
