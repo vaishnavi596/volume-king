@@ -178,7 +178,7 @@ class ServerDhanReadOnly:
     def _call_serialized(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
-        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday", "/v2/snapshot"):
+        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot"):
             raise FeedError("Unsupported Dhan read-only request")
         remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
@@ -201,6 +201,10 @@ class ServerDhanReadOnly:
             if exc.code == 403:
                 self.disconnect()
                 raise FeedError("Dhan server key rejected (HTTP 403); reconnect") from None
+            if exc.code == 409 and path == "/dhan/option-chain":
+                raise FeedError("Dhan option expiry list required (HTTP 409); refresh expiries") from None
+            if exc.code == 422 and path in ("/dhan/option-chain", "/dhan/option-expiries"):
+                raise FeedError("Dhan option symbol or expiry not listed (HTTP 422)") from None
             if exc.code == 422:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
             if exc.code == 429:
@@ -332,7 +336,7 @@ class ServerDhanReadOnly:
 
     def cooldown_remaining(self, path):
         """Seconds left before a rate-limited read-only endpoint may be retried."""
-        if path not in ("/v2/snapshot", "/dhan/ltp-batch", "/dhan/intraday"):
+        if path not in ("/v2/snapshot", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain"):
             return 0
         return max(0, int(max(self._cooldown_until.get(path, 0.0),
                               self._global_cooldown_until) - time.monotonic() + 0.999))
@@ -392,4 +396,47 @@ class ServerDhanReadOnly:
         if (result.get("source") != "dhan" or result.get("symbol") != symbol
                 or not isinstance(result.get("bars"), list)):
             raise FeedError("Invalid Dhan candle response")
+        return result
+
+    def option_expiries(self, symbol):
+        """Broker-listed expiries from the Oracle Dhan read-only route."""
+        if symbol != "NIFTY":
+            raise FeedError("Verified Dhan option mapping unavailable")
+        result = self._call("/dhan/option-expiries", {"symbol": symbol})
+        dates = result.get("expiries")
+        from datetime import date
+        if (result.get("source") != "dhan" or result.get("symbol") != symbol
+                or not isinstance(dates, list) or not dates
+                or any(not isinstance(d, str) or len(d) != 10 for d in dates)):
+            raise FeedError("Invalid Dhan option expiry list")
+        try:
+            parsed = [date.fromisoformat(d) for d in dates]
+        except ValueError:
+            raise FeedError("Invalid Dhan option expiry date") from None
+        if parsed != sorted(set(parsed)):
+            raise FeedError("Unsorted or duplicate Dhan expiries")
+        return dates
+
+    def option_chain_metrics(self, symbol, expiry):
+        """Unverified OI metrics only; never a live trading signal."""
+        from datetime import date
+        import math
+        if symbol != "NIFTY":
+            raise FeedError("Verified Dhan option mapping unavailable")
+        try:
+            if date.fromisoformat(expiry).isoformat() != expiry:
+                raise ValueError("noncanonical date")
+        except (TypeError, ValueError):
+            raise FeedError("Invalid option expiry date") from None
+        result = self._call("/dhan/option-chain", {"symbol": symbol, "expiry": expiry})
+        pcr, pain = result.get("pcr"), result.get("max_pain")
+        if (result.get("source") != "dhan" or result.get("symbol") != symbol
+                or result.get("expiry") != expiry
+                or result.get("freshness") != "unverified"
+                or result.get("signal_eligible") is not False
+                or isinstance(pcr, bool) or not isinstance(pcr, (int, float))
+                or not math.isfinite(pcr) or pcr < 0
+                or isinstance(pain, bool) or not isinstance(pain, (int, float))
+                or not math.isfinite(pain) or pain <= 0):
+            raise FeedError("Invalid or unverified Dhan option metrics")
         return result
