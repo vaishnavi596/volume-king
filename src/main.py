@@ -3596,7 +3596,8 @@ console.log('BOT KING Lightweight Charts ready');
         top5_candidates.clear()
         cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
         quotes.update({sym:dict(row,freshness="unverified") for sym,row in previous_quotes.items()
-                       if isinstance(row,dict) and isinstance(row.get("price"),(int,float))
+                       if isinstance(row,dict) and row.get("source")==cached_source
+                       and isinstance(row.get("price"),(int,float))
                        and not isinstance(row.get("price"),bool) and math.isfinite(row["price"])})
         # Prefer last known snapshots from the newly selected provider.
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
