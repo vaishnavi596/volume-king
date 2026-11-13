@@ -25,9 +25,16 @@ IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
 def bars_match_requested_day(bars, day):
     """A structurally valid but cached/wrong-session response is not an audit pass."""
-    return (isinstance(bars, list) and len(bars) >= 30
-            and all(dt.datetime.fromtimestamp(row[0], IST).date() == day
-                    for row in bars))
+    if not isinstance(bars, list) or len(bars) < 30:
+        return False
+    try:
+        return all(
+            dt.datetime.fromtimestamp(row[0], IST).date() == day
+            and dt.time(9, 15) <= dt.datetime.fromtimestamp(row[0], IST).time() < dt.time(15, 30)
+            for row in bars
+        )
+    except (ValueError, OverflowError, OSError, TypeError, IndexError, KeyError):
+        return False
 
 
 def main():
