@@ -19,6 +19,9 @@ def analyze(bars, selected=None, timeframe="5m"):
     if not isinstance(selected, (list, tuple, set)) or any(not isinstance(name, str) for name in selected):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid indicator selection",
                 "count":0,"timeframe":timeframe,"timestamp":None}
+    if timeframe not in ("1m", "3m", "5m", "15m", "30m", "1h"):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Unsupported candle timeframe",
+                "count":0,"timeframe":timeframe,"timestamp":None}
     if not isinstance(bars, (list, tuple)):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid candle collection",
                 "count":0,"timeframe":timeframe,"timestamp":None}
