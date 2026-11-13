@@ -17,7 +17,7 @@ class AndroidReleaseWorkflowGuards(unittest.TestCase):
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
         self.assertRegex(version,r"^\d+\.\d+\.\d+$")
-        self.assertIn(f'APP_VERSION = "{version}" # Release fallback;',SOURCE)
+        self.assertRegex(SOURCE,rf'APP_VERSION\s*=\s*"{re.escape(version)}"\s*# Release fallback;')
 
     def test_release_signing_fails_closed(self):
         for name in ("BOTKING_KEYSTORE_BASE64","BOTKING_KEYSTORE_PASSWORD",
