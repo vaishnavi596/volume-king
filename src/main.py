@@ -4160,16 +4160,33 @@ console.log('BOT KING Lightweight Charts ready');
             if not app_active[0] or generation!=provider_generation[0]:
                 return
             if current[0]==1:await refresh_selected_options()
-            elif current[0]==5:
-                # Only the visible Chart screen needs a candle fetch on resume.
-                # Home/Watchlist/Scanner reuse cached candles and the regular
-                # scan timer; forcing history here can trigger FeedError after
-                # an otherwise successful 51/51 quote batch.
-                chart_sym=symbol.value
-                chart_tf=timeframe.value
-                chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
-                if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:
-                    chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
+            else:
+                data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
+                if generation==provider_generation[0] and sym==scan_symbol.value:
+                    # Resume's historical chart fetch must not replace a newer
+                    # Dhan batch LTP with an older/unverified candle snapshot.
+                    previous=quotes.get(sym) or {}
+                    previous_dhan_price=(prefs.get("source")=="Dhan"
+                                         and previous.get("source")=="Dhan"
+                                         and isinstance(previous.get("price"),(int,float))
+                                         and not isinstance(previous.get("price"),bool)
+                                         and math.isfinite(previous["price"])
+                                         and previous["price"]>0)
+                    if previous_dhan_price:
+                        # Resume fetches candles, not an independently verified
+                        # live LTP. Preserve the last valid batch quote even when
+                        # the candle response has a newer fetched_at timestamp.
+                        verified_bars=(data.get("bars") if data.get("source")=="Dhan"
+                                       and isinstance(data.get("bars"),list) else None)
+                        quotes[sym]=dict(previous,bars=verified_bars if verified_bars is not None
+                                         else previous.get("bars",[]),freshness="unverified")
+                    else:
+                        quotes[sym]=data
+                if current[0]==5:
+                    chart_sym=symbol.value
+                    chart_tf=timeframe.value
+                    chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
+                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
             if generation==provider_generation[0] and app_active[0]:
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])
