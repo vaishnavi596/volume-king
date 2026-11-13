@@ -1268,15 +1268,10 @@ def app_main(page:ft.Page):
     watch_batch_last_success=[0.0]
     watch_scroll_last_refresh=[0.0]
     async def refresh_watch_on_scroll():
-        # Scroll never starts a 51-symbol candle scan. Repaint cached rows,
-        # and request at most one shared quote batch per 30 seconds.
+        # Scrolling repaints cached data only; it must not make network requests.
+        # Dhan quote polling remains on the independent three-minute timer.
         if current[0]!=4 or not app_active[0]:return
         fill_watch()
-        if (prefs.get("source")=="Dhan" and dhan_feed.connected
-                and not watch_batch_busy[0]
-                and dhan_feed.cooldown_remaining("/v2/snapshot")==0
-                and time.monotonic()-watch_batch_last_attempt[0]>=30):
-            await refresh_watch_batch()
     def on_watch_scroll(e):
         now=time.monotonic()
         if now-watch_scroll_last_refresh[0]<1.5:return
