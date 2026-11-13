@@ -284,7 +284,7 @@ def app_main(page:ft.Page):
                 else "Outside regular session hours • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan"))}
+    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -728,11 +728,11 @@ def app_main(page:ft.Page):
     scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
     saved_ranking=market_store.get("ranking","configured51") or market_store.get("ranking","configured50") or {}
-    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan"))][:5]
+    top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))][:5]
     top5_last_update=[saved_ranking.get("checked_at","—")]
-    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan"))}
+    watch_signal_cache={r["symbol"]:r for r in saved_ranking.get("all_rows",[]) if isinstance(r,dict) and r.get("symbol") and r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
     for r in top5_candidates:
-        if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan")):
+        if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):
             watch_signal_cache.setdefault(r["symbol"],r)
     def signal_percentages(row):
         votes=row.get("votes") or []
@@ -932,7 +932,7 @@ def app_main(page:ft.Page):
         if available:top5_candidates[:]=available[:5]
         used={row["symbol"] for row in top5_candidates}
         for row in previous+saved_ranking.get("rows",[]):
-            if row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan")):continue
+            if row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):continue
             if len(top5_candidates)>=5:break
             if row["symbol"] not in used:top5_candidates.append(dict(row,historical=True));used.add(row["symbol"])
         for sym in watch_symbols:
@@ -1216,7 +1216,7 @@ def app_main(page:ft.Page):
             if search.value and search.value.upper() not in sym:continue
             quote_row=quotes.get(sym) or {}
             quote_source=quote_row.get("source")
-            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan")
+            expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
             change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
             # Price movement and candle-filter agreement are different signals.
             valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
@@ -1230,7 +1230,7 @@ def app_main(page:ft.Page):
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
-            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Dhan"))
+            signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))
                           and not signal_row.get("historical") and regular_hours()
                           and isinstance(signal_stamp,(int,float))
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
