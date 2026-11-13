@@ -509,6 +509,7 @@ def app_main(page:ft.Page):
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
                         "fetched_at":time.time(),
                         "freshness":"unverified" if quote else "historical_unverified",
+                        "live_verified":False,
                         "time":datetime.now().strftime("%H:%M")}
             elif selected=="Broker API" and angel_feed.connected:
                 try:
@@ -914,6 +915,7 @@ def app_main(page:ft.Page):
                                (data.get("freshness") not in ("verified_live", "live_verified") or data.get("live_verified") is not True))
         display.update(symbol=sym,source=data.get("source","Unavailable"),
                        freshness=data.get("freshness","unverified"),
+                       live_verified=data.get("live_verified") is True,
                        historical=bool(data.get("cached")) or provider_unverified or
                        (data.get("source")=="Dhan" and dhan_feed.historical_only) or
                        not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
@@ -1312,7 +1314,7 @@ def app_main(page:ft.Page):
                        and not isinstance(snapshot.get("price"),bool)
                        and math.isfinite(snapshot["price"]))
                 if not valid and (old:=quotes.get(ticker)) and old.get("source")=="Dhan":
-                    quotes[ticker]=dict(old,freshness="unverified")
+                    quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
             total_symbols=len(all_watch_symbols())
             # A partial batch is not a complete refresh even if older quotes remain cached.
             received=sum(1 for ticker in all_watch_symbols() if
@@ -1343,7 +1345,7 @@ def app_main(page:ft.Page):
                         and isinstance(old.get("price"),(int,float))
                         and not isinstance(old.get("price"),bool)
                         and math.isfinite(old["price"])):
-                    quotes[ticker]=dict(old,freshness="unverified")
+                    quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
             if not app_active[0]:
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
                 return
@@ -3745,7 +3747,7 @@ console.log('BOT KING Lightweight Charts ready');
         failed_symbols.clear()
         top5_candidates.clear()
         cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
-        quotes.update({sym:dict(row,freshness="unverified") for sym,row in previous_quotes.items()
+        quotes.update({sym:dict(row,freshness="unverified",live_verified=False) for sym,row in previous_quotes.items()
                        if isinstance(row,dict) and row.get("source")==cached_source
                        and isinstance(row.get("price"),(int,float))
                        and not isinstance(row.get("price"),bool) and math.isfinite(row["price"])})

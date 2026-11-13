@@ -444,6 +444,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('("Super Five", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
         self.assertIn('live signal not verified', source)
 
+    def test_dhan_historical_and_retained_quotes_never_inherit_live_verification(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('"live_verified":False,', source)
+        self.assertIn('dict(old,freshness="unverified",live_verified=False)', source)
+        self.assertIn('dict(row,freshness="unverified",live_verified=False)', source)
+        self.assertIn('live_verified=data.get("live_verified") is True', source)
+
     def test_dhan_super_five_requires_explicit_verified_live_flag(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         display = source[source.index("    def display_analysis("):source.index("    def publish_partial_ranking(")]
