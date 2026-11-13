@@ -1729,6 +1729,10 @@ def app_main(page:ft.Page):
             chart_message.value="Choose a different symbol to compare."
             select(5)
             return
+        if prefs.get("source","Dhan")=="Dhan" and peer not in DHAN_VERIFIED_SYMBOLS:
+            chart_message.value="Dhan comparison mapping not verified for "+str(peer)[:32]
+            select(5)
+            return
         try:
             data=await asyncio.to_thread(get_market_data,peer,tf,"5d" if tf in ("1m","5m","15m") else "1mo")
             if generation!=provider_generation[0] or peer!=compare_symbol.value or tf!=timeframe.value:
