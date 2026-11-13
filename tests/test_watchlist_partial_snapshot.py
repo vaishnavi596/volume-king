@@ -73,14 +73,14 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('results.append(await load_one(sym))',text)
         self.assertIn('await asyncio.sleep(1.5)',text)
 
-    def test_historical_votes_do_not_use_live_green_red_palette(self):
+    def test_historical_votes_keep_colored_proportions_and_warning(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         start=text.index("def strength_widget(")
         end=text.index("def mark_ranking_historical()",start)
         widget=text[start:end]
-        self.assertIn("bull_bar_color=MUTED if historical else GREEN",widget)
-        self.assertIn("bear_bar_color=MUTED if historical else RED",widget)
-        self.assertIn("label_color=MUTED if historical else GREEN",widget)
+        self.assertIn("bull_bar_color=GREEN",widget)
+        self.assertIn("bear_bar_color=RED",widget)
+        self.assertIn("label_color=GREEN",widget)
         self.assertIn('display_prefix="HISTORICAL • " if historical else ""',widget)
         self.assertIn("not win probability",widget)
 
