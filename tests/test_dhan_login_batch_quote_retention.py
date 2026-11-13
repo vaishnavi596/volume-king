@@ -11,6 +11,8 @@ def test_dhan_login_batch_preserves_last_valid_quotes():
     assert "previous.get('bars',[]) if previous.get('source')=='Dhan' else []" in batch
     assert "math.isfinite(snapshot['price']) and snapshot['price']>0" in batch
     assert "Partial Dhan batch:" in batch
+    assert "received=sum(1 for ticker in all_watch_symbols()" in batch
+    assert "math.isfinite(item['price']) and item['price']>0" in batch
     assert "dhan_batch_issue[0]=safe_error(exc)" in batch
     assert "quotes.pop(ticker,None)" not in batch
     assert "A failed refresh must not erase the last valid Dhan quote" in batch
