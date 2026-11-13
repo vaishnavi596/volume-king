@@ -1218,7 +1218,7 @@ def app_main(page:ft.Page):
             change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
             # Price movement and candle-filter agreement are different signals.
             valid_change=isinstance(change,(int,float)) and not isinstance(change,bool) and math.isfinite(change)
-            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral"
+            direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral" if valid_change else "Unavailable"
             quote_age=time.time()-quote_row.get("fetched_at",0) if isinstance(quote_row.get("fetched_at"),(int,float)) else None
             quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
                          and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
@@ -1239,7 +1239,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • "+("change verified" if valid_change else "change unverified")) if valid_change else "Price change unverified"),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • change derived from provider quote" if valid_change else "Price direction unavailable • Dhan change/reference price not verified")),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -3860,7 +3860,7 @@ console.log('BOT KING Lightweight Charts ready');
                     if not first_ok and symbols[0] in failed_symbols:
                         reason=failed_symbols[symbols[0]]
                         scan_progress.update(checked=1,total=len(symbols),valid=0,
-                                             failed=1,state="Dhan historical feed unavailable • stopped after first error: "+reason[:110])
+                                             failed=1,state="Dhan historical feed unavailable • scan paused • 1 failed • "+str(max(0,len(symbols)-1))+" not attempted • first error: "+reason[:110])
                         market_status="Dhan candle history unavailable • "+reason[:110]+" • equity LTP remains separate"
                         if current[0] in (0,4,5):request_view_refresh(current[0])
                         await asyncio.sleep(30)
