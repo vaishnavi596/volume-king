@@ -1364,11 +1364,18 @@ def app_main(page:ft.Page):
         # Only poll while the Android app is foregrounded and Dhan is connected.
         while True:
             try:
-                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
-                    await refresh_watch_batch()
-                    if current[0]==0:
-                        request_view_refresh(0)
+                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
+                    if remaining==0:
+                        await refresh_watch_batch()
+                        if current[0]==0:
+                            request_view_refresh(0)
+                    elif not watch_batch_busy[0]:
+                        # A throttled snapshot must not look like a silent frozen list.
+                        watch_batch_status[0]=(
+                            f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
+                            "last valid prices retained; freshness unverified")
+                        request_view_refresh(4)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
