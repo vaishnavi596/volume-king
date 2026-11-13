@@ -516,8 +516,13 @@ class MobileRegressionTests(unittest.TestCase):
         page,v=start({"scanner_live":False})
         v["option_add_symbol"].value="TESTCO";v["add_option_symbol"](None)
         _,restored=start(page.client_storage.get("bot_king_preferences"))
-        for key in ("chain_symbol","scan_symbol","bot_symbol"):
+        for key in ("chain_symbol","bot_symbol"):
             self.assertIn("TESTCO",{o.key for o in restored[key].options})
+        # Dhan scanner must not offer an unverified custom equity as if
+        # historical candles were mapped; other selectors retain the symbol.
+        self.assertNotIn("TESTCO",{o.key for o in restored["scan_symbol"].options})
+        _,yahoo=start(dict(page.client_storage.get("bot_king_preferences"),source="Yahoo Finance"))
+        self.assertIn("TESTCO",{o.key for o in yahoo["scan_symbol"].options})
 
     def test_changing_instrument_cannot_keep_previous_option_contract(self):
         _,v=start({"scanner_live":False,"bot_symbol":"NIFTY","bot_strike":23400,"bot_premium":80,"bot_lot_size":25})
