@@ -1266,6 +1266,24 @@ def app_main(page:ft.Page):
     watch_batch_status=["Dhan batch not checked on this screen"]
     watch_batch_last_attempt=[0.0]
     watch_batch_last_success=[0.0]
+    watch_scroll_last_refresh=[0.0]
+    async def refresh_watch_on_scroll():
+        # Scroll never starts a 51-symbol candle scan. Repaint cached rows,
+        # and request at most one shared quote batch per 30 seconds.
+        if current[0]!=4 or not app_active[0]:return
+        fill_watch()
+        if (prefs.get("source")=="Dhan" and dhan_feed.connected
+                and not watch_batch_busy[0]
+                and dhan_feed.cooldown_remaining("/v2/snapshot")==0
+                and time.monotonic()-watch_batch_last_attempt[0]>=30):
+            await refresh_watch_batch()
+    def on_watch_scroll(e):
+        now=time.monotonic()
+        if now-watch_scroll_last_refresh[0]<1.5:return
+        watch_scroll_last_refresh[0]=now
+        if current[0]==4 and app_active[0]:
+            page.run_task(refresh_watch_on_scroll)
+    watch_list.on_scroll=on_watch_scroll
     async def refresh_watch_batch():
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
@@ -1367,6 +1385,14 @@ def app_main(page:ft.Page):
             # This GET does not initiate a Dhan quote collection; keep historical
             # candle scans on their separate rate-limited cadence.
             await asyncio.sleep(180)
+
+    async def watch_visible_tick():
+        # Repaint the visible watchlist from the shared quote cache; no API calls.
+        while True:
+            await asyncio.sleep(2)
+            if current[0]==4 and app_active[0]:
+                try:fill_watch()
+                except Exception as exc:log_error("watch_visible_tick",exc)
 
     def watchlist():
         fill_watch()
@@ -4098,6 +4124,7 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    page.run_task(watch_visible_tick)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
