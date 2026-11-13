@@ -755,7 +755,7 @@ def app_main(page:ft.Page):
         bear_bar_color=MUTED if historical else RED
         bar=ft.Row([ft.Container(bgcolor=bull_bar_color,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=bear_bar_color,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
-        label_prefix="Historical votes • " if historical else "Filter votes • "
+        label_prefix="Historical votes (NOT live signal) • " if historical else "Filter votes • "
         label_color=MUTED if historical else GREEN
         bear_color=MUTED if historical else RED
         display_prefix="HISTORICAL • " if historical else ""
@@ -1255,7 +1255,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • change derived from provider quote" if valid_change else "Price direction unavailable • Dhan change/reference price not verified")),note("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • change derived from provider quote" if valid_change else "Price direction unavailable • Dhan change/reference price not verified")),note("Candle filter: "+(signal_direction if signal_fresh else "Historical votes only • NOT a live signal")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
