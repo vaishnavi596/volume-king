@@ -6,8 +6,8 @@ SOURCE = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(enc
 
 class WatchlistCandlePaletteTests(unittest.TestCase):
     def test_fresh_bullish_bearish_are_colored(self):
-        self.assertIn('GREEN if signal_fresh and signal_direction=="Bullish"', SOURCE)
-        self.assertIn('RED if signal_fresh and signal_direction=="Bearish"', SOURCE)
+        self.assertIn('GREEN if signal_fresh and signal_available and signal_direction=="Bullish"', SOURCE)
+        self.assertIn('RED if signal_fresh and signal_available and signal_direction=="Bearish"', SOURCE)
 
     def test_unverified_historical_are_muted(self):
         self.assertIn('else "Unverified / historical"),11,', SOURCE)
