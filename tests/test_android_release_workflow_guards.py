@@ -1,4 +1,4 @@
-"""Static release gates for the manually dispatched BOT KING APK workflow."""
+"""Static release gates for manual or version-bump BOT KING APK workflow."""
 from pathlib import Path
 import re
 import tomllib
@@ -10,9 +10,9 @@ PROJECT=tomllib.loads((ROOT/"pyproject.toml").read_text(encoding="utf-8"))
 SOURCE=(ROOT/"src/main.py").read_text(encoding="utf-8")
 
 class AndroidReleaseWorkflowGuards(unittest.TestCase):
-    def test_apk_requires_manual_dispatch(self):
+    def test_apk_requires_manual_dispatch_or_main_version_bump(self):
         self.assertRegex(WORKFLOW,r"(?m)^on:\s*\n\s*workflow_dispatch:")
-        self.assertNotRegex(WORKFLOW,r"(?m)^\s+push:\s*$")
+        self.assertRegex(WORKFLOW,r"(?m)^\s+push:\s*\n\s+branches:\s*\[main\]\s*\n\s+paths:\s*\n\s+- pyproject\\.toml")
 
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
