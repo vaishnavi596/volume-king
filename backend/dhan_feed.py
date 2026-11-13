@@ -23,6 +23,8 @@ class DhanRateLimitError(DhanFeedError):
 class DhanFeed:
     _rate_lock = threading.Lock()
     _retry_after = 0.0
+    _option_next_allowed = 0.0
+    OPTION_CHAIN_INTERVAL_SECONDS = 3.0
     RATE_LIMIT_COOLDOWN_SECONDS = 30
     ROOT = "https://api.dhan.co/v2"
 
@@ -147,6 +149,13 @@ class DhanFeed:
             raise DhanFeedError("Valid ISO expiry date required") from None
         if expiry_date < date.today():
             raise DhanFeedError("Expired option chain requested")
+        # Dhan option-chain quota is stricter than LTP. Reject rapid requests
+        # across instances rather than blocking the server worker or sleeping.
+        with self._rate_lock:
+            now = time.monotonic()
+            if now < self._option_next_allowed:
+                raise DhanRateLimitError("Dhan option-chain pacing active")
+            type(self)._option_next_allowed = now + self.OPTION_CHAIN_INTERVAL_SECONDS
         return self._post("/optionchain", {
             "UnderlyingScrip": int(underlying_security_id),
             "UnderlyingSeg": underlying_segment,
