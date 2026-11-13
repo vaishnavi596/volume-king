@@ -431,6 +431,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('compare_choices=(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"]', source)
         self.assertIn('value="RELIANCE" if prefs.get("source","Dhan")=="Dhan" else "BANKNIFTY"', source)
 
+    def test_dhan_chart_comparison_rejects_unmapped_peer_before_fetch(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        guard = 'if prefs.get("source","Dhan")=="Dhan" and peer not in DHAN_VERIFIED_SYMBOLS:'
+        request = 'data=await asyncio.to_thread(get_market_data,peer,tf,'
+        self.assertIn(guard, source)
+        self.assertLess(source.index(guard), source.index(request))
+
     def test_error_doctor_does_not_call_historical_scanner_live(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('("Scanner", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
