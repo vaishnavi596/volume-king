@@ -2220,7 +2220,10 @@ def app_main(page:ft.Page):
                         # Keep previously valid Dhan quotes for symbols absent from
                         # a partial batch. They remain historical/unverified, not live.
                         for ticker,snapshot in batch.items():
-                            if ticker in all_watch_symbols() and snapshot.get('source')=='Dhan':
+                            if (ticker in all_watch_symbols() and snapshot.get('source')=='Dhan'
+                                    and isinstance(snapshot.get('price'),(int,float))
+                                    and not isinstance(snapshot.get('price'),bool)
+                                    and math.isfinite(snapshot['price']) and snapshot['price']>0):
                                 quotes[ticker]=dict(snapshot,change=None,bars=[],fetched_at=time.time())
                         failed_symbols.clear()
                         expected=len(all_watch_symbols())
@@ -4002,7 +4005,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 if (latest and latest.get("source")=="Dhan" and
                                         isinstance(latest.get("price"),(int,float)) and
                                         not isinstance(latest.get("price"),bool) and
-                                        math.isfinite(latest["price"])):
+                                        math.isfinite(latest["price"]) and latest["price"]>0):
                                     data=dict(data,price=latest["price"],quote_timestamp=None,
                                               freshness="unverified",fetched_at=time.time())
                             # Historical scans must never overwrite a newer live LTP
