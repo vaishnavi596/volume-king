@@ -3852,7 +3852,7 @@ console.log('BOT KING Lightweight Charts ready');
                     # Batch quote lookup can finish after Android backgrounds the
                     # app. Avoid even the first rate-sensitive history request.
                     if lifecycle_background[0]:
-                        scan_progress["state"]="Dhan history waiting for foreground • last ranking retained"
+                        scan_progress["state"]="Dhan history waiting for foreground • "+str(len(symbols))+" symbols not attempted • last ranking retained"
                         last_scanned_generation=None
                         await asyncio.sleep(5)
                         continue
@@ -3906,7 +3906,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # replace the last good Super Five ranking with partial results.
                 # The pending generation is retried after foreground resume.
                 if prefs.get("source")=="Dhan" and (lifecycle_background[0] or background_interrupted):
-                    scan_progress["state"]="Dhan historical scan paused in background • last ranking retained"
+                    scan_progress["state"]="Dhan historical scan paused in background • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted • last ranking retained"
                     last_scanned_generation=None
                     await asyncio.sleep(5)
                     continue
