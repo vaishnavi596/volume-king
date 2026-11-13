@@ -6,6 +6,10 @@ name: Build APK
 # Trigger manually from GitHub Actions after all planned batches pass.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - pyproject.toml
 
 jobs:
   build:
