@@ -1070,8 +1070,10 @@ def app_main(page:ft.Page):
             if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
                     or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
                     or snapshot["price"]<=0):
-                rows_note=("Index LTP unavailable from the current Dhan equity snapshot • "
-                           "requires a separately verified Dhan index instrument feed")
+                rows_note=(("NIFTY mapping exists; individual Dhan index LTP not available yet • "
+                            "51-equity snapshot does not contain index prices") if sym=="NIFTY" else
+                           ("BANK NIFTY / SENSEX instrument mapping not verified • "
+                            "51-equity snapshot does not contain index prices"))
             else:
                 rows_note=None
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
