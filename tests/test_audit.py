@@ -196,17 +196,21 @@ class AuditTests(unittest.TestCase):
         names=['OI Support','OI Resistance','OI Profile','Max Pain','Volume']
         for name in names:
             v['filter_choice'].value=name;v['filter_edit'](True)
-        self.assertEqual(v['added_filters'],names)
-        self.assertEqual(len(v['added_filter_list'].controls),5)
+        # Dhan without verified CE/PE OI must not activate unavailable filters.
+        # Regular candle/volume filters remain addable and persist across restart.
+        self.assertEqual(v['added_filters'],['Volume'])
+        self.assertFalse(any(name in v['filter_selected'] for name in names[:-1]))
+        self.assertEqual(len(v['added_filter_list'].controls),1)
         for row in v['added_filter_list'].controls:
             self.assertEqual(row.content.controls[2].text,'Remove ×')
         checkbox=v['added_filter_list'].controls[0].content.controls[0]
         if isinstance(checkbox,ft.Column):checkbox=checkbox.controls[0].controls[0]
         checkbox.value=False;checkbox.on_change(event(checkbox))
-        self.assertIn(names[0],v['added_filters']);self.assertNotIn(names[0],v['filter_selected'])
+        self.assertIn('Volume',v['added_filters'])
+        self.assertNotIn('Volume',v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
-        self.assertEqual(restored['added_filters'],names)
-        self.assertNotIn(names[0],restored['filter_selected'])
+        self.assertEqual(restored['added_filters'],['Volume'])
+        self.assertNotIn('Volume',restored['filter_selected'])
         restored['scan_busy'][0]=True
         for name in names:restored['remove_added_filter'](name)
         self.assertEqual(restored['added_filters'],[])
