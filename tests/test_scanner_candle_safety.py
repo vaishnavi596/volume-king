@@ -57,6 +57,11 @@ class ScannerSafetyTests(unittest.TestCase):
             result=analyze(bars)
             self.assertEqual(result["count"],34)
 
+    def test_boolean_volume_is_rejected(self):
+        bars=candles()
+        bars[-1][5]=True
+        self.assertEqual(analyze(bars)["count"],34)
+
     def test_nan(self):
         b = candles(); b[-1][4] = math.nan
         self.assertEqual(analyze(b)["count"], 34)
