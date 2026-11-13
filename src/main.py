@@ -1373,9 +1373,10 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Independent foreground quote poll at the user-selected 3-minute cadence.
-            # The Oracle snapshot may itself be cached; its fetch is not exchange freshness.
-            await asyncio.sleep(180)
+            # Independent foreground quote poll every 30 seconds. This reads the
+            # Oracle snapshot, not 51 individual Dhan LTP requests; the snapshot
+            # remains exchange-timestamp unverified until provenance is available.
+            await asyncio.sleep(30)
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.

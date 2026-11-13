@@ -18,6 +18,14 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn('Price direction unavailable • Dhan change/reference price not verified', source)
         self.assertIn('signal_direction=("Bullish" if signal_counts[0]>signal_counts[1]', source)
 
+    def test_dhan_equity_quote_poll_runs_every_30_seconds(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        body = source.split("    async def dhan_quote_poll():", 1)[1].split("    async def watch_visible_tick():", 1)[0]
+        self.assertIn("await asyncio.sleep(30)", body)
+        self.assertNotIn("await asyncio.sleep(180)", body)
+        self.assertIn("await refresh_watch_batch()", body)
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0', body)
+
     def test_cooldown_path_also_reports_unattempted(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('+" symbols not attempted"', source)
