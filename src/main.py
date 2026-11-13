@@ -657,8 +657,17 @@ def app_main(page:ft.Page):
         return GREEN if v>=0 else RED
     def tiny_chart(sym,snapshot=None):
         q=snapshot if snapshot is not None else (quotes.get(sym) or {})
+        if not isinstance(q,dict):return note("Chart unavailable")
+        expected={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
+        if q.get("source")!=expected:return note("Chart unavailable")
         bars=q.get("bars") or []
-        values=[b[4] for b in bars[-30:]]
+        if not isinstance(bars,(list,tuple)):return note("Chart unavailable")
+        recent=bars[-30:]
+        if any(not isinstance(bar,(list,tuple)) or len(bar)<5
+               or not isinstance(bar[4],(int,float)) or isinstance(bar[4],bool)
+               or not math.isfinite(bar[4]) or bar[4]<=0 for bar in recent):
+            return note("Chart unavailable")
+        values=[bar[4] for bar in recent]
         if len(values)<2:return note("Chart unavailable")
         lo,hi=min(values),max(values)
         spread=max(hi-lo,.001)
