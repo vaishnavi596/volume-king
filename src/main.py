@@ -448,13 +448,13 @@ def app_main(page:ft.Page):
     dhan_batch_lock=RLock()
     def get_market_data(ticker,interval="5m",range_="1d"):
         import time,copy
-        key=(provider_generation[0],angel_feed.epoch,dhan_feed.connected,prefs.get("source","Auto"),ticker,interval,range_)
+        key=(provider_generation[0],angel_feed.epoch,dhan_feed.connected,prefs.get("source","Dhan"),ticker,interval,range_)
         with market_registry_lock:lock=market_locks.setdefault(key,RLock())
         with lock:
             cached=market_recent.get(key)
             # Share recent same-provider candle results across Chart and Scanner.
             # Historical candles remain explicitly unverified, never live quotes.
-            ttl=90 if prefs.get("source")=="Dhan" else 10
+            ttl=90 if key[3]=="Dhan" else 10
             if cached and time.monotonic()-cached[0]<ttl:return copy.deepcopy(cached[1])
             result=fetch_market_data_uncached(ticker,interval,range_)
             if key[0]!=provider_generation[0]:raise RuntimeError("Obsolete market response")
