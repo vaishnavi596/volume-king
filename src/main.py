@@ -3232,7 +3232,10 @@ console.log('BOT KING Lightweight Charts ready');
         sym=scan_symbol.value or "NIFTY"
         tf=scan_tf.value or "5m"
         snapshot=candles.get("scanner_chart_"+sym)
-        if not isinstance(snapshot,dict) or snapshot.get("cached") or snapshot.get("source") not in ("dhan","Dhan"):
+        if (not isinstance(snapshot,dict) or snapshot.get("cached")
+                or snapshot.get("source") not in ("dhan","Dhan")
+                or snapshot.get("_scanner_timeframe")!=tf
+                or snapshot.get("_scanner_generation")!=scan_generation[0]):
             return
         bars=snapshot.get("bars")
         if not isinstance(bars,list) or len(bars)<30:
@@ -3487,7 +3490,8 @@ console.log('BOT KING Lightweight Charts ready');
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
-            candles["scanner_chart_"+sym]=hist
+            candles["scanner_chart_"+sym]=dict(hist,_scanner_timeframe=interval,
+                                              _scanner_generation=generation)
             quotes[sym]=hist
             market_status="Data source: "+hist.get("source","Unavailable")+" • "+quote_caption(sym)
             # Push fresh bars into the existing chart without losing zoom or reloading.
