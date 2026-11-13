@@ -8,7 +8,7 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1] / "src" / "main.py"
 class DhanScanProgressTests(unittest.TestCase):
     def test_first_history_failure_reports_unattempted_symbols(self):
         source = SOURCE.read_text(encoding="utf-8")
-        self.assertIn('failed=1,state="Dhan historical scan paused • 1 failed • "', source)
+        self.assertIn('failed=1,state="Dhan historical feed unavailable • scan paused • 1 failed • "', source)
         self.assertIn('str(max(0,len(symbols)-1))+" not attempted • first error: "', source)
         self.assertIn('market_status="Dhan candle history unavailable', source)
 
