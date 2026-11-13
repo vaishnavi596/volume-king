@@ -1215,6 +1215,7 @@ def app_main(page:ft.Page):
         for sym in watch_groups[active_watch[0]]:
             if search.value and search.value.upper() not in sym:continue
             quote_row=quotes.get(sym) or {}
+            if not isinstance(quote_row,dict):quote_row={}
             quote_source=quote_row.get("source")
             expected_quote_source={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
             change=quote_row.get("change") if not dhan_offline() and quote_source==expected_quote_source else None
