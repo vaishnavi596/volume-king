@@ -3047,6 +3047,13 @@ console.log('BOT KING Lightweight Charts ready');
         if view is None:return
         sym,interval,period,provider,style,ema,generation=context
         cached=candles.get("scanner_chart_"+sym) or market_store.get("market",provider,sym,interval,period) or {}
+        # The independent watchlist/history scan may already have valid candles
+        # for this symbol. Reuse them during Dhan cooldown rather than showing
+        # a blank chart; never treat a quote-only snapshot as candle history.
+        if not cached.get("bars"):
+            shared=quotes.get(sym) or {}
+            if shared.get("source")==provider and shared.get("bars") and interval=="5m":
+                cached=shared
         try:
             if tv_js_view[0] is not view:
                 await asyncio.to_thread(view.invoke_method,"set_javascript_mode",arguments={"value":"true"},wait_for_result=True,wait_timeout=10)
