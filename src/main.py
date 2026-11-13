@@ -1222,7 +1222,7 @@ def app_main(page:ft.Page):
             direction="Bullish" if valid_change and change>0 else "Bearish" if valid_change and change<0 else "Neutral" if valid_change else "Unavailable"
             quote_age=time.time()-quote_row["fetched_at"] if isinstance(quote_row.get("fetched_at"),(int,float)) and not isinstance(quote_row["fetched_at"],bool) and math.isfinite(quote_row["fetched_at"]) else None
             quote_fresh=(quote_source==expected_quote_source and quote_age is not None and 0<=quote_age<=60
-                         and isinstance(quote_row.get("price"),(int,float)) and math.isfinite(quote_row["price"])
+                         and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool) and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
             quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
