@@ -193,7 +193,8 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_watchlist_quote_age_is_not_claimed_as_exchange_freshness(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('quote_age=time.time()-quote_row.get("fetched_at",0)', source)
+        self.assertIn('quote_age=time.time()-quote_row["fetched_at"]', source)
+        self.assertIn('math.isfinite(quote_row["fetched_at"]) else None', source)
         self.assertIn("exchange timestamp unverified", source)
         self.assertIn("Cached/stale or unverified quote", source)
         self.assertIn("note(quote_label)", source)
