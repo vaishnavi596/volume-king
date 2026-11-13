@@ -734,8 +734,8 @@ def app_main(page:ft.Page):
             watch_signal_cache.setdefault(r["symbol"],r)
     def signal_percentages(row):
         votes=row.get("votes") or []
-        bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
-        bears=sum(v.get("vote")==-1 for v in votes if isinstance(v,dict))
+        bulls=sum(type(v.get("vote")) is int and v["vote"]==1 for v in votes if isinstance(v,dict))
+        bears=sum(type(v.get("vote")) is int and v["vote"]==-1 for v in votes if isinstance(v,dict))
         total=bulls+bears
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
     def strength_widget(row, symbol=None):
