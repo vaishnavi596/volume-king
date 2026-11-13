@@ -3943,7 +3943,9 @@ console.log('BOT KING Lightweight Charts ready');
                                              failed=1,state="Dhan historical feed unavailable • scan paused • 1 failed • "+str(max(0,len(symbols)-1))+" not attempted • first error: "+reason[:110])
                         market_status="Dhan candle history unavailable • "+reason[:110]+" • equity LTP remains separate"
                         if current[0] in (0,4,5):request_view_refresh(current[0])
-                        await asyncio.sleep(30)
+                        # Honor the actual Dhan 429 retry window before probing
+                        # historical candles again; preserve all saved quotes.
+                        await asyncio.sleep(max(30, dhan_feed.cooldown_remaining("/dhan/intraday")))
                         continue
                     results=[first_ok]
                     # Dhan history is a rate-limited upstream API: serialize
