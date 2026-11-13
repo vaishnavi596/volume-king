@@ -755,7 +755,7 @@ def app_main(page:ft.Page):
         bear_bar_color=MUTED if historical else RED
         bar=ft.Row([ft.Container(bgcolor=bull_bar_color,expand=bull) if bull else ft.Container(width=0),
                     ft.Container(bgcolor=bear_bar_color,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=7)
-        label_prefix="Historical candle agreement (NOT live signal) • " if historical else "Filter votes • "
+        label_prefix="Historical votes (NOT live signal) • " if historical else "Filter votes • "
         label_color=MUTED if historical else GREEN
         bear_color=MUTED if historical else RED
         display_prefix="HISTORICAL • " if historical else ""
