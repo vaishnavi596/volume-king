@@ -671,8 +671,12 @@ def app_main(page:ft.Page):
             return note("Chart cached / unverified")
         recent=bars[-30:]
         if any(not isinstance(bar,(list,tuple)) or len(bar)<5
+               or not isinstance(bar[0],(int,float)) or isinstance(bar[0],bool)
+               or not math.isfinite(bar[0]) or bar[0]<=0
                or not isinstance(bar[4],(int,float)) or isinstance(bar[4],bool)
                or not math.isfinite(bar[4]) or bar[4]<=0 for bar in recent):
+            return note("Chart unavailable")
+        if any(recent[i][0]>=recent[i+1][0] for i in range(len(recent)-1)):
             return note("Chart unavailable")
         values=[bar[4] for bar in recent]
         if len(values)<2:return note("Chart unavailable")
