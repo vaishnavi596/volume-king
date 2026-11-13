@@ -12,7 +12,7 @@ SOURCE=(ROOT/"src/main.py").read_text(encoding="utf-8")
 class AndroidReleaseWorkflowGuards(unittest.TestCase):
     def test_apk_requires_manual_dispatch_or_main_version_bump(self):
         self.assertRegex(WORKFLOW,r"(?m)^on:\s*\n\s*workflow_dispatch:")
-        self.assertRegex(WORKFLOW,r"(?m)^\s+push:\s*\n\s+branches:\s*\[main\]\s*\n\s+paths:\s*\n\s+- pyproject\\.toml")
+        self.assertRegex(WORKFLOW,r"(?m)^\s+push:\s*\n\s+branches:\s*\[main\]\s*\n\s+paths:\s*\n\s+- pyproject\.toml")
 
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
