@@ -106,7 +106,12 @@ def analyze(bars, selected=None, timeframe="5m"):
     sweep=1 if low[-1]<min(low[-11:-1]) and p>min(low[-11:-1]) else -1 if high[-1]>max(high[-11:-1]) and p<max(high[-11:-1]) else 0
     add("Liquidity Sweep",sweep,"10-bar wick sweep with close back inside range" if sweep else "No confirmed sweep")
     avgvol=sum(vol[-21:-1])/20
-    add("Volume",1 if avgvol>0 and vol[-1]>avgvol*1.2 and p>close[-2] else -1 if avgvol>0 and vol[-1]>avgvol*1.2 and p<close[-2] else 0,f"Volume {vol[-1]:.0f}, 20-bar avg {avgvol:.0f}")
+    if avgvol <= 0 or vol[-1] <= 0:
+        add("Volume",None,"UNAVAILABLE: valid source volume required")
+    else:
+        volume_side=(1 if vol[-1]>avgvol*1.2 and p>close[-2]
+                     else -1 if vol[-1]>avgvol*1.2 and p<close[-2] else 0)
+        add("Volume",volume_side,f"Volume {vol[-1]:.0f}, 20-bar avg {avgvol:.0f}")
     for name in OPTION_FILTERS:
         add(name,None,"UNAVAILABLE: verified live option chain not connected")
     directional=[v for v in votes if v["vote"] in (-1,1)]
