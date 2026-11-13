@@ -45,6 +45,7 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
             rows = self.feed.batch_quotes()
         request.assert_called_once_with("/v2/snapshot")
         self.assertEqual(rows["RELIANCE"]["price"], 1333.7)
+        self.assertEqual(rows["RELIANCE"]["snapshot_age_seconds"], 7.8)
         self.assertIsNone(rows["RELIANCE"]["quote_timestamp"])
         self.assertEqual(rows["RELIANCE"]["freshness"], "unverified")
 
