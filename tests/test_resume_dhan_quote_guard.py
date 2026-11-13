@@ -8,7 +8,8 @@ class ResumeDhanQuoteGuardTests(unittest.TestCase):
     def test_last_valid_dhan_price_is_preserved(self):
         self.assertIn('previous.get("source")=="Dhan"',self.body)
         self.assertIn('math.isfinite(previous["price"])',self.body)
-        self.assertIn('quotes[sym]=dict(previous,bars=data.get("bars"',self.body)
+        self.assertIn('quotes[sym]=dict(previous,bars=verified_bars',self.body)
+        self.assertIn('data.get("source")=="Dhan"',self.body)
     def test_resume_downgrades_freshness(self):
         self.assertIn('freshness="unverified"',self.body)
     def test_non_dhan_or_missing_previous_quote_uses_result(self):
