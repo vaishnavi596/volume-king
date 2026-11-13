@@ -67,6 +67,15 @@ class ScannerSafetyTests(unittest.TestCase):
             self.assertEqual(result["bias"],"WAIT")
             self.assertEqual(result["reason"],"Unsupported candle timeframe")
 
+    def test_indicator_selection_quality_batch(self):
+        for invalid in ([], ["EMA 9/21","EMA 9/21"], ["Not an indicator"]):
+            result=analyze(candles(),invalid)
+            self.assertEqual(result["bias"],"WAIT")
+            self.assertEqual(result["reason"],"Invalid indicator selection")
+
+    def test_boolean_ranking_age_limit_is_invalid(self):
+        self.assertEqual(rank_candidates({},max_age_seconds=True),[])
+
     def test_invalid_indicator_selection_fails_closed(self):
         for invalid in (42, True, {"EMA 9/21":True}, ["EMA 9/21", None]):
             result=analyze(candles(), invalid)

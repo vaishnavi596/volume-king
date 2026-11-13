@@ -19,6 +19,9 @@ def analyze(bars, selected=None, timeframe="5m"):
     if not isinstance(selected, (list, tuple, set)) or any(not isinstance(name, str) for name in selected):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid indicator selection",
                 "count":0,"timeframe":timeframe,"timestamp":None}
+    if not selected or len(set(selected)) != len(selected) or any(name not in ALL_FILTERS for name in selected):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid indicator selection",
+                "count":0,"timeframe":timeframe,"timestamp":None}
     if timeframe not in ("1m", "3m", "5m", "15m", "30m", "1h", "1d"):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Unsupported candle timeframe",
                 "count":0,"timeframe":timeframe,"timestamp":None}
@@ -140,7 +143,7 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
     if not isinstance(candidates, dict) or type(max_results) is not int or max_results <= 0:
         return []
-    if not isinstance(max_age_seconds, (int, float)) or not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
+    if type(max_age_seconds) not in (int, float) or not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
         return []
     good=[]
     for symbol, result in candidates.items():
