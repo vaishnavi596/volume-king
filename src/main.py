@@ -520,7 +520,9 @@ def app_main(page:ft.Page):
                     fallback_reason=safe_error(exc)
                     raise
             if result is None:
-                raise FeedError("Broker API not connected; select Yahoo Finance or connect Angel One in Settings")
+                if selected=="Broker API":
+                    raise FeedError("Broker API not connected; connect Angel One in Settings")
+                raise FeedError("Unsupported market data provider: "+str(selected)[:32]+"; select Dhan in Settings")
             result["cached"]=False
         except Exception as exc:
             fallback_reason=safe_error(exc)
