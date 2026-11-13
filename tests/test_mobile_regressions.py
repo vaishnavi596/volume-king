@@ -347,7 +347,11 @@ class MobileRegressionTests(unittest.TestCase):
         lifecycle = source[start:end]
         self.assertIn('if state=="resumed" or state.endswith(".resumed"):', lifecycle)
         self.assertIn("if app_active[0]:\n                return\n            app_active[0]=True", lifecycle)
-        self.assertIn('provider_generation[0]+=1', lifecycle)
+        # Resuming must reuse the current Dhan scan generation, not discard
+        # in-flight history or force a full watchlist rescan.
+        self.assertNotIn('provider_generation[0]+=1', lifecycle)
+        self.assertNotIn('scan_progress.update(checked=0', lifecycle)
+        self.assertIn('page.run_task(refresh_after_resume)', lifecycle)
         self.assertIn('paper_bot_state[0]="Paused"', lifecycle)
 
     def test_dhan_super_five_ranking_publishes_in_five_symbol_groups_and_at_end(self):
