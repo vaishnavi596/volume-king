@@ -1233,8 +1233,10 @@ def app_main(page:ft.Page):
                          and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool)
                           and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
-            quote_label=("Oracle LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
-                         "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
+            quote_label=("Last cached Dhan LTP • latest batch failed • exchange timestamp unverified"
+                         if prefs.get("source")=="Dhan" and watch_batch_status[0].startswith("Dhan batch failed:") else
+                         ("Oracle LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
+                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote")
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
