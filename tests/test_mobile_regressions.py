@@ -203,7 +203,7 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("signal_counts=signal_percentages(signal_row)", source)
         self.assertIn('watch_filter[0]!=signal_direction', source)
-        self.assertIn('txt("Candle filter: "+(signal_direction if signal_fresh else "Unverified / historical"),11,', source)
+        self.assertIn('txt("Candle filter: "+(signal_direction if signal_fresh and signal_available else "Unverified / historical"),11,', source)
         self.assertIn("filters use fresh candle-filter votes, not daily price movement", source)
 
     def test_watchlist_enforces_fifty_symbol_limit_after_async_validation(self):
