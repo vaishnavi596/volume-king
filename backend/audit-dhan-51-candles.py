@@ -13,7 +13,25 @@ from importlib.util import module_from_spec, spec_from_file_location
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from server_feed import DHAN_VERIFIED_SYMBOLS
+import ast
+
+# Extract the literal allowlist without importing the Android feed adapter,
+# which depends on optional app-only modules absent on the Oracle host.
+source = (ROOT / "src" / "server_feed.py").read_text(encoding="utf-8")
+tree = ast.parse(source, filename="server_feed.py")
+assignments = [node for node in tree.body if isinstance(node, ast.Assign)
+               and any(isinstance(target, ast.Name) and target.id == "DHAN_VERIFIED_SYMBOLS"
+                       for target in node.targets)]
+if len(assignments) != 1:
+    raise RuntimeError("Expected exactly one Dhan verified-symbol mapping")
+value = assignments[0].value
+if not (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+        and value.func.id == "frozenset" and len(value.args) == 1
+        and not value.keywords):
+    raise RuntimeError("Unexpected Dhan symbol mapping expression")
+DHAN_VERIFIED_SYMBOLS = frozenset(ast.literal_eval(value.args[0]))
+if not DHAN_VERIFIED_SYMBOLS or not all(isinstance(x, str) and x for x in DHAN_VERIFIED_SYMBOLS):
+    raise RuntimeError("Invalid Dhan symbol mapping")
 
 spec = spec_from_file_location("dhan_live_check", pathlib.Path(__file__).with_name("check-dhan-live.py"))
 module = module_from_spec(spec)
