@@ -4226,12 +4226,12 @@ console.log('BOT KING Lightweight Charts ready');
             runtime_status.value="App backgrounded • uninterrupted monitoring unavailable • refresh on resume"
         else:
             runtime_status.value="App resumed • checking selected data..."
-            # A resumed, authenticated Dhan session needs a new candle-scan cycle,
-            # including outside trading hours. Do not treat cached LTP as live.
+            # Resume reuses the existing authenticated session and candle cache.
+            # Do not invalidate the provider generation or restart a 51-symbol
+            # historical scan on every screen unlock; the regular scan timer
+            # controls history refresh and the resume task checks quotes.
             if prefs.get("source")=="Dhan" and dhan_feed.connected:
-                provider_generation[0]+=1
-                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
-                                     failed=0,cached=0,state="Rechecking Dhan historical candles after resume")
+                scan_progress["state"]="Dhan resumed • checking cached quotes"
             page.run_task(refresh_after_resume)
         page.update()
     page.on_app_lifecycle_state_change=lifecycle_changed
