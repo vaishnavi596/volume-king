@@ -241,7 +241,7 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Dhan","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
-    if prefs.get("source") != "Dhan":prefs["source"]="Dhan"
+    if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
@@ -1842,7 +1842,7 @@ def app_main(page:ft.Page):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
             options=[ft.dropdown.Option("Dhan")])
         def changed(e):
-            source.value="Dhan"
+            source.value=e.control.value
             source.on_change(type("SourceChange",(),{"control":source})())
             page.run_task(refresh_selected_options)
         chooser.on_change=changed
@@ -3612,8 +3612,7 @@ console.log('BOT KING Lightweight Charts ready');
     broker.on_change=broker_changed
     source_previous=source.on_change
     def source_change(e):
-        source.value="Dhan"
-        prefs["source"]="Dhan"
+        prefs["source"]=source.value
         source_previous(e);provider_changed(e)
     source.on_change=source_change
     pages=[dashboard,options,settings,scanner,watchlist,charts]
