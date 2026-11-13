@@ -739,7 +739,7 @@ def app_main(page:ft.Page):
         bulls=sum(type(v.get("vote")) is int and v["vote"]==1 for v in votes if isinstance(v,dict))
         bears=sum(type(v.get("vote")) is int and v["vote"]==-1 for v in votes if isinstance(v,dict))
         total=bulls+bears
-        return (round(100*bulls/total),round(100*bears/total),total) if total else None
+        return (round(100*bulls/total),100-round(100*bulls/total),total) if total else None
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
         if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
