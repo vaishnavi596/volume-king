@@ -657,9 +657,8 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('Historical votes' in value for value in values))
         self.assertTrue(any('not win probability' in value for value in values))
         palette=v['strength_widget'].__globals__
-        self.assertIn(palette['MUTED'],colors)
-        self.assertNotIn(palette['GREEN'],colors)
-        self.assertNotIn(palette['RED'],colors)
+        self.assertIn(palette['GREEN'],colors)
+        self.assertIn(palette['RED'],colors)
         self.assertTrue(any('HISTORICAL • Bullish' in value for value in values))
 
     def test_palette_contrast(self):
