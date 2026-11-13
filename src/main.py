@@ -733,6 +733,7 @@ def app_main(page:ft.Page):
         if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")):
             watch_signal_cache.setdefault(r["symbol"],r)
     def signal_percentages(row):
+        if not isinstance(row,dict):return None
         votes=row.get("votes") or []
         if not isinstance(votes,(list,tuple)):return None
         bulls=sum(type(v.get("vote")) is int and v["vote"]==1 for v in votes if isinstance(v,dict))
