@@ -1296,6 +1296,16 @@ def app_main(page:ft.Page):
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
                         fetched_at=time.time())
+            # Missing symbols retain their last Dhan price, but must not retain
+            # a previously verified-live freshness label after a partial poll.
+            for ticker in all_watch_symbols():
+                snapshot=batch.get(ticker)
+                valid=(isinstance(snapshot,dict) and snapshot.get("source")=="Dhan"
+                       and isinstance(snapshot.get("price"),(int,float))
+                       and not isinstance(snapshot.get("price"),bool)
+                       and math.isfinite(snapshot["price"]))
+                if not valid and (old:=quotes.get(ticker)) and old.get("source")=="Dhan":
+                    quotes[ticker]=dict(old,freshness="unverified")
             total_symbols=len(all_watch_symbols())
             # A partial batch is not a complete refresh even if older quotes remain cached.
             received=sum(1 for ticker in all_watch_symbols() if
