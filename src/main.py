@@ -2096,11 +2096,16 @@ def app_main(page:ft.Page):
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
             endpoint=(api_url.value or "").strip()
-            if not endpoint or not server_access.value.strip():
+            # Recheck an active in-memory session without requesting the key again.
+            # Never persist the pairing key in ordinary preferences.
+            existing_session=(dhan_feed.connected and
+                              endpoint.rstrip("/")==dhan_feed._origin and
+                              not server_access.value.strip())
+            if not endpoint or (not server_access.value.strip() and not existing_session):
                 connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
                 connection_status.color=GOLD
                 page.update();return
-            pairing_key=server_access.value.strip()
+            pairing_key=(dhan_feed._pairing_key if existing_session else server_access.value.strip())
             try:
                 from server_feed import server_origin, direct_https_opener
                 import urllib.request, urllib.error, json
