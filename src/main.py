@@ -1977,6 +1977,10 @@ def app_main(page:ft.Page):
             prefs["option_expiry"]=chosen
             save()
             option_expiry_note.value="Dhan broker-listed expiry • "+chosen+" • no calendar estimate"
+            # Preserve the latest verified underlying LTP: historical candles must
+            # never overwrite a newer quote snapshot.
+            previous=quotes.get(sym) or {}
+            # No history request is needed for option metrics.
             option_feed_status[0]="Loading Dhan read-only PCR and Max Pain..."
             data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
@@ -2052,7 +2056,7 @@ def app_main(page:ft.Page):
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
-            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Dhan PCR and Max Pain are shown below when available. CE/PE strike premiums are not verified; no synthetic values."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • Dhan PCR and Max Pain available after refresh; CE/PE premiums not verified."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
