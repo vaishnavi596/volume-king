@@ -1866,16 +1866,18 @@ def app_main(page:ft.Page):
             return source_name+" • "+("Last saved quote" if q.get("cached") else "Recent quote" if 0<=age<=90 else "Old / delayed quote")+" • "+when+" • "+age_label(float(stamp))
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
-        chooser=ft.Dropdown(label="Market data mode",value=source.value,
+        chooser=ft.Dropdown(label="Market data mode",value="Dhan",
             options=[ft.dropdown.Option("Dhan")])
         def changed(e):
-            source.value=e.control.value
+            # Ignore any stale/non-Dhan control event from an older saved UI.
+            if e.control.value!="Dhan":return
+            source.value="Dhan"
             source.on_change(type("SourceChange",(),{"control":source})())
             page.run_task(refresh_selected_options)
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Yahoo Finance provides indicative underlying quotes and charts, possibly delayed. Angel One required for verified CE/PE and OI; no live orders.")],
+            note("Dhan read-only quotes and historical candles. Option-chain premiums/OI unavailable without a verified feed; live orders OFF.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         if option_feed_busy[0]:return
@@ -2653,7 +2655,8 @@ def app_main(page:ft.Page):
         status.value=("Valid fields saved; fix highlighted fields: "+", ".join(invalid) if invalid else "Settings saved on device.") if persisted else "Save failed — device storage unavailable"
         status.color=GOLD if invalid else GREEN if persisted else RED
         page.update()
-    broker.value=prefs.get("broker","Angel One")
+    # Keep the initialized broker selector consistent; do not silently select Angel One.
+    broker.value=prefs.get("broker","Dhan") if prefs.get("broker","Dhan") in broker_names else "Dhan"
     settings_tab=["Trading Bot"]
     def choose_settings_tab(v):
         settings_tab[0]=v
