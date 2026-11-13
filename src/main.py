@@ -3827,6 +3827,7 @@ console.log('BOT KING Lightweight Charts ready');
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
+    page.run_task(scanner_fast_signal_loop)
     page.run_task(protection_clock)
     async def refresh_market():
         nonlocal market_status
