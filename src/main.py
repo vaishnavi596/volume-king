@@ -749,7 +749,7 @@ def app_main(page:ft.Page):
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
         stamp=row.get("timestamp")
-        historical=row.get("historical") or not regular_hours() or not isinstance(stamp,(int,float)) or isinstance(stamp,bool) or not math.isfinite(stamp) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
+        historical=row.get("historical") or row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")) or not regular_hours() or not isinstance(stamp,(int,float)) or isinstance(stamp,bool) or not math.isfinite(stamp) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         # Historical filter ratios are context, not a current directional signal.
         # Keep historical direction visible; the explicit HISTORICAL caption prevents a live claim.
         bull_bar_color=MUTED if historical else GREEN
