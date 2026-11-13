@@ -18,7 +18,7 @@ from error_doctor import diagnose
 from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
-from scanner_engine import DEFAULT_FILTERS, ALL_FILTERS, analyze, rank_candidates
+from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from datetime import datetime, date, timedelta, timezone
 from importlib.metadata import version as package_version, PackageNotFoundError
 
