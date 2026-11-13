@@ -1413,7 +1413,8 @@ def app_main(page:ft.Page):
     rsi=ft.Switch(label="RSI",value=bool(prefs.get("chart_rsi",False)),active_color=GREEN)
     chart_tab=["Chart"]
     drawing_mode=["None"]
-    compare_symbol=ft.Dropdown(label="Compare",value="BANKNIFTY",options=[ft.dropdown.Option(x) for x in ["NIFTY","BANKNIFTY","SENSEX","RELIANCE","HDFCBANK"]])
+    compare_choices=(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"] if prefs.get("source","Dhan")=="Dhan" else ["NIFTY","BANKNIFTY","SENSEX","RELIANCE","HDFCBANK"])
+    compare_symbol=ft.Dropdown(label="Compare",value="RELIANCE" if prefs.get("source","Dhan")=="Dhan" else "BANKNIFTY",options=[ft.dropdown.Option(x) for x in compare_choices])
     macd=ft.Switch(label="MACD (12,26,9)",value=bool(prefs.get("chart_macd",False)),active_color=GREEN)
     volume=ft.Switch(label="Volume",value=bool(prefs.get("chart_volume",True)),active_color=GREEN)
     ema200=ft.Switch(label="EMA 200",value=bool(prefs.get("chart_ema200",False)),active_color=GREEN)
