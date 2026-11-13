@@ -380,7 +380,7 @@ class ServerDhanReadOnly:
                 raise FeedError("Invalid Oracle Dhan snapshot quote")
             quotes[symbol] = {"symbol": symbol, "price": price, "source": "Dhan",
                               "quote_timestamp": None, "freshness": "unverified",
-                              "live_verified": False}
+                              "snapshot_age_seconds": age, "live_verified": False}
         return quotes
 
     def intraday(self, symbol, interval, from_date, to_date):
