@@ -419,7 +419,8 @@ class MobileRegressionTests(unittest.TestCase):
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
-        self.assertIn('direction=("NEUTRAL / WAIT" if prefs.get("source")=="Dhan" and historical', card)
+        self.assertIn('direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical', card)
+        self.assertIn('else "NO CLEAR SIGNAL" if row["bias"]=="WAIT"', card)
         self.assertIn('or not regular_hours()', card)
 
     def test_chart_navigation_checks_selected_timeframe_snapshot_not_watch_quote(self):
