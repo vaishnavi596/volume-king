@@ -6,7 +6,7 @@ SOURCE = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(enc
 
 class DhanPauseCountsTests(unittest.TestCase):
     def test_background_pause_exposes_unattempted_count(self):
-        self.assertEqual(SOURCE.count('Dhan historical scan paused in background • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted'), 2)
+        self.assertEqual(SOURCE.count('Dhan historical scan paused in background • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted'), 3)
         self.assertIn('background_interrupted=True', SOURCE)
 
     def test_cooldown_pause_exposes_unattempted_count(self):
