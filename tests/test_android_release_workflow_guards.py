@@ -17,6 +17,7 @@ class AndroidReleaseWorkflowGuards(unittest.TestCase):
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
         self.assertRegex(version,r"^\d+\.\d+\.\d+$")
+        # Compare the fallback against the current project version, not a hardcoded release.
         self.assertRegex(SOURCE,rf'APP_VERSION\s*=\s*"{re.escape(version)}"\s*# Release fallback;')
 
     def test_release_signing_fails_closed(self):
