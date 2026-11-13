@@ -16,6 +16,9 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
+    if not isinstance(bars, (list, tuple)):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid candle collection",
+                "count":0,"timeframe":timeframe,"timestamp":None}
     # Do not evaluate candles with timestamps in the future.
     now = datetime.now(timezone.utc).timestamp()
     clean = [b for b in bars if isinstance(b, (list, tuple)) and len(b) >= 6
