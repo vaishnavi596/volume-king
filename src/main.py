@@ -2025,7 +2025,27 @@ def app_main(page:ft.Page):
             column_spacing=10,
             horizontal_margin=8,
         )
+        # Display selected CE/PE quote status without fabricating missing premiums.
+        selected_sides={}
+        try:
+            chosen=float(option_strike.value)
+            if math.isfinite(chosen) and chosen>0:
+                selected_sides=grouped.get(chosen,{})
+        except (TypeError,ValueError):
+            pass
+        def premium_label(side):
+            row=selected_sides.get(side,{})
+            value=row.get("premium")
+            if not isinstance(value,(int,float)) or isinstance(value,bool) or not math.isfinite(value) or value<=0:
+                return side+" Premium: Data unavailable • verified option quote required"
+            stamp=row.get("timestamp")
+            fresh=(isinstance(stamp,(int,float)) and 0<=datetime.now(timezone.utc).timestamp()-stamp<=90)
+            return side+" Premium: ₹"+f"{value:,.2f}"+(" • recent broker quote" if fresh else " • HISTORICAL / timestamp unverified")
         return ft.Column([
+            note("Selected strike • "+strike+" • Expiry "+str(expiry.value or "not selected")),
+            note(premium_label("CE")),
+            note(premium_label("PE")),
+            note("Dhan option premiums are not connected yet; underlying LTP is not CE/PE premium.") if prefs.get("source")=="Dhan" else note("Premiums require verified option contracts."),
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
