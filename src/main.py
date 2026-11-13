@@ -1235,7 +1235,8 @@ def app_main(page:ft.Page):
             signal_stamp=signal_row.get("timestamp")
             signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))
                           and not signal_row.get("historical") and regular_hours()
-                          and isinstance(signal_stamp,(int,float))
+                          and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
+                          and math.isfinite(signal_stamp) and signal_stamp>0
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
             signal_available=(signal_row.get("source")==expected_quote_source and
                               isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
