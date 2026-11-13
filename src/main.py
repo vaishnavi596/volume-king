@@ -3255,7 +3255,7 @@ console.log('BOT KING Lightweight Charts ready');
                     refresh_cached_scanner_signal()
             except Exception as exc:
                 log_error("scanner_fast_signal",exc)
-            await asyncio.sleep(10)
+            await asyncio.sleep(20)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
