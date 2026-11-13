@@ -424,6 +424,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertNotIn('get_market_data', section.split('    async def option_poll():')[0])
         self.assertIn('generation!=provider_generation[0]', section)
 
+    def test_dhan_history_cooldown_uses_gateway_retry_window(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('retry_seconds=max(30.0, dhan_feed.cooldown_remaining("/dhan/intraday"))', source)
+        self.assertIn('await asyncio.sleep(retry_seconds)', source)
+        self.assertIn('symbols not attempted', source)
+        self.assertNotIn('await asyncio.sleep(60)\\n                    continue\\n                successes=sum(results)', source)
+
     def test_dhan_scanner_offers_only_supported_candle_intervals(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('scanner_intervals=(["1m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
