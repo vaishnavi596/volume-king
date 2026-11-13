@@ -30,7 +30,9 @@ class ScannerSafetyTests(unittest.TestCase):
         row={"source":"Dhan","bias":"BULLISH","timestamp":now,"count":35,"score":100,
              "votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"Supertrend","vote":1}]}
         self.assertEqual(rank_candidates({"ABC":row}),[])
-        verified=dict(row,freshness="verified_live")
+        freshness_only=dict(row,freshness="verified_live")
+        self.assertEqual(rank_candidates({"ABC":freshness_only}),[])
+        verified=dict(freshness_only,live_verified=True)
         self.assertEqual(len(rank_candidates({"ABC":verified})),1)
         self.assertEqual(rank_candidates({"ABC":dict(verified,historical=True)}),[])
         self.assertEqual(rank_candidates({"ABC":dict(verified,cached=True)}),[])
