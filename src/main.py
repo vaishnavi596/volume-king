@@ -1228,6 +1228,7 @@ def app_main(page:ft.Page):
             quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
             signal_row=watch_signal_cache.get(sym,{})
+            if not isinstance(signal_row,dict):signal_row={}
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
             signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))
