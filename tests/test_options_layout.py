@@ -59,7 +59,8 @@ class OptionsLayoutTests(unittest.TestCase):
             return bars
         with patch.object(v['angel_feed'],'option_history',side_effect=fetch):
             asyncio.run(v['load_option_history']())
-        self.assertEqual(v['option_chart_cache']['bars'],bars)
+        expected=[(int(b[0]), *[float(x) for x in b[1:]]) for b in bars]
+        self.assertEqual(v['option_chart_cache']['bars'],expected)
         self.assertIn('history loaded from Angel One',self.chart_text(v))
         v['option_strike'].value='56100'
         self.assertNotIn('history loaded',self.chart_text(v))
