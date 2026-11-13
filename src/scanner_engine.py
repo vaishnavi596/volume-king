@@ -23,7 +23,7 @@ def analyze(bars, selected=None, timeframe="5m"):
     now = datetime.now(timezone.utc).timestamp()
     clean = [b for b in bars if isinstance(b, (list, tuple)) and len(b) >= 6
              and all(type(b[i]) in (int, float) and math.isfinite(b[i]) and b[i] > 0 for i in (0,1,2,3,4))
-             and b[0] <= now + 60
+             and 946684800 <= b[0] <= now + 60
              and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
              and type(b[5]) in (int, float) and math.isfinite(b[5]) and b[5] >= 0]
     # Out-of-order or duplicate bars can create false crossovers and invalid freshness.
