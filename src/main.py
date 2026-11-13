@@ -2911,6 +2911,12 @@ def app_main(page:ft.Page):
     saved_scanner_symbol=prefs.get("scanner_symbol","NIFTY")
     if saved_scanner_symbol not in scanner_symbols:
         scanner_symbols.append(saved_scanner_symbol)
+    # The Dhan gateway currently verifies NIFTY and mapped NSE equities only.
+    # Do not offer unsupported indexes as if their candles were available.
+    if prefs.get("source","Dhan")=="Dhan":
+        scanner_symbols=[v for v in scanner_symbols if v in DHAN_VERIFIED_SYMBOLS]
+        if saved_scanner_symbol not in DHAN_VERIFIED_SYMBOLS:
+            saved_scanner_symbol="NIFTY"
     scan_symbol=ft.Dropdown(label="Market / NSE stock",value=saved_scanner_symbol,options=[ft.dropdown.Option(v) for v in scanner_symbols])
     scan_budget=ft.Dropdown(label="Premium budget",value=prefs.get("scanner_budget","80-120"),options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value=str(prefs.get("scanner_min","50")),keyboard_type=ft.KeyboardType.NUMBER)
