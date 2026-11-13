@@ -57,6 +57,12 @@ class ScannerSafetyTests(unittest.TestCase):
             result=analyze(bars)
             self.assertEqual(result["count"],34)
 
+    def test_invalid_indicator_selection_fails_closed(self):
+        for invalid in (42, True, {"EMA 9/21":True}, ["EMA 9/21", None]):
+            result=analyze(candles(), invalid)
+            self.assertEqual(result["bias"],"WAIT")
+            self.assertEqual(result["reason"],"Invalid indicator selection")
+
     def test_invalid_candle_collection_fails_closed(self):
         for invalid in (None, {}, "not candles", 42):
             result=analyze(invalid)
