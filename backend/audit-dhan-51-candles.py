@@ -66,6 +66,12 @@ def main():
         if code == 429:
             print(f"{i:02d}/{len(SYMBOLS)} {symbol}: HTTP 429 RATE_LIMIT; STOP")
             return 3
+        if code in (401, 403):
+            print(f"{i:02d}/{len(SYMBOLS)} {symbol}: HTTP {code} AUTHORIZATION_FAILURE; STOP")
+            return 2
+        if code == 0:
+            print(f"{i:02d}/{len(SYMBOLS)} {symbol}: TRANSPORT_FAILURE; STOP")
+            return 2
         bars = result.get("bars") if isinstance(result, dict) else None
         if code != 200:
             outcome = "http_error"
