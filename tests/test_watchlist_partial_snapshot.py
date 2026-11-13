@@ -91,7 +91,7 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         block=server[start:end]
         self.assertIn('cached.get("from_date") == body.from_date.isoformat()',block)
         self.assertIn('cached.get("to_date") == body.to_date.isoformat()',block)
-        self.assertIn('0 <= age < 60',block)
+        self.assertIn('0 <= age < 180',block)
         self.assertIn('cached.get("bars")',block)
         self.assertIn('freshness": "historical_unverified"',block)
 
