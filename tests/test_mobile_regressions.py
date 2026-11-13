@@ -22,6 +22,20 @@ def walk(control):
 
 
 class MobileRegressionTests(unittest.TestCase):
+    def test_scanner_fast_signal_is_cache_only_and_api_scan_keeps_30_second_floor(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        fast = source.split("    def refresh_cached_scanner_signal():", 1)[1].split("    async def auto_scan_loop(generation):", 1)[0]
+        self.assertIn('await asyncio.sleep(20)', fast)
+        self.assertIn('snapshot=candles.get("scanner_chart_"+sym)', fast)
+        self.assertIn('snapshot.get("cached")', fast)
+        self.assertIn('identity==scan_fast_seen[0]', fast)
+        self.assertNotIn('get_market_data(', fast)
+        self.assertNotIn('dhan_feed.intraday(', fast)
+        loop = source.split("    async def auto_scan_loop(generation):", 1)[1].split("    scan_live.on_change=", 1)[0]
+        self.assertIn("max(30,delay)", loop)
+        self.assertIn("if not scan_busy[0]", loop)
+        self.assertIn("page.run_task(scanner_fast_signal_loop)", source)
+
     def test_dhan_scanner_chart_reuses_only_matching_symbol_and_timeframe(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         start = source.index("    async def tv_load_widget():")
