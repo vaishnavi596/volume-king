@@ -34,7 +34,7 @@ class DhanFeed:
             raise DhanFeedError("Dhan credentials are not configured")
 
     def _post(self, endpoint, payload):
-        if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical"):
+        if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical", "/optionchain"):
             raise DhanFeedError("Unsupported read-only endpoint")
         with self._rate_lock:
             if time.monotonic() < self._retry_after:
@@ -125,3 +125,30 @@ class DhanFeed:
         if not isinstance(payload, dict) or not payload.get("securityId"):
             raise DhanFeedError("Dhan instrument mapping required")
         return self._post("/charts/historical", payload)
+
+    def option_chain(self, underlying_segment, underlying_security_id, expiry):
+        """Read-only Dhan option-chain request; no broker fallback or order routing.
+
+        Caller must verify the underlying against the instrument master and
+        validate the returned chain before computing OI, PCR or max pain.
+        """
+        from datetime import date
+        if underlying_segment not in ("IDX_I", "NSE_EQ", "BSE_I", "BSE_EQ"):
+            raise DhanFeedError("Verified underlying segment required")
+        if isinstance(underlying_security_id, bool) or not (
+            isinstance(underlying_security_id, int) or
+            (isinstance(underlying_security_id, str) and underlying_security_id.isascii()
+             and underlying_security_id.isdecimal())
+        ) or int(underlying_security_id) <= 0:
+            raise DhanFeedError("Verified underlying security ID required")
+        try:
+            expiry_date = date.fromisoformat(expiry)
+        except (TypeError, ValueError):
+            raise DhanFeedError("Valid ISO expiry date required") from None
+        if expiry_date < date.today():
+            raise DhanFeedError("Expired option chain requested")
+        return self._post("/optionchain", {
+            "UnderlyingScrip": int(underlying_security_id),
+            "UnderlyingSeg": underlying_segment,
+            "Expiry": expiry_date.isoformat(),
+        })
