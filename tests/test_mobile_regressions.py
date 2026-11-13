@@ -438,6 +438,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical', card)
         self.assertIn('else "NO CLEAR SIGNAL" if row["bias"]=="WAIT"', card)
         self.assertIn('or not regular_hours()', card)
+        self.assertIn('row.get("cached")', card)
+        self.assertIn('row.get("freshness") not in ("verified_live","live_verified")', card)
 
     def test_chart_navigation_checks_selected_timeframe_snapshot_not_watch_quote(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
