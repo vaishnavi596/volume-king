@@ -691,6 +691,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     return {"symbol": body.symbol, "source": "dhan",
                             "interval": str(body.interval) + "m",
                             "bars": [list(bar) for bar in cached["bars"]],
+                            "last_candle_timestamp": int(cached["bars"][-1][0]),
                             "freshness": "historical_unverified",
                             "live_orders_enabled": False}
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
@@ -758,7 +759,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     candle_cache.pop(next(iter(candle_cache)))
                 persist_candle_cache()
         return {"symbol": body.symbol, "source": "dhan", "interval": str(body.interval) + "m",
-                "bars": bars, "freshness": "historical_unverified",
+                "bars": bars, "last_candle_timestamp": int(bars[-1][0]) if bars else None,
+                "freshness": "historical_unverified",
                 "live_orders_enabled": False}
 
     @app.get("/health")
