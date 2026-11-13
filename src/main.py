@@ -1235,7 +1235,7 @@ def app_main(page:ft.Page):
             signal_available=(signal_row.get("source")==expected_quote_source and
                               isinstance(signal_stamp,(int,float)) and signal_counts is not None)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
-                              "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available else "Neutral"
+                              "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available and signal_fresh else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
