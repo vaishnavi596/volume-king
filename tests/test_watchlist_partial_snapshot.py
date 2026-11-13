@@ -70,7 +70,8 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
 
     def test_dhan_history_prioritizes_scanner_and_super_five_without_fanout(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        self.assertIn('priority=[scan_symbol.value or "NIFTY"]+[row.get("symbol") for row in top5_candidates',text)
+        self.assertIn('priority=[scan_symbol.value or "NIFTY"]+dashboard_priority+[row.get("symbol") for row in top5_candidates',text)
+        self.assertIn('dashboard_priority=[prefs.get("dashboard_analysis_slot_"',text)
         self.assertIn('[sym for sym in priority if sym in symbols]+symbols',text)
         self.assertIn('results.append(await load_one(sym))',text)
         self.assertIn('await asyncio.sleep(1.5)',text)

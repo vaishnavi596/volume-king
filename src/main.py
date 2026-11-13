@@ -1065,9 +1065,22 @@ def app_main(page:ft.Page):
             source=snapshot.get("source")
             valid_source=source=={"Dhan":"Dhan","Broker API":"Angel One",
                                   "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            # Index prices are not part of the 51-equity Dhan snapshot.
+            # Never suggest a missing index quote is a successfully refreshed LTP.
+            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
+                    or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
+                    or snapshot["price"]<=0):
+                rows_note=(("NIFTY mapping exists; individual Dhan index LTP not available yet • "
+                            "51-equity snapshot does not contain index prices") if sym=="NIFTY" else
+                           ("BANK NIFTY / SENSEX instrument mapping not verified • "
+                            "51-equity snapshot does not contain index prices"))
+            else:
+                rows_note=None
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
+            if rows_note:
+                rows.append(note(rows_note))
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
             else:
@@ -3979,7 +3992,12 @@ console.log('BOT KING Lightweight Charts ready');
                 # before the remaining watchlist; retain full-list coverage and stable order.
                 # Only verified watchlist symbols may enter the Dhan history queue.
                 if prefs.get("source")=="Dhan":
-                    priority=[scan_symbol.value or "NIFTY"]+[row.get("symbol") for row in top5_candidates if isinstance(row,dict)]
+                    # On cold start, prioritize the visible scanner and dashboard
+                    # equities before the remaining 51-symbol history queue.
+                    # The index probe remains deferred below to protect equities.
+                    dashboard_priority=[prefs.get("dashboard_analysis_slot_"+str(i),default)
+                                        for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1)]
+                    priority=[scan_symbol.value or "NIFTY"]+dashboard_priority+[row.get("symbol") for row in top5_candidates if isinstance(row,dict)]
                     symbols=list(dict.fromkeys(
                         [sym for sym in priority if sym in symbols]+symbols))
                 # An index-history failure must not prevent the 51 equity candles
