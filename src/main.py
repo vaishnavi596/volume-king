@@ -828,11 +828,7 @@ def app_main(page:ft.Page):
         # A disconnected Dhan session is one root cause, not four independent
         # failures. Preserve the detailed diagnostics but avoid alarming users
         # with derivative scan/quote/chart errors until re-authentication.
-        if dhan and connected and valid<total:
-            problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
-        if diagnostics and connected and dhan and valid<total:
-            problems.append("Last error: "+diagnostics[-1][:100])
-        if dhan and connected and valid>=total and "FeedError" in component_status("market"):
+        if dhan and connected and "FeedError" in component_status("market"):
             problems.append("Chart data request failed; scanner completion does not verify chart")
         market_health=component_status("market")
         if connected and ("STALE" in market_health or "UNAVAILABLE" in market_health):
@@ -987,13 +983,13 @@ def app_main(page:ft.Page):
             return section("SUPER FIVE • CONNECTION REQUIRED",ft.Column([
                 note("Dhan disconnected • connect and verify the feed in Settings before scanning."),
                 note("Saved historical rankings are hidden while disconnected; no live signal is available."),
-                note("Scan progress: 0 / "+str(len(watch_symbols))+" • paused")
+                note("Historical analysis unavailable • Dhan reconnect required")
             ],spacing=7))
         rows=top5_candidates[:]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
-            note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
+            note("Historical analysis: "+str(scan_progress["state"])+" • separate from watchlist quote refresh")]
         # Keep Super Five focused on five candidates, not a scrolling wall
         # of up to 51 provider errors and retry buttons. Full per-symbol
         # diagnostics remain in System Health / Scanner.
@@ -1379,7 +1375,7 @@ def app_main(page:ft.Page):
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
-                wrap=True),note("Candle analysis: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
+                wrap=True),note("Quote refresh is independent of historical analysis • latest batch status above"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
