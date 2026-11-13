@@ -828,11 +828,7 @@ def app_main(page:ft.Page):
         # A disconnected Dhan session is one root cause, not four independent
         # failures. Preserve the detailed diagnostics but avoid alarming users
         # with derivative scan/quote/chart errors until re-authentication.
-        if dhan and connected and valid<total:
-            problems.append("Candle scan "+str(valid)+"/"+str(total)+" • "+state[:90])
-        if diagnostics and connected and dhan and valid<total:
-            problems.append("Last error: "+diagnostics[-1][:100])
-        if dhan and connected and valid>=total and "FeedError" in component_status("market"):
+        if dhan and connected and "FeedError" in component_status("market"):
             problems.append("Chart data request failed; scanner completion does not verify chart")
         market_health=component_status("market")
         if connected and ("STALE" in market_health or "UNAVAILABLE" in market_health):
@@ -987,13 +983,13 @@ def app_main(page:ft.Page):
             return section("SUPER FIVE • CONNECTION REQUIRED",ft.Column([
                 note("Dhan disconnected • connect and verify the feed in Settings before scanning."),
                 note("Saved historical rankings are hidden while disconnected; no live signal is available."),
-                note("Scan progress: 0 / "+str(len(watch_symbols))+" • paused")
+                note("Historical analysis unavailable • Dhan reconnect required")
             ],spacing=7))
         rows=top5_candidates[:]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
-            note("Scan progress: "+str(scan_progress["checked"])+" / "+str(scan_progress["total"])+" • valid: "+str(scan_progress["valid"])+" • cached: "+str(scan_progress["cached"])+" • failed: "+str(scan_progress["failed"])+" • "+scan_progress["state"])]
+            note("Historical analysis: "+str(scan_progress["state"])+" • separate from watchlist quote refresh")]
         # Keep Super Five focused on five candidates, not a scrolling wall
         # of up to 51 provider errors and retry buttons. Full per-symbol
         # diagnostics remain in System Health / Scanner.
@@ -1121,7 +1117,7 @@ def app_main(page:ft.Page):
             prefs["watchlist_"+str(i)]=list(group)
         save()
     active_watch=[0]
-    watch_list=ft.Column(spacing=8)
+    watch_list=ft.Column(spacing=8,scroll=ft.ScrollMode.AUTO)
     selected_watch=[""]
     watch_filter=["All"]
     add_symbol=ft.TextField(label="Add NSE symbol",hint_text="e.g. HDFCBANK",expand=True)
@@ -1237,7 +1233,7 @@ def app_main(page:ft.Page):
                          and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool)
                           and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
-            quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
+            quote_label=("Oracle LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
@@ -1268,6 +1264,8 @@ def app_main(page:ft.Page):
         fill_watch()
     watch_batch_busy=[False]
     watch_batch_status=["Dhan batch not checked on this screen"]
+    watch_batch_last_attempt=[0.0]
+    watch_batch_last_success=[0.0]
     async def refresh_watch_batch():
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
@@ -1277,6 +1275,7 @@ def app_main(page:ft.Page):
             request_view_refresh(4)
             return
         watch_batch_busy[0]=True
+        watch_batch_last_attempt[0]=time.monotonic()
         generation=provider_generation[0]
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
@@ -1323,6 +1322,7 @@ def app_main(page:ft.Page):
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {received}/{total_symbols} valid prices • timestamp unverified")
             market_status=watch_batch_status[0]
+            watch_batch_last_success[0]=time.monotonic()
         except Exception as exc:
             # Android may suspend a network request when the app loses focus.
             # Do not report that lifecycle interruption as a provider failure.
@@ -1363,10 +1363,29 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Poll the Oracle cached snapshot more often than its 90-second ingest cycle.
-            # This GET does not initiate a Dhan quote collection; keep historical
-            # candle scans on their separate rate-limited cadence.
-            await asyncio.sleep(45)
+            # Independent foreground quote poll at the user-selected 3-minute cadence.
+            # The Oracle snapshot may itself be cached; its fetch is not exchange freshness.
+            await asyncio.sleep(180)
+
+    async def watch_visible_tick():
+        # Never rebuild the scrolling list every two seconds when quotes are unchanged.
+        # The quote batch and scroll handler already request a view refresh.
+        # Rebuilding all rows continuously resets Android scroll position.
+        last_visible_signature=None
+        while True:
+            await asyncio.sleep(2)
+            if current[0]!=4 or not app_active[0]:
+                last_visible_signature=None
+                continue
+            try:
+                visible=tuple(watch_groups[active_watch[0]])
+                signature=(active_watch[0],tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
+                            (quotes.get(sym) or {}).get("price"),
+                            (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
+                if signature!=last_visible_signature:
+                    last_visible_signature=signature
+                    fill_watch()
+            except Exception as exc:log_error("watch_visible_tick",exc)
 
     def watchlist():
         fill_watch()
@@ -1375,11 +1394,11 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(market_status+" • Quotes may be delayed"),
+            note(("Dhan quote refresh • every 3 min while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
-                wrap=True),note("Candle analysis: "+str(scan_progress["checked"])+"/"+str(scan_progress["total"])+" • "+scan_progress["state"]+" • LTP and historical analysis refresh separately"),watch_list]
+                wrap=True),note("Quote refresh is independent of historical analysis • latest batch status above"),watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m"),options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h","1D"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
@@ -4098,6 +4117,7 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    page.run_task(watch_visible_tick)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def refresh_after_resume():
