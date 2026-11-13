@@ -94,6 +94,8 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn('0 <= age < 180',block)
         self.assertIn('cached.get("bars")',block)
         self.assertIn('freshness": "historical_unverified"',block)
+        self.assertIn('"last_candle_timestamp": int(cached["bars"][-1][0])',block)
+        self.assertIn('"last_candle_timestamp": int(bars[-1][0]) if bars else None',block)
 
     def test_closed_session_dhan_429_does_not_schedule_auto_retry(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
