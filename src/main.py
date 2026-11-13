@@ -1067,7 +1067,9 @@ def app_main(page:ft.Page):
                                   "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
             # Index prices are not part of the 51-equity Dhan snapshot.
             # Never suggest a missing index quote is a successfully refreshed LTP.
-            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and not valid_source:
+            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
+                    or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
+                    or snapshot["price"]<=0):
                 rows_note=("Index LTP unavailable from the current Dhan equity snapshot • "
                            "requires a separately verified Dhan index instrument feed")
             else:
