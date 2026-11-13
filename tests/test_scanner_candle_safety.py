@@ -57,6 +57,10 @@ class ScannerSafetyTests(unittest.TestCase):
             result=analyze(bars)
             self.assertEqual(result["count"],34)
 
+    def test_daily_simulation_timeframe_remains_supported(self):
+        result=analyze(candles(),timeframe="1d")
+        self.assertNotEqual(result.get("reason"),"Unsupported candle timeframe")
+
     def test_unsupported_timeframe_fails_closed(self):
         for invalid in ("2m", "1d", "", None, 5):
             result=analyze(candles(),timeframe=invalid)
