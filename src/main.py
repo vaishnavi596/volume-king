@@ -4022,7 +4022,7 @@ console.log('BOT KING Lightweight Charts ready');
                                     and (not isinstance(data_stamp,(int,float)) or previous_stamp>data_stamp)
                                     and isinstance(previous_quote.get("price"),(int,float))
                                     and not isinstance(previous_quote.get("price"),bool)
-                                    and math.isfinite(previous_quote["price"])):
+                                    and math.isfinite(previous_quote["price"]) and previous_quote["price"]>0):
                                 quotes[sym]=dict(data,price=previous_quote["price"],
                                                  fetched_at=previous_stamp,source="Dhan",
                                                  quote_timestamp=previous_quote.get("quote_timestamp"),
