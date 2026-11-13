@@ -25,6 +25,16 @@ class ScannerSafetyTests(unittest.TestCase):
         votes={v["name"]:v for v in result["votes"]}
         self.assertIsNotNone(votes["VWAP"]["vote"])
         self.assertIsNotNone(votes["Volume"]["vote"])
+    def test_dhan_ranking_requires_explicit_live_verification(self):
+        now=datetime.now(timezone.utc).timestamp()
+        row={"source":"Dhan","bias":"BULLISH","timestamp":now,"count":35,"score":100,
+             "votes":[{"name":"EMA 9/21","vote":1},{"name":"MACD","vote":1},{"name":"Supertrend","vote":1}]}
+        self.assertEqual(rank_candidates({"ABC":row}),[])
+        verified=dict(row,freshness="verified_live")
+        self.assertEqual(len(rank_candidates({"ABC":verified})),1)
+        self.assertEqual(rank_candidates({"ABC":dict(verified,historical=True)}),[])
+        self.assertEqual(rank_candidates({"ABC":dict(verified,cached=True)}),[])
+
     def test_valid(self):
         self.assertEqual(analyze(candles())["count"], 35)
     def test_duplicate_timestamp(self):
