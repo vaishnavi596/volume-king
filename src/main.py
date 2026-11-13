@@ -241,9 +241,7 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Dhan","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
-    # Production UI is Dhan-only: never restore a legacy provider from saved preferences.
-    # Archived Yahoo/Angel implementations remain for isolated regression fixtures.
-    prefs["source"]="Dhan"
+    if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
@@ -2013,7 +2011,8 @@ def app_main(page:ft.Page):
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
     source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Dhan")])
-    broker_names=["Dhan","Angel One"]
+    # The new production broker selector is Dhan-only; archived adapters remain for tests.
+    broker_names=["Dhan"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Dhan") if prefs.get("broker","Dhan") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
