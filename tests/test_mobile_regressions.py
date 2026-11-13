@@ -419,6 +419,13 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('previous["fetched_at"]>hist.get("fetched_at",0)', section)
         self.assertIn('previous.get("source")==hist.get("source")', section)
 
+    def test_dhan_scanner_offers_only_supported_candle_intervals(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('scanner_intervals=(["1m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
+        self.assertIn('if saved_scanner_tf not in scanner_intervals:', source)
+        self.assertIn('saved_scanner_tf="5m"', source)
+        self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
+
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
