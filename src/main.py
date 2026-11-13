@@ -1344,7 +1344,7 @@ def app_main(page:ft.Page):
                 if (isinstance(old,dict) and old.get("source")=="Dhan"
                         and isinstance(old.get("price"),(int,float))
                         and not isinstance(old.get("price"),bool)
-                        and math.isfinite(old["price"])):
+                        and math.isfinite(old["price"]) and old["price"]>0):
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
             if not app_active[0]:
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
