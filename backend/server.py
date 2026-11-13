@@ -37,6 +37,10 @@ try:
     from .dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 except ImportError:  # Direct execution on the Oracle backend directory
     from dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
+try:
+    from .dhan_option_metrics import calculate_option_metrics, OptionMetricsUnavailable
+except ImportError:
+    from dhan_option_metrics import calculate_option_metrics, OptionMetricsUnavailable
 from pathlib import Path
 
 _dhan_auth_logger = logging.getLogger("botking.dhan.auth")
@@ -124,6 +128,10 @@ class DhanIntradayRequest(BaseModel):
 class Options(Symbol):
     expiry: date
     spot: float = Field(gt=0)
+
+
+class DhanOptionChainRequest(Symbol):
+    expiry: date
 
 
 class OptionHistory(Symbol):
@@ -448,6 +456,36 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "reauthentication_required": not authenticated,
                     "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
+
+    @app.post("/dhan/option-chain")
+    def dhan_option_chain(body: DhanOptionChainRequest,
+                          x_botking_key: Optional[str] = Header(default=None)):
+        """Dhan-only read-only option metrics; never certify live trading signals."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        instrument = DHAN_VERIFIED_INSTRUMENTS.get(body.symbol)
+        if not instrument or instrument[2] != "INDEX" or instrument[0] != "IDX_I":
+            raise HTTPException(422, "Verified Dhan option underlying mapping unavailable")
+        if body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date():
+            raise HTTPException(422, "Option expiry has passed")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        token = dhan_market_token()
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        try:
+            raw = DhanFeed(client, token).option_chain(instrument[0], instrument[1],
+                                                       body.expiry.isoformat())
+            metrics = calculate_option_metrics(raw)
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan option chain rate limited; retry later",
+                                headers={"Retry-After": "30"}) from None
+        except OptionMetricsUnavailable:
+            raise HTTPException(502, "Dhan option chain incomplete or unverified") from None
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan option chain unavailable or not entitled") from None
+        return {"source": "dhan", "symbol": body.symbol,
+                "expiry": body.expiry.isoformat(), **metrics,
+                "live_orders_enabled": False}
 
     @app.post("/dhan/ltp")
     def dhan_ltp(body: Symbol, x_botking_key: Optional[str] = Header(default=None)):
