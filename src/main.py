@@ -2922,7 +2922,13 @@ def app_main(page:ft.Page):
     scan_min=ft.TextField(label="Custom minimum (₹)",value=str(prefs.get("scanner_min","50")),keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value=str(prefs.get("scanner_max","500")),keyboard_type=ft.KeyboardType.NUMBER)
     scan_period=ft.Dropdown(label="Historical period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
-    scan_tf=ft.Dropdown(label="Candle timeframe",value=prefs.get("scanner_timeframe","5m"),options=[ft.dropdown.Option(v) for v in ["1m","3m","5m","15m","30m","1h","1d"]])
+    # Only expose intervals that the active Dhan gateway can actually fetch.
+    scanner_intervals=(["1m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
+                       else ["1m","3m","5m","15m","30m","1h","1d"])
+    saved_scanner_tf=prefs.get("scanner_timeframe","5m")
+    if saved_scanner_tf not in scanner_intervals:
+        saved_scanner_tf="5m"
+    scan_tf=ft.Dropdown(label="Candle timeframe",value=saved_scanner_tf,options=[ft.dropdown.Option(v) for v in scanner_intervals])
     scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
