@@ -3992,7 +3992,12 @@ console.log('BOT KING Lightweight Charts ready');
                 # before the remaining watchlist; retain full-list coverage and stable order.
                 # Only verified watchlist symbols may enter the Dhan history queue.
                 if prefs.get("source")=="Dhan":
-                    priority=[scan_symbol.value or "NIFTY"]+[row.get("symbol") for row in top5_candidates if isinstance(row,dict)]
+                    # On cold start, prioritize the visible scanner and dashboard
+                    # equities before the remaining 51-symbol history queue.
+                    # The index probe remains deferred below to protect equities.
+                    dashboard_priority=[prefs.get("dashboard_analysis_slot_"+str(i),default)
+                                        for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1)]
+                    priority=[scan_symbol.value or "NIFTY"]+dashboard_priority+[row.get("symbol") for row in top5_candidates if isinstance(row,dict)]
                     symbols=list(dict.fromkeys(
                         [sym for sym in priority if sym in symbols]+symbols))
                 # An index-history failure must not prevent the 51 equity candles
