@@ -16,6 +16,9 @@ def ema(values, period):
 
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
+    if not isinstance(selected, (list, tuple, set)) or any(not isinstance(name, str) for name in selected):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid indicator selection",
+                "count":0,"timeframe":timeframe,"timestamp":None}
     if not isinstance(bars, (list, tuple)):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid candle collection",
                 "count":0,"timeframe":timeframe,"timestamp":None}
