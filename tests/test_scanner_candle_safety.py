@@ -64,6 +64,13 @@ class ScannerSafetyTests(unittest.TestCase):
             self.assertEqual(result["count"],0)
             self.assertIsNone(result["timestamp"])
 
+    def test_invalid_epoch_timestamp_is_rejected(self):
+        for bad_timestamp in (1, -1, 1e100):
+            bars=candles()
+            bars[-1][0]=bad_timestamp
+            result=analyze(bars)
+            self.assertEqual(result["count"],34)
+
     def test_boolean_volume_is_rejected(self):
         bars=candles()
         bars[-1][5]=True
