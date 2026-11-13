@@ -1117,7 +1117,7 @@ def app_main(page:ft.Page):
             prefs["watchlist_"+str(i)]=list(group)
         save()
     active_watch=[0]
-    watch_list=ft.Column(spacing=8)
+    watch_list=ft.Column(spacing=8,scroll=ft.ScrollMode.AUTO)
     selected_watch=[""]
     watch_filter=["All"]
     add_symbol=ft.TextField(label="Add NSE symbol",hint_text="e.g. HDFCBANK",expand=True)
@@ -1233,7 +1233,7 @@ def app_main(page:ft.Page):
                          and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool)
                           and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
-            quote_label=("LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
+            quote_label=("Oracle LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote"
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
@@ -1381,9 +1381,8 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Poll the Oracle cached snapshot more often than its 90-second ingest cycle.
-            # This GET does not initiate a Dhan quote collection; keep historical
-            # candle scans on their separate rate-limited cadence.
+            # Independent foreground quote poll at the user-selected 3-minute cadence.
+            # The Oracle snapshot may itself be cached; its fetch is not exchange freshness.
             await asyncio.sleep(180)
 
     async def watch_visible_tick():
