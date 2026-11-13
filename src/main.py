@@ -1805,6 +1805,7 @@ def app_main(page:ft.Page):
         feedback=option_chart_feedback if option_chart_feedback.get("key")== (provider_generation[0],context) else {}
         controls=[note("Option premium history • selected manual strike / CE or PE • 5m"),ft.ElevatedButton("Load option premium chart",disabled=option_chart_busy[0],on_click=lambda e:page.run_task(load_option_history))]
         bars=option_chart_cache.get("bars",[]) if option_chart_cache.get("context")==context else (market_store.get("option_chart",*context) or {}).get("bars",[])
+        bars=clean_bars(bars)
         if bars:
             series=ft.LineChartData(data_points=[ft.LineChartDataPoint(i,b[4]) for i,b in enumerate(bars[-70:])],color=GOLD,stroke_width=2)
             controls.append(ft.Container(content=ft.LineChart(data_series=[series],expand=True),height=200))
