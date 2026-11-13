@@ -1264,6 +1264,8 @@ def app_main(page:ft.Page):
         fill_watch()
     watch_batch_busy=[False]
     watch_batch_status=["Dhan batch not checked on this screen"]
+    watch_batch_last_attempt=[0.0]
+    watch_batch_last_success=[0.0]
     async def refresh_watch_batch():
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
@@ -1273,6 +1275,7 @@ def app_main(page:ft.Page):
             request_view_refresh(4)
             return
         watch_batch_busy[0]=True
+        watch_batch_last_attempt[0]=time.monotonic()
         generation=provider_generation[0]
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
@@ -1319,6 +1322,7 @@ def app_main(page:ft.Page):
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {received}/{total_symbols} valid prices • timestamp unverified")
             market_status=watch_batch_status[0]
+            watch_batch_last_success[0]=time.monotonic()
         except Exception as exc:
             # Android may suspend a network request when the app loses focus.
             # Do not report that lifecycle interruption as a provider failure.
@@ -1362,7 +1366,7 @@ def app_main(page:ft.Page):
             # Poll the Oracle cached snapshot more often than its 90-second ingest cycle.
             # This GET does not initiate a Dhan quote collection; keep historical
             # candle scans on their separate rate-limited cadence.
-            await asyncio.sleep(45)
+            await asyncio.sleep(180)
 
     def watchlist():
         fill_watch()
@@ -1371,7 +1375,7 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(market_status+" • Quotes may be delayed"),
+            note(("Dhan quote refresh • every 3 min while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
