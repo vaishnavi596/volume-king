@@ -3223,6 +3223,39 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if scan_live.value:
             page.run_task(auto_scan_loop,scan_auto_generation[0])
+    # Fast local signal pass: never calls Dhan or treats saved/stale candles as live.
+    # A signal can change only when a newer verified-source candle arrives.
+    scan_fast_seen=[None]
+    def refresh_cached_scanner_signal():
+        if not app_active[0] or scan_busy[0] or not regular_hours():
+            return
+        sym=scan_symbol.value or "NIFTY"
+        tf=scan_tf.value or "5m"
+        snapshot=candles.get("scanner_chart_"+sym)
+        if not isinstance(snapshot,dict) or snapshot.get("cached") or snapshot.get("source") not in ("dhan","Dhan"):
+            return
+        bars=snapshot.get("bars")
+        if not isinstance(bars,list) or len(bars)<30:
+            return
+        last=bars[-1][0]
+        identity=(scan_generation[0],sym,tf,last)
+        if identity==scan_fast_seen[0]:
+            return
+        result=analyze_current(bars,filter_selected,tf)
+        if result.get("timestamp")!=last:
+            return
+        scan_fast_seen[0]=identity
+        scan_shared.update(direction=result["bias"],basis=result["reason"],tf=tf,symbol=sym,timestamp=last)
+        if current[0]==0:
+            request_view_refresh(0)
+    async def scanner_fast_signal_loop():
+        while True:
+            try:
+                if scan_live.value and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                    refresh_cached_scanner_signal()
+            except Exception as exc:
+                log_error("scanner_fast_signal",exc)
+            await asyncio.sleep(10)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
