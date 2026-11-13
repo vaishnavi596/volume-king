@@ -2938,7 +2938,7 @@ def app_main(page:ft.Page):
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names]
+    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names and x not in OPTION_FILTERS]
     added_filters=list(dict.fromkeys(x for x in prefs.get("scanner_added_filters",[])+filter_selected if x in filter_names and x not in DEFAULT_FILTERS))
     added_filter_list=ft.Column(spacing=8)
     def store_filters():
@@ -3162,6 +3162,10 @@ console.log('BOT KING Lightweight Charts ready');
         if not scan_busy[0]:trigger_scan()
     def filter_checkbox_changed(e):
         name=e.control.data
+        if name in OPTION_FILTERS:
+            filter_feedback.value="Unavailable: verified option-chain OI/PCR data not connected"
+            select(3)
+            return
         if e.control.value and name not in filter_selected:filter_selected.append(name)
         elif not e.control.value and name in filter_selected:filter_selected.remove(name)
         store_filters();select(3)
@@ -3174,6 +3178,9 @@ console.log('BOT KING Lightweight Charts ready');
         else:
             name=hits[0]
             if add:
+                if name in OPTION_FILTERS:
+                    filter_feedback.value="Unavailable: verified option-chain OI/PCR feed required"
+                    return
                 if name not in filter_selected:filter_selected.append(name)
                 if name not in DEFAULT_FILTERS and name not in added_filters:added_filters.append(name)
                 filter_feedback.value="Selected "+name+" • "+filter_availability(name)
