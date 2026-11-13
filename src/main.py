@@ -748,6 +748,7 @@ def app_main(page:ft.Page):
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
+        if total<2:return note("Signal agreement insufficient • fewer than 2 votes")
         stamp=row.get("timestamp")
         historical=row.get("historical") or row.get("source")!=({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")) or not regular_hours() or not isinstance(stamp,(int,float)) or isinstance(stamp,bool) or not math.isfinite(stamp) or not 0<=datetime.now(timezone.utc).timestamp()-stamp<=timeframe_spec("5m")["fresh_seconds"]
         # Historical filter ratios are context, not a current directional signal.
