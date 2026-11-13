@@ -271,7 +271,9 @@ def app_main(page:ft.Page):
     option_feed={}
     option_feed_busy=[False]
     broker_connect_busy=[False]
-    option_feed_status=["Connect Angel One for verified CE/PE quotes."]
+    option_feed_status=["Dhan option metrics not loaded; live orders OFF."]
+    dhan_option_metrics={}
+    dhan_option_last_attempt=[0.0]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
         diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__)
@@ -1942,54 +1944,57 @@ def app_main(page:ft.Page):
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Dhan read-only quotes and historical candles. Option-chain premiums/OI unavailable without a verified feed; live orders OFF.")],
+            note("Dhan read-only quotes, candles and NIFTY option metrics. Option freshness unverified; signals and live orders OFF.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
-        if option_feed_busy[0]:return
+        # Dhan-only read-only option metrics. No Angel One fallback.
+        if option_feed_busy[0] or not dhan_feed.connected:
+            option_feed_status[0]="Connect Dhan in Settings to load listed option expiries."
+            return
         option_feed_busy[0]=True
-        generation=provider_generation[0];sym=chain_symbol.value;expiry_value=expiry.value
-        health_key="options:"+sym+":"+str(expiry_value);request_id=health.begin(health_key)
-        selection=(sym,expiry_value,option_expiry_choice.value)
-        option_feed_status[0]="Loading selected data..."
+        dhan_option_last_attempt[0]=time.monotonic()
+        generation=provider_generation[0]
+        sym=chain_symbol.value
+        choice=option_expiry_choice.value
+        health_key="options:"+sym
+        request_id=health.begin(health_key)
+        option_feed_status[0]="Loading broker-listed Dhan expiries..."
         try:
-            if prefs.get("source")=="Broker API" and angel_feed.connected and option_expiry_choice.value!="Manual":
-                dates=await asyncio.to_thread(angel_feed.expiries,sym)
-                if generation!=provider_generation[0] or selection!=(chain_symbol.value,expiry.value,option_expiry_choice.value):return
-                index=1 if option_expiry_choice.value=="Next" else 0
-                if len(dates)<=index:raise FeedError("Listed expiry unavailable")
-                expiry_value=dates[index];expiry.value=expiry_value
-                health_key="options:"+sym+":"+str(expiry_value);request_id=health.begin(health_key)
-                prefs["option_expiry"]=expiry_value;save()
-                option_expiry_note.value="Expiry selected from Angel One instrument master; quote timestamps shown below."
-            hist=await asyncio.to_thread(get_market_data,sym,"5m","7d")
-            if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
-            # Options history must not overwrite a newer quote snapshot.
+            if sym!="NIFTY":
+                raise FeedError("Dhan option-chain mapping is currently verified only for NIFTY")
+            dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
+            if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value:return
+            if choice=="Manual":
+                chosen=expiry.value
+                if chosen not in dates:
+                    raise FeedError("Selected expiry is not broker-listed; choose Nearest or Next")
+            else:
+                index=1 if choice=="Next" else 0
+                if index>=len(dates):raise FeedError("Next broker-listed expiry unavailable")
+                chosen=dates[index]
+            expiry.value=chosen
+            expiry.read_only=choice!="Manual"
+            prefs["option_expiry"]=chosen
+            save()
+            option_expiry_note.value="Dhan broker-listed expiry • "+chosen+" • no calendar estimate"
+            # Preserve the latest verified underlying LTP: historical candles must
+            # never overwrite a newer quote snapshot.
             previous=quotes.get(sym) or {}
-            if not (previous.get("source")==hist.get("source")
-                    and isinstance(previous.get("fetched_at"),(int,float))
-                    and previous["fetched_at"]>hist.get("fetched_at",0)
-                    and isinstance(previous.get("price"),(int,float))):
-                quotes[sym]=hist
-            if prefs.get("source")!="Broker API" or not angel_feed.connected:
-                option_feed.clear()
-                option_feed_status[0]=("Dhan mode provides read-only equity/index quotes and candles, not verified CE/PE option-chain data." if prefs.get("source")=="Dhan" else "Verified CE/PE and OI require Broker API mode and a connected broker.")
-                health.finish(health_key,request_id,"UNAVAILABLE",source="Broker API",error="Broker API not connected")
-                return
-            data=await asyncio.to_thread(angel_feed.option_chain,sym,expiry_value,hist.get("price"))
-            if generation!=provider_generation[0] or sym!=chain_symbol.value or expiry_value!=expiry.value:return
-            option_feed.clear();option_feed.update(data)
-            market_store.put("options",(sym,expiry_value),data)
-            fresh=[r for r in data["rows"] if r.get("timestamp") is not None and 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90]
-            if data["complete"] and len(fresh)==len(data["rows"]):
-                option_snapshots[sym]={"symbol":sym,"timeframe":scan_tf.value,"verified":True,"source":"Angel One","expiry":expiry_value,"timestamp":min(r["timestamp"] for r in fresh),"call_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="CE"),"put_volume":sum(float(r.get("volume") or 0) for r in fresh if r["side"]=="PE")}
-            else:option_snapshots.pop(sym,None)
-            times=[row["timestamp"] for row in data["rows"] if row.get("timestamp")]
-            health.finish(health_key,request_id,"AVAILABLE" if data["complete"] else "PARTIAL",source="Angel One",data_time=min(times) if times else None,error="" if data["complete"] else "Partial strike-window coverage")
-            option_feed_status[0]="Angel One • up to 9 strikes • "+("requested window complete" if data["complete"] else "partial quote coverage")
+            # No history request is needed for option metrics.
+            option_feed_status[0]="Loading Dhan read-only PCR and Max Pain..."
+            data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
+            if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
+            dhan_option_metrics.clear()
+            dhan_option_metrics.update(data)
+            option_feed.clear()  # Do not show legacy Angel One contract rows.
+            option_snapshots.pop(sym,None)  # Unverified metrics must not drive signals.
+            option_feed_status[0]="Dhan • expiry "+chosen+" • freshness unverified • signals and live orders OFF"
+            health.finish(health_key,request_id,"PARTIAL",source="Dhan",error="Option metrics unverified; signals disabled")
         except Exception as exc:
-            log_error("options_feed",exc)
+            log_error("dhan_options",exc)
             health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
-            option_feed_status[0]="Feed unavailable. Check connection and listed expiry; cached quotes retain their timestamps."
+            option_feed_status[0]="Dhan options unavailable: "+safe_error(exc)
+            # Keep last valid metrics for historical display, never for signals.
         finally:
             option_feed_busy[0]=False
             if current[0]==1:select(1)
@@ -1997,7 +2002,7 @@ def app_main(page:ft.Page):
         while True:
             if not app_active[0]:
                 await asyncio.sleep(5);continue
-            if current[0]==1 and regular_hours():await refresh_selected_options()
+            if current[0]==1 and regular_hours() and time.monotonic()-dhan_option_last_attempt[0]>=60:await refresh_selected_options()
             elif current[0] in (0,3) and regular_hours():
                 sym=scan_symbol.value or "NIFTY";generation=provider_generation[0]
                 try:
@@ -2017,21 +2022,14 @@ def app_main(page:ft.Page):
         # Do not resurrect it as current option-chain data after reconnect or restart.
         return []
     def option_metrics(kind):
-        rows=selected_option_rows()
-        if not rows:return note("Option data not connected • Verified CE/PE, OI and PCR require a broker option-chain feed. The selected quote provider does not supply verified option-chain data; no values are estimated.")
-        old=any(r.get("timestamp") is None or not 0<=datetime.now(timezone.utc).timestamp()-r["timestamp"]<=90 for r in rows)
-        prefix="HISTORICAL • quotes are old • " if old else ""
-        coverage=option_feed if option_feed.get("symbol")==chain_symbol.value and option_feed.get("expiry")==expiry.value else (market_store.get("options",chain_symbol.value,expiry.value) or {})
-        calls=[r for r in rows if r["side"]=="CE"];puts=[r for r in rows if r["side"]=="PE"]
-        if kind=="Flow":
-            if not coverage.get("complete") or any(r.get("volume") is None for r in rows):return note("Incomplete volume coverage; totals unavailable.")
-            ce_v=sum(float(r["volume"]) for r in calls);pe_v=sum(float(r["volume"]) for r in puts)
-            return note(prefix+f"Selected-window CE volume: {ce_v:,.0f} • PE volume: {pe_v:,.0f}. Volume alone cannot show who made profit or whether trades were bullish/bearish. Not actual premium turnover.")
-        if not coverage.get("complete") or not calls or len(calls)!=len(puts) or any(r.get("oi") is None for r in rows):
-            return note(prefix+"OI/PCR unavailable: incomplete strike-window coverage.")
-        ce=sum(float(r["oi"]) for r in calls);pe=sum(float(r["oi"]) for r in puts)
-        if kind=="PCR":return note(prefix+"Selected-window OI PCR: "+(f"{pe/ce:.3f}" if ce>0 else "undefined")+" • up to 9 strikes only, not full chain; not a directional guarantee.")
-        return note(prefix+f"Selected-window CE OI: {ce:,.0f} • PE OI: {pe:,.0f} • OI is activity, not investor profits.")
+        data=dhan_option_metrics
+        if (data.get("symbol")!=chain_symbol.value or data.get("expiry")!=expiry.value):
+            return note("Dhan option metrics unavailable for selected expiry; press Refresh selected data.")
+        if kind=="PCR":
+            return note("Dhan OI PCR: "+f'{data["pcr"]:.3f}'+" • UNVERIFIED • not a trading signal")
+        if kind=="OI":
+            return note("Dhan Max Pain: "+f'{data["max_pain"]:,.0f}'+" • UNVERIFIED • live orders OFF")
+        return note("Premium flow unavailable without verified volume and transaction direction.")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
@@ -2058,12 +2056,12 @@ def app_main(page:ft.Page):
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
-            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • CE/PE premiums and OI are unavailable. No synthetic values are shown."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • Dhan PCR and Max Pain available after refresh; CE/PE premiums not verified."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
             ft.ElevatedButton("Refresh selected data",on_click=lambda e:page.run_task(refresh_selected_options)),
-            note("Table uses listed broker contracts when connected. The strike input below is a manual selection; paper orders remain manual."),
+            note("Dhan broker-listed expiry and unverified metrics only. Strike premiums unavailable; paper orders remain disabled."),
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
