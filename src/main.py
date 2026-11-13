@@ -510,7 +510,7 @@ def app_main(page:ft.Page):
                         "fetched_at":time.time(),
                         "freshness":"unverified" if quote else "historical_unverified",
                         "time":datetime.now().strftime("%H:%M")}
-            elif angel_feed.connected:
+            elif selected=="Broker API" and angel_feed.connected:
                 try:
                     result=angel_feed.history(ticker,interval,range_)
                     broker_failures[0]=0;broker_retry[0]=0
