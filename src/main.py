@@ -1065,9 +1065,18 @@ def app_main(page:ft.Page):
             source=snapshot.get("source")
             valid_source=source=={"Dhan":"Dhan","Broker API":"Angel One",
                                   "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            # Index prices are not part of the 51-equity Dhan snapshot.
+            # Never suggest a missing index quote is a successfully refreshed LTP.
+            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and not valid_source:
+                rows_note=("Index LTP unavailable from the current Dhan equity snapshot • "
+                           "requires a separately verified Dhan index instrument feed")
+            else:
+                rows_note=None
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
+            if rows_note:
+                rows.append(note(rows_note))
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
             else:
