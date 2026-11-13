@@ -1784,9 +1784,10 @@ def app_main(page:ft.Page):
         health_key="option_chart:"+":".join(str(x) for x in context);request_id=health.begin(health_key)
         if current[0]==1:select(1)
         try:
-            bars=await asyncio.to_thread(angel_feed.option_history,*context)
+            raw_bars=await asyncio.to_thread(angel_feed.option_history,*context)
             if generation!=provider_generation[0] or context!=option_chart_context():return
-            if len(bars)<2:raise FeedError("Not enough option candles")
+            bars=clean_bars(raw_bars)
+            if len(bars)<2:raise FeedError("Not enough valid option candles")
             option_chart_cache.clear();option_chart_cache.update(context=context,bars=bars)
             market_store.put("option_chart",context,{"bars":bars,"source":"Angel One"})
             state="AVAILABLE" if 0<=datetime.now(timezone.utc).timestamp()-bars[-1][0]<=630 else "STALE"
