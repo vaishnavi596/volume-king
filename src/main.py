@@ -2042,13 +2042,13 @@ def app_main(page:ft.Page):
             fresh=(isinstance(stamp,(int,float)) and 0<=datetime.now(timezone.utc).timestamp()-stamp<=90)
             return side+" Premium: ₹"+f"{value:,.2f}"+(" • recent broker quote" if fresh else " • HISTORICAL / timestamp unverified")
         return ft.Column([
+            note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
+            note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
+            ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Selected strike • "+strike+" • Expiry "+str(expiry.value or "not selected")),
             note(premium_label("CE")),
             note(premium_label("PE")),
             note("Dhan option premiums are not connected yet; underlying LTP is not CE/PE premium.") if prefs.get("source")=="Dhan" else note("Premiums require verified option contracts."),
-            note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
-            note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
-            ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • CE/PE premiums and OI are unavailable. No synthetic values are shown."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
