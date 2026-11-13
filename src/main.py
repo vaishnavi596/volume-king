@@ -3644,7 +3644,12 @@ console.log('BOT KING Lightweight Charts ready');
     broker.on_change=broker_changed
     source_previous=source.on_change
     def source_change(e):
-        prefs["source"]=source.value
+        # The production source picker only supports Dhan. Reject stale events
+        # from older saved UI state before touching quote/provider generations.
+        if source.value!="Dhan":
+            source.value="Dhan"
+            return
+        prefs["source"]="Dhan"
         source_previous(e);provider_changed(e)
     source.on_change=source_change
     pages=[dashboard,options,settings,scanner,watchlist,charts]
