@@ -3069,7 +3069,7 @@ console.log('BOT KING Lightweight Charts ready');
                 tv_set_status("Saved chart visible • checking newer data...")
             # Do not spend a doomed history request while the Dhan upstream
             # cooldown is active. A saved candle chart remains usable.
-            if provider=="Dhan" and dhan_feed.cooldown_remaining("/charts/intraday")>0:
+            if provider=="Dhan" and dhan_feed.cooldown_remaining("/dhan/intraday")>0:
                 tv_set_status(("Saved historical chart • " if loaded else "Chart unavailable • no saved candles • ")+"Dhan API cooldown active; retry later")
                 return
             hist=await asyncio.to_thread(get_market_data,sym,interval,period)
