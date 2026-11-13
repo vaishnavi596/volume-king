@@ -20,6 +20,14 @@ module = module_from_spec(spec)
 spec.loader.exec_module(module)
 
 SYMBOLS = sorted(DHAN_VERIFIED_SYMBOLS - {"NIFTY"})
+IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+
+
+def bars_match_requested_day(bars, day):
+    """A structurally valid but cached/wrong-session response is not an audit pass."""
+    return (isinstance(bars, list) and len(bars) >= 30
+            and all(dt.datetime.fromtimestamp(row[0], IST).date() == day
+                    for row in bars))
 
 
 def main():
@@ -59,7 +67,8 @@ def main():
         elif (result.get("source") == "dhan"
               and result.get("symbol") == symbol
               and result.get("live_orders_enabled") is False
-              and module.valid_candle_bars(code, bars)):
+              and module.valid_candle_bars(code, bars)
+              and bars_match_requested_day(bars, day)):
             outcome = "valid"
         else:
             outcome = "invalid"
