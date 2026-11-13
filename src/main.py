@@ -1234,10 +1234,10 @@ def app_main(page:ft.Page):
             signal_stamp=signal_row.get("timestamp")
             signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance"))
                           and not signal_row.get("historical") and regular_hours()
-                          and isinstance(signal_stamp,(int,float)) and math.isfinite(signal_stamp)
+                          and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool) and math.isfinite(signal_stamp)
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
             signal_available=(signal_row.get("source")==expected_quote_source and
-                              isinstance(signal_stamp,(int,float)) and math.isfinite(signal_stamp)
+                              isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool) and math.isfinite(signal_stamp)
                               and signal_counts is not None)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
                               "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available and signal_fresh else "Neutral"
