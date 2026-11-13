@@ -31,6 +31,11 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
         self.assertIn('Oracle snapshot age ',self.body)
         self.assertIn('exchange timestamp unverified',self.body)
 
+    def test_scanner_merge_preserves_only_positive_last_quote(self):
+        source=SOURCE
+        merge=source.split("previous_quote=quotes.get(sym) or {}",1)[1].split("market_completed[0]+=1",1)[0]
+        self.assertIn('math.isfinite(previous_quote["price"]) and previous_quote["price"]>0',merge)
+
     def test_last_price_is_not_blank(self):
         self.assertNotIn('quotes.pop(ticker)',self.body)
 if __name__=="__main__":
