@@ -1387,12 +1387,24 @@ def app_main(page:ft.Page):
             await asyncio.sleep(180)
 
     async def watch_visible_tick():
-        # Repaint the visible watchlist from the shared quote cache; no API calls.
+        # Never rebuild the scrolling list every two seconds when quotes are unchanged.
+        # The quote batch and scroll handler already request a view refresh.
+        # Rebuilding all rows continuously resets Android scroll position.
+        last_visible_signature=None
         while True:
             await asyncio.sleep(2)
-            if current[0]==4 and app_active[0]:
-                try:fill_watch()
-                except Exception as exc:log_error("watch_visible_tick",exc)
+            if current[0]!=4 or not app_active[0]:
+                last_visible_signature=None
+                continue
+            try:
+                visible=tuple(watch_groups[active_watch[0]])
+                signature=(active_watch[0],tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
+                            (quotes.get(sym) or {}).get("price"),
+                            (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
+                if signature!=last_visible_signature:
+                    last_visible_signature=signature
+                    fill_watch()
+            except Exception as exc:log_error("watch_visible_tick",exc)
 
     def watchlist():
         fill_watch()
