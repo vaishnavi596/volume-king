@@ -241,7 +241,7 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Dhan","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
-    if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
+    if prefs.get("source") != "Dhan":prefs["source"]="Dhan"
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
@@ -1840,9 +1840,9 @@ def app_main(page:ft.Page):
         except (ValueError,TypeError,OverflowError):return source_name+" • invalid timestamp"
     def data_source_panel(page_id=None):
         chooser=ft.Dropdown(label="Market data mode",value=source.value,
-            options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])
+            options=[ft.dropdown.Option("Dhan")])
         def changed(e):
-            source.value=e.control.value
+            source.value="Dhan"
             source.on_change(type("SourceChange",(),{"control":source})())
             page.run_task(refresh_selected_options)
         chooser.on_change=changed
@@ -1983,7 +1983,7 @@ def app_main(page:ft.Page):
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
-    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])
+    source=ft.Dropdown(label="Data provider",dense=True,value=prefs["source"],options=[ft.dropdown.Option("Dhan")])
     broker_names=["Dhan","Angel One"]
     broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Dhan") if prefs.get("broker","Dhan") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
@@ -3612,7 +3612,8 @@ console.log('BOT KING Lightweight Charts ready');
     broker.on_change=broker_changed
     source_previous=source.on_change
     def source_change(e):
-        prefs["source"]=source.value
+        source.value="Dhan"
+        prefs["source"]="Dhan"
         source_previous(e);provider_changed(e)
     source.on_change=source_change
     pages=[dashboard,options,settings,scanner,watchlist,charts]
