@@ -1300,7 +1300,7 @@ def app_main(page:ft.Page):
             # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
             # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
-                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]):
+                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]) and snapshot["price"]>0:
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
@@ -1312,7 +1312,7 @@ def app_main(page:ft.Page):
                 valid=(isinstance(snapshot,dict) and snapshot.get("source")=="Dhan"
                        and isinstance(snapshot.get("price"),(int,float))
                        and not isinstance(snapshot.get("price"),bool)
-                       and math.isfinite(snapshot["price"]))
+                       and math.isfinite(snapshot["price"]) and snapshot["price"]>0)
                 if not valid and (old:=quotes.get(ticker)) and old.get("source")=="Dhan":
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
             total_symbols=len(all_watch_symbols())
@@ -1321,7 +1321,7 @@ def app_main(page:ft.Page):
                          (snapshot:=batch.get(ticker)) and snapshot.get("source")=="Dhan"
                          and isinstance(snapshot.get("price"),(int,float))
                          and not isinstance(snapshot.get("price"),bool)
-                         and math.isfinite(snapshot["price"]))
+                         and math.isfinite(snapshot["price"]) and snapshot["price"]>0)
             dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} valid prices returned"
                                  if received<total_symbols else None)
             if dhan_feed.connected:
@@ -2238,6 +2238,10 @@ def app_main(page:ft.Page):
                     provider_generation[0]+=1
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
+                    # Start the independent watchlist poll immediately after a successful
+                    # Dhan connection; do not wait for the next 30-second timer tick.
+                    if app_active[0] and dhan_feed.connected:
+                        page.run_task(refresh_watch_batch)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
