@@ -26,7 +26,7 @@ class DhanOptionRouteTests(unittest.TestCase):
             "110": {"ce": {"oi": 5}, "pe": {"oi": 10}},
         }}}
         with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}):
-            with patch("backend.server.dhan_market_token", return_value="test-token"):
+            with patch("pathlib.Path.read_text", return_value="test-token"):
                 with patch("backend.server.DhanFeed.option_chain", return_value=chain) as feed:
                     response = self.client.post("/dhan/option-chain",
                         json={"symbol": "NIFTY", "expiry": "2099-12-31"},
@@ -42,7 +42,7 @@ class DhanOptionRouteTests(unittest.TestCase):
 
     def test_provider_rate_limit_returns_retry_after_without_fallback(self):
         with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}):
-            with patch("backend.server.dhan_market_token", return_value="test-token"):
+            with patch("pathlib.Path.read_text", return_value="test-token"):
                 with patch("backend.server.DhanFeed.option_chain",
                            side_effect=DhanRateLimitError("cooldown")):
                     response = self.client.post("/dhan/option-chain",
@@ -53,7 +53,7 @@ class DhanOptionRouteTests(unittest.TestCase):
 
     def test_incomplete_chain_returns_502_without_fabricated_metrics(self):
         with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}):
-            with patch("backend.server.dhan_market_token", return_value="test-token"):
+            with patch("pathlib.Path.read_text", return_value="test-token"):
                 with patch("backend.server.DhanFeed.option_chain",
                            return_value={"status": "success", "data": {"oc": {}}}):
                     response = self.client.post("/dhan/option-chain",
