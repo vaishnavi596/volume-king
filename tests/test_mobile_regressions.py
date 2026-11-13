@@ -426,6 +426,12 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('saved_scanner_tf="5m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
 
+    def test_error_doctor_does_not_call_historical_scanner_live(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('("Scanner", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
+        self.assertIn('("Super Five", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
+        self.assertIn('live signal not verified', source)
+
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
