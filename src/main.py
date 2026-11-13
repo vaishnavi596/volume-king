@@ -3060,6 +3060,18 @@ console.log('BOT KING Lightweight Charts ready');
         if view is None:return
         sym,interval,period,provider,style,ema,generation=context
         cached=candles.get("scanner_chart_"+provider+"_"+sym+"_"+interval+"_"+period) or market_store.get("market",provider,sym,interval,period) or {}
+        # A scanner/watchlist candle request may have completed under a
+        # different period (7d vs 5d). Reuse same-symbol, same-timeframe Dhan
+        # history rather than showing a blank chart or making another request.
+        # Never reuse candles from a different provider/generation/timeframe.
+        if not cached.get("bars"):
+            with market_registry_lock:
+                matching=[(stamp, data) for key,(stamp,data) in market_recent.items()
+                          if key[0]==generation and key[3]==provider
+                          and key[4]==sym and key[5]==interval
+                          and isinstance(data,dict) and data.get("bars")]
+            if matching:
+                cached=max(matching,key=lambda item:item[0])[1]
         # The independent watchlist/history scan may already have valid candles
         # for this symbol. Reuse them during Dhan cooldown rather than showing
         # a blank chart; never treat a quote-only snapshot as candle history.
