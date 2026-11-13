@@ -3048,7 +3048,7 @@ console.log('BOT KING Lightweight Charts ready');
         view=tv_view[0];context=tv_context[0]
         if view is None:return
         sym,interval,period,provider,style,ema,generation=context
-        cached=candles.get("scanner_chart_"+sym) or market_store.get("market",provider,sym,interval,period) or {}
+        cached=candles.get("scanner_chart_"+sym+"_"+interval+"_"+period) or market_store.get("market",provider,sym,interval,period) or {}
         # The independent watchlist/history scan may already have valid candles
         # for this symbol. Reuse them during Dhan cooldown rather than showing
         # a blank chart; never treat a quote-only snapshot as candle history.
@@ -3074,7 +3074,9 @@ console.log('BOT KING Lightweight Charts ready');
                 return
             hist=await asyncio.to_thread(get_market_data,sym,interval,period)
             if view is not tv_view[0] or context!=tv_context[0] or generation!=provider_generation[0]:return
-            candles["scanner_chart_"+sym]=hist;quotes[sym]=hist;tv_history[0]=hist.get("bars") or []
+            candles["scanner_chart_"+sym+"_"+interval+"_"+period]=hist
+            # Chart history must never overwrite the independent Dhan LTP snapshot.
+            tv_history[0]=hist.get("bars") or []
             tv_pending[0]=tv_history[0][-tv_limit[0]:]
             if not loaded:view.load_html(tradingview_widget_html(sym,tv_pending[0]),base_url="https://www.tradingview.com/")
             elif tv_ready[0]:push_chart_data()
