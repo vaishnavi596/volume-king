@@ -8,7 +8,7 @@ class ProviderCacheBoundaryTests(unittest.TestCase):
     def test_previous_quotes_require_selected_source(self):
         body=SOURCE.split('    def provider_changed(e):',1)[1].split('    broker_previous=',1)[0]
         self.assertIn('row.get("source")==cached_source',body)
-        self.assertIn('dict(row,freshness="unverified")',body)
+        self.assertIn('dict(row,freshness="unverified",live_verified=False)',body)
 
     def test_persisted_quotes_also_require_selected_source(self):
         body=SOURCE.split('    def provider_changed(e):',1)[1].split('    broker_previous=',1)[0]

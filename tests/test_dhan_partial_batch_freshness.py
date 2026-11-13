@@ -7,7 +7,7 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
         self.body=SOURCE.split('    async def refresh_watch_batch():',1)[1].split('    async def dhan_quote_poll():',1)[0]
     def test_missing_and_invalid_quotes_downgraded(self):
         self.assertIn('if not valid and (old:=quotes.get(ticker))',self.body)
-        self.assertIn('dict(old,freshness="unverified")',self.body)
+        self.assertIn('dict(old,freshness="unverified",live_verified=False)',self.body)
     def test_validity_requires_dhan_finite_price(self):
         self.assertIn('snapshot.get("source")=="Dhan"',self.body)
         self.assertIn('math.isfinite(snapshot["price"])',self.body)
