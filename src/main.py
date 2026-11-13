@@ -641,6 +641,11 @@ def app_main(page:ft.Page):
         q=None if dhan_offline() else quotes.get(sym)
         expected={"Broker API":"Angel One","Dhan":"Dhan"}.get(prefs.get("source"),"Yahoo Finance")
         if not isinstance(q,dict) or q.get("source")!=expected:return "—"
+        price=q.get("price")
+        stamp=q.get("fetched_at")
+        if (not isinstance(price,(int,float)) or isinstance(price,bool) or not math.isfinite(price) or price<=0
+                or not isinstance(stamp,(int,float)) or isinstance(stamp,bool) or not math.isfinite(stamp)
+                or not 0<=time.time()-stamp<=60):return "—"
         v=q.get("change")
         return f'{v:+.2f}%' if isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) else "—"
     def price_color(sym):
