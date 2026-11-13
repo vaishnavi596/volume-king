@@ -399,8 +399,10 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         resume = source[source.index("    async def refresh_after_resume():"):source.index("    def lifecycle_changed(e):")]
         self.assertIn('previous=quotes.get(sym) or {}', resume)
-        self.assertIn('previous["fetched_at"]>data.get("fetched_at",0)', resume)
         self.assertIn('and previous.get("source")=="Dhan"', resume)
+        self.assertIn('math.isfinite(previous["price"])', resume)
+        self.assertIn('quotes[sym]=dict(previous,bars=data.get("bars"', resume)
+        self.assertIn('freshness="unverified"', resume)
         self.assertIn('quotes[sym]=data', resume)
 
     def test_dhan_history_scan_cycle_waits_five_minutes_but_resume_interrupts(self):
