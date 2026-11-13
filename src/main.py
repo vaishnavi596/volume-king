@@ -3895,7 +3895,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if not cache_ready:
                             await asyncio.sleep(1.5)
                         if lifecycle_background[0]:
-                            scan_progress["state"]="Dhan historical scan paused in background • resume to continue"
+                            scan_progress["state"]="Dhan historical scan paused in background • "+str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted • resume to continue"
                             last_scanned_generation=None
                             background_interrupted=True
                             break
