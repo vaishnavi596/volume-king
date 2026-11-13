@@ -73,6 +73,19 @@ class ScannerSafetyTests(unittest.TestCase):
             self.assertEqual(result["bias"],"WAIT")
             self.assertEqual(result["reason"],"Invalid indicator selection")
 
+    def test_ranking_rejects_whitespace_symbol_and_short_vote_list(self):
+        now=datetime.now(timezone.utc).timestamp()
+        base={"bias":"BULLISH","timestamp":now,"score":100,"count":35,"source":"Yahoo Finance","votes":[{"name":"EMA 9/21","vote":1},{"name":"Supertrend","vote":1},{"name":"SMC Structure","vote":1}]}
+        self.assertEqual(rank_candidates({" ABC ":base}),[])
+        self.assertEqual(rank_candidates({"ABC":dict(base,votes=base["votes"][:2])}),[])
+
+    def test_ranking_symbol_key_cannot_be_overridden_by_result(self):
+        now=datetime.now(timezone.utc).timestamp()
+        base={"bias":"BULLISH","timestamp":now,"score":100,"count":35,"source":"Yahoo Finance","symbol":"INJECTED","votes":[{"name":"EMA 9/21","vote":1},{"name":"Supertrend","vote":1},{"name":"SMC Structure","vote":1}]}
+        result=rank_candidates({"RELIANCE":base})
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]["symbol"],"RELIANCE")
+
     def test_boolean_ranking_age_limit_is_invalid(self):
         self.assertEqual(rank_candidates({},max_age_seconds=True),[])
 

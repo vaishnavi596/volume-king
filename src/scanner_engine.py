@@ -147,11 +147,12 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         return []
     good=[]
     for symbol, result in candidates.items():
-        if not isinstance(symbol, str) or not symbol.strip():continue
+        if not isinstance(symbol, str) or not symbol.strip() or symbol != symbol.strip():continue
         if not isinstance(result, dict) or result.get("bias") not in ("BULLISH", "BEARISH"):continue
         timestamp=result.get("timestamp")
         score=result.get("score")
         votes=result.get("votes")
+        if result.get("source")=="Dhan" and result.get("live_verified") is not True:continue
         if type(result.get("count")) is not int or result["count"] < 30:continue
         if type(timestamp) not in (int, float) or not math.isfinite(timestamp):continue
         if type(score) not in (int, float) or not math.isfinite(score) or not 0 <= score <= 100:continue
@@ -163,7 +164,7 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         # Dhan historical candles are not live-verified merely because a timestamp is recent.
         if result.get("source")=="Dhan" and (result.get("freshness") not in ("verified_live","live_verified") or result.get("live_verified") is not True):
             continue
-        if not isinstance(votes, list) or not votes:continue
+        if not isinstance(votes, list) or len(votes) < 3:continue
         if any(not isinstance(v, dict) or "vote" not in v or type(v["vote"]) is not int and v["vote"] is not None or v["vote"] not in (-1, 0, 1, None) for v in votes):continue
         # A repeated indicator must not count as multiple independent confirmations.
         names = [v.get("name") for v in votes]
@@ -176,6 +177,6 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         if not any(v.get("name") in ("Supertrend", "SMC Structure", "EMA 9/21") and v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes):continue
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
-        good.append({"symbol":symbol,**result,"age":int(age)})
+        good.append({**result,"symbol":symbol,"age":int(age)})
     good.sort(key=lambda x:(-x["score"], -len([v for v in x["votes"] if v["vote"] in (-1,1)]), x["symbol"]))
     return good[:max_results]
