@@ -1328,6 +1328,14 @@ def app_main(page:ft.Page):
             # Do not report that lifecycle interruption as a provider failure.
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
+            # Interrupted and failed polls cannot certify that an old quote is live.
+            # Retain valid same-provider prices, but downgrade their freshness.
+            for ticker,old in list(quotes.items()):
+                if (isinstance(old,dict) and old.get("source")=="Dhan"
+                        and isinstance(old.get("price"),(int,float))
+                        and not isinstance(old.get("price"),bool)
+                        and math.isfinite(old["price"])):
+                    quotes[ticker]=dict(old,freshness="unverified")
             if not app_active[0]:
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
                 return
