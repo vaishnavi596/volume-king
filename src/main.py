@@ -241,7 +241,9 @@ def app_main(page:ft.Page):
     page.dark_theme=ft.Theme(color_scheme=ft.ColorScheme(primary=GOLD,on_primary=BG,secondary=GOLD,on_secondary=BG,surface=PANEL,on_surface=WHITE,error=RED,on_error=BG,outline=BORDER))
     prefs={"mode":"Paper","stop_loss":2.0,"target":4.0,"max_trades":2,"confidence":75,"source":"Dhan","api_url":"","api_key":""}
     prefs.update(load_preferences(STATE,page.client_storage))
-    if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
+    # Production UI is Dhan-only: never restore a legacy provider from saved preferences.
+    # Archived Yahoo/Angel implementations remain for isolated regression fixtures.
+    prefs["source"]="Dhan"
     prefs["schema_version"]=2
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
