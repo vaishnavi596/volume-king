@@ -303,7 +303,7 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("async def super_five_minute_refresh():", source)
         self.assertIn("page.run_task(super_five_minute_refresh)", source)
-        self.assertIn("await asyncio.sleep(60)", source)
+        self.assertIn("await asyncio.sleep(15)", source[source.index("async def super_five_minute_refresh():"):])
         self.assertIn("snapshot.get(\"bars\")", source)
         self.assertNotIn("API STATUS & ERROR MONITOR", source)
 
