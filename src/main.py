@@ -4109,11 +4109,18 @@ console.log('BOT KING Lightweight Charts ready');
                     # Resume's historical chart fetch must not replace a newer
                     # Dhan batch LTP with an older/unverified candle snapshot.
                     previous=quotes.get(sym) or {}
-                    if not (prefs.get("source")=="Dhan"
-                            and previous.get("source")=="Dhan"
-                            and isinstance(previous.get("fetched_at"),(int,float))
-                            and previous["fetched_at"]>data.get("fetched_at",0)
-                            and isinstance(previous.get("price"),(int,float))):
+                    previous_dhan_price=(prefs.get("source")=="Dhan"
+                                         and previous.get("source")=="Dhan"
+                                         and isinstance(previous.get("price"),(int,float))
+                                         and not isinstance(previous.get("price"),bool)
+                                         and math.isfinite(previous["price"]))
+                    if previous_dhan_price:
+                        # Resume fetches candles, not an independently verified
+                        # live LTP. Preserve the last valid batch quote even when
+                        # the candle response has a newer fetched_at timestamp.
+                        quotes[sym]=dict(previous,bars=data.get("bars",previous.get("bars",[])),
+                                         freshness="unverified")
+                    else:
                         quotes[sym]=data
                 if current[0]==5:
                     chart_sym=symbol.value
