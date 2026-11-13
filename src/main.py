@@ -1390,7 +1390,7 @@ def app_main(page:ft.Page):
                 continue
             try:
                 visible=tuple(watch_groups[active_watch[0]])
-                signature=(active_watch[0],watch_batch_status[0],tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
+                signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
                             (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
                 if signature!=last_visible_signature:
