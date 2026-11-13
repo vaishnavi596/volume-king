@@ -22,6 +22,19 @@ def walk(control):
 
 
 class MobileRegressionTests(unittest.TestCase):
+    def test_dhan_scanner_chart_reuses_only_matching_symbol_and_timeframe(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        start = source.index("    async def tv_load_widget():")
+        end = source.index("    def push_chart_data():", start)
+        chart = source[start:end]
+        self.assertIn("key[0]==generation", chart)
+        self.assertIn("key[3]==provider", chart)
+        self.assertIn("key[4]==sym", chart)
+        self.assertIn("key[5]==interval", chart)
+        self.assertIn("if not cached.get(\"bars\"):", chart)
+        self.assertIn("cached=max(matching,key=lambda item:item[0])[1]", chart)
+        self.assertIn("tv_history[0]=cached[\"bars\"]", chart)
+
     def test_historical_candle_time_is_visible_without_spoofing_quote_freshness(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('historical_time=float(result["bars"][-1][0])', source)
