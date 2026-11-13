@@ -57,6 +57,13 @@ class ScannerSafetyTests(unittest.TestCase):
             result=analyze(bars)
             self.assertEqual(result["count"],34)
 
+    def test_invalid_candle_collection_fails_closed(self):
+        for invalid in (None, {}, "not candles", 42):
+            result=analyze(invalid)
+            self.assertEqual(result["bias"],"WAIT")
+            self.assertEqual(result["count"],0)
+            self.assertIsNone(result["timestamp"])
+
     def test_boolean_volume_is_rejected(self):
         bars=candles()
         bars[-1][5]=True
