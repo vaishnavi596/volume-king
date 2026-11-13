@@ -1005,7 +1005,8 @@ def app_main(page:ft.Page):
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
             expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
-            historical=(row.get("historical") or row.get("source")!=expected_source or
+            historical=(row.get("historical") or row.get("cached") or row.get("source")!=expected_source or
+                        (prefs.get("source")=="Dhan" and row.get("freshness") not in ("verified_live","live_verified")) or
                         age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
