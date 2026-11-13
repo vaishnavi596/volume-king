@@ -57,6 +57,12 @@ class ScannerSafetyTests(unittest.TestCase):
             result=analyze(bars)
             self.assertEqual(result["count"],34)
 
+    def test_unsupported_timeframe_fails_closed(self):
+        for invalid in ("2m", "1d", "", None, 5):
+            result=analyze(candles(),timeframe=invalid)
+            self.assertEqual(result["bias"],"WAIT")
+            self.assertEqual(result["reason"],"Unsupported candle timeframe")
+
     def test_invalid_indicator_selection_fails_closed(self):
         for invalid in (42, True, {"EMA 9/21":True}, ["EMA 9/21", None]):
             result=analyze(candles(), invalid)
