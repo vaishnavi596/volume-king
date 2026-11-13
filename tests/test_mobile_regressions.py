@@ -444,6 +444,14 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('("Super Five", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
         self.assertIn('live signal not verified', source)
 
+    def test_dhan_super_five_requires_explicit_verified_live_flag(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        display = source[source.index("    def display_analysis("):source.index("    def publish_partial_ranking(")]
+        card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
+        self.assertIn('data.get("live_verified") is not True', display)
+        self.assertIn('row.get("live_verified") is not True', card)
+        self.assertIn('direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical', card)
+
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
