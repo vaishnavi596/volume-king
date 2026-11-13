@@ -2238,6 +2238,10 @@ def app_main(page:ft.Page):
                     provider_generation[0]+=1
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
+                    # Start the independent watchlist poll immediately after a successful
+                    # Dhan connection; do not wait for the next 30-second timer tick.
+                    if app_active[0] and dhan_feed.connected:
+                        page.run_task(refresh_watch_batch)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
