@@ -426,6 +426,11 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('saved_scanner_tf="5m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
 
+    def test_dhan_chart_comparison_omits_unmapped_indices(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('compare_choices=(["NIFTY","RELIANCE","HDFCBANK","ICICIBANK"]', source)
+        self.assertIn('value="RELIANCE" if prefs.get("source","Dhan")=="Dhan" else "BANKNIFTY"', source)
+
     def test_error_doctor_does_not_call_historical_scanner_live(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('("Scanner", "DEGRADED" if not connected or valid==0 else "HISTORICAL"', source)
