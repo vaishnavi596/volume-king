@@ -33,19 +33,22 @@ class FeedTests(unittest.TestCase):
         self.assertFalse(feed.key);self.assertFalse(feed.token)
         with self.assertRaises(FeedError):feed.connect('','','','')
 
-    def test_partial_stale_and_selected_window_pcr(self):
-        _,v=start({'source':'Broker API','scanner_live':False})
-        v['angel_feed'].key='test';v['angel_feed'].token='test'
-        rows=[{'strike':24000,'side':side,'premium':100,'oi':oi,'timestamp':time.time()} for side,oi in [('CE',100),('PE',200)]]
-        v['option_feed'].update(symbol=v['chain_symbol'].value,expiry=v['expiry'].value,rows=rows,complete=True)
-        self.assertIn('2.000',v['option_metrics']('PCR').value)
-        self.assertIn('not full chain',v['option_metrics']('PCR').value)
-        v['option_feed']['complete']=False
-        self.assertIn('incomplete',v['option_metrics']('PCR').value)
-        rows[0]['timestamp']=time.time()-1000
-        self.assertIn('old',v['option_metrics']('PCR').value)
-        v['option_feed']['symbol']='WRONG'
+    def test_dhan_option_metrics_never_reuse_legacy_angel_window(self):
+        _,v=start({'source':'Dhan','scanner_live':False})
+        rows=[{'strike':24000,'side':side,'premium':100,'oi':oi,'timestamp':time.time()}
+              for side,oi in [('CE',100),('PE',200)]]
+        v['option_feed'].update(symbol=v['chain_symbol'].value,
+                                expiry=v['expiry'].value,rows=rows,complete=True)
         self.assertFalse(v['selected_option_rows']())
+        self.assertIn('unavailable',v['option_metrics']('PCR').value)
+        v['dhan_option_metrics'].update(symbol=v['chain_symbol'].value,
+            expiry=v['expiry'].value,pcr=0.83049,max_pain=25100.0,
+            freshness='unverified',signal_eligible=False)
+        self.assertIn('0.830',v['option_metrics']('PCR').value)
+        self.assertIn('UNVERIFIED',v['option_metrics']('PCR').value)
+        self.assertIn('25,100',v['option_metrics']('OI').value)
+        v['expiry'].value='2099-01-01'
+        self.assertIn('unavailable',v['option_metrics']('PCR').value)
 
     def test_option_fetch_does_not_publish_after_selection_change(self):
         _,v=start({'source':'Auto','scanner_live':False})
