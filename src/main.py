@@ -924,9 +924,18 @@ def app_main(page:ft.Page):
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
             # Do not surface unverified historical bullish/bearish calls as live picks.
-            top5_candidates[:]=[dict(row,bias="WAIT",score=0,
-                                     reason=str(row.get("reason",""))+" • Historical/unverified; no live signal")
-                                if row.get("historical") else row for row in available[:5]]
+            previous=[row for row in top5_candidates if row.get("source")=="Dhan"]
+            chosen=[dict(row,bias="WAIT",score=0,
+                         reason=str(row.get("reason",""))+" • Historical/unverified; no live signal")
+                    if row.get("historical") else row for row in available[:5]]
+            used={row.get("symbol") for row in chosen}
+            for row in previous+saved_ranking.get("rows",[]):
+                if len(chosen)>=5:break
+                if row.get("source")!="Dhan" or not row.get("symbol") or row["symbol"] in used:continue
+                chosen.append(dict(row,bias="WAIT",score=0,historical=True,
+                                   reason="Last saved Dhan ranking • Historical/unverified; no live signal"))
+                used.add(row["symbol"])
+            top5_candidates[:]=chosen
             return available
         previous=top5_candidates[:]
         if available:top5_candidates[:]=available[:5]
