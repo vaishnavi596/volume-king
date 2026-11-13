@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.89" # Signed APK retry after 511 offline regressions passed; preserve signing and package identity
+version = "2.3.90" # Signed Dhan-only chart cooldown and Super Five regression release
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
