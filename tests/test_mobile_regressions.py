@@ -401,7 +401,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('previous=quotes.get(sym) or {}', resume)
         self.assertIn('and previous.get("source")=="Dhan"', resume)
         self.assertIn('math.isfinite(previous["price"])', resume)
-        self.assertIn('quotes[sym]=dict(previous,bars=data.get("bars"', resume)
+        self.assertIn('quotes[sym]=dict(previous,bars=verified_bars', resume)
+        self.assertIn('data.get("source")=="Dhan"', resume)
         self.assertIn('freshness="unverified"', resume)
         self.assertIn('quotes[sym]=data', resume)
 
