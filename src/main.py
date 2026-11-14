@@ -1536,6 +1536,23 @@ def app_main(page:ft.Page):
             # Snapshot requests still honor busy flags, 30s throttle and cooldown.
             await asyncio.sleep(10 if not dhan_feed.connected else 30)
 
+    # Compact countdown updates independently; never rebuild Watchlist rows per second.
+    watch_countdown=ft.Text("Next --",size=11,color=GOLD)
+    def next_watch_refresh_label():
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return "Next --"
+        if watch_batch_busy[0]:
+            return "Refreshing"
+        cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
+        if cooldown>0:
+            return f"Wait {math.ceil(cooldown)}s"
+        if not quote_auto_last_attempt[0]:
+            return "Next soon"
+        # Poll loop wakes every 30s after connection; this is an estimate,
+        # not a claim that the Dhan server returned a fresh quote.
+        remaining=max(0,math.ceil(30-(time.monotonic()-quote_auto_last_attempt[0])%30))
+        return f"Next {remaining}s"
+
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
         # The quote batch and scroll handler already request a view refresh.
@@ -1547,6 +1564,10 @@ def app_main(page:ft.Page):
                 last_visible_signature=None
                 continue
             try:
+                label=next_watch_refresh_label()
+                if watch_countdown.value!=label:
+                    watch_countdown.value=label
+                    watch_countdown.update()
                 visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
@@ -1577,7 +1598,7 @@ def app_main(page:ft.Page):
                          ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
-        return [heading("Watchlist • 5 Lists"),
+        return [ft.Row([heading("Watchlist • 5 Lists"),watch_countdown],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             note("Market indexes (3) + equity universe ("+str(len(watch_symbols))+") = "+str(len(watch_symbols)+3)+" instruments • indexes excluded from equity scan"),
             ft.Column(index_cards,spacing=8),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
