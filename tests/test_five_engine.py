@@ -491,3 +491,21 @@ def test_batch4_atm_window_optional_premium_volume_and_oi_are_fail_closed():
     safe = listed_atm_window({"status": "success", "data": {"oc": without_optional}}, spot=100)
     assert "last_price" not in safe["rows"][3]["ce"]
     assert safe["freshness"] == "unverified"
+
+
+def test_batch4_option_context_is_nonvoting_and_rejects_bad_rows():
+    from src.five_engine import option_chain_display_context
+    rows = [{"strike": float(k), "ce": {"oi": 10, "volume": 2},
+             "pe": {"oi": 20, "last_price": 5.5}} for k in range(94, 107, 2)]
+    payload = {"source": "dhan", "freshness": "unverified", "signal_eligible": False,
+               "atm_window": {"source": "dhan", "freshness": "unverified",
+                              "signal_eligible": False, "atm": 100.0, "rows": rows}}
+    result = option_chain_display_context(payload)
+    assert result["available"] is True and result["direction"] == "WAIT"
+    assert result["signal_eligible"] is False and len(result["rows"]) == 7
+    assert option_chain_display_context({**payload, "signal_eligible": True})["available"] is False
+    malformed = dict(payload, atm_window=dict(payload["atm_window"], atm=102.0))
+    assert option_chain_display_context(malformed)["available"] is False
+    broken = [dict(row) for row in rows]
+    broken[3] = dict(broken[3], ce={"oi": float("nan")})
+    assert option_chain_display_context(dict(payload, atm_window=dict(payload["atm_window"], rows=broken)))["available"] is False
