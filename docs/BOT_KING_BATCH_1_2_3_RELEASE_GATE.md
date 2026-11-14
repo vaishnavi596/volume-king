@@ -27,6 +27,11 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - Previous APK 2.3.105 predates current Batch 3 fixes. No final APK has been built for these changes.
 - Existing screenshots show partial index availability; BANKNIFTY/SENSEX Oracle-to-phone LTP verification is still outstanding.
 
+## Latest offline evidence (2026-11-14)
+- Dashboard verified-ranking integration: CI run 43591138853, PASS, commit f570d0f.
+- Dashboard ranking parity regression: CI run 43591146577, PASS, commit 3335f61.
+- Source/offline checks only; Oracle and mobile release gates remain unchecked.
+
 ## Release gate
 1. Complete remaining source/code audit and add regression tests for uncovered failures.
 2. Run full offline CI on exact final commit, then check Oracle read-only endpoints without exposing secrets.
