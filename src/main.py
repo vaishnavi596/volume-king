@@ -4210,6 +4210,9 @@ console.log('BOT KING Lightweight Charts ready');
                         if current[0] in (0,4,5):request_view_refresh(current[0])
                         # Honor the actual Dhan 429 retry window before probing
                         # historical candles again; preserve all saved quotes.
+                        # Keep the generation pending: a failed cold-start probe
+                        # must retry after cooldown even when the market is closed.
+                        last_scanned_generation=None
                         await asyncio.sleep(max(30, dhan_feed.cooldown_remaining("/dhan/intraday")))
                         continue
                     results=[first_ok]
@@ -4272,7 +4275,10 @@ console.log('BOT KING Lightweight Charts ready');
                               +str(max(0,len(symbols)-market_completed[0]))+" symbols not attempted")
                     market_status="Dhan LTP remains available; candle scan paused by provider cooldown"
                     if current[0] in (0,4,5):request_view_refresh(current[0])
-                    await asyncio.sleep(60)
+                    # An incomplete rate-limited pass is not a completed generation.
+                    # Otherwise the closed-market guard suppresses every retry.
+                    last_scanned_generation=None
+                    await asyncio.sleep(max(60, dhan_feed.cooldown_remaining("/dhan/intraday")))
                     continue
                 successes=sum(results)
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
