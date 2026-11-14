@@ -18,10 +18,10 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn('Price change unavailable • reference unverified', source)
         self.assertIn('signal_direction=("Bullish" if signal_counts[0]>signal_counts[1]', source)
 
-    def test_dhan_equity_quote_poll_runs_every_180_seconds(self):
+    def test_dhan_equity_quote_poll_rechecks_after_connection(self):
         source = SOURCE.read_text(encoding="utf-8")
         body = source.split("    async def dhan_quote_poll():", 1)[1].split("    async def watch_visible_tick():", 1)[0]
-        self.assertIn("await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)", body)
+        self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 30)", body)
         self.assertNotIn("await asyncio.sleep(30)", body)
         self.assertIn("await refresh_watch_batch()", body)
         self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")', body)
@@ -60,7 +60,7 @@ class DhanScanProgressTests(unittest.TestCase):
         source = SOURCE.read_text(encoding="utf-8")
         poll=source.split("    async def dhan_quote_poll():",1)[1].split("    async def watch_visible_tick():",1)[0]
         self.assertIn("await asyncio.sleep(10)",poll)
-        self.assertIn("await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)",poll)
+        self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 30)",poll)
         self.assertIn("time.monotonic()-quote_auto_last_attempt[0]>=30",poll)
         self.assertIn("not watch_batch_busy[0] and not index_refresh_busy[0]",poll)
         resume=source.split("    async def refresh_after_resume():",1)[1]
