@@ -1461,7 +1461,23 @@ def app_main(page:ft.Page):
 
     def watchlist():
         fill_watch()
+        index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")
+        index_cards=[]
+        for index_name in index_symbols:
+            index_quote=quotes.get(index_name) or {}
+            valid=(prefs.get("source")=="Dhan" and index_quote.get("source")=="Dhan"
+                   and isinstance(index_quote.get("price"),(int,float))
+                   and not isinstance(index_quote.get("price"),bool)
+                   and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
+            index_cards.append(ft.Container(
+                content=ft.Column([txt(index_name,11,WHITE,True),
+                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,GOLD if valid else MUTED,True),
+                    note("Dhan LTP • exchange time unverified" if valid else "Awaiting Dhan LTP")],
+                    spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
+                on_click=lambda e,v=index_name:open_stock(v)))
         return [heading("Watchlist • 5 Lists"),
+            note("Market indexes (3) + equity universe ("+str(len(watch_symbols))+") = "+str(len(watch_symbols)+3)+" instruments • indexes excluded from equity scan"),
+            ft.Row(index_cards,spacing=5),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
