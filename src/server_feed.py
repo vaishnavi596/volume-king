@@ -347,8 +347,9 @@ class ServerDhanReadOnly:
                 or set(unavailable).intersection(quotes)
                 or set(unavailable).union(quotes) != DHAN_VERIFIED_INDEX_SYMBOLS):
             raise FeedError("Inconsistent Dhan index availability response")
-        if not quotes:
-            raise FeedError("No valid Dhan index batch quotes")
+        # A structurally valid all-unavailable batch is not a transport failure.
+        # Let the app attempt independent /dhan/ltp for missing index symbols.
+        # Never synthesize a price or mark an unavailable quote live.
         return quotes
 
     def quote(self, symbol):
