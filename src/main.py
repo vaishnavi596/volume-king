@@ -1731,14 +1731,16 @@ def app_main(page:ft.Page):
                 label=next_watch_refresh_label()
                 if watch_countdown.value!=label:
                     watch_countdown.value=label
-                    watch_countdown.update()
+                    # The control can be detached during navigation. Rebuild through
+                    # the coalesced page refresh instead of updating a stale ref.
+                    request_view_refresh(4)
                 visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
                             (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
                 if signature!=last_visible_signature:
                     last_visible_signature=signature
-                    fill_watch()
+                    request_view_refresh(4)
             except Exception as exc:log_error("watch_visible_tick",exc)
 
     def watchlist():
