@@ -1093,7 +1093,7 @@ def app_main(page:ft.Page):
             if candle_tf!="5m" or candle_data.get("source")!=source:
                 candle_data={}
             if not valid_source or not candle_data.get("bars"):
-                rows.append(note("Candle bias: UNAVAILABLE • open 5m Scanner chart to load candles"))
+                rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
                     indicator=analyze_current(candle_data["bars"],filter_selected[:],"5m")
