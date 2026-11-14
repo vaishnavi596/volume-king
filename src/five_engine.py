@@ -230,3 +230,23 @@ def news_from_headline_cues(cues):
     if cues.get("bias") in ("POSITIVE", "NEGATIVE", "MIXED", "UNCLASSIFIED"):
         return EngineEvidence("news", reason="Experimental headline cues; impact unverified")
     return EngineEvidence("news", reason="Verified news evidence unavailable")
+
+
+def futures_from_component(component):
+    """Fail-closed futures adapter: OI/price/volume are context, not traded-side proof.
+
+    A broker-reported futures build-up is an inference, not independently
+    measured bullish/bearish percentages. Do not turn it into a fusion vote.
+    """
+    if not isinstance(component, dict):
+        return EngineEvidence("futures", reason="Verified Dhan futures contract unavailable")
+    if component.get("source") != "Dhan" or component.get("verified") is not True:
+        return EngineEvidence("futures", reason="Dhan futures provenance unverified")
+    if not isinstance(component.get("contract"), str) or not component["contract"].strip():
+        return EngineEvidence("futures", reason="Mapped futures contract unavailable")
+    timestamp = component.get("timestamp")
+    if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
+        return EngineEvidence("futures", reason="Futures timestamp unavailable")
+    if component.get("direction_basis") != "validated_trade_flow":
+        return EngineEvidence("futures", reason="Futures OI/price build-up is inferred, not validated directional flow")
+    return EngineEvidence("futures", reason="Validated futures flow lacks measured directional strength")
