@@ -104,3 +104,12 @@ Work on Batch 1 first; track fixes in small related commits (2–4 items per pas
 - Specific B2 risk: index histories warm only after a successful equity scan; the index loop stops on intraday cooldown. Fresh LTP and historical vote bars can coexist with stale index candles. Phone screenshots showed approximately 22-hour-old historical votes.
 - Next code audit: decouple rate-limit-safe serialized index history scheduling from equity scan completion, retain last-good candle cache on errors, and add regression guards.
 - Historical vote bars are not full OHLC candlestick plots; Chart UI and all timeframe OHLC verification remain open.
+
+
+### B4 scope clarification — 2026-11-14 (user request)
+- B4-01: OI/PCR/Option Chain display and calculation, including missing, zero, unavailable or disabled metrics. Diagnose why each expected metric is not ON/visible; do not equate HTTP 200 with a working mobile feature.
+- B4-02: Call/Put OI and OI change, premiums, strikes, expiry selection, PCR, Max Pain, source, timestamp and freshness consistency between Oracle and Android.
+- B4-03: Capture per-field and per-symbol errors (including missing samples or unavailable data), 422 expiry validation, 429 cooldown, partial responses, and last-good-data retention without false live labels.
+- B4-04: Verify mobile Option Chain UI controls, enablement and paper-only signal eligibility; no real orders or automated trading while data is unverified.
+- B4-05: Add backend/Android regression tests and real-device acceptance; keep unresolved metrics marked pending rather than PASS.
+- B2 retains candle/OHLC/history ownership. Shared Dhan ingestion or rate-limit defects discovered during B4 should be fixed at their common layer and cross-referenced to B2, not duplicated.
