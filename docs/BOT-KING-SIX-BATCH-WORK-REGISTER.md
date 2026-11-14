@@ -8,12 +8,12 @@ This is the persistent handoff/checklist for BOT KING. Update the status only af
 
 | ID | Work item | State / evidence |
 |---|---|---|
-| B1-01 | Dhan index mappings: NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51 | NIFTY Oracle HTTP 200 with LTP 25144.3 reported; other two IDs confirmed from Dhan instrument-master CSV by operator; mapping committed on `botking-b1-index-mapping-20261114`, **not deployed or end-to-end verified** |
-| B1-02 | Oracle read-only LTP for all three indexes | NIFTY passed; BANKNIFTY and SENSEX returned HTTP 422 before mapping change; retest after safe backup/deploy |
-| B1-03 | Dashboard three configurable symbol/index cards; independent index refresh | NIFTY price seen; BANKNIFTY/SENSEX absent; app currently polls only 51-equity snapshot at 30 seconds; implement bounded index path and preserve last-good-price |
-| B1-04 | Watchlist shows 51 equities + three persistent index cards = 54 instruments | Not implemented; per-list cap is 50 and must not silently be changed to 54; index cards must remain separate from equity scanner |
-| B1-05 | Watchlist refresh, polling cadence, UI update, cache age, reconnect/resume | Not fixed; foreground 30-second poll exists; diagnose no-refresh after login and background interruptions; do not erase last valid Dhan prices on errors |
-| B1-06 | Regression and integration: index mapping, LTP, refresh, cache and 54 display | Mapping unit regression committed; CI, server deployment and APK validation pending |
+| B1-01 | Dhan index mappings: NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51 | Backend mapping committed; NIFTY previously Oracle HTTP 200; BANKNIFTY/SENSEX **not deployed or verified** |
+| B1-02 | Oracle read-only LTP for all three indexes | NIFTY previously passed; BANKNIFTY/SENSEX returned HTTP 422 before mapping; requires backed-up Oracle deployment and authenticated retest |
+| B1-03 | Dashboard three configurable symbol/index cards; independent index refresh | Index quote path added, serialized, one cycle per >=60s, last-good retained, truthful missing-quote message; CI and Android verification required |
+| B1-04 | Watchlist shows 51 equities + three persistent index cards = 54 instruments | Separate index cards added above existing capped equity lists; index cards excluded from 51-equity snapshot and scan; Android UI verification required |
+| B1-05 | Watchlist refresh, polling cadence, UI update, cache age, reconnect/resume | Manual, 30s poll, index change detection, and resume refresh added; index refresh decoupled from snapshot cooldown; foreground-only operation, **not continuous background service**; Android verification required |
+| B1-06 | Regression and integration: index mapping, LTP, refresh, cache and 54 display | CI green at f0122cd; new rate-guard and status tests added, newest CI pending; Oracle deployment, phone verification, signing/version bump and APK still pending |
 
 **Batch 1 acceptance:** authenticated read-only Oracle LTP for each mapped index; 51 equity snapshot remains independent; 54 display without adding indexes to equity ranking; watchlist refreshes on schedule and after resume; last valid quotes retained but labelled unverified; no Yahoo/Angel fallback; regression green. Keep live order routing disabled.
 
@@ -45,3 +45,10 @@ This is the persistent handoff/checklist for BOT KING. Update the status only af
 
 ## Execution discipline
 Work on Batch 1 first; track fixes in small related commits (2–4 items per pass). Mark a task DONE only when relevant tests and real deployment/phone verification support it. Keep backup before Oracle production edits. Update this register whenever batch scope/status changes.
+
+
+### Batch 1 grouped-audit note
+- GitHub branch: `botking-b1-index-mapping-20261114`; draft PR #111. Commit is not deployment.
+- Newly found/fixed: index polling was blocked by equity snapshot cooldown; concurrent or frequent index polling risk; stale dashboard warning incorrectly claimed BANKNIFTY/SENSEX mapping unverified after mappings were added.
+- Never expose pairing credentials or overwrite Oracle `/opt/bot-king-server/server.py` without comparing with repository and taking a timestamped backup.
+- Acceptance requires actual HTTP 200 + positive LTP for all three indexes, verified watchlist/dashboard display, and a clean new versioned signed APK.
