@@ -244,3 +244,12 @@ def test_news_headline_keywords_never_count_as_verified_market_direction():
         assert evidence.name=="news"
         assert evidence.display()["state"]=="WAIT"
         assert evidence.bullish is None and evidence.bearish is None
+
+
+def test_verified_evidence_rejects_blank_or_non_string_source():
+    for source in ("", "   ", None, 123, True):
+        row = EngineEvidence("technical", 80, 20, verified=True,
+                             timestamp=1234567890, source=source)
+        assert not row.eligible
+        assert row.display()["state"] == "WAIT"
+        assert combine_evidence([row] + [EngineEvidence(n) for n in ENGINE_NAMES[1:]])["coverage"] == 0
