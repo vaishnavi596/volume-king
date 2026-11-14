@@ -644,7 +644,7 @@ def app_main(page:ft.Page):
         return f'{v:+.2f}%' if v is not None else "—"
     def price_color(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
+        v=q.get("change") if q and q.get("provider_status")!="provider_data_unavailable" else None
         return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
     def tiny_chart(sym,snapshot=None):
         q=snapshot if snapshot is not None else (quotes.get(sym) or {})
