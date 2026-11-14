@@ -32,6 +32,14 @@ except PackageNotFoundError:
     _project_file = Path(__file__).resolve().parents[1] / "pyproject.toml"
     APP_VERSION = (tomllib.loads(_project_file.read_text(encoding="utf-8"))["project"]["version"]
                    if _project_file.is_file() else "unavailable")
+# Flet Android can package placeholder metadata (e.g. "unknown") and omit pyproject.
+# The CI build embeds the same pyproject version in a generated Python module.
+try:
+    from _build_version import BUILD_VERSION
+    if BUILD_VERSION and (APP_VERSION in ("unknown", "unavailable", "0.0.0") or not APP_VERSION):
+        APP_VERSION = BUILD_VERSION
+except ImportError:
+    pass
 from pathlib import Path
 
 #                                  Apache License
