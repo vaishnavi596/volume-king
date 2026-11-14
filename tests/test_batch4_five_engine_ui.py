@@ -120,3 +120,12 @@ def test_option_window_requires_current_symbol_expiry_and_connected_dhan():
     assert 'dhan_option_metrics.get("symbol") == chain_symbol.value' in block
     assert 'dhan_option_metrics.get("expiry") == expiry.value' in block
     assert 'context.get("available")' in block
+
+
+def test_dhan_option_ui_never_falls_back_to_legacy_contract_rows():
+    start=SOURCE.index("    def option_chain_preview():")
+    end=SOURCE.index("\n    def ",start)
+    block=SOURCE[start:end]
+    assert 'if prefs.get("source") == "Dhan":' in block
+    assert 'No legacy broker CE/PE rows are shown in Dhan-only mode.' in block
+    assert block.index('if prefs.get("source") == "Dhan":') < block.index('rows=selected_option_rows();grouped={}')
