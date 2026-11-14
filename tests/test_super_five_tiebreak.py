@@ -36,6 +36,14 @@ class SuperFiveTieBreak(unittest.TestCase):
         self.assertEqual(len(ranked),1)
         self.assertEqual(ranked[0]["score"],75)
 
+    def test_understated_score_is_recomputed_from_votes(self):
+        now=int(datetime.now(timezone.utc).timestamp())
+        item=candidate(now)
+        item["score"]=1
+        ranked=rank_candidates({"TEST":item})
+        self.assertEqual(len(ranked),1)
+        self.assertEqual(ranked[0]["score"],100)
+
     def test_unverified_dhan_cannot_enter_rankings(self):
         now=int(datetime.now(timezone.utc).timestamp())
         item=candidate(now)
