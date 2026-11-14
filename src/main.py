@@ -1483,7 +1483,12 @@ def app_main(page:ft.Page):
             # their independent /dhan/ltp mapping is available. Retry only
             # missing indices; never derive prices from historical candles.
             missing_indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
-                             if sym not in snapshots]
+                             if not isinstance(snapshots.get(sym),dict)
+                             or snapshots[sym].get("source")!="Dhan"
+                             or not isinstance(snapshots[sym].get("price"),(int,float))
+                             or isinstance(snapshots[sym].get("price"),bool)
+                             or not math.isfinite(snapshots[sym]["price"])
+                             or snapshots[sym]["price"]<=0]
             for missing_symbol in missing_indices:
                 if (not app_active[0] or generation!=provider_generation[0]
                         or dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0):
