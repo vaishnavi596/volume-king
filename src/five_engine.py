@@ -101,8 +101,8 @@ def technical_from_votes(votes, *, timestamp=None, source="", verified=False):
     bullish = sum(v in ("BULLISH", "BUY") for v in labels)
     bearish = sum(v in ("BEARISH", "SELL") for v in labels)
     count = bullish + bearish
-    if not count:
-        return EngineEvidence("technical", reason="No independent directional technical votes")
+    if count < 3:
+        return EngineEvidence("technical", reason="Insufficient independent directional technical votes (minimum 3)")
     percent = round(100 * bullish / count)
     return EngineEvidence("technical", percent, 100-percent,
                           verified=verified, timestamp=timestamp, source=source,
