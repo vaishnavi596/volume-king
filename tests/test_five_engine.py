@@ -121,4 +121,21 @@ class FiveEngineTests(unittest.TestCase):
     def test_malformed_snapshot_fails_closed(self):
         self.assertEqual(snapshot_for_display({},now=1234567890)["combined"]["state"],"WAIT")
 
+
+    def test_provider_switch_never_promotes_old_evidence(self):
+        old=EngineEvidence("technical",80,20,verified=True,
+                           timestamp=1234567890,source="Yahoo Finance")
+        snap=compose_snapshot(technical=old)
+        shown=snapshot_for_display(snap,now=1234567900)
+        self.assertEqual(shown["combined"]["coverage"],0)
+        self.assertEqual(shown["engines"][0].display()["state"],"WAIT")
+        self.assertIn("source mismatch",shown["engines"][0].reason)
+
+    def test_matching_dhan_evidence_remains_eligible(self):
+        live=EngineEvidence("technical",80,20,verified=True,
+                            timestamp=1234567890,source="Dhan")
+        shown=snapshot_for_display(compose_snapshot(technical=live),now=1234567900)
+        self.assertEqual(shown["combined"]["coverage"],1)
+        self.assertEqual(shown["combined"]["state"],"WAIT")
+
 if __name__=="__main__":unittest.main()
