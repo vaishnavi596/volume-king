@@ -81,3 +81,41 @@ def combine_evidence(evidence, *, min_engines=3, min_margin=10):
         return dict(base, reason="Directional margin insufficient or conflicting")
     return {"state": leader, "coverage": coverage, "required": min_engines,
             "bullish": bull, "bearish": bear, "reason": "Verified directional agreement; not win probability"}
+
+
+def empty_evidence(reason="Awaiting verified data"):
+    """Canonical five-engine placeholder; never invent missing percentages."""
+    return tuple(EngineEvidence(name=name, reason=reason) for name in ENGINE_NAMES)
+
+
+def technical_from_votes(votes, *, timestamp=None, source="", verified=False):
+    """Convert independent technical votes only, never daily LTP change.
+
+    Accept a collection of normalized bullish/bearish/neutral vote labels.
+    Neutral and unknown votes do not contribute directional percentages.
+    Historical or unverified votes remain WAIT even if numerical counts exist.
+    """
+    if not isinstance(votes, (list, tuple)):
+        raise ValueError("Technical votes must be a sequence")
+    labels = [str(v).strip().upper() for v in votes]
+    bullish = sum(v in ("BULLISH", "BUY") for v in labels)
+    bearish = sum(v in ("BEARISH", "SELL") for v in labels)
+    count = bullish + bearish
+    if not count:
+        return EngineEvidence("technical", reason="No independent directional technical votes")
+    percent = round(100 * bullish / count)
+    return EngineEvidence("technical", percent, 100-percent,
+                          verified=verified, timestamp=timestamp, source=source,
+                          reason="Technical directional vote ratio; not win probability")
+
+
+def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, options=None):
+    """Merge separately sourced engines without treating one as another."""
+    provided = dict(technical=technical, candle=candle, news=news,
+                    futures=futures, options=options)
+    rows = tuple(provided[name] if provided[name] is not None else
+                 EngineEvidence(name, reason="Verified "+name+" evidence unavailable")
+                 for name in ENGINE_NAMES)
+    if any(row.name != name for name, row in zip(ENGINE_NAMES, rows)):
+        raise ValueError("Evidence engine name mismatch")
+    return {"engines": rows, "combined": combine_evidence(rows)}
