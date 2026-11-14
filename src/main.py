@@ -4046,6 +4046,16 @@ console.log('BOT KING Lightweight Charts ready');
             if current[0]==0:request_view_refresh(0)
             lines=[txt(v["name"]+" • "+("BULLISH" if v["vote"]==1 else "BEARISH" if v["vote"]==-1 else "NEUTRAL" if v["vote"]==0 else "UNAVAILABLE")+" • "+v["detail"],11,
                        GREEN if v["vote"]==1 else RED if v["vote"]==-1 else MUTED) for v in advanced["votes"]]
+            # Show filter-by-filter votes as soon as candle analysis completes.
+            # Option premium modeling, news or combined analysis must not hide them.
+            scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
+                txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),
+                note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),
+                note(basis),*lines,
+                note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
+            ],spacing=5))]
+            if current[0]==3:
+                page.update()
             support=min(float(b[3]) for b in bars[-20:])
             resistance=max(float(b[2]) for b in bars[-20:])
             budget=scan_budget.value or "80-120"
