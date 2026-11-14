@@ -51,10 +51,25 @@ class DhanScanProgressTests(unittest.TestCase):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
         self.assertIn('chart_snapshots[(index_sym,"5m",generation)]', source)
-        self.assertIn('index_indicator=analyze_current(index_history["bars"]', source)
+        self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))", source)
         self.assertIn('index_signal_row', source)
-        self.assertIn('5m historical votes • NOT live', source)
+        self.assertIn('Historical 5m votes • ', source)
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
+
+    def test_bk102_startup_resume_and_shared_historical_votes(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        poll=source.split("    async def dhan_quote_poll():",1)[1].split("    async def watch_visible_tick():",1)[0]
+        self.assertIn("await asyncio.sleep(10)",poll)
+        self.assertIn("await asyncio.sleep(180)",poll)
+        self.assertIn("time.monotonic()-quote_auto_last_attempt[0]>=30",poll)
+        self.assertIn("not watch_batch_busy[0] and not index_refresh_busy[0]",poll)
+        resume=source.split("    async def refresh_after_resume():",1)[1]
+        self.assertIn("await asyncio.sleep(10)",resume)
+        self.assertIn("quote_auto_last_attempt[0]=time.monotonic()",resume)
+        self.assertIn("ft.Column(index_cards,spacing=8)",source)
+        self.assertIn("def historical_vote_agreement(data):",source)
+        self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
+        self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
