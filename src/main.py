@@ -1509,12 +1509,12 @@ def app_main(page:ft.Page):
     quote_auto_last_attempt=[0.0]
     async def dhan_quote_poll():
         # BK-102: allow the app to settle before its first quote request.
-        # Subsequent automatic polls remain on a 180-second cadence.
+        # Subsequent equity snapshot requests are due every 60 seconds.
         await asyncio.sleep(10)
         while True:
             try:
                 if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and time.monotonic()-quote_auto_last_attempt[0]>=30
+                        and time.monotonic()-quote_auto_last_attempt[0]>=60
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
                     quote_auto_last_attempt[0]=time.monotonic()
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
@@ -1533,8 +1533,8 @@ def app_main(page:ft.Page):
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
             # Recheck after login without a three-minute idle gap.
-            # Snapshot requests still honor busy flags, 30s throttle and cooldown.
-            await asyncio.sleep(10 if not dhan_feed.connected else 30)
+            # Snapshot requests still honor busy flags, 60s throttle and cooldown.
+            await asyncio.sleep(10 if not dhan_feed.connected else 10)
 
     # Compact countdown updates independently; never rebuild Watchlist rows per second.
     watch_countdown=ft.Text("Next --",size=11,color=GOLD)
@@ -1548,13 +1548,13 @@ def app_main(page:ft.Page):
             return f"Wait {math.ceil(cooldown)}s"
         if not quote_auto_last_attempt[0]:
             return "Next soon"
-        # Poll loop wakes every 30s after connection; this is an estimate,
+        # Poll loop checks every 10s after connection; snapshot due every 60s; this is an estimate,
         # not a claim that the Dhan server returned a fresh quote.
         elapsed=time.monotonic()-quote_auto_last_attempt[0]
         # Never reset a visual timer when no new request was actually made.
-        if elapsed>=30:
+        if elapsed>=60:
             return "Next due"
-        return f"Next {max(0,math.ceil(30-elapsed))}s"
+        return f"Next {max(0,math.ceil(60-elapsed))}s"
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
@@ -4608,7 +4608,7 @@ console.log('BOT KING Lightweight Charts ready');
             if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
                 if (app_active[0] and generation==provider_generation[0]
-                        and time.monotonic()-quote_auto_last_attempt[0]>=30
+                        and time.monotonic()-quote_auto_last_attempt[0]>=60
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
                     quote_auto_last_attempt[0]=time.monotonic()
                     if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
