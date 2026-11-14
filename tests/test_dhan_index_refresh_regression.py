@@ -19,7 +19,7 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertNotIn("dhan_feed.quote,ticker", source)
         self.assertIn('old.get("bars",[])', source)
         self.assertIn('freshness="unverified"', source)
-        self.assertIn("generation==provider_generation[0]", source)
+        self.assertIn("generation!=provider_generation[0]", source)
 
     def test_equity_and_index_poll_are_both_scheduled(self):
         fn = next(node for node in ast.walk(self.tree)
