@@ -110,3 +110,13 @@ def test_dhan_seven_strike_option_ui_uses_cached_context_only():
     assert "asyncio.to_thread" not in block
     assert "dhan_feed.option_chain_metrics" not in block
     assert "get_market_data(" not in block
+
+
+def test_option_window_requires_current_symbol_expiry_and_connected_dhan():
+    start=SOURCE.index("    def option_chain_preview():")
+    end=SOURCE.index("\n    def ",start)
+    block=SOURCE[start:end]
+    assert 'prefs.get("source") == "Dhan" and dhan_feed.connected' in block
+    assert 'dhan_option_metrics.get("symbol") == chain_symbol.value' in block
+    assert 'dhan_option_metrics.get("expiry") == expiry.value' in block
+    assert 'context.get("available")' in block
