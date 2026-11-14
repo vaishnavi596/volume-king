@@ -17,7 +17,7 @@ class DhanIndexWatchlistRecovery(unittest.TestCase):
     def test_manual_refresh_includes_indexes(self):
         s=self.function("refresh_all_dhan_quotes")
         self.assertIn("await refresh_watch_batch()",s)
-        self.assertIn("await refresh_dhan_index_quotes()",s)
+        self.assertIn("await refresh_dhan_index_quotes(force=True)",s)
         self.assertIn("page.run_task(refresh_all_dhan_quotes)",self.function("watchlist"))
 
     def test_resume_refreshes_indexes(self):
