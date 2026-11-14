@@ -280,10 +280,13 @@ def deduplicate_news_context(headlines, *, symbol, now, max_age_seconds=600):
                 not isinstance(tags, (list, tuple)) or
                 target not in {tag.strip().casefold() for tag in tags if isinstance(tag, str)}):
             continue
-        key = (title.strip().casefold(), publisher.strip().casefold())
+        # Syndicated copies of the same headline count once, regardless of publisher.
+        key = " ".join(title.split()).casefold()
         if key in seen:
             continue
         seen.add(key)
         selected.append({"title": title.strip(), "publisher": publisher.strip(),
                          "published_at": published})
+        if len(selected) >= 20:
+            break
     return tuple(selected)
