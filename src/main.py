@@ -4177,11 +4177,13 @@ console.log('BOT KING Lightweight Charts ready');
                     symbols=list(dict.fromkeys(
                         [sym for sym in priority if sym in symbols]+symbols))
                 # Probe an equity first for the fail-fast provider guard, then
-                # inspect NIFTY early so its index card need not wait for 51
-                # equities. NIFTY failure must not block the equity scan.
-                if prefs.get("source")=="Dhan" and "NIFTY" in symbols:
-                    equities=[sym for sym in symbols if sym!="NIFTY"]
-                    symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]
+                # inspect all three indices early instead of waiting for the
+                # 51-equity pass. Keep requests serialized by the Dhan scan loop.
+                # An index failure does not abort the remaining equity scan.
+                if prefs.get("source")=="Dhan":
+                    equities=[sym for sym in symbols if sym not in ("NIFTY","BANKNIFTY","SENSEX")]
+                    indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in DHAN_VERIFIED_SYMBOLS]
+                    symbols=([equities[0]]+indices+equities[1:]) if equities else indices
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
