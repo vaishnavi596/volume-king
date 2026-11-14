@@ -42,3 +42,9 @@ def test_scanner_five_engine_requires_analysis_and_candle_provenance():
     assert 'analyzed.get("historical") is False' in SOURCE
     assert '(data or {}).get("historical") is False' in SOURCE
     assert 'freshness="verified_live" if verified else "unverified"' in SOURCE
+
+
+def test_provider_generation_invalidates_five_engine_cache():
+    # Login, restore/reset and provider selection all rotate the data generation.
+    assert SOURCE.count("provider_generation[0]+=1;five_engine_snapshots.clear()")==3
+    assert "snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())" in SOURCE
