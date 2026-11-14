@@ -55,3 +55,55 @@ def calculate_option_metrics(response):
     return {"ce_oi": total_ce, "pe_oi": total_pe, "pcr": total_pe / total_ce,
             "max_pain": min(payouts)[1], "strike_count": len(strikes),
             "freshness": "unverified", "signal_eligible": False}
+
+
+def listed_atm_window(response, *, spot, wings=3):
+    """Return seven listed strikes around spot, or fail closed.
+
+    This is a read-only display extractor. Broker freshness and expiry are not
+    established by a successful response; no row is a directional vote.
+    """
+    if type(spot) not in (int, float) or not math.isfinite(spot) or spot <= 0:
+        raise OptionMetricsUnavailable("Invalid spot price")
+    if type(wings) is not int or wings != 3:
+        raise OptionMetricsUnavailable("Only ATM plus three listed strikes each side supported")
+    if not isinstance(response, dict) or response.get("status") != "success":
+        raise OptionMetricsUnavailable("Unverified option chain response")
+    data = response.get("data")
+    chain = data.get("oc") if isinstance(data, dict) else None
+    if not isinstance(chain, dict) or not 7 <= len(chain) <= 2000:
+        raise OptionMetricsUnavailable("Insufficient listed strikes")
+    indexed = []
+    for key, legs in chain.items():
+        try:
+            strike = float(key)
+        except (TypeError, ValueError):
+            raise OptionMetricsUnavailable("Invalid listed strike") from None
+        if not math.isfinite(strike) or strike <= 0 or not isinstance(legs, dict):
+            raise OptionMetricsUnavailable("Invalid listed strike row")
+        indexed.append((strike, legs))
+    indexed.sort(key=lambda row: row[0])
+    if any(indexed[i][0] == indexed[i-1][0] for i in range(1, len(indexed))):
+        raise OptionMetricsUnavailable("Duplicate listed strike")
+    atm = min(range(len(indexed)), key=lambda i: (abs(indexed[i][0]-spot), indexed[i][0]))
+    if atm < 3 or atm + 3 >= len(indexed):
+        raise OptionMetricsUnavailable("ATM lacks three listed strikes on both sides")
+    result = []
+    for strike, legs in indexed[atm-3:atm+4]:
+        row = {"strike": strike}
+        for side in ("ce", "pe"):
+            leg = legs.get(side)
+            if not isinstance(leg, dict):
+                raise OptionMetricsUnavailable("Missing CE/PE leg")
+            oi = _oi(leg)
+            row[side] = {"oi": oi}
+            for field in ("volume", "last_price", "previous_oi"):
+                value = leg.get(field)
+                if value is None:
+                    continue
+                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    raise OptionMetricsUnavailable("Invalid optional option leg field")
+                row[side][field] = float(value)
+        result.append(row)
+    return {"atm": indexed[atm][0], "rows": tuple(result),
+            "freshness": "unverified", "signal_eligible": False, "source": "dhan"}
