@@ -55,6 +55,9 @@ def combine_evidence(evidence, *, min_engines=3, min_margin=10):
     A 3/5 quorum is necessary but not sufficient: at least 2/3 of eligible
     directional engines must agree and the average margin must exceed threshold.
     """
+    if (type(min_engines) is not int or not 1 <= min_engines <= len(ENGINE_NAMES) or
+            type(min_margin) is not int or not 0 <= min_margin <= 100):
+        raise ValueError("Invalid coverage or margin policy")
     if not isinstance(evidence, (list, tuple)) or len(evidence) != len(ENGINE_NAMES):
         raise ValueError("Exactly five engine entries required")
     if (any(not isinstance(e, EngineEvidence) for e in evidence) or
