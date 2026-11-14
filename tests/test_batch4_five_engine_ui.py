@@ -48,3 +48,10 @@ def test_provider_generation_invalidates_five_engine_cache():
     # Login, restore/reset and provider selection all rotate the data generation.
     assert SOURCE.count("provider_generation[0]+=1;five_engine_snapshots.clear()")==3
     assert "snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())" in SOURCE
+
+
+def test_five_engine_ui_requires_current_dhan_connection():
+    for method in ("def five_engine_summary(symbol):","def compact_five_engine_watch(symbol):"):
+        block=SOURCE.split(method,1)[1].split("\\n    def ",1)[0]
+        assert 'prefs.get("source")!="Dhan" or not dhan_feed.connected' in block
+        assert "WAIT" in block
