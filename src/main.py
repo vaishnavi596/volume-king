@@ -1412,6 +1412,12 @@ def app_main(page:ft.Page):
         if current[0] in (0,4,5):
             request_view_refresh(current[0])
 
+    async def refresh_all_dhan_quotes():
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return
+        await refresh_watch_batch()
+        await refresh_dhan_index_quotes()
+
     async def dhan_quote_poll():
         # Quote cadence is independent of the expensive 51-symbol candle-history scan.
         # Only poll while the Android app is foregrounded and Dhan is connected.
@@ -1450,7 +1456,7 @@ def app_main(page:ft.Page):
                 last_visible_signature=None
                 continue
             try:
-                visible=tuple(watch_groups[active_watch[0]])
+                visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
                             (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
@@ -1484,7 +1490,7 @@ def app_main(page:ft.Page):
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(("Dhan quote refresh • every 30 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed • candle signals are independent of LTP refresh") if prefs.get("source")=="Dhan" else note(""),
-            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
+            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
                 wrap=True),note("Quote refresh is independent of historical analysis • latest batch status above"),watch_list]
@@ -4344,6 +4350,7 @@ console.log('BOT KING Lightweight Charts ready');
             if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
                 await refresh_watch_batch()
+                await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
             if current[0]==1:await refresh_selected_options()
