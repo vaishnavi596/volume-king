@@ -1,5 +1,5 @@
 import unittest
-from backend.dhan_option_metrics import calculate_option_metrics, OptionMetricsUnavailable
+from backend.dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 
 
 class DhanOptionMetricsTests(unittest.TestCase):
@@ -40,6 +40,36 @@ class DhanOptionMetricsTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 with self.assertRaises(OptionMetricsUnavailable):
                     calculate_option_metrics(bad)
+
+
+    def test_listed_atm_window_uses_only_broker_listed_strikes_and_never_votes(self):
+        raw={"status":"success","data":{"oc":{
+            str(strike):{"ce":{"oi":100,"volume":20,"last_price":4.5},
+                         "pe":{"oi":80,"volume":30,"last_price":3.5}}
+            for strike in (80,90,100,110,120,130,140,150,160)
+        }}}
+        window=listed_atm_window(raw,spot=121)
+        self.assertEqual(window["atm"],120)
+        self.assertEqual([r["strike"] for r in window["rows"]],[90,100,110,120,130,140,150])
+        self.assertEqual(window["rows"][3]["ce"]["volume"],20.0)
+        self.assertEqual(window["rows"][3]["pe"]["last_price"],3.5)
+        self.assertEqual(window["source"],"dhan")
+        self.assertEqual(window["freshness"],"unverified")
+        self.assertIs(window["signal_eligible"],False)
+
+    def test_listed_atm_window_rejects_invalid_spot_and_boundary_window(self):
+        raw={"status":"success","data":{"oc":{
+            str(strike):{"ce":{"oi":10},"pe":{"oi":10}}
+            for strike in (80,90,100,110,120,130,140)
+        }}}
+        for spot in (None,0,float("nan"),float("inf"),True):
+            with self.subTest(spot=spot), self.assertRaises(OptionMetricsUnavailable):
+                listed_atm_window(raw,spot=spot)
+        with self.assertRaises(OptionMetricsUnavailable):
+            listed_atm_window(raw,spot=80)
+        with self.assertRaises(OptionMetricsUnavailable):
+            listed_atm_window(raw,spot=140)
+
 
 
 if __name__=="__main__":
