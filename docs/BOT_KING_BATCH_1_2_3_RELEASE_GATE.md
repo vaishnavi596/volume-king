@@ -33,3 +33,13 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 3. Bump versionName and versionCode, build signed APK once for combined Batches 1–3.
 4. Install and run mobile smoke tests. Only mark a batch complete when its end-to-end checklist is verified.
 5. Keep live order routing disabled. Do not proceed to other batches until the agreed release gate is satisfied.
+
+## Cross-screen consistency gate (OPEN)
+- [ ] Dashboard Super Five and Scanner use the same validated signal calculation and ranking rules.
+- [ ] Watchlist and Dashboard reuse the same Dhan LTP state without turning historical candles into live quotes.
+- [ ] Charts and Scanner share validated candle interpretation but keep timeframe-specific caches separate.
+- [ ] Paper Bot receives only eligible verified signals; historical/unverified votes cannot trigger orders.
+- [ ] Every screen shows consistent source, freshness, WAIT reason, and unavailable-filter status.
+
+### Audit finding (2026-11-14)
+`src/main.py::publish_partial_ranking` sorts candidates locally by historical/bias/score/timestamp, whereas `src/scanner_engine.py::rank_candidates` applies stricter vote verification and confirmation/recency tie-breaks. Therefore **the recent rank_candidates improvements are NOT yet proven to affect the displayed Dashboard Super Five**. Do not mark cross-screen consistency PASS or claim these changes are already reflected everywhere. Integrate a shared ranking policy with explicit historical-display mode (no promotion to live) and add cross-screen regression coverage before final build.
