@@ -319,3 +319,41 @@ def futures_market_context(component, *, now, max_age_seconds=300):
     return {"contract": contract.strip(), "timestamp": timestamp,
             "ltp": values[0], "open_interest": values[1], "volume": values[2],
             "source": "Dhan", "direction": None, "direction_verified": False}
+
+
+def resolve_verified_futures_contract(rows, *, symbol, expiry):
+    """Resolve exactly one broker-master futures contract; no symbol guesses.
+
+    Only normalized records from an authenticated, verified Dhan instrument
+    master are eligible. Ambiguity fails closed, including duplicate IDs.
+    """
+    from datetime import date
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise ValueError("Underlying symbol required")
+    if not isinstance(expiry, date) or isinstance(expiry, __import__("datetime").datetime):
+        raise ValueError("Contract expiry must be a date")
+    if not isinstance(rows, (list, tuple)):
+        return None
+    matches = []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("source") != "Dhan" or row.get("master_verified") is not True:
+            continue
+        if row.get("instrument_type") != "FUT" or row.get("exchange_segment") != "NSE_FNO":
+            continue
+        underlying = row.get("underlying")
+        if not isinstance(underlying, str) or underlying.strip().casefold() != symbol.strip().casefold():
+            continue
+        if row.get("expiry") != expiry.isoformat():
+            continue
+        sid = row.get("security_id")
+        contract = row.get("contract")
+        if (not isinstance(sid, str) or not sid.isascii() or not sid.isdecimal() or
+                int(sid) <= 0 or not isinstance(contract, str) or not contract.strip()):
+            return None
+        matches.append({"source": "Dhan", "exchange_segment": "NSE_FNO",
+                        "security_id": sid, "contract": contract.strip(),
+                        "underlying": symbol.strip().upper(), "expiry": expiry.isoformat(),
+                        "mapping_verified": True})
+        if len(matches) > 1:
+            return None
+    return matches[0] if len(matches) == 1 else None
