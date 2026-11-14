@@ -103,7 +103,7 @@ def analyze(bars, selected=None, timeframe="5m"):
         upper,lower=ub,lb
     # A flat 14-bar window cannot confirm an UP trend just because the
     # Supertrend state initializes bullish before any reversal.
-    confirmed_trend=0 if max(high[-14:])==min(low[-14:]) else trend
+    confirmed_trend=0 if max(close[-14:])==min(close[-14:]) else trend
     add("Supertrend",confirmed_trend,"ATR(14) multiplier 3; "+("FLAT" if confirmed_trend==0 else "UP" if trend==1 else "DOWN"))
     # Confirmed swing structure uses prior completed bars, not current bar.
     prev_high=max(high[-21:-1]);prev_low=min(low[-21:-1])
