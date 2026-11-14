@@ -2389,7 +2389,11 @@ def app_main(page:ft.Page):
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
                 note("Option chain not connected • Dhan option strikes are unavailable for this symbol/expiry."),
-                note(option_feed_status[0])])
+                note(option_feed_status[0]),
+                note("ATM window: "+{
+                    "underlying_spot_unavailable":"Dhan underlying spot missing",
+                    "listed_window_unavailable":"Seven valid listed strikes unavailable",
+                }.get(dhan_option_metrics.get("atm_window_status"),"Not yet verified"))])
         rows=selected_option_rows();grouped={}
         for row in rows:grouped.setdefault(row["strike"],{})[row["side"]]=row
         def cell_value(row,key):
