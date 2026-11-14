@@ -133,7 +133,7 @@ jobs:
           from pathlib import Path
           import tomllib
           version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
-          Path("src/_build_version.py").write_text("BUILD_VERSION = " + repr(version) + "\\n")
+          Path("src/_build_version.py").write_text("BUILD_VERSION = " + repr(version) + chr(10))
           print("Embedded runtime version:", version)
           PY
 
