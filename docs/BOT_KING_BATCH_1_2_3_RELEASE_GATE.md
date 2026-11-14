@@ -48,3 +48,8 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 
 ### Audit finding (2026-11-14)
 `src/main.py::publish_partial_ranking` sorts candidates locally by historical/bias/score/timestamp, whereas `src/scanner_engine.py::rank_candidates` applies stricter vote verification and confirmation/recency tie-breaks. Therefore **the recent rank_candidates improvements are NOT yet proven to affect the displayed Dashboard Super Five**. Do not mark cross-screen consistency PASS or claim these changes are already reflected everywhere. Integrate a shared ranking policy with explicit historical-display mode (no promotion to live) and add cross-screen regression coverage before final build.
+
+### Paper Bot source audit (2026-11-14)
+- `src/main.py` Paper Bot uses a manual tick engine; Start and Process mark do not consume Scanner/Super Five candidate rows and do not place broker orders.
+- Therefore cross-screen Paper Bot signal eligibility remains OPEN: the present manual-only behavior is safe from unverified automatic entry, but an automatic verified-signal handoff has not been implemented or device-validated.
+- Watchlist Dhan candle freshness gate added at feb36617, regression at 4bbdfcf; offline CI runs 43591303233 and 43591310296 passed. This does not establish Oracle/mobile freshness.
