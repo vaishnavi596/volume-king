@@ -2373,11 +2373,13 @@ def app_main(page:ft.Page):
                     return ("—" if v is None else f"{v:,.{decimals}f}")
                 display_rows.append(ft.DataRow(cells=[ft.DataCell(txt(v,12,MUTED)) for v in (
                     value(item["ce"],"last_price",2),value(item["ce"],"oi"),
-                    f'{item["strike"]:g}',value(item["pe"],"oi"),
+                    value(item["ce"],"volume"),f'{item["strike"]:g}',
+                    value(item["pe"],"volume"),value(item["pe"],"oi"),
                     value(item["pe"],"last_price",2))]))
             return ft.Column([
                 note("Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
-                ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in headings],
+                ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in
+                    ["CE Premium","CE OI","CE Vol","Strike","PE Vol","PE OI","PE Premium"]],
                     rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
                 note("CE/PE premiums and OI are display-only; missing values shown as —.")])
         if prefs.get("source") == "Dhan":
