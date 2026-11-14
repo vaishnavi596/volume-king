@@ -51,7 +51,8 @@ def analyze(bars, selected=None, timeframe="5m"):
         for previous, current in zip(clean, clean[1:]):
             same_session = (datetime.fromtimestamp(previous[0], market_tz).date() ==
                             datetime.fromtimestamp(current[0], market_tz).date())
-            if same_session and current[0] - previous[0] > interval_seconds * 2:
+            # A single missing bar creates a 2x interval gap; reject it too.
+            if same_session and current[0] - previous[0] > interval_seconds * 1.5:
                 return {"bias":"WAIT","score":0,"votes":[],"reason":"Missing candles within trading session",
                         "count":len(clean),"timeframe":timeframe,"timestamp":None}
     if len(clean)<30:
