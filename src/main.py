@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from five_engine import scanner_snapshot, snapshot_for_display, option_from_component
+from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, deduplicate_news_context
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -400,7 +400,14 @@ def app_main(page:ft.Page):
         aliases={"NIFTY":["nifty"],"BANKNIFTY":["bank nifty","banknifty"],"SENSEX":["sensex"],"HDFCBANK":["hdfc bank"],"SBIN":["state bank of india","sbi"],"ICICIBANK":["icici bank"],"RELIANCE":["reliance industries","reliance"],"TCS":["tata consultancy","tcs"],"INFY":["infosys"]}.get(symbol,[symbol.lower()])
         import re
         def matches(title):return any(re.search(r"(?<!\w)"+re.escape(alias)+r"(?!\w)",title,re.I) for alias in aliases)
-        items=[x for x in local_news.get("items",[]) if 0<=now-x.get("published",0)<=86400 and matches(x.get("title",""))]
+        # RSS remains non-voting context. Require instrument match, publisher,
+        # bounded publication time and deduplication before headline diagnostics.
+        tagged=[{"title":x.get("title"), "publisher":x.get("source"),
+                 "published_at":x.get("published"), "symbols":[symbol]}
+                for x in local_news.get("items",[]) if isinstance(x,dict) and
+                isinstance(x.get("title"),str) and matches(x["title"])]
+        items=[{"title":x["title"], "source":x["publisher"], "published":x["published_at"]}
+               for x in deduplicate_news_context(tagged,symbol=symbol,now=now,max_age_seconds=86400)]
         cues=headline_signal(items);options=option_component(symbol,interval)
         candle_age=now-(candle.get("timestamp") or 0)
         candle_valid=not candle.get("historical") and not candle.get("cached") and 0<=candle_age<=timeframe_spec(interval)["fresh_seconds"] and candle.get("bias") in ("BULLISH","BEARISH")
