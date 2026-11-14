@@ -303,8 +303,11 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("async def super_five_minute_refresh():", source)
         self.assertIn("page.run_task(super_five_minute_refresh)", source)
-        self.assertIn("await asyncio.sleep(60)", source)
-        self.assertIn("snapshot.get(\"bars\")", source)
+        local_loop = source.split("async def super_five_minute_refresh():", 1)[1].split("    def super_five_card():", 1)[0]
+        self.assertIn("await asyncio.sleep(15)", local_loop)
+        self.assertIn("snapshot.get(\"bars\")", local_loop)
+        self.assertNotIn("get_market_data(", local_loop)
+        self.assertNotIn("dhan_feed.intraday(", local_loop)
         self.assertNotIn("API STATUS & ERROR MONITOR", source)
 
     def test_closed_market_dhan_retry_uses_three_minute_cooldown(self):
