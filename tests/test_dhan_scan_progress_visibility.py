@@ -37,6 +37,15 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("watch_batch_busy[0] or index_refresh_busy[0]", body)
         self.assertIn("await refresh_dhan_index_quotes(force=True)", body)
 
+    def test_index_candle_signals_are_separate_from_equity_scan(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
+        self.assertIn('chart_snapshots[(index_sym,"5m",generation)]', source)
+        self.assertIn('index_indicator=analyze_current(index_history["bars"]', source)
+        self.assertIn('index_signal_row', source)
+        self.assertIn('5m historical votes • NOT live', source)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
+
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]', source)
