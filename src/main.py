@@ -1378,6 +1378,18 @@ def app_main(page:ft.Page):
                     ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=4)
         ],spacing=1)
 
+    def compact_five_engine_watch(symbol):
+        # The scanner already populated this cache; never poll Dhan from a row.
+        snapshot=five_engine_snapshots.get(symbol)
+        if not snapshot:
+            return note("5E WAIT • verified 0/5")
+        technical=snapshot["engines"][0].display()
+        coverage=snapshot["combined"]["coverage"]
+        if technical["state"]=="WAIT":
+            return note("5E WAIT • verified "+str(coverage)+"/5")
+        return note("5E "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
+                    "/5 • T B"+str(technical["bullish"])+"% / S"+str(technical["bearish"])+"%")
+
     def fill_watch(_=None):
         watch_list.controls.clear()
         visible_count=0
@@ -1422,7 +1434,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),compact_five_engine_watch(sym),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
