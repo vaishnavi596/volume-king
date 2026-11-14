@@ -489,6 +489,47 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "expiry": body.expiry.isoformat(), **metrics,
                 "live_orders_enabled": False}
 
+    @app.post("/dhan/index-ltp-batch")
+    def dhan_index_ltp_batch(x_botking_key: Optional[str] = Header(default=None)):
+        """One read-only provider request for three verified index instruments."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        symbols = ("NIFTY", "BANKNIFTY", "SENSEX")
+        mappings = [DHAN_VERIFIED_INSTRUMENTS.get(symbol) for symbol in symbols]
+        if any(not item or item[0] not in ("IDX_I", "BSE_I") for item in mappings):
+            raise HTTPException(503, "Dhan index mappings not configured")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        token = dhan_market_token()
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        try:
+            data = DhanFeed(client, token).batch_ltp(
+                [(segment, sid) for segment, sid, _ in mappings])
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan market data rate limited; retry later",
+                                headers={"Retry-After": "30"}) from None
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan index market data unavailable") from None
+        quotes = {}
+        for symbol, (segment, sid, _) in zip(symbols, mappings):
+            try:
+                raw = data["data"][segment][str(sid)]["last_price"]
+                if isinstance(raw, bool):
+                    raise ValueError("Invalid index price")
+                price = float(raw)
+                if not math.isfinite(price) or price <= 0:
+                    raise ValueError("Invalid index price")
+            except (ValueError, TypeError, KeyError, OverflowError, AttributeError):
+                continue
+            quotes[symbol] = {"symbol": symbol, "source": "dhan",
+                              "exchange_segment": segment, "security_id": str(sid),
+                              "ltp": price, "freshness": "unverified"}
+        if not quotes:
+            raise HTTPException(502, "No valid Dhan index quotes")
+        return {"source": "dhan", "quotes": quotes,
+                "unavailable": [symbol for symbol in symbols if symbol not in quotes],
+                "freshness": "unverified", "live_orders_enabled": False}
+
     @app.post("/dhan/ltp")
     def dhan_ltp(body: Symbol, x_botking_key: Optional[str] = Header(default=None)):
         """Read-only paired quotes for Dhan instrument-master-verified IDs."""
