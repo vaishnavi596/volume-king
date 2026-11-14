@@ -64,7 +64,7 @@ def combine_evidence(evidence, *, min_engines=3, min_margin=10):
     if (any(not isinstance(e, EngineEvidence) for e in evidence) or
             tuple(e.name for e in evidence) != ENGINE_NAMES):
         raise ValueError("Engines must be unique and in canonical order")
-    eligible = [e for e in evidence if e.eligible]
+    eligible = [e for e in evidence if e.eligible and e.source.strip().casefold() == "dhan"]
     coverage = len(eligible)
     base = {"state": "WAIT", "coverage": coverage, "required": min_engines,
             "bullish": None, "bearish": None, "reason": "Insufficient verified engines"}
