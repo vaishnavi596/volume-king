@@ -1215,7 +1215,6 @@ def app_main(page:ft.Page):
         # Diagnostics and news data remain available in their dedicated views.
         return [
             dashboard_market_indices(),
-            data_overview(),
             dashboard_index_analysis(),
             note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')),
             fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True),
@@ -3215,11 +3214,12 @@ def app_main(page:ft.Page):
             section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
             section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
             section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
-            section("09  DIAGNOSTICS",ft.Column([note("Recent error types only; API secrets and response bodies are excluded."),txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)])),
 
             note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
         ])
         content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Paper trading only • Live orders OFF")))
+        content.append(data_overview())  # Unified System Health + Error Doctor at Settings bottom.
+        content.append(section("RECENT ERROR TYPES",txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)))
         return content
 
 
