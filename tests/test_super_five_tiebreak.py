@@ -27,6 +27,15 @@ class SuperFiveTieBreak(unittest.TestCase):
                                 "ZZZ":candidate(now-120,extra=True)})
         self.assertEqual([r["symbol"] for r in ranked],["ZZZ","AAA"])
 
+    def test_claimed_score_is_capped_by_confirmed_votes(self):
+        now=int(datetime.now(timezone.utc).timestamp())
+        item=candidate(now)
+        item["votes"].append({"name":"VWAP","vote":-1})
+        item["score"]=76
+        ranked=rank_candidates({"TEST":item})
+        self.assertEqual(len(ranked),1)
+        self.assertEqual(ranked[0]["score"],75)
+
     def test_unverified_dhan_cannot_enter_rankings(self):
         now=int(datetime.now(timezone.utc).timestamp())
         item=candidate(now)
