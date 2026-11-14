@@ -2578,7 +2578,7 @@ def app_main(page:ft.Page):
                             (" • PARTIAL" if dhan_batch_issue[0] else ""))
                         connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
                     # Historical scan must run even if the independent LTP batch fails.
-                    provider_generation[0]+=1
+                    provider_generation[0]+=1;five_engine_snapshots.clear()
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
                     # The login path already fetched and published the equity batch.
@@ -3230,7 +3230,7 @@ def app_main(page:ft.Page):
             protection_pending.clear();protection_sample.clear();protection_peak[0]=0
             market_status="Data source: "+source.value+" • waiting for refresh"
             connection_status.value=market_status
-            provider_generation[0]+=1;scan_generation[0]+=1
+            provider_generation[0]+=1;five_engine_snapshots.clear();scan_generation[0]+=1
             quotes.clear();candles.clear();fusion_cache.clear();mark_ranking_historical();scan_result.controls.clear()
             restore_confirm.value=False;save();backup_status.value="Settings restored; Auto Scan/protection OFF. Imported positions were not opened. Daily limits retained."
             select(current[0])
@@ -4121,7 +4121,7 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
-        provider_generation[0]+=1
+        provider_generation[0]+=1;five_engine_snapshots.clear()
         # Preserve the last displayed price while the new provider reconnects.
         # Mark it as historical/unverified rather than implying that the old
         # provider's quote is live data from the newly selected provider.
