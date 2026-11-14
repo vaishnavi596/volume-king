@@ -41,6 +41,19 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('cycle_data[early_index]=early_data', source)
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
 
+    def test_index_candle_timer_is_paced_and_generation_safe(self):
+        fn = next(node for node in ast.walk(self.tree)
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_index_candle_poll")
+        source = ast.get_source_segment(self.source, fn)
+        self.assertIn('time.monotonic()-index_candle_last_attempt[0]>=180', source)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")==0', source)
+        self.assertIn('not lifecycle_background[0]', source)
+        self.assertIn('generation!=provider_generation[0]', source)
+        self.assertIn('market_recent.get(history_key)', source)
+        self.assertIn('await asyncio.sleep(1.5)', source)
+        self.assertIn('asyncio.to_thread(get_market_data,index_sym,"5m","2d")', source)
+        self.assertIn('page.run_task(dhan_index_candle_poll)', self.source)
+
     def test_dhan_has_no_second_automatic_scanner(self):
         source = self.source
         fn = next(node for node in ast.walk(self.tree)
