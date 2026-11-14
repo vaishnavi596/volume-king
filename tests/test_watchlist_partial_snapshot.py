@@ -58,7 +58,7 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn("if remaining==0:",poll)
         self.assertIn("Dhan snapshot cooling down",poll)
         self.assertIn('await refresh_watch_batch()',poll)
-        self.assertIn('await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)',poll)
+        self.assertIn('await asyncio.sleep(10 if not dhan_feed.connected else 30)',poll)
         self.assertIn('except asyncio.CancelledError:',poll)
         self.assertIn('raise',poll)
 
