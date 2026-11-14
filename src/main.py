@@ -4313,6 +4313,35 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(max(60, dhan_feed.cooldown_remaining("/dhan/intraday")))
                     continue
                 successes=sum(results)
+                # Index histories are separate from the 51-equity scanner total.
+                # Reuse NIFTY already fetched in this scan; fetch BANKNIFTY and
+                # SENSEX serially only after the equity pass and without fanout.
+                if prefs.get("source")=="Dhan" and successes:
+                    for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
+                        if generation!=provider_generation[0] or lifecycle_background[0]:
+                            break
+                        try:
+                            if index_sym in cycle_data:
+                                index_history=cycle_data[index_sym]
+                            else:
+                                if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                                    break
+                                await asyncio.sleep(1.5)
+                                index_history=await asyncio.wait_for(
+                                    asyncio.to_thread(get_market_data,index_sym,"5m","2d"),
+                                    timeout=25)
+                            if (index_history.get("source")=="Dhan"
+                                    and index_history.get("bars")
+                                    and generation==provider_generation[0]):
+                                chart_snapshots[(index_sym,"5m",generation)]=dict(
+                                    index_history,_scanner_timeframe="5m")
+                                if current[0] in (0,4):
+                                    request_view_refresh(current[0])
+                        except Exception as exc:
+                            log_error("index_candle_"+index_sym,exc)
+                            if ("429" in safe_error(exc) or
+                                    dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                                break
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
                     market_status=f"{prefs.get('source','Dhan')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
