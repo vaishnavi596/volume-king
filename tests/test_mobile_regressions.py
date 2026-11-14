@@ -343,7 +343,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("if remaining==0:", poll)
         self.assertIn("Dhan snapshot cooling down", poll)
         self.assertIn("await refresh_watch_batch()", poll)
-        self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 30)", poll)
+        self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 10)", poll)
         self.assertNotIn("dhan_feed.intraday(", poll)
 
     def test_dhan_history_429_pauses_without_scanning_remaining_symbols(self):
@@ -498,7 +498,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_dhan_history_scan_cycle_waits_five_minutes_but_resume_interrupts(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
-        self.assertIn('wait_seconds=300 if prefs.get("source")=="Dhan" else 120', scan)
+        self.assertIn('wait_seconds=180 if prefs.get("source")=="Dhan" else 120', scan)
         self.assertIn("for _ in range(wait_seconds//5):", scan)
         self.assertIn("if provider_generation[0]!=generation:\n                        break", scan)
         self.assertIn("await asyncio.sleep(5)", scan)
