@@ -183,5 +183,10 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
         good.append({**result,"symbol":symbol,"age":int(age)})
-    good.sort(key=lambda x:(-x["score"], -len([v for v in x["votes"] if v["vote"] in (-1,1)]), x["symbol"]))
+    # Equal-strength candidates: prefer more independent confirming votes,
+    # then newer verified candle timestamps; alphabetic order is only final tie-break.
+    good.sort(key=lambda x:(-x["score"],
+                            -sum(v["vote"] == (1 if x["bias"] == "BULLISH" else -1)
+                                 for v in x["votes"]),
+                            -x["timestamp"], x["symbol"]))
     return good[:max_results]
