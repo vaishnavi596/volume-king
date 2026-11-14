@@ -65,3 +65,8 @@ def test_unavailable_five_engine_evidence_explains_wait():
 def test_options_display_reuses_existing_cached_component_without_extra_poll():
     assert 'option_from_component(option_component(symbol, "5m"))' in SOURCE
     assert 'pieces[-1]="Options "+option_context.display()["state"]' in SOURCE
+
+
+def test_options_reason_visible_even_without_scanner_snapshot():
+    assert 'if not snapshot:\n            # The cached option context' in SOURCE
+    assert 'option_context.reason+")")' in SOURCE
