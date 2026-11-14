@@ -32,3 +32,13 @@ def test_compact_watchlist_reads_only_existing_evidence():
     assert "dhan_feed." not in block
     assert "await " not in block
     assert "compact_five_engine_watch(sym)" in SOURCE
+
+
+def test_scanner_five_engine_requires_analysis_and_candle_provenance():
+    assert 'analyzed.get("source")=="Dhan"' in SOURCE
+    assert '(data or {}).get("source")=="Dhan"' in SOURCE
+    assert 'analyzed.get("live_verified") is True' in SOURCE
+    assert '(data or {}).get("live_verified") is True' in SOURCE
+    assert 'analyzed.get("historical") is False' in SOURCE
+    assert '(data or {}).get("historical") is False' in SOURCE
+    assert 'freshness="verified_live" if verified else "unverified"' in SOURCE
