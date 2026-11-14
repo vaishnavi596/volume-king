@@ -253,3 +253,13 @@ def test_verified_evidence_rejects_blank_or_non_string_source():
         assert not row.eligible
         assert row.display()["state"] == "WAIT"
         assert combine_evidence([row] + [EngineEvidence(n) for n in ENGINE_NAMES[1:]])["coverage"] == 0
+
+
+def test_verified_flag_must_be_boolean_true_not_truthy():
+    for flag in (1, "yes", [True], {"verified": True}):
+        row = EngineEvidence("technical", 80, 20, verified=flag,
+                             timestamp=1234567890, source="Dhan")
+        assert row.eligible is False
+        assert row.display()["state"] == "WAIT"
+    assert EngineEvidence("technical", 80, 20, verified=True,
+                          timestamp=1234567890, source="Dhan").eligible is True
