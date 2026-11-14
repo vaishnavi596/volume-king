@@ -4308,6 +4308,8 @@ console.log('BOT KING Lightweight Charts ready');
                         except Exception as exc:
                             log_error("index_candle_"+early_index,exc)
                             if ("429" in safe_error(exc) or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                                scan_progress["state"]="Dhan index history cooling down • equity history pending • last LTP retained"
+                                last_scanned_generation=None
                                 break
                     # Dhan history is a rate-limited upstream API: serialize
                     # calls and stop this cycle when its cooldown is triggered.
