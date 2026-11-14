@@ -71,6 +71,14 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b1_b2_index_warmup_reused_in_post_scan_without_duplicate_request(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
+        end = source.index('                    # Dhan history is a rate-limited upstream API: serialize', start)
+        self.assertIn('cycle_data[early_index]=early_data', source[start:end])
+        after = source.index('                # Index histories are separate from the 51-equity scanner total.')
+        self.assertIn('if index_sym in cycle_data:', source[after:after+1400])
+
     def test_b2_empty_index_history_reports_failure_without_clearing_ltp(self):
         source = SOURCE.read_text(encoding="utf-8")
         start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
