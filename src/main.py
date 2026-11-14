@@ -2309,6 +2309,12 @@ def app_main(page:ft.Page):
             previous=quotes.get(sym) or {}
             # No history request is needed for option metrics.
             option_feed_status[0]="Loading Dhan read-only PCR and Max Pain..."
+            # Dhan expiry-list and option-chain share a three-second pacing gate.
+            # Wait asynchronously so the UI stays responsive.
+            await asyncio.sleep(3.25)
+            if (generation!=provider_generation[0] or sym!=chain_symbol.value
+                    or choice!=option_expiry_choice.value or expiry.value!=chosen):
+                return
             data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             dhan_option_metrics.clear()
