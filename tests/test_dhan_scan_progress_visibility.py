@@ -71,6 +71,15 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_early_index_cooldown_preserves_retry_generation(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
+        end = source.index('                    # Dhan history is a rate-limited upstream API: serialize', start)
+        section = source[start:end]
+        self.assertIn('last_scanned_generation=None', section)
+        self.assertIn('Dhan index history cooling down', section)
+        self.assertIn('last LTP retained', section)
+
     def test_b2_missing_indices_warm_before_equity_tail_without_extra_scan_count(self):
         source = SOURCE.read_text(encoding="utf-8")
         begin = source.index('                    results=[first_ok]')
