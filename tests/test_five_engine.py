@@ -509,3 +509,14 @@ def test_batch4_option_context_is_nonvoting_and_rejects_bad_rows():
     broken = [dict(row) for row in rows]
     broken[3] = dict(broken[3], ce={"oi": float("nan")})
     assert option_chain_display_context(dict(payload, atm_window=dict(payload["atm_window"], rows=broken)))["available"] is False
+
+
+def test_batch4_shared_snapshot_option_context_does_not_vote():
+    from src.five_engine import compose_snapshot, compose_snapshot_with_option_context
+    base = compose_snapshot()
+    wrapped = compose_snapshot_with_option_context(option_metrics={"source": "dhan",
+        "freshness": "unverified", "signal_eligible": False})
+    assert wrapped["combined"] == base["combined"]
+    assert wrapped["engines"] == base["engines"]
+    assert wrapped["option_context"]["available"] is False
+    assert "option_context" not in base
