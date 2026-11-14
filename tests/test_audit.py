@@ -287,7 +287,8 @@ class AuditTests(unittest.TestCase):
         self.assertIn('PAUSED',v['scan_age_display'].value)
         self.assertIn('15 sec ago',v['scan_age_display'].value)
         top=v['scanner']()[2].content.controls
-        self.assertIn(v['scan_tf'],top);self.assertIn(v['scan_period'],top);self.assertIn(v['scan_refresh'],top)
+        self.assertIn(v['scan_tf'],top);self.assertIn(v['scan_period'],top)
+        self.assertNotIn(v['scan_refresh'],top);self.assertNotIn(v['scan_live'],top)
         self.assertFalse(any(isinstance(c,ft.Row) and v['scan_tf'] in c.controls for c in top))
 
     def test_filter_routing_and_capability_limits(self):
