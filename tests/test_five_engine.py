@@ -224,4 +224,13 @@ class FiveEngineTests(unittest.TestCase):
               "freshness":"verified_live","live_verified":True,"historical":False}
         self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
 
+
+    def test_option_component_requires_measured_directional_strength(self):
+        for component in (None, {}, {"available":True,"source":"Dhan",
+            "verified":True,"direction_basis":"validated_trade_flow",
+            "bias":"BULLISH","timestamp":1234567890}):
+            row=option_from_component(component)
+            self.assertEqual(row.display()["state"],"WAIT")
+            self.assertIsNone(row.bullish)
+
 if __name__=="__main__":unittest.main()
