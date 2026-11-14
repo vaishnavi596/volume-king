@@ -71,6 +71,13 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_chart_failure_retains_only_selected_timeframe_history(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('saved=chart_snapshots.get((sym,tf,generation)) or {}', source)
+        self.assertIn('saved_bars=saved.get("bars") or []', source)
+        self.assertIn('" historical candles • last bar "+saved_stamp+" • NOT live"', source)
+        self.assertIn('" • no saved candles for selected timeframe"', source)
+
     def test_b2_chart_reports_candle_timeframe_and_utc_timestamp(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('last_bar_stamp=(datetime.fromtimestamp(bars[-1][0],timezone.utc)', source)
