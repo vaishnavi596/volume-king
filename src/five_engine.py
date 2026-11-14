@@ -210,3 +210,16 @@ def option_from_component(component):
         return EngineEvidence("options", reason="Option flow timestamp unavailable")
     # A binary direction is not a measured percentage. Leave strength unavailable.
     return EngineEvidence("options", reason="Validated direction lacks measured bullish/bearish strength")
+
+
+def news_from_headline_cues(cues):
+    """RSS phrase matches are unverified context, not independent market evidence.
+
+    Keep the count for diagnostics elsewhere; neither headline count nor a
+    POSITIVE/NEGATIVE keyword classification is a measured directional ratio.
+    """
+    if not isinstance(cues, dict):
+        return EngineEvidence("news", reason="News headlines unavailable")
+    if cues.get("bias") in ("POSITIVE", "NEGATIVE", "MIXED", "UNCLASSIFIED"):
+        return EngineEvidence("news", reason="Experimental headline cues; impact unverified")
+    return EngineEvidence("news", reason="Verified news evidence unavailable")
