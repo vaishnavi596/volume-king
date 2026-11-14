@@ -15,6 +15,9 @@ class IndexBatchRecoveryTests(unittest.TestCase):
         self.assertIn('not math.isfinite(snapshots[sym]["price"])',block)
         self.assertIn('snapshots[sym]["price"]<=0',block)
         self.assertIn('dhan_feed.quote,missing_symbol',block)
+        self.assertIn('isinstance(independent,dict)',block)
+        self.assertIn('math.isfinite(independent["price"])',block)
+        self.assertIn('if not isinstance(snapshot,dict):',block)
         self.assertIn('if isinstance(old,dict) and old.get("source")=="Dhan":',block)
 
 
