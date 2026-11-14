@@ -113,3 +113,8 @@ Work on Batch 1 first; track fixes in small related commits (2–4 items per pas
 - B4-04: Verify mobile Option Chain UI controls, enablement and paper-only signal eligibility; no real orders or automated trading while data is unverified.
 - B4-05: Add backend/Android regression tests and real-device acceptance; keep unresolved metrics marked pending rather than PASS.
 - B2 retains candle/OHLC/history ownership. Shared Dhan ingestion or rate-limit defects discovered during B4 should be fixed at their common layer and cross-referenced to B2, not duplicated.
+
+### Batch ownership and execution priority — user confirmation 2026-11-14
+- All three currently discussed option-chain filters (including OI/PCR and the other unavailable/disabled related filter) belong **exclusively to Batch 4** for diagnosis, implementation, and verification. Do not pull their feature-level work into Batch 2 or Batch 3.
+- Finish **Batch 2 (candles/history)** and **Batch 3 (scanner/Super Five)** as quickly as safely possible, with regression checks, before starting Batch 4 feature work.
+- Shared infrastructure fixes needed to unblock B2/B3 may proceed, but the three option-chain filter fixes remain deferred to B4.
