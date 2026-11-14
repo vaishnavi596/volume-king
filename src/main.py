@@ -3883,11 +3883,18 @@ console.log('BOT KING Lightweight Charts ready');
         elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
               or data.get("symbol")!="NIFTY" or data.get("expiry")!=expiry.value):
             message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • open Options and refresh selected data"
+        elif (not isinstance(data.get("pcr"), (int, float))
+              or not isinstance(data.get("max_pain"), (int, float))
+              or data.get("freshness") != "unverified"
+              or data.get("signal_eligible") is not False):
+            message="OI / PCR / Max Pain: Dhan option snapshot incomplete; open Options and refresh"
         else:
-            message=("Dhan NIFTY • expiry "+str(data["expiry"])
+            context=option_chain_display_context(data)
+            strike_note=(" • ATM ±3 listed strikes available" if context.get("available")
+                         else " • listed strikes unavailable")
+            message=("Dhan NIFTY • expiry "+str(data.get("expiry"))
                      +" • PCR "+f'{data["pcr"]:.3f}'
-                     +" • Max Pain "+f'{data["max_pain"]:,.0f}'
-                     +" • OI strike levels unavailable")
+                     +" • Max Pain "+f'{data["max_pain"]:,.0f}'+strike_note)
         return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
                        ft.Column([note(message),
                                   note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")],spacing=4))
