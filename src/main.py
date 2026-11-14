@@ -504,12 +504,17 @@ def app_main(page:ft.Page):
                                 and time.monotonic()-dhan_batch_cache["updated"]<90):
                             quote=dhan_batch_cache["quotes"].get(ticker)
                 if quote is None and ticker=="NIFTY":
-                    try:
-                        quote=dhan_feed.quote(ticker)
-                    except FeedError as exc:
-                        # Historical chart remains available if index LTP is missing.
-                        log_error("dhan_chart_ltp",exc)
-                        quote=None
+                    # Reuse the independently polled index LTP before spending
+                    # another provider request during a historical chart fetch.
+                    saved_index=quotes.get("NIFTY")
+                    if (isinstance(saved_index,dict) and saved_index.get("source")=="Dhan"
+                            and isinstance(saved_index.get("price"),(int,float))
+                            and not isinstance(saved_index.get("price"),bool)
+                            and math.isfinite(saved_index["price"]) and saved_index["price"]>0):
+                        quote=saved_index
+                    # If no index LTP is cached, let the dedicated index poller
+                    # recover it; a chart history request must not fan out LTP.
+
                 # Equity quotes come from the dedicated batch poller. Never
                 # turn a 51-symbol candle scan into 51 extra individual LTP
                 # requests when the batch cache expires during scanning.
