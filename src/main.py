@@ -1087,6 +1087,7 @@ def app_main(page:ft.Page):
             # snapshot (which contains no historical bars). Do not issue a
             # network request while building the dashboard.
             candle_data=snapshot if snapshot.get("bars") else (
+                chart_snapshots.get((sym,"5m",provider_generation[0])) or
                 candles.get("scanner_chart_"+sym) or {})
             candle_tf=candle_data.get("_scanner_timeframe","5m")
             if candle_tf!="5m" or candle_data.get("source")!=source:
@@ -1100,14 +1101,15 @@ def app_main(page:ft.Page):
                     bulls=sum(v.get("vote")==1 for v in votes)
                     bears=sum(v.get("vote")==-1 for v in votes)
                     total=bulls+bears
-                    if total:
+                    quality=indicator.get("quality") or {}
+                    if total and quality.get("usable"):
                         rows.append(ft.Row([
                             txt("BULLISH "+str(round(100*bulls/total))+"%",11,GREEN,True),
                             txt("BEARISH "+str(round(100*bears/total))+"%",11,RED,True)
                         ],spacing=12))
                         rows.append(note("5m technical vote agreement • historical/unverified, NOT a live trading signal"))
                     else:
-                        rows.append(note("5m technical vote agreement unavailable • insufficient directional votes"))
+                        rows.append(note("5m technical vote agreement unavailable • insufficient or invalid completed candles"))
                     analysis=display_analysis(sym,candle_data)
                     if not analysis.get("timestamp"):
                         rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
