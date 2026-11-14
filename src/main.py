@@ -4297,7 +4297,19 @@ console.log('BOT KING Lightweight Charts ready');
                                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                             break
                         try:
-                            await asyncio.sleep(1.5)
+                            # Do not pace a cache hit; only fresh upstream history
+                            # requests need the 1.5-second provider spacing.
+                            early_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                                       prefs.get("source","Dhan"),early_index,"5m","2d")
+                            with market_registry_lock:
+                                early_cached=market_recent.get(early_key)
+                                early_cache_ready=bool(early_cached and
+                                    time.monotonic()-early_cached[0]<87)
+                            if not early_cache_ready:
+                                await asyncio.sleep(1.5)
+                            if (generation!=provider_generation[0] or lifecycle_background[0]
+                                    or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                                break
                             early_data=await asyncio.wait_for(
                                 asyncio.to_thread(get_market_data,early_index,"5m","2d"),timeout=25)
                             if (early_data.get("source")=="Dhan" and early_data.get("bars")
