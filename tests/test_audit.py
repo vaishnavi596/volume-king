@@ -325,7 +325,8 @@ class AuditTests(unittest.TestCase):
         items=[{'title':'HDFC Bank profit rises','published':now,'source':'A','url':'https://example.com/a'}, {'title':'HDFC Bank raises guidance','published':now,'source':'B','url':'https://example.com/b'}]
         local={'items':items,'status':'Available'};world={'items':[],'status':'Unavailable'}
         result=v['combine_analysis']('HDFCBANK','5m',candle,local,world)
-        self.assertEqual(result['overall'],'WAIT');self.assertEqual(result['coverage'],2)
+        # Headline sentiment is diagnostic context, not verified directional evidence.
+        self.assertEqual(result['overall'],'WAIT');self.assertEqual(result['coverage'],1)
         self.assertEqual(result['options']['bias'],'UNAVAILABLE')
         self.assertEqual(result['news']['bias'],'POSITIVE')
 
@@ -345,7 +346,11 @@ class AuditTests(unittest.TestCase):
         candle={'bias':'BULLISH','timestamp':now,'reason':'test'}
         local={'items':[{'title':'HDFC Bank profit rises','published':now},{'title':'HDFC Bank raises guidance','published':now}],'status':'Available'}
         v['option_snapshots']['HDFCBANK']={'symbol':'HDFCBANK','timeframe':'5m','timestamp':now,'verified':True,'direction':'BULLISH','direction_basis':'validated_trade_flow'}
-        self.assertEqual(v['combine_analysis']('HDFCBANK','5m',candle,local,{'items':[]})['overall'],'BULLISH')
+        # Even candle + validated options agreement cannot turn RSS keywords into
+        # an independently verified third vote.
+        agreed=v['combine_analysis']('HDFCBANK','5m',candle,local,{'items':[]})
+        self.assertEqual(agreed['overall'],'WAIT')
+        self.assertEqual(agreed['coverage'],2)
         v['option_snapshots']['HDFCBANK']['direction']='BEARISH'
         self.assertEqual(v['combine_analysis']('HDFCBANK','5m',candle,local,{'items':[]})['overall'],'WAIT')
         # Another company's headlines cannot supply the news vote for this symbol.
