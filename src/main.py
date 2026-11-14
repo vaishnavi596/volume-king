@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, deduplicate_news_context
+from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -2361,6 +2361,22 @@ def app_main(page:ft.Page):
         # Keep the structure visible without presenting missing quotes as zero.
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
         strike=str(option_strike.value or "").strip() or "—"
+        context=option_chain_display_context(dhan_option_metrics)
+        if prefs.get("source") == "Dhan" and context.get("available"):
+            display_rows=[]
+            for item in context["rows"]:
+                def value(leg, field, decimals=0):
+                    v=leg.get(field)
+                    return ("—" if v is None else f"{v:,.{decimals}f}")
+                display_rows.append(ft.DataRow(cells=[ft.DataCell(txt(v,12,MUTED)) for v in (
+                    value(item["ce"],"last_price",2),value(item["ce"],"oi"),
+                    f'{item["strike"]:g}',value(item["pe"],"oi"),
+                    value(item["pe"],"last_price",2))]))
+            return ft.Column([
+                note("Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
+                ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in headings],
+                    rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
+                note("CE/PE premiums and OI are display-only; missing values shown as —.")])
         rows=selected_option_rows();grouped={}
         for row in rows:grouped.setdefault(row["strike"],{})[row["side"]]=row
         def cell_value(row,key):
