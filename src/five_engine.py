@@ -121,6 +121,28 @@ def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, op
     return {"engines": rows, "combined": combine_evidence(rows)}
 
 
+def snapshot_for_display(snapshot, *, now, max_age_seconds=300):
+    """Apply a render-time freshness gate to cached five-engine evidence.
+
+    A snapshot from a previous scan/session is never promoted to a current
+    signal merely because its saved verified flag was once true.
+    """
+    if type(now) not in (int, float) or not isfinite(now) or now <= 0:
+        raise ValueError("Invalid current time")
+    if type(max_age_seconds) not in (int, float) or not isfinite(max_age_seconds) or max_age_seconds <= 0:
+        raise ValueError("Invalid freshness limit")
+    if not isinstance(snapshot, dict) or not isinstance(snapshot.get("engines"), (tuple, list)):
+        return compose_snapshot()
+    rows = snapshot["engines"]
+    if len(rows) != len(ENGINE_NAMES) or any(not isinstance(e, EngineEvidence) or e.name != n
+                                              for e, n in zip(rows, ENGINE_NAMES)):
+        return compose_snapshot()
+    gated = tuple(e if e.timestamp is not None and 0 <= now - e.timestamp <= max_age_seconds
+                  else EngineEvidence(e.name, reason="Cached evidence stale or timestamp unavailable")
+                  for e in rows)
+    return {"engines": gated, "combined": combine_evidence(gated)}
+
+
 def scanner_snapshot(scan_result):
     """Adapt existing scanner votes without network calls or false live labels.
 
