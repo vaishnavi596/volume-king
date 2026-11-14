@@ -404,7 +404,9 @@ def app_main(page:ft.Page):
         cues=headline_signal(items);options=option_component(symbol,interval)
         candle_age=now-(candle.get("timestamp") or 0)
         candle_valid=not candle.get("historical") and not candle.get("cached") and 0<=candle_age<=timeframe_spec(interval)["fresh_seconds"] and candle.get("bias") in ("BULLISH","BEARISH")
-        news_bias={"POSITIVE":"BULLISH","NEGATIVE":"BEARISH"}.get(cues["bias"])
+        # RSS keyword sentiment is context only, never independently verified market flow.
+        # Keep the legacy three-source card fail-closed until independent engines are wired.
+        news_bias=None
         votes=[candle.get("bias") if candle_valid else None,options["bias"] if options["available"] and options["bias"] in ("BULLISH","BEARISH") else None,news_bias]
         complete=all(v is not None for v in votes)
         overall=votes[0] if complete and len(set(votes))==1 else "WAIT"
