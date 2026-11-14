@@ -4,7 +4,7 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 
 ## Batch 1 — Dhan / Oracle / app LTP and refresh (1/5 end-to-end verified; user-confirmed auto-refresh partial evidence)
 - [x] Independent NIFTY, BANKNIFTY and SENSEX LTP verified on Oracle and phone (all 3; no candle-as-LTP)
-- [ ] 51 equity watchlist prices refresh on schedule without Yahoo/Angel fallback
+- [ ] 51 equity watchlist prices refresh on schedule without Yahoo/Angel fallback (user confirmed automatic refresh; 51/51 coverage and provider isolation still require evidence)
 - [ ] Last valid price retained on failed refresh, with clear stale/unverified state
 - [ ] Background/foreground recovery and provider-generation guards validated on device
 - [ ] Dhan 429/cooldown, index fallback and Error Doctor tested end-to-end
@@ -25,7 +25,7 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 ## Evidence
 - Offline CI success: 43590314217 (commit a783b410); 43590301814 (0e908caa); 43590169857 (3bc320c9).
 - Previous APK 2.3.105 predates current Batch 3 fixes. No final APK has been built for these changes.
-- Existing screenshots show partial index availability; BANKNIFTY/SENSEX Oracle-to-phone LTP verification is still outstanding.
+- Index Oracle-to-phone verification completed 2026-11-14; see evidence section below.
 
 ## Latest offline evidence (2026-11-14)
 - Dashboard verified-ranking integration: CI run 43591138853, PASS, commit f570d0f.
