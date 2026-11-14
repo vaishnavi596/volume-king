@@ -1054,6 +1054,8 @@ def app_main(page:ft.Page):
                 if current[0]==0:
                     request_view_refresh(0)
     def five_engine_summary(symbol):
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
@@ -1379,6 +1381,8 @@ def app_main(page:ft.Page):
         ],spacing=1)
 
     def compact_five_engine_watch(symbol):
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return note("5E WAIT • Dhan disconnected")
         # The scanner already populated this cache; never poll Dhan from a row.
         snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
