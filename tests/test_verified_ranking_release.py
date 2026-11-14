@@ -47,6 +47,28 @@ class VerifiedRankingReleaseTests(unittest.TestCase):
         duplicate = [{"name": "Supertrend", "vote": 1}] * 3
         self.assertEqual(rank_candidates({"RELIANCE": candidate(votes=duplicate)}), [])
 
+    def test_unavailable_option_votes_cannot_inflate_top_five(self):
+        votes = [
+            {"name": "Supertrend", "vote": 1},
+            {"name": "EMA 9/21", "vote": 1},
+            {"name": "OI Support", "vote": None},
+            {"name": "OI Resistance", "vote": None},
+            {"name": "OI Profile", "vote": None},
+            {"name": "Max Pain", "vote": None},
+        ]
+        self.assertEqual(rank_candidates({"RELIANCE": candidate(votes=votes, score=100)}), [])
+
+    def test_only_three_independent_confirmations_qualify(self):
+        votes = [
+            {"name": "Supertrend", "vote": 1},
+            {"name": "EMA 9/21", "vote": 1},
+            {"name": "RSI 14", "vote": 1},
+            {"name": "OI Support", "vote": None},
+        ]
+        ranked = rank_candidates({"RELIANCE": candidate(votes=votes)})
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(ranked[0]["score"], 100)
+
     def test_verified_equal_scores_have_deterministic_symbol_order(self):
         ranked = rank_candidates({"TCS": candidate(), "RELIANCE": candidate()})
         self.assertEqual([r["symbol"] for r in ranked], ["RELIANCE", "TCS"])
