@@ -471,4 +471,25 @@ class ServerDhanReadOnly:
                 or isinstance(pain, bool) or not isinstance(pain, (int, float))
                 or not math.isfinite(pain) or pain <= 0):
             raise FeedError("Invalid or unverified Dhan option metrics")
+        window = result.get("atm_window")
+        if window is not None:
+            rows = window.get("rows") if isinstance(window, dict) else None
+            if (not isinstance(window, dict) or window.get("source") != "dhan"
+                    or window.get("freshness") != "unverified"
+                    or window.get("signal_eligible") is not False
+                    or not isinstance(rows, (list, tuple)) or len(rows) != 7):
+                raise FeedError("Invalid Dhan option strike display window")
+            strikes = []
+            for row in rows:
+                strike = row.get("strike") if isinstance(row, dict) else None
+                if (type(strike) not in (int, float) or not math.isfinite(strike) or strike <= 0):
+                    raise FeedError("Invalid Dhan option listed strike")
+                strikes.append(strike)
+                for side in ("ce", "pe"):
+                    leg = row.get(side)
+                    oi = leg.get("oi") if isinstance(leg, dict) else None
+                    if type(oi) not in (int, float) or not math.isfinite(oi) or oi < 0:
+                        raise FeedError("Invalid Dhan option leg OI")
+            if strikes != sorted(set(strikes)) or window.get("atm") != strikes[3]:
+                raise FeedError("Unsorted or mismatched Dhan ATM strike window")
         return result
