@@ -443,9 +443,9 @@ def app_main(page:ft.Page):
                 note(data["options"]["reason"]),note(data["news"]["method"]),note("Local/company news: "+data["news_status"]+" | Global business: "+data["global_status"]),note("Global headlines are context only; positive for one sector may be negative for another.")])
             if data["options"]["available"]:
                 controls.append(note("Call/Put volume: "+str(data["options"].get("call_volume"))+" / "+str(data["options"].get("put_volume"))+" contracts. Investor P&L is unknown."))
-            for item in data["headlines"]+data["global_headlines"]:
+            for item in (data.get("headlines") or [])+(data.get("global_headlines") or []):
                 when=datetime.fromtimestamp(item["published"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
-                controls.append(ft.Column([note(item["source"]+" • "+when),ft.TextButton(content=ft.Text(item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url))],spacing=1))
+                controls.append(ft.Column([note(item["source"]+" • "+when),ft.TextButton(content=ft.Text(item["title"],size=12,color=WHITE),on_click=lambda e,url=item.get("url"):page.launch_url(url) if url else None)],spacing=1))
         return section("CANDLE + OPTIONS + NEWS • "+symbol+" • "+interval,ft.Column(controls,spacing=5))
     market_status="Waiting for broker API connection…"
     symbols_yahoo={"NIFTY":"^NSEI","NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN","RELIANCE":"RELIANCE.NS","HDFCBANK":"HDFCBANK.NS","ICICIBANK":"ICICIBANK.NS","TCS":"TCS.NS","INFY":"INFY.NS","BHARTIARTL":"BHARTIARTL.NS","SBIN":"SBIN.NS","ITC":"ITC.NS"}
@@ -4166,7 +4166,7 @@ console.log('BOT KING Lightweight Charts ready');
                 combined=combine_analysis(sym,interval,advanced,missing,missing)
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             fusion_cache[sym+":"+interval]=combined
-            fusion_selected.controls=[fusion_card(sym,interval)]
+            fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(sym,interval))]
             if not hist.get("cached"):
                 scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
                 market_store.put("analysis",(sym,interval),scan_shared)
