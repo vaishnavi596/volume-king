@@ -1,6 +1,6 @@
 """Batch 4 five-engine directional evidence must fail closed on missing inputs."""
 import unittest
-from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence
+from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot
 
 
 def evidence(name, bullish=None, verified=False):
@@ -48,5 +48,34 @@ class FiveEngineTests(unittest.TestCase):
                 EngineEvidence("news",values[0],values[1],True,"",123,"dhan")
         with self.assertRaises(ValueError):
             combine_evidence([evidence("technical")]*5)
+
+
+    def test_empty_snapshot_cannot_vote(self):
+        snapshot=compose_snapshot()
+        self.assertEqual(tuple(e.name for e in snapshot["engines"]),ENGINE_NAMES)
+        self.assertEqual(snapshot["combined"]["coverage"],0)
+        self.assertEqual(snapshot["combined"]["state"],"WAIT")
+
+    def test_technical_votes_do_not_invent_live_verification(self):
+        technical=technical_from_votes(["BUY","BUY","SELL","NEUTRAL"])
+        self.assertEqual((technical.bullish,technical.bearish),(67,33))
+        self.assertFalse(technical.eligible)
+        self.assertEqual(technical.display()["state"],"WAIT")
+        snapshot=compose_snapshot(technical=technical)
+        self.assertEqual(snapshot["combined"]["coverage"],0)
+        self.assertIsNone(snapshot["engines"][4].bullish)
+
+    def test_verified_technical_does_not_fill_candle_news_or_derivatives(self):
+        technical=technical_from_votes(["BUY","SELL","BUY"],verified=True,
+                                        timestamp=1234567890,source="dhan")
+        snapshot=compose_snapshot(technical=technical)
+        self.assertTrue(snapshot["engines"][0].eligible)
+        self.assertEqual(snapshot["combined"]["coverage"],1)
+        self.assertEqual(snapshot["combined"]["state"],"WAIT")
+        self.assertTrue(all(not row.eligible for row in snapshot["engines"][1:]))
+
+    def test_engine_identity_cannot_be_swapped(self):
+        with self.assertRaises(ValueError):
+            compose_snapshot(technical=evidence("news",80,True))
 
 if __name__=="__main__":unittest.main()
