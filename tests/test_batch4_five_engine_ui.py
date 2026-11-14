@@ -70,3 +70,9 @@ def test_options_display_reuses_existing_cached_component_without_extra_poll():
 def test_options_reason_visible_even_without_scanner_snapshot():
     assert 'if not snapshot:\n            # The cached option context' in SOURCE
     assert 'option_context.reason+")")' in SOURCE
+
+
+def test_uncertain_rss_headlines_use_real_word_boundaries():
+    # The previous regex contained literal backspace characters, not \\b boundaries.
+    assert 'r"\\b(not|denies|denied|rumour|rumor|may|could)\\b"' in SOURCE
+    assert '\\x08' not in SOURCE
