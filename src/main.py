@@ -1405,6 +1405,12 @@ def app_main(page:ft.Page):
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 snapshot=snapshots.get(ticker)
                 if snapshot is None:
+                    # A successful batch can omit BSE_I quotes. Preserve the last
+                    # known Dhan price, but explicitly mark provider unavailability.
+                    old=quotes.get(ticker)
+                    if isinstance(old,dict) and old.get("source")=="Dhan":
+                        quotes[ticker]=dict(old,provider_status="provider_data_unavailable",
+                            freshness="unverified",live_verified=False)
                     continue
                 price=snapshot.get("price")
                 if (snapshot.get("source")=="Dhan"
