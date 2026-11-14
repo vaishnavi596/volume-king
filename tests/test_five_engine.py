@@ -346,3 +346,20 @@ def test_scanner_duplicate_filter_names_fail_closed_even_with_casing():
     snapshot = scanner_snapshot(scan)
     assert snapshot["combined"]["coverage"] == 0
     assert all(not row.eligible for row in snapshot["engines"])
+
+
+def test_futures_oi_build_up_never_fabricates_directional_vote():
+    from five_engine import futures_from_component
+    for component in (None, {}, {"source": "Yahoo", "verified": True},
+                      {"source": "Dhan", "verified": True, "contract": "NIFTY-FUT",
+                       "timestamp": 1234567890, "oi_change": 1000,
+                       "price_change": 2, "volume": 90000,
+                       "bias": "BULLISH"},
+                      {"source": "Dhan", "verified": True, "contract": "NIFTY-FUT",
+                       "timestamp": 1234567890, "direction_basis": "validated_trade_flow",
+                       "bias": "BULLISH"}):
+        row = futures_from_component(component)
+        assert row.name == "futures"
+        assert row.display()["state"] == "WAIT"
+        assert row.bullish is None and row.bearish is None
+        assert combine_evidence(compose_snapshot(futures=row)["engines"])["coverage"] == 0
