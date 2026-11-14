@@ -187,4 +187,12 @@ class FiveEngineTests(unittest.TestCase):
                                  source="Dhan",verified=True)
         self.assertEqual(row.display()["bullish"],67)
 
+
+    def test_scanner_mixed_malformed_votes_fail_closed(self):
+        snap=scanner_snapshot({"votes":[{"vote":1},{"vote":1},{"vote":-1},None],
+            "source":"Dhan","timestamp":1234567890,"freshness":"verified_live",
+            "live_verified":True,"historical":False})
+        self.assertEqual(snap["combined"]["coverage"],0)
+        self.assertEqual(snap["engines"][0].display()["state"],"WAIT")
+
 if __name__=="__main__":unittest.main()
