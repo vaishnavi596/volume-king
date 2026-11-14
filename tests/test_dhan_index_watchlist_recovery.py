@@ -28,7 +28,7 @@ class DhanIndexWatchlistRecovery(unittest.TestCase):
     def test_watchlist_change_detection_includes_indexes(self):
         self.assertIn('visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")',
                       self.function("watch_visible_tick"))
-        self.assertIn('index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")',self.function("watchlist"))
+        self.assertIn('index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")',self.function("dashboard_market_indices"))
 
 
 if __name__=="__main__":
