@@ -71,6 +71,12 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_index_priority_does_not_inflate_equity_scan_total(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in symbols]', source)
+        self.assertIn('symbols=([equities[0]]+indices+equities[1:]) if equities else indices', source)
+        self.assertNotIn('indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in DHAN_VERIFIED_SYMBOLS]', source)
+
     def test_b2_missing_candles_do_not_implicate_last_valid_ltp(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('"No validated OHLC history for "+str(symbol.value)', source)
