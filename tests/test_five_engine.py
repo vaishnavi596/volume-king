@@ -263,3 +263,15 @@ def test_verified_flag_must_be_boolean_true_not_truthy():
         assert row.display()["state"] == "WAIT"
     assert EngineEvidence("technical", 80, 20, verified=True,
                           timestamp=1234567890, source="Dhan").eligible is True
+
+
+def test_combined_signal_rejects_non_dhan_verified_sources():
+    rows = [EngineEvidence(n, 80, 20, verified=True,
+                           timestamp=1234567890, source="Yahoo Finance")
+            for n in ENGINE_NAMES]
+    result = combine_evidence(rows)
+    assert result["state"] == "WAIT" and result["coverage"] == 0
+    rows[0] = EngineEvidence("technical", 80, 20, verified=True,
+                             timestamp=1234567890, source="Dhan")
+    result = combine_evidence(rows)
+    assert result["state"] == "WAIT" and result["coverage"] == 1
