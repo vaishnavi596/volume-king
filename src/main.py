@@ -1515,7 +1515,7 @@ def app_main(page:ft.Page):
             try:
                 if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
                         and time.monotonic()-quote_auto_last_attempt[0]>=60
-                        and not watch_batch_busy[0] and not index_refresh_busy[0]):
+                        and not watch_batch_busy[0]):
                     quote_auto_last_attempt[0]=time.monotonic()
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
@@ -1527,6 +1527,10 @@ def app_main(page:ft.Page):
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
+                # Independent index LTP path: check its own 60s throttle even when
+                # equity snapshots are busy or cooling down. Never fan out requests.
+                if (app_active[0] and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected and not index_refresh_busy[0]):
                     await refresh_dhan_index_quotes()
             except asyncio.CancelledError:
                 raise
