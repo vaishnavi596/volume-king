@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.107" # Batch 4 Dhan ATM seven-strike build; corrected version embedding
+version = "2.3.108" # Batch 4 scanner/watchlist/header/options safety audit release
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
