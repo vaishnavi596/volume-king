@@ -403,3 +403,16 @@ def option_chain_display_context(metrics):
     return {"available": True, "source": "Dhan", "atm": strikes[3],
             "rows": tuple(result), "freshness": "unverified",
             "signal_eligible": False, "direction": "WAIT"}
+
+
+def compose_snapshot_with_option_context(*, option_metrics=None, technical=None,
+                                         candle=None, news=None, futures=None,
+                                         options=None):
+    """Combine evidence while keeping broker option-chain rows display-only.
+
+    The optional option-chain payload cannot overwrite any engine slot or
+    upgrade an unverified context into a directional signal.
+    """
+    snapshot = compose_snapshot(technical=technical, candle=candle, news=news,
+                                futures=futures, options=options)
+    return {**snapshot, "option_context": option_chain_display_context(option_metrics)}
