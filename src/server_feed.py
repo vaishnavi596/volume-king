@@ -490,6 +490,11 @@ class ServerDhanReadOnly:
                     oi = leg.get("oi") if isinstance(leg, dict) else None
                     if type(oi) not in (int, float) or not math.isfinite(oi) or oi < 0:
                         raise FeedError("Invalid Dhan option leg OI")
+                    for field in ("volume", "last_price", "previous_oi"):
+                        value = leg.get(field)
+                        if value is not None and (type(value) not in (int, float)
+                                                  or not math.isfinite(value) or value < 0):
+                            raise FeedError("Invalid Dhan option leg " + field)
             if strikes != sorted(set(strikes)) or window.get("atm") != strikes[3]:
                 raise FeedError("Unsorted or mismatched Dhan ATM strike window")
         return result
