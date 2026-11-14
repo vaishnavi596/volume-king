@@ -121,7 +121,7 @@ def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, op
     return {"engines": rows, "combined": combine_evidence(rows)}
 
 
-def snapshot_for_display(snapshot, *, now, max_age_seconds=300):
+def snapshot_for_display(snapshot, *, now, max_age_seconds=300, expected_source="Dhan"):
     """Apply a render-time freshness gate to cached five-engine evidence.
 
     A snapshot from a previous scan/session is never promoted to a current
@@ -137,8 +137,9 @@ def snapshot_for_display(snapshot, *, now, max_age_seconds=300):
     if len(rows) != len(ENGINE_NAMES) or any(not isinstance(e, EngineEvidence) or e.name != n
                                               for e, n in zip(rows, ENGINE_NAMES)):
         return compose_snapshot()
-    gated = tuple(e if e.timestamp is not None and 0 <= now - e.timestamp <= max_age_seconds
-                  else EngineEvidence(e.name, reason="Cached evidence stale or timestamp unavailable")
+    gated = tuple(e if e.source == expected_source and e.timestamp is not None and
+                  0 <= now - e.timestamp <= max_age_seconds
+                  else EngineEvidence(e.name, reason="Cached evidence stale, source mismatch or timestamp unavailable")
                   for e in rows)
     return {"engines": gated, "combined": combine_evidence(gated)}
 
