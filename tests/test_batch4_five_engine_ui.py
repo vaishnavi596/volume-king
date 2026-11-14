@@ -198,3 +198,12 @@ def test_scanner_fusion_widget_failure_is_isolated():
     block = SOURCE[start:end]
     assert 'fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(' in block
     assert 'safe_scanner_widget("Chart",scanner_compact_chart)' in block
+
+
+def test_filter_votes_published_before_optional_premium_model():
+    start = SOURCE.index("    async def scan_market():")
+    end = SOURCE.index("    def ", start + 8)
+    block = SOURCE[start:end]
+    assert 'scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"' in block
+    assert block.index('scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"') < block.index('budget=scan_budget.value or "80-120"')
+    assert 'if current[0]==3:\n                page.update()' in block
