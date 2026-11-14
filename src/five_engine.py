@@ -133,13 +133,15 @@ def snapshot_for_display(snapshot, *, now, max_age_seconds=300, expected_source=
         raise ValueError("Invalid current time")
     if type(max_age_seconds) not in (int, float) or not isfinite(max_age_seconds) or max_age_seconds <= 0:
         raise ValueError("Invalid freshness limit")
+    if not isinstance(expected_source, str) or not expected_source.strip():
+        raise ValueError("Invalid expected source")
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("engines"), (tuple, list)):
         return compose_snapshot()
     rows = snapshot["engines"]
     if len(rows) != len(ENGINE_NAMES) or any(not isinstance(e, EngineEvidence) or e.name != n
                                               for e, n in zip(rows, ENGINE_NAMES)):
         return compose_snapshot()
-    gated = tuple(e if e.source == expected_source and e.timestamp is not None and
+    gated = tuple(e if e.eligible and e.source == expected_source and e.timestamp is not None and
                   0 <= now - e.timestamp <= max_age_seconds
                   else EngineEvidence(e.name, reason="Cached evidence stale, source mismatch or timestamp unavailable")
                   for e in rows)
