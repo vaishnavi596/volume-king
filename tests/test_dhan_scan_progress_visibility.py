@@ -37,6 +37,16 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("watch_batch_busy[0] or index_refresh_busy[0]", body)
         self.assertIn("await refresh_dhan_index_quotes(force=True)", body)
 
+    def test_dashboard_uses_shared_candles_and_quote_age_without_network(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        body = source.split("    def dashboard_index_analysis():", 1)[1].split("    def dashboard():", 1)[0]
+        self.assertIn('chart_snapshots.get((sym,"5m",provider_generation[0]))', body)
+        self.assertIn('candles.get("scanner_chart_"+sym)', body)
+        self.assertIn('LTP last collected • ', body)
+        self.assertIn('exchange timestamp unverified', body)
+        self.assertNotIn('get_market_data(', body)
+        self.assertNotIn('dhan_feed.intraday(', body)
+
     def test_index_candle_signals_are_separate_from_equity_scan(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
