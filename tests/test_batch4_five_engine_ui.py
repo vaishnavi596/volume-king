@@ -95,3 +95,18 @@ def test_legacy_news_context_uses_shared_dedup_and_provenance_gate():
     assert "deduplicate_news_context(tagged,symbol=symbol,now=now,max_age_seconds=86400)" in block
     assert '"publisher":x.get("source")' in block
     assert "news_bias=None" in block
+
+
+def test_dhan_seven_strike_option_ui_uses_cached_context_only():
+    start=SOURCE.index("    def option_chain_preview():")
+    end=SOURCE.index("\n    def ",start)
+    block=SOURCE[start:end]
+    assert "option_chain_display_context(dhan_option_metrics)" in block
+    assert 'context.get("available")' in block
+    assert 'context["rows"]' in block
+    assert "ATM ±3 listed strikes" in block
+    assert "UNVERIFIED" in block and "signals WAIT" in block
+    assert "live orders OFF" in block
+    assert "asyncio.to_thread" not in block
+    assert "dhan_feed.option_chain_metrics" not in block
+    assert "get_market_data(" not in block
