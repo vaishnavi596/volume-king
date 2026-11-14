@@ -250,3 +250,40 @@ def futures_from_component(component):
     if component.get("direction_basis") != "validated_trade_flow":
         return EngineEvidence("futures", reason="Futures OI/price build-up is inferred, not validated directional flow")
     return EngineEvidence("futures", reason="Validated futures flow lacks measured directional strength")
+
+
+def deduplicate_news_context(headlines, *, symbol, now, max_age_seconds=600):
+    """Return bounded, instrument-tagged headline context; never a market vote.
+
+    Headlines require explicit symbol tagging, publisher and publication time.
+    Deduplication prevents repeated syndicated titles inflating coverage.
+    """
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise ValueError("Symbol required")
+    if type(now) not in (int, float) or not isfinite(now) or now <= 0:
+        raise ValueError("Invalid current time")
+    if type(max_age_seconds) not in (int, float) or not isfinite(max_age_seconds) or max_age_seconds <= 0:
+        raise ValueError("Invalid news freshness limit")
+    if not isinstance(headlines, (list, tuple)):
+        return ()
+    selected, seen = [], set()
+    target = symbol.strip().casefold()
+    for item in headlines:
+        if not isinstance(item, dict):
+            continue
+        title, publisher, published = item.get("title"), item.get("publisher"), item.get("published_at")
+        tags = item.get("symbols")
+        if (not isinstance(title, str) or not title.strip() or
+                not isinstance(publisher, str) or not publisher.strip() or
+                type(published) not in (int, float) or not isfinite(published) or
+                not 0 <= now - published <= max_age_seconds or
+                not isinstance(tags, (list, tuple)) or
+                target not in {tag.strip().casefold() for tag in tags if isinstance(tag, str)}):
+            continue
+        key = (title.strip().casefold(), publisher.strip().casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append({"title": title.strip(), "publisher": publisher.strip(),
+                         "published_at": published})
+    return tuple(selected)
