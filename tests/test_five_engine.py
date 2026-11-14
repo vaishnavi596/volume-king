@@ -157,4 +157,13 @@ class FiveEngineTests(unittest.TestCase):
                 self.assertEqual(snap["combined"]["coverage"],0)
                 self.assertEqual(snap["engines"][0].display()["state"],"WAIT")
 
+
+    def test_snapshot_rejects_malformed_or_misassigned_engine(self):
+        with self.assertRaises(ValueError):
+            compose_snapshot(technical={"bullish":80,"bearish":20})
+        with self.assertRaises(ValueError):
+            compose_snapshot(technical=EngineEvidence("options",80,20))
+        with self.assertRaises(ValueError):
+            compose_snapshot(candle=object())
+
 if __name__=="__main__":unittest.main()
