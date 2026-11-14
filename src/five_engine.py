@@ -98,7 +98,11 @@ def technical_from_votes(votes, *, timestamp=None, source="", verified=False):
     """
     if not isinstance(votes, (list, tuple)):
         raise ValueError("Technical votes must be a sequence")
-    labels = [str(v).strip().upper() for v in votes]
+    if any(not isinstance(v, str) for v in votes):
+        return EngineEvidence("technical", reason="Malformed technical vote labels")
+    labels = [v.strip().upper() for v in votes]
+    if any(v not in ("BULLISH", "BUY", "BEARISH", "SELL", "NEUTRAL", "WAIT") for v in labels):
+        return EngineEvidence("technical", reason="Unknown technical vote label")
     bullish = sum(v in ("BULLISH", "BUY") for v in labels)
     bearish = sum(v in ("BEARISH", "SELL") for v in labels)
     count = bullish + bearish
