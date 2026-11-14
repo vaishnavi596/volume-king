@@ -116,8 +116,9 @@ def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, op
     rows = tuple(provided[name] if provided[name] is not None else
                  EngineEvidence(name, reason="Verified "+name+" evidence unavailable")
                  for name in ENGINE_NAMES)
-    if any(row.name != name for name, row in zip(ENGINE_NAMES, rows)):
-        raise ValueError("Evidence engine name mismatch")
+    if any(not isinstance(row, EngineEvidence) or row.name != name
+           for name, row in zip(ENGINE_NAMES, rows)):
+        raise ValueError("Evidence must be typed and match its engine slot")
     return {"engines": rows, "combined": combine_evidence(rows)}
 
 
