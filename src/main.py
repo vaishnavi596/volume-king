@@ -4618,6 +4618,62 @@ console.log('BOT KING Lightweight Charts ready');
                 log_error("dhan_index_poll",exc)
             await asyncio.sleep(10)
     page.run_task(dhan_index_poll)
+    index_candle_last_attempt=[0.0]
+    index_candle_generation=[None]
+    async def dhan_index_candle_poll():
+        # Independent 180s index history cadence. Avoid competing with the
+        # 51-equity scan; Dhan HTTPS requests are serialized in server_feed.
+        await asyncio.sleep(20)
+        while True:
+            try:
+                generation=provider_generation[0]
+                if (app_active[0] and not lifecycle_background[0]
+                        and prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and regular_hours()
+                        and dhan_feed.cooldown_remaining("/dhan/intraday")==0
+                        and not str(scan_progress.get("state","")).startswith(
+                            ("Starting historical", "Checking Dhan batch", "Loading candle", "Loading histories"))
+                        and (index_candle_generation[0]!=generation
+                             or time.monotonic()-index_candle_last_attempt[0]>=180)):
+                    index_candle_generation[0]=generation
+                    index_candle_last_attempt[0]=time.monotonic()
+                    for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
+                        if (generation!=provider_generation[0] or not app_active[0]
+                                or lifecycle_background[0] or
+                                dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                            break
+                        # Reuse scanner/chart 90s history cache, and pace fresh
+                        # upstream history calls to protect the provider.
+                        history_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                                     "Dhan",index_sym,"5m","2d")
+                        with market_registry_lock:
+                            existing=market_recent.get(history_key)
+                            fresh=bool(existing and time.monotonic()-existing[0]<87)
+                        if not fresh:
+                            await asyncio.sleep(1.5)
+                        if generation!=provider_generation[0] or lifecycle_background[0]:
+                            break
+                        try:
+                            data=await asyncio.wait_for(
+                                asyncio.to_thread(get_market_data,index_sym,"5m","2d"),timeout=25)
+                            if (data.get("source")=="Dhan" and data.get("bars")
+                                    and generation==provider_generation[0]):
+                                chart_snapshots[(index_sym,"5m",generation)]=dict(
+                                    data,_scanner_timeframe="5m")
+                                if current[0] in (0,4,5):
+                                    request_view_refresh(current[0])
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:
+                            log_error("index_candle_poll_"+index_sym,exc)
+                            if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                                break
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dhan_index_candle_poll",exc)
+            await asyncio.sleep(10)
+    page.run_task(dhan_index_candle_poll)
     page.run_task(watch_visible_tick)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
