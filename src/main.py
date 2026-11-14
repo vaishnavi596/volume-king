@@ -1086,12 +1086,19 @@ def app_main(page:ft.Page):
             # Reuse an already-loaded 5m candle series, never an index LTP
             # snapshot (which contains no historical bars). Do not issue a
             # network request while building the dashboard.
-            candle_data=snapshot if snapshot.get("bars") else (
-                chart_snapshots.get((sym,"5m",provider_generation[0])) or
-                candles.get("scanner_chart_"+sym) or {})
+            candle_data=(chart_snapshots.get((sym,"5m",provider_generation[0])) or
+                candles.get("scanner_chart_"+sym) or
+                (snapshot if snapshot.get("bars") else {}))
             candle_tf=candle_data.get("_scanner_timeframe","5m")
             if candle_tf!="5m" or candle_data.get("source")!=source:
                 candle_data={}
+            quote_stamp=snapshot.get("fetched_at")
+            if (valid_source and isinstance(quote_stamp,(int,float))
+                    and not isinstance(quote_stamp,bool) and math.isfinite(quote_stamp)):
+                rows.append(note("LTP last collected • "+age_label(quote_stamp)+
+                                 " • exchange timestamp unverified"))
+            else:
+                rows.append(note("LTP update unavailable • last known value only"))
             if not valid_source or not candle_data.get("bars"):
                 rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
