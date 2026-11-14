@@ -90,7 +90,7 @@ class FiveEngineTests(unittest.TestCase):
         self.assertTrue(all(e.bullish is None for e in result["engines"][1:]))
 
     def test_scanner_adapter_requires_explicit_verified_dhan(self):
-        scan={"votes":[{"vote":1},{"vote":1}], "source":"Dhan",
+        scan={"votes":[{"vote":1},{"vote":1},{"vote":-1}], "source":"Dhan",
               "timestamp":1234567890,"freshness":"verified_live",
               "historical":False,"live_verified":True}
         result=scanner_snapshot(scan)
