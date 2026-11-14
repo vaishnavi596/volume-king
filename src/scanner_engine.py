@@ -177,12 +177,15 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         matching_votes=sum(v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes)
         directional_votes=sum(v["vote"] in (-1, 1) for v in votes)
         if matching_votes < 3 or not directional_votes or matching_votes / directional_votes < .7:continue
-        # A claimed strength score cannot exceed the actual directional agreement.
-        if score > round(100 * matching_votes / directional_votes) + 1:continue
+        # Never let a supplied score inflate the verified vote agreement.
+        # Rank on the recomputed agreement, not on untrusted candidate metadata.
+        verified_score=round(100 * matching_votes / directional_votes)
+        if score > verified_score + 1:continue
         if not any(v.get("name") in ("Supertrend", "SMC Structure", "EMA 9/21") and v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes):continue
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
-        good.append({**result,"symbol":symbol,"age":int(age)})
+        good.append({**result,"score":min(score,verified_score),
+                     "symbol":symbol,"age":int(age)})
     # Equal-strength candidates: prefer more independent confirming votes,
     # then newer verified candle timestamps; alphabetic order is only final tie-break.
     good.sort(key=lambda x:(-x["score"],
