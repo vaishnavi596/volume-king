@@ -76,3 +76,12 @@ def test_uncertain_rss_headlines_use_real_word_boundaries():
     # The previous regex contained literal backspace characters, not \\b boundaries.
     assert 'r"\\b(not|denies|denied|rumour|rumor|may|could)\\b"' in SOURCE
     assert '\\x08' not in SOURCE
+
+
+def test_legacy_three_source_fusion_does_not_promote_rss_sentiment_to_vote():
+    start = SOURCE.index("    def combine_analysis(symbol,interval,candle,local_news,global_news):")
+    end = SOURCE.index("    async def load_combined(", start)
+    block = SOURCE[start:end]
+    assert "news_bias=None" in block
+    assert 'news_bias={"POSITIVE":"BULLISH","NEGATIVE":"BEARISH"}' not in block
+    assert "overall=votes[0] if complete and len(set(votes))==1 else \"WAIT\"" in block
