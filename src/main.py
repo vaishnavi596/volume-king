@@ -640,7 +640,7 @@ def app_main(page:ft.Page):
         return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
     def quote_change(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
+        v=q.get("change") if q and q.get("provider_status")!="provider_data_unavailable" else None
         return f'{v:+.2f}%' if v is not None else "—"
     def price_color(sym):
         q=None if dhan_offline() else quotes.get(sym)
@@ -1072,7 +1072,7 @@ def app_main(page:ft.Page):
             if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
                     or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
                     or snapshot["price"]<=0):
-                rows_note=("Index Dhan LTP unavailable • check Oracle mapping / connectivity • "
+                rows_note=("Dhan index LTP unavailable • no verified quote returned for this index • "
                            "51-equity snapshot does not include indexes")
             else:
                 rows_note=None
