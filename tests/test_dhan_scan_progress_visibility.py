@@ -71,6 +71,15 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_prioritized_index_candles_publish_before_equity_scan_finishes(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index("                            cycle_data[sym]=data")
+        publish = source.index('chart_snapshots[(sym,"5m",generation)]=dict(', start)
+        finish = source.index("                successes=sum(results)", start)
+        self.assertLess(start, publish)
+        self.assertLess(publish, finish)
+        self.assertIn('sym in ("NIFTY","BANKNIFTY","SENSEX")', source[start:publish])
+
     def test_b2_index_priority_does_not_inflate_equity_scan_total(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in symbols]', source)
