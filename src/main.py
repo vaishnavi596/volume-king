@@ -1399,27 +1399,29 @@ def app_main(page:ft.Page):
         index_last_attempt[0]=now
         index_refresh_generation[0]=generation
         try:
+            snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)
+            if not app_active[0] or generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                return
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
-                if not app_active[0] or generation!=provider_generation[0]:
-                    return
-                try:
-                    snapshot=await asyncio.to_thread(dhan_feed.quote,ticker)
-                    price=snapshot.get("price")
-                    if (generation==provider_generation[0] and prefs.get("source")=="Dhan"
-                            and snapshot.get("source")=="Dhan"
-                            and isinstance(price,(int,float)) and not isinstance(price,bool)
-                            and math.isfinite(price) and price>0):
-                        old=quotes.get(ticker) or {}
-                        quotes[ticker]=dict(snapshot,change=None,
-                            bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
-                            fetched_at=time.time(),live_verified=False)
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    log_error("dhan_index_ltp_"+ticker,exc)
-                    old=quotes.get(ticker)
-                    if isinstance(old,dict) and old.get("source")=="Dhan":
-                        quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
+                snapshot=snapshots.get(ticker)
+                if snapshot is None:
+                    continue
+                price=snapshot.get("price")
+                if (snapshot.get("source")=="Dhan"
+                        and isinstance(price,(int,float)) and not isinstance(price,bool)
+                        and math.isfinite(price) and price>0):
+                    old=quotes.get(ticker) or {}
+                    quotes[ticker]=dict(snapshot,change=None,
+                        bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                        fetched_at=time.time(),live_verified=False)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("dhan_index_ltp_batch",exc)
+            for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
+                old=quotes.get(ticker)
+                if isinstance(old,dict) and old.get("source")=="Dhan":
+                    quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
         finally:
             index_refresh_busy[0]=False
             if current[0] in (0,4,5):
