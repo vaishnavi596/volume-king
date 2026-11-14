@@ -4568,7 +4568,9 @@ console.log('BOT KING Lightweight Charts ready');
                 # historical request cycle every 120 seconds. Quotes and
                 # Super Five cached analysis have independent fast refreshes.
                 # Check generation every 5s so reconnect/resume is not delayed.
-                wait_seconds=300 if prefs.get("source")=="Dhan" else 120
+                # B3: next completed-candle scan begins after a three-minute rest.
+                # Fast cached Super Five analysis and 30s LTP polling remain independent.
+                wait_seconds=180 if prefs.get("source")=="Dhan" else 120
                 for _ in range(wait_seconds//5):
                     if provider_generation[0]!=generation:
                         break
