@@ -180,7 +180,7 @@ class ServerDhanReadOnly:
     def _call_serialized(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
-        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot"):
+        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot"):
             raise FeedError("Unsupported Dhan read-only request")
         remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
@@ -321,6 +321,28 @@ class ServerDhanReadOnly:
         self.disconnect()
         self._origin, self._pairing_key = origin, pairing_key.strip()
         self._historical_only = True
+
+    def index_batch_quotes(self):
+        """Fetch three index prices with one serialized, authenticated request."""
+        import math
+        result = self._call("/dhan/index-ltp-batch", {})
+        if result.get("source") != "dhan" or not isinstance(result.get("quotes"), dict):
+            raise FeedError("Invalid Dhan index batch response")
+        quotes = {}
+        for symbol in ("NIFTY", "BANKNIFTY", "SENSEX"):
+            row = result["quotes"].get(symbol)
+            if not isinstance(row, dict):
+                continue
+            price = row.get("ltp")
+            if (row.get("symbol") == symbol and row.get("source") == "dhan"
+                    and isinstance(price, (int, float)) and not isinstance(price, bool)
+                    and math.isfinite(price) and price > 0):
+                quotes[symbol] = {"symbol": symbol, "price": float(price),
+                                  "source": "Dhan", "quote_timestamp": None,
+                                  "freshness": "unverified"}
+        if not quotes:
+            raise FeedError("No valid Dhan index batch quotes")
+        return quotes
 
     def quote(self, symbol):
         if symbol not in DHAN_VERIFIED_SYMBOLS:
