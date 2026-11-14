@@ -189,7 +189,9 @@ def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
         if not any(v.get("name") in ("Supertrend", "SMC Structure", "EMA 9/21") and v["vote"] == (1 if result["bias"] == "BULLISH" else -1) for v in votes):continue
         age=now-timestamp
         if age<0 or age>max_age_seconds:continue
-        good.append({**result,"score":min(score,verified_score),
+        # The displayed/ranked strength is derived from validated votes,
+        # never from a caller-supplied score (which may be understated too).
+        good.append({**result,"score":verified_score,
                      "symbol":symbol,"age":int(age)})
     # Equal-strength candidates: prefer more independent confirming votes,
     # then newer verified candle timestamps; alphabetic order is only final tie-break.
