@@ -1497,7 +1497,12 @@ def app_main(page:ft.Page):
                     independent=await asyncio.wait_for(
                         asyncio.to_thread(dhan_feed.quote,missing_symbol),timeout=20)
                     if (generation==provider_generation[0] and app_active[0]
-                            and independent.get("source")=="Dhan"):
+                            and isinstance(independent,dict)
+                            and independent.get("source")=="Dhan"
+                            and isinstance(independent.get("price"),(int,float))
+                            and not isinstance(independent.get("price"),bool)
+                            and math.isfinite(independent["price"])
+                            and independent["price"]>0):
                         snapshots[missing_symbol]=independent
                 except asyncio.CancelledError:
                     raise
@@ -1507,7 +1512,9 @@ def app_main(page:ft.Page):
                 return
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 snapshot=snapshots.get(ticker)
-                if snapshot is None:
+                if not isinstance(snapshot,dict):
+                    # A missing or malformed index quote must not abort the
+                    # whole three-index cycle or erase the last valid price.
                     # A successful batch can omit BSE_I quotes. Preserve the last
                     # known Dhan price, but explicitly mark provider unavailability.
                     old=quotes.get(ticker)
