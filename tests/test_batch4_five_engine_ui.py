@@ -20,3 +20,15 @@ def test_five_engine_summary_present_on_both_surfaces():
     assert 'five_engine_summary(row["symbol"])' in SOURCE
     assert 'five_engine_summary(scan_symbol.value or "NIFTY")' in SOURCE
     assert 'five_engine_snapshots[sym]=scanner_snapshot(' in SOURCE
+
+
+def test_compact_watchlist_reads_only_existing_evidence():
+    start=SOURCE.index("    def compact_five_engine_watch(symbol):")
+    end=SOURCE.index("    def fill_watch(",start)
+    block=SOURCE[start:end]
+    assert "five_engine_snapshots.get(symbol)" in block
+    assert 'snapshot["combined"]["coverage"]' in block
+    assert "get_market_data(" not in block
+    assert "dhan_feed." not in block
+    assert "await " not in block
+    assert "compact_five_engine_watch(sym)" in SOURCE
