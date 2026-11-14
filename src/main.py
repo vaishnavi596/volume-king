@@ -1067,7 +1067,7 @@ def app_main(page:ft.Page):
             result=evidence.display()
             label=names[evidence.name]
             pieces.append(label+(" B"+str(result["bullish"])+"% / S"+str(result["bearish"])+"%"
-                                  if result["state"]!="WAIT" else " WAIT"))
+                                  if result["state"]!="WAIT" else " WAIT ("+str(result["reason"])+")"))
         combined=snapshot["combined"]
         return ft.Column([note("5 engines • "+" | ".join(pieces)),
                           note("Combined "+combined["state"]+" • "+str(combined["coverage"])+
@@ -1390,7 +1390,7 @@ def app_main(page:ft.Page):
         technical=snapshot["engines"][0].display()
         coverage=snapshot["combined"]["coverage"]
         if technical["state"]=="WAIT":
-            return note("5E WAIT • verified "+str(coverage)+"/5")
+            return note("5E WAIT • verified "+str(coverage)+"/5 • "+str(snapshot["engines"][0].display()["reason"]))
         return note("5E "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
                     "/5 • T B"+str(technical["bullish"])+"% / S"+str(technical["bearish"])+"%")
 
