@@ -1079,7 +1079,9 @@ def app_main(page:ft.Page):
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
-            if rows_note:
+            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and snapshot.get("provider_status")=="provider_data_unavailable":
+                rows.append(note("Dhan index provider data unavailable • displayed price is LAST KNOWN, not a fresh live quote"))
+            elif rows_note:
                 rows.append(note(rows_note))
             if not valid_source or not snapshot.get("bars"):
                 rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
