@@ -157,6 +157,8 @@ def scanner_snapshot(scan_result):
     raw = scan_result.get("votes") or []
     if not isinstance(raw, (list, tuple)):
         return compose_snapshot()
+    if not isinstance(raw, (list, tuple)):
+        return compose_snapshot()
     labels = []
     for vote in raw:
         if not isinstance(vote, dict):
