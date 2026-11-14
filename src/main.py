@@ -1669,7 +1669,10 @@ def app_main(page:ft.Page):
                 y=10+ratio*195
                 controls.append(ft.Container(left=0,top=y,width=width,height=1,bgcolor=GOLD))
         guide=note("Guide: "+mode+" • candle-derived reference, not draggable") if mode in ("Horizontal","Vertical","Fibonacci") else note("Drawing overlays: none • touch drawing not implemented")
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),note(f"{q.get('source','Market')} OHLC • {timeframe.value} • verify feed freshness"),guide],spacing=3)
+        last_candle_time=(datetime.fromtimestamp(bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                          if isinstance(bars[-1][0],(int,float)) else "unknown")
+        candle_status=note(str(q.get("source","Market"))+" • "+str(timeframe.value)+" OHLC • last "+last_candle_time+" • "+str(q.get("freshness","unverified"))+" • NOT live")
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),candle_status,guide],spacing=3)
     def drawing_action(v):
         drawing_mode[0]="None" if v=="Clear" else v
         if v=="Trendline":
