@@ -37,7 +37,7 @@ class EngineEvidence:
 
     @property
     def eligible(self):
-        return (self.verified and self.bullish is not None and self.bearish is not None
+        return (self.verified is True and self.bullish is not None and self.bearish is not None
                 and self.timestamp is not None and isinstance(self.source, str) and
                 bool(self.source.strip()))
 
