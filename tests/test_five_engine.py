@@ -275,3 +275,28 @@ def test_combined_signal_rejects_non_dhan_verified_sources():
                              timestamp=1234567890, source="Dhan")
     result = combine_evidence(rows)
     assert result["state"] == "WAIT" and result["coverage"] == 1
+
+
+def test_snapshot_rejects_unverified_and_invalid_expected_source():
+    row = EngineEvidence("technical", 80, 20, verified=False,
+                         timestamp=1234567890, source="Dhan")
+    shown = snapshot_for_display(compose_snapshot(technical=row), now=1234567900)
+    assert shown["combined"]["coverage"] == 0
+    assert shown["engines"][0].display()["state"] == "WAIT"
+    for source in ("", "  ", None, 123):
+        try:
+            snapshot_for_display(compose_snapshot(), now=1234567900, expected_source=source)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Invalid expected source accepted")
+
+
+def test_render_time_rejects_expired_and_future_evidence_together():
+    rows = [EngineEvidence(n, 80, 20, verified=True,
+                           timestamp=1234567890 + offset, source="Dhan")
+            for n, offset in zip(ENGINE_NAMES, (-301, -300, 0, 1, 301))]
+    snap = compose_snapshot(**dict(zip(ENGINE_NAMES, rows)))
+    shown = snapshot_for_display(snap, now=1234567890, max_age_seconds=300)
+    assert shown["combined"]["coverage"] == 2
+    assert shown["combined"]["state"] == "WAIT"
