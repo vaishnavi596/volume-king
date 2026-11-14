@@ -35,6 +35,11 @@ def analyze(bars, selected=None, timeframe="5m"):
              and 946684800 <= b[0] <= now + 60
              and b[2] >= max(b[1], b[4]) and b[3] <= min(b[1], b[4]) and b[2] >= b[3]
              and type(b[5]) in (int, float) and math.isfinite(b[5]) and b[5] >= 0]
+    # Never silently drop malformed OHLC bars: filtering them can turn a
+    # discontinuous feed into apparently valid signals or 100% vote bars.
+    if len(clean) != len(bars):
+        return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid or future candle in series",
+                "count":len(clean),"timeframe":timeframe,"timestamp":None}
     # Out-of-order or duplicate bars can create false crossovers and invalid freshness.
     if any(clean[i][0] <= clean[i-1][0] for i in range(1, len(clean))):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Candles out of order or duplicated",
