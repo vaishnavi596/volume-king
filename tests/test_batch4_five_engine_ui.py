@@ -190,3 +190,11 @@ def test_scanner_fusion_missing_saved_fields_fail_closed():
     assert 'scan_shared.get("basis","Analysis unavailable")' in block
     assert 'scan_shared["direction"]' not in block
     assert 'scan_shared["basis"]' not in block
+
+
+def test_scanner_fusion_widget_failure_is_isolated():
+    start = SOURCE.index("    def scanner_content():")
+    end = SOURCE.index("    def run_scan(e):", start)
+    block = SOURCE[start:end]
+    assert 'fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(' in block
+    assert 'safe_scanner_widget("Chart",scanner_compact_chart)' in block
