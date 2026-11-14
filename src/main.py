@@ -1458,11 +1458,24 @@ def app_main(page:ft.Page):
             if current[0] in (0,4,5):
                 request_view_refresh(current[0])
 
+    manual_quote_last_attempt=[0.0]
     async def refresh_all_dhan_quotes():
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected or watch_batch_busy[0] or index_refresh_busy[0]:
             return
+        now=time.monotonic()
+        remaining=max(0,30-(now-manual_quote_last_attempt[0]))
+        if remaining>0:
+            watch_batch_status[0]=f"Manual refresh available in {remaining:.0f}s • last valid prices retained"
+            request_view_refresh(4)
+            return
+        cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
+        if cooldown>0:
+            watch_batch_status[0]=f"Dhan snapshot cooling down • retry in {cooldown:.0f}s • last valid prices retained"
+            request_view_refresh(4)
+            return
+        manual_quote_last_attempt[0]=now
         await refresh_watch_batch()
-        await refresh_dhan_index_quotes()
+        await refresh_dhan_index_quotes(force=True)
 
     async def dhan_quote_poll():
         # Quote cadence is independent of the expensive 51-symbol candle-history scan.
@@ -1488,10 +1501,9 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Independent foreground quote poll every 30 seconds. This reads the
-            # Oracle snapshot, not 51 individual Dhan LTP requests; the snapshot
-            # remains exchange-timestamp unverified until provenance is available.
-            await asyncio.sleep(30)
+            # BK-101: foreground quote poll every 180 seconds; manual refresh
+            # has its own 30-second throttle and respects provider cooldown.
+            await asyncio.sleep(180)
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
@@ -1538,7 +1550,7 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(("Dhan quote refresh • every 30 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
+            note(("Dhan quote refresh • every 180 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed • candle signals are independent of LTP refresh") if prefs.get("source")=="Dhan" else note(""),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
