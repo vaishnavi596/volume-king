@@ -41,6 +41,18 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn('saved_chart.get("_scanner_generation") != scan_generation[0]', source)
         self.assertIn('if prefs.get("source")!="Dhan":\n                quotes[sym]=hist', source)
 
+    def test_failed_first_history_probe_retries_on_closed_market(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        section = source.split('if not first_ok and symbols[0] in failed_symbols:', 1)[1].split('results=[first_ok]', 1)[0]
+        self.assertIn('last_scanned_generation=None', section)
+        self.assertLess(section.index('last_scanned_generation=None'), section.index('await asyncio.sleep('))
+
+    def test_midscan_rate_limit_keeps_generation_pending(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        section = source.split('state="Dhan historical scan paused: HTTP 429 / cooldown; "', 1)[1].split('successes=sum(results)', 1)[0]
+        self.assertIn('last_scanned_generation=None', section)
+        self.assertIn('await asyncio.sleep(max(60, dhan_feed.cooldown_remaining("/dhan/intraday")))', section)
+
     def test_cooldown_path_also_reports_unattempted(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('+" symbols not attempted"', source)
