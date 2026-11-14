@@ -71,6 +71,13 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_index_candle_warmup_not_gated_on_equity_success(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertNotIn('if prefs.get("source")=="Dhan" and successes:', source)
+        self.assertIn('and dhan_feed.cooldown_remaining("/dhan/intraday")==0):', source)
+        self.assertIn('generation==provider_generation[0] and app_active[0]', source)
+        self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
+
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]', source)
