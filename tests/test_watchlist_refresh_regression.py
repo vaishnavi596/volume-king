@@ -27,7 +27,7 @@ class WatchlistRefreshRegression(unittest.TestCase):
                             and isinstance(call.args[0].body, ast.Constant)
                             and call.args[0].body.value == 10
                             and isinstance(call.args[0].orelse, ast.Constant)
-                            and call.args[0].orelse.value == 30 for call in sleeps))
+                            and call.args[0].orelse.value == 10 for call in sleeps))
 
     def test_no_scroll_triggered_quote_requests(self):
         self.assertNotIn("watch_list.on_scroll=", self.source)
