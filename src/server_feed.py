@@ -472,6 +472,12 @@ class ServerDhanReadOnly:
                 or not math.isfinite(pain) or pain <= 0):
             raise FeedError("Invalid or unverified Dhan option metrics")
         window = result.get("atm_window")
+        window_status = result.get("atm_window_status")
+        if window_status is not None:
+            if window_status not in ("available", "underlying_spot_unavailable", "listed_window_unavailable"):
+                raise FeedError("Invalid Dhan ATM window diagnostic status")
+            if (window_status == "available") != (window is not None):
+                raise FeedError("Inconsistent Dhan ATM window diagnostic status")
         if window is not None:
             rows = window.get("rows") if isinstance(window, dict) else None
             if (not isinstance(window, dict) or window.get("source") != "dhan"
