@@ -4316,6 +4316,12 @@ console.log('BOT KING Lightweight Charts ready');
                     for sym in symbols[1:]:
                         if generation!=provider_generation[0] or not dhan_feed.connected:
                             break
+                        # An early index 429 must stop the equity tail too;
+                        # otherwise this loop can immediately hit the same upstream limit.
+                        if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                            scan_progress["state"]="Dhan history cooldown • equity scan pending • last LTP retained"
+                            last_scanned_generation=None
+                            break
                         # Android can move to background during a 51-symbol scan.
                         # Keep its generation pending; do not issue more history
                         # requests until foreground, even after the pacing sleep.
