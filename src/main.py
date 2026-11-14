@@ -3923,7 +3923,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def scanner_content():
-        fusion_selected.controls=[fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m")]
+        fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m"))]
         filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
         added_filter_list.controls=[ft.Container(content=ft.Column([
             ft.Checkbox(label=name,value=name in filter_selected,data=name,on_change=filter_checkbox_changed),
