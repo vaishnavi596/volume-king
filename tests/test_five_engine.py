@@ -379,3 +379,19 @@ def test_news_context_requires_symbol_publisher_freshness_and_dedup():
     result = deduplicate_news_context(rows, symbol="reliance", now=now)
     assert len(result) == 1 and result[0]["title"] == "Company result"
     assert news_from_headline_cues({"bias": "POSITIVE", "count": len(result)}).display()["state"] == "WAIT"
+
+
+def test_news_context_deduplicates_syndicated_publishers_and_caps_size():
+    from five_engine import deduplicate_news_context
+    now = 1234567890
+    rows = [
+        {"title": "Company  Results", "publisher": "Wire A",
+         "published_at": now, "symbols": ["RELIANCE"]},
+        {"title": " company results ", "publisher": "Wire B",
+         "published_at": now, "symbols": ["RELIANCE"]},
+    ]
+    rows += [{"title": "Unique story " + str(i), "publisher": "Wire",
+              "published_at": now, "symbols": ["RELIANCE"]} for i in range(40)]
+    result = deduplicate_news_context(rows, symbol="RELIANCE", now=now)
+    assert len(result) == 20
+    assert sum(x["title"].lower().startswith("company") for x in result) == 1
