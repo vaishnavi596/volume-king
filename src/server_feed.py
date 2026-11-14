@@ -340,6 +340,13 @@ class ServerDhanReadOnly:
                 quotes[symbol] = {"symbol": symbol, "price": float(price),
                                   "source": "Dhan", "quote_timestamp": None,
                                   "freshness": "unverified"}
+        unavailable = result.get("unavailable")
+        if (not isinstance(unavailable, list)
+                or any(symbol not in DHAN_VERIFIED_INDEX_SYMBOLS for symbol in unavailable)
+                or len(unavailable) != len(set(unavailable))
+                or set(unavailable).intersection(quotes)
+                or set(unavailable).union(quotes) != DHAN_VERIFIED_INDEX_SYMBOLS):
+            raise FeedError("Inconsistent Dhan index availability response")
         if not quotes:
             raise FeedError("No valid Dhan index batch quotes")
         return quotes
