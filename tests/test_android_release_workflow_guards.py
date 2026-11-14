@@ -18,8 +18,11 @@ class AndroidReleaseWorkflowGuards(unittest.TestCase):
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
         self.assertRegex(version,r"^\d+\.\d+\.\d+$")
-        # Compare the fallback against the current project version, not a hardcoded release.
-        self.assertRegex(SOURCE,rf'APP_VERSION\s*=\s*"{re.escape(version)}"\s*# Release fallback;')
+        # The runtime version comes from package metadata, or the same project
+        # file when running from source. No second literal version to drift.
+        self.assertIn('APP_VERSION = package_version("bot-king")', SOURCE)
+        self.assertIn('tomllib.loads(_project_file.read_text(encoding="utf-8"))["project"]["version"]', SOURCE)
+        self.assertNotRegex(SOURCE,r'APP_VERSION\s*=\s*"\d+\.\d+\.\d+"')
 
     def test_release_signing_fails_closed(self):
         for name in ("BOTKING_KEYSTORE_BASE64","BOTKING_KEYSTORE_PASSWORD",

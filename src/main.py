@@ -25,7 +25,13 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.105"  # Release fallback; CI verifies equality with pyproject.toml.
+    # Single release version source: pyproject.toml. Never duplicate a literal
+    # version in this file; staged commits must not break offline regression.
+    from pathlib import Path
+    import tomllib
+    _project_file = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    APP_VERSION = (tomllib.loads(_project_file.read_text(encoding="utf-8"))["project"]["version"]
+                   if _project_file.is_file() else "unavailable")
 from pathlib import Path
 
 #                                  Apache License

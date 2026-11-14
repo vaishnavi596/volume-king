@@ -37,17 +37,21 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify APK display version matches project release version
+      - name: Verify single-source release version
         run: |
           python3 - <<'PY'
           import pathlib, re, tomllib
-          project = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          expected = project["project"]["version"]
+          expected = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
           source = pathlib.Path("src/main.py").read_text()
-          match = re.search(r'^\s*APP_VERSION = "(\d+\.\d+\.\d+)"\s*# Release fallback;', source, re.M)
-          if not match or match.group(1) != expected:
-              raise SystemExit(f"Version mismatch: project={expected}, runtime fallback={match.group(1) if match else 'missing'}")
-          print(f"Verified project and runtime fallback: {expected}")
+          if not re.fullmatch(r"\d+\.\d+\.\d+", expected):
+              raise SystemExit("Invalid release version")
+          if 'APP_VERSION = package_version("bot-king")' not in source or (
+                  'tomllib.loads(_project_file.read_text(encoding="utf-8"))["project"]["version"]'
+                  not in source):
+              raise SystemExit("Runtime release version must derive from project metadata")
+          if re.search(r'APP_VERSION\s*=\s*"\d+\.\d+\.\d+"', source):
+              raise SystemExit("Duplicate hardcoded runtime version forbidden")
+          print(f"Verified single-source release version: {expected}")
           PY
 
       - name: Cache verified Gradle 8.7 distribution
