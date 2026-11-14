@@ -1059,7 +1059,11 @@ def app_main(page:ft.Page):
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
-            return note("5 engines • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT")
+            # The cached option context may exist before the first scanner snapshot.
+            # Do not hide its unavailable reason or trigger a provider request.
+            option_context=option_from_component(option_component(symbol, "5m"))
+            return note("5 engines • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT ("+
+                        option_context.reason+")")
         names={"technical":"Technical","candle":"Candle","news":"News",
                "futures":"Futures","options":"Options"}
         pieces=[]
