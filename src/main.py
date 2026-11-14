@@ -2465,9 +2465,12 @@ def app_main(page:ft.Page):
                     provider_generation[0]+=1
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
-                    # Start the independent watchlist poll immediately after a successful
-                    # Dhan connection; do not wait for the next 30-second timer tick.
-                    if app_active[0] and dhan_feed.connected:
+                    # The login path already fetched and published the equity batch.
+                    # Do not duplicate that same upstream snapshot immediately.
+                    # On a failed login batch, schedule one guarded retry; index
+                    # quotes still refresh independently on the normal poll loop.
+                    if (app_active[0] and dhan_feed.connected
+                            and market_status.startswith("Dhan connected; watchlist batch failed")):
                         page.run_task(refresh_watch_batch)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
