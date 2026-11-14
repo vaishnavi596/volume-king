@@ -1889,9 +1889,13 @@ def app_main(page:ft.Page):
                 return
             chart_snapshots[(sym,tf,generation)]=data
             bars=data.get("bars") or []
+            last_bar_stamp=(datetime.fromtimestamp(bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                            if bars and isinstance(bars[-1][0],(int,float)) else "unavailable")
             chart_message.value=("Chart updated • "+str(data.get("source","unknown"))+
-                                 " • "+str(len(bars))+" candles • "+str(data.get("freshness","unverified"))+
-                                 " • verify timestamp before trading")
+                                 " • "+str(len(bars))+" "+str(tf)+" OHLC candles"+
+                                 " • last bar "+last_bar_stamp+
+                                 " • "+str(data.get("freshness","unverified"))+
+                                 " • historical/unverified, NOT live")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
