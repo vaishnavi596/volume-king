@@ -8,12 +8,13 @@ This is the persistent handoff/checklist for BOT KING. Update the status only af
 
 | ID | Work item | State / evidence |
 |---|---|---|
-| B1-01 | Dhan index mappings: NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51 | Backend mapping committed; NIFTY previously Oracle HTTP 200; BANKNIFTY/SENSEX **not deployed or verified** |
-| B1-02 | Oracle read-only LTP for all three indexes | NIFTY previously passed; BANKNIFTY/SENSEX returned HTTP 422 before mapping; requires backed-up Oracle deployment and authenticated retest |
-| B1-03 | Dashboard three configurable symbol/index cards; independent index refresh | Index quote path added, serialized, one cycle per >=60s, last-good retained, truthful missing-quote message; CI and Android verification required |
-| B1-04 | Watchlist shows 51 equities + three persistent index cards = 54 instruments | Separate index cards added above existing capped equity lists; index cards excluded from 51-equity snapshot and scan; Android UI verification required |
-| B1-05 | Watchlist refresh, polling cadence, UI update, cache age, reconnect/resume | Manual, 30s poll, index change detection, and resume refresh added; index refresh decoupled from snapshot cooldown; foreground-only operation, **not continuous background service**; Android verification required |
-| B1-06 | Regression and integration: index mapping, LTP, refresh, cache and 54 display | CI green at f0122cd; new rate-guard and status tests added, newest CI pending; Oracle deployment, phone verification, signing/version bump and APK still pending |
+| B1-01 | Index instrument mappings for NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51 | **Oracle mapping verified PASS** (2026-11-14): all three present in server.py; syntax PASS, service health PASS. GitHub mapping committed. |
+| B1-02 | Authenticated Oracle LTP for all three indexes | **PARTIAL:** NIFTY HTTP 200, LTP 25144.3, freshness unverified; BANKNIFTY and SENSEX HTTP 429 due rate-limit/cooldown; positive quotes still unverified. |
+| B1-03 | Dashboard three configurable cards and independent index refresh | **CODE UPDATED:** index refresh now one batch request per >=60s; preserves last-good prices; Android verification and latest CI still required. |
+| B1-04 | Watchlist 51 equities + 3 index cards = 54 displayed instruments | **CODE UPDATED:** index cards separate from equity snapshot/scanner; Android display and refresh verification pending. |
+| B1-05 | Foreground watchlist polling, reconnect/resume, last-good retention | **CODE UPDATED:** manual refresh, 30s foreground poll, resume recovery, separate index cooldown; phone verification pending. Continuous background service NOT implemented. |
+| B1-06 | Full regression, Oracle integration, signed APK and device acceptance | **IN PROGRESS:** historical CI PASS at bf0903d; offline CI failed one stale assertion at bf0903d; test fix committed 5929101; latest CI pending. Oracle batch deployment, Android test, versionName/versionCode, signing and APK pending. |
+| B1-07 | **NEW:** rate-limit-safe one-request index batch | **CODE UPDATED, NOT DEPLOYED:** authenticated POST /dhan/index-ltp-batch; DhanFeed.batch_ltp used once for 3 indexes, partial results, 429 Retry-After; mobile transport and main UI refresh wired; tests updated; new endpoint tests and Oracle integration pending. |
 
 **Batch 1 acceptance:** authenticated read-only Oracle LTP for each mapped index; 51 equity snapshot remains independent; 54 display without adding indexes to equity ranking; watchlist refreshes on schedule and after resume; last valid quotes retained but labelled unverified; no Yahoo/Angel fallback; regression green. Keep live order routing disabled.
 
@@ -52,3 +53,12 @@ Work on Batch 1 first; track fixes in small related commits (2–4 items per pas
 - Newly found/fixed: index polling was blocked by equity snapshot cooldown; concurrent or frequent index polling risk; stale dashboard warning incorrectly claimed BANKNIFTY/SENSEX mapping unverified after mappings were added.
 - Never expose pairing credentials or overwrite Oracle `/opt/bot-king-server/server.py` without comparing with repository and taking a timestamped backup.
 - Acceptance requires actual HTTP 200 + positive LTP for all three indexes, verified watchlist/dashboard display, and a clean new versioned signed APK.
+
+
+### Batch 1 running verification ledger — 2026-11-14
+- Original six items: **0/6 fully end-to-end accepted**; B1-01 Oracle mapping stage verified, but acceptance across the complete batch is not finished. New B1-07 makes **7 tracked items**; **0/7 fully accepted**. Do not conflate code commits with deployed/device-tested completion.
+- Oracle: service active, /health HTTP 200; NIFTY /dhan/ltp HTTP 200 (25144.3, freshness unverified); BANKNIFTY and SENSEX HTTP 429; no repeated provider probing during cooldown.
+- GitHub index-batch commits: 44ce59c backend endpoint; 3e34d76 mobile transport; 7114566 foreground UI refresh; 194c164 and bf0903d tests; 5929101 stale generation assertion correction.
+- CI: 7114566 offline failed 2 old assumptions; bf0903d offline failed 1 stale assertion; historical regression passed. **Recheck CI at 5929101 and after this register commit.**
+- Remaining critical path: (1) latest offline+historical CI green and endpoint-specific tests, (2) backed-up Oracle deployment of exact endpoint with local changes preserved, (3) one authenticated index batch test including partial/rate-limit behavior, (4) Android dashboard/watchlist/resume/51-equity scan verification, (5) bump both versionName and versionCode, signed APK and install test.
+- New issues must be added as B1-08 onward, or as a clearly marked subtask, with evidence and unresolved status. Update this register in each related change batch and do not silently mark pending items DONE.
