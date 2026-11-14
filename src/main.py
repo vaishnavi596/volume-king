@@ -4182,7 +4182,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # An index failure does not abort the remaining equity scan.
                 if prefs.get("source")=="Dhan":
                     equities=[sym for sym in symbols if sym not in ("NIFTY","BANKNIFTY","SENSEX")]
-                    indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in DHAN_VERIFIED_SYMBOLS]
+                    indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if sym in symbols]
                     symbols=([equities[0]]+indices+equities[1:]) if equities else indices
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
