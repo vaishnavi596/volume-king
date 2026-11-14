@@ -139,3 +139,12 @@ def test_dhan_option_ui_displays_volume_without_inventing_missing_values():
     assert 'value(item["ce"],"volume")' in block
     assert 'value(item["pe"],"volume")' in block
     assert 'return ("—" if v is None' in block
+
+
+def test_backend_atm_window_reports_safe_missing_spot_reason():
+    backend=Path(__file__).resolve().parents[1].joinpath("backend","server.py").read_text(encoding="utf-8")
+    assert 'window_status = "underlying_spot_unavailable"' in backend
+    assert 'window_status = "listed_window_unavailable"' in backend
+    assert 'window_status = "available"' in backend
+    assert '"atm_window_status": window_status' in backend
+    assert 'window = listed_atm_window(raw, spot=underlying_spot)' in backend
