@@ -26,8 +26,12 @@ class DhanIndexRefreshRegression(unittest.TestCase):
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_quote_poll")
         source = ast.get_source_segment(self.source, fn)
         self.assertIn('and not watch_batch_busy[0]):', source)
-        self.assertIn('and dhan_feed.connected and not index_refresh_busy[0]):', source)
-        self.assertIn('await refresh_dhan_index_quotes()', source)
+        index_fn = next(node for node in ast.walk(self.tree)
+                        if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_index_poll")
+        index_source = ast.get_source_segment(self.source, index_fn)
+        self.assertIn('and dhan_feed.connected and not index_refresh_busy[0]):', index_source)
+        self.assertIn('await refresh_dhan_index_quotes()', index_source)
+        self.assertNotIn('await refresh_watch_batch()', index_source)
         self.assertIn('time.monotonic()-quote_auto_last_attempt[0]>=60', source)
 
     def test_index_candles_are_prioritized_and_reused(self):
@@ -50,7 +54,10 @@ class DhanIndexRefreshRegression(unittest.TestCase):
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_quote_poll")
         source = ast.get_source_segment(self.source, fn)
         self.assertIn("await refresh_watch_batch()", source)
-        self.assertIn("await refresh_dhan_index_quotes()", source)
+        index_fn = next(node for node in ast.walk(self.tree)
+                        if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_index_poll")
+        self.assertIn("await refresh_dhan_index_quotes()", ast.get_source_segment(self.source, index_fn))
+        self.assertIn("page.run_task(dhan_index_poll)", self.source)
         self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 10)", source)
 
 
