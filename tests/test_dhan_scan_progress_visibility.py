@@ -60,7 +60,7 @@ class DhanScanProgressTests(unittest.TestCase):
         source = SOURCE.read_text(encoding="utf-8")
         poll=source.split("    async def dhan_quote_poll():",1)[1].split("    async def watch_visible_tick():",1)[0]
         self.assertIn("await asyncio.sleep(10)",poll)
-        self.assertIn("await asyncio.sleep(180)",poll)
+        self.assertIn("await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)",poll)
         self.assertIn("time.monotonic()-quote_auto_last_attempt[0]>=30",poll)
         self.assertIn("not watch_batch_busy[0] and not index_refresh_busy[0]",poll)
         resume=source.split("    async def refresh_after_resume():",1)[1]
