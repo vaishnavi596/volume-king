@@ -66,7 +66,8 @@ class DhanScanProgressTests(unittest.TestCase):
         resume=source.split("    async def refresh_after_resume():",1)[1]
         self.assertIn("await asyncio.sleep(10)",resume)
         self.assertIn("quote_auto_last_attempt[0]=time.monotonic()",resume)
-        self.assertIn("ft.Column(index_cards,spacing=8)",source)
+        self.assertIn("return ft.Column(index_cards,spacing=5)",source)
+        self.assertIn("dashboard_market_indices(),",source)
         self.assertIn("def historical_vote_agreement(data):",source)
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
