@@ -1072,7 +1072,7 @@ def app_main(page:ft.Page):
             if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
                     or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
                     or snapshot["price"]<=0):
-                rows_note=("Dhan index LTP unavailable • no verified quote returned for this index • "
+                rows_note=("Index Dhan LTP unavailable • no verified quote returned for this index • "
                            "51-equity snapshot does not include indexes")
             else:
                 rows_note=None
