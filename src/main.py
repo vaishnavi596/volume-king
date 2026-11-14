@@ -1500,10 +1500,12 @@ def app_main(page:ft.Page):
                    and isinstance(index_quote.get("price"),(int,float))
                    and not isinstance(index_quote.get("price"),bool)
                    and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
+            provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_cards.append(ft.Container(
                 content=ft.Column([txt(index_name,11,WHITE,True),
-                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,GOLD if valid else MUTED,True),
-                    note(("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable")],
+                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
+                    note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable")],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
         return [heading("Watchlist • 5 Lists"),
