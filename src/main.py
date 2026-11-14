@@ -428,7 +428,7 @@ def app_main(page:ft.Page):
     def fusion_card(symbol,interval,compact=False):
         data=fusion_cache.get(symbol+":"+interval) or market_store.get("fusion",symbol,interval)
         if not data:
-            candle_note=("Candles: "+scan_shared["direction"]+" • "+scan_shared["basis"] if scan_shared.get("symbol")==symbol and scan_shared.get("tf")==interval else "Candle analysis not available for this selection yet")
+            candle_note=("Candles: "+str(scan_shared.get("direction","WAIT"))+" • "+str(scan_shared.get("basis","Analysis unavailable")) if isinstance(scan_shared,dict) and scan_shared.get("symbol")==symbol and scan_shared.get("tf")==interval else "Candle analysis not available for this selection yet")
             return section("COMBINED ANALYSIS • "+symbol,ft.Column([note(candle_note),note("News analysis pending or unavailable. Options require a verified broker feed.")],spacing=5))
         data=dict(data)
         combined_age=datetime.now(timezone.utc).timestamp()-(data.get("timestamp") or 0)
