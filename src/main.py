@@ -1053,6 +1053,24 @@ def app_main(page:ft.Page):
                 log_error("super_five_minute_refresh",exc)
                 if current[0]==0:
                     request_view_refresh(0)
+    def five_engine_summary(symbol):
+        # Read-only cache display. Never fetch five separate provider endpoints.
+        snapshot=five_engine_snapshots.get(symbol)
+        if not snapshot:
+            return note("5 engines • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT")
+        names={"technical":"Technical","candle":"Candle","news":"News",
+               "futures":"Futures","options":"Options"}
+        pieces=[]
+        for evidence in snapshot["engines"]:
+            result=evidence.display()
+            label=names[evidence.name]
+            pieces.append(label+(" B"+str(result["bullish"])+"% / S"+str(result["bearish"])+"%"
+                                  if result["state"]!="WAIT" else " WAIT"))
+        combined=snapshot["combined"]
+        return ft.Column([note("5 engines • "+" | ".join(pieces)),
+                          note("Combined "+combined["state"]+" • "+str(combined["coverage"])+
+                               "/5 verified • "+combined["reason"])],spacing=2)
+
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
@@ -1089,7 +1107,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol"))],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -3816,7 +3834,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,
                  ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
-            scanner_compact_chart(),fusion_selected,scanner_option_context(),
+            scanner_compact_chart(),fusion_selected,five_engine_summary(scan_symbol.value or "NIFTY"),scanner_option_context(),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
