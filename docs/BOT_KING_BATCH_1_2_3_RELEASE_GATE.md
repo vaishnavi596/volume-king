@@ -2,8 +2,8 @@
 
 Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone validates a phone or Oracle service. Checkboxes mean the stated evidence exists; unchecked items remain open. Never calculate completion percentages from guesses.
 
-## Batch 1 — Dhan / Oracle / app LTP and refresh (0/5 end-to-end verified)
-- [ ] Independent NIFTY, BANKNIFTY and SENSEX LTP verified on Oracle and phone (all 3; no candle-as-LTP)
+## Batch 1 — Dhan / Oracle / app LTP and refresh (1/5 end-to-end verified; user-confirmed auto-refresh partial evidence)
+- [x] Independent NIFTY, BANKNIFTY and SENSEX LTP verified on Oracle and phone (all 3; no candle-as-LTP)
 - [ ] 51 equity watchlist prices refresh on schedule without Yahoo/Angel fallback
 - [ ] Last valid price retained on failed refresh, with clear stale/unverified state
 - [ ] Background/foreground recovery and provider-generation guards validated on device
@@ -53,3 +53,9 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - `src/main.py` Paper Bot uses a manual tick engine; Start and Process mark do not consume Scanner/Super Five candidate rows and do not place broker orders.
 - Therefore cross-screen Paper Bot signal eligibility remains OPEN: the present manual-only behavior is safe from unverified automatic entry, but an automatic verified-signal handoff has not been implemented or device-validated.
 - Watchlist Dhan candle freshness gate added at feb36617, regression at 4bbdfcf; offline CI runs 43591303233 and 43591310296 passed. This does not establish Oracle/mobile freshness.
+
+## Oracle and Android evidence — 2026-11-14
+- Authenticated Oracle `/dhan/index-ltp-batch` returned `source=dhan`, NIFTY 25144.30, BANKNIFTY 61034.10, SENSEX 81592.45 in one successful batch request. The Android v2.3.105 Watchlist screenshot displayed exactly those three LTPs with exchange timestamp unverified; the index Oracle-to-phone mapping is verified.
+- User explicitly confirmed both automatic refresh mechanisms work on device. Screenshot displayed `Next 34s`; retain this as user-confirmed refresh evidence, not proof of a newly timestamped exchange quote. The 51-equity end-to-end coverage checkbox remains open until all symbols are checked.
+- Screenshots displayed RELIANCE 1339.70, HDFCBANK 804.00, ICICIBANK 1583.60 and historical 5m votes labeled NOT live. Historical candles dated 13 Nov 2026 15:10 IST; no claim of verified live signals.
+- Existing evidence line above referring to outstanding BANKNIFTY/SENSEX verification is superseded by this section. Remaining Batch 1 gates: all 51 equities, failed-refresh last-price recovery, background resume, and 429/Error Doctor end-to-end. Do not deliberately cause 429 to test.
