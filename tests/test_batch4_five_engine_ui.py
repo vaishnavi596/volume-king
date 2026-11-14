@@ -85,3 +85,13 @@ def test_legacy_three_source_fusion_does_not_promote_rss_sentiment_to_vote():
     assert "news_bias=None" in block
     assert 'news_bias={"POSITIVE":"BULLISH","NEGATIVE":"BEARISH"}' not in block
     assert "overall=votes[0] if complete and len(set(votes))==1 else \"WAIT\"" in block
+
+
+def test_legacy_news_context_uses_shared_dedup_and_provenance_gate():
+    assert "deduplicate_news_context" in SOURCE
+    start = SOURCE.index("    def combine_analysis(symbol,interval,candle,local_news,global_news):")
+    end = SOURCE.index("    async def load_combined(", start)
+    block = SOURCE[start:end]
+    assert "deduplicate_news_context(tagged,symbol=symbol,now=now,max_age_seconds=86400)" in block
+    assert '"publisher":x.get("source")' in block
+    assert "news_bias=None" in block
