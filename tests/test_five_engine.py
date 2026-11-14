@@ -395,3 +395,20 @@ def test_news_context_deduplicates_syndicated_publishers_and_caps_size():
     result = deduplicate_news_context(rows, symbol="RELIANCE", now=now)
     assert len(result) == 20
     assert sum(x["title"].lower().startswith("company") for x in result) == 1
+
+
+def test_futures_market_context_requires_verified_mapping_and_complete_fields():
+    from five_engine import futures_market_context
+    now = 1234567890
+    base = {"source": "Dhan", "verified": True, "mapping_verified": True,
+            "contract": "NIFTY FUT", "timestamp": now, "ltp": 25000.0,
+            "open_interest": 1000, "volume": 500}
+    result = futures_market_context(base, now=now)
+    assert result["direction"] is None and result["direction_verified"] is False
+    for change in ({"mapping_verified": False}, {"source": "Yahoo"},
+                   {"verified": 1}, {"timestamp": now - 301},
+                   {"timestamp": now + 1}, {"ltp": 0},
+                   {"volume": -1}, {"open_interest": None},
+                   {"contract": "  "}):
+        row = dict(base, **change)
+        assert futures_market_context(row, now=now) is None
