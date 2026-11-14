@@ -8,7 +8,8 @@ class IndexPlacementTest(unittest.TestCase):
     def test_index_cards_are_dashboard_first(self):
         dashboard = SOURCE.split("    def dashboard():", 1)[1].split("    search=ft.TextField(", 1)[0]
         self.assertIn("dashboard_market_indices(),", dashboard)
-        self.assertLess(dashboard.index("dashboard_market_indices(),"), dashboard.index("data_overview(),"))
+        self.assertLess(dashboard.index("dashboard_market_indices(),"), dashboard.index("dashboard_index_analysis(),"))
+        self.assertNotIn("data_overview(),", dashboard)
         builder = SOURCE.split("    def dashboard_market_indices():", 1)[1].split("    def dashboard():", 1)[0]
         self.assertIn('index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")', builder)
         self.assertIn("historical_vote_agreement(index_history)", builder)
