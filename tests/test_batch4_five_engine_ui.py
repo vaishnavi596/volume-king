@@ -166,3 +166,17 @@ def test_gateway_rejects_inconsistent_option_window_diagnostics():
     assert 'window_status == "available"' in feed
     assert 'window is not None' in feed
     assert 'Inconsistent Dhan ATM window diagnostic status' in feed
+
+
+def test_scanner_tab_has_recovery_mode_and_independent_widget_guards():
+    start = SOURCE.index("    def scanner():")
+    end = SOURCE.index("    def run_scan(e):", start)
+    block = SOURCE[start:end]
+    assert "return scanner_content()" in block
+    assert 'log_error("scanner_page", exc)' in block
+    assert 'heading("SCANNER • Recovery Mode")' in block
+    assert 'on_click=lambda e:select(3)' in block
+    assert 'safe_scanner_widget("Chart",scanner_compact_chart)' in block
+    assert 'safe_scanner_widget("Five Engine",lambda:five_engine_summary(' in block
+    assert 'safe_scanner_widget("Options",scanner_option_context)' in block
+    assert 'log_error("scanner_" + label.lower().replace(" ", "_"), exc)' in block
