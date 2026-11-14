@@ -55,3 +55,8 @@ def test_five_engine_ui_requires_current_dhan_connection():
         block=SOURCE.split(method,1)[1].split("\\n    def ",1)[0]
         assert 'prefs.get("source")!="Dhan" or not dhan_feed.connected' in block
         assert "WAIT" in block
+
+
+def test_unavailable_five_engine_evidence_explains_wait():
+    assert 'else " WAIT ("+str(result["reason"])+")"' in SOURCE
+    assert 'str(snapshot["engines"][0].display()["reason"])' in SOURCE
