@@ -1550,8 +1550,11 @@ def app_main(page:ft.Page):
             return "Next soon"
         # Poll loop wakes every 30s after connection; this is an estimate,
         # not a claim that the Dhan server returned a fresh quote.
-        remaining=max(0,math.ceil(30-(time.monotonic()-quote_auto_last_attempt[0])%30))
-        return f"Next {remaining}s"
+        elapsed=time.monotonic()-quote_auto_last_attempt[0]
+        # Never reset a visual timer when no new request was actually made.
+        if elapsed>=30:
+            return "Next due"
+        return f"Next {max(0,math.ceil(30-elapsed))}s"
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
