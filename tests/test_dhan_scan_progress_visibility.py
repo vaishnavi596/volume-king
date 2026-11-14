@@ -113,7 +113,7 @@ class DhanScanProgressTests(unittest.TestCase):
 
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
-        self.assertIn('symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]', source)
+        self.assertIn('symbols=([equities[0]]+indices+equities[1:]) if equities else indices', source)
         self.assertIn("Dhan quote refresh • every 180 sec while foreground", source)
         self.assertIn("exchange timestamp unverified", source)
 
