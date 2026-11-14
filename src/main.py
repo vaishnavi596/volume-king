@@ -4329,7 +4329,9 @@ console.log('BOT KING Lightweight Charts ready');
                 # Index histories are separate from the 51-equity scanner total.
                 # Reuse NIFTY already fetched in this scan; fetch BANKNIFTY and
                 # SENSEX serially only after the equity pass and without fanout.
-                if prefs.get("source")=="Dhan" and successes:
+                if (prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and generation==provider_generation[0] and app_active[0]
+                        and dhan_feed.cooldown_remaining("/dhan/intraday")==0):
                     for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
                         if generation!=provider_generation[0] or lifecycle_background[0]:
                             break
