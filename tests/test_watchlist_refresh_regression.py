@@ -14,7 +14,7 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def test_python_syntax(self):
         ast.parse(self.source, filename=str(SOURCE))
 
-    def test_quote_poll_uses_thirty_second_interval(self):
+    def test_quote_poll_uses_180_second_interval(self):
         tree = ast.parse(self.source)
         poll = next(node for node in ast.walk(tree)
                     if isinstance(node, ast.AsyncFunctionDef)
@@ -24,7 +24,7 @@ class WatchlistRefreshRegression(unittest.TestCase):
                   and isinstance(node.func, ast.Attribute)
                   and node.func.attr == "sleep"]
         self.assertTrue(any(call.args and isinstance(call.args[0], ast.Constant)
-                            and call.args[0].value == 30 for call in sleeps))
+                            and call.args[0].value == 180 for call in sleeps))
 
     def test_no_scroll_triggered_quote_requests(self):
         self.assertNotIn("watch_list.on_scroll=", self.source)
