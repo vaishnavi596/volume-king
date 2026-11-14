@@ -3516,6 +3516,12 @@ console.log('BOT KING Lightweight Charts ready');
         # No background service: refresh runs only while this app/page is alive.
         initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
+            # Dhan already has one shared historical scan scheduler (refresh_market).
+            # Never run a second automatic selected-symbol scanner alongside it.
+            if prefs.get("source")=="Dhan":
+                scan_next_refresh[0]=None
+                await asyncio.sleep(5)
+                continue
             if prefs.get("source")=="Dhan" and not dhan_feed.connected:
                 scan_next_refresh[0]=None
                 scan_status.value="Dhan login required • automatic scan paused"
@@ -3720,8 +3726,8 @@ console.log('BOT KING Lightweight Charts ready');
         scan_max.visible=scan_budget.value=="Custom"
         return [heading("RULE-BASED SCANNER • Chart & Analysis"),
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
-            card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,scan_refresh,
-                 scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
+            card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,
+                 ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
             scanner_compact_chart(),fusion_selected,scanner_option_context(),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
