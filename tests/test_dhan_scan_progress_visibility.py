@@ -18,21 +18,29 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn('Price change unavailable • reference unverified', source)
         self.assertIn('signal_direction=("Bullish" if signal_counts[0]>signal_counts[1]', source)
 
-    def test_dhan_equity_quote_poll_runs_every_30_seconds(self):
+    def test_dhan_equity_quote_poll_runs_every_180_seconds(self):
         source = SOURCE.read_text(encoding="utf-8")
         body = source.split("    async def dhan_quote_poll():", 1)[1].split("    async def watch_visible_tick():", 1)[0]
-        self.assertIn("await asyncio.sleep(30)", body)
-        self.assertNotIn("await asyncio.sleep(180)", body)
+        self.assertIn("await asyncio.sleep(180)", body)
+        self.assertNotIn("await asyncio.sleep(30)", body)
         self.assertIn("await refresh_watch_batch()", body)
         self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")', body)
         self.assertIn("if remaining==0:", body)
         self.assertIn("Dhan snapshot cooling down", body)
         self.assertIn("last valid prices retained", body)
 
+    def test_manual_quote_refresh_is_throttled_and_respects_cooldown(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        body = source.split("    async def refresh_all_dhan_quotes():", 1)[1].split("    async def dhan_quote_poll():", 1)[0]
+        self.assertIn("30-(now-manual_quote_last_attempt[0])", body)
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")', body)
+        self.assertIn("watch_batch_busy[0] or index_refresh_busy[0]", body)
+        self.assertIn("await refresh_dhan_index_quotes(force=True)", body)
+
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('symbols=([equities[0],"NIFTY"]+equities[1:]) if equities else ["NIFTY"]', source)
-        self.assertIn("Dhan quote refresh • every 30 sec while foreground", source)
+        self.assertIn("Dhan quote refresh • every 180 sec while foreground", source)
         self.assertIn("exchange timestamp unverified", source)
 
     def test_scanner_chart_cache_respects_timeframe_and_scan_generation(self):
