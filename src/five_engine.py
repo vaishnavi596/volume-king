@@ -158,9 +158,14 @@ def scanner_snapshot(scan_result):
     if not isinstance(raw, (list, tuple)):
         return compose_snapshot()
     labels = []
+    seen_filters = set()
     for vote in raw:
         if not isinstance(vote, dict):
             return compose_snapshot()
+        name = vote.get("name")
+        if not isinstance(name, str) or not name.strip() or name in seen_filters:
+            return compose_snapshot()
+        seen_filters.add(name)
         direction = vote.get("vote")
         if type(direction) is not int or direction not in (-1, 0, 1):
             return compose_snapshot()
