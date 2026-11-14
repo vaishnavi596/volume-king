@@ -290,3 +290,32 @@ def deduplicate_news_context(headlines, *, symbol, now, max_age_seconds=600):
         if len(selected) >= 20:
             break
     return tuple(selected)
+
+
+def futures_market_context(component, *, now, max_age_seconds=300):
+    """Validate read-only Dhan futures fields; never infer cash flow or trade side.
+
+    Contract mapping must be supplied by a separately verified broker resolver.
+    This normalizer cannot establish such a mapping or promote data to a vote.
+    """
+    if type(now) not in (int, float) or not isfinite(now) or now <= 0:
+        raise ValueError("Invalid current time")
+    if type(max_age_seconds) not in (int, float) or not isfinite(max_age_seconds) or max_age_seconds <= 0:
+        raise ValueError("Invalid freshness limit")
+    if not isinstance(component, dict) or component.get("source") != "Dhan" or component.get("verified") is not True:
+        return None
+    if component.get("mapping_verified") is not True:
+        return None
+    contract = component.get("contract")
+    timestamp = component.get("timestamp")
+    if (not isinstance(contract, str) or not contract.strip() or
+            type(timestamp) not in (int, float) or not isfinite(timestamp) or
+            not 0 <= now - timestamp <= max_age_seconds):
+        return None
+    fields = ("ltp", "open_interest", "volume")
+    values = [component.get(k) for k in fields]
+    if any(type(v) not in (int, float) or not isfinite(v) or v < 0 for v in values) or values[0] <= 0:
+        return None
+    return {"contract": contract.strip(), "timestamp": timestamp,
+            "ltp": values[0], "open_interest": values[1], "volume": values[2],
+            "source": "Dhan", "direction": None, "direction_verified": False}
