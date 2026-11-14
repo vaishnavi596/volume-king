@@ -127,6 +127,16 @@ jobs:
       - name: Verify Flet version
         run: flet --version
 
+      - name: Embed pyproject version for Android runtime display
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          Path("src/_build_version.py").write_text("BUILD_VERSION = " + repr(version) + "\\n")
+          print("Embedded runtime version:", version)
+          PY
+
       - name: Check Python syntax before APK packaging
         run: python -m py_compile src/main.py src/scanner_engine.py
 
