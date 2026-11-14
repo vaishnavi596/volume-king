@@ -21,7 +21,7 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_dhan_equity_quote_poll_runs_every_180_seconds(self):
         source = SOURCE.read_text(encoding="utf-8")
         body = source.split("    async def dhan_quote_poll():", 1)[1].split("    async def watch_visible_tick():", 1)[0]
-        self.assertIn("await asyncio.sleep(180)", body)
+        self.assertIn("await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)", body)
         self.assertNotIn("await asyncio.sleep(30)", body)
         self.assertIn("await refresh_watch_batch()", body)
         self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")', body)
