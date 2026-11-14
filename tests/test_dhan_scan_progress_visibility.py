@@ -71,6 +71,15 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_early_index_cooldown_blocks_equity_tail(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index('                    for sym in symbols[1:]:')
+        end = source.index('                        if lifecycle_background[0]:', start)
+        section = source[start:end]
+        self.assertIn('if dhan_feed.cooldown_remaining("/dhan/intraday")>0:', section)
+        self.assertIn('last_scanned_generation=None', section)
+        self.assertIn('last LTP retained', section)
+
     def test_b2_early_index_cooldown_preserves_retry_generation(self):
         source = SOURCE.read_text(encoding="utf-8")
         start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
