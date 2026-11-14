@@ -129,3 +129,13 @@ def test_dhan_option_ui_never_falls_back_to_legacy_contract_rows():
     assert 'if prefs.get("source") == "Dhan":' in block
     assert 'No legacy broker CE/PE rows are shown in Dhan-only mode.' in block
     assert block.index('if prefs.get("source") == "Dhan":') < block.index('rows=selected_option_rows();grouped={}')
+
+
+def test_dhan_option_ui_displays_volume_without_inventing_missing_values():
+    start=SOURCE.index("    def option_chain_preview():")
+    end=SOURCE.index("\n    def ",start)
+    block=SOURCE[start:end]
+    assert '["CE Premium","CE OI","CE Vol","Strike","PE Vol","PE OI","PE Premium"]' in block
+    assert 'value(item["ce"],"volume")' in block
+    assert 'value(item["pe"],"volume")' in block
+    assert 'return ("—" if v is None' in block
