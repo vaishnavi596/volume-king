@@ -1083,11 +1083,32 @@ def app_main(page:ft.Page):
                 rows.append(note("Dhan index provider data unavailable • displayed price is LAST KNOWN, not a fresh live quote"))
             elif rows_note:
                 rows.append(note(rows_note))
-            if not valid_source or not snapshot.get("bars"):
-                rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
+            # Reuse an already-loaded 5m candle series, never an index LTP
+            # snapshot (which contains no historical bars). Do not issue a
+            # network request while building the dashboard.
+            candle_data=snapshot if snapshot.get("bars") else (
+                candles.get("scanner_chart_"+sym) or {})
+            candle_tf=candle_data.get("_scanner_timeframe","5m")
+            if candle_tf!="5m" or candle_data.get("source")!=source:
+                candle_data={}
+            if not valid_source or not candle_data.get("bars"):
+                rows.append(note("Candle bias: UNAVAILABLE • open 5m Scanner chart to load candles"))
             else:
                 try:
-                    analysis=display_analysis(sym,snapshot)
+                    indicator=analyze_current(candle_data["bars"],filter_selected[:],"5m")
+                    votes=[v for v in indicator.get("votes",[]) if isinstance(v,dict)]
+                    bulls=sum(v.get("vote")==1 for v in votes)
+                    bears=sum(v.get("vote")==-1 for v in votes)
+                    total=bulls+bears
+                    if total:
+                        rows.append(ft.Row([
+                            txt("BULLISH "+str(round(100*bulls/total))+"%",11,GREEN,True),
+                            txt("BEARISH "+str(round(100*bears/total))+"%",11,RED,True)
+                        ],spacing=12))
+                        rows.append(note("5m technical vote agreement • historical/unverified, NOT a live trading signal"))
+                    else:
+                        rows.append(note("5m technical vote agreement unavailable • insufficient directional votes"))
+                    analysis=display_analysis(sym,candle_data)
                     if not analysis.get("timestamp"):
                         rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
                     else:
