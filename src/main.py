@@ -1506,32 +1506,32 @@ def app_main(page:ft.Page):
         await refresh_watch_batch()
         await refresh_dhan_index_quotes(force=True)
 
+    quote_auto_last_attempt=[0.0]
     async def dhan_quote_poll():
-        # Quote cadence is independent of the expensive 51-symbol candle-history scan.
-        # Only poll while the Android app is foregrounded and Dhan is connected.
+        # BK-102: allow the app to settle before its first quote request.
+        # Subsequent automatic polls remain on a 180-second cadence.
+        await asyncio.sleep(10)
         while True:
             try:
-                if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and time.monotonic()-quote_auto_last_attempt[0]>=30
+                        and not watch_batch_busy[0] and not index_refresh_busy[0]):
+                    quote_auto_last_attempt[0]=time.monotonic()
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
                         await refresh_watch_batch()
                         if current[0]==0:
                             request_view_refresh(0)
                     elif not watch_batch_busy[0]:
-                        # A throttled snapshot must not look like a silent frozen list.
                         watch_batch_status[0]=(
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
-                    # Index LTP is a separate mapped endpoint: snapshot cooldown
-                    # must not block three index cards from refreshing.
                     await refresh_dhan_index_quotes()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # BK-101: foreground quote poll every 180 seconds; manual refresh
-            # has its own 30-second throttle and respects provider cooldown.
             await asyncio.sleep(180)
 
     async def watch_visible_tick():
@@ -4494,10 +4494,15 @@ console.log('BOT KING Lightweight Charts ready');
             # The background poll is suspended, so waiting up to 45 seconds
             # for its next tick unnecessarily delays the visible watchlist.
             if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
-                if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
-                    await refresh_watch_batch()
-                # A cooling-down equity snapshot must not suppress index recovery.
-                await refresh_dhan_index_quotes()
+                await asyncio.sleep(10)
+                if (app_active[0] and generation==provider_generation[0]
+                        and time.monotonic()-quote_auto_last_attempt[0]>=30
+                        and not watch_batch_busy[0] and not index_refresh_busy[0]):
+                    quote_auto_last_attempt[0]=time.monotonic()
+                    if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
+                        await refresh_watch_batch()
+                    # A cooling-down equity snapshot must not suppress index recovery.
+                    await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
             if current[0]==1:await refresh_selected_options()
