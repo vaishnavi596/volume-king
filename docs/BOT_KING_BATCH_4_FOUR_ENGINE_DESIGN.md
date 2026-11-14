@@ -1,12 +1,12 @@
-# BOT KING Batch 4 — Four-Engine Intelligence: Audit and Design
+# BOT KING Batch 4 — Five-Engine Intelligence: Audit and Design
 
-Status: DESIGN ONLY. No live-order enablement, no change to the Batch 1–3 APK release gate.
+Status: UI placement and compact Watchlist implemented in source; five-engine scoring/data integration pending. No live-order enablement, no change to the Batch 1–3 APK release gate.
 
 ## Agreed product contract (2026-11-14)
-- Four **independent** 0–100 scales: NEWS, FUTURES, OPTIONS, CANDLE. Each displays directional bias (bullish/bearish/mixed/unknown), score, data confidence, timestamp, and reason.
-- Scores measure *evidence strength within an engine*, **not** probability of profitable trades or actual rupees invested. Never add 100+100+100+100 and label it win probability.
+- Five **independent** directional scales: TECHNICAL, CANDLE / PRICE ACTION, NEWS, FUTURES, OPTIONS. Each has bullish and bearish evidence percentages only when sufficiently supported. Each displays directional bias (bullish/bearish/mixed/unknown), score, data confidence, timestamp, and reason.
+- Scores measure *evidence strength within an engine*, **not** probability of profitable trades or actual rupees invested. Never add 100+100+100+100+100 and label it win probability.
 - No fabricated premium, OI, futures flow, news impact, or money amount. Missing/unverified/stale source => N/A / WAIT, not 0 or bearish.
-- Same normalized analysis snapshot powers Scanner (detail), Watchlist (compact badges), and Super Five (one compact card with drill-down), keyed by symbol, exchange, contract/expiry, timeframe and source timestamp.
+- One normalized, cached analysis snapshot powers Dashboard (three fixed indices), Scanner (detail), Watchlist (compact equity-only rows), and Super Five (one compact card with drill-down), keyed by symbol, exchange, contract/expiry, timeframe and source timestamp.
 - OPTIONS: ATM plus three **listed strikes below** and three **listed strikes above**, not candle bars; show CE/PE OI, change in OI, volume, LTP premium, premium change, lot size and turnover estimate only where the verified feed supplies inputs. Display units and formula, never conflate OI with cash flow.
 - FUTURES: only mapped listed contracts; show price change, OI change, volume, turnover estimate and *inferred* long build-up/short build-up/covering/unwinding with limitations. Do not claim actual long/short capital without trade-level directional evidence.
 - NEWS: headline sentiment is context, not proven price impact; match instrument and publication times, deduplicate and identify publisher/source, language and negation; show coverage and confidence separately.
@@ -16,22 +16,29 @@ Status: DESIGN ONLY. No live-order enablement, no change to the Batch 1–3 APK 
 ## Source audit: existing versus gaps
 | Area | Verified in repository | Gap |
 | --- | --- | --- |
-| Technical scanner | `src/scanner_engine.py`: DEFAULT_FILTERS and OPTION_FILTERS, candle integrity and directional vote score | Separate standardized Candle 0–100 strength/confidence and UI contract |
+| Technical scanner | `src/scanner_engine.py`: DEFAULT_FILTERS and OPTION_FILTERS, candle integrity and directional vote score | Separate technical and price-action engines without counting the same correlated candle votes twice; standardized confidence and UI contract |
 | News | `src/main.py`: RSS via Google News/BBC, 600s cache, keyword headline_signal and per-symbol fusion | Reliable 0–100 news engine, dedup, sentiment context, freshness/coverage |
-| Fusion | `src/main.py`: combine_analysis currently requires candle/options/news agreement and returns WAIT on missing/conflicting inputs | Four-engine schema and explicit policy; current 3-way fusion is not Futures analysis |
+| Fusion | `src/main.py`: combine_analysis currently requires candle/options/news agreement and returns WAIT on missing/conflicting inputs | Five-engine schema and explicit policy; current 3-way fusion is neither a complete Futures engine nor an independent Technical + Candle pair |
 | Options | `src/server_feed.py`: Dhan NIFTY expiry and unverified PCR/max-pain metrics; `src/main.py` option_snapshots placeholder and CE/PE missing state | Verified full strike rows, ATM ±3, expiry/lot mapping, premium and turnover |
 | Futures | No verified Futures money-flow engine found in reviewed main/scanner_engine/server_feed modules | Instrument mapping, futures OI/price/volume data, classification and confidence |
-| Surfaces | Scanner fusion_card, Watchlist and Super Five exist | Shared four-engine snapshot, compact and expanded UI consistency |
+| Surfaces | Scanner fusion_card, Watchlist and Super Five exist | Shared five-engine snapshot, compact and expanded UI consistency |
 | Risk | Existing unavailable option votes and WAIT safeguards; live orders disabled | New score-specific regression and end-to-end device tests |
 
 ## Implementation sequence and acceptance gates
-1. **B4.1 Inventory:** enumerate screen functions, data paths, symbols, contract support, and currently missing endpoints. Mark implemented / placeholder / unavailable / verified on phone. Count only after complete repo inventory.
-2. **B4.2 Schema:** introduce pure normalized four-engine model, confidence, timestamps, reasons and WAIT policy; add offline tests. No network calls in scoring.
-3. **B4.3 News:** improve symbol-specific headline matching, duplicates, negation, publisher and 0–100 evidence strength with explicit uncertainty.
+1. **B4.1 Inventory and UI:** compact BOT KING header, version in Settings, fixed Dashboard indices, Settings-only System Health + Error Doctor, compact Watchlist rows. Source implemented; latest offline suite #1145 PASS. Remaining bottom-only five-tab navigation and five-engine details are pending. Inventory: enumerate screen functions, data paths, symbols, contract support, and currently missing endpoints. Mark implemented / placeholder / unavailable / verified on phone. Count only after complete repo inventory.
+2. **B4.2 Schema:** introduce pure normalized five-engine model, confidence, timestamps, reasons and WAIT policy; add offline tests. No network calls in scoring.
+3. **B4.3 Technical/Candle separation and News:** improve symbol-specific headline matching, duplicates, negation, publisher and 0–100 evidence strength with explicit uncertainty.
 4. **B4.4 Futures:** read-only Dhan contract mapping and available OI/price/volume data; distinguish exposure from traded turnover.
 5. **B4.5 Options:** validated expiry and ATM ±3 listed strikes with CE/PE fields, lot size, price/OI changes and unit-aware turnover estimates.
 6. **B4.6 Integration:** one shared cached symbol snapshot for Scanner, Watchlist and Super Five; no per-row API fanout or stale-as-live rendering.
 7. **B4.7 Gates:** offline regression, Oracle read-only tests, Android APK/version/signing audit, then phone validation for NIFTY and supported equities, missing data, 429 and resume.
+
+## Navigation and information density
+- One bottom-only five-tab bar in this order: Dashboard, Watchlist, Scanner, Super Five, Settings. Remove duplicate top navigation and legacy six-tab layout only with updated navigation/runtime tests.
+- Header: compact BOT KING title and bell, no redundant version/paper/live caption. Version appears in Settings.
+- Dashboard: NIFTY, BANKNIFTY, SENSEX fixed cards. Watchlist: equities only, compact LTP/change/technical votes, drill-down for details. No fabricated N/C/F/O percentages.
+- System Health and Error Doctor share a Settings section; preserve read-only paper-only safeguards.
+- Percentage bars are evidence strengths, not calibrated win probability; N/A for unavailable engines, no automatic orders.
 
 ## Explicit boundaries
 - Existing Dhan option-chain PCR/max pain result has freshness `unverified`, `signal_eligible=false`. Do not promote it into a trading vote.
