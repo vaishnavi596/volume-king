@@ -363,3 +363,19 @@ def test_futures_oi_build_up_never_fabricates_directional_vote():
         assert row.display()["state"] == "WAIT"
         assert row.bullish is None and row.bearish is None
         assert combine_evidence(compose_snapshot(futures=row)["engines"])["coverage"] == 0
+
+
+def test_news_context_requires_symbol_publisher_freshness_and_dedup():
+    from five_engine import deduplicate_news_context
+    now = 1234567890
+    rows = [
+        {"title": "Company result", "publisher": "Wire", "published_at": now - 10, "symbols": ["RELIANCE"]},
+        {"title": " company result ", "publisher": "wire", "published_at": now - 10, "symbols": ["RELIANCE"]},
+        {"title": "Other stock", "publisher": "Wire", "published_at": now - 10, "symbols": ["HDFCBANK"]},
+        {"title": "Old", "publisher": "Wire", "published_at": now - 601, "symbols": ["RELIANCE"]},
+        {"title": "Future", "publisher": "Wire", "published_at": now + 1, "symbols": ["RELIANCE"]},
+        {"title": "Missing publisher", "published_at": now, "symbols": ["RELIANCE"]},
+    ]
+    result = deduplicate_news_context(rows, symbol="reliance", now=now)
+    assert len(result) == 1 and result[0]["title"] == "Company result"
+    assert news_from_headline_cues({"bias": "POSITIVE", "count": len(result)}).display()["state"] == "WAIT"
