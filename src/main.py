@@ -1462,6 +1462,27 @@ def app_main(page:ft.Page):
             snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)
             if not app_active[0] or generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
+            # Some index batch responses omit BANKNIFTY or SENSEX even when
+            # their independent /dhan/ltp mapping is available. Retry only
+            # missing indices; never derive prices from historical candles.
+            missing_indices=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
+                             if sym not in snapshots]
+            for missing_symbol in missing_indices:
+                if (not app_active[0] or generation!=provider_generation[0]
+                        or dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0):
+                    break
+                try:
+                    independent=await asyncio.wait_for(
+                        asyncio.to_thread(dhan_feed.quote,missing_symbol),timeout=20)
+                    if (generation==provider_generation[0] and app_active[0]
+                            and independent.get("source")=="Dhan"):
+                        snapshots[missing_symbol]=independent
+                except asyncio.CancelledError:
+                    raise
+                except Exception as missing_exc:
+                    log_error("index_ltp_fallback_"+missing_symbol,missing_exc)
+            if not app_active[0] or generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                return
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 snapshot=snapshots.get(ticker)
                 if snapshot is None:
