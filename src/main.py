@@ -4113,12 +4113,14 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(scan_age_clock)
     page.run_task(scanner_fast_signal_loop)
     page.run_task(protection_clock)
+    dhan_history_scan_active=[False]
     async def refresh_market():
         nonlocal market_status
         initial=True
         last_scanned_generation=None
         closed_session_retry_generation=None
         while True:
+            dhan_history_scan_active[0]=False
             # Android can report a transient inactive lifecycle state while the
             # visible app is still in use. Never strand the first authenticated
             # Dhan historical scan behind that flag; allow one generation scan.
@@ -4228,6 +4230,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
                 scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
+                dhan_history_scan_active[0]=(prefs.get("source")=="Dhan")
                 market_completed=[0]
                 history_failed=[0]
                 history_cached=[0]
@@ -4325,6 +4328,7 @@ console.log('BOT KING Lightweight Charts ready');
                         # Keep the generation pending: a failed cold-start probe
                         # must retry after cooldown even when the market is closed.
                         last_scanned_generation=None
+                        dhan_history_scan_active[0]=False
                         await asyncio.sleep(max(30, dhan_feed.cooldown_remaining("/dhan/intraday")))
                         continue
                     results=[first_ok]
@@ -4474,6 +4478,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if ("429" in safe_error(exc) or
                                     dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                                 break
+                dhan_history_scan_active[0]=False
                 cached_histories=sum(bool(data.get("cached") and data.get("bars")) for data in cycle_data.values())
                 if successes:
                     market_status=f"{prefs.get('source','Dhan')} • {successes} candle histories updated"+(f" • {cached_histories} saved histories" if cached_histories else "")+" • "+datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%H:%M IST")
@@ -4595,6 +4600,8 @@ console.log('BOT KING Lightweight Charts ready');
                 raise
             except Exception as exc:
                 log_error("market_loop_crash",exc)
+            finally:
+                dhan_history_scan_active[0]=False
             scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                                  failed=0,cached=0,state="Market scan task restarting after error; see diagnostics")
             if current[0] in (0,4):
@@ -4630,6 +4637,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected
                         and regular_hours()
+                        and not dhan_history_scan_active[0]
                         and dhan_feed.cooldown_remaining("/dhan/intraday")==0
                         and not str(scan_progress.get("state","")).startswith(
                             ("Starting historical", "Checking Dhan batch", "Loading candle", "Loading histories"))
@@ -4639,7 +4647,7 @@ console.log('BOT KING Lightweight Charts ready');
                     index_candle_last_attempt[0]=time.monotonic()
                     for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
                         if (generation!=provider_generation[0] or not app_active[0]
-                                or lifecycle_background[0] or
+                                or lifecycle_background[0] or dhan_history_scan_active[0] or
                                 dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                             break
                         # Reuse scanner/chart 90s history cache, and pace fresh
@@ -4651,7 +4659,8 @@ console.log('BOT KING Lightweight Charts ready');
                             fresh=bool(existing and time.monotonic()-existing[0]<87)
                         if not fresh:
                             await asyncio.sleep(1.5)
-                        if generation!=provider_generation[0] or lifecycle_background[0]:
+                        if (generation!=provider_generation[0] or lifecycle_background[0]
+                                or dhan_history_scan_active[0]):
                             break
                         try:
                             data=await asyncio.wait_for(
