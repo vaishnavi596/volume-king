@@ -6,11 +6,11 @@ from test_mobile_regressions import walk
 
 
 class ScreenshotAuditTests(unittest.TestCase):
-    def test_dashboard_has_collapsible_diagnostics(self):
+    def test_settings_has_collapsible_diagnostics(self):
         _, state = start({"scanner_live": False})
-        state["select"](0)
+        state["select"](2)
         tiles = [c for root in state["body"].controls for c in walk(root) if isinstance(c, ft.ExpansionTile)]
-        self.assertTrue(tiles, "Market diagnostics must not consume the entire dashboard")
+        self.assertTrue(tiles, "Diagnostics must be available in Settings only")
 
     def test_scanner_still_exposes_all_ten_filters(self):
         _, state = start({"scanner_live": False})
