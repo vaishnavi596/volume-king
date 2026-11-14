@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.109" # Batch 4 scanner navigation recovery candidate; CI and APK verification pending
+version = "2.3.110" # Batch 4 scanner filter result and KeyError diagnostics candidate
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
