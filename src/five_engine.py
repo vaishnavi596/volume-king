@@ -163,9 +163,12 @@ def scanner_snapshot(scan_result):
         if not isinstance(vote, dict):
             return compose_snapshot()
         name = vote.get("name")
-        if not isinstance(name, str) or not name.strip() or name in seen_filters:
+        if not isinstance(name, str) or not name.strip():
             return compose_snapshot()
-        seen_filters.add(name)
+        canonical_name = name.strip().casefold()
+        if canonical_name in seen_filters:
+            return compose_snapshot()
+        seen_filters.add(canonical_name)
         direction = vote.get("vote")
         if type(direction) is not int or direction not in (-1, 0, 1):
             return compose_snapshot()
