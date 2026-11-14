@@ -3208,6 +3208,7 @@ def app_main(page:ft.Page):
 
             note("Live broker orders are not connected. Paper strategy actions require Start and a new manual mark; square-off time is a saved preference only.")
         ])
+        content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Paper trading only • Live orders OFF")))
         return content
 
 
