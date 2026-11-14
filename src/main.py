@@ -1532,7 +1532,8 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            await asyncio.sleep(180)
+            # Before Dhan connects, retry the first snapshot after 10s, not 3m.
+            await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
