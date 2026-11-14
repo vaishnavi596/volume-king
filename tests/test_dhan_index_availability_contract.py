@@ -15,7 +15,9 @@ class IndexAvailabilityContract(unittest.TestCase):
         self.assertIn("set(unavailable).intersection(quotes)", code)
         self.assertIn("set(unavailable).union(quotes) != DHAN_VERIFIED_INDEX_SYMBOLS", code)
         self.assertIn('raise FeedError("Inconsistent Dhan index availability response")', code)
-        self.assertIn('raise FeedError("No valid Dhan index batch quotes")', code)
+        # Valid all-unavailable response must permit independent /dhan/ltp recovery.
+        self.assertNotIn('raise FeedError("No valid Dhan index batch quotes")', code)
+        self.assertIn("return quotes", code)
 
 
 if __name__ == "__main__":
