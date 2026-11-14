@@ -483,9 +483,12 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             chain_data = raw.get("data", {})
             underlying_spot = chain_data.get("last_price") if isinstance(chain_data, dict) else None
             window = None
+            window_status = "underlying_spot_unavailable"
             if type(underlying_spot) in (int, float) and math.isfinite(underlying_spot) and underlying_spot > 0:
+                window_status = "listed_window_unavailable"
                 try:
                     window = listed_atm_window(raw, spot=underlying_spot)
+                    window_status = "available"
                 except OptionMetricsUnavailable:
                     pass
         except DhanRateLimitError:
@@ -498,6 +501,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         return {"source": "dhan", "symbol": body.symbol,
                 "expiry": body.expiry.isoformat(), **metrics,
                 "atm_window": window,
+                "atm_window_status": window_status,
                 "live_orders_enabled": False}
 
     @app.post("/dhan/index-ltp-batch")
