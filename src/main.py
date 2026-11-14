@@ -2380,6 +2380,11 @@ def app_main(page:ft.Page):
                 ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in headings],
                     rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
                 note("CE/PE premiums and OI are display-only; missing values shown as —.")])
+        if prefs.get("source") == "Dhan":
+            return ft.Column([
+                note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
+                note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
+                note(option_feed_status[0])])
         rows=selected_option_rows();grouped={}
         for row in rows:grouped.setdefault(row["strike"],{})[row["side"]]=row
         def cell_value(row,key):
