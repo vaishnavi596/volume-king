@@ -1,6 +1,6 @@
 """Batch 4 five-engine directional evidence must fail closed on missing inputs."""
 import unittest
-from five_engine import option_from_component
+from five_engine import option_from_component, news_from_headline_cues
 from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot, scanner_snapshot, snapshot_for_display
 
 
@@ -235,3 +235,12 @@ class FiveEngineTests(unittest.TestCase):
             self.assertIsNone(row.bullish)
 
 if __name__=="__main__":unittest.main()
+
+
+def test_news_headline_keywords_never_count_as_verified_market_direction():
+    for cue in (None, {}, {"bias":"POSITIVE","positive":5,"negative":0},
+                {"bias":"NEGATIVE","positive":0,"negative":8}):
+        evidence=news_from_headline_cues(cue)
+        assert evidence.name=="news"
+        assert evidence.display()["state"]=="WAIT"
+        assert evidence.bullish is None and evidence.bearish is None
