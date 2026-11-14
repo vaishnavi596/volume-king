@@ -166,4 +166,14 @@ class FiveEngineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compose_snapshot(candle=object())
 
+
+    def test_scanner_malformed_votes_fail_closed(self):
+        for bad in ("BUY",{"vote":1},42,True):
+            with self.subTest(bad=bad):
+                snap=scanner_snapshot({"votes":bad,"source":"Dhan",
+                    "freshness":"verified_live","live_verified":True,
+                    "historical":False,"timestamp":1234567890})
+                self.assertEqual(snap["combined"]["coverage"],0)
+                self.assertEqual(snap["engines"][0].display()["state"],"WAIT")
+
 if __name__=="__main__":unittest.main()
