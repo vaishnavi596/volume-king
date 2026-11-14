@@ -9,6 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
+from five_engine import scanner_snapshot
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -756,6 +757,7 @@ def app_main(page:ft.Page):
     for r in top5_candidates:
         if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):
             watch_signal_cache.setdefault(r["symbol"],r)
+    five_engine_snapshots={}
     def signal_percentages(row):
         votes=row.get("votes") or []
         bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
@@ -4608,6 +4610,8 @@ console.log('BOT KING Lightweight Charts ready');
                         if generation!=provider_generation[0]:return sym,None
                         ranking_results[sym]=result
                         if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
+                        # Reuse the existing scanner result; no extra Dhan request.
+                        five_engine_snapshots[sym]=scanner_snapshot(dict(result or {},source=(data or {}).get("source",""),freshness=(data or {}).get("freshness","unverified"),live_verified=(data or {}).get("live_verified") is True,historical=(data or {}).get("historical",True)))
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
