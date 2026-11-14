@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.98" # Rebuild after APK release workflow guard regression fix
+version = "2.3.99" # Rebuild after APK release workflow guard regression fix
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
