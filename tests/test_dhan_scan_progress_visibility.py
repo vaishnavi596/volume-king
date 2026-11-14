@@ -71,6 +71,13 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_chart_reports_candle_timeframe_and_utc_timestamp(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('last_bar_stamp=(datetime.fromtimestamp(bars[-1][0],timezone.utc)', source)
+        self.assertIn('" OHLC candles"', source)
+        self.assertIn('" • last bar "+last_bar_stamp', source)
+        self.assertIn('" • historical/unverified, NOT live"', source)
+
     def test_b2_index_candle_warmup_not_gated_on_equity_success(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertNotIn('if prefs.get("source")=="Dhan" and successes:', source)
