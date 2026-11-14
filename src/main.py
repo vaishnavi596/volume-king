@@ -1427,7 +1427,6 @@ def app_main(page:ft.Page):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
                         await refresh_watch_batch()
-                        await refresh_dhan_index_quotes()
                         if current[0]==0:
                             request_view_refresh(0)
                     elif not watch_batch_busy[0]:
@@ -1436,6 +1435,9 @@ def app_main(page:ft.Page):
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
+                    # Index LTP is a separate mapped endpoint: snapshot cooldown
+                    # must not block three index cards from refreshing.
+                    await refresh_dhan_index_quotes()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -4347,9 +4349,10 @@ console.log('BOT KING Lightweight Charts ready');
             # Resume the fast shared quote path before expensive candle history.
             # The background poll is suspended, so waiting up to 45 seconds
             # for its next tick unnecessarily delays the visible watchlist.
-            if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
-                await refresh_watch_batch()
+            if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
+                    await refresh_watch_batch()
+                # A cooling-down equity snapshot must not suppress index recovery.
                 await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
