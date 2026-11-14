@@ -59,3 +59,10 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - User explicitly confirmed both automatic refresh mechanisms work on device. Screenshot displayed `Next 34s`; retain this as user-confirmed refresh evidence, not proof of a newly timestamped exchange quote. The 51-equity end-to-end coverage checkbox remains open until all symbols are checked.
 - Screenshots displayed RELIANCE 1339.70, HDFCBANK 804.00, ICICIBANK 1583.60 and historical 5m votes labeled NOT live. Historical candles dated 13 Nov 2026 15:10 IST; no claim of verified live signals.
 - Existing evidence line above referring to outstanding BANKNIFTY/SENSEX verification is superseded by this section. Remaining Batch 1 gates: all 51 equities, failed-refresh last-price recovery, background resume, and 429/Error Doctor end-to-end. Do not deliberately cause 429 to test.
+
+### Oracle 5m candle coverage — 2026-11-14 (read-only run)
+- User ran `backend/audit-dhan-51-candles.py` on Oracle for 2026-11-13: **53/53 VALID**, empty 0, invalid 0, HTTP errors 0; no 429 observed and no order endpoints called.
+- The 53 tested mappings comprise **51 equities plus BANKNIFTY and SENSEX**; NIFTY is explicitly excluded by the audit script's `DHAN_VERIFIED_SYMBOLS - {"NIFTY"}` selection. Therefore this does **not** establish all-three-index candle coverage.
+- Most instruments returned 71 bars; BANKNIFTY, SENSEX and TMCV returned 74. The script checked requested-day/session and structural validity, not verified live timestamps or full app rendering.
+- Batch 2 first checkbox remains OPEN until NIFTY 5m candles and phone coverage are verified. Historical 429 recovery and device cache isolation are separate OPEN gates. No need to rerun the 53-symbol audit without a new reason.
+- NIFTY chart redundant LTP removal c38a6e3 passed offline CI 43593479881; regression guard 939e1b0 passed CI 43593602141.
