@@ -94,3 +94,13 @@ Work on Batch 1 first; track fixes in small related commits (2–4 items per pas
 5. B2-05: add focused regression tests, commit grouped fixes, run offline tests; only build a new APK if a code change warrants it and bump both versionName and versionCode.
 
 **Live-market gate:** Market-session exchange timestamp and 180-second actual refresh cadence require separate phone verification; neither is established by a successful Saturday historical screenshot. Do not treat 100% bullish votes as win probability or permission to trade.
+
+
+### B2-01 source audit checkpoint — 2026-11-14
+- Inspected current src/main.py at v2.3.102 branch, not just prior screenshots.
+- fetch_market_data_uncached accepts Dhan 1m/5m/15m/1h, calls dhan_feed.intraday, normalizes with clean_bars, rejects empty/future candles and labels history unverified. This is code evidence, not proof that all timeframes or 54 instruments return data.
+- get_market_data shares a 90-second Dhan historical cache keyed by provider generation, symbol, interval and range. Timeframe cache isolation exists; actual plotted chart still needs inspection.
+- Equity historical scan handles Dhan 429 by marking remaining symbols unattempted, cooling down and retrying rather than marking an incomplete scan complete.
+- Specific B2 risk: index histories warm only after a successful equity scan; the index loop stops on intraday cooldown. Fresh LTP and historical vote bars can coexist with stale index candles. Phone screenshots showed approximately 22-hour-old historical votes.
+- Next code audit: decouple rate-limit-safe serialized index history scheduling from equity scan completion, retain last-good candle cache on errors, and add regression guards.
+- Historical vote bars are not full OHLC candlestick plots; Chart UI and all timeframe OHLC verification remain open.
