@@ -2377,7 +2377,7 @@ def app_main(page:ft.Page):
                     value(item["pe"],"volume"),value(item["pe"],"oi"),
                     value(item["pe"],"last_price",2))]))
             return ft.Column([
-                note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately"),
+                note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
                 ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in
                     ["CE Premium","CE OI","CE Vol","Strike","PE Vol","PE OI","PE Premium"]],
@@ -2386,7 +2386,7 @@ def app_main(page:ft.Page):
         if prefs.get("source") == "Dhan":
             return ft.Column([
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
-                note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately"),
+                note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
                 note(option_feed_status[0])])
         rows=selected_option_rows();grouped={}
