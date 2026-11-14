@@ -226,13 +226,15 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('quote_age=time.time()-quote_row.get("fetched_at",0)', source)
         self.assertIn("exchange timestamp unverified", source)
         self.assertIn("Cached/unverified quote", source)
-        self.assertIn("note(quote_label)", source)
+        self.assertIn('"LTP cached • not live" if not quote_fresh', source)
+        self.assertIn('"LTP time unverified"', source)
 
     def test_watchlist_candle_filter_is_not_daily_price_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn("signal_counts=signal_percentages(signal_row)", source)
         self.assertIn('watch_filter[0]!=signal_direction', source)
-        self.assertIn('note("Candle: "+(signal_direction if signal_fresh else "Historical • not live"))', source)
+        self.assertIn("compact_watch_signal(signal_row,signal_available,signal_fresh)", source)
+        self.assertIn('label=("LIVE" if fresh else "HIST")', source)
         self.assertIn("filters use fresh candle-filter votes, not daily price movement", source)
 
     def test_watchlist_enforces_fifty_symbol_limit_after_async_validation(self):
