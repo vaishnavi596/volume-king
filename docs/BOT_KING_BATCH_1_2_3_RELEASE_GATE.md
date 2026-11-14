@@ -77,3 +77,10 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - Super Five ranking requires three independent confirmations; unavailable option votes cannot inflate it: commit d201d40, CI 43595451705 PASS.
 - Serialized Dhan historical scan pacing, Android background-interrupted generation retry, and HTTP 429 unattempted-symbol accounting source guards: commit 2a06859, CI 43595617805 PASS.
 - These are **offline code tests only**. Batch 3 0/5 end-to-end release gates remain OPEN pending a new APK, 51-symbol scan timing, foreground resume, and phone signal checks. No real order routing enabled.
+
+### User-reported Android smoke test — 2026-11-14
+- User reports PASS for all six high-level checks: 51-symbol scanner completion; Super Five top five and signal; NIFTY/BANKNIFTY/SENSEX LTP; watchlist auto refresh; foreground resume after backgrounding; candle history and Error Doctor.
+- This is **user-reported device evidence**, not independent instrumented verification. The user selected installed APK version **unknown**. Do not assign this report to v2.3.106 until on-device version is confirmed.
+- GitHub Build APK run 43595810841 at b76560c (pyproject version 2.3.106) succeeded; release signing, APK identity/signature inspection, offline regression and artifact upload all passed. Artifact: volume-king-apk. Successful CI does not identify the APK installed on the phone.
+- Outstanding release evidence: on-device version and certificate/upgrade identity; Dhan-only provider isolation across all rows; failed-refresh last-valid-price/staleness behavior; 429 cooldown recovery without deliberately provoking rate limits; invalid/missing/future candles and no false bullish/bearish votes; source/freshness parity across screens; Paper Bot remains manual-only with no live orders.
+- **Decision:** high-level Batch 1–3 phone smoke test PASS as reported, but detailed release gate remains partially open. Batch 4 design/implementation may proceed in a separate scope; do not retrospectively mark all Batch 1–3 end-to-end checkboxes complete.
