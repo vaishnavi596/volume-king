@@ -4189,6 +4189,12 @@ console.log('BOT KING Lightweight Charts ready');
                 last_scanned_generation=current_generation
                 successes=0
                 symbols=(list(dict.fromkeys(["NIFTY"]+[selected for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1) for selected in [prefs.get("dashboard_analysis_slot_"+str(i),default)] if selected in watch_symbols]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
+                # B2-INDEX-FIRST: load all three index candle histories in the
+                # initial serialized Dhan scan, not after 51 equity histories.
+                # LTP remains on its independent quote endpoint. History requests
+                # still use the existing cooldown and paced scan queue.
+                if prefs.get("source")=="Dhan":
+                    symbols=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+symbols))
                 # Prioritize the selected scanner symbol and previously ranked Super Five
                 # before the remaining watchlist; retain full-list coverage and stable order.
                 # Only verified watchlist symbols may enter the Dhan history queue.
