@@ -300,3 +300,17 @@ def test_render_time_rejects_expired_and_future_evidence_together():
     shown = snapshot_for_display(snap, now=1234567890, max_age_seconds=300)
     assert shown["combined"]["coverage"] == 2
     assert shown["combined"]["state"] == "WAIT"
+
+
+def test_technical_votes_reject_malformed_and_unknown_labels():
+    for votes in ([True, "BUY", "BUY", "SELL"],
+                  [1, "BUY", "BUY", "SELL"],
+                  ["BUY", "BUY", "SELL", "BULL"],
+                  ["BUY", "BUY", "SELL", None]):
+        row = technical_from_votes(votes, timestamp=1234567890,
+                                   source="Dhan", verified=True)
+        assert row.display()["state"] == "WAIT"
+        assert row.bullish is None
+    valid = technical_from_votes(["BUY", "BUY", "SELL", "NEUTRAL"],
+                                 timestamp=1234567890, source="Dhan", verified=True)
+    assert valid.eligible and valid.bullish == 67
