@@ -15,7 +15,7 @@ This branch comparison is a snapshot, not a permanent count.
 | B1 Dhan LTP/index | Work register reports v2.3.102 phone observations of 51 equity quotes + NIFTY/BANKNIFTY/SENSEX; exchange timestamps unverified | 51 equity scan distinct from 3 index cards, last-good price, no Yahoo/Angel fallback | Current build, live session freshness, cadence, resume and Oracle verification |
 | B2 candles | Historical votes and candle guards documented; 5m votes are NOT proof of plotted OHLC | No missing/future/compressed timestamp promotion, timeframe isolation, cooldown | 51 equities + 3 indexes actual OHLC and timeframes on phone |
 | B3 scanner/Super Five | Previous 51/51 and ranking reports; scanner adapter exists | No duplicate filters, no partial scan presented as complete, no double-counted technical/candle votes | Current build scanner latency, ranking parity and paper-mode tests |
-| B4 five engines | Pure `src/five_engine.py` contract, source tests and UI cache-only tests exist | No unverified/stale/mismatched-source vote; absent engine => WAIT, never 0% bearish | Independently sourced technical, candle, news, futures, options with timestamps and measured evidence; shared cache, CI and phone tests |
+| B4 five engines | Pure `src/five_engine.py` contract, source tests and UI cache-only tests exist | No unverified/stale/mismatched-source vote; absent engine => WAIT, never 0% bearish | Independently sourced technical, candle, news and options where verified; Futures deliberately N/A / WAIT until Batch 7; shared cache, CI and phone tests |
 | B5 UI | Compact watchlist/Settings UI source and tests present | Five watchlists, indices, diagnostics, Dhan preference persistence | Device navigation, reboot, refresh/resume |
 | B6 release | Historical v2.3.102 signed APK and regression PASS recorded | versionName AND versionCode increase, signing, live orders OFF | Latest workflow results and final end-to-end install |
 
@@ -29,7 +29,7 @@ This branch comparison is a snapshot, not a permanent count.
 
 ## Next grouped work, in order
 - B4-A: Canonical provenance contract (source casing, freshness, timestamp and independent evidence) with targeted regression tests; no real orders.
-- B4-B: Read-only News and Futures data availability audit; never invent strength or infer money flow from OI alone.
+- B4-B: Read-only News data availability audit; Futures API integration is parked in `bin/batch7-futures/README.md` until Batches 4, 5 and 6 complete. Futures stays N/A / WAIT.
 - B4-C: Options listed expiry and ATM +/-3 *listed strike levels*, premium/OI/volume fields only if verified; fail closed on 429, missing fields and unverified freshness.
 - B4-D: Shared cached snapshot across Dashboard, Scanner, Watchlist and Super Five, with no duplicate polling; verify conflict/WAIT states.
 - B4-E: Run focused and full offline regression, review GitHub Actions, signed APK version/signing and phone test before declaring PASS.
