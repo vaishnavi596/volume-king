@@ -17,5 +17,14 @@ class FlatMomentumVotes(unittest.TestCase):
                          {"RSI 14":0,"Supertrend":0})
         self.assertIn("RSI 50.0",result["votes"][0]["detail"])
 
+    def test_flat_closes_with_wicks_are_neutral(self):
+        now=int(datetime.now(timezone.utc).timestamp())
+        start=now-40*300
+        bars=[[start+i*300,100,101,99,100,1000] for i in range(35)]
+        result=analyze(bars,["RSI 14","Supertrend"],"5m")
+        self.assertEqual(result["bias"],"WAIT")
+        self.assertEqual({v["name"]:v["vote"] for v in result["votes"]},
+                         {"RSI 14":0,"Supertrend":0})
+
 if __name__=="__main__":
     unittest.main()
