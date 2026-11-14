@@ -2362,7 +2362,10 @@ def app_main(page:ft.Page):
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
         strike=str(option_strike.value or "").strip() or "—"
         context=option_chain_display_context(dhan_option_metrics)
-        if prefs.get("source") == "Dhan" and context.get("available"):
+        if (prefs.get("source") == "Dhan" and dhan_feed.connected
+                and dhan_option_metrics.get("symbol") == chain_symbol.value
+                and dhan_option_metrics.get("expiry") == expiry.value
+                and context.get("available")):
             display_rows=[]
             for item in context["rows"]:
                 def value(leg, field, decimals=0):
