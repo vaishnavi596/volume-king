@@ -105,7 +105,7 @@ class FiveEngineTests(unittest.TestCase):
 
 
     def test_cached_verified_signal_expires_at_render_time(self):
-        rows=[evidence(n,80,True) for n in ENGINE_NAMES]
+        rows=[EngineEvidence(n,80,20,verified=True,timestamp=1234567890,source="Dhan") for n in ENGINE_NAMES]
         snap=compose_snapshot(**dict(zip(ENGINE_NAMES,rows)))
         self.assertEqual(snapshot_for_display(snap,now=1234567900)["combined"]["state"],"BULLISH")
         stale=snapshot_for_display(snap,now=1234569000)
@@ -114,7 +114,7 @@ class FiveEngineTests(unittest.TestCase):
         self.assertTrue(all(e.display()["state"]=="WAIT" for e in stale["engines"]))
 
     def test_future_timestamp_does_not_count_as_live(self):
-        rows=[evidence(n,80,True) for n in ENGINE_NAMES]
+        rows=[EngineEvidence(n,80,20,verified=True,timestamp=1234567890,source="Dhan") for n in ENGINE_NAMES]
         snap=compose_snapshot(**dict(zip(ENGINE_NAMES,rows)))
         self.assertEqual(snapshot_for_display(snap,now=1234567000)["combined"]["coverage"],0)
 
