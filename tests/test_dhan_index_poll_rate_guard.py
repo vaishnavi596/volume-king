@@ -20,7 +20,8 @@ class IndexPollRateGuard(unittest.TestCase):
         self.assertIn('for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):',code)
         self.assertIn("index_refresh_busy[0]=False",code)
         self.assertIn("finally:",code)
-        self.assertIn("await asyncio.to_thread(dhan_feed.quote,ticker)",code)
+        self.assertIn("await asyncio.to_thread(dhan_feed.index_batch_quotes)",code)
+        self.assertNotIn("dhan_feed.quote,ticker",code)
         self.assertNotIn("asyncio.gather(",code)
 
     def test_missing_index_message_is_not_stale_mapping_claim(self):
