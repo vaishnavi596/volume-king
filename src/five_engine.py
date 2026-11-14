@@ -162,9 +162,11 @@ def scanner_snapshot(scan_result):
         if not isinstance(vote, dict):
             return compose_snapshot()
         direction = vote.get("vote")
-        if type(direction) is int and direction == 1:
+        if type(direction) is not int or direction not in (-1, 0, 1):
+            return compose_snapshot()
+        if direction == 1:
             labels.append("BUY")
-        elif type(direction) is int and direction == -1:
+        elif direction == -1:
             labels.append("SELL")
     source = scan_result.get("source") or ""
     # No directional vote is evidence when the completed-candle analysis
