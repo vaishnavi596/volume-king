@@ -4317,6 +4317,11 @@ console.log('BOT KING Lightweight Charts ready');
                                 chart_snapshots[(early_index,"5m",generation)]=dict(
                                     early_data,_scanner_timeframe="5m")
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
+                            elif generation==provider_generation[0]:
+                                # Empty index history is not a successful candle
+                                # update; report it without clearing last LTP.
+                                log_error("index_candle_"+early_index,
+                                          RuntimeError("Dhan index OHLC unavailable or empty; LTP retained"))
                         except Exception as exc:
                             log_error("index_candle_"+early_index,exc)
                             if ("429" in safe_error(exc) or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
