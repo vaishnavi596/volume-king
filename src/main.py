@@ -377,7 +377,7 @@ def app_main(page:ft.Page):
         pos=neg=0
         for item in items:
             text=item["title"].lower()
-            if re.search(r"(not|denies|denied|rumour|rumor|may|could)",text):continue
+            if re.search(r"\b(not|denies|denied|rumour|rumor|may|could)\b",text):continue
             up=any(term in text for term in positive);down=any(term in text for term in negative)
             if up and not down:pos+=1
             elif down and not up:neg+=1
