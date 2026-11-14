@@ -70,7 +70,8 @@ def analyze(bars, selected=None, timeframe="5m"):
     add("EMA 9/21",1 if p>e9>e21 else -1 if p<e9<e21 else 0,f"EMA9 {e9:.2f}, EMA21 {e21:.2f}")
     dif=[close[i]-close[i-1] for i in range(1,len(close))]
     g=sum(max(v,0) for v in dif[-14:]);l=sum(max(-v,0) for v in dif[-14:])
-    rsi=100 if l==0 else 100-100/(1+g/l)
+    # Flat closes are neutral (RSI 50), not an overbought RSI 100.
+    rsi=50 if g==0 and l==0 else 100 if l==0 else 100-100/(1+g/l)
     add("RSI 14",1 if 52<=rsi<=70 else -1 if 30<=rsi<=48 else 0,f"RSI {rsi:.1f}")
     macd=[a-b for a,b in zip(ema(close,12),ema(close,26))]
     sig=ema(macd,9)[-1]
@@ -99,7 +100,10 @@ def analyze(bars, selected=None, timeframe="5m"):
             if trend==1 and close[i]<lower:trend=-1
             elif trend==-1 and close[i]>upper:trend=1
         upper,lower=ub,lb
-    add("Supertrend",trend,"ATR(14) multiplier 3; "+("UP" if trend==1 else "DOWN"))
+    # A flat 14-bar window cannot confirm an UP trend just because the
+    # Supertrend state initializes bullish before any reversal.
+    confirmed_trend=0 if max(high[-14:])==min(low[-14:]) else trend
+    add("Supertrend",confirmed_trend,"ATR(14) multiplier 3; "+("FLAT" if confirmed_trend==0 else "UP" if trend==1 else "DOWN"))
     # Confirmed swing structure uses prior completed bars, not current bar.
     prev_high=max(high[-21:-1]);prev_low=min(low[-21:-1])
     structure=1 if p>prev_high else -1 if p<prev_low else 0
