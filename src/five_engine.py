@@ -154,6 +154,8 @@ def scanner_snapshot(scan_result):
     if not isinstance(scan_result, dict):
         return compose_snapshot()
     raw = scan_result.get("votes") or []
+    if not isinstance(raw, (list, tuple)):
+        return compose_snapshot()
     labels = []
     for vote in raw:
         if not isinstance(vote, dict):
@@ -164,9 +166,14 @@ def scanner_snapshot(scan_result):
         elif type(direction) is int and direction == -1:
             labels.append("SELL")
     source = scan_result.get("source") or ""
+    # No directional vote is evidence when the completed-candle analysis
+    # itself has no valid timestamp, regardless of a broker status flag.
+    timestamp = scan_result.get("timestamp")
+    if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
+        return compose_snapshot()
     verified = (scan_result.get("live_verified") is True and
                 scan_result.get("freshness") in ("verified_live", "live_verified") and
                 scan_result.get("historical") is False and source == "Dhan")
     technical = technical_from_votes(labels, verified=verified,
-                                      timestamp=scan_result.get("timestamp"), source=source)
+                                      timestamp=timestamp, source=source)
     return compose_snapshot(technical=technical)
