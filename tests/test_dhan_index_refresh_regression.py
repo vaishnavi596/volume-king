@@ -54,6 +54,23 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('asyncio.to_thread(get_market_data,index_sym,"5m","2d")', source)
         self.assertIn('page.run_task(dhan_index_candle_poll)', self.source)
 
+    def test_index_candle_timer_respects_explicit_scan_lifecycle(self):
+        fn = next(node for node in ast.walk(self.tree)
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_index_candle_poll")
+        source = ast.get_source_segment(self.source, fn)
+        self.assertIn("and not dhan_history_scan_active[0]", source)
+        self.assertIn("or dhan_history_scan_active[0]", source)
+        market = next(node for node in ast.walk(self.tree)
+                      if isinstance(node, ast.AsyncFunctionDef) and node.name == "refresh_market")
+        market_source = ast.get_source_segment(self.source, market)
+        self.assertIn('dhan_history_scan_active[0]=(prefs.get("source")=="Dhan")', market_source)
+        self.assertIn("dhan_history_scan_active[0]=False", market_source)
+        supervisor = next(node for node in ast.walk(self.tree)
+                          if isinstance(node, ast.AsyncFunctionDef) and node.name == "supervised_market_refresh")
+        self.assertIn("finally:", ast.get_source_segment(self.source, supervisor))
+        self.assertIn("dhan_history_scan_active[0]=False",
+                      ast.get_source_segment(self.source, supervisor))
+
     def test_dhan_has_no_second_automatic_scanner(self):
         source = self.source
         fn = next(node for node in ast.walk(self.tree)
