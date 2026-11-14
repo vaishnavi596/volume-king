@@ -4287,6 +4287,28 @@ console.log('BOT KING Lightweight Charts ready');
                         await asyncio.sleep(max(30, dhan_feed.cooldown_remaining("/dhan/intraday")))
                         continue
                     results=[first_ok]
+                    # Warm the two indices absent from the equity target list
+                    # before the 51-symbol tail, without inflating its progress.
+                    # All requests remain serialized and share the 90s history cache.
+                    for early_index in ("NIFTY","BANKNIFTY","SENSEX"):
+                        if early_index in symbols or early_index not in DHAN_VERIFIED_SYMBOLS:
+                            continue
+                        if (generation!=provider_generation[0] or lifecycle_background[0]
+                                or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                            break
+                        try:
+                            await asyncio.sleep(1.5)
+                            early_data=await asyncio.wait_for(
+                                asyncio.to_thread(get_market_data,early_index,"5m","2d"),timeout=25)
+                            if (early_data.get("source")=="Dhan" and early_data.get("bars")
+                                    and generation==provider_generation[0]):
+                                chart_snapshots[(early_index,"5m",generation)]=dict(
+                                    early_data,_scanner_timeframe="5m")
+                                if current[0] in (0,4,5):request_view_refresh(current[0])
+                        except Exception as exc:
+                            log_error("index_candle_"+early_index,exc)
+                            if ("429" in safe_error(exc) or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                                break
                     # Dhan history is a rate-limited upstream API: serialize
                     # calls and stop this cycle when its cooldown is triggered.
                     for sym in symbols[1:]:
