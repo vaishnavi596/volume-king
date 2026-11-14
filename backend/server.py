@@ -64,6 +64,8 @@ class History(Symbol):
 
 DHAN_VERIFIED_INSTRUMENTS = {
     "NIFTY": ("IDX_I", 13, "INDEX"),
+    "BANKNIFTY": ("IDX_I", 25, "INDEX"),
+    "SENSEX": ("BSE_I", 51, "INDEX"),
     "RELIANCE": ("NSE_EQ", 2885, "EQUITY"),
     "HDFCBANK": ("NSE_EQ", 1333, "EQUITY"),
     "ICICIBANK": ("NSE_EQ", 4963, "EQUITY"),
