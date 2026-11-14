@@ -7,7 +7,7 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, botking-b1-index-mapping-20261114]
+    branches: [main, botking-b1-index-mapping-20261114, fix/botking-2399-candle-retry-20261114]
     paths:
       - pyproject.toml
 
