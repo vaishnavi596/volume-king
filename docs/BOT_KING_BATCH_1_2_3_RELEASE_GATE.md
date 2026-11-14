@@ -47,7 +47,7 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - [ ] Every screen shows consistent source, freshness, WAIT reason, and unavailable-filter status.
 
 ### Audit finding (2026-11-14)
-`src/main.py::publish_partial_ranking` sorts candidates locally by historical/bias/score/timestamp, whereas `src/scanner_engine.py::rank_candidates` applies stricter vote verification and confirmation/recency tie-breaks. Therefore **the recent rank_candidates improvements are NOT yet proven to affect the displayed Dashboard Super Five**. Do not mark cross-screen consistency PASS or claim these changes are already reflected everywhere. Integrate a shared ranking policy with explicit historical-display mode (no promotion to live) and add cross-screen regression coverage before final build.
+**Resolved in source, not yet device-verified:** `src/main.py::publish_partial_ranking` now calls `src/scanner_engine.py::rank_candidates` for verified Dashboard candidates (f570d0f). Historical fallback remains WAIT-only. Source parity regression passed CI 43591146577; functional Dhan freshness/vote-integrity tests passed CI 43591479340 (ba96572). Keep cross-screen release checkbox OPEN pending Oracle and phone verification.
 
 ### Paper Bot source audit (2026-11-14)
 - `src/main.py` Paper Bot uses a manual tick engine; Start and Process mark do not consume Scanner/Super Five candidate rows and do not place broker orders.
