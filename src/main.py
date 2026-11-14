@@ -4297,7 +4297,23 @@ console.log('BOT KING Lightweight Charts ready');
         page.update()
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
-    page.add(ft.Container(content=ft.Row([ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=24),txt("BOT KING",17,GOLD,True),ft.Container(expand=True),ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD,size=24)],spacing=8,vertical_alignment=ft.CrossAxisAlignment.CENTER),padding=ft.padding.only(left=12,right=12,top=8,bottom=5),bgcolor=BG),ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5)))
+    # Keep the app chrome inside Android system insets, including cutouts.
+    # Display the packaged version in the header as well as Settings.
+    header=ft.Container(
+        content=ft.Row([
+            ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=24),
+            ft.Column([txt("BOT KING",17,GOLD,True),
+                       txt("v"+str(APP_VERSION),10,MUTED)],spacing=0,tight=True),
+            ft.Container(expand=True),
+            ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD,size=24)
+        ],spacing=8,vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        padding=ft.padding.only(left=12,right=12,top=8,bottom=5),bgcolor=BG)
+    app_shell=ft.Column([
+        header,
+        ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),
+        ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
+    ],expand=True,spacing=0)
+    page.add(ft.SafeArea(content=app_shell,expand=True))
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
