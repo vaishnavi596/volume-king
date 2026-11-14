@@ -176,4 +176,15 @@ class FiveEngineTests(unittest.TestCase):
                 self.assertEqual(snap["combined"]["coverage"],0)
                 self.assertEqual(snap["engines"][0].display()["state"],"WAIT")
 
+
+    def test_single_vote_cannot_claim_100_percent_technical_strength(self):
+        for votes in (["BUY"],["SELL","SELL"],["BUY","NEUTRAL"]):
+            with self.subTest(votes=votes):
+                row=technical_from_votes(votes,timestamp=1234567890,source="Dhan",verified=True)
+                self.assertFalse(row.eligible)
+                self.assertEqual(row.display()["state"],"WAIT")
+        row=technical_from_votes(["BUY","BUY","SELL"],timestamp=1234567890,
+                                 source="Dhan",verified=True)
+        self.assertEqual(row.display()["bullish"],67)
+
 if __name__=="__main__":unittest.main()
