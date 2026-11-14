@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from five_engine import scanner_snapshot, snapshot_for_display
+from five_engine import scanner_snapshot, snapshot_for_display, option_from_component
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -1068,6 +1068,10 @@ def app_main(page:ft.Page):
             label=names[evidence.name]
             pieces.append(label+(" B"+str(result["bullish"])+"% / S"+str(result["bearish"])+"%"
                                   if result["state"]!="WAIT" else " WAIT ("+str(result["reason"])+")"))
+        # Reuse the existing read-only option component; never create a second API poll.
+        # Current option snapshots lack measured directional strength and remain WAIT.
+        option_context=option_from_component(option_component(symbol, "5m"))
+        pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
         return ft.Column([note("5 engines • "+" | ".join(pieces)),
                           note("Combined "+combined["state"]+" • "+str(combined["coverage"])+
