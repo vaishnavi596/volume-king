@@ -38,9 +38,9 @@ try:
 except ImportError:  # Direct execution on the Oracle backend directory
     from dhan_feed import DhanFeed, DhanFeedError, DhanRateLimitError
 try:
-    from .dhan_option_metrics import calculate_option_metrics, OptionMetricsUnavailable
+    from .dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 except ImportError:
-    from dhan_option_metrics import calculate_option_metrics, OptionMetricsUnavailable
+    from dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 from pathlib import Path
 
 _dhan_auth_logger = logging.getLogger("botking.dhan.auth")
@@ -478,6 +478,16 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raw = DhanFeed(client, token).option_chain(instrument[0], instrument[1],
                                                        body.expiry.isoformat())
             metrics = calculate_option_metrics(raw)
+            # Read-only display rows; spot from Dhan chain is not independently
+            # freshness-verified, so never promote these rows to a signal.
+            chain_data = raw.get("data", {})
+            underlying_spot = chain_data.get("last_price") if isinstance(chain_data, dict) else None
+            window = None
+            if type(underlying_spot) in (int, float) and math.isfinite(underlying_spot) and underlying_spot > 0:
+                try:
+                    window = listed_atm_window(raw, spot=underlying_spot)
+                except OptionMetricsUnavailable:
+                    pass
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan option chain rate limited; retry later",
                                 headers={"Retry-After": "30"}) from None
@@ -487,6 +497,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Dhan option chain unavailable or not entitled") from None
         return {"source": "dhan", "symbol": body.symbol,
                 "expiry": body.expiry.isoformat(), **metrics,
+                "atm_window": window,
                 "live_orders_enabled": False}
 
     @app.post("/dhan/index-ltp-batch")
