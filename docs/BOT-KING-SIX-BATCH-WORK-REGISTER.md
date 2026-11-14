@@ -13,8 +13,8 @@ This is the persistent handoff/checklist for BOT KING. Update the status only af
 | B1-03 | Dashboard three configurable cards and independent index refresh | **CODE UPDATED:** index refresh now one batch request per >=60s; preserves last-good prices; Android verification and latest CI still required. |
 | B1-04 | Watchlist 51 equities + 3 index cards = 54 displayed instruments | **CODE UPDATED:** index cards separate from equity snapshot/scanner; Android display and refresh verification pending. |
 | B1-05 | Foreground watchlist polling, reconnect/resume, last-good retention | **CODE UPDATED:** manual refresh, 30s foreground poll, resume recovery, separate index cooldown; phone verification pending. Continuous background service NOT implemented. |
-| B1-06 | Full regression, Oracle integration, signed APK and device acceptance | **IN PROGRESS:** historical CI PASS at bf0903d; offline CI failed one stale assertion at bf0903d; test fix committed 5929101; latest CI pending. Oracle batch deployment, Android test, versionName/versionCode, signing and APK pending. |
-| B1-07 | **NEW:** rate-limit-safe one-request index batch | **CODE UPDATED, NOT DEPLOYED:** authenticated POST /dhan/index-ltp-batch; DhanFeed.batch_ltp used once for 3 indexes, partial results, 429 Retry-After; mobile transport and main UI refresh wired; tests updated; new endpoint tests and Oracle integration pending. |
+| B1-06 | Full regression, Oracle integration, signed APK and device acceptance | **IN PROGRESS:** historical CI PASS at bf0903d; offline CI failed one stale assertion at bf0903d; test fix committed 5929101; CI PASS at 41bed67. Oracle batch deployment, Android test, versionName/versionCode, signing and APK pending. |
+| B1-07 | **NEW:** rate-limit-safe one-request index batch | **CODE UPDATED, NOT DEPLOYED:** authenticated POST /dhan/index-ltp-batch; DhanFeed.batch_ltp used once for 3 indexes, partial results, 429 Retry-After; mobile transport and main UI refresh wired; endpoint contract tests added at 41bed67 and CI PASS; Oracle integration pending. |
 
 **Batch 1 acceptance:** authenticated read-only Oracle LTP for each mapped index; 51 equity snapshot remains independent; 54 display without adding indexes to equity ranking; watchlist refreshes on schedule and after resume; last valid quotes retained but labelled unverified; no Yahoo/Angel fallback; regression green. Keep live order routing disabled.
 
@@ -62,3 +62,9 @@ Work on Batch 1 first; track fixes in small related commits (2–4 items per pas
 - CI: 7114566 offline failed 2 old assumptions; bf0903d offline failed 1 stale assertion; historical regression passed. **Recheck CI at 5929101 and after this register commit.**
 - Remaining critical path: (1) latest offline+historical CI green and endpoint-specific tests, (2) backed-up Oracle deployment of exact endpoint with local changes preserved, (3) one authenticated index batch test including partial/rate-limit behavior, (4) Android dashboard/watchlist/resume/51-equity scan verification, (5) bump both versionName and versionCode, signed APK and install test.
 - New issues must be added as B1-08 onward, or as a clearly marked subtask, with evidence and unresolved status. Update this register in each related change batch and do not silently mark pending items DONE.
+
+### CI checkpoint — 41bed670 (2026-11-14)
+- Offline Regression **PASS**: https://github.com/vaishnavi596/volume-king/actions/runs/43550132583
+- Historical Candle Regression **PASS**: https://github.com/vaishnavi596/volume-king/actions/runs/43550132600
+- New tests/test_dhan_index_batch_endpoint.py verifies pairing-key denial, one three-index provider call, partial index response, and HTTP 429 Retry-After.
+- **No Oracle deployment or Android APK verification has occurred for this new endpoint.** Next: compare deployed server.py with branch, timestamped backup, safely deploy exact change, compile/restart/health, then one authenticated index batch probe. Keep live orders disabled.
