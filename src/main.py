@@ -3906,6 +3906,23 @@ console.log('BOT KING Lightweight Charts ready');
                        ft.Column([note(message),
                                   note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")],spacing=4))
     def scanner():
+        # A broken scanner widget must not make the whole navigation tab inaccessible.
+        try:
+            return scanner_content()
+        except Exception as exc:
+            log_error("scanner_page", exc)
+            return [heading("SCANNER • Recovery Mode"),
+                    note("Scanner components could not be displayed. Your saved watchlists and settings remain unchanged."),
+                    note("Error Doctor: scanner_page: " + type(exc).__name__),
+                    ft.ElevatedButton("Retry scanner", on_click=lambda e:select(3)),
+                    note("Open Settings → Diagnostics to review the recorded error.")]
+    def safe_scanner_widget(label, builder):
+        try:
+            return builder()
+        except Exception as exc:
+            log_error("scanner_" + label.lower().replace(" ", "_"), exc)
+            return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
+    def scanner_content():
         fusion_selected.controls=[fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m")]
         filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
         added_filter_list.controls=[ft.Container(content=ft.Column([
@@ -3920,7 +3937,9 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,
                  ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
-            scanner_compact_chart(),fusion_selected,five_engine_summary(scan_symbol.value or "NIFTY"),scanner_option_context(),
+            safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
+            safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY")),
+            safe_scanner_widget("Options",scanner_option_context),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
