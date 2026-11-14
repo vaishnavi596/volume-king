@@ -1,6 +1,6 @@
 """Batch 4 five-engine directional evidence must fail closed on missing inputs."""
 import unittest
-from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot
+from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot, scanner_snapshot
 
 
 def evidence(name, bullish=None, verified=False):
@@ -77,5 +77,30 @@ class FiveEngineTests(unittest.TestCase):
     def test_engine_identity_cannot_be_swapped(self):
         with self.assertRaises(ValueError):
             compose_snapshot(technical=evidence("news",80,True))
+
+
+    def test_scanner_adapter_reuses_votes_without_double_counting(self):
+        scan={"votes":[{"vote":1},{"vote":-1},{"vote":1},{"vote":0}],
+              "source":"Dhan","timestamp":1234567890,
+              "freshness":"historical_unverified","historical":True,"live_verified":False}
+        result=scanner_snapshot(scan)
+        self.assertEqual((result["engines"][0].bullish,result["engines"][0].bearish),(67,33))
+        self.assertEqual(result["combined"]["state"],"WAIT")
+        self.assertEqual(result["combined"]["coverage"],0)
+        self.assertTrue(all(e.bullish is None for e in result["engines"][1:]))
+
+    def test_scanner_adapter_requires_explicit_verified_dhan(self):
+        scan={"votes":[{"vote":1},{"vote":1}], "source":"Dhan",
+              "timestamp":1234567890,"freshness":"verified_live",
+              "historical":False,"live_verified":True}
+        result=scanner_snapshot(scan)
+        self.assertEqual(result["combined"]["coverage"],1)
+        self.assertEqual(result["combined"]["state"],"WAIT")
+        scan["source"]="Yahoo Finance"
+        self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
+
+    def test_scanner_adapter_rejects_boolean_votes(self):
+        result=scanner_snapshot({"votes":[{"vote":True},{"vote":False}]})
+        self.assertEqual(result["combined"]["coverage"],0)
 
 if __name__=="__main__":unittest.main()
