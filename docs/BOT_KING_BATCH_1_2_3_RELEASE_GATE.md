@@ -71,3 +71,9 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - User executed one read-only authenticated `/dhan/intraday` NIFTY request for 2026-11-13 at 5-minute interval: HTTP 200, 74 bars, `HISTORICAL VALID: True`, `LIVE VERIFIED: NO`.
 - Combined with prior 53/53 valid audit: **54/54 mapped instruments on Oracle** (51 equities + NIFTY, BANKNIFTY, SENSEX) have valid historical 5-minute data for the tested session; no observed HTTP errors or 429 in these tests.
 - This closes **Oracle historical coverage only**, not the Batch 2 end-to-end checkbox: mobile rendering, invalid/partial recovery and historical 429 behavior remain open. Do not conflate historical coverage with exchange-timestamp-verified live prices or signals.
+
+### Batch 3 offline filter/ranking/lifecycle gates — 2026-11-14
+- Unavailable option filters (OI Support/Resistance/Profile, Max Pain) remain non-voting and do not manufacture a success probability: regression commit 5ec95e0, CI 43595348249 PASS.
+- Super Five ranking requires three independent confirmations; unavailable option votes cannot inflate it: commit d201d40, CI 43595451705 PASS.
+- Serialized Dhan historical scan pacing, Android background-interrupted generation retry, and HTTP 429 unattempted-symbol accounting source guards: commit 2a06859, CI 43595617805 PASS.
+- These are **offline code tests only**. Batch 3 0/5 end-to-end release gates remain OPEN pending a new APK, 51-symbol scan timing, foreground resume, and phone signal checks. No real order routing enabled.
