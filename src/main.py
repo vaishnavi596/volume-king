@@ -2358,8 +2358,13 @@ def app_main(page:ft.Page):
         return []
     def option_metrics(kind):
         data=dhan_option_metrics
-        if (data.get("symbol")!=chain_symbol.value or data.get("expiry")!=expiry.value):
-            return note("Dhan option metrics unavailable for selected expiry; press Refresh selected data.")
+        if (data.get("symbol")!=chain_symbol.value or data.get("expiry")!=expiry.value
+                or data.get("source")!="dhan"
+                or data.get("freshness")!="unverified"
+                or data.get("signal_eligible") is not False
+                or not isinstance(data.get("pcr"),(int,float))
+                or not isinstance(data.get("max_pain"),(int,float))):
+            return note("Dhan option metrics unavailable or incomplete for selected expiry; press Refresh selected data.")
         if kind=="PCR":
             return note("Dhan OI PCR: "+f'{data["pcr"]:.3f}'+" • UNVERIFIED • not a trading signal")
         if kind=="OI":
