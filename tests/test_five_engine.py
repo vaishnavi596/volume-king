@@ -455,3 +455,14 @@ def test_batch4_listed_atm_window_seven_strikes_and_fail_closed():
     bad["100"] = {"ce": {"oi": -1}, "pe": {"oi": 10}}
     with pytest.raises(OptionMetricsUnavailable):
         listed_atm_window({"status": "success", "data": {"oc": bad}}, spot=100)
+
+
+def test_batch4_option_window_backend_and_client_fail_closed_contract():
+    from pathlib import Path
+    server = Path("backend/server.py").read_text(encoding="utf-8")
+    client = Path("src/server_feed.py").read_text(encoding="utf-8")
+    assert "listed_atm_window(raw, spot=underlying_spot)" in server
+    assert '"atm_window": window' in server
+    assert 'window.get("signal_eligible") is not False' in client
+    assert 'window.get("freshness") != "unverified"' in client
+    assert 'window.get("atm") != strikes[3]' in client
