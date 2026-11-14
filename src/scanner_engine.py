@@ -51,9 +51,11 @@ def analyze(bars, selected=None, timeframe="5m"):
         for previous, current in zip(clean, clean[1:]):
             same_session = (datetime.fromtimestamp(previous[0], market_tz).date() ==
                             datetime.fromtimestamp(current[0], market_tz).date())
-            # A single missing bar creates a 2x interval gap; reject it too.
-            if same_session and current[0] - previous[0] > interval_seconds * 1.5:
-                return {"bias":"WAIT","score":0,"votes":[],"reason":"Missing candles within trading session",
+            # Reject both missing bars and implausibly compressed timestamps:
+            # a burst of nearly identical bars is not 30 independent candles.
+            if same_session and (current[0] - previous[0] > interval_seconds * 1.5
+                                 or current[0] - previous[0] < interval_seconds * 0.5):
+                return {"bias":"WAIT","score":0,"votes":[],"reason":"Irregular candle spacing within trading session",
                         "count":len(clean),"timeframe":timeframe,"timestamp":None}
     if len(clean)<30:
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
