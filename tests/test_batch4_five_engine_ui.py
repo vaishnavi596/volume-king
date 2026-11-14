@@ -207,3 +207,13 @@ def test_filter_votes_published_before_optional_premium_model():
     assert 'scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"' in block
     assert block.index('scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"') < block.index('budget=scan_budget.value or "80-120"')
     assert 'if current[0]==3:\n                page.update()' in block
+
+
+def test_partial_filter_vote_entries_do_not_raise_keyerror():
+    start = SOURCE.index("    async def scan_market():")
+    end = SOURCE.index("    def ", start + 8)
+    block = SOURCE[start:end]
+    assert 'v.get("name","Unknown filter")' in block
+    assert 'v.get("vote")' in block
+    assert 'v.get("detail","No indicator detail available")' in block
+    assert '(advanced.get("votes") or []) if isinstance(v,dict)' in block
