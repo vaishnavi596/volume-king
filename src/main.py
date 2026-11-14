@@ -1639,7 +1639,7 @@ def app_main(page:ft.Page):
         q=chart_snapshot(symbol.value)
         bars=q.get("bars") or []
         if len(bars)<2:
-            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("Selected provider candles unavailable • check source and refresh status")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+            return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("No validated OHLC history for "+str(symbol.value)+" • "+str(timeframe.value)+" • not live"),note("Check Dhan history, cooldown and selected timeframe; last valid LTP is separate")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
         bars=bars[-36:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=230)
