@@ -4217,6 +4217,16 @@ console.log('BOT KING Lightweight Charts ready');
                             # Keep candle data for ranking, but preserve the newest
                             # same-provider price in the displayed quote snapshot.
                             cycle_data[sym]=data
+                            # Publish valid prioritized index candles immediately;
+                            # do not wait for the remaining equity history queue.
+                            if (prefs.get("source")=="Dhan"
+                                    and sym in ("NIFTY","BANKNIFTY","SENSEX")
+                                    and data.get("source")=="Dhan" and data.get("bars")
+                                    and generation==provider_generation[0]):
+                                chart_snapshots[(sym,"5m",generation)]=dict(
+                                    data,_scanner_timeframe="5m")
+                                if current[0] in (0,4,5):
+                                    request_view_refresh(current[0])
                             previous_quote=quotes.get(sym) or {}
                             previous_stamp=previous_quote.get("fetched_at")
                             data_stamp=data.get("fetched_at") if isinstance(data,dict) else None
