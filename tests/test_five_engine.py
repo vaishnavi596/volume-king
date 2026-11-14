@@ -138,4 +138,23 @@ class FiveEngineTests(unittest.TestCase):
         self.assertEqual(shown["combined"]["coverage"],1)
         self.assertEqual(shown["combined"]["state"],"WAIT")
 
+
+    def test_malformed_vote_container_fails_closed(self):
+        for bad in ("BUY", {"vote":1}, 123):
+            with self.subTest(bad=bad):
+                snap=scanner_snapshot({"votes":bad,"source":"Dhan",
+                                       "timestamp":1234567890,"live_verified":True,
+                                       "freshness":"verified_live","historical":False})
+                self.assertEqual(snap["combined"]["coverage"],0)
+
+    def test_missing_or_invalid_scanner_timestamp_fails_closed(self):
+        for bad in (None,0,-1,True,float("nan"),float("inf"),"1234567890"):
+            with self.subTest(bad=bad):
+                snap=scanner_snapshot({"votes":[{"vote":1}],
+                                       "timestamp":bad,"source":"Dhan",
+                                       "live_verified":True,"freshness":"verified_live",
+                                       "historical":False})
+                self.assertEqual(snap["combined"]["coverage"],0)
+                self.assertEqual(snap["engines"][0].display()["state"],"WAIT")
+
 if __name__=="__main__":unittest.main()
