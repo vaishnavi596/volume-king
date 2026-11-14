@@ -1900,7 +1900,14 @@ def app_main(page:ft.Page):
             raise
         except Exception as exc:
             log_error("load_chart",exc)
-            chart_message.value=prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+" • last available chart retained if cached"
+            saved=chart_snapshots.get((sym,tf,generation)) or {}
+            saved_bars=saved.get("bars") or []
+            saved_stamp=(datetime.fromtimestamp(saved_bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                         if saved_bars and isinstance(saved_bars[-1][0],(int,float)) else "unknown")
+            chart_message.value=(prefs.get("source","Market")+" candles unavailable: "+safe_error(exc)+
+                                 (" • retained "+str(len(saved_bars))+" "+str(tf)+
+                                  " historical candles • last bar "+saved_stamp+" • NOT live"
+                                  if saved_bars else " • no saved candles for selected timeframe"))
         finally:
             chart_load_busy[0]=False
             if current[0]==5:request_view_refresh(5)
