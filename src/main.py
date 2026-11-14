@@ -1383,6 +1383,35 @@ def app_main(page:ft.Page):
         finally:
             watch_batch_busy[0]=False
             request_view_refresh(4)
+    async def refresh_dhan_index_quotes():
+        """Bounded, independent index LTP refresh; never add indexes to equity snapshot."""
+        if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return
+        generation=provider_generation[0]
+        for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
+            if not app_active[0] or generation!=provider_generation[0]:
+                return
+            try:
+                snapshot=await asyncio.to_thread(dhan_feed.quote,ticker)
+                price=snapshot.get("price")
+                if (generation==provider_generation[0] and prefs.get("source")=="Dhan"
+                        and snapshot.get("source")=="Dhan"
+                        and isinstance(price,(int,float)) and not isinstance(price,bool)
+                        and math.isfinite(price) and price>0):
+                    old=quotes.get(ticker) or {}
+                    quotes[ticker]=dict(snapshot,change=None,
+                        bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                        fetched_at=time.time(),live_verified=False)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dhan_index_ltp_"+ticker,exc)
+                old=quotes.get(ticker)
+                if isinstance(old,dict) and old.get("source")=="Dhan":
+                    quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
+        if current[0] in (0,4,5):
+            request_view_refresh(current[0])
+
     async def dhan_quote_poll():
         # Quote cadence is independent of the expensive 51-symbol candle-history scan.
         # Only poll while the Android app is foregrounded and Dhan is connected.
@@ -1392,6 +1421,7 @@ def app_main(page:ft.Page):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
                         await refresh_watch_batch()
+                        await refresh_dhan_index_quotes()
                         if current[0]==0:
                             request_view_refresh(0)
                     elif not watch_batch_busy[0]:
