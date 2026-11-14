@@ -66,3 +66,8 @@ Updated: 2026-11-14. This checklist is a release gate, not a claim that CI alone
 - Most instruments returned 71 bars; BANKNIFTY, SENSEX and TMCV returned 74. The script checked requested-day/session and structural validity, not verified live timestamps or full app rendering.
 - Batch 2 first checkbox remains OPEN until NIFTY 5m candles and phone coverage are verified. Historical 429 recovery and device cache isolation are separate OPEN gates. No need to rerun the 53-symbol audit without a new reason.
 - NIFTY chart redundant LTP removal c38a6e3 passed offline CI 43593479881; regression guard 939e1b0 passed CI 43593602141.
+
+### NIFTY completes Oracle historical coverage — 2026-11-14
+- User executed one read-only authenticated `/dhan/intraday` NIFTY request for 2026-11-13 at 5-minute interval: HTTP 200, 74 bars, `HISTORICAL VALID: True`, `LIVE VERIFIED: NO`.
+- Combined with prior 53/53 valid audit: **54/54 mapped instruments on Oracle** (51 equities + NIFTY, BANKNIFTY, SENSEX) have valid historical 5-minute data for the tested session; no observed HTTP errors or 429 in these tests.
+- This closes **Oracle historical coverage only**, not the Batch 2 end-to-end checkbox: mobile rendering, invalid/partial recovery and historical 429 behavior remain open. Do not conflate historical coverage with exchange-timestamp-verified live prices or signals.
