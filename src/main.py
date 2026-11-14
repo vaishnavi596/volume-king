@@ -1532,8 +1532,9 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("dhan_quote_poll",exc)
-            # Before Dhan connects, retry the first snapshot after 10s, not 3m.
-            await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)
+            # Recheck after login without a three-minute idle gap.
+            # Snapshot requests still honor busy flags, 30s throttle and cooldown.
+            await asyncio.sleep(10 if not dhan_feed.connected else 30)
 
     async def watch_visible_tick():
         # Never rebuild the scrolling list every two seconds when quotes are unchanged.
