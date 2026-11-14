@@ -412,3 +412,21 @@ def test_futures_market_context_requires_verified_mapping_and_complete_fields():
                    {"contract": "  "}):
         row = dict(base, **change)
         assert futures_market_context(row, now=now) is None
+
+
+def test_futures_contract_resolver_requires_unique_verified_master_record():
+    from datetime import date
+    from five_engine import resolve_verified_futures_contract
+    expiry = date(2026, 11, 26)
+    row = {"source": "Dhan", "master_verified": True, "instrument_type": "FUT",
+           "exchange_segment": "NSE_FNO", "underlying": "NIFTY",
+           "expiry": "2026-11-26", "security_id": "12345", "contract": "NIFTY NOV FUT"}
+    result = resolve_verified_futures_contract([row], symbol="NIFTY", expiry=expiry)
+    assert result["security_id"] == "12345" and result["mapping_verified"] is True
+    for patch in ({"source": "Yahoo"}, {"master_verified": 1},
+                  {"instrument_type": "OPT"}, {"exchange_segment": "NSE_EQ"},
+                  {"expiry": "2026-12-31"}, {"security_id": "-1"},
+                  {"security_id": 12345}, {"underlying": "BANKNIFTY"}):
+        assert resolve_verified_futures_contract([dict(row, **patch)], symbol="NIFTY", expiry=expiry) is None
+    assert resolve_verified_futures_contract([row, row], symbol="NIFTY", expiry=expiry) is None
+    assert resolve_verified_futures_contract([], symbol="NIFTY", expiry=expiry) is None
