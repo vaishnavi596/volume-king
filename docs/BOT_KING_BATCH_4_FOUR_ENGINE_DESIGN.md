@@ -1,6 +1,6 @@
 # BOT KING Batch 4 — Five-Engine Intelligence: Audit and Design
 
-Status: UI placement and compact Watchlist implemented in source; five-engine scoring/data integration pending. No live-order enablement, no change to the Batch 1–3 APK release gate.
+Status: UI placement and compact Watchlist implemented in source; five-engine scoring/data integration pending; Batch 4 does not claim all five live feeds are available. Futures live API integration is explicitly deferred to Batch 7 (`bin/batch7-futures/README.md`). No live-order enablement, no change to the Batch 1–3 APK release gate.
 
 ## Agreed product contract (2026-11-14)
 - Five **independent** directional scales: TECHNICAL, CANDLE / PRICE ACTION, NEWS, FUTURES, OPTIONS. Each has bullish and bearish evidence percentages only when sufficiently supported. Each displays directional bias (bullish/bearish/mixed/unknown), score, data confidence, timestamp, and reason.
@@ -8,7 +8,7 @@ Status: UI placement and compact Watchlist implemented in source; five-engine sc
 - No fabricated premium, OI, futures flow, news impact, or money amount. Missing/unverified/stale source => N/A / WAIT, not 0 or bearish.
 - One normalized, cached analysis snapshot powers Dashboard (three fixed indices), Scanner (detail), Watchlist (compact equity-only rows), and Super Five (one compact card with drill-down), keyed by symbol, exchange, contract/expiry, timeframe and source timestamp.
 - OPTIONS: ATM plus three **listed strikes below** and three **listed strikes above**, not candle bars; show CE/PE OI, change in OI, volume, LTP premium, premium change, lot size and turnover estimate only where the verified feed supplies inputs. Display units and formula, never conflate OI with cash flow.
-- FUTURES: only mapped listed contracts; show price change, OI change, volume, turnover estimate and *inferred* long build-up/short build-up/covering/unwinding with limitations. Do not claim actual long/short capital without trade-level directional evidence.
+- FUTURES (Batch 7 only): only mapped listed contracts; show price change, OI change, volume, turnover estimate and *inferred* long build-up/short build-up/covering/unwinding with limitations. In Batches 4–6 this engine stays N/A / WAIT and never casts a vote. Do not claim actual long/short capital without trade-level directional evidence.
 - NEWS: headline sentiment is context, not proven price impact; match instrument and publication times, deduplicate and identify publisher/source, language and negation; show coverage and confidence separately.
 - CANDLE: retain validated timestamp/quality gates, timeframe-specific indicators and independent technical score.
 - COMBINED: policy-gated directional agreement, explicit conflicts and minimum coverage; unverified engines cannot vote. Preserve existing last-good snapshot only as historical context, never as current signal. No live orders.
@@ -28,7 +28,7 @@ Status: UI placement and compact Watchlist implemented in source; five-engine sc
 1. **B4.1 Inventory and UI:** compact BOT KING header, version in Settings, fixed Dashboard indices, Settings-only System Health + Error Doctor, compact Watchlist rows. Source implemented; latest offline suite #1145 PASS. Remaining bottom-only five-tab navigation and five-engine details are pending. Inventory: enumerate screen functions, data paths, symbols, contract support, and currently missing endpoints. Mark implemented / placeholder / unavailable / verified on phone. Count only after complete repo inventory.
 2. **B4.2 Schema:** introduce pure normalized five-engine model, confidence, timestamps, reasons and WAIT policy; add offline tests. No network calls in scoring.
 3. **B4.3 Technical/Candle separation and News:** improve symbol-specific headline matching, duplicates, negation, publisher and 0–100 evidence strength with explicit uncertainty.
-4. **B4.4 Futures:** read-only Dhan contract mapping and available OI/price/volume data; distinguish exposure from traded turnover.
+4. **B4.4 Futures:** DEFERRED to Batch 7. Keep the Futures slot fail-closed as N/A / WAIT; do not integrate live futures quotes or require futures entitlement for Batch 4 acceptance.
 5. **B4.5 Options:** validated expiry and ATM ±3 listed strikes with CE/PE fields, lot size, price/OI changes and unit-aware turnover estimates.
 6. **B4.6 Integration:** one shared cached symbol snapshot for Scanner, Watchlist and Super Five; no per-row API fanout or stale-as-live rendering.
 7. **B4.7 Gates:** offline regression, Oracle read-only tests, Android APK/version/signing audit, then phone validation for NIFTY and supported equities, missing data, 429 and resume.
