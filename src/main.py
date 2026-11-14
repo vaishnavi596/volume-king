@@ -4314,6 +4314,9 @@ console.log('BOT KING Lightweight Charts ready');
                                 asyncio.to_thread(get_market_data,early_index,"5m","2d"),timeout=25)
                             if (early_data.get("source")=="Dhan" and early_data.get("bars")
                                     and generation==provider_generation[0]):
+                                # Reuse this warmup in the post-scan index pass;
+                                # never request the same index twice in one cycle.
+                                cycle_data[early_index]=early_data
                                 chart_snapshots[(early_index,"5m",generation)]=dict(
                                     early_data,_scanner_timeframe="5m")
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
