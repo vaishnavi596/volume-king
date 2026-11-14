@@ -71,6 +71,17 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_missing_indices_warm_before_equity_tail_without_extra_scan_count(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        begin = source.index('                    results=[first_ok]')
+        warm = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):', begin)
+        tail = source.index('                    for sym in symbols[1:]:', warm)
+        self.assertLess(begin, warm)
+        self.assertLess(warm, tail)
+        self.assertIn('if early_index in symbols or early_index not in DHAN_VERIFIED_SYMBOLS:', source[warm:tail])
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source[warm:tail])
+        self.assertIn('chart_snapshots[(early_index,"5m",generation)]', source[warm:tail])
+
     def test_b2_prioritized_index_candles_publish_before_equity_scan_finishes(self):
         source = SOURCE.read_text(encoding="utf-8")
         start = source.index("                            cycle_data[sym]=data")
