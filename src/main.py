@@ -291,7 +291,11 @@ def app_main(page:ft.Page):
     dhan_option_last_attempt=[0.0]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
-        diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__)
+        # Report only allowlisted missing schema fields; never log arbitrary values or secrets.
+        known_fields={"bias","reason","votes","name","vote","detail","timestamp","overall","coverage","candle","options","news","headlines","global_headlines","url","title","source","published","method","available","news_status","global_status","direction","basis","bars","quality","score"}
+        missing=str(exc.args[0]) if isinstance(exc,KeyError) and exc.args else ""
+        suffix=" [missing "+missing+"]" if missing in known_fields else ""
+        diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__+suffix)
         del diagnostics[:-30]
     def regular_hours(now=None):
         now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
