@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from five_engine import scanner_snapshot
+from five_engine import scanner_snapshot, snapshot_for_display
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -1055,7 +1055,7 @@ def app_main(page:ft.Page):
                     request_view_refresh(0)
     def five_engine_summary(symbol):
         # Read-only cache display. Never fetch five separate provider endpoints.
-        snapshot=five_engine_snapshots.get(symbol)
+        snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
             return note("5 engines • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT")
         names={"technical":"Technical","candle":"Candle","news":"News",
@@ -1380,7 +1380,7 @@ def app_main(page:ft.Page):
 
     def compact_five_engine_watch(symbol):
         # The scanner already populated this cache; never poll Dhan from a row.
-        snapshot=five_engine_snapshots.get(symbol)
+        snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
             return note("5E WAIT • verified 0/5")
         technical=snapshot["engines"][0].display()
