@@ -971,9 +971,21 @@ def app_main(page:ft.Page):
         if prefs.get("source")=="Dhan":
             # Do not surface unverified historical bullish/bearish calls as live picks.
             previous=[row for row in top5_candidates if row.get("source")=="Dhan"]
-            chosen=[dict(row,bias="WAIT",score=0,
-                         reason=str(row.get("reason",""))+" • Historical/unverified; no live signal")
-                    if row.get("historical") else row for row in available[:5]]
+            # One live ranking policy for Scanner and Dashboard: only verified
+            # directional candidates may enter the actionable Top Five.
+            verified=rank_candidates(
+                {row["symbol"]:row for row in available},max_results=5)
+            chosen=list(verified)
+            # Historical analysis remains visible as WAIT-only reference data;
+            # it cannot displace a verified live candidate or become an order.
+            for row in available:
+                if len(chosen)>=5:
+                    break
+                if row["symbol"] in {item["symbol"] for item in chosen}:
+                    continue
+                chosen.append(dict(row,bias="WAIT",score=0,historical=True,
+                                   reason=str(row.get("reason",""))+
+                                   " • Historical/unverified; no live signal"))
             used={row.get("symbol") for row in chosen}
             for row in previous+saved_ranking.get("rows",[]):
                 if len(chosen)>=5:break
