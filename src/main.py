@@ -922,6 +922,41 @@ def app_main(page:ft.Page):
                        (data.get("source")=="Dhan" and dhan_feed.historical_only) or
                        not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
         return display
+    def historical_vote_agreement(data):
+        """Completed 5m candle votes only; never promote historical to live."""
+        raw=data.get("bars") or []
+        if data.get("source")!="Dhan" or not isinstance(raw,list):
+            return None
+        now=datetime.now(timezone.utc).timestamp()
+        completed=[bar for bar in raw if isinstance(bar,(list,tuple)) and len(bar)>=5
+                   and isinstance(bar[0],(int,float)) and bar[0]+300<=now]
+        if not completed:
+            return None
+        quality=quality_check(completed,300,now=completed[-1][0]+300)
+        if not quality.get("usable"):
+            return None
+        selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
+        result=analyze(quality["bars"],selected,"5m")
+        votes=[v.get("vote") for v in result.get("votes",[]) if isinstance(v,dict)]
+        bulls=votes.count(1)
+        bears=votes.count(-1)
+        total=bulls+bears
+        if not total:
+            return None
+        return (round(100*bulls/total),round(100*bears/total),total)
+
+    def historical_vote_bar(agreement):
+        if agreement is None:
+            return note("5m historical candle votes unavailable • data quality pending")
+        bull,bear,count=agreement
+        return ft.Column([
+            ft.Row([txt("Bullish "+str(bull)+"%",11,GREEN,True),
+                    txt("Bearish "+str(bear)+"%",11,RED,True)],wrap=True,spacing=10),
+            ft.Row([ft.Container(bgcolor=GREEN,height=7,expand=max(1,bull)),
+                    ft.Container(bgcolor=RED,height=7,expand=max(1,bear))],spacing=0),
+            note("Historical 5m votes • "+str(count)+" filters • NOT live")
+        ],spacing=3)
+
     def publish_partial_ranking(results):
         expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
         available=[dict(res,symbol=sym) for sym,res in results.items()
@@ -1103,20 +1138,7 @@ def app_main(page:ft.Page):
                 rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
-                    indicator=analyze_current(candle_data["bars"],filter_selected[:],"5m")
-                    votes=[v for v in indicator.get("votes",[]) if isinstance(v,dict)]
-                    bulls=sum(v.get("vote")==1 for v in votes)
-                    bears=sum(v.get("vote")==-1 for v in votes)
-                    total=bulls+bears
-                    quality=indicator.get("quality") or {}
-                    if total and quality.get("usable"):
-                        rows.append(ft.Row([
-                            txt("BULLISH "+str(round(100*bulls/total))+"%",11,GREEN,True),
-                            txt("BEARISH "+str(round(100*bears/total))+"%",11,RED,True)
-                        ],spacing=12))
-                        rows.append(note("5m technical vote agreement • historical/unverified, NOT a live trading signal"))
-                    else:
-                        rows.append(note("5m technical vote agreement unavailable • insufficient or invalid completed candles"))
+                    rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))
                     analysis=display_analysis(sym,candle_data)
                     if not analysis.get("timestamp"):
                         rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
@@ -1545,29 +1567,12 @@ def app_main(page:ft.Page):
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_history=(chart_snapshots.get((index_name,"5m",provider_generation[0]))
                            or candles.get("scanner_chart_"+index_name) or {})
-            index_votes=[]
-            if (index_history.get("source")=="Dhan" and index_history.get("bars")
-                    and index_history.get("_scanner_timeframe","5m")=="5m"):
-                try:
-                    index_indicator=analyze_current(index_history["bars"],filter_selected[:],"5m")
-                    if (index_indicator.get("quality") or {}).get("usable"):
-                        index_votes=[vote.get("vote") for vote in index_indicator.get("votes",[])
-                                     if isinstance(vote,dict) and vote.get("vote") in (-1,1)]
-                except Exception as exc:
-                    log_error("index_candle_signal",exc)
-            index_bulls=index_votes.count(1)
-            index_bears=index_votes.count(-1)
-            index_total=index_bulls+index_bears
-            index_signal_row=(ft.Row([
-                txt("Bullish "+str(round(100*index_bulls/index_total))+"%",10,GREEN,True),
-                txt("Bearish "+str(round(100*index_bears/index_total))+"%",10,RED,True)
-            ],wrap=True,spacing=5) if index_total else
-                note("Candle signal unavailable • 5m history pending"))
+            index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
             index_cards.append(ft.Container(
                 content=ft.Column([txt(index_name,11,WHITE,True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
                     note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
-                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row,note("5m historical votes • NOT live")],
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
         return [heading("Watchlist • 5 Lists"),
