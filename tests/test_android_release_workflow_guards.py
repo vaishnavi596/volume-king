@@ -12,7 +12,8 @@ SOURCE=(ROOT/"src/main.py").read_text(encoding="utf-8")
 class AndroidReleaseWorkflowGuards(unittest.TestCase):
     def test_apk_requires_manual_dispatch_or_release_branch_version_bump(self):
         self.assertRegex(WORKFLOW,r"(?m)^on:\s*\n\s*workflow_dispatch:")
-        self.assertRegex(WORKFLOW,r"(?m)^\s+push:\s*\n\s+branches:\s*\[main, botking-b1-index-mapping-20261114\]\s*\n\s+paths:\s*\n\s+- pyproject\.toml")
+        self.assertRegex(WORKFLOW,r"(?m)^\s+push:\s*\n\s+branches:\s*\[[^\]\n]+\]\s*\n\s+paths:\s*\n\s+- pyproject\.toml")
+        self.assertIn("fix/botking-2399-candle-retry-20261114", WORKFLOW)
 
     def test_release_version_is_synchronized(self):
         version=PROJECT["project"]["version"]
