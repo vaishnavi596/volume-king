@@ -1,6 +1,6 @@
 """Batch 4 five-engine directional evidence must fail closed on missing inputs."""
 import unittest
-from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot, scanner_snapshot
+from five_engine import ENGINE_NAMES, EngineEvidence, combine_evidence, empty_evidence, technical_from_votes, compose_snapshot, scanner_snapshot, snapshot_for_display
 
 
 def evidence(name, bullish=None, verified=False):
@@ -102,5 +102,23 @@ class FiveEngineTests(unittest.TestCase):
     def test_scanner_adapter_rejects_boolean_votes(self):
         result=scanner_snapshot({"votes":[{"vote":True},{"vote":False}]})
         self.assertEqual(result["combined"]["coverage"],0)
+
+
+    def test_cached_verified_signal_expires_at_render_time(self):
+        rows=[evidence(n,80,True) for n in ENGINE_NAMES]
+        snap=compose_snapshot(**dict(zip(ENGINE_NAMES,rows)))
+        self.assertEqual(snapshot_for_display(snap,now=1234567900)["combined"]["state"],"BULLISH")
+        stale=snapshot_for_display(snap,now=1234569000)
+        self.assertEqual(stale["combined"]["state"],"WAIT")
+        self.assertEqual(stale["combined"]["coverage"],0)
+        self.assertTrue(all(e.display()["state"]=="WAIT" for e in stale["engines"]))
+
+    def test_future_timestamp_does_not_count_as_live(self):
+        rows=[evidence(n,80,True) for n in ENGINE_NAMES]
+        snap=compose_snapshot(**dict(zip(ENGINE_NAMES,rows)))
+        self.assertEqual(snapshot_for_display(snap,now=1234567000)["combined"]["coverage"],0)
+
+    def test_malformed_snapshot_fails_closed(self):
+        self.assertEqual(snapshot_for_display({},now=1234567890)["combined"]["state"],"WAIT")
 
 if __name__=="__main__":unittest.main()
