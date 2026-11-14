@@ -119,3 +119,31 @@ def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, op
     if any(row.name != name for name, row in zip(ENGINE_NAMES, rows)):
         raise ValueError("Evidence engine name mismatch")
     return {"engines": rows, "combined": combine_evidence(rows)}
+
+
+def scanner_snapshot(scan_result):
+    """Adapt existing scanner votes without network calls or false live labels.
+
+    Candle and technical votes originate from the same scanner calculation;
+    expose only the technical slot to avoid correlated double counting.
+    Independent price-action evidence requires its own validated algorithm.
+    """
+    if not isinstance(scan_result, dict):
+        return compose_snapshot()
+    raw = scan_result.get("votes") or []
+    labels = []
+    for vote in raw:
+        if not isinstance(vote, dict):
+            continue
+        direction = vote.get("vote")
+        if type(direction) is int and direction == 1:
+            labels.append("BUY")
+        elif type(direction) is int and direction == -1:
+            labels.append("SELL")
+    source = scan_result.get("source") or ""
+    verified = (scan_result.get("live_verified") is True and
+                scan_result.get("freshness") in ("verified_live", "live_verified") and
+                scan_result.get("historical") is False and source == "Dhan")
+    technical = technical_from_votes(labels, verified=verified,
+                                      timestamp=scan_result.get("timestamp"), source=source)
+    return compose_snapshot(technical=technical)
