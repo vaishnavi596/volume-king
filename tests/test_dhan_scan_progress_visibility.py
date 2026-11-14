@@ -15,7 +15,7 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_missing_dhan_change_is_unavailable_not_neutral(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('else "Neutral" if valid_change else "Unavailable"', source)
-        self.assertIn('Price direction unavailable • Dhan change/reference price not verified', source)
+        self.assertIn('Price change unavailable • reference unverified', source)
         self.assertIn('signal_direction=("Bullish" if signal_counts[0]>signal_counts[1]', source)
 
     def test_dhan_equity_quote_poll_runs_every_30_seconds(self):
