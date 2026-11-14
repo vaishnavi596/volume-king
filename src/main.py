@@ -3566,6 +3566,23 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note("Chart switches affect display only. The 10 analysis filters below work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
             parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
+    def scanner_option_context():
+        """Display cached Dhan option metrics without treating them as scanner votes."""
+        symbol=scan_symbol.value or "NIFTY"
+        data=dhan_option_metrics
+        if symbol!="NIFTY":
+            message="OI / PCR / Max Pain: unavailable for "+symbol+" • Dhan option mapping verified only for NIFTY"
+        elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
+              or data.get("symbol")!="NIFTY" or data.get("expiry")!=expiry.value):
+            message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • open Options and refresh selected data"
+        else:
+            message=("Dhan NIFTY • expiry "+str(data["expiry"])
+                     +" • PCR "+f'{data["pcr"]:.3f}'
+                     +" • Max Pain "+f'{data["max_pain"]:,.0f}'
+                     +" • OI strike levels unavailable")
+        return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
+                       ft.Column([note(message),
+                                  note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")],spacing=4))
     def scanner():
         fusion_selected.controls=[fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m")]
         filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
@@ -3581,7 +3598,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,scan_refresh,
                  scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
-            scanner_compact_chart(),fusion_selected,
+            scanner_compact_chart(),fusion_selected,scanner_option_context(),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
