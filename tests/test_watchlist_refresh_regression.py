@@ -23,8 +23,11 @@ class WatchlistRefreshRegression(unittest.TestCase):
                   if isinstance(node, ast.Call)
                   and isinstance(node.func, ast.Attribute)
                   and node.func.attr == "sleep"]
-        self.assertTrue(any(call.args and isinstance(call.args[0], ast.Constant)
-                            and call.args[0].value == 180 for call in sleeps))
+        self.assertTrue(any(call.args and isinstance(call.args[0], ast.IfExp)
+                            and isinstance(call.args[0].body, ast.Constant)
+                            and call.args[0].body.value == 180
+                            and isinstance(call.args[0].orelse, ast.Constant)
+                            and call.args[0].orelse.value == 10 for call in sleeps))
 
     def test_no_scroll_triggered_quote_requests(self):
         self.assertNotIn("watch_list.on_scroll=", self.source)
