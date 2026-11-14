@@ -2388,6 +2388,7 @@ def app_main(page:ft.Page):
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
+                note("Option chain not connected • Dhan option strikes are unavailable for this symbol/expiry."),
                 note(option_feed_status[0])])
         rows=selected_option_rows();grouped={}
         for row in rows:grouped.setdefault(row["strike"],{})[row["side"]]=row
