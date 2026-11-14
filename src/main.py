@@ -4048,8 +4048,8 @@ console.log('BOT KING Lightweight Charts ready');
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
-            lines=[txt(v["name"]+" • "+("BULLISH" if v["vote"]==1 else "BEARISH" if v["vote"]==-1 else "NEUTRAL" if v["vote"]==0 else "UNAVAILABLE")+" • "+v["detail"],11,
-                       GREEN if v["vote"]==1 else RED if v["vote"]==-1 else MUTED) for v in advanced["votes"]]
+            lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
+                       GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in (advanced.get("votes") or []) if isinstance(v,dict)]
             # Show filter-by-filter votes as soon as candle analysis completes.
             # Option premium modeling, news or combined analysis must not hide them.
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
