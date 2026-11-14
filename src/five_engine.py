@@ -188,3 +188,25 @@ def scanner_snapshot(scan_result):
     technical = technical_from_votes(labels, verified=verified,
                                       timestamp=timestamp, source=source)
     return compose_snapshot(technical=technical)
+
+
+def option_from_component(component):
+    """Adapt authenticated directional option flow; OI/volume alone never votes.
+
+    Existing app option snapshots are empty until a real broker adapter is wired.
+    Even a reported BULLISH/BEARISH bias needs validated trade flow and Dhan
+    provenance; a generic option-chain PCR is not directional trade flow.
+    """
+    if not isinstance(component, dict):
+        return EngineEvidence("options", reason="Verified Dhan option flow unavailable")
+    if (component.get("available") is not True or
+            component.get("source") != "Dhan" or
+            component.get("direction_basis") != "validated_trade_flow" or
+            component.get("verified") is not True or
+            component.get("bias") not in ("BULLISH", "BEARISH")):
+        return EngineEvidence("options", reason="Validated Dhan option trade flow unavailable")
+    timestamp = component.get("timestamp")
+    if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
+        return EngineEvidence("options", reason="Option flow timestamp unavailable")
+    # A binary direction is not a measured percentage. Leave strength unavailable.
+    return EngineEvidence("options", reason="Validated direction lacks measured bullish/bearish strength")
