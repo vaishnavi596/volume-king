@@ -8,7 +8,7 @@ def test_five_engine_summary_is_cache_only():
     start=SOURCE.index("    def five_engine_summary(symbol):")
     end=SOURCE.index("    def super_five_card():",start)
     block=SOURCE[start:end]
-    assert "five_engine_snapshots.get(symbol)" in block
+    assert "snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())" in block
     assert "evidence.display()" in block
     assert 'combined["coverage"]' in block
     assert "get_market_data(" not in block
