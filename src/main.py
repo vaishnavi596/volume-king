@@ -1527,11 +1527,8 @@ def app_main(page:ft.Page):
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
-                # Independent index LTP path: check its own 60s throttle even when
-                # equity snapshots are busy or cooling down. Never fan out requests.
-                if (app_active[0] and prefs.get("source")=="Dhan"
-                        and dhan_feed.connected and not index_refresh_busy[0]):
-                    await refresh_dhan_index_quotes()
+                # Index LTP runs in its own poll task, so a slow equity batch
+                # cannot delay the three-index refresh check.
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -4606,6 +4603,21 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(5)
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
+    async def dhan_index_poll():
+        # Separate timer, shared index busy guard and 60s throttle. This avoids
+        # holding index refresh behind an awaited 51-equity snapshot.
+        await asyncio.sleep(10)
+        while True:
+            try:
+                if (app_active[0] and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected and not index_refresh_busy[0]):
+                    await refresh_dhan_index_quotes()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("dhan_index_poll",exc)
+            await asyncio.sleep(10)
+    page.run_task(dhan_index_poll)
     page.run_task(watch_visible_tick)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
