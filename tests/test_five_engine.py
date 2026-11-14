@@ -314,3 +314,35 @@ def test_technical_votes_reject_malformed_and_unknown_labels():
     valid = technical_from_votes(["BUY", "BUY", "SELL", "NEUTRAL"],
                                  timestamp=1234567890, source="Dhan", verified=True)
     assert valid.eligible and valid.bullish == 67
+
+
+def test_scanner_candle_metadata_cannot_double_count_technical_evidence():
+    scan = {"source": "Dhan", "timestamp": 1234567890,
+            "live_verified": True, "freshness": "verified_live",
+            "historical": False,
+            "votes": [{"name": "trend", "vote": 1},
+                      {"name": "momentum", "vote": 1},
+                      {"name": "volume", "vote": -1}],
+            "candle": {"bullish": 100, "bearish": 0,
+                       "verified": True, "source": "Dhan"},
+            "candles": [{"open": 1, "close": 2}],
+            "candle_bias": "BULLISH"}
+    snapshot = scanner_snapshot(scan)
+    assert snapshot["engines"][0].name == "technical"
+    assert snapshot["engines"][0].eligible
+    assert snapshot["engines"][1].name == "candle"
+    assert not snapshot["engines"][1].eligible
+    assert snapshot["combined"]["coverage"] == 1
+    assert snapshot["combined"]["state"] == "WAIT"
+
+
+def test_scanner_duplicate_filter_names_fail_closed_even_with_casing():
+    scan = {"source": "Dhan", "timestamp": 1234567890,
+            "live_verified": True, "freshness": "verified_live",
+            "historical": False,
+            "votes": [{"name": "Trend", "vote": 1},
+                      {"name": " trend ", "vote": 1},
+                      {"name": "momentum", "vote": 1}]}
+    snapshot = scanner_snapshot(scan)
+    assert snapshot["combined"]["coverage"] == 0
+    assert all(not row.eligible for row in snapshot["engines"])
