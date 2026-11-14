@@ -180,3 +180,13 @@ def test_scanner_tab_has_recovery_mode_and_independent_widget_guards():
     assert 'safe_scanner_widget("Five Engine",lambda:five_engine_summary(' in block
     assert 'safe_scanner_widget("Options",scanner_option_context)' in block
     assert 'log_error("scanner_" + label.lower().replace(" ", "_"), exc)' in block
+
+
+def test_scanner_fusion_missing_saved_fields_fail_closed():
+    start = SOURCE.index("    def fusion_card(symbol,interval,compact=False):")
+    end = SOURCE.index("    def ",start + 8)
+    block = SOURCE[start:end]
+    assert 'scan_shared.get("direction","WAIT")' in block
+    assert 'scan_shared.get("basis","Analysis unavailable")' in block
+    assert 'scan_shared["direction"]' not in block
+    assert 'scan_shared["basis"]' not in block
