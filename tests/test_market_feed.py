@@ -41,7 +41,7 @@ class FeedTests(unittest.TestCase):
                                 expiry=v['expiry'].value,rows=rows,complete=True)
         self.assertFalse(v['selected_option_rows']())
         self.assertIn('unavailable',v['option_metrics']('PCR').value)
-        v['dhan_option_metrics'].update(symbol=v['chain_symbol'].value,
+        v['dhan_option_metrics'].update(source='dhan',symbol=v['chain_symbol'].value,
             expiry=v['expiry'].value,pcr=0.83049,max_pain=25100.0,
             freshness='unverified',signal_eligible=False)
         self.assertIn('0.830',v['option_metrics']('PCR').value)
