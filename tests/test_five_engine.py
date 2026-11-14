@@ -215,4 +215,13 @@ class FiveEngineTests(unittest.TestCase):
         scan["votes"][1]["name"]="EMA 9/21"
         self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],1)
 
+
+    def test_filter_name_whitespace_and_case_cannot_duplicate_votes(self):
+        scan={"votes":[{"name":"RSI 14","vote":1},
+                       {"name":" rsi 14 ","vote":1},
+                       {"name":"MACD","vote":-1}],
+              "source":"Dhan","timestamp":1234567890,
+              "freshness":"verified_live","live_verified":True,"historical":False}
+        self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
+
 if __name__=="__main__":unittest.main()
