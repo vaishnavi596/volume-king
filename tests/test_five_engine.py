@@ -466,3 +466,28 @@ def test_batch4_option_window_backend_and_client_fail_closed_contract():
     assert 'window.get("signal_eligible") is not False' in client
     assert 'window.get("freshness") != "unverified"' in client
     assert 'window.get("atm") != strikes[3]' in client
+
+
+def test_batch4_atm_window_optional_premium_volume_and_oi_are_fail_closed():
+    import pytest
+    from backend.dhan_option_metrics import listed_atm_window, OptionMetricsUnavailable
+    chain = {str(k): {"ce": {"oi": 20, "volume": 5, "last_price": 8.0, "previous_oi": 18},
+                      "pe": {"oi": 30, "volume": 6, "last_price": 9.0, "previous_oi": 25}}
+             for k in range(90, 111, 2)}
+    payload = {"status": "success", "data": {"oc": chain}}
+    window = listed_atm_window(payload, spot=100)
+    assert window["rows"][3]["ce"]["previous_oi"] == 18
+    assert window["rows"][3]["pe"]["last_price"] == 9
+    assert window["signal_eligible"] is False
+    for field, bad_value in (("volume", -1), ("last_price", float("nan")),
+                             ("previous_oi", True), ("volume", float("inf"))):
+        damaged = {key: {"ce": dict(value["ce"]), "pe": dict(value["pe"])}
+                   for key, value in chain.items()}
+        damaged["100"]["ce"][field] = bad_value
+        with pytest.raises(OptionMetricsUnavailable):
+            listed_atm_window({"status": "success", "data": {"oc": damaged}}, spot=100)
+    without_optional = {key: {"ce": {"oi": 20}, "pe": {"oi": 30}}
+                        for key in chain}
+    safe = listed_atm_window({"status": "success", "data": {"oc": without_optional}}, spot=100)
+    assert "last_price" not in safe["rows"][3]["ce"]
+    assert safe["freshness"] == "unverified"
