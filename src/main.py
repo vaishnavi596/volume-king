@@ -4641,7 +4641,23 @@ console.log('BOT KING Lightweight Charts ready');
                         ranking_results[sym]=result
                         if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
                         # Reuse the existing scanner result; no extra Dhan request.
-                        five_engine_snapshots[sym]=scanner_snapshot(dict(result or {},source=(data or {}).get("source",""),freshness=(data or {}).get("freshness","unverified"),live_verified=(data or {}).get("live_verified") is True,historical=(data or {}).get("historical",True)))
+                        # Both the analyzed result and its input must independently
+                        # establish the same Dhan provenance; an LTP quote is not
+                        # proof that historical candle analysis was live.
+                        analyzed=result or {}
+                        source_ok=(prefs.get("source")=="Dhan" and
+                                   analyzed.get("source")=="Dhan" and
+                                   (data or {}).get("source")=="Dhan")
+                        verified=(source_ok and analyzed.get("live_verified") is True and
+                                  (data or {}).get("live_verified") is True and
+                                  analyzed.get("freshness") in ("verified_live","live_verified") and
+                                  (data or {}).get("freshness") in ("verified_live","live_verified") and
+                                  analyzed.get("historical") is False and
+                                  (data or {}).get("historical") is False)
+                        five_engine_snapshots[sym]=scanner_snapshot(dict(analyzed,
+                            source="Dhan" if source_ok else "",
+                            freshness="verified_live" if verified else "unverified",
+                            live_verified=verified,historical=not verified))
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
