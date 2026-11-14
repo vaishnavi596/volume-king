@@ -71,6 +71,16 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_early_index_cache_hit_skips_pacing_and_rechecks_background(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
+        end = source.index('                    # Dhan history is a rate-limited upstream API: serialize', start)
+        section = source[start:end]
+        self.assertIn('early_cache_ready=bool(early_cached', section)
+        self.assertIn('if not early_cache_ready:\n                                await asyncio.sleep(1.5)', section)
+        self.assertIn('if (generation!=provider_generation[0] or lifecycle_background[0]', section)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', section)
+
     def test_b2_early_index_cooldown_blocks_equity_tail(self):
         source = SOURCE.read_text(encoding="utf-8")
         start = source.index('                    for sym in symbols[1:]:')
