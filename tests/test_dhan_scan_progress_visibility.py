@@ -71,6 +71,15 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_empty_index_history_reports_failure_without_clearing_ltp(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
+        end = source.index('                    # Dhan history is a rate-limited upstream API: serialize', start)
+        section = source[start:end]
+        self.assertIn('Dhan index OHLC unavailable or empty; LTP retained', section)
+        self.assertIn('elif generation==provider_generation[0]:', section)
+        self.assertNotIn('quotes[early_index]=', section)
+
     def test_b2_early_index_cache_hit_skips_pacing_and_rechecks_background(self):
         source = SOURCE.read_text(encoding="utf-8")
         start = source.index('for early_index in ("NIFTY","BANKNIFTY","SENSEX"):')
