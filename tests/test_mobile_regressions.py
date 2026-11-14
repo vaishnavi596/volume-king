@@ -331,7 +331,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 45', source)
         self.assertIn('await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20)', source)
 
-    def test_dhan_cached_quote_poll_is_foreground_only_and_45_seconds(self):
+    def test_dhan_cached_quote_poll_is_foreground_only_and_180_seconds(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         start = source.index("    async def dhan_quote_poll():")
         end = source.index("    def watchlist():", start)
@@ -343,7 +343,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("if remaining==0:", poll)
         self.assertIn("Dhan snapshot cooling down", poll)
         self.assertIn("await refresh_watch_batch()", poll)
-        self.assertIn("await asyncio.sleep(30)", poll)
+        self.assertIn("await asyncio.sleep(180)", poll)
         self.assertNotIn("dhan_feed.intraday(", poll)
 
     def test_dhan_history_429_pauses_without_scanning_remaining_symbols(self):
