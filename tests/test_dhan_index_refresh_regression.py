@@ -27,7 +27,7 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         source = ast.get_source_segment(self.source, fn)
         self.assertIn("await refresh_watch_batch()", source)
         self.assertIn("await refresh_dhan_index_quotes()", source)
-        self.assertIn("await asyncio.sleep(180 if quote_auto_last_attempt[0] else 10)", source)
+        self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 30)", source)
 
 
 if __name__ == "__main__":
