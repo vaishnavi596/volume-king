@@ -148,3 +148,21 @@ def test_backend_atm_window_reports_safe_missing_spot_reason():
     assert 'window_status = "available"' in backend
     assert '"atm_window_status": window_status' in backend
     assert 'window = listed_atm_window(raw, spot=underlying_spot)' in backend
+
+
+def test_mobile_option_ui_explains_missing_atm_window_without_signal():
+    start=SOURCE.index("    def option_chain_preview():")
+    end=SOURCE.index("\n    def ",start)
+    block=SOURCE[start:end]
+    assert '"underlying_spot_unavailable":"Dhan underlying spot missing"' in block
+    assert '"listed_window_unavailable":"Seven valid listed strikes unavailable"' in block
+    assert 'dhan_option_metrics.get("atm_window_status")' in block
+    assert "signals WAIT" in block
+
+
+def test_gateway_rejects_inconsistent_option_window_diagnostics():
+    feed=Path(__file__).resolve().parents[1].joinpath("src","server_feed.py").read_text(encoding="utf-8")
+    assert 'window_status = result.get("atm_window_status")' in feed
+    assert 'window_status == "available"' in feed
+    assert 'window is not None' in feed
+    assert 'Inconsistent Dhan ATM window diagnostic status' in feed
