@@ -1186,12 +1186,35 @@ def app_main(page:ft.Page):
             panels.append(ft.Container(content=ft.Column(rows,spacing=3),
                                        bgcolor=PANEL2,border_radius=10,padding=10))
         return section("INDEX ANALYSIS • AUTO STATUS",ft.Column(panels,spacing=8))
+    def dashboard_market_indices():
+        index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")
+        index_cards=[]
+        for index_name in index_symbols:
+            index_quote=quotes.get(index_name) or {}
+            valid=(prefs.get("source")=="Dhan" and index_quote.get("source")=="Dhan"
+                   and isinstance(index_quote.get("price"),(int,float))
+                   and not isinstance(index_quote.get("price"),bool)
+                   and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
+            provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
+            index_history=(chart_snapshots.get((index_name,"5m",provider_generation[0]))
+                           or candles.get("scanner_chart_"+index_name) or {})
+            index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
+            index_cards.append(ft.Container(
+                content=ft.Column([txt(index_name,11,WHITE,True),
+                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
+                    note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
+                    spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
+                on_click=lambda e,v=index_name:open_stock(v)))
+        return ft.Column(index_cards,spacing=5)
+
     def dashboard():
         # Keep one canonical three-slot index analysis panel. Duplicate market
         # overview, error-monitor and news cards cluttered the Home screen and
         # made ordinary card taps look like an implicit refresh action.
         # Diagnostics and news data remain available in their dedicated views.
         return [
+            dashboard_market_indices(),
             data_overview(),
             dashboard_index_analysis(),
             note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')),
@@ -1652,28 +1675,8 @@ def app_main(page:ft.Page):
 
     def watchlist():
         fill_watch()
-        index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")
-        index_cards=[]
-        for index_name in index_symbols:
-            index_quote=quotes.get(index_name) or {}
-            valid=(prefs.get("source")=="Dhan" and index_quote.get("source")=="Dhan"
-                   and isinstance(index_quote.get("price"),(int,float))
-                   and not isinstance(index_quote.get("price"),bool)
-                   and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
-            provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
-            index_history=(chart_snapshots.get((index_name,"5m",provider_generation[0]))
-                           or candles.get("scanner_chart_"+index_name) or {})
-            index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
-            index_cards.append(ft.Container(
-                content=ft.Column([txt(index_name,11,WHITE,True),
-                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
-                    note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
-                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
-                    spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
-                on_click=lambda e,v=index_name:open_stock(v)))
         return [ft.Row([heading("Watchlist • 5 Lists"),watch_countdown],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            note("Market indexes (3) + equity universe ("+str(len(watch_symbols))+") = "+str(len(watch_symbols)+3)+" instruments • indexes excluded from equity scan"),
-            ft.Column(index_cards,spacing=8),
+            note(str(len(watch_symbols))+" equities • NIFTY, BANKNIFTY and SENSEX are on Dashboard"),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
