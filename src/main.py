@@ -1245,7 +1245,7 @@ def app_main(page:ft.Page):
             prefs["watchlist_"+str(i)]=list(group)
         save()
     active_watch=[0]
-    watch_list=ft.Column(spacing=8,scroll=ft.ScrollMode.AUTO)
+    watch_list=ft.Column(spacing=4,scroll=ft.ScrollMode.AUTO)
     selected_watch=[""]
     watch_filter=["All"]
     add_symbol=ft.TextField(label="Add NSE symbol",hint_text="e.g. HDFCBANK",expand=True)
@@ -1342,6 +1342,22 @@ def app_main(page:ft.Page):
             store_watch()
             feedback.value=sym+" removed from List "+str(active_watch[0]+1)
         select(4)
+    def compact_watch_signal(row, available, fresh):
+        # Compact vote display is historical context unless explicitly verified live.
+        counts=signal_percentages(row) if available else None
+        if not counts:
+            return note("T — • candle unavailable")
+        bull,bear,total=counts
+        if total<=0:
+            return note("T — • no directional votes")
+        label=("LIVE" if fresh else "HIST")
+        return ft.Column([
+            ft.Row([txt("T  B"+str(bull)+"% / S"+str(bear)+"%",10,GREEN if bull>bear else RED if bear>bull else MUTED,True),
+                    txt(label,9,GREEN if fresh else MUTED)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
+                    ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=4)
+        ],spacing=1)
+
     def fill_watch(_=None):
         watch_list.controls.clear()
         visible_count=0
@@ -1386,7 +1402,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • provider change" if valid_change else "Price change unavailable • reference unverified")),note("Candle: "+(signal_direction if signal_fresh else "Historical • not live")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
