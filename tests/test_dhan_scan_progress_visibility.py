@@ -71,6 +71,12 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
 
+    def test_b2_missing_candles_do_not_implicate_last_valid_ltp(self):
+        source = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('"No validated OHLC history for "+str(symbol.value)', source)
+        self.assertIn('" • "+str(timeframe.value)+" • not live"', source)
+        self.assertIn('"Check Dhan history, cooldown and selected timeframe; last valid LTP is separate"', source)
+
     def test_b2_candle_plot_shows_last_timestamp_and_unverified_status(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('last_candle_time=(datetime.fromtimestamp(bars[-1][0],timezone.utc)', source)
