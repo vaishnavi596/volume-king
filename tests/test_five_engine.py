@@ -430,3 +430,28 @@ def test_futures_contract_resolver_requires_unique_verified_master_record():
         assert resolve_verified_futures_contract([dict(row, **patch)], symbol="NIFTY", expiry=expiry) is None
     assert resolve_verified_futures_contract([row, row], symbol="NIFTY", expiry=expiry) is None
     assert resolve_verified_futures_contract([], symbol="NIFTY", expiry=expiry) is None
+
+
+def test_batch4_listed_atm_window_seven_strikes_and_fail_closed():
+    from backend.dhan_option_metrics import listed_atm_window, OptionMetricsUnavailable
+    import pytest
+    chain = {str(k): {"ce": {"oi": 100, "volume": 25, "last_price": 12.5},
+                      "pe": {"oi": 150, "volume": 30, "last_price": 13.5}}
+             for k in range(90, 111, 2)}
+    payload = {"status": "success", "data": {"oc": chain}}
+    out = listed_atm_window(payload, spot=100)
+    assert out["atm"] == 100 and len(out["rows"]) == 7
+    assert [row["strike"] for row in out["rows"]] == [94, 96, 98, 100, 102, 104, 106]
+    assert out["signal_eligible"] is False and out["freshness"] == "unverified"
+    assert out["rows"][3]["ce"]["volume"] == 25
+    for invalid in ({"status": "error", "data": {"oc": chain}},
+                    {"status": "success", "data": {"oc": dict(list(chain.items())[:6])}},
+                    {"status": "success", "data": {"oc": {**chain, "100.0": chain["100"]}}}):
+        with pytest.raises(OptionMetricsUnavailable):
+            listed_atm_window(invalid, spot=100)
+    with pytest.raises(OptionMetricsUnavailable):
+        listed_atm_window(payload, spot=90)
+    bad = {key: dict(value) for key, value in chain.items()}
+    bad["100"] = {"ce": {"oi": -1}, "pe": {"oi": 10}}
+    with pytest.raises(OptionMetricsUnavailable):
+        listed_atm_window({"status": "success", "data": {"oc": bad}}, spot=100)
