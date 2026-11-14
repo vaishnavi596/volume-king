@@ -357,3 +357,49 @@ def resolve_verified_futures_contract(rows, *, symbol, expiry):
         if len(matches) > 1:
             return None
     return matches[0] if len(matches) == 1 else None
+
+
+def option_chain_display_context(metrics):
+    """Attach Dhan option-chain context to a UI snapshot, never an engine vote.
+
+    This is intentionally separate from compose_snapshot's five voting slots.
+    An unverified chain cannot prove direction, market freshness or trade flow.
+    """
+    if not isinstance(metrics, dict) or metrics.get("source") != "dhan":
+        return {"available": False, "reason": "Dhan option context unavailable"}
+    if metrics.get("freshness") != "unverified" or metrics.get("signal_eligible") is not False:
+        return {"available": False, "reason": "Unsupported option freshness or eligibility"}
+    window = metrics.get("atm_window")
+    rows = window.get("rows") if isinstance(window, dict) else None
+    if (not isinstance(window, dict) or window.get("source") != "dhan"
+            or window.get("freshness") != "unverified"
+            or window.get("signal_eligible") is not False
+            or not isinstance(rows, (list, tuple)) or len(rows) != 7):
+        return {"available": False, "reason": "Seven listed Dhan strikes unavailable"}
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            return {"available": False, "reason": "Invalid option strike row"}
+        strike = row.get("strike")
+        if type(strike) not in (int, float) or not isfinite(strike) or strike <= 0:
+            return {"available": False, "reason": "Invalid option strike"}
+        legs = {}
+        for side in ("ce", "pe"):
+            leg = row.get(side)
+            if not isinstance(leg, dict):
+                return {"available": False, "reason": "Missing option leg"}
+            values = {}
+            for field in ("oi", "volume", "last_price", "previous_oi"):
+                value = leg.get(field)
+                if field == "oi" or value is not None:
+                    if type(value) not in (int, float) or not isfinite(value) or value < 0:
+                        return {"available": False, "reason": "Invalid option leg value"}
+                    values[field] = float(value)
+            legs[side] = values
+        result.append({"strike": float(strike), **legs})
+    strikes = [row["strike"] for row in result]
+    if strikes != sorted(set(strikes)) or window.get("atm") != strikes[3]:
+        return {"available": False, "reason": "Invalid ATM strike ordering"}
+    return {"available": True, "source": "Dhan", "atm": strikes[3],
+            "rows": tuple(result), "freshness": "unverified",
+            "signal_eligible": False, "direction": "WAIT"}
