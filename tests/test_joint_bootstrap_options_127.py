@@ -20,7 +20,11 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertNotIn("not regular_hours()",body)
         self.assertIn('bars=snapshot.get("bars") or []',body)
         self.assertIn("publish_partial_ranking(results)",body)
-        self.assertNotIn("dhan_feed.",body)
+        # Checking connection state is allowed; no provider endpoint is called.
+        self.assertIn("dhan_feed.connected",body)
+        self.assertNotIn("dhan_feed.batch_quotes(",body)
+        self.assertNotIn("dhan_feed.intraday(",body)
+        self.assertNotIn("dhan_feed.option_chain_metrics(",body)
         change=segment("    def provider_changed(e):","    broker_previous=broker.on_change")
         self.assertIn("publish_partial_ranking({})",change)
 
