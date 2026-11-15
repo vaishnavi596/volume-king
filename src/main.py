@@ -4169,8 +4169,9 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView Lightweight":
-                parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
-                parts.append(note("Chart/Analysis/Both is selected in Settings → Central filters. Only EMA currently has a chart overlay."))
+                # Keep detailed overlay guidance in Central filters / help.
+                # On the Scanner screen the chart should take priority over captions.
+                parts.append(note("OHLC history • EMA 9/21 overlay • other filters: analysis only"))
                 parts.append(tradingview_status)
                 context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Dhan"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
                 if tv_view[0] is None or tv_context[0]!=context:
