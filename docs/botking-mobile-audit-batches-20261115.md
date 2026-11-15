@@ -66,3 +66,33 @@ Reference: Android BOT KING v2.3.113 screenshots captured around 10:35–10:36 I
 ## Dependency and release sequencing
 B7 comes first (shared session/calendar + cache gate). B8 builds on that session gate. Then B1–B8 combined regression, Oracle read-only endpoint validation, Android screenshots/smoke testing, signing/versionName/versionCode checks, and one consolidated APK. Existing v2.3.113 is not evidence that B7 or B8 has been implemented.
 References consulted: NSE 2026 holiday and regular trading hours page (https://www.nseindia.com/resources/exchange-communication-holidays), DhanHQ official SDK option-chain documentation (https://dhanhq.co/docs/DhanHQ-py/_option_chain/).
+
+
+## v2.3.114 Android acceptance audit (15 Nov 2026, 11:07 IST) — NEW TEST EVIDENCE
+
+Source: three user-supplied phone screenshots (Dashboard index strip and Home cards with five-engine expansion). These observations supersede older screenshots only for the specific fields visible; they do not establish a verified live Dhan market feed.
+
+### M1 — Index availability (carry into B4)
+- NIFTY LTP 25,144.30 appears; BANKNIFTY LTP 61,034.10 now appears, improving on v2.3.113 when BANKNIFTY was blank.
+- SENSEX still shows em dash and `Dhan LTP unavailable`. Investigate Oracle deployed `/dhan/index-ltp-batch` returning `unavailable`, the BSE_I mapping and index fallback only with authorized read-only diagnostics. Do not fill with candle close or cross-provider values.
+- All quotes show `exchange time unverified`; a collection-age indication (~1 minute) is **not** source/exchange verification. Sunday 15 Nov is closed, so there is no proof of live-session prices.
+
+### M2 — Historical votes versus 5-engine eligibility (new B9 integration gate)
+- RELIANCE 1,339.70, HDFCBANK 804.00 and ICICIBANK 1,583.60 LTPs appear with `time unverified`; do not mark quotes as exchange-live.
+- Their 5m candle panels show 8 directional votes with Bullish 100% / Bearish 0%, explicitly tagged `HIST • NOT live`. This is an agreement ratio from historical filters, not a trade win probability or a verified live direction.
+- Their five-engine cards show `WAIT • 0/5 verified`. Expanded ICICIBANK reports technical/candle/news/futures unavailable due to stale/missing proof and Options `Validated Dhan option trade flow unavailable`.
+- Code audit: `five_engine.scanner_snapshot()` currently maps technical and candle analyses from the same scanner vote set to **one** technical slot to avoid double-counting. `snapshot_for_display()` enforces 300s maximum age and source/timestamp checks. News/Futures/Options have no active independent verified voting feed. Hence 0/5 is safe fail-closed output on closed-market day, not by itself an app crash.
+- Required: distinguish `historical analysis available` and `live five-engine evidence unavailable` clearly in one compact component. Do not represent historical 100% as five-engine 100% or force 5/5.
+- For B9, implement separate independently justified candle vs technical evidence, verified futures, option and sourced news inputs before coverage can grow. Require provenance, per-input timestamps, independent-counting and coherent freshness policies.
+
+### M3 — UI presentation (carry into B5/B9)
+- Open expansion lists five near-identical long stale reasons, consuming most of phone height. Replace with short, specific per-engine labels and one shared expandable diagnostic reason; keep exact details in Error Doctor.
+- Preserve consistent Bullish/Bearish bar across Home, Watchlist, Scanner and Super Five; show last actual candle date and timeframe beside `HIST` when available.
+- The overall signal summary must not override the `NO LIVE SIGNAL` gate when only historical votes exist.
+
+### M4 — Regression and rollout order
+- Current installed v2.3.114 APK is user-confirmed. No user screenshot yet validates scanner WebView stability, Watchlist countdown/end-to-end refresh, full 51/51 equity quote coverage, Options premiums or Futures LTP on this version.
+- **Near-term combined correctness batch**: B4 SENSEX mapping/availability diagnosis + B5 compact five-engine and historical date display + B6 regression and real Android validation. Do not claim missing live provider data fixed without a read-only Oracle test.
+- **Future functional batch**: B7 market/holiday one-time closed-session snapshot; B8 broker-listed NIFTY/BANKNIFTY/RELIANCE option chain and independently mapped futures; B9 company/index/sector/global news and independent five-engine fusion with OI/PCR/max-pain filters.
+- Release gates: offline regression green on final commit; confirm actual Android versionName, versionCode, permanent keystore and uploaded signed artifact; retest mobile after installing. No automatic live orders; no Yahoo/Angel fallback.
+
