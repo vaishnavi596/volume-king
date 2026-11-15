@@ -21,7 +21,7 @@ class OptionsLayoutTests(unittest.TestCase):
         shown = rendered_text(v["option_chart_panel"]())
         self.assertIn("Dhan CE/PE premium history", shown)
         self.assertIn("not available", shown)
-        self.assertIn("no Angel One fallback", shown)
+        self.assertIn("Dhan data only", shown)
         self.assertNotIn("Connect Angel One in Settings", shown)
         self.assertEqual(v["option_chart_cache"], {})
 
