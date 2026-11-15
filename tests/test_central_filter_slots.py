@@ -14,7 +14,9 @@ class CentralFilterSlotsTests(unittest.TestCase):
             v["remove_added_filter"](name)
         self.assertEqual(len(v["filter_selected"]),7)
         page=v["central_filter_settings"]()
-        self.assertIn("ACTIVE ANALYSIS FILTERS • 7/10",str(page.controls[0].value) if hasattr(page,"controls") else str(page))
+        self.assertIsNotNone(page)
+        self.assertEqual(len(v["filter_checklist"].controls),7)
+        self.assertIn("OI Support",[opt.key for opt in v["filter_choice"].options])
         for name in ("OI Support","OI Resistance","Max Pain"):
             v["add_filter_slot"](name)
         self.assertEqual(len(v["filter_selected"]),10)
@@ -46,7 +48,7 @@ class CentralFilterSlotsTests(unittest.TestCase):
         self.assertEqual(v["filter_selected"],["EMA 9/21","OI Support","OI Resistance","Max Pain"])
         for name in OPTION_FILTERS:
             self.assertIn("WAITING FOR DATA",v["filter_availability"](name))
-        self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"] if "scanner_filters" in v["prefs"] else None)
+        self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"])
 
 
 if __name__=="__main__":
