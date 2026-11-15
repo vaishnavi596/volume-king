@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.123" # T joint unified paper trading center, five bot profiles, profit booking and local timings
+version = "2.3.124" # Joint Oracle compatibility, five unique watchlists, paper bot and signed release
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
