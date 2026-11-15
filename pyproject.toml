@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.122" # B3 Dhan option HTTP 422 backoff, ten movable filters, Oracle assessment read-only
+version = "2.3.123" # T joint unified paper trading center, five bot profiles, profit booking and local timings
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
