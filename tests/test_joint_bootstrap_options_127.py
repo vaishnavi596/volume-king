@@ -34,6 +34,24 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn('historical=True',chips)
         self.assertIn("signal_percentages(raw)",chips)
 
+    def test_super_five_news_is_bounded_context_not_an_engine_vote(self):
+        news=segment("    news_bootstrap_generation=[None]","    async def super_five_minute_refresh():")
+        self.assertIn("news_bootstrap_generation[0]=generation",news)
+        self.assertIn("[:5]",news)
+        self.assertIn("await asyncio.to_thread(fetch_news,sym)",news)
+        self.assertIn("await asyncio.sleep(0.5)",news)
+        self.assertNotIn("dhan_feed.option_chain_metrics",news)
+        self.assertNotIn("dhan_feed.batch_quotes",news)
+        login=segment("    async def connect_angel():","    def provider_changed(")
+        self.assertIn("page.run_task(refresh_superfive_news)",login)
+        rss=segment("    def fetch_news(symbol,global_news=False):","    def headline_signal(items):")
+        self.assertIn("response.read(262_145)",rss)
+        self.assertIn("len(raw)>262_144",rss)
+        self.assertNotIn("2_000_001",rss)
+        context=segment("    def combine_analysis(symbol,interval,candle,local_news,global_news):","    async def load_combined(symbol,interval,candle):")
+        self.assertIn("news_bias=None",context)
+        self.assertIn("no confirmed combined setup",context)
+
     def test_multi_underlying_option_context_isolated_to_session(self):
         body=segment("    async def refresh_selected_options():","    async def option_poll():")
         self.assertIn("dhan_option_context_cache[(generation,sym,chosen)]",body)
