@@ -2261,7 +2261,11 @@ def app_main(page:ft.Page):
             expiry.value=dates[idx].isoformat() if len(dates)>idx else ""
         prefs.update(option_symbol=chain_symbol.value,option_expiry_choice=option_expiry_choice.value,option_expiry=expiry.value or "")
         save()
-        if e is not None:select(1)
+        if e is not None:
+            select(1)
+            # A changed symbol/expiry must fetch its own Dhan read-only snapshot.
+            if prefs.get("source")=="Dhan" and dhan_feed.connected:
+                page.run_task(refresh_selected_options)
     def add_option_symbol(e):
         sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
         if sym and sym.replace("-","").replace("&","").isalnum() and sym not in [o.key for o in chain_symbol.options]:
