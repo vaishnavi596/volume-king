@@ -297,9 +297,14 @@ def app_main(page:ft.Page):
     dhan_option_last_attempt=[0.0]
     oracle_assessment_cache={}
     oracle_assessment_attempts={}
+    oracle_assessment_cache_generation=[provider_generation[0]]
 
     def oracle_assessment_notes(symbol):
         # One independent per-symbol cache for Scanner, Watchlist and Super Five.
+        if oracle_assessment_cache_generation[0]!=provider_generation[0]:
+            oracle_assessment_cache.clear()
+            oracle_assessment_attempts.clear()
+            oracle_assessment_cache_generation[0]=provider_generation[0]
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             return ["Oracle assessment • WAIT • Dhan connection required"]
         return assessment_lines(symbol,oracle_assessment_cache)
@@ -1314,7 +1319,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),note(oracle_assessment_notes(row["symbol"])[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1642,7 +1647,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),five_engine_chips(sym),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED),ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v))
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),five_engine_chips(sym),note(oracle_assessment_notes(sym)[0]),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED),ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v))
             ],spacing=2))
         if visible_count==0:
             message="No matching stocks found. Clear search to show this list." if search.value or watch_filter[0]!="All" else "This watchlist is empty. Add a stock below."
@@ -5682,6 +5687,9 @@ console.log('BOT KING Lightweight Charts ready');
                         try:
                             data=await asyncio.to_thread(dhan_feed.assessment,sym)
                             if generation==provider_generation[0]:
+                                if oracle_assessment_cache_generation[0]!=generation:
+                                    oracle_assessment_cache.clear()
+                                    oracle_assessment_cache_generation[0]=generation
                                 oracle_assessment_cache[sym]={"fetched":time.monotonic(),"data":data}
                                 if len(oracle_assessment_cache)>16:
                                     del oracle_assessment_cache[next(iter(oracle_assessment_cache))]
