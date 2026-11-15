@@ -72,3 +72,213 @@ guardedly stage/deploy S18 WatchlistStore and end-to-end API integrations.
 - **Next candidate:** 2.3.126 signed release; verify build, signer, versionCode and artifact separately, then update from installed 2.3.125 **without clearing app storage**.
 - **Pending mobile proof:** connect/check Dhan; verify 'Login snapshot' status on Watchlist, open/closed display, index batch, Super Five, rate-cadence at 09:15–15:30 IST and failure/retry. Last-known/unverified must not be described as a live exchange quote.
 - **Oracle:** unchanged; watchlist server S18 cross-list restriction remains a separate staged deployment gate. Dhan OAuth and orders unchanged. 
+
+---
+
+## 2026-11-16 — MASTER STATUS RECONCILIATION (documentation only; no new patch)
+
+**Requested scope:** Collate completed/failed/staged Oracle work, GitHub fixes,
+installed Android evidence, and the remaining app roadmap in one persistent
+handoff. This entry **supersedes older "in progress" notes for the exact runs
+below** but does not retroactively change their historic observed state.
+Provenance: user-shared command output in prior chats; existing S09–S19
+contract / 51-point chat audit; current GitHub Actions verification.
+
+### A. Audit baseline — where to continue
+
+- Repo: `vaishnavi596/volume-king`. Integration branch:
+  `fix/botking-joint-audit-70-15-20261115`.
+- Pre-documentation application HEAD: `fe2faa97c0158709593462b9293fca6f34257c1d`
+  (`pyproject.toml` version `2.3.126`). This documentation-only commit
+  changes the branch HEAD; **the tested APK is associated with the prior code
+  commit, not the journal commit**.
+- Last **user-confirmed installed** APK: `2.3.125`, **with a reported
+  Watchlist initial-refresh failure**, not MOBILE PASS. Current installed
+  version after this report is not known.
+- Key records: `BOT_KING_HANDOFF.md`,
+  `docs/BOT_KING_ORACLE_APP_CONTRACT_20261115.md`,
+  `docs/BOT_KING_PREVIOUS_TWO_CHATS_STEP_BY_STEP_20261114_15.md`,
+  `docs/botking-mobile-audit-batches-20261115.md`.
+  The 51-point report is **not a complete transcript export**.
+- **Status vocabulary:** VERIFIED SOURCE / CI PASS / BUILD PASS /
+  ORACLE DEPLOYED / AUTHORIZED MARKET-DATA PROBED / MOBILE PASS are
+  independent. UNVERIFIED or PENDING means *do not infer working*.
+
+### B. Oracle: actually checked or deployed
+
+| ID | Work and evidence | True state |
+|---|---|---|
+| S09 | Static safety audit reported 27/27; preserve market-data-only and no-order limits | STATIC PASS; not runtime proof |
+| S12 | `bot-king.service` and Nginx active, health 200, trading OFF; NSE equity registry 2,785 records; different Oracle-specific `server.py`; old backup inventory/permission audit | SERVER AUDIT PASS at check time; token-maintenance inaccessible files not classified as corrupt |
+| S13 | Existing index, legacy quote-batch, snapshot, option expiry/chain paths inventoried; registry/option guards compared | SOURCE INSPECTED; individual route presence not every live response |
+| S14 | `/v2/instruments/search` already implemented in `watchlist_api.py`; returns `source=dhan_registry` / `symbols`; registry source staged and adapter contracts aligned | EXISTING ROUTE; do not register duplicate |
+| S15 | User output: source/backup/staged hashes and Python syntax PASS; guarded staged `server.py` deployed; service restart + health PASS, no rollback; 1 selected-LTP route and 2 dynamic-option guards. Trading flags unchanged, 0 orders by script | **ORACLE DEPLOYED** (server route patch only) |
+| S16 | On-server source inspection: selected batch route count 1, dynamic guards count 2, syntax PASS | STATIC PASS (no separate deployment) |
+| S17 | 13/13 unauthenticated security checks: protected routes return 403, no provider requests/orders | SECURITY PASS; **not** authenticated price/option functionality |
+| S18-B | User-supplied actual `watchlist_store.py`: `count=5, limit=70` applies **per list**; duplicate rejection only within a list; persistence via atomic replace/rollback | **GLOBAL-70 AND CROSS-LIST UNIQUENESS NOT PROVEN DEPLOYED** |
+| S18 patch | `scripts/oracle_s18_watchlist_patch.py` committed with offline tests, but never shown applied to production `watchlist_store.py` | **GITHUB STAGED ONLY; ORACLE DEPLOY PENDING** |
+| Emergency probe | `systemctl is-active` active; `GET /health` 200; missing-key `/dhan/status` and `/v2/snapshot` 403, `GET /dhan/index-ltp-batch` 405 (POST-only); sampled log counters zero | EXPECTED METHOD/AUTH; not broker outage |
+| Authenticated Dhan status | `GET /dhan/status` HTTP 200, `authenticated=true`, `market_data_configured=true`, `token_source=oauth_consent`, `token_validity=expiry_checked`, `reauthentication_required=false` | **AUTHORIZED STATUS PASS at probe time** |
+| Equity snapshot | `GET /v2/snapshot` HTTP 200, source Dhan, 51 quotes, age 79.1s, freshness unverified, error null; RELIANCE/HDFCBANK/TCS keys present | **51/51 QUOTES PRESENT** at probe; not exchange-live certification |
+| S19 Index batch | `POST /dhan/index-ltp-batch` HTTP 200, 3/3 (NIFTY 25144.3, BANKNIFTY 61034.1, SENSEX 81592.45), unavailable empty; freshness unverified | **AUTHORIZED INDEX RESPONSE PASS** at probe; numbers are not current live prices |
+
+**Critical Oracle safeguards:** Never copy GitHub `backend/server.py` wholesale
+over `/opt/bot-king-server/server.py`—Oracle has extra Assessment/OI and
+expiry-cache features. Back up exact files and saved Watchlist JSON, syntax
+check, hash-check and health-test before any production edit; preserve
+`/etc/bot-king/server.env` / Dhan OAuth, never print keys or tokens, never
+rotate credentials to "fix" a UI refresh. `live_orders_enabled=false`.
+Older historical timestamped backup for `dhan_feed.py` was **missing** in one
+user terminal check; do not claim all backups exist without an exact-path test.
+
+### C. GitHub / Android: finished source, tests and builds
+
+| Work | Evidence | State |
+|---|---|---|
+| Scanner page/filters/white chart | Saved mobile audits; fixes for Scanner page display, candle symbol/timeframe isolation and local WebView recovery, 10-slot OI filter add/remove/save; existing commits documented in 51-point report | CODE WORK; actual current Android end-to-end acceptance UNVERIFIED |
+| 51-equity LTP/last good cache | Snapshot parser, 60s shared clock and last-price retention; authorized Oracle 51 snapshot | SOURCE IMPLEMENTED, ORACLE PROBED; user's v2.3.125 first-login refresh FAIL |
+| Index independent price path | Index batch + separate poller, 60s guard and cached last-good retention; S19 3/3 Oracle quote test | ORACLE PROBED / SOURCE IMPLEMENTED; current mobile not proven |
+| Dhan registry / selected equities | 2,785 registry records, symbol search, selected-LTP route and 1–70 contract; `cb18300a`, `a1ed56db`, `83749508`, `94dfa56c`, `73378bf0` | CODE + ORACLE S15 ROUTE DEPLOYED; authorized dynamic-equity end-to-end PENDING |
+| Five watchlists total 70 | `c89368fd` Android one-symbol-one-list; S18 Oracle staged guard; 797/797 offline tests at prior checkpoint | ANDROID CODE PASS; ORACLE GLOBAL LIMIT PENDING |
+| Paper Bot | Five simulated profiles and unified Trading Center retained; no real orders | PAPER CODE PRESENT; full Android entry/exit/P&L and persistence QA PENDING |
+| Five-engine scoring | Technical/candle historical calculations; news/futures/options independence and freshness limited | Do not claim 5/5 verified; WAIT on missing evidence |
+| 2.3.124 | Run [43746262145](https://github.com/vaishnavi596/volume-king/actions/runs/43746262145) | APK BUILD SUCCESS; not phone PASS |
+| Initial 2.3.125 | Run [43751755544](https://github.com/vaishnavi596/volume-king/actions/runs/43751755544): 804/804 tests, `versionName=2.3.125`, `versionCode=74001`, pinned signer, artifact 14175849838 | APK BUILD PASS; **installed** but initial-refresh MOBILE FAIL |
+| Failed interim recovery | `6bf04e9` run 43751332247 and `ea22fb2` run 43751541606 | OFFLINE FAIL; superseded, not release heads |
+| Corrected closed-login recovery | `4e50d226` index batch fallback; `ee1d75a4` guarded first-load, 804/804 PASS | CODE PASS; first-login mobile still pending |
+| v2.3.125 Watchlist root-cause fix | `5da68b3a`: saved price cannot substitute for current-login snapshot success; `9d94169a`: behavioral tests and visible `Quote check`; `bd5c2212`: login success/partial/fail reflected on Watchlist | 809/809 OFFLINE PASS, run [43753705425](https://github.com/vaishnavi596/volume-king/actions/runs/43753705425) |
+| **2.3.126 latest verified code build** | Commit `fe2faa97`, run [43753960172](https://github.com/vaishnavi596/volume-king/actions/runs/43753960172); 809/809 tests PASS; `com.botking.bot_king`; `versionName=2.3.126`; `versionCode=74101`; pinned release signer PASS; `volume-king-apk` artifact ID **14177263980** uploaded | **BUILD/SIGN/ARTIFACT PASS**, **MOBILE NOT TESTED** |
+
+The 2.3.126 release APK was created **before this journal-only commit**.
+Do not mistake new HEAD documentation changes for a new signed build.
+A successful GitHub APK by itself cannot prove that mobile login, quote
+polling, scans, charts, Options or Paper Bot work end-to-end.
+
+### D. User reports / confirmed mobile issues (don't erase when CI passes)
+
+1. Earlier APKs displayed some Watchlist equity rates while
+   NIFTY/BANKNIFTY/SENSEX lagged or were blank; later individual indexes
+   appeared intermittently. This is not proof of permanent mapping failure.
+2. v2.3.113: pairing-key header encoding error, Watchlist batch FeedError and
+   white Scanner chart during symbol switch. Source safeguards added; Android
+   retest needed.
+3. v2.3.114: 54-symbol filter audit, 51 analyzed, three failures
+   HDFCBANK/HINDUNILVR/NTPC; exact upstream error for those symbols unknown.
+   REPORTED mobile issue, not verified repaired on latest phone.
+4. v2.3.121 Options: NIFTY expiry/ATM CE window visible; ICICIBANK expiry
+   HTTP 422. Broker-listed contract/entitlement and expiry mapping unclear.
+5. **Installed v2.3.125**: old RELIANCE ₹1,339.70 displayed; no observed
+   fresh Watchlist login check. In a closed market a successful new snapshot
+   can return *the same price*, so verify request/result and collected-at age,
+   **not** whether number changed.
+6. For v2.3.126, no user-supplied installed-version confirmation or
+   Watchlist `Quote check` screenshot/result exists in this journal.
+7. Super Five, Scanner 5m/1m/15m, index Candle, Watchlist partial errors,
+   settings persistence, resume and market-open timing require real device QA.
+
+### E. Agreed rules / do not break in future patches
+
+- First authenticated login (open OR closed): one bounded read-only load of
+  latest available equity snapshot, independently loaded 3-index batch, and
+  available saved candle/ranking/history for Dashboard/Watchlist/Super Five.
+  A previously saved quote is NOT proof that current login fetched a snapshot.
+- Closed market: after initial attempt and bounded recovery, pause automatic
+  repetitive quote and history requests; still show last-known Dhan prices
+  labeled **NOT LIVE / exchange timestamp unverified**.
+- Normal session: existing `regular_hours()` checks Monday–Friday 09:15 to
+  15:30 IST; Watchlist/equity snapshot and Index poll each independently
+  rate-limited (currently 60s); separate candle scan roughly 180s; fast local
+  Scanner/Super Five cache refresh paths must stay independent. Do not silently
+  change these intervals. Official NSE/BSE holidays/special sessions not
+  fully modeled: current weekday/time check alone is not authoritative.
+- Preserve valid last-known quote on failed/partial Dhan response. 429
+  cooldown, request serialization, bounded selected symbols and no repeated
+  51-history fanout.
+- Exactly **five** Watchlists with **70 different equities total** and a
+  symbol in **one** list only; same rule server-side once S18 deployed.
+- Dhan-only market-data provenance, no silent Angel/Yahoo fallback.
+  Per-engine News/Futures/Options/Candle percentages need independent sourced,
+  symbol-matched, timestamp-checked inputs. Missing data = WAIT, no fabricated
+  directional signal. Historical candles must not be labeled verified live.
+- App version label visible; signed upgrade must preserve Android package,
+  signing identity, old watchlists, paper profiles and local saved settings.
+- **PAPER trades only**; live broker order placement OFF. Keep token renewal
+  unchanged; no credential exposure or unauthorized live orders.
+
+### F. Remaining tasks and next planned app fixes — ordered, NOT done
+
+**P0 — Before declaring 2.3.126 repaired**
+1. **Device upgrade and identity:** Compare installed 2.3.125 → signed
+   2.3.126 without uninstalling/clearing data; verify app shows v2.3.126,
+   versionCode 74101, same signer/package and saved settings/watchlists.
+2. **First login on closed market:** Settings Dhan Connect/Check using
+   existing trusted HTTPS endpoint; verify Watchlist `Quote check • Login
+   snapshot ...` is SUCCESS/PARTIAL/FAILED, index NIFTY/BANKNIFTY/SENSEX
+   last-known prices, 51 equity snapshot and dynamic selected stocks. If
+   status reports failure, inspect **sanitized Error Doctor stage/HTTP**,
+   not just the price. Protect private pairing key.
+3. **Real open-session test:** 09:15+ IST during actual trading session;
+   Watchlist equity 60s schedule, independent index poll, resumed
+   foreground, 30s manual floor, 429 cooldown, last-price retained on
+   error. Do not call price "live verified" absent exchange timestamp.
+4. **Scanner + Super Five:** Validate first cached analysis after login,
+   independently paced 5m candle pass, fast cached Top 5 display,
+   filters 10/10 and Bullish/Bearish continuity, 1m/5m/15m chart switching
+   without white WebView, no 51-symbol request storm. Ensure WAIT for
+   missing independent evidence.
+5. **Android Error Doctor + Health:** report status separately for
+   authenticated session, 51 snapshot, 3 indexes, refresh stage, histories,
+   options and cached/stale age. A recovered error should not count as active.
+   Watchlist timer should show `Market closed • auto-refresh paused`
+   once initial load completes, not a fake live countdown.
+
+**P1 — Oracle and actual integration (back up before deploy)**
+6. **S18 global-70 server parity:** Verify `watchlist_store.py` currently
+   deployed source and persisted data (read-only first), stage/backup both
+   Python and Watchlist JSON, run isolated duplicate/cap/persistence tests,
+   apply guarded patch only if the production guard is missing, health and
+   rollback check; never delete existing symbols automatically.
+7. **Dynamic equity:** Authenticated, bounded test of registry search,
+   `POST /dhan/selected-ltp-batch` and 1–70 symbol response mapping, empty,
+   invalid and partial cases. The S15 route code being installed does not
+   prove 70-symbol functional response.
+8. **Options/Futures:** Real Dhan-listed expiry/chain (NIFTY,
+   BANKNIFTY and legitimately F&O-enabled equities), PCR/Max Pain/OI
+   support/resistance and near-ATM ±3 strikes; futures money-flow must use
+   verified mapping/independent inputs, not cash LTP guesses. Handle 422,
+   409 and 429 safely.
+9. **News and five-engine:** Independent sourced fresh News, Futures,
+   Options and Candle/Technical scores, coherent 100-point bullish/bearish
+   UI, no double-counting technical+candle votes and no 5/5 signals without
+   evidence. Scope this after stable quotes/scanner.
+
+**P2 — Release and operating quality**
+10. **Market holiday calendar:** Replace weekday-only assumption with
+    official NSE/BSE holiday and special-session policies; avoid wrong
+    open-market classification, preserve controlled first-login snapshot.
+11. **Paper Bot acceptance:** Five profiles, saved parameters, simulated
+    entry/exit/P&L/SL/target/protection, background pause/resume and
+    settings persistence. Real order route must remain disabled.
+12. **Performance/data budget:** fast single-symbol/Top 5 cached checks,
+    paced 51-candle history, serialized Dhan requests, bounded network
+    payloads and no cross-screen duplicate upstream requests.
+13. **Final release gate:** full offline/backend CI, signed APK artifact
+    versionCode and certificate match, old-version upgrade compatibility,
+    actual Android smoke test and two market scenarios (closed/open).
+    Commit a new Work Log entry with evidence/FAIL/PENDING, never invent PASS.
+
+### G. Immediate next actions when user authorizes actual development
+
+1. Read the **latest** Handoff, this journal and 51-point audit; compare
+   current branch HEAD and latest CI, installed app version and Oracle S15
+   deployed source. Avoid repeating passed diagnostics without reason.
+2. Get v2.3.126 **mobile** `Quote check` result and Error Doctor stage
+   (without secrets); fix only proven UI/session or transport mismatches.
+3. Test open-market independent index/Watchlist/Top5 scan and, as a
+   separate guarded production batch, S18 server watchlist parity.
+4. After each batch, append exact commands/outputs where available,
+   commits, CI run, Android/Oracle status and next tasks to this journal.
+
+**This entry is recordkeeping only:** production/server files, OAuth tokens,
+Android source code, APK and broker order configuration were not modified
+by writing this journal.
