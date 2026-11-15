@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.110" # Batch 4 scanner filter result and KeyError diagnostics candidate
+version = "2.3.111" # Consolidated filters, automatic scanner refresh and 54-symbol server audit
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

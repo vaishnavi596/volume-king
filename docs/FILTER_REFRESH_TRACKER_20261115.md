@@ -138,3 +138,31 @@ suite does not establish real feed freshness or mobile performance. Review the
 server result before the final APK build; then validate the installed app. News,
 Futures and Options still require their real evidence sources and are never
 silently treated as verified by a successful candle test.
+
+
+## Oracle historical acceptance — user-supplied run on 2026-11-15
+
+The user ran the pinned read-only runner at revision
+`b35694a71403baf425d472606fbed668cb7c4521` and supplied the complete output:
+
+| Check | Reported result |
+| --- | --- |
+| Requested session / timeframe | 2026-11-13 / 5m |
+| Symbols | 54 valid; 0 empty; 0 invalid; 0 HTTP errors |
+| Default filter rows | 10/10 available on each symbol: 540 total evaluations |
+| TCS | HTTP 200; 71 bars; 10 available filters; historical BULLISH bias |
+| Indices | NIFTY, BANKNIFTY and SENSEX each returned 74 bars and 10 filter rows |
+| Orders | No order endpoints called |
+| Exchange freshness | Not verified live |
+
+This passes the tested historical local-server API and pure filter-calculation
+path for all 54 symbols. It does not establish complete-session coverage,
+current live prices, public HTTPS/Nginx transport, prediction accuracy, News/
+Futures/Options evidence or Android rendering/latency. No server deployment is
+required by these app-only changes.
+
+With the previously requested final-build stage now reached, the next sequential
+APK candidate is 2.3.111. Permanent-signing and version-code checks remain in the
+existing workflow. Physical update-install, selected-symbol handoff, all 54
+report coverage, readability and runtime refresh tests remain mobile acceptance
+gates after the APK is built.
