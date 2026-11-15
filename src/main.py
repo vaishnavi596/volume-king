@@ -1203,9 +1203,12 @@ def app_main(page:ft.Page):
         # Current option snapshots lack measured directional strength and remain WAIT.
         option_context=option_from_component(option_component(symbol, "5m"))
         data=dhan_option_metrics
-        if (symbol=="NIFTY" and data.get("source")=="dhan"
-                and data.get("symbol")=="NIFTY" and data.get("expiry")==expiry.value
-                and data.get("signal_eligible") is False):
+        if (symbol==chain_symbol.value and data.get("source")=="dhan"
+                and data.get("symbol")==symbol and data.get("expiry")==expiry.value
+                and data.get("signal_eligible") is False
+                and type(data.get("pcr")) in (int,float)
+                and type(data.get("max_pain")) in (int,float)
+                and math.isfinite(data["pcr"]) and math.isfinite(data["max_pain"])):
             context=option_chain_display_context(data)
             pieces[-1]=("Options WAIT • Dhan PCR "+format(data.get("pcr",0),".3f")+
                         " • Max Pain "+format(data.get("max_pain",0),",.0f")+
@@ -1247,9 +1250,9 @@ def app_main(page:ft.Page):
             else:
                 # Show independent data readiness, never fabricated B/S ratios.
                 label=short+" WAIT";color=MUTED
-                if name=="options" and sym=="NIFTY":
+                if name=="options":
                     data=dhan_option_metrics
-                    if (data.get("source")=="dhan" and data.get("symbol")=="NIFTY"
+                    if (sym==chain_symbol.value and data.get("source")=="dhan" and data.get("symbol")==sym
                             and data.get("expiry")==expiry.value
                             and data.get("signal_eligible") is False
                             and isinstance(data.get("pcr"),(int,float))):
@@ -4120,8 +4123,8 @@ console.log('BOT KING Lightweight Charts ready');
                 row["vote"]=None
             elif name in OPTION_FILTERS:
                 data=dhan_option_metrics
-                if (sym=="NIFTY" and data.get("source")=="dhan"
-                        and data.get("symbol")=="NIFTY" and data.get("expiry")==expiry.value
+                if (sym==chain_symbol.value and data.get("source")=="dhan"
+                        and data.get("symbol")==sym and data.get("expiry")==expiry.value
                         and data.get("signal_eligible") is False):
                     context=option_chain_display_context(data)
                     if name=="Max Pain" and isinstance(data.get("max_pain"),(int,float)):
@@ -4439,17 +4442,18 @@ console.log('BOT KING Lightweight Charts ready');
                     parts.append(note("Supertrend signal: see Analysis Basis; no fabricated overlay"))
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
             parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
-            parts.append(note("Chart switches affect display only. The 10 analysis filters below work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
+            parts.append(note("Chart switches affect display only. Up to 15 saved analysis filters work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
             parts.append(note("OI / PCR / Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner_option_context():
         """Display cached Dhan option metrics without treating them as scanner votes."""
         symbol=scan_symbol.value or "NIFTY"
         data=dhan_option_metrics
-        if symbol!="NIFTY":
-            message="OI / PCR / Max Pain: unavailable for "+symbol+" • Dhan option mapping verified only for NIFTY"
+        if symbol not in DHAN_VERIFIED_SYMBOLS:
+            message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
         elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
-              or data.get("symbol")!="NIFTY" or data.get("expiry")!=expiry.value):
+              or symbol!=chain_symbol.value or data.get("symbol")!=symbol
+              or data.get("source")!="dhan" or data.get("expiry")!=expiry.value):
             message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • select the symbol in Options; auto-refresh will request listed data"
         elif (not isinstance(data.get("pcr"), (int, float))
               or not isinstance(data.get("max_pain"), (int, float))
@@ -4460,7 +4464,7 @@ console.log('BOT KING Lightweight Charts ready');
             context=option_chain_display_context(data)
             strike_note=(" • ATM ±3 listed strikes available" if context.get("available")
                          else " • listed strikes unavailable")
-            message=("Dhan NIFTY • expiry "+str(data.get("expiry"))
+            message=("Dhan "+symbol+" • expiry "+str(data.get("expiry"))
                      +" • PCR "+f'{data["pcr"]:.3f}'
                      +" • Max Pain "+f'{data["max_pain"]:,.0f}'+strike_note)
         return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
