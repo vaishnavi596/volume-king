@@ -195,7 +195,8 @@ class ServerDhanReadOnly:
     def _call_serialized(self, path, payload=None):
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
-        if path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot"):
+        assessment_path = path.startswith("/v2/assessment/") and path.count("/") == 3
+        if not assessment_path and path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot", "/v2/server-readiness"):
             raise FeedError("Unsupported Dhan read-only request")
         # A rejected contract must not block another selected symbol/expiry.
         option_key = None
@@ -464,6 +465,40 @@ class ServerDhanReadOnly:
         if (result.get("source") != "dhan" or result.get("symbol") != symbol
                 or not isinstance(result.get("bars"), list)):
             raise FeedError("Invalid Dhan candle response")
+        return result
+
+    def assessment(self, symbol):
+        """Read the shared Oracle cache without new Dhan market requests."""
+        if (not isinstance(symbol, str) or not symbol or len(symbol) > 40
+                or any(not (c.isascii() and (c.isalnum() or c in "-&")) for c in symbol)):
+            raise FeedError("Invalid Dhan assessment symbol")
+        result = self._call("/v2/assessment/" + symbol)
+        filters = result.get("assessment_filters")
+        factors = result.get("factors")
+        expected = {"oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend"}
+        if (result.get("symbol") != symbol
+                or result.get("live_orders_enabled") is not False
+                or result.get("signal_eligible") is not False
+                or result.get("bullish_score") is not None
+                or result.get("bearish_score") is not None
+                or not isinstance(factors, dict)
+                or set(factors) != {"news", "futures", "options", "candle"}
+                or not isinstance(filters, list) or len(filters) != 5
+                or any(not isinstance(f, dict) or f.get("id") not in expected
+                       or f.get("status") not in ("available", "unavailable") for f in filters)
+                or {f["id"] for f in filters} != expected):
+            raise FeedError("Invalid or unsafe Dhan assessment response")
+        return result
+
+    def server_readiness(self):
+        """Read the disabled-execution readiness policy; never submit orders."""
+        result = self._call("/v2/server-readiness")
+        orders = result.get("orders")
+        if (not isinstance(orders, dict)
+                or orders.get("broker_submission_allowed") is not False
+                or orders.get("live_orders_enabled") is not False
+                or result.get("live_orders_enabled") is not False):
+            raise FeedError("Unsafe Dhan readiness response")
         return result
 
     def option_expiries(self, symbol):
