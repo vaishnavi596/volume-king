@@ -3627,7 +3627,9 @@ console.log('BOT KING Lightweight Charts ready');
             tv_pending[0]=None
             tv_set_status("Chart ready • "+str(min(tv_limit[0],len(tv_history[0])))+" candles displayed • More loads older history")
     def tv_started(e):
-        if e.control is tv_view[0] and not tv_ready[0]:tv_set_status("Chart initializing...")
+        if e.control is tv_view[0]:
+            tv_ready[0]=False
+            tv_set_status("Chart initializing...")
     def tv_ended(e):
         if e.control is not tv_view[0]:return
         if not tv_booted[0]:
