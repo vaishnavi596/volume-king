@@ -5836,9 +5836,9 @@ console.log('BOT KING Lightweight Charts ready');
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected):
                     generation=provider_generation[0]
-                    # Only selected contexts, never one fetch per watchlist row.
+                    # Scanner, Options and the selected paper bot share one cached read-only assessment.
                     selected=list(dict.fromkeys(
-                        sym for sym in (scan_symbol.value,chain_symbol.value)
+                        sym for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value)
                         if isinstance(sym,str) and sym in DHAN_VERIFIED_SYMBOLS))
                     for sym in selected:
                         if generation!=provider_generation[0] or not app_active[0]:
