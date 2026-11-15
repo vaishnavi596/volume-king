@@ -96,3 +96,29 @@ Source: three user-supplied phone screenshots (Dashboard index strip and Home ca
 - **Future functional batch**: B7 market/holiday one-time closed-session snapshot; B8 broker-listed NIFTY/BANKNIFTY/RELIANCE option chain and independently mapped futures; B9 company/index/sector/global news and independent five-engine fusion with OI/PCR/max-pain filters.
 - Release gates: offline regression green on final commit; confirm actual Android versionName, versionCode, permanent keystore and uploaded signed artifact; retest mobile after installing. No automatic live orders; no Yahoo/Angel fallback.
 
+
+
+## v2.3.114 Android System Health follow-up — 15 Nov 2026, 11:10 IST
+
+Evidence: user screenshot of System Health and Error History on installed BOT KING v2.3.114. **Do not conflate the audit coverage's three symbol failures with the card's two grouped issue categories.**
+
+### M5 — 3 isolated candle/filter audit failures (priority for next combined correctness batch)
+- System Health: `54-symbol filters • 51 analyzed • 3 errors • 0 insufficient • 0 pending`. The three named errors are **HDFCBANK, HINDUNILVR, NTPC**. Earlier screenshot reported 54/54 with 0 errors; performance is intermittent, not proven permanently fixed.
+- `scanner: FeedError` recorded 15 Nov 11:07:00 IST and again 11:09:54 IST. Exact upstream HTTP code, selected timeframe, affected-symbol identity and clean candle response are **not available in this screenshot**. Do not label these three as 429/422 or blame the network without sanitized endpoint/cooldown evidence.
+- Audit `refresh_market`'s Dhan 5m history fetch/cache path for these three only, `remember_candle_failure`/`clear_scan_failure`, timestamp interval consistency, and scheduled retry/cooldown. Preserve previously valid Dhan LTP and historic candles; never classify an error as a live signal.
+- Distinguish 54 configured instruments vs 51 successful analyses, and ensure the failed-symbol list and status are synchronized. Record sanitized per-symbol failure stage, endpoint, HTTP status (if available), cooldown and last successful candle date without leaking credentials; avoid unbounded retries.
+- Confirm the Sunday/closed-market history scan's retry conditions do not repeatedly hammer the server when the snapshot cannot change. This will be consolidated with B7 market-session gating, not silently changed in the v2.3.114 APK.
+
+### M6 — recovered index incident is not current failure
+- Error History reports `RECOVERED • dhan_index_ltp_batch: FeedError` at 11:07:13 IST. Keep this in **history only**; it must not inflate active error count.
+- SENSEX price remained unavailable in the prior v2.3.114 Dashboard screenshot, even though BANKNIFTY recovered. Treat BSE_I/SENSEX independently; a recovered batch error is not confirmation that all three indices have valid LTP.
+
+### M7 — historical warning versus actual error
+- `Chart warning: historical or unavailable data; not verified live` is shown as an issue. On a closed market and with legitimate last-valid historical candles, the label `HIST • NOT live` is an expected safeguard, not itself proof of a broken chart.
+- Plan one compact *informational* historical/closed-market state, separately count active feed/validation problems; keep source freshness explicit. Investigate whether `component_status("market")` is truly STALE/UNAVAILABLE versus just HISTORICAL before downgrading a component.
+- System Health groups two problems: (1) three named scan failures; (2) historical/unavailable chart warning. This does not mean only two instrument errors.
+
+### M8 — mobile test and batch grouping
+- **Next correctness/failure batch B4/B5/B6**: HDFCBANK/HINDUNILVR/NTPC candle error diagnosis + SENSEX missing-index checks + concise Health/5-engine UI + regression. Require sanitized runtime failure reasons and Android retest before claiming data-feed fix.
+- **Then B7–B9**: holiday-aware one-time closed-session refresh, Dhan derivatives (options/futures) and independent news/five-engine integration. Do not overwrite the existing B7/B8 plan.
+- No new APK is implied by this screenshot or audit document. v2.3.114 remains the last installed/tested release.
