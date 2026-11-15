@@ -164,3 +164,15 @@ Evidence: user screenshot of System Health and Error History on installed BOT KI
 - Super Five repeated local cache calculation pauses outside regular hours. Scanner skips costly off-hours repeated shared analysis but keeps local selected-chart render/recovery available while the Scanner page is open. This preserves F7 chart switching even on closed days.
 - Commits `54c3ab3`, `321ea2c`, `b614ab1`, and legacy assertion updates `e6664a8`, `451776f`, `48505ca`. Offline regression run 43682835716 PASS.
 - **Not yet implemented:** official NSE/BSE holiday and special-session calendar, global heading with correct holiday name, strict per-login single closed-session data-check guard, and broker-verified source exchange timestamps. These require separate integration and live device/Oracle validation. Do not declare F1–F7 complete or create a final combined APK based solely on this checkpoint.
+
+
+## F8 — Central Assessment Filter 10-slot editor (2026-11-15; CODE COMMITTED)
+- Regression from user phone test: OI Support/OI Resistance/Max Pain disappeared from the active defaults and pressing Add did nothing. Removing 3 of 10 did not move those filters into the Add/available list.
+- Root cause: old load sanitization explicitly discarded every `OPTION_FILTERS` entry; Add and checkbox callbacks rejected OI filters even as WAIT-only configuration; Settings permanently rendered `DEFAULT_FILTERS` instead of the actual active selection. Because default 10 were full there was no explicit capacity behavior.
+- New policy: exactly 10 maximum active slots, any of the supported filters may occupy them, unused default and option filters move to a visible Available list immediately; removal and Add update the same saved `scanner_filters` preference. "Restore default 10" restores the original core set. Filters selected without verified broker chain evidence remain WAIT, never counted as bullish/bearish or live. A full 10/10 shows an explicit slot-full reason.
+- Code commits: `de624e6` selection/persistence; `3b2fcf9` dynamic UI; tests `e010116`, `f2b22d3`; legacy regression updates `667f256`, `7443525`. Latest offline regression 43683460026 SUCCESS.
+- Manual acceptance required: remove 3 default filters, find all 3 under Available, select and Add OI Support/OI Resistance/Max Pain, check 10/10, reopen app and confirm persistence, verify OI evidence WAIT; Reset Defaults and verify all original ten return. No random phantom 11th filter. Check Scanner, Watchlist and Super Five share those settings.
+
+### Integrated testing/release checkpoint
+- F7 chart symbol-switch local recovery and the early F1–F2 regular-session polling guards are in this branch as well as F8. They have passed offline code regression but **NOT been verified on Android**.
+- The full NSE/BSE holiday/special-session calendar, global Market Closed heading, strict new-login one-time closed-session snapshot, separate verified futures/option/news feeds (B8/B9), and actual exchange timestamps are **not complete**. Do not advertise those as included in this checkpoint APK.
