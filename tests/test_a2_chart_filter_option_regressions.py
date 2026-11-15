@@ -28,8 +28,8 @@ def test_chart_recovers_to_native_dhan_candles():
 def test_filter_slots_are_saved_with_explicit_limit():
     source = main_source()
     assert 'filter_selected=list(dict.fromkeys' in source
-    assert '[:10]' in source
-    assert 'elif len(filter_selected)>=10:' in source
+    assert '[:MAX_ACTIVE_FILTERS]' in source
+    assert 'elif len(filter_selected)>=MAX_ACTIVE_FILTERS:' in source
     assert 'prefs["scanner_filters"]=filter_selected[:]' in source
     assert 'prefs["scanner_added_filters"]=added_filters[:]' in source
     assert 'ft.OutlinedButton("Add",on_click=lambda e,n=name:add_filter_slot(n)' in source
@@ -54,4 +54,4 @@ def test_dhan_only_options_hide_legacy_angel_one_prompt():
     assert "Refresh Dhan Option Chain" in panel
     assert "Angel One in Settings" not in panel
     assert "angel_feed.option_history" not in panel
-    assert "no simulated chart, no Angel One fallback" in panel
+    assert "no simulated chart; Dhan data only" in panel
