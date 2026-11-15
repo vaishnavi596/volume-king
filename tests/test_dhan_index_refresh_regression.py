@@ -32,7 +32,7 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('and dhan_feed.connected and not index_refresh_busy[0]):', index_source)
         self.assertIn('await refresh_dhan_index_quotes()', index_source)
         self.assertNotIn('await refresh_watch_batch()', index_source)
-        self.assertIn('time.monotonic()-quote_auto_last_attempt[0]>=60', source)
+        self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60', source)
 
     def test_index_candles_are_prioritized_and_reused(self):
         source = self.source
