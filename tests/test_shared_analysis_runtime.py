@@ -83,9 +83,10 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         self.assertEqual(v["current"][0], 2)
         v["scan_busy"][0] = True
         v["central_filter_settings"]()
-        checkbox = v["filter_checklist"].controls[0].content.controls[0]
-        checkbox.value = False
-        checkbox.on_change(event(checkbox))
+        active = v["filter_selected"][0]
+        v["remove_added_filter"](active)
+        self.assertNotIn(active,v["filter_selected"])
+        self.assertIn(active,[opt.key for opt in v["filter_choice"].options])
         self.assertEqual(v["current"][0], 2)
         field = v["scan_min"]
         field.visible = False
