@@ -3596,12 +3596,12 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
-    MAX_ACTIVE_FILTERS=15  # Ten defaults plus five user-selectable slots.
-    # One-time migration restores the original ten defaults without overriding later user edits.
+    MAX_ACTIVE_FILTERS=10  # Ten movable slots: removing a filter frees one immediately.
+    # One-time migration supplies ten defaults without overwriting saved user edits.
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    # Up to fifteen filters can be selected; the first ten saved defaults remain unchanged.
+    # Ten movable saved filters, with removed defaults returning to the available pool.
     # Option/OI filters remain WAIT until authenticated derivative evidence exists.
     saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
     if not isinstance(saved_filters,(list,tuple)):
@@ -3623,7 +3623,7 @@ def app_main(page:ft.Page):
             filter_feedback.value="Filter changed in this session, but saving failed • retry"
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
-            return "WAITING FOR DATA • verified option-chain feed not connected"
+            return "Dhan OI context is informational; unverified values never vote"
         if name=="News Headlines":
             return "News context ON when selected • cached headlines only; no directional vote"
         if name in ("Volume","VWAP"):
@@ -4488,7 +4488,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def central_filter_settings():
-        # Active is a movable 15-slot list; unselected default/extra/OI
+        # Active is a movable 10-slot list; unselected default/extra/OI
         # indicators return to the available pool immediately after removal.
         available_filters=[name for name in filter_names if name not in filter_selected]
         filter_checklist.controls=[
@@ -4518,14 +4518,14 @@ console.log('BOT KING Lightweight Charts ready');
             filter_choice.value=None
         filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Original 10 defaults preserved; 5 additional slots are optional and saved."),
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten movable saved slots; remove an active filter to add another."),
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
-                ft.Column([note("Original 10 defaults stay saved; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
+                ft.Column([note("Ten movable filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
                            filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
-                           note("OI Support, OI Resistance, OI Profile and Max Pain can be selected and saved; their votes remain WAIT until verified Dhan option-chain data is connected.")],spacing=4)),
+                           note("OI Support, OI Resistance, OI Profile and Max Pain can be selected and saved; unverified derivatives never become directional votes.")],spacing=4)),
             section("FIND & ADD FILTER",ft.Column([
                 filter_query,filter_choice,ft.Row([
                     ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True),
