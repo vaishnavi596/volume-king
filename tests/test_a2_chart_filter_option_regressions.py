@@ -39,6 +39,7 @@ def test_filter_slots_are_saved_with_explicit_limit():
 def test_dhan_option_refresh_visible_and_read_only():
     source = main_source()
     assert 'Refresh Dhan Option Chain' in source
+    assert '# A changed symbol/expiry must fetch its own Dhan read-only snapshot.' in source
     assert 'page.run_task(refresh_selected_options)' in source
     assert 'dhan_feed.option_expiries,sym' in source
     assert 'dhan_feed.option_chain_metrics,sym,chosen' in source
