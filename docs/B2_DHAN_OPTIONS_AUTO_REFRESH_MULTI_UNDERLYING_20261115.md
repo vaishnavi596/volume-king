@@ -28,3 +28,9 @@ Date: 2026-11-15
 - Required Android tests: change Options symbol quickly twice, confirm automatic loading and no NIFTY bleed-through, check 15 saved filters, ensure historical technical remains HIST and unverified OI remains WAIT, confirm live orders OFF.
 
 Status: SOURCE PATCHED; successful Oracle live checks and mobile install are separate gates.
+
+## B2 additional audit — exact symbol matching
+- Scanner OI Support, OI Resistance, OI Profile, PCR and Max Pain read-only context now requires selected Scanner symbol == selected Options symbol == payload symbol and exact payload expiry. Five Engine Options chip uses the same rule. No cross-symbol OI/PCR leakage.
+- Invalid or missing PCR/Max Pain values never become synthetic zero in the Super Five summary. Verified directional fusion remains disabled for unverified options.
+- If a symbol switches while an option request is active, the newest request is replayed after the existing one and a 3.25-second minimum Dhan pacing delay.
+- The released Android APK requires the running Oracle service to have compatible broker-listed expiry and option-chain handlers. Deploying code only to GitHub does not update /opt/bot-king-server/server.py. Make a timestamped server backup and run authenticated read-only tests before production reload.
