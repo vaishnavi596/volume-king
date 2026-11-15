@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from analysis_reports import AnalysisAudit, complete_filter_rows
+from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context
 from chart_indicators import chart_indicators
 from help_content import describe
@@ -281,6 +281,7 @@ def app_main(page:ft.Page):
     scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
     failed_symbols={}
     analysis_audit=AnalysisAudit()
+    scan_fetch_failure={}
     app_active=[True]
     lifecycle_background=[False]
     resume_busy=[False]
@@ -325,7 +326,8 @@ def app_main(page:ft.Page):
     def active_analysis_filters():
         return [name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
     def ema_on_chart():
-        return "EMA 9/21" in filter_selected and filter_modes.get("EMA 9/21","Both") in ("Chart","Both")
+        return ("EMA 9/21" in filter_selected and "EMA 9/21" in scanner_chart_indicators
+                and filter_modes.get("EMA 9/21","Both") in ("Chart","Both"))
     def parse_news_rss(raw,source):
         import xml.etree.ElementTree as ET
         from email.utils import parsedate_to_datetime
@@ -946,6 +948,10 @@ def app_main(page:ft.Page):
         analysis_audit.reset(context)
     def record_analysis(sym,tf,result=None,stage="analysis",error=None,elapsed=None,candle_count=0):
         audit_context()
+        failure=scan_fetch_failure.get((provider_generation[0],sym,tf))
+        if result is not None and failure and not error:
+            error=failure["detail"]
+            stage="last candle request failed; cached analysis"
         analysis_audit.record(sym,tf,result=result,stage=stage,error=error,
                               elapsed=elapsed,candle_count=candle_count)
     def filter_coverage_panel():
@@ -988,6 +994,10 @@ def app_main(page:ft.Page):
                        historical=bool(data.get("cached")) or provider_unverified or
                        (data.get("source")=="Dhan" and dhan_feed.historical_only) or
                        not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
+        failure=scan_fetch_failure.get((provider_generation[0],sym,"5m"))
+        if failure:
+            display.update(historical=True,live_verified=False,freshness="unverified",
+                           reason=str(display.get("reason",""))+" • Latest request failed: "+failure["detail"])
         record_analysis(sym,"5m",result=display,candle_count=len(raw))
         return display
     def historical_vote_agreement(data):
@@ -1229,11 +1239,12 @@ def app_main(page:ft.Page):
             # Reuse an already-loaded 5m candle series, never an index LTP
             # snapshot (which contains no historical bars). Do not issue a
             # network request while building the dashboard.
-            candle_data=(chart_snapshots.get((sym,"5m",provider_generation[0])) or
-                candles.get("scanner_chart_"+sym) or
-                (snapshot if snapshot.get("bars") else {}))
+            candle_data=(shared_history(sym) if prefs.get("source")=="Dhan" else
+                (chart_snapshots.get((sym,"5m",provider_generation[0])) or
+                 candles.get("scanner_chart_"+sym) or (snapshot if snapshot.get("bars") else {})))
             candle_tf=candle_data.get("_scanner_timeframe","5m")
-            if candle_tf!="5m" or candle_data.get("source")!=source:
+            expected_candle_source={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
+            if candle_tf!="5m" or candle_data.get("source")!=expected_candle_source:
                 candle_data={}
             quote_stamp=snapshot.get("fetched_at")
             if (valid_source and isinstance(quote_stamp,(int,float))
@@ -1242,7 +1253,7 @@ def app_main(page:ft.Page):
                                  " • exchange timestamp unverified"))
             else:
                 rows.append(note("LTP update unavailable • last known value only"))
-            if not valid_source or not candle_data.get("bars"):
+            if not candle_data.get("bars"):
                 rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
@@ -1273,8 +1284,7 @@ def app_main(page:ft.Page):
                    and not isinstance(index_quote.get("price"),bool)
                    and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
-            index_history=(chart_snapshots.get((index_name,"5m",provider_generation[0]))
-                           or candles.get("scanner_chart_"+index_name) or {})
+            index_history=shared_history(index_name)
             index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
             index_cards.append(ft.Container(
                 content=ft.Column([txt(index_name,16,WHITE,True),
@@ -3405,7 +3415,8 @@ def app_main(page:ft.Page):
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
     scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","30")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=14,color=MUTED)
-    if not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
+    if prefs.get("source")=="Dhan":scan_status.value="Automatic analysis • awaiting candle data"
+    elif not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
     scan_last_candle=[None]
     scan_last_success=[None]
     scan_next_refresh=[None]
@@ -3674,7 +3685,9 @@ console.log('BOT KING Lightweight Charts ready');
         now=datetime.now().timestamp()
         last=(str(max(0,int(now-scan_last_success[0])))+" sec ago") if scan_last_success[0] is not None else "—"
         candle=(str(max(0,int(now-scan_last_candle[0])))+" sec") if scan_last_candle[0] is not None else "—"
-        if not scan_live.value:
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
+            next_text="PAUSED — Dhan login required";scan_next_refresh[0]=None
+        elif not scan_live.value and prefs.get("source")!="Dhan":
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
@@ -3683,6 +3696,8 @@ console.log('BOT KING Lightweight Charts ready');
         elif not regular_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
         elif scan_busy[0]:next_text="checking history now"
+        elif prefs.get("source")=="Dhan" and scan_tf.value=="5m":
+            next_text="Automatic • shared candle feed • local check every 2s"
         elif scan_next_refresh[0] is None:next_text="waiting"
         else:next_text=str(max(0,int(scan_next_refresh[0]-now)))+" sec"
         scan_age_display.value="Last scan: "+last+" • Candle age: "+candle+"\n"+next_text
@@ -3730,42 +3745,96 @@ console.log('BOT KING Lightweight Charts ready');
         if current[0]==0:
             request_view_refresh(0)
     shared_analysis_seen={}
+    shared_analysis_calculated={}
     selected_report_identity=[None]
+    def shared_history(sym):
+        """Newest matching 5m series, using candle receipt rather than LTP time."""
+        expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
+        candidates=[chart_snapshots.get((sym,"5m",provider_generation[0])) or {},quotes.get(sym) or {}]
+        scanner_data=candles.get("scanner_chart_"+sym) or {}
+        if (scanner_data.get("_scanner_timeframe")=="5m" and
+                scanner_data.get("_scanner_generation")==scan_generation[0]):
+            candidates.append(scanner_data)
+        candidates=[item for item in candidates if item.get("source")==expected and item.get("bars")
+                    and item.get("_scanner_timeframe","5m")=="5m"]
+        def revision_order(item):
+            bars=item.get("bars") or []
+            last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
+            received=item.get("candle_fetched_at")
+            return (last if type(last) in (int,float) and math.isfinite(last) else 0,
+                    received if type(received) in (int,float) and math.isfinite(received) else 0)
+        return max(candidates,key=revision_order) if candidates else {}
+    def clear_scan_failure(sym,tf,data):
+        key=(provider_generation[0],sym,tf)
+        failure=scan_fetch_failure.get(key)
+        received=data.get("candle_fetched_at")
+        if (failure and type(received) in (int,float) and math.isfinite(received)
+                and received>=failure["at"]):
+            scan_fetch_failure.pop(key,None)
+    def selected_presentation(result,tf):
+        expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
+        shown=presentation_result(result,expected_source=expected,now=time.time(),
+            fresh_seconds=timeframe_spec(tf)["fresh_seconds"],market_open=regular_hours(),
+            connected=prefs.get("source")!="Dhan" or dhan_feed.connected)
+        sym=result.get("symbol") or scan_symbol.value or "NIFTY"
+        failure=scan_fetch_failure.get((provider_generation[0],sym,tf))
+        if failure and shown["display_state"]!="SOURCE MISMATCH":
+            shown.update(historical=True,live_verified=False,actionable_bias="WAIT",freshness="unverified",
+                         display_state="REFRESH FAILED • HISTORICAL")
+            detail="Latest request failed: "+failure["detail"]
+            if detail not in shown.get("reason",""):
+                shown["reason"]=str(shown.get("reason",""))+" • "+detail
+        return shown
+    def publish_selected_result(sym,tf,result,calculated_at=None):
+        if sym!=scan_symbol.value or tf!=scan_tf.value:return
+        shown=selected_presentation(result,tf)
+        scan_shared.update(symbol=sym,tf=tf,direction=shown.get("bias","WAIT"),
+            basis=shown["display_state"]+" • "+str(shown.get("reason","Awaiting candles")),
+            timestamp=shown.get("timestamp"),historical=shown["historical"],source=shown.get("source"))
+        scan_last_candle[0]=shown.get("timestamp")
+        if calculated_at is not None:scan_last_success[0]=calculated_at
+        scan_result.controls=[shared_filter_report(sym,tf,shown)]
+        scan_status.value=sym+" • "+shown["display_state"]+" • automatic analysis"
+        refresh_scan_age()
     def refresh_shared_analysis(only=None):
         # Local only: reuse completed candles; price polling cadence is unchanged.
-        if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+        if not app_active[0] or prefs.get("source")!="Dhan":
+            return
+        if not dhan_feed.connected:
+            sym=scan_symbol.value or "NIFTY"
+            disconnected_identity=("disconnected",provider_generation[0],sym,scan_tf.value)
+            if selected_report_identity[0]!=disconnected_identity:
+                prior=watch_signal_cache.get(sym) if scan_tf.value=="5m" else None
+                publish_selected_result(sym,scan_tf.value or "5m",prior or
+                    {"source":"Dhan","bias":"WAIT","reason":"Dhan connection required"})
+                selected_report_identity[0]=disconnected_identity
+                if current[0] in (0,3):request_view_refresh(current[0])
             return
         universe=([only] if only else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)))
         updated=False
         for sym in universe:
-            candidates=[chart_snapshots.get((sym,"5m",provider_generation[0])) or {},quotes.get(sym) or {}]
-            scanner_data=candles.get("scanner_chart_"+sym) or {}
-            if (scanner_data.get("_scanner_timeframe")=="5m" and
-                    scanner_data.get("_scanner_generation")==scan_generation[0]):
-                candidates.append(scanner_data)
-            def revision_order(item):
-                bars=item.get("bars") or []
-                last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
-                return (last if type(last) in (int,float) else 0,item.get("candle_fetched_at") or 0)
-            candidates=[item for item in candidates if item.get("source")=="Dhan" and item.get("bars")]
-            data=max(candidates,key=revision_order) if candidates else {}
+            data=shared_history(sym)
             if data.get("source")!="Dhan" or not data.get("bars"):
                 continue
             try:
+                clear_scan_failure(sym,"5m",data)
                 raw=data["bars"]
                 # Full completed input revision, not LTP or only last timestamp.
                 completed=[list(b) for b in raw if isinstance(b,(tuple,list)) and len(b)>=6
                            and type(b[0]) in (int,float) and b[0]+300<=time.time()]
                 identity=(provider_generation[0],tuple(filter_selected),tuple(sorted(filter_modes.items())),
                           prefs.get("confidence",75),json.dumps(completed,allow_nan=False),
-                          data.get("freshness"),data.get("live_verified"),bool(data.get("cached")))
+                          data.get("freshness"),data.get("live_verified"),bool(data.get("cached")),
+                          regular_hours(),bool(dhan_feed.historical_only),
+                          bool(completed and 0<=time.time()-completed[-1][0]<=timeframe_spec("5m")["fresh_seconds"]),
+                          bool(scan_fetch_failure.get((provider_generation[0],sym,"5m"))))
                 report_identity=(sym,"5m",identity)
                 if shared_analysis_seen.get(sym)==identity:
-                    if (sym==scan_symbol.value and scan_tf.value=="5m" and not scan_busy[0]
+                    if (sym==scan_symbol.value and scan_tf.value=="5m" and (not scan_busy[0] or scan_filter_ready[0])
                             and selected_report_identity[0]!=report_identity):
                         prior=watch_signal_cache.get(sym)
                         if prior:
-                            scan_result.controls=[shared_filter_report(sym,"5m",prior)]
+                            publish_selected_result(sym,"5m",prior,shared_analysis_calculated.get(sym))
                             selected_report_identity[0]=report_identity
                             updated=True
                     continue
@@ -3773,14 +3842,22 @@ console.log('BOT KING Lightweight Charts ready');
                 result=display_analysis(sym,data)
                 record_analysis(sym,"5m",result=result,elapsed=time.monotonic()-began,candle_count=len(raw))
                 shared_analysis_seen[sym]=identity
+                shared_analysis_calculated[sym]=time.time()
                 watch_signal_cache[sym]=dict(result,symbol=sym)
                 five_engine_snapshots[sym]=scanner_snapshot(result)
-                if sym==scan_symbol.value and scan_tf.value=="5m" and not scan_busy[0]:
-                    scan_result.controls=[shared_filter_report(sym,"5m",result)]
+                if sym==scan_symbol.value and scan_tf.value=="5m" and (not scan_busy[0] or scan_filter_ready[0]):
+                    publish_selected_result(sym,"5m",result,shared_analysis_calculated[sym])
                     selected_report_identity[0]=report_identity
                 updated=True
             except Exception as exc:
                 record_analysis(sym,"5m",stage="local analysis",error=type(exc).__name__)
+                prior=watch_signal_cache.get(sym)
+                if prior:
+                    watch_signal_cache[sym]=dict(prior,historical=True,live_verified=False,freshness="unverified")
+                    five_engine_snapshots[sym]=scanner_snapshot(watch_signal_cache[sym])
+                if sym==scan_symbol.value and scan_tf.value=="5m":
+                    publish_selected_result(sym,"5m",{"source":"Dhan","bias":"WAIT",
+                        "reason":"Local analysis failed • "+type(exc).__name__})
                 log_error("shared_analysis",exc)
         if updated:
             # Index analysis shares the cache, but Super Five retains its
@@ -3788,12 +3865,14 @@ console.log('BOT KING Lightweight Charts ready');
             publish_partial_ranking({sym:row for sym,row in watch_signal_cache.items() if sym in watch_symbols})
             if current[0] in (0,3,4):request_view_refresh(current[0])
     def shared_filter_report(sym,tf,result):
+        result=selected_presentation(result,tf)
         rows=complete_filter_rows(result,filter_selected,filter_modes)
         when=result.get("timestamp")
         stamp=(datetime.fromtimestamp(when,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
                if isinstance(when,(int,float)) else "unavailable")
         return section("ANALYSIS BASIS • Candles & Filters",ft.Column([
             txt(sym+" • "+tf+" • "+str(result.get("bias","WAIT")),16,GOLD,True),
+            note(result["display_state"]+" • refresh does not verify exchange time"),
             note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
             note(result.get("reason","Awaiting data")),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
@@ -3810,7 +3889,7 @@ console.log('BOT KING Lightweight Charts ready');
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
-        while scan_live.value and generation==scan_auto_generation[0]:
+        while (scan_live.value or prefs.get("source")=="Dhan") and generation==scan_auto_generation[0]:
             # Dhan already has one shared historical scan scheduler (refresh_market).
             # Never run a second automatic selected-symbol scanner alongside it.
             if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):
@@ -3856,12 +3935,18 @@ console.log('BOT KING Lightweight Charts ready');
             scan_generation[0]+=1
             # Explicit selection changes reload the chart; background scans do not.
             scan_result.controls.clear()
+            scan_last_success[0]=None;scan_last_candle[0]=None
+            selected_report_identity[0]=None;scan_filter_ready[0]=False
             sym=scan_symbol.value or "NIFTY"
+            scan_shared.update(symbol=sym,tf=scan_tf.value,direction="WAIT",timestamp=None,
+                               historical=True,basis="Awaiting selected symbol candles")
+            scan_status.value=sym+" • awaiting selected candles"
+            scan_result.controls=[card(note(sym+" • loading selected candle analysis"))]
             prior=watch_signal_cache.get(sym) if scan_tf.value=="5m" else None
             if prior and prior.get("source")==prefs.get("source") and prior.get("timestamp"):
-                snapshot=quotes.get(sym) or chart_snapshots.get((sym,"5m",provider_generation[0])) or {}
+                snapshot=shared_history(sym)
                 if snapshot.get("source")==prefs.get("source") and snapshot.get("bars"):
-                    scan_result.controls=[shared_filter_report(sym,"5m",display_analysis(sym,snapshot))]
+                    publish_selected_result(sym,"5m",display_analysis(sym,snapshot),shared_analysis_calculated.get(sym))
             if current[0]==3:select(3)
         if e is not None and e.control is scan_budget:
             scan_min.visible=scan_budget.value=="Custom";scan_max.visible=scan_budget.value=="Custom"
@@ -3875,6 +3960,7 @@ console.log('BOT KING Lightweight Charts ready');
         c.on_change=trigger_scan
     scan_result=ft.Column(spacing=12)
     scan_busy=[False]
+    scan_filter_ready=[False]
     def scan_num(x):
         return f"{x:,.2f}" if isinstance(x,(float,int)) else "—"
     scanner_chart_visible=[bool(prefs.get("scanner_chart_visible",True))]
@@ -3906,7 +3992,7 @@ console.log('BOT KING Lightweight Charts ready');
         if e.control.value and name not in scanner_chart_indicators:scanner_chart_indicators.append(name)
         if not e.control.value and name in scanner_chart_indicators:scanner_chart_indicators.remove(name)
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
-        if name=="EMA 9/21":filter_modes[name]="Both" if e.control.value else "Analysis";prefs["filter_modes"]=dict(filter_modes)
+        # Chart visibility does not alter the central Analysis/Chart/Both rule.
         save();select(3)
     def scanner_chart_style_change(e):
         scanner_chart_style[0]=e.control.value
@@ -4106,6 +4192,21 @@ console.log('BOT KING Lightweight Charts ready');
         if not scan_busy[0]:
             scan_busy[0]=True
             await scan_market()
+    async def selected_combined(sym,interval,advanced,generation):
+        # Optional news must not keep a newly selected symbol waiting for the
+        # previous symbol's 20-second timeout. Cancelling does not stop a worker
+        # thread already fetching RSS, but it prevents publishing its old result.
+        task=asyncio.create_task(load_combined(sym,interval,advanced))
+        try:
+            while True:
+                if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value):
+                    return None
+                done,_=await asyncio.wait({task},timeout=.1)
+                if done:return task.result()
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
     async def scan_market():
         nonlocal market_status
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -4113,6 +4214,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_busy[0]=False
             return
         generation=scan_generation[0]
+        scan_filter_ready[0]=False
         import math
         from datetime import timezone
         stage="selection"
@@ -4132,6 +4234,7 @@ console.log('BOT KING Lightweight Charts ready');
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             stage="candle validation"
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
+            clear_scan_failure(sym,interval,hist)
             bars=hist.get("bars") or []
             candles["scanner_chart_"+sym]=dict(hist,_scanner_timeframe=interval,
                                               _scanner_generation=generation)
@@ -4189,6 +4292,7 @@ console.log('BOT KING Lightweight Charts ready');
             stage="filter calculation"
             advanced=analyze_current(bars,filter_selected,interval)
             record_analysis(sym,interval,result=advanced,candle_count=len(bars))
+            scan_last_candle[0]=advanced.get("timestamp")
             if hist.get("cached"):
                 advanced.update(bias="WAIT",score=0,reason=advanced["reason"]+" • Saved data only: refresh failed; no new live signal")
             direction=advanced["bias"]
@@ -4209,6 +4313,7 @@ console.log('BOT KING Lightweight Charts ready');
                 note(basis),*lines,
                 note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
             ],spacing=5))]
+            scan_filter_ready[0]=True
             if current[0]==3:
                 page.update()
             stage="premium simulation"
@@ -4315,7 +4420,8 @@ console.log('BOT KING Lightweight Charts ready');
                 ft.ElevatedButton("Dashboard",on_click=lambda e:select(0))
             ])))
             try:
-                combined=await asyncio.wait_for(load_combined(sym,interval,advanced),timeout=20)
+                combined=await asyncio.wait_for(selected_combined(sym,interval,advanced,generation),timeout=20)
+                if combined is None:return
             except Exception as exc:
                 log_error("combined_news",exc)
                 missing={"items":[],"status":safe_error(exc)}
@@ -4334,6 +4440,9 @@ console.log('BOT KING Lightweight Charts ready');
         except Exception as exc:
             log_error("scanner",exc)
             if generation!=scan_generation[0]:return
+            if stage!="premium simulation":
+                scan_fetch_failure[(provider_generation[0],sym,interval)]={
+                    "at":time.time(),"detail":stage+" • "+type(exc).__name__}
             record_analysis(sym,interval,stage=stage,error=type(exc).__name__,elapsed=time.monotonic()-started)
             scan_status.value=sym+" • "+stage+" failed • previous result is historical"
             if stage!="premium simulation" or not scan_result.controls:
@@ -4344,7 +4453,10 @@ console.log('BOT KING Lightweight Charts ready');
                     *[txt(row["name"]+" • UNAVAILABLE • "+row["detail"],14,MUTED) for row in missing_rows],
                     note("No new signal. Price availability does not prove candle availability.")],spacing=4))]
         finally:
-            scan_busy[0]=False
+            scan_busy[0]=False;scan_filter_ready[0]=False
+            if generation==scan_generation[0] and prefs.get("source")=="Dhan" and scan_tf.value=="5m":
+                selected_report_identity[0]=None
+                refresh_shared_analysis(scan_symbol.value or "NIFTY")
             refresh_scan_age()
             if generation!=scan_generation[0]:
                 page.run_task(restart_latest_scan)
@@ -4403,9 +4515,17 @@ console.log('BOT KING Lightweight Charts ready');
         # Prefer last known snapshots from the newly selected provider.
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
         scan_next_refresh[0]=None
+        scan_last_success[0]=None;scan_last_candle[0]=None
+        shared_analysis_seen.clear();shared_analysis_calculated.clear();scan_fetch_failure.clear();selected_report_identity[0]=None
+        scan_shared.clear()
+        scan_shared.update(symbol=scan_symbol.value or "NIFTY",tf=scan_tf.value or "5m",
+                           direction="WAIT",basis="Provider changed • awaiting candles",timestamp=None,historical=True)
         scan_result.controls.clear()
         connection_status.value=("Dhan read-only • 51 equities mapped • "+("HISTORICAL ONLY • LIVE LTP UNAVAILABLE" if dhan_feed.historical_only else "LTP verified • quote timestamp unverified" if dhan_feed.connected else "reconnect required") if source.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
         scan_status.value=connection_status.value
+        scan_auto_generation[0]+=1
+        if scan_live.value or prefs.get("source")=="Dhan":
+            page.run_task(auto_scan_loop,scan_auto_generation[0])
         select(current[0])
     broker_previous=broker.on_change
     def broker_changed(e):

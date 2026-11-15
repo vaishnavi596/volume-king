@@ -37,3 +37,38 @@ batch does not create unavailable derivatives/news feeds, prove independent
 engine evidence or convert agreement percentages to accuracy. Running-candle
 provisional signals, streaming feeds and server rate changes need separate
 validation within the same groups above rather than inflated fix counts.
+
+## Joint patch 2 — selection, freshness and automatic handoff
+
+This continues groups 2–5 above; it does not create another list of numbered fixes.
+
+- Scanner, Home summary and completed-candle clock are published together. A
+  cached replay keeps the original calculation time rather than pretending a new
+  source update arrived. Selecting an unloaded symbol clears the old report and
+  clocks immediately; changing provider clears the old summary and restarts the
+  eligible automatic loop.
+- A single newest-5m-history selector is used for Scanner handoff, shared analysis
+  and index cards. It ranks actual candle receipt separately from LTP receipt.
+  Historical candle analysis can remain visible when an index LTP is unavailable.
+- Display-time gates demote expired, disconnected, closed-session and mismatched
+  provider evidence. A UI refresh cannot manufacture a verified signal. Invalid
+  timestamps cannot reach date rendering; source-mismatched votes are excluded.
+- Legacy `scanner_live=False` no longer stops Dhan's automatic analysis paths or
+  produces an OFF caption for a running shared feed. Watchlist price cadence,
+  request lock, cache durations and provider cooldowns are unchanged.
+- Slow optional news does not prevent a completed filter result from receiving
+  newer shared candles. Changing selection releases obsolete news work within a
+  short context check; an already-running RSS worker may still finish, but cannot
+  publish its result into the newly selected symbol.
+- Chart overlay visibility is separate from the central Analysis/Chart/Both
+  setting. Hiding an EMA line cannot silently change analysis selection.
+- A failed candle request remains an active audit/report failure when only older
+  cached candles are available. It clears only after a matching candle response
+  received after that failure; old local re-analysis cannot turn it into success.
+  Last-available evidence remains explicitly historical and non-actionable.
+
+Validation adds real-Flet callback tests for selection clocks, provider switches,
+legacy automatic settings, news cancellation, cross-surface history selection,
+bad-data demotion and failure recovery, plus pure presentation-gate tests. These
+remain offline tests, not real broker/device certification. Build stays deferred
+until the final combined audit; no release version or build workflow is changed.

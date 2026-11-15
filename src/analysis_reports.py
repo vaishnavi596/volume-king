@@ -1,6 +1,34 @@
 """Presentation and coverage accounting; never creates a directional vote."""
 from copy import deepcopy
+import math
 from time import time
+
+
+def presentation_result(result, *, expected_source, now, fresh_seconds,
+                        market_open, connected=True):
+    """Gate cached evidence at display time; refreshing UI never refreshes evidence."""
+    shown = deepcopy(result or {})
+    stamp = shown.get("timestamp")
+    has_stamp = type(stamp) in (int, float) and math.isfinite(stamp) and stamp > 0
+    valid_stamp = has_stamp and 0 <= now-stamp <= fresh_seconds
+    source_ok = bool(expected_source) and shown.get("source") == expected_source
+    live = bool(connected and market_open and source_ok and valid_stamp
+                and shown.get("live_verified") is True
+                and shown.get("freshness") in ("verified_live", "live_verified")
+                and not shown.get("historical") and not shown.get("cached"))
+    state = ("SOURCE MISMATCH" if not source_ok else "DISCONNECTED" if not connected
+             else "UNAVAILABLE" if not has_stamp
+             else "LIVE VERIFIED" if live else "HISTORICAL / UNVERIFIED")
+    shown.update(historical=not live, live_verified=live, display_state=state,
+                 actionable_bias=shown.get("bias", "WAIT") if live else "WAIT")
+    if not has_stamp:
+        shown["timestamp"] = None
+    if not live:
+        shown["freshness"] = "unverified"
+    if not source_ok:
+        shown.update(bias="WAIT", score=0, timestamp=None, votes=[],
+                     reason="Previous provider result excluded; awaiting selected source")
+    return shown
 
 
 def complete_filter_rows(result, selected, modes=None):
