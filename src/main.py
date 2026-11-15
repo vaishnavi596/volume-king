@@ -4310,17 +4310,51 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def central_filter_settings():
-        filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
-        added_filter_list.controls=[ft.Container(content=ft.Column([
-            ft.Checkbox(label=name,value=name in filter_selected,data=name,on_change=filter_checkbox_changed),
-            note(filter_availability(name)),
-            ft.OutlinedButton("Remove ×",on_click=lambda e,n=name:remove_added_filter(n)),filter_mode_control(name)
-        ],spacing=3),padding=8,bgcolor=PANEL2,border_radius=8) for name in added_filters]
-        if not added_filters:added_filter_list.controls=[note("No extra filters added. Add below; each extra filter will appear here.")]
+        # Active is a movable 10-slot list; unselected default/extra/OI
+        # indicators return to the available pool immediately after removal.
+        available_filters=[name for name in filter_names if name not in filter_selected]
+        filter_checklist.controls=[
+            ft.Container(content=ft.Column([
+                ft.Row([ft.Container(content=txt(name,13,WHITE,True),expand=True),
+                        ft.OutlinedButton("Remove",on_click=lambda e,n=name:remove_added_filter(n))],
+                       spacing=5),
+                note(filter_availability(name)),
+                filter_mode_control(name)
+            ],spacing=3),padding=8,bgcolor=PANEL2,border_radius=8)
+            for name in filter_selected]
+        if not filter_selected:
+            filter_checklist.controls=[note("No active filters • choose up to 10 from the available list below.")]
+        added_filter_list.controls=[
+            ft.Container(content=ft.Row([
+                ft.Container(content=ft.Column([
+                    txt(name,13,WHITE,True),note(filter_availability(name))
+                ],spacing=2),expand=True),
+                ft.OutlinedButton("Add",on_click=lambda e,n=name:add_filter_slot(n),
+                                  disabled=len(filter_selected)>=10)
+            ],spacing=6),padding=8,bgcolor=PANEL2,border_radius=8)
+            for name in available_filters]
+        if not available_filters:
+            added_filter_list.controls=[note("All supported filters are already active.")]
+        filter_choice.options=[ft.dropdown.Option(name) for name in available_filters]
+        if filter_choice.value not in available_filters:
+            filter_choice.value=None
+        filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/10 active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Different timeframes can produce different results."),
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Active slots and order are saved."),
             filter_coverage_panel(),
-            section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5))
+            section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/10",
+                ft.Column([note("Remove any active filter to free a slot; available filters are listed below."),
+                           filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
+            section("AVAILABLE FILTERS • "+str(len(available_filters)),
+                ft.Column([added_filter_list,
+                           note("OI Support, OI Resistance, OI Profile and Max Pain can be selected and saved; their votes remain WAIT until verified Dhan option-chain data is connected.")],spacing=4)),
+            section("FIND & ADD FILTER",ft.Column([
+                filter_query,filter_choice,ft.Row([
+                    ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True),
+                                      disabled=len(filter_selected)>=10),
+                    ft.OutlinedButton("Remove selected",on_click=lambda e:filter_edit(False))]),
+                filter_feedback,note("Only verified data can vote. Adding a filter does not create a chart overlay.")
+            ],spacing=5))
         ],spacing=6))
     def open_filter_settings(e=None):
         select(2)
