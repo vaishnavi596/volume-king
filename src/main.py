@@ -1502,6 +1502,9 @@ def app_main(page:ft.Page):
         return save()
     def all_watch_symbols():
         return list(dict.fromkeys(sym for group in watch_groups for sym in group))
+    def watch_symbol_owner(sym):
+        # A security may belong to ONE of the five lists, never two.
+        return next((i for i, group in enumerate(watch_groups) if sym in group), None)
     def configured_scan_symbols():
         # Scanner coverage is independent of which symbols remain in a saved list.
         if prefs.get("source")=="Dhan":
@@ -1550,8 +1553,12 @@ def app_main(page:ft.Page):
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
-            # The 70-equity allowance is global across all five lists,
-            # not 70 new securities in EACH list. Shared duplicates are free.
+            # A symbol cannot be saved in two lists: one owner across all five.
+            owner=watch_symbol_owner(sym)
+            if owner is not None and owner!=target_list:
+                feedback.value=sym+" already saved in List "+str(owner+1)+". Remove it there before adding."
+                page.update()
+                return
             if sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
                 feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
                 page.update()
@@ -1583,6 +1590,8 @@ def app_main(page:ft.Page):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
         elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
+        elif watch_symbol_owner(sym) is not None:
+            feedback.value=sym+" already saved in List "+str(watch_symbol_owner(sym)+1)+". Remove it there before adding."
         elif sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
             feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
         elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:

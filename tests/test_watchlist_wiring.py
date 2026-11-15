@@ -42,6 +42,18 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("def verified_equity_symbol(self, symbol):",feed)
         self.assertIn("/v2/instruments/search?q=",feed)
 
+    def test_no_duplicate_symbol_across_five_watchlists(self):
+        owner = ast.get_source_segment(self.source, self.functions["watch_symbol_owner"])
+        self.assertIn("enumerate(watch_groups)",owner)
+        self.assertIn("sym in group",owner)
+        validate = ast.get_source_segment(self.source, self.functions["validate_and_add"])
+        add = ast.get_source_segment(self.source, self.functions["add_watch"])
+        self.assertIn("owner=watch_symbol_owner(sym)",validate)
+        self.assertIn("owner!=target_list",validate)
+        self.assertIn("watch_symbol_owner(sym) is not None",add)
+        self.assertIn("Remove it there before adding",validate)
+        self.assertIn("Remove it there before adding",add)
+
     def test_remove_is_list_scoped_and_persisted(self):
         remove = ast.get_source_segment(self.source, self.functions["remove_stock"])
         self.assertIn("watch_groups[active_watch[0]]", remove)
