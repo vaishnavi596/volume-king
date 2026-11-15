@@ -3488,7 +3488,7 @@ def app_main(page:ft.Page):
                 save();page.update()
             except (ValueError,TypeError,KeyError,OverflowError) as exc:paper_state_status.value="Paper tick blocked: "+str(exc);page.update()
     def paper_control_card():
-        return section("PAPER BOT • MANUAL TICK ENGINE",ft.Column([paper_state_status,note("Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position."),ft.Row([ft.ElevatedButton("Start Paper",on_click=lambda e:paper_run("Start")),ft.OutlinedButton("Pause",on_click=lambda e:paper_run("Pause")),ft.OutlinedButton("Stop new actions",on_click=lambda e:paper_run("Stop"))],wrap=True),paper_mark,ft.TextButton("Process manual mark",on_click=paper_tick),cash_max_quantity,paper_max_additions,paper_add_units,paper_trail_pct,paper_partial_trigger,paper_partial_pct,paper_reentry_after_sl],horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+        return section("PAPER BOT • MANUAL TICK ENGINE",ft.Column([paper_state_status,note("Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position."),ft.Row([ft.ElevatedButton("Start Paper",on_click=lambda e:paper_run("Start")),ft.OutlinedButton("Pause",on_click=lambda e:paper_run("Pause")),ft.OutlinedButton("Stop new actions",on_click=lambda e:paper_run("Stop"))],wrap=True),paper_mark,ft.TextButton("Process manual mark",on_click=paper_tick)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def paper_journal_card():
         rows=[]
         for item in reversed(prefs.get("paper_journal",[])[-10:]):
@@ -3574,6 +3574,8 @@ def app_main(page:ft.Page):
                            max_total_lots,cooldown,squareoff,
                            emergency_stop,auto_entry,auto_reentry,
                            paper_break_even,paper_break_even_trigger,paper_break_even_fees,
+                           cash_max_quantity,paper_max_additions,paper_add_units,
+                           paper_trail_pct,paper_partial_trigger,paper_partial_pct,
                            paper_reentry_after_sl,
                            protection_mode,protection_enabled,
                            protection_loss,protection_profit,protection_trail,
