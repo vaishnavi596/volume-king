@@ -2699,8 +2699,10 @@ def app_main(page:ft.Page):
                         connection_status.color=GOLD
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
-                    # Verify watchlist batch independently of the login check.
+                    # Verify the batch once and start the shared 60s request clock.
+                    # The background poll and Watchlist page entry must reuse it.
                     try:
+                        watch_batch_last_attempt[0]=time.monotonic()
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
                         if not batch:
                             raise FeedError("Empty Dhan batch response")
