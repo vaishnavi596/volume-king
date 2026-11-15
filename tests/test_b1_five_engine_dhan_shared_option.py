@@ -12,7 +12,7 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         block=SOURCE.split("    async def option_poll():",1)[1].split("    def selected_option_rows():",1)[0]
         self.assertIn("current[0] in (0,1,3)",block)
         self.assertIn('prefs.get("source")=="Dhan"',block)
-        self.assertIn('chain_symbol.value=="NIFTY"',block)
+        self.assertIn('chain_symbol.value in DHAN_VERIFIED_SYMBOLS',block)
         self.assertIn('dhan_feed.connected',block)
         self.assertIn('dhan_option_last_attempt[0]>=60',block)
         self.assertIn("await refresh_selected_options()",block)
