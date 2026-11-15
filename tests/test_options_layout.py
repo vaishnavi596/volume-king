@@ -45,7 +45,7 @@ class OptionsLayoutTests(unittest.TestCase):
         for control in controls:
             walk(control)
         self.assertNotIn("Refresh Dhan Option Chain", labels)
-        self.assertIn("Auto refresh • Dhan broker-listed expiries and option metrics", rendered_text(ft.Column(controls)))
+        self.assertIn("Auto refresh • Dhan broker-listed expiry and option metrics", rendered_text(ft.Column(controls)))
         self.assertFalse(any("Connect Angel One in Settings" in rendered_text(control) for control in controls))
 
     def test_options_have_no_expanded_controls_in_scroll_or_wrap(self):
