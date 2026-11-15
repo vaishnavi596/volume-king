@@ -802,15 +802,27 @@ def app_main(page:ft.Page):
         total=bulls+bears
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
     def vote_display(agreement, fresh=False, timeframe="5m"):
+        # Shared compact candle-vote presentation for dashboard, scanner and lists.
+        # Percentages are filter agreement, never a trading win probability.
         if not agreement:return note("Candle votes unavailable")
         bull,bear,total=agreement
+        bull=max(0,min(100,int(bull)))
+        bear=max(0,min(100,int(bear)))
         return ft.Column([
-            ft.Row([ft.Text("Bullish "+str(bull)+"%",size=14,color=GREEN,weight=ft.FontWeight.BOLD,tooltip="Directional filter agreement, not win probability"),
-                    ft.Text("Bearish "+str(bear)+"%",size=14,color=RED,weight=ft.FontWeight.BOLD)],wrap=True,spacing=8),
-            ft.Row([ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
-                    ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)],spacing=0,height=4),
-            note(("LIVE" if fresh else "HIST • NOT live")+" • "+timeframe+" • "+str(total)+" directional votes")
-        ],spacing=2)
+            ft.Row([
+                ft.Text("Bullish "+str(bull)+"%",size=12,color=GREEN,weight=ft.FontWeight.BOLD,
+                        tooltip="Directional filter agreement, not win probability"),
+                ft.Text("Bearish "+str(bear)+"%",size=12,color=RED,weight=ft.FontWeight.BOLD),
+                ft.Text("LIVE" if fresh else "HIST",size=10,color=MUTED,
+                        tooltip="Historical candles are not verified live signals")
+            ],wrap=True,spacing=6),
+            ft.Row([
+                ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
+                ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)
+            ],spacing=0,height=3),
+            ft.Text(timeframe+" • "+str(total)+" votes"+("" if fresh else " • NOT live"),
+                    size=10,color=MUTED)
+        ],spacing=1)
 
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
