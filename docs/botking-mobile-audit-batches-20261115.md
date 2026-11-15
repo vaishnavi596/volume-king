@@ -157,3 +157,10 @@ Evidence: user screenshot of System Health and Error History on installed BOT KI
 - Commits: `2487368` implementation; `49bcdd3` regression guard in `tests/test_scanner_chart_delivery_retry.py`.
 - Verification gate: full offline regression must pass; user must switch NIFTY→HDFCBANK→BANKNIFTY→RELIANCE without leaving Scanner, verify correctly labelled chart and latest saved candle dates on each, ensure no old symbol candle flicker and no white blank canvas. Confirm same after Android app background/resume and TradingView/BOT KING chart provider selection. Treat **MOBILE PASS as pending** until observed.
 - This is now part of the combined F1–F7 release gate, not an unrelated second APK. B7 market-session and B8/B9 future evidence-data gates remain separately scoped.
+
+
+### F1–F7 implementation checkpoint (2026-11-15)
+- Partial closed-session gating implemented in `src/main.py`: regular-hours check now suspends *automatic* equity and index LTP polling, Watchlist page-entry refresh and resume quote/history fetch while outside the existing weekday 09:15–15:30 session. Watchlist countdown says `Market closed • auto-refresh paused`.
+- Super Five repeated local cache calculation pauses outside regular hours. Scanner skips costly off-hours repeated shared analysis but keeps local selected-chart render/recovery available while the Scanner page is open. This preserves F7 chart switching even on closed days.
+- Commits `54c3ab3`, `321ea2c`, `b614ab1`, and legacy assertion updates `e6664a8`, `451776f`, `48505ca`. Offline regression run 43682835716 PASS.
+- **Not yet implemented:** official NSE/BSE holiday and special-session calendar, global heading with correct holiday name, strict per-login single closed-session data-check guard, and broker-verified source exchange timestamps. These require separate integration and live device/Oracle validation. Do not declare F1–F7 complete or create a final combined APK based solely on this checkpoint.
