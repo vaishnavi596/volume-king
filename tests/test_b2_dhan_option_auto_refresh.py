@@ -61,6 +61,20 @@ class DhanMultiUnderlyingOptionsTests(unittest.TestCase):
                 call.assert_called_once_with("/optionchain/expirylist",{
                     "UnderlyingScrip":2885,"UnderlyingSeg":"NSE_EQ"})
 
+    def test_scanner_and_five_engine_option_context_match_selected_symbol(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        context=source.split("    def scanner_option_context():",1)[1].split("    def scanner():",1)[0]
+        self.assertIn("symbol!=chain_symbol.value",context)
+        self.assertIn('data.get("symbol")!=symbol',context)
+        self.assertIn('data.get("source")!="dhan"',context)
+        self.assertIn('message=("Dhan "+symbol+',context)
+        self.assertNotIn('if symbol!="NIFTY"',context)
+        summary=source.split("    def five_engine_summary(symbol):",1)[1].split(
+            "    def five_engine_chips(sym):",1)[0]
+        self.assertIn("symbol==chain_symbol.value",summary)
+        self.assertNotIn('symbol=="NIFTY"',summary)
+
     def test_mobile_has_auto_refresh_for_all_mapped_option_symbols(self):
         from pathlib import Path
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
