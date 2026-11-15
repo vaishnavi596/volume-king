@@ -114,3 +114,12 @@ This canonical list consolidates the historical six-batch register, Batch 4 five
 6. After work, append dated proof to `docs/BOT_KING_WORK_LOG.md`; update Handoff baseline. Never rewrite historical evidence or use a previous assistant summary as a CI/production proof.
 
 **No live broker orders, no token rotation, no silent non-Dhan fallback.**
+
+
+## 2026-11-16 — NEWER DEVICE FAILURE AND 2.3.127 REPAIR TRACK
+
+- **Most recent user device report supersedes earlier installed-version notes:** v**2.3.126** was installed; **automatic refresh after login still fails/not observed** and Super Five B/S filters/data remain incomplete. Option Chain for HDFCBANK and other supported underlyings needs end-to-end verification. **MOBILE FAIL overrides any older "device untested" label for the reported behavior, but does not prove all screens failed.**
+- **Do NOT call 2.3.126 fixed merely because Build #641 and 809 offline tests passed.**
+- **Approved next repair programme:** `docs/BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md`. Read it before touching app: batches 127-A through 127-E (login bootstrap; independent equity/index; Super Five historical B/S; Options/HDFCBANK; regression/build). Version 2.3.127 is a **planned candidate, not yet built**.
+- App source audit found per-login session bootstrap is not guaranteed on app-open; connected-only poll guards and closed-hours option loop are potential blockers. Actual mobile and server correlation remains unverified.
+- Oracle production and Dhan OAuth unchanged; live orders OFF. Preserve old app data, 15 filters, five watchlists/global 70, historical 51+3 and signed package/versionCode policy.
