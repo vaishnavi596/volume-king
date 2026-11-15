@@ -1002,6 +1002,7 @@ def app_main(page:ft.Page):
             note("Candle scan: "+str(valid)+"/"+str(total)+" • "+state[:100] if dhan else "Candle scan: awaiting "+prefs.get("source","selected")+" analysis"),
             note("Chart: "+component_status("market")),
             note("Super Five: historical analysis only until latest completed candle is verified"),
+            note("Paper Bot: "+paper_bot_state[0]+" • five simulated profiles • manual ticks only • live orders OFF"),
             note("Server: "+("HTTPS configured" if prefs.get("api_url") else "HTTPS not configured")+" • remote health not independently verified"),
             note("Settings: "+preference_writer.status+" • disk "+("saved" if preference_writer.disk_saved else "not confirmed")),
             note("UI version: "+APP_VERSION+" • verify APK package version"),
