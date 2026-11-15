@@ -22,7 +22,8 @@ Reference: Android BOT KING v2.3.113 screenshots captured around 10:35–10:36 I
 
 ## Batch B4 — Indices and signal validity
 - Observed: NIFTY LTP shown; BANKNIFTY and SENSEX unavailable, despite historical Bullish/Bearish votes. Historical `HIST • NOT live` labels are correct; 54/54 analysis is not proof of 54 live quotes.
-- State: OPEN pending Oracle `/dhan/index-ltp-batch` and missing-symbol fallback checks; do not synthesize quotes from candles.
+- Code guard: missing or malformed batch/fallback index quotes preserve the last valid Dhan price but downgrade `freshness` to `unverified` and set `provider_status=provider_data_unavailable` (commit `b2d3e3c`; regression `30a95e8`).
+- State: CODE COMMITTED; Oracle `/dhan/index-ltp-batch` and missing-symbol fallback **live checks still pending**. Do not synthesize quotes from candles.
 
 ## Batch B5 — Compact UI and priority refresh
 - Existing targets: scanner selected-symbol local check ~2s, Super Five changed-candle cache check ~10s, equity snapshot ~60s, chart/history on their own schedule.
