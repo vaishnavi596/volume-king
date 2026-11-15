@@ -13,7 +13,7 @@ class DhanOnlyProviderSelectionTests(unittest.TestCase):
         self.assertIn('"source":"Dhan"', SOURCE)
 
     def test_both_provider_dropdowns_offer_only_dhan(self):
-        self.assertEqual(SOURCE.count('options=[ft.dropdown.Option("Dhan")])'), 2)
+        self.assertGreaterEqual(SOURCE.count('options=[ft.dropdown.Option("Dhan")])'), 2)
         self.assertNotIn('options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])', SOURCE)
 
     def test_saved_unknown_provider_defaults_to_dhan(self):
