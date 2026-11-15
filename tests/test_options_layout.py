@@ -33,7 +33,7 @@ class OptionsLayoutTests(unittest.TestCase):
         self.assertIn("Missing strikes are not zero", shown)
         self.assertFalse(v["selected_option_rows"]())
 
-    def test_options_have_visible_dhan_refresh(self):
+    def test_options_auto_refresh_without_manual_button(self):
         _, v = start({"source": "Dhan", "scanner_live": False})
         controls = v["options"]()
         labels = []
@@ -44,7 +44,8 @@ class OptionsLayoutTests(unittest.TestCase):
                 walk(child)
         for control in controls:
             walk(control)
-        self.assertIn("Refresh Dhan Option Chain", labels)
+        self.assertNotIn("Refresh Dhan Option Chain", labels)
+        self.assertIn("Auto refresh • Dhan broker-listed expiries and option metrics", rendered_text(ft.Column(controls)))
         self.assertFalse(any("Connect Angel One in Settings" in rendered_text(control) for control in controls))
 
     def test_options_have_no_expanded_controls_in_scroll_or_wrap(self):
