@@ -166,3 +166,18 @@ APK candidate is 2.3.111. Permanent-signing and version-code checks remain in th
 existing workflow. Physical update-install, selected-symbol handoff, all 54
 report coverage, readability and runtime refresh tests remain mobile acceptance
 gates after the APK is built.
+
+
+## Signed APK build completed
+
+- Version: **2.3.111**; verified version code: **72601**.
+- Build source: `13c1f9da23b21dad858e2a38ba9229ed9cec0f56`.
+- Build APK run **43671009379**, number 626, attempt 1: **SUCCESS**.
+- Build-time UI/persistence regressions, permanent release-key validation, final
+  APK signing and packaged version/certificate inspection all passed.
+- Artifact: `volume-king-apk`, ID **14143944464**, ZIP size 63,540,715 bytes.
+- Download: https://github.com/vaishnavi596/volume-king/actions/runs/43671009379/artifacts/14143944464
+- Mobile acceptance remains pending: install as an update, preserve storage,
+  verify TCS/INFY/NIFTY selection handoff, completed-candle timestamps, compact
+  readability and Settings 54-symbol audit after the initial scan. Server tests
+  still certify historical candles/filter computation, not current live freshness.
