@@ -11,9 +11,10 @@ class OptionChartCacheValidationTests(unittest.TestCase):
         start = source.index("    def option_chart_panel():")
         end = source.index("    def ", start + 5)
         panel = source[start:end]
-        self.assertIn("bars=clean_bars(bars)", panel)
-        self.assertLess(panel.index("bars=clean_bars(bars)"), panel.index("if bars:"))
-        self.assertIn("age_label(bars[-1][0])", panel)
+        self.assertIn('Dhan CE/PE premium history', panel)
+        self.assertIn('no simulated chart, no Angel One fallback', panel)
+        self.assertNotIn('market_store.get("option_chart"', panel)
+        self.assertNotIn('angel_feed.option_history', panel)
 
     def test_normalizer_deduplicates_and_orders_timestamps(self):
         source = SOURCE.read_text(encoding="utf-8")
