@@ -45,3 +45,13 @@ def test_dhan_option_refresh_visible_and_read_only():
     assert 'dhan_feed.option_chain_metrics,sym,chosen' in source
     assert 'option_snapshots.pop(sym,None)' in source  # Unverified metrics never vote.
     assert 'No legacy broker CE/PE rows are shown in Dhan-only mode.' in source
+
+
+def test_dhan_only_options_hide_legacy_angel_one_prompt():
+    source = main_source()
+    panel = source.split("    def option_chart_panel():", 1)[1].split("    def quote_caption(sym):", 1)[0]
+    assert "Dhan CE/PE premium history" in panel
+    assert "Refresh Dhan Option Chain" in panel
+    assert "Angel One in Settings" not in panel
+    assert "angel_feed.option_history" not in panel
+    assert "no simulated chart, no Angel One fallback" in panel
