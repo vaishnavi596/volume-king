@@ -192,30 +192,33 @@ class AuditTests(unittest.TestCase):
 
     def test_added_filters_visible_toggle_restore_and_individual_remove(self):
         page,v=start({'scanner_live':False})
-        v['select'](2)  # The shared filter editor now lives in Settings.
+        v['select'](2)
         v['scan_busy'][0]=True
-        names=['OI Support','OI Resistance','OI Profile','Max Pain','Volume']
-        for name in names:
-            v['filter_choice'].value=name;v['filter_edit'](True)
-        # Dhan without verified CE/PE OI must not activate unavailable filters.
-        # Regular candle/volume filters remain addable and persist across restart.
-        self.assertEqual(v['added_filters'],['Volume'])
-        self.assertFalse(any(name in v['filter_selected'] for name in names[:-1]))
-        self.assertEqual(len(v['added_filter_list'].controls),1)
-        for row in v['added_filter_list'].controls:
-            self.assertEqual(row.content.controls[2].text,'Remove ×')
-        checkbox=v['added_filter_list'].controls[0].content.controls[0]
-        if isinstance(checkbox,ft.Column):checkbox=checkbox.controls[0].controls[0]
-        checkbox.value=False;checkbox.on_change(event(checkbox))
-        self.assertIn('Volume',v['added_filters'])
-        self.assertNotIn('Volume',v['filter_selected'])
+        # All default slots are occupied. Remove three to open three slots.
+        removed=v['filter_selected'][:3]
+        for name in removed:v['remove_added_filter'](name)
+        self.assertEqual(len(v['filter_selected']),7)
+        for name in ('OI Support','OI Resistance','Max Pain'):
+            v['filter_choice'].value=name
+            v['filter_edit'](True)
+        self.assertEqual(len(v['filter_selected']),10)
+        self.assertEqual(v['added_filters'],['OI Support','OI Resistance','Max Pain'])
+        self.assertTrue(all(name in v['filter_selected'] for name in v['added_filters']))
+        # At capacity, an eleventh filter must not silently replace a selection.
+        v['add_filter_slot']('OI Profile')
+        self.assertNotIn('OI Profile',v['filter_selected'])
+        self.assertIn('10/10 slots full',v['filter_feedback'].value)
+        self.assertEqual(page.client_storage.get('bot_king_preferences')['scanner_filters'],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
-        self.assertEqual(restored['added_filters'],['Volume'])
-        self.assertNotIn('Volume',restored['filter_selected'])
+        self.assertEqual(restored['filter_selected'],v['filter_selected'])
+        self.assertEqual(restored['added_filters'],v['added_filters'])
         restored['scan_busy'][0]=True
-        for name in names:restored['remove_added_filter'](name)
+        for name in ('OI Support','OI Resistance','Max Pain'):
+            restored['remove_added_filter'](name)
+        self.assertEqual(len(restored['filter_selected']),7)
         self.assertEqual(restored['added_filters'],[])
-        self.assertFalse(any(n in restored['filter_selected'] for n in names))
+        for name in removed:restored['add_filter_slot'](name)
+        self.assertEqual(len(restored['filter_selected']),10)
 
     def test_complete_scanner_flow_for_every_timeframe(self):
         import time
