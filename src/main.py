@@ -3515,8 +3515,12 @@ def app_main(page:ft.Page):
         added_filters[:]=[x for x in filter_selected if x not in DEFAULT_FILTERS]
         prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_added_filters"]=added_filters[:]
-        save()
-        refresh_shared_analysis()
+        saved=save()
+        # Do not recompute the entire watchlist inside a button click: it can
+        # freeze Android Add/Remove handlers. The 2-second local scanner loop
+        # picks up the changed generation without another Dhan API request.
+        if saved is False:
+            filter_feedback.value="Filter changed in this session, but saving failed • retry"
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
             return "WAITING FOR DATA • verified option-chain feed not connected"
