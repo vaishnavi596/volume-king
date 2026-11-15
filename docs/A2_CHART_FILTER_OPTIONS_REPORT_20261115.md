@@ -39,3 +39,15 @@ Scope: mobile UI and offline regressions; **not a production server deployment**
 
 ## Current status
 **PATCHED IN GITHUB — NOT YET END-TO-END PASS.** Source commits and test guards are in the branch. GitHub Actions results, Oracle integration, signing and device confirmation are separate verification gates. Do not label this batch completed or ship the APK before those checks pass.
+
+## Device screenshots received 15 Nov 2026 — follow-up findings
+
+Six screenshots distinguish two installed builds: four images labeled **2.3.115** and two historical screenshots labeled **2.3.110**. These are observations from installed APKs, not confirmation that A2 patches have been installed.
+
+- 2.3.115 shows NIFTY option strikes unavailable; ATM window 'Not yet verified'; OI/PCR/Max Pain boxes show missing metrics. Selected expiry and Oracle response are not visible; root cause remains unconfirmed.
+- 2.3.115 option chart incorrectly demanded Angel One sign-in in Dhan-only mode. Follow-up commit 15af1e95 removes that legacy UI and does not fabricate option premium history.
+- 2.3.115 scanner OI Support, OI Resistance, OI Profile and Max Pain show UNAVAILABLE. They can be selected/saved, but cannot vote BULLISH/BEARISH without validated directional evidence.
+- Historical 2.3.110 showed 51/51 quotes and candles; exchange-live timestamps were explicitly unverified. Other historical diagnostic events included dhan_connect_http, chart, and watchlist_dhan_batch FeedError.
+- Regression guard for the legacy option chart prompt: 7ddbaaea.
+
+**Pending before release:** Verify authenticated Oracle Dhan option-expiries and option-chain responses and whether ATM seven-strike data is present, run offline CI and Android device tests, and bump both app versionName and versionCode for a new signed APK. Do not claim Dhan historical CE/PE premium candles until a verified route exists.
