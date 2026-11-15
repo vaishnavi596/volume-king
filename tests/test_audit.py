@@ -667,12 +667,12 @@ class AuditTests(unittest.TestCase):
             if color is not None:colors.append(color)
             for child in control._get_children():walk(child)
         walk(widget)
-        self.assertTrue(any('Historical votes' in value for value in values))
-        self.assertTrue(any('not win probability' in value for value in values))
+        self.assertTrue(any('HIST • NOT live' in value for value in values))
+        self.assertTrue(any('directional votes' in value for value in values))
         palette=v['strength_widget'].__globals__
         self.assertIn(palette['GREEN'],colors)
         self.assertIn(palette['RED'],colors)
-        self.assertTrue(any('HISTORICAL • Bullish' in value for value in values))
+        self.assertTrue(any('Bullish' in value for value in values))
 
     def test_palette_contrast(self):
         _,v=start()

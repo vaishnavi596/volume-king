@@ -181,3 +181,37 @@ gates after the APK is built.
   verify TCS/INFY/NIFTY selection handoff, completed-candle timestamps, compact
   readability and Settings 54-symbol audit after the initial scan. Server tests
   still certify historical candles/filter computation, not current live freshness.
+
+## Joint mobile layout and chart delivery patch (after 2.3.111 screenshots)
+
+One consolidated follow-up, within the existing UI/display and refresh groups:
+
+1. A shared `vote_display` renders the same ratios, exact zero-width zero votes,
+   HIST/NOT-live marker and directional vote count on Watchlist, Super Five,
+   fixed index cards, selected index panels and Scanner reports. Ratios are not
+   win probability; different symbols/timeframes/candle revisions may differ.
+2. Watchlist redundant equity/index caption and duplicate LTP paragraphs removed;
+   Add/Feed details collapsed. Search is dense; remove action moved inside cards.
+   Super Five source/reason details and per-engine reasons are expandable. Index
+   name and price share a row; nested index padding reduced. Navigation uses
+   explicit 12sp single-line labels; body remains readable at 14sp or above.
+3. Scanner WebView initialization checks mounting and context after awaits.
+   A local two-second delivery check pushes corrected/current same-context
+   candles to a ready WebView without additional HTTP, page navigation or HTML
+   reload. The native renderer reuses shared 5m history. Dedicated Chart gets a
+   visible, foreground/session/cooldown-gated 60-second poll using existing
+   data-request/cache guards; Watchlist LTP cadence remains unchanged.
+4. Chart/native-load and index-batch active failures are tracked separately from
+   error history and cleared on matching successful recovery. Diagnostics label
+   the universe as 51 equities + 3 indices. Recorded history is not automatically
+   treated as recovered unless the operation has a recovery tracker.
+5. Paper trading controls/cards removed from Settings, Chart and Dashboard;
+   legacy calculation code remains for stored-state compatibility and tests.
+   Live orders stay OFF. Risk preferences, backups and saved sessions retained.
+
+Acceptance remains PENDING on Android: no-tab-roundtrip chart appearance;
+rapid NIFTY/BANKNIFTY/SENSEX/TCS switching; corrected-candle delivery; resume;
+readability at the user's text scale; scroll/zoom stability; no repeated native
+AssertionError. BANKNIFTY/SENSEX missing live LTP and unverified exchange times
+remain data-path issues, not solved or concealed by this layout patch.
+No release version change, APK workflow dispatch, server deployment or orders.

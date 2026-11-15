@@ -54,7 +54,7 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn('chart_snapshots[(index_sym,"5m",generation)]', source)
         self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))", source)
         self.assertIn('index_signal_row', source)
-        self.assertIn('Historical 5m votes • ', source)
+        self.assertIn('directional votes', source)
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
 
     def test_bk102_startup_resume_and_shared_historical_votes(self):
@@ -181,7 +181,7 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('symbols=([equities[0]]+indices+equities[1:]) if equities else indices', source)
-        self.assertIn("Dhan quote refresh • every 60 sec while foreground", source)
+        self.assertIn("LTP • every 60 sec", source)
         self.assertIn("exchange timestamp unverified", source)
 
     def test_scanner_chart_cache_respects_timeframe_and_scan_generation(self):

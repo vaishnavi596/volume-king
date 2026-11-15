@@ -34,9 +34,9 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertNotIn("refresh_watch_on_scroll", self.source)
 
     def test_historical_votes_explicitly_not_live(self):
-        self.assertIn("Historical votes (NOT live signal)", self.source)
-        self.assertIn("bull_bar_color=GREEN", self.source)
-        self.assertIn("bear_bar_color=RED", self.source)
+        self.assertIn("HIST • NOT live", self.source)
+        self.assertIn("bgcolor=GREEN,expand=bull", self.source)
+        self.assertIn("bgcolor=RED,expand=bear", self.source)
 
     def test_change_aware_watchlist_refresh(self):
         self.assertIn("if signature!=last_visible_signature:", self.source)

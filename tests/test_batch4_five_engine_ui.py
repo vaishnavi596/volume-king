@@ -59,7 +59,7 @@ def test_five_engine_ui_requires_current_dhan_connection():
 
 def test_unavailable_five_engine_evidence_explains_wait():
     assert 'else " WAIT ("+str(result["reason"])+")"' in SOURCE
-    assert 'str(snapshot["engines"][0].display()["reason"])' in SOURCE
+    assert 'tooltip=str(technical["reason"])' in SOURCE
 
 
 def test_options_display_reuses_existing_cached_component_without_extra_poll():

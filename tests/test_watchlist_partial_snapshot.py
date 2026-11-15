@@ -78,14 +78,15 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
 
     def test_historical_votes_keep_colored_proportions_and_warning(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        start=text.index("def strength_widget(")
-        end=text.index("def mark_ranking_historical()",start)
+        start=text.index("def vote_display(")
+        end=text.index("def strength_widget(",start)
         widget=text[start:end]
-        self.assertIn("bull_bar_color=GREEN",widget)
-        self.assertIn("bear_bar_color=RED",widget)
-        self.assertIn("label_color=GREEN",widget)
-        self.assertIn('display_prefix="HISTORICAL • " if historical else ""',widget)
-        self.assertIn("not win probability",widget)
+        self.assertIn("bgcolor=GREEN,expand=bull",widget)
+        self.assertIn("bgcolor=RED,expand=bear",widget)
+        self.assertIn("HIST • NOT live",widget)
+        self.assertIn("directional votes",widget)
+        strength=text[end:text.index("def mark_ranking_historical()",end)]
+        self.assertIn("return vote_display(counts,fresh)",strength)
 
     def test_server_intraday_reuses_only_recent_exact_window(self):
         server=(Path(__file__).resolve().parents[1]/"backend"/"server.py").read_text(encoding="utf-8")
