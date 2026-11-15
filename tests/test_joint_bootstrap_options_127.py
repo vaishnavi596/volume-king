@@ -42,6 +42,9 @@ class JointSessionRepairTests(unittest.TestCase):
 
     def test_no_live_orders_and_paper_center_retained(self):
         self.assertIn("content.append(paper_trading_center())",SRC)
+        self.assertIn('note("Paper Bot: "+paper_bot_state[0]',SRC)
+        self.assertIn('paper_bot_state[0]="Running"',SRC)
+        self.assertIn('if not manual_contract_confirmed.value:',SRC)
         self.assertIn('section("REAL TRADING • DISABLED"',SRC)
         self.assertIn("Live broker orders OFF",SRC)
         self.assertNotIn("dhan_feed.place_order",SRC)
