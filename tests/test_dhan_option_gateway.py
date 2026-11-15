@@ -20,8 +20,11 @@ class DhanOptionGatewayTests(unittest.TestCase):
             self.assertEqual(self.client.option_expiries("NIFTY"),
                              ["2026-11-17", "2026-11-23"])
             call.assert_called_once_with("/dhan/option-expiries", {"symbol": "NIFTY"})
-        with self.assertRaises(FeedError):
-            self.client.option_expiries("BANKNIFTY")
+        with patch.object(self.client, "_call", return_value={
+            "source": "dhan", "symbol": "BANKNIFTY", "expiries": ["2099-12-31"],
+        }) as bank_call:
+            self.assertEqual(self.client.option_expiries("BANKNIFTY"), ["2099-12-31"])
+            bank_call.assert_called_once_with("/dhan/option-expiries", {"symbol": "BANKNIFTY"})
 
     def test_invalid_expiry_lists(self):
         for dates in ([], ["2026-11-23", "2026-11-17"],
@@ -54,7 +57,7 @@ class DhanOptionGatewayTests(unittest.TestCase):
     def test_invalid_requests_fail_before_network(self):
         with patch.object(self.client, "_call", side_effect=AssertionError("network called")):
             with self.assertRaises(FeedError):
-                self.client.option_chain_metrics("BANKNIFTY", "2026-11-17")
+                self.client.option_chain_metrics("UNMAPPED", "2026-11-17")
             with self.assertRaises(FeedError):
                 self.client.option_chain_metrics("NIFTY", "not-a-date")
 
