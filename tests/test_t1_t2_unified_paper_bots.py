@@ -37,8 +37,12 @@ class PaperSlotUnitTests(unittest.TestCase):
 class PaperTradingCenterUITests(unittest.TestCase):
     def test_options_contains_paper_controls_without_live_order(self):
         _,v=start({"scanner_live":False,"source":"Dhan","last_page":1})
-        page=v["options"]()
-        text=str(page)
+        controls=v["options"]()
+        def captions(control):
+            yield str(getattr(control,"text",None) or getattr(control,"value",None) or "")
+            for child in control._get_children():
+                yield from captions(child)
+        text=" ".join(piece for control in controls for piece in captions(control))
         self.assertIn("TRADING CENTER",text)
         self.assertIn("LIVE TRADING",text)
         self.assertIn("PAPER BOT",text)
