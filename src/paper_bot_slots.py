@@ -13,7 +13,7 @@ SLOT_FIELDS = ("bot_segment", "bot_symbol", "bot_custom", "bot_type", "bot_strik
                "paper_trail_pct", "paper_partial_pct", "paper_partial_trigger",
                "paper_max_additions", "paper_add_units", "bot_trailing",
                "partial_profit", "buy_dip", "manual_contract_confirmed",
-               "paper_break_even", "paper_break_even_trigger")
+               "paper_break_even", "paper_break_even_trigger", "paper_break_even_fees")
 
 
 def bootstrap(prefs):
