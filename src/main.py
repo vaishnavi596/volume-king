@@ -2345,22 +2345,19 @@ def app_main(page:ft.Page):
             option_chart_busy[0]=False
             if current[0]==1:select(1)
     def option_chart_panel():
-        context=option_chart_context()
-        feedback=option_chart_feedback if option_chart_feedback.get("key")== (provider_generation[0],context) else {}
-        controls=[note("Option premium history • selected manual strike / CE or PE • 5m"),ft.ElevatedButton("Load option premium chart",disabled=option_chart_busy[0],on_click=lambda e:page.run_task(load_option_history))]
-        bars=option_chart_cache.get("bars",[]) if option_chart_cache.get("context")==context else (market_store.get("option_chart",*context) or {}).get("bars",[])
-        bars=clean_bars(bars)
-        if bars:
-            series=ft.LineChartData(data_points=[ft.LineChartDataPoint(i,b[4]) for i,b in enumerate(bars[-70:])],color=GOLD,stroke_width=2)
-            controls.append(ft.Container(content=ft.LineChart(data_series=[series],expand=True),height=200))
-            controls.append(note("Angel One • last available history • "+age_label(bars[-1][0])+" • last candle: "+datetime.fromtimestamp(bars[-1][0],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")))
-        if feedback:
-            controls.append(unavailable(feedback["message"]) if feedback["state"]=="UNAVAILABLE" else note(feedback["message"]))
-        elif not bars:
-            if not angel_feed.connected:message="Connect Angel One in Settings to load option premium history."
-            else:message="Enter a listed strike, choose CE or PE, then press Load option premium chart."
-            controls.append(note(message))
-        return section("Option Chart",ft.Column(controls,horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+        # This production build uses Dhan only. Do not surface or revive
+        # archived Angel One premium history or ask users to connect Angel One.
+        # The Dhan gateway currently supplies option-chain snapshots, not
+        # strike-specific historical CE/PE candles.
+        return section("Option Chart",ft.Column([
+            note("Dhan CE/PE premium history • not available from the current read-only gateway"),
+            note("The Option Chain above can display Dhan strikes, OI and premiums when returned by the selected expiry."),
+            note("Historical option candles are unavailable • no simulated chart, no Angel One fallback."),
+            ft.ElevatedButton("Refresh Dhan Option Chain",
+                on_click=lambda e:page.run_task(refresh_selected_options),
+                disabled=option_feed_busy[0]),
+            note(option_feed_status[0])
+        ],spacing=6))
     def quote_caption(sym):
         if dhan_offline():return "Dhan disconnected • saved prices hidden • connect to verify"
         q=quotes.get(sym) or {}
@@ -2480,7 +2477,7 @@ def app_main(page:ft.Page):
                 or data.get("signal_eligible") is not False
                 or not isinstance(data.get("pcr"),(int,float))
                 or not isinstance(data.get("max_pain"),(int,float))):
-            return note("Dhan option metrics unavailable or incomplete for selected expiry; press Refresh selected data.")
+            return note("Dhan option metrics not ready for "+str(chain_symbol.value)+" / "+str(expiry.value or "no listed expiry")+" • "+option_feed_status[0])
         if kind=="PCR":
             return note("Dhan OI PCR: "+f'{data["pcr"]:.3f}'+" • UNVERIFIED • not a trading signal")
         if kind=="OI":
@@ -2517,7 +2514,7 @@ def app_main(page:ft.Page):
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
-                note("Option chain not connected • Dhan option strikes are unavailable for this symbol/expiry."),
+                note("Option-chain data not loaded for the selected symbol/expiry; refresh Dhan. Missing strikes are not zero."),
                 note(option_feed_status[0]),
                 note("ATM window: "+{
                     "underlying_spot_unavailable":"Dhan underlying spot missing",
