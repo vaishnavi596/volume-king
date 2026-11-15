@@ -813,7 +813,7 @@ def app_main(page:ft.Page):
                 ft.Text("Bullish "+str(bull)+"%",size=12,color=GREEN,weight=ft.FontWeight.BOLD,
                         tooltip="Directional filter agreement, not win probability"),
                 ft.Text("Bearish "+str(bear)+"%",size=12,color=RED,weight=ft.FontWeight.BOLD),
-                ft.Text("LIVE" if fresh else "HIST",size=10,color=MUTED,
+                ft.Text("LIVE" if fresh else "HIST • NOT live",size=10,color=MUTED,
                         tooltip="Historical candles are not verified live signals")
             ],wrap=True,spacing=6),
             ft.Row([
