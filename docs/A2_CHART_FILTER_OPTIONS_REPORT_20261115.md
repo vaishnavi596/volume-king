@@ -62,3 +62,13 @@ The user confirmed the existing 10-slot remove-three/add-three behavior works; *
 - Futures expansion and other new features are deferred; existing Dhan Option Chain and white-chart fixes stay in A2 scope.
 
 **Release is still blocked** until offline CI PASS, confirmed Oracle authenticated option-chain payload, Android verification and signed APK/versionName/versionCode checks. Do not assume a GitHub commit produces an APK.
+
+## Release candidate 2.3.116 — joint commit 15 Nov 2026
+
+User confirmed the ten-slot remove/add feature already works and must remain unchanged. New optional News Headlines and four OI contexts are read-only and count against the same maximum ten slots, never an eleventh automatic filter.
+
+Latest code commits: 713706d2 (news selectable), 70a9541a (read-only Dhan OI and cached news details), 01346b15 (regression guards), 422b72c9 (report), b61674f9 (release version bump / CI build trigger).
+
+Expected release versionName: 2.3.116. GitHub build workflow computes versionCode from run number and validates aapt output. **At report update time no passing APK build or downloadable artifact has been verified.**
+
+Keep entire A2 package subject to actual Android chart, filter persistence, NIFTY expiry/chain read-only response checks, unit regression and signed build gates. The Dhan-only option historical premium chart cannot be enabled without a validated Dhan route.
