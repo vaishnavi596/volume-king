@@ -40,7 +40,7 @@ class FeedTests(unittest.TestCase):
         v['option_feed'].update(symbol=v['chain_symbol'].value,
                                 expiry=v['expiry'].value,rows=rows,complete=True)
         self.assertFalse(v['selected_option_rows']())
-        self.assertIn('unavailable',v['option_metrics']('PCR').value)
+        self.assertIn('not ready',v['option_metrics']('PCR').value)
         v['dhan_option_metrics'].update(source='dhan',symbol=v['chain_symbol'].value,
             expiry=v['expiry'].value,pcr=0.83049,max_pain=25100.0,
             freshness='unverified',signal_eligible=False)
@@ -48,7 +48,7 @@ class FeedTests(unittest.TestCase):
         self.assertIn('UNVERIFIED',v['option_metrics']('PCR').value)
         self.assertIn('25,100',v['option_metrics']('OI').value)
         v['expiry'].value='2099-01-01'
-        self.assertIn('unavailable',v['option_metrics']('PCR').value)
+        self.assertIn('not ready',v['option_metrics']('PCR').value)
 
     def test_option_fetch_does_not_publish_after_selection_change(self):
         _,v=start({'source':'Auto','scanner_live':False})
