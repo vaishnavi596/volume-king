@@ -2541,7 +2541,11 @@ def app_main(page:ft.Page):
             if current[0]==1:select(1)
             if option_refresh_pending[0] and dhan_feed.connected:
                 option_refresh_pending[0]=False
-                page.run_task(refresh_selected_options)
+                async def replay_latest_option_selection():
+                    # Do not collide with the preceding Dhan option-chain quota.
+                    await asyncio.sleep(3.25)
+                    await refresh_selected_options()
+                page.run_task(replay_latest_option_selection)
     async def option_poll():
         while True:
             if not app_active[0]:
