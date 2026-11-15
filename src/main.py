@@ -2344,9 +2344,9 @@ def app_main(page:ft.Page):
             expiry.read_only=False
         else:
             expiry.read_only=True
-            dates=option_dates(chain_symbol.value)
-            idx=1 if option_expiry_choice.value=="Next" else 0
-            expiry.value=dates[idx].isoformat() if len(dates)>idx else ""
+            # Never show calculated calendar dates as broker-listed contracts.
+            expiry.value=""
+            option_expiry_note.value="Loading Dhan broker-listed expiries for "+str(chain_symbol.value)
         prefs.update(option_symbol=chain_symbol.value,option_expiry_choice=option_expiry_choice.value,option_expiry=expiry.value or "")
         save()
         if e is not None:
