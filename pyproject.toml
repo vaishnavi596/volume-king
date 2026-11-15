@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.120" # B1 shared read-only Dhan option context and five-engine evidence readiness
+version = "2.3.121" # B2 Dhan multi-underlying option expiry auto-refresh, strict symbol/expiry isolation
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
