@@ -39,5 +39,12 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         self.assertIn("not watch_batch_busy[0]",render)
         self.assertIn("await refresh_watch_batch()",poll)
 
+    def test_resume_does_not_duplicate_recent_snapshot(self):
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        body=source.split("    async def refresh_after_resume():",1)[1].split("    def lifecycle_changed(e):",1)[0]
+        self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",body)
+        self.assertNotIn("quote_auto_last_attempt[0]=time.monotonic()",body)
+        self.assertIn("await refresh_watch_batch()",body)
+
 if __name__=="__main__":
     unittest.main()
