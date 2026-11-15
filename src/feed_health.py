@@ -60,6 +60,14 @@ def safe_error(exc):
             return "Dhan candle mapping or timeframe unsupported"
         if "Invalid Dhan candle response" in detail:
             return "Dhan candle response missing or invalid"
+        if detail.startswith("Oracle Dhan snapshot missing, stale or invalid"):
+            return "Oracle snapshot stale or invalid; last Dhan prices retained, check server collection"
+        if detail.startswith("Oracle Dhan snapshot contains no quotes"):
+            return "Oracle snapshot has no equity quotes; check server collection"
+        if detail.startswith("Invalid Oracle Dhan snapshot quote"):
+            return "Oracle snapshot contains invalid equity price; check server instrument data"
+        if detail.startswith("Server Access Key contains non-ASCII"):
+            return "Server Access Key contains invalid characters; re-enter plain ASCII key"
         if "Dhan server not connected" in detail:
             return "Dhan server disconnected; reconnect in Settings"
         if "Unexpected Dhan read-only server response" in detail:
