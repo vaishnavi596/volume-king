@@ -2351,7 +2351,8 @@ def app_main(page:ft.Page):
         save()
         if e is not None:
             dhan_option_metrics.clear()
-            option_feed_status[0]="Dhan • "+str(chain_symbol.value)+" • loading broker-listed expiry automatically"
+            option_feed_status[0]=("Dhan • "+str(chain_symbol.value)+" • loading broker-listed expiry automatically" if dhan_feed.connected
+                                   else "Dhan disconnected • auto-refresh resumes on Connect / Check")
             option_refresh_pending[0]=True
             select(1)
             if prefs.get("source")=="Dhan" and dhan_feed.connected and not option_feed_busy[0]:
@@ -2479,7 +2480,7 @@ def app_main(page:ft.Page):
             option_refresh_pending[0]=True
             return
         if not dhan_feed.connected:
-            option_feed_status[0]="Dhan connection unavailable • Connect / Check in Settings, then Refresh Dhan Option Chain."
+            option_feed_status[0]="Dhan disconnected • Connect / Check in Settings; option auto-refresh will resume."
             if current[0]==1:request_view_refresh(1)
             return
         option_feed_busy[0]=True
@@ -2608,7 +2609,7 @@ def app_main(page:ft.Page):
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("No legacy broker CE/PE rows are shown in Dhan-only mode."),
-                note("Option-chain data not loaded for the selected symbol/expiry; refresh Dhan. Missing strikes are not zero."),
+                note("Option-chain data not loaded for the selected symbol/expiry • awaiting Dhan auto-refresh. Missing strikes are not zero."),
                 note(option_feed_status[0]),
                 note("ATM window: "+{
                     "underlying_spot_unavailable":"Dhan underlying spot missing",
@@ -2636,7 +2637,7 @@ def app_main(page:ft.Page):
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
-            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option chain not connected • Dhan PCR and Max Pain available after refresh; CE/PE premiums not verified."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option-chain snapshot pending • Dhan automatically loads PCR and Max Pain when a listed expiry is available; CE/PE premiums not verified."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
@@ -4445,12 +4446,12 @@ console.log('BOT KING Lightweight Charts ready');
             message="OI / PCR / Max Pain: unavailable for "+symbol+" • Dhan option mapping verified only for NIFTY"
         elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
               or data.get("symbol")!="NIFTY" or data.get("expiry")!=expiry.value):
-            message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • open Options and refresh selected data"
+            message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • select the symbol in Options; auto-refresh will request listed data"
         elif (not isinstance(data.get("pcr"), (int, float))
               or not isinstance(data.get("max_pain"), (int, float))
               or data.get("freshness") != "unverified"
               or data.get("signal_eligible") is not False):
-            message="OI / PCR / Max Pain: Dhan option snapshot incomplete; open Options and refresh"
+            message="OI / PCR / Max Pain: Dhan option snapshot incomplete; awaiting next automatic request"
         else:
             context=option_chain_display_context(data)
             strike_note=(" • ATM ±3 listed strikes available" if context.get("available")
