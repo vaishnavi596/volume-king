@@ -85,13 +85,18 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('connection_status.color=GOLD if dhan_batch_issue[0] else GREEN',self.source)
 
     def test_dhan_connect_keeps_batch_in_new_scan_generation(self):
-        self.assertIn('dhan_batch_cache["generation"]=provider_generation[0]',self.source)
-        self.assertIn('provider_generation[0]+=1',self.source)
-        connect=self.source.index('dhan_batch_cache.update(generation=provider_generation[0]')
-        bump=self.source.index('provider_generation[0]+=1',connect)
-        keep=self.source.index('dhan_batch_cache["generation"]=provider_generation[0]',bump)
-        self.assertLess(connect,bump)
-        self.assertLess(bump,keep)
+        # A provider switch creates the generation BEFORE the login snapshot.
+        # A second generation bump after snapshot would incorrectly invalidate
+        # the just-fetched data and cause a duplicate initial request.
+        login=self.source.split('async def connect_angel():',1)[1].split('    def clear_broker_credentials(',1)[0]
+        switch=login.index('provider_changed(None)')
+        begin=login.index('login_bootstrap.begin(provider_generation[0]',switch)
+        batch=login.index('dhan_batch_cache.update(generation=provider_generation[0]',begin)
+        keep=login.index('dhan_batch_cache["generation"]=provider_generation[0]',batch)
+        self.assertLess(switch,begin)
+        self.assertLess(begin,batch)
+        self.assertLess(batch,keep)
+        self.assertNotIn('provider_generation[0]+=1',login[begin:keep])
 
     def test_dhan_connect_fetches_watchlist_batch(self):
         self.assertIn('batch=await asyncio.to_thread(dhan_feed.batch_quotes)', self.source)
