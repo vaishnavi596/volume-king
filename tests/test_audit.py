@@ -204,10 +204,12 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(v['filter_selected']),10)
         self.assertEqual(v['added_filters'],['OI Support','OI Resistance','Max Pain'])
         self.assertTrue(all(name in v['filter_selected'] for name in v['added_filters']))
-        # At capacity, an eleventh filter must not silently replace a selection.
+        # The user now has five optional slots beyond the original ten.
         v['add_filter_slot']('OI Profile')
-        self.assertNotIn('OI Profile',v['filter_selected'])
-        self.assertIn('10/10 slots full',v['filter_feedback'].value)
+        self.assertIn('OI Profile',v['filter_selected'])
+        self.assertEqual(len(v['filter_selected']),11)
+        v['remove_added_filter']('OI Profile')
+        self.assertEqual(len(v['filter_selected']),10)
         self.assertEqual(page.client_storage.get('bot_king_preferences')['scanner_filters'],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
         self.assertEqual(restored['filter_selected'],v['filter_selected'])
