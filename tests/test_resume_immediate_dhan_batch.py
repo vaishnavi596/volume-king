@@ -14,6 +14,6 @@ class ResumeBatchTests(unittest.TestCase):
         self.assertIn("if not app_active[0] or generation!=provider_generation[0]:",RESUME)
     def test_background_poll_remains_suspended(self):
         poll=S.split("    async def dhan_quote_poll():",1)[1].split("    async def ",1)[0]
-        self.assertIn('app_active[0] and prefs.get("source")=="Dhan"',poll)
+        self.assertIn('app_active[0] and regular_hours() and prefs.get("source")=="Dhan"',poll)
 if __name__=="__main__":
     unittest.main()
