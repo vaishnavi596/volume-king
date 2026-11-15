@@ -1942,7 +1942,7 @@ def app_main(page:ft.Page):
                               and not watch_batch_busy[0])
                 else:
                     poll_due=False
-                if poll_due and not watch_batch_busy[0]:
+                if (poll_due and not watch_batch_busy[0]):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
                         if closing_bootstrap:
