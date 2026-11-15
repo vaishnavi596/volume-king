@@ -1702,6 +1702,9 @@ def app_main(page:ft.Page):
     watch_batch_status=["Dhan batch not checked on this screen"]
     watch_batch_last_attempt=[0.0]
     watch_batch_last_success=[0.0]
+    # A saved last-good quote does NOT prove this login generation fetched data.
+    # Closed-session recovery follows successful network observations, not UI cache.
+    watch_batch_success_generation=[None]
     async def refresh_watch_batch():
         nonlocal market_status
         if watch_batch_busy[0] or prefs.get("source")!="Dhan":
@@ -1778,6 +1781,8 @@ def app_main(page:ft.Page):
                                    +f"polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
             market_status=watch_batch_status[0]
             watch_batch_last_success[0]=time.monotonic()
+            if received==total_symbols:
+                watch_batch_success_generation[0]=generation
         except Exception as exc:
             # Android may suspend a network request when the app loses focus.
             # Do not report that lifecycle interruption as a provider failure.
@@ -1927,13 +1932,11 @@ def app_main(page:ft.Page):
             try:
                 closing_bootstrap=(not regular_hours()
                     and closed_equity_bootstrap_generation[0]!=provider_generation[0]
-                    and not any(isinstance(quotes.get(sym),dict)
-                                and quotes[sym].get("source")=="Dhan"
-                                and isinstance(quotes[sym].get("price"),(int,float))
-                                and not isinstance(quotes[sym].get("price"),bool)
-                                and math.isfinite(quotes[sym]["price"])
-                                and quotes[sym]["price"]>0
-                                for sym in all_watch_symbols()))
+                    and watch_batch_success_generation[0]!=provider_generation[0])
+                # Already-saved prices are never a substitute for this login's
+                # Oracle snapshot. Retry just once after the normal 60s floor
+                # when login failed/was partial, without starting off-hours
+                # periodic polling.
                 if ((app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected)
                         or (app_active[0] and closing_bootstrap and prefs.get("source")=="Dhan"
@@ -3004,7 +3007,11 @@ def app_main(page:ft.Page):
                             (" • PARTIAL" if dhan_batch_issue[0] else ""))
                         connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
                     # Historical scan must run even if the independent LTP batch fails.
+                    login_equity_complete=(not market_status.startswith(
+                        "Dhan connected; watchlist batch failed") and not dhan_batch_issue[0])
                     provider_generation[0]+=1;five_engine_snapshots.clear()
+                    if login_equity_complete:
+                        watch_batch_success_generation[0]=provider_generation[0]
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
                     # One guarded index batch on connect also retrieves last-traded after-hours quotes.
@@ -3017,7 +3024,10 @@ def app_main(page:ft.Page):
                     # On a failed login batch, schedule one guarded retry; index
                     # quotes still refresh independently on the normal poll loop.
                     if (app_active[0] and dhan_feed.connected
+                            and regular_hours()
                             and market_status.startswith("Dhan connected; watchlist batch failed")):
+                        # Open-hours retry respects snapshot attempt spacing.
+                        # Closed-hours retry belongs to the one-shot poll gate.
                         page.run_task(refresh_watch_batch)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
