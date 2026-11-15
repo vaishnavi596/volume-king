@@ -1157,14 +1157,15 @@ def app_main(page:ft.Page):
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
     async def super_five_minute_refresh():
-        # Priority P2: check the local completed-candle cache every 10s.
+        # Priority P2: check local completed candles every 10s, even after close.
+        # This does NOT poll Dhan; historical B/S stays non-actionable.
         # Re-analyze only when candles or filter choices change, without
         # issuing extra broker/Oracle historical or quote requests.
         last_fingerprint=None
         while True:
             await asyncio.sleep(10)
             try:
-                if not app_active[0] or not regular_hours() or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
                     last_fingerprint=None
                     continue
                 generation=provider_generation[0]
@@ -3062,6 +3063,11 @@ def app_main(page:ft.Page):
                     # On a failed login batch, schedule one guarded retry; index
                     # quotes still refresh independently on the normal poll loop.
                     # Failed login batches retry only through the normal throttled poll.
+                    # Start the selected broker-listed expiry/chain ONCE per
+                    # authenticated login, even when the market is closed. This
+                    # uses the existing serial Dhan transport and 3.25s pacing.
+                    if (app_active[0] and dhan_feed.connected and prefs.get("source")=="Dhan"):
+                        page.run_task(refresh_selected_options)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
@@ -5273,6 +5279,10 @@ console.log('BOT KING Lightweight Charts ready');
                        and not isinstance(row.get("price"),bool) and math.isfinite(row["price"])})
         # Prefer last known snapshots from the newly selected provider.
         quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
+        # Restore the five last-known Dhan candidates without waiting for the
+        # paced 51-symbol history scan. All are WAIT/historical, never live.
+        if source.value=="Dhan":
+            publish_partial_ranking({})
         scan_next_refresh[0]=None
         scan_last_success[0]=None;scan_last_candle[0]=None
         shared_analysis_seen.clear();shared_analysis_calculated.clear();scan_fetch_failure.clear();selected_report_identity[0]=None
