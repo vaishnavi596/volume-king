@@ -1115,7 +1115,7 @@ def app_main(page:ft.Page):
         while True:
             await asyncio.sleep(10)
             try:
-                if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                if not app_active[0] or not regular_hours() or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
                     last_fingerprint=None
                     continue
                 generation=provider_generation[0]
@@ -1658,6 +1658,8 @@ def app_main(page:ft.Page):
             return
         generation=provider_generation[0]
         now=time.monotonic()
+        if not force and not regular_hours():
+            return
         if (not force and index_refresh_generation[0]==generation
                 and now-index_last_attempt[0]<60):
             return
@@ -1763,7 +1765,7 @@ def app_main(page:ft.Page):
         await asyncio.sleep(10)
         while True:
             try:
-                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
+                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
                         and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
                         and not watch_batch_busy[0]):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
@@ -1794,6 +1796,8 @@ def app_main(page:ft.Page):
             return "Next --"
         if not app_active[0]:
             return "Paused"
+        if not regular_hours():
+            return "Market closed • auto-refresh paused"
         if watch_batch_busy[0]:
             return "Refreshing"
         cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
@@ -4772,7 +4776,7 @@ console.log('BOT KING Lightweight Charts ready');
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
         # Navigation must not trigger a duplicate Oracle snapshot request.
-        if (changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected
+        if (changed and i==4 and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
                 and not watch_batch_busy[0]
                 and time.monotonic()-watch_batch_last_attempt[0]>=60
                 and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
@@ -5354,7 +5358,7 @@ console.log('BOT KING Lightweight Charts ready');
         await asyncio.sleep(10)
         while True:
             try:
-                if (app_active[0] and prefs.get("source")=="Dhan"
+                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected and not index_refresh_busy[0]):
                     await refresh_dhan_index_quotes()
             except asyncio.CancelledError:
@@ -5435,7 +5439,7 @@ console.log('BOT KING Lightweight Charts ready');
             # Resume the fast shared quote path before expensive candle history.
             # The background poll is suspended, so waiting up to 45 seconds
             # for its next tick unnecessarily delays the visible watchlist.
-            if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+            if app_active[0] and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
                 if (app_active[0] and generation==provider_generation[0]
                         and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
@@ -5446,6 +5450,9 @@ console.log('BOT KING Lightweight Charts ready');
                     # A cooling-down equity snapshot must not suppress index recovery.
                     await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
+                return
+            if not regular_hours():
+                runtime_status.value="Market closed • saved data retained • auto-refresh paused"
                 return
             if current[0]==1:await refresh_selected_options()
             else:
