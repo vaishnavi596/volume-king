@@ -22,3 +22,9 @@ The user circled the **Dashboard** card titled **CANDLE + OPTIONS + NEWS • NIF
 - Signed APK workflow must PASS all steps: full unittest, certificate SHA-256, `aapt` package, versionName and versionCode, artifact upload.
 - Android smoke test: selected Dashboard symbols have native red/green mini charts when cached candles exist; 0/3 Dashboard card absent; Super Five and Candle Analysis remain; 15 active slots cap and preference persistence; Dhan-only Settings; Scanner white WebView issue gone on default native chart.
 - Android/Oracle integration tests still needed for Dhan options and live freshness. **GitHub CI does not prove broker-side availability.**
+
+## Five Engine overlay extension
+
+The agreed green/red signal-line design now uses one shared five-chip renderer on Dashboard selected analysis, Dashboard indices, Watchlist, Super Five and Scanner. Chips represent Technical (T), independent Candle (C), News (N), Futures (F), Options (O). Verified, fresh, Dhan-sourced directional evidence is represented as B/S percentages summing to 100. When no verified independent data is present the chip is WAIT rather than invented 50/50 or 100/0. An existing historical technical ratio may be displayed only with the literal HIST label. No new network fanout, no retroactive individual past-candle engine time series and no order placement.
+
+Implementation commit f1367f05, executable offline regression guard 60c2feb3. This extension was committed **after** the v2.3.118 build-trigger commit, so the 2.3.118 artifact does not contain it. A subsequent versionName and versionCode increment is mandatory for the next final APK after CI passes.
