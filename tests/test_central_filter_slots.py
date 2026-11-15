@@ -1,4 +1,4 @@
-"""Central filter slots: ten movable saved slots; unverified OI does not vote."""
+"""Central filter slots: ten defaults plus five extras; unverified OI does not vote."""
 import unittest
 
 from test_audit import start
@@ -28,19 +28,20 @@ class CentralFilterSlotsTests(unittest.TestCase):
                           "default_ten_migrated":True})
         self.assertEqual(restored["filter_selected"],v["filter_selected"])
 
-    def test_full_slots_prevent_sixteenth_and_available_includes_removed_defaults(self):
+    def test_fifteen_slots_prevent_sixteenth_and_reuse(self):
         _,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
-        v["add_filter_slot"]("OI Profile")
-        self.assertEqual(len(v["filter_selected"]),10)
-        self.assertIn("10/10 slots full",v["filter_feedback"].value)
+        for name in ("OI Support","OI Resistance","OI Profile","Max Pain","Volume"):
+            v["add_filter_slot"](name)
+        self.assertEqual(len(v["filter_selected"]),15)
+        v["add_filter_slot"]("ATR 14")
+        self.assertEqual(len(v["filter_selected"]),15)
+        self.assertIn("15/15 slots full",v["filter_feedback"].value)
         v["remove_added_filter"]("VWAP")
-        screen=v["central_filter_settings"]()
+        v["central_filter_settings"]()
         self.assertIn("VWAP",[opt.key for opt in v["filter_choice"].options])
-        self.assertNotIn("VWAP",v["filter_selected"])
-        v["add_filter_slot"]("OI Support")
-        self.assertIn("OI Support",v["filter_selected"])
-        self.assertEqual(len(v["filter_selected"]),10)
-        self.assertEqual(v["prefs"]["scanner_filters"], v["filter_selected"])
+        v["add_filter_slot"]("ATR 14")
+        self.assertEqual(len(v["filter_selected"]),15)
+        self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"])
 
     def test_option_filters_remain_saved_but_not_verified_vote(self):
         _,v=start({"source":"Dhan","scanner_live":False,"last_page":2,

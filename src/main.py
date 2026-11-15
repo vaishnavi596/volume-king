@@ -1463,6 +1463,7 @@ def app_main(page:ft.Page):
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
+    MAX_WATCHLIST_EQUITIES=70  # UI capacity; mapped Dhan data stays separately verified.
     watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
     # Preserve existing user lists while migrating the old Tata Motors symbol.
     watch_migrated=False
@@ -1529,9 +1530,9 @@ def app_main(page:ft.Page):
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
-            if len(watch_groups[target_list])>=50:
+            if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
                 if active_watch[0]==target_list:
-                    feedback.value="List is full (50 symbols maximum). Remove a symbol first."
+                    feedback.value="List is full (70 symbols maximum). Remove a symbol first."
                     page.update()
                 return
             watch_groups[target_list].append(sym)
@@ -1554,8 +1555,8 @@ def app_main(page:ft.Page):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
         elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
-        elif len(watch_groups[target_list])>=50:
-            feedback.value="List is full (50 symbols maximum). Remove a symbol first."
+        elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
+            feedback.value="List is full (70 symbols maximum). Remove a symbol first."
         else:
             feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
             page.run_task(validate_and_add,sym,target_list)
@@ -2511,6 +2512,7 @@ def app_main(page:ft.Page):
         health_key="options:"+sym
         request_id=health.begin(health_key)
         option_feed_status[0]="Loading broker-listed Dhan expiries..."
+        option_stage="broker-listed expiries"
         try:
             if sym not in DHAN_VERIFIED_SYMBOLS:
                 raise FeedError("No mapped Dhan underlying for "+sym)
@@ -2540,6 +2542,7 @@ def app_main(page:ft.Page):
             if (generation!=provider_generation[0] or sym!=chain_symbol.value
                     or choice!=option_expiry_choice.value or expiry.value!=chosen):
                 return
+            option_stage="option-chain metrics"
             data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             dhan_option_metrics.clear()
@@ -2553,7 +2556,7 @@ def app_main(page:ft.Page):
         except Exception as exc:
             log_error("dhan_options",exc)
             health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
-            option_feed_status[0]="Dhan options unavailable: "+safe_error(exc)
+            option_feed_status[0]="Dhan "+option_stage+" unavailable for "+sym+": "+safe_error(exc)
             # Keep last valid metrics for historical display, never for signals.
         finally:
             option_feed_busy[0]=False
@@ -2891,6 +2894,10 @@ def app_main(page:ft.Page):
                     provider_generation[0]+=1;five_engine_snapshots.clear()
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
+                    # One guarded index batch on connect also retrieves last-traded after-hours quotes.
+                    # Dhan exchange timestamps remain unverified; never mark these LIVE.
+                    if app_active[0] and dhan_feed.connected:
+                        page.run_task(refresh_dhan_index_quotes,True)
                     # The login path already fetched and published the equity batch.
                     # Do not duplicate that same upstream snapshot immediately.
                     # On a failed login batch, schedule one guarded retry; index
@@ -3781,12 +3788,12 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
-    MAX_ACTIVE_FILTERS=10  # Ten movable slots: removing a filter frees one immediately.
+    MAX_ACTIVE_FILTERS=15  # 10 defaults + 5 extra movable slots.
     # One-time migration supplies ten defaults without overwriting saved user edits.
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    # Ten movable saved filters, with removed defaults returning to the available pool.
+    # Fifteen movable saved filters, with removed defaults returning to the available pool.
     # Option/OI filters remain WAIT until authenticated derivative evidence exists.
     saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
     if not isinstance(saved_filters,(list,tuple)):
@@ -4673,7 +4680,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def central_filter_settings():
-        # Active is a movable 10-slot list; unselected default/extra/OI
+        # Active is a movable 15-slot list; unselected default/extra/OI
         # indicators return to the available pool immediately after removal.
         available_filters=[name for name in filter_names if name not in filter_selected]
         filter_checklist.controls=[
@@ -4703,10 +4710,10 @@ console.log('BOT KING Lightweight Charts ready');
             filter_choice.value=None
         filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten movable saved slots; remove an active filter to add another."),
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten default plus five extra saved slots; remove an active filter to add another."),
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
-                ft.Column([note("Ten movable filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
+                ft.Column([note("Fifteen movable filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
                            filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,

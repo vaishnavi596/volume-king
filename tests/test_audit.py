@@ -194,38 +194,21 @@ class AuditTests(unittest.TestCase):
         page,v=start({'scanner_live':False})
         v['select'](2)
         v['scan_busy'][0]=True
-        # All default slots are occupied. Remove three to open three slots.
-        removed=v['filter_selected'][:3]
-        for name in removed:v['remove_added_filter'](name)
-        self.assertEqual(len(v['filter_selected']),7)
-        for name in ('OI Support','OI Resistance','Max Pain'):
-            v['filter_choice'].value=name
-            v['filter_edit'](True)
         self.assertEqual(len(v['filter_selected']),10)
-        self.assertEqual(v['added_filters'],['OI Support','OI Resistance','Max Pain'])
-        self.assertTrue(all(name in v['filter_selected'] for name in v['added_filters']))
-        # All ten slots are occupied; remove one to make room for OI Profile.
-        v['add_filter_slot']('OI Profile')
-        self.assertNotIn('OI Profile',v['filter_selected'])
+        for name in ('OI Support','OI Resistance','Max Pain','OI Profile','Volume'):
+            v['add_filter_slot'](name)
+        self.assertEqual(len(v['filter_selected']),15)
+        self.assertEqual(len(v['added_filters']),5)
+        v['add_filter_slot']('ATR 14')
+        self.assertEqual(len(v['filter_selected']),15)
         v['remove_added_filter']('Max Pain')
-        self.assertEqual(len(v['filter_selected']),9)
-        v['add_filter_slot']('OI Profile')
-        self.assertIn('OI Profile',v['filter_selected'])
-        self.assertEqual(len(v['filter_selected']),10)
-        v['remove_added_filter']('OI Profile')
-        v['add_filter_slot']('Max Pain')
-        self.assertEqual(len(v['filter_selected']),10)
+        self.assertEqual(len(v['filter_selected']),14)
+        v['add_filter_slot']('ATR 14')
+        self.assertEqual(len(v['filter_selected']),15)
         self.assertEqual(page.client_storage.get('bot_king_preferences')['scanner_filters'],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
         self.assertEqual(restored['filter_selected'],v['filter_selected'])
         self.assertEqual(restored['added_filters'],v['added_filters'])
-        restored['scan_busy'][0]=True
-        for name in ('OI Support','OI Resistance','Max Pain'):
-            restored['remove_added_filter'](name)
-        self.assertEqual(len(restored['filter_selected']),7)
-        self.assertEqual(restored['added_filters'],[])
-        for name in removed:restored['add_filter_slot'](name)
-        self.assertEqual(len(restored['filter_selected']),10)
 
     def test_complete_scanner_flow_for_every_timeframe(self):
         import time

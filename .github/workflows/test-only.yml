@@ -2,7 +2,7 @@ name: BOT KING Offline Regression Tests
 
 on:
   push:
-    branches: [main, botking-scanner-auth-30s-20261111, botking-signal-display-batch1-20261112, fix/botking-2399-candle-retry-20261114, fix/botking-b3-option422-scope-20261115, fix/botking-unified-paper-trading-20261115]
+    branches: [main, botking-scanner-auth-30s-20261111, botking-signal-display-batch1-20261112, fix/botking-2399-candle-retry-20261114, fix/botking-b3-option422-scope-20261115, fix/botking-unified-paper-trading-20261115, fix/botking-joint-audit-70-15-20261115]
     paths:
       - 'src/**'
       - 'tests/**'
