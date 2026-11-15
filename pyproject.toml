@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.119" # A3 joint 5-engine chips, native dashboard candles, 15 filters and Dhan-only UI
+version = "2.3.120" # B1 shared read-only Dhan option context and five-engine evidence readiness
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
