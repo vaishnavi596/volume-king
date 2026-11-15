@@ -1702,15 +1702,7 @@ def app_main(page:ft.Page):
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 snapshot=snapshots.get(ticker)
                 if not isinstance(snapshot,dict):
-                    # A missing or malformed index quote must not abort the
-                    # whole three-index cycle or erase the last valid price.
-                    # A successful batch can omit BSE_I quotes. Preserve the last
-                    # known Dhan price, but explicitly mark provider unavailability.
-                    old=quotes.get(ticker)
-                    if isinstance(old,dict) and old.get("source")=="Dhan":
-                        quotes[ticker]=dict(old,provider_status="provider_data_unavailable",
-                            freshness="unverified",live_verified=False)
-                    continue
+                    snapshot={}
                 price=snapshot.get("price")
                 if (snapshot.get("source")=="Dhan"
                         and isinstance(price,(int,float)) and not isinstance(price,bool)
@@ -1719,6 +1711,13 @@ def app_main(page:ft.Page):
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
                         candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time(),live_verified=False)
+                else:
+                    # An invalid OR missing response must never leave an old index
+                    # quote appearing recently verified. Keep its last good price.
+                    old=quotes.get(ticker)
+                    if isinstance(old,dict) and old.get("source")=="Dhan":
+                        quotes[ticker]=dict(old,provider_status="provider_data_unavailable",
+                            freshness="unverified",live_verified=False)
             if all(isinstance(snapshots.get(key),dict) and isinstance(snapshots[key].get("price"),(int,float))
                    and not isinstance(snapshots[key].get("price"),bool) and math.isfinite(snapshots[key]["price"])
                    and snapshots[key]["price"]>0 and snapshots[key].get("source")=="Dhan"
