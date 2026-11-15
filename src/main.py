@@ -704,6 +704,34 @@ def app_main(page:ft.Page):
         points=[ft.LineChartDataPoint(i,(v-lo)/spread*100) for i,v in enumerate(values)]
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
+    def dashboard_mini_candles(sym, data):
+        # Same validated 5-minute Dhan history as Scanner; no network request.
+        if prefs.get("source")!="Dhan" or data.get("source")!="Dhan":
+            return note("Dhan mini candles unavailable")
+        bars=clean_bars(data.get("bars") or [])[-24:]
+        if len(bars)<2:
+            return note("Dhan 5m candles not loaded • no artificial chart")
+        lo=min(bar[3] for bar in bars);hi=max(bar[2] for bar in bars)
+        span=max(hi-lo,.01);width=300;height=108
+        items=[]
+        for i,(_,o,h,l,c,v) in enumerate(bars):
+            x=i*width/len(bars)+3
+            y=lambda value:5+(hi-value)/span*(height-10)
+            col=GREEN if c>=o else RED
+            items.append(ft.Container(left=x+2,top=y(h),width=2,
+                                      height=max(1,y(l)-y(h)),bgcolor=col))
+            items.append(ft.Container(left=x,top=min(y(o),y(c)),
+                                      width=max(3,width/len(bars)-2),
+                                      height=max(2,abs(y(c)-y(o))),bgcolor=col))
+        stamp=datetime.fromtimestamp(bars[-1][0],
+            timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
+        return ft.Column([
+            ft.Container(content=ft.Stack(items,width=width,height=height),
+                         height=height,alignment=ft.alignment.center,bgcolor=PANEL),
+            txt("Dhan • 5m • "+str(len(bars))+" historical candles • "+stamp+
+                " • NOT verified live",11,MUTED)
+        ],spacing=2)
+
     def help_status(title,control=None):
         text=str(title).lower()
         if control is not None:
@@ -732,7 +760,7 @@ def app_main(page:ft.Page):
             fresh=all(r.get("timestamp") is not None and 0<=now-r["timestamp"]<=90 for r in rows)
             return ("हाल के option quotes उपलब्ध हैं। " if fresh else "Option quotes पुराने हैं या समय उपलब्ध नहीं है। ")+option_feed_status[0]+" • "+component_status("options")
         sym=chain_symbol.value if current[0]==1 else (scan_symbol.value or "NIFTY")
-        return quote_caption(sym)+" • स्रोत: "+str(prefs.get("source","Dhan"))+" • broker "+("जुड़ा है" if angel_feed.connected else "जुड़ा नहीं है")
+        return quote_caption(sym)+" • Dhan server "+("connected" if dhan_feed.connected else "disconnected")
     def show_help(title,control=None):
         message=describe(title,prefs.get("language","English"))
         dialog=ft.AlertDialog(title=txt("ⓘ "+str(title),17,GOLD,True),
@@ -1297,6 +1325,7 @@ def app_main(page:ft.Page):
                 rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
+                    rows.append(dashboard_mini_candles(sym,candle_data))
                     rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))
                     analysis=display_analysis(sym,candle_data)
                     if not analysis.get("timestamp"):
@@ -1344,7 +1373,6 @@ def app_main(page:ft.Page):
             dashboard_market_indices(),
             dashboard_index_analysis(),
             note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')),
-            fusion_card(scan_shared['symbol'], scan_shared['tf'] if scan_shared['tf'] != '—' else '5m', compact=True),
             section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
                                note(scan_shared['basis'])], spacing=4)),
@@ -2352,7 +2380,7 @@ def app_main(page:ft.Page):
         return section("Option Chart",ft.Column([
             note("Dhan CE/PE premium history • not available from the current read-only gateway"),
             note("The Option Chain above can display Dhan strikes, OI and premiums when returned by the selected expiry."),
-            note("Historical option candles are unavailable • no simulated chart, no Angel One fallback."),
+            note("Historical option candles unavailable • no simulated chart; Dhan data only."),
             ft.ElevatedButton("Refresh Dhan Option Chain",
                 on_click=lambda e:page.run_task(refresh_selected_options),
                 disabled=option_feed_busy[0]),
@@ -2565,11 +2593,11 @@ def app_main(page:ft.Page):
     mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
     # Only Dhan is selectable in the production provider control, even with legacy saved settings.
     source=ft.Dropdown(label="Data provider",dense=True,value="Dhan",options=[ft.dropdown.Option("Dhan")])
-    broker_names=["Dhan","Angel One"]
-    broker=ft.Dropdown(label="Select Indian API broker",value=prefs.get("broker","Dhan") if prefs.get("broker","Dhan") in broker_names else "Dhan",options=[ft.dropdown.Option(x) for x in broker_names])
+    broker_names=["Dhan"]
+    broker=ft.Dropdown(label="Select Indian API broker",value="Dhan",options=[ft.dropdown.Option("Dhan")])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
-    server_trust=ft.Checkbox(label="I trust this server to receive my Angel One login",value=False)
+    server_trust=ft.Checkbox(label="Dhan credentials remain on the server",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
@@ -3442,7 +3470,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only charts/scanner support 51 mapped NSE equities and NIFTY after Connect / Check with a server-side token. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",ft.Column([note("Live broker orders OFF"),ft.Row([sl,target],wrap=True)])))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
@@ -3499,7 +3527,7 @@ def app_main(page:ft.Page):
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    # All supported filters are selectable, but at most ten slots are active.
+    # Up to fifteen filters can be selected; the first ten saved defaults remain unchanged.
     # Option/OI filters remain WAIT until authenticated derivative evidence exists.
     saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
     if not isinstance(saved_filters,(list,tuple)):
@@ -3544,7 +3572,7 @@ def app_main(page:ft.Page):
             if filter_feedback.page is not None:filter_feedback.update()
         else:
             filter_selected.append(name)
-            filter_feedback.value="Added "+name+" • "+str(len(filter_selected))+"/10 active • "+filter_availability(name)
+            filter_feedback.value="Added "+name+" • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active • "+filter_availability(name)
             store_filters()
             select(current[0])
             if not scan_busy[0]:trigger_scan()
@@ -4384,7 +4412,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def central_filter_settings():
-        # Active is a movable 10-slot list; unselected default/extra/OI
+        # Active is a movable 15-slot list; unselected default/extra/OI
         # indicators return to the available pool immediately after removal.
         available_filters=[name for name in filter_names if name not in filter_selected]
         filter_checklist.controls=[
