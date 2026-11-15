@@ -1108,29 +1108,41 @@ def app_main(page:ft.Page):
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
     async def super_five_minute_refresh():
-        # Re-rank cached, completed 5m candles every 15 seconds (local only).
-        # Never issue another 51-symbol historical API burst from this task.
+        # Priority P2: check the local completed-candle cache every 10s.
+        # Re-analyze only when candles or filter choices change, without
+        # issuing extra broker/Oracle historical or quote requests.
+        last_fingerprint=None
         while True:
-            await asyncio.sleep(15)
+            await asyncio.sleep(10)
             try:
                 if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                    last_fingerprint=None
                     continue
                 generation=provider_generation[0]
                 expected_source={"Dhan":"Dhan","Broker API":"Angel One",
                                  "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
                 if not expected_source:
+                    last_fingerprint=None
                     continue
-                results={}
+                available=[]
                 for sym in watch_symbols:
                     snapshot=quotes.get(sym) or {}
-                    if snapshot.get("source")!=expected_source or not snapshot.get("bars"):
-                        continue
+                    bars=snapshot.get("bars") or []
+                    if snapshot.get("source")==expected_source and bars:
+                        available.append((sym,snapshot,bars))
+                fingerprint=(generation,expected_source,tuple(filter_selected),
+                             tuple((sym,len(bars),repr(bars[-1])) for sym,_,bars in available))
+                if fingerprint==last_fingerprint:
+                    continue
+                results={}
+                for sym,snapshot,_ in available:
                     result=display_analysis(sym,snapshot)
                     if result.get("timestamp"):
                         results[sym]=result
                 if generation!=provider_generation[0] or not results:
                     continue
                 publish_partial_ranking(results)
+                last_fingerprint=fingerprint
                 if current[0]==0:
                     request_view_refresh(0)
             except asyncio.CancelledError:
