@@ -397,7 +397,11 @@ def app_main(page:ft.Page):
             source_name="Google News RSS — linked publishers"
         try:
             request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 BOT KING personal headline reader"})
-            with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(2_000_001)
+            # Five candidate feeds cost at most ~1.25 MB per login. Reject
+            # oversized RSS rather than parsing a truncated document.
+            with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(262_145)
+            if len(raw)>262_144:
+                raise FeedError("Headline RSS exceeds bounded response size")
             items=parse_news_rss(raw,source_name)
             result={"items":items,"fetched":now,"status":"Available" if items else "No recent headlines","source":source_name}
         except Exception as exc:
@@ -1160,6 +1164,26 @@ def app_main(page:ft.Page):
             if len(top5_candidates)>=5:break
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
+    news_bootstrap_generation=[None]
+    async def refresh_superfive_news():
+        # Five bounded RSS contexts after authorized login. This is NOT
+        # market data, never a verified directional vote or an order input.
+        generation=provider_generation[0]
+        if (news_bootstrap_generation[0]==generation or not app_active[0]
+                or prefs.get("source")!="Dhan" or not dhan_feed.connected):
+            return
+        news_bootstrap_generation[0]=generation
+        candidates=list(dict.fromkeys(row.get("symbol") for row in top5_candidates
+            if isinstance(row,dict) and row.get("symbol") in watch_symbols))[:5]
+        for sym in candidates:
+            if (generation!=provider_generation[0] or not app_active[0]
+                    or not dhan_feed.connected):
+                break
+            await asyncio.to_thread(fetch_news,sym)
+            if current[0]==0:
+                request_view_refresh(0)
+            await asyncio.sleep(0.5)
+
     async def super_five_minute_refresh():
         # Priority P2: check local completed candles every 10s, even after close.
         # This does NOT poll Dhan; historical B/S stays non-actionable.
@@ -3098,6 +3122,7 @@ def app_main(page:ft.Page):
                     # uses the existing serial Dhan transport and 3.25s pacing.
                     if (app_active[0] and dhan_feed.connected and prefs.get("source")=="Dhan"):
                         page.run_task(refresh_selected_options)
+                        page.run_task(refresh_superfive_news)
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
