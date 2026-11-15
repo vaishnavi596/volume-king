@@ -46,5 +46,15 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         self.assertNotIn("quote_auto_last_attempt[0]=time.monotonic()",body)
         self.assertIn("await refresh_watch_batch()",body)
 
+    def test_super_five_reuses_cache_and_skips_unmodified_candles(self):
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        body=source.split("    async def super_five_minute_refresh():",1)[1].split("    def five_engine_summary(symbol):",1)[0]
+        self.assertIn("await asyncio.sleep(10)",body)
+        self.assertIn("fingerprint==last_fingerprint",body)
+        self.assertIn("tuple(filter_selected)",body)
+        self.assertIn("publish_partial_ranking(results)",body)
+        self.assertNotIn("dhan_feed.batch_quotes",body)
+        self.assertNotIn("get_market_data(",body)
+
 if __name__=="__main__":
     unittest.main()
