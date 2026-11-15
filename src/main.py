@@ -5378,9 +5378,9 @@ console.log('BOT KING Lightweight Charts ready');
             if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
                 if (app_active[0] and generation==provider_generation[0]
-                        and time.monotonic()-quote_auto_last_attempt[0]>=60
+                        and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
-                    quote_auto_last_attempt[0]=time.monotonic()
+                    # Reuse the same request clock as Watchlist and the poller.
                     if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
                         await refresh_watch_batch()
                     # A cooling-down equity snapshot must not suppress index recovery.
