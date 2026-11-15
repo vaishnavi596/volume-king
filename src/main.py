@@ -3537,6 +3537,19 @@ def app_main(page:ft.Page):
         select(1)
 
     paper_bot_slot.on_change=switch_paper_bot
+    # Restore the selected profile's independent controls on a fresh app session.
+    _initial_position,_initial_settings=load_paper_slot(prefs,paper_bot_active[0])
+    for _key,_control in paper_bot_config_controls().items():
+        if _key in _initial_settings:_control.value=_initial_settings[_key]
+
+    def paper_profit_preset(percent):
+        if percent not in (25,50,75):
+            raise ValueError("Partial profit must leave a runner position")
+        partial_profit.value=True
+        paper_partial_pct.value=str(percent)
+        save_active_paper_slot()
+        save()
+        select(1)
 
     def paper_trading_center():
         # One panel for paper configuration. Future broker execution is separately locked.
@@ -3546,6 +3559,7 @@ def app_main(page:ft.Page):
                 (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")))
         instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
         context=[five_engine_chips(instrument),
+                 dashboard_mini_candles(instrument,shared_history(instrument) or {}),
                  note(oracle_assessment_notes(instrument)[0]),
                  note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders.")]
         controls=[
@@ -3569,6 +3583,16 @@ def app_main(page:ft.Page):
                      ft.OutlinedButton("EXIT • PAPER",on_click=lambda e:bot_paper_action("EXIT"))
                  ],wrap=True),paper_exit_price,paper_exit_fees],spacing=5)),
             paper_control_card(),
+            section("PROFIT BOOKING PRESETS • MANUAL PAPER TICKS",
+                ft.Column([
+                    note("Choose 25%, 50% or 75% partial quantity, then Process manual mark. EXIT closes 100%."),
+                    ft.Row([
+                        ft.OutlinedButton("25% quantity",on_click=lambda e:paper_profit_preset(25)),
+                        ft.OutlinedButton("50% quantity",on_click=lambda e:paper_profit_preset(50)),
+                        ft.OutlinedButton("75% quantity",on_click=lambda e:paper_profit_preset(75))
+                    ],wrap=True),
+                    note("Partial booking uses the specified simulated mark and estimated charges; no broker fill.")
+                ],spacing=4)),
             ft.ExpansionTile(title=note("Advanced paper risk / profit controls"),
                  controls=[bot_trailing,partial_profit,buy_dip,
                            max_total_lots,cooldown,squareoff,
@@ -5036,6 +5060,17 @@ console.log('BOT KING Lightweight Charts ready');
     bindings.extend([(protection_mode,"protection_mode"),(protection_enabled,"protection_enabled"),(protection_loss,"protection_loss"),(protection_profit,"protection_profit"),(protection_trail,"protection_trail"),(protection_timeout,"protection_timeout"),(protection_no_reply,"protection_no_reply")])
     bindings.extend([(bot_segment,"bot_segment"),(bot_side,"bot_side"),(cash_quantity,"cash_quantity"),(cash_max_quantity,"cash_max_quantity"),(manual_contract_confirmed,"manual_contract_confirmed"),(paper_capital,"paper_capital"),(paper_notional_limit,"paper_notional_limit"),(paper_trade_risk,"paper_trade_risk"),(paper_risk_pct,"paper_risk_pct"),(paper_max_additions,"paper_max_additions"),(paper_add_units,"paper_add_units"),(paper_trail_pct,"paper_trail_pct"),(paper_partial_trigger,"paper_partial_trigger"),(paper_partial_pct,"paper_partial_pct"),(paper_reentry_after_sl,"paper_reentry_after_sl"),(paper_break_even,"paper_break_even"),(paper_break_even_trigger,"paper_break_even_trigger"),(paper_break_even_fees,"paper_break_even_fees")])
     for control,key in bindings:bind_saved(control,key)
+    # Saved settings must follow the active paper-bot profile, not leak to others.
+    _paper_profile_keys=set(paper_bot_config_controls())
+    for _control,_key in bindings:
+        if _key in _paper_profile_keys:
+            _original_change=_control.on_change
+            def _save_profile_change(e,original=_original_change):
+                if original is not None:original(e)
+                if not getattr(e.control,"error_text",None):
+                    save_active_paper_slot()
+                    save()
+            _control.on_change=_save_profile_change
     def provider_changed(e):
         nonlocal market_status
         dhan_batch_issue[0]=None
