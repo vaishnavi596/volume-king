@@ -166,6 +166,7 @@ class ServerDhanReadOnly:
         self._historical_only = False
         self._cooldown_until = {}
         self._global_cooldown_until = 0.0
+        self._invalid_option_until = {}
         # One Dhan HTTPS request at a time across quote polling, scanner,
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
@@ -185,6 +186,7 @@ class ServerDhanReadOnly:
         self._historical_only = False
         self._cooldown_until = {}
         self._global_cooldown_until = 0.0
+        self._invalid_option_until = {}
 
     def _call(self, path, payload=None):
         with self._request_lock:
@@ -195,6 +197,16 @@ class ServerDhanReadOnly:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         if path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot"):
             raise FeedError("Unsupported Dhan read-only request")
+        # A rejected contract must not block another selected symbol/expiry.
+        option_key = None
+        if path in ("/dhan/option-expiries", "/dhan/option-chain") and isinstance(payload, dict):
+            symbol = payload.get("symbol")
+            expiry = payload.get("expiry", "") if path == "/dhan/option-chain" else ""
+            if isinstance(symbol, str) and isinstance(expiry, str) and symbol.strip():
+                option_key = (path, symbol.strip().upper(), expiry.strip())
+                wait = self._invalid_option_until.get(option_key, 0.0) - time.monotonic()
+                if wait > 0:
+                    raise FeedError(f"{path} HTTP 422; same contract retry in {int(wait) + 1}s")
         remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
             raise FeedError(f"{path} cooldown: retry in {int(remaining) + 1}s (HTTP 429)")
@@ -219,7 +231,18 @@ class ServerDhanReadOnly:
             if exc.code == 409 and path == "/dhan/option-chain":
                 raise FeedError("Dhan option expiry list required (HTTP 409); refresh expiries") from None
             if exc.code == 422 and path in ("/dhan/option-chain", "/dhan/option-expiries"):
-                raise FeedError("Dhan option symbol or expiry not listed (HTTP 422)") from None
+                if option_key is not None:
+                    now = time.monotonic()
+                    if len(self._invalid_option_until) >= 128:
+                        expired = [k for k, until in self._invalid_option_until.items() if until <= now]
+                        for k in expired:
+                            del self._invalid_option_until[k]
+                        if len(self._invalid_option_until) >= 128:
+                            del self._invalid_option_until[min(
+                                self._invalid_option_until, key=self._invalid_option_until.get)]
+                    self._invalid_option_until[option_key] = now + 300
+                kind = "expiry list" if path == "/dhan/option-expiries" else "option chain"
+                raise FeedError(f"Dhan {kind}: symbol or expiry unavailable (HTTP 422); same contract paused 300s") from None
             if exc.code == 422:
                 raise FeedError("Dhan instrument or timeframe not verified (HTTP 422)") from None
             if exc.code == 429:
