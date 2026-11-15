@@ -18,6 +18,19 @@ def direct_https_opener():
     return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
 
+def checked_pairing_key(value):
+    """Reject malformed HTTP-header keys before urllib raises UnicodeEncodeError.
+
+    Credentials are opaque: do not normalize, transliterate, log, or silently
+    modify them. A pasted Unicode dash/space is not a valid ASCII header key.
+    """
+    if not isinstance(value, str) or not value:
+        raise FeedError("Server Access Key missing; enter the exact Oracle pairing key")
+    if any(ord(char) < 33 or ord(char) > 126 for char in value):
+        raise FeedError("Server Access Key contains non-ASCII or whitespace characters; re-enter the exact key using plain ASCII")
+    return value
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # Never forward a credential or session to another URL.
@@ -185,7 +198,7 @@ class ServerDhanReadOnly:
         remaining = max(self._cooldown_until.get(path, 0.0), self._global_cooldown_until) - time.monotonic()
         if remaining > 0:
             raise FeedError(f"{path} cooldown: retry in {int(remaining) + 1}s (HTTP 429)")
-        headers = {"X-BotKing-Key": self._pairing_key, "Accept": "application/json"}
+        headers = {"X-BotKing-Key": checked_pairing_key(self._pairing_key), "Accept": "application/json"}
         if payload is None:
             req = urllib.request.Request(self._origin + path, headers=headers, method="GET")
         else:
