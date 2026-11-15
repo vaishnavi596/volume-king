@@ -238,11 +238,11 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('return vote_display(counts,fresh)', source)
         self.assertIn("Filters use candle votes; neutral includes unavailable signals.", source)
 
-    def test_watchlist_enforces_fifty_symbol_limit_after_async_validation(self):
+    def test_watchlist_enforces_seventy_symbol_limit_after_async_validation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn("if len(watch_groups[target_list])>=50:", source)
-        self.assertIn("elif len(watch_groups[target_list])>=50:", source)
-        self.assertIn("List is full (50 symbols maximum). Remove a symbol first.", source)
+        self.assertIn("if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:", source)
+        self.assertIn("elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:", source)
+        self.assertIn("List is full (70 symbols maximum). Remove a symbol first.", source)
 
     def test_chart_drawing_guides_do_not_claim_touch_support(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()

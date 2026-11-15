@@ -67,8 +67,8 @@ class A3RegressionTests(unittest.TestCase):
     def test_native_dashboard_candles_use_existing_dhan_history(self):
         test_selected_dashboard_slots_reuse_dhan_native_candles_without_network()
 
-    def test_ten_movable_saved_filter_slots(self):
-        test_preserve_ten_movable_saved_slots()
+    def test_fifteen_movable_saved_filter_slots(self):
+        test_preserve_fifteen_movable_saved_slots()
 
     def test_user_visible_provider_is_dhan_only(self):
         test_production_broker_and_help_are_dhan_only()
