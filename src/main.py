@@ -1268,7 +1268,13 @@ def app_main(page:ft.Page):
             historical=False
             if (name=="technical" and (bull is None or bear is None)
                     and prefs.get("source")=="Dhan" and dhan_feed.connected):
-                raw=watch_signal_cache.get(sym) or {}
+                raw=(watch_signal_cache.get(sym) or
+                     next((row for row in top5_candidates
+                           if row.get("symbol")==sym and row.get("source")=="Dhan"
+                           and row.get("historical") is True),{}))
+                # On app reopen the saved Top Five ranking may exist before
+                # the paced 51-candle scan has rebuilt watch_signal_cache.
+                # Its old votes are shown HIST only; no actionable 5/5 vote.
                 if raw.get("source")=="Dhan" and raw.get("timestamp"):
                     counts=signal_percentages(raw)
                     if counts and counts[2]>0:
