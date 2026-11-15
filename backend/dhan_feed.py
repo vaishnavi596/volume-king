@@ -36,7 +36,7 @@ class DhanFeed:
             raise DhanFeedError("Dhan credentials are not configured")
 
     def _post(self, endpoint, payload):
-        if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical", "/optionchain"):
+        if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical", "/optionchain", "/optionchain/expirylist"):
             raise DhanFeedError("Unsupported read-only endpoint")
         with self._rate_lock:
             if time.monotonic() < self._retry_after:
@@ -127,6 +127,35 @@ class DhanFeed:
         if not isinstance(payload, dict) or not payload.get("securityId"):
             raise DhanFeedError("Dhan instrument mapping required")
         return self._post("/charts/historical", payload)
+
+    def option_expiries(self, underlying_segment, underlying_security_id):
+        """Read-only broker-listed expiry dates, not guessed calendar expiries."""
+        from datetime import date
+        if underlying_segment not in ("IDX_I", "NSE_EQ", "BSE_I", "BSE_EQ"):
+            raise DhanFeedError("Verified underlying segment required")
+        if (type(underlying_security_id) is not int or underlying_security_id <= 0):
+            raise DhanFeedError("Verified underlying security ID required")
+        with self._rate_lock:
+            now = time.monotonic()
+            if now < self._option_next_allowed:
+                raise DhanRateLimitError("Dhan option requests paced")
+            type(self)._option_next_allowed = now + self.OPTION_CHAIN_INTERVAL_SECONDS
+        response = self._post("/optionchain/expirylist", {
+            "UnderlyingScrip": underlying_security_id,
+            "UnderlyingSeg": underlying_segment,
+        })
+        dates = response.get("data")
+        if response.get("status") != "success" or not isinstance(dates,list):
+            raise DhanFeedError("Dhan expiry list unavailable")
+        parsed=[]
+        for item in dates:
+            if not isinstance(item,str):
+                raise DhanFeedError("Invalid Dhan listed expiry")
+            try: value=date.fromisoformat(item)
+            except ValueError: raise DhanFeedError("Invalid Dhan listed expiry") from None
+            if value.isoformat()!=item:raise DhanFeedError("Noncanonical Dhan expiry")
+            if value >= date.today():parsed.append(item)
+        return sorted(set(parsed))
 
     def option_chain(self, underlying_segment, underlying_security_id, expiry):
         """Read-only Dhan option-chain request; no broker fallback or order routing.
