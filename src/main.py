@@ -296,6 +296,9 @@ def app_main(page:ft.Page):
     broker_connect_busy=[False]
     option_feed_status=["Dhan option metrics not loaded; live orders OFF."]
     dhan_option_metrics={}
+    # Session-local, bounded read-only option evidence for multiple underlyings.
+    # Never persisted and never promoted to directional/live signals.
+    dhan_option_context_cache={}
     option_refresh_pending=[False]
     dhan_option_last_attempt=[0.0]
     oracle_assessment_cache={}
@@ -1223,9 +1226,11 @@ def app_main(page:ft.Page):
         # Reuse the existing read-only option component; never create a second API poll.
         # Current option snapshots lack measured directional strength and remain WAIT.
         option_context=option_from_component(option_component(symbol, "5m"))
-        data=dhan_option_metrics
-        if (symbol==chain_symbol.value and data.get("source")=="dhan"
-                and data.get("symbol")==symbol and data.get("expiry")==expiry.value
+        data=(dhan_option_metrics if symbol==chain_symbol.value else
+              next((row for (gen,sym,listed),row in reversed(list(dhan_option_context_cache.items()))
+                    if gen==provider_generation[0] and sym==symbol),{}))
+        if (data.get("source")=="dhan"
+                and data.get("symbol")==symbol and (symbol!=chain_symbol.value or data.get("expiry")==expiry.value)
                 and data.get("signal_eligible") is False
                 and type(data.get("pcr")) in (int,float)
                 and type(data.get("max_pain")) in (int,float)
@@ -1278,9 +1283,11 @@ def app_main(page:ft.Page):
                 # Show independent data readiness, never fabricated B/S ratios.
                 label=short+" WAIT";color=MUTED
                 if name=="options":
-                    data=dhan_option_metrics
-                    if (sym==chain_symbol.value and data.get("source")=="dhan" and data.get("symbol")==sym
-                            and data.get("expiry")==expiry.value
+                    data=(dhan_option_metrics if sym==chain_symbol.value else
+                          next((row for (gen,underlying,listed),row in reversed(list(dhan_option_context_cache.items()))
+                                if gen==provider_generation[0] and underlying==sym),{}))
+                    if (data.get("source")=="dhan" and data.get("symbol")==sym
+                            and (sym!=chain_symbol.value or data.get("expiry")==expiry.value)
                             and data.get("signal_eligible") is False
                             and isinstance(data.get("pcr"),(int,float))):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
@@ -2640,6 +2647,12 @@ def app_main(page:ft.Page):
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             dhan_option_metrics.clear()
             dhan_option_metrics.update(data)
+            # Keep distinct (generation, symbol, listed-expiry) contexts for
+            # RELIANCE/HDFCBANK/indices; a later selection cannot borrow the
+            # prior underlying\x27s CE/PE prices or OI.
+            dhan_option_context_cache[(generation,sym,chosen)]=dict(data)
+            while len(dhan_option_context_cache)>16:
+                del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
             option_feed.clear()  # Do not show legacy Angel One contract rows.
             option_snapshots.pop(sym,None)  # Unverified metrics must not drive signals.
             option_feed_status[0]="Dhan • expiry "+chosen+" • freshness unverified • signals and live orders OFF"
