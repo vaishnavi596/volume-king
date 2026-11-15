@@ -5,7 +5,7 @@ import math
 DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                    "SMC Structure", "Order Block", "Pivot Points", "FVG", "Liquidity Sweep"]
 OPTION_FILTERS = ["OI Support", "OI Resistance", "OI Profile", "Max Pain"]
-ALL_FILTERS = DEFAULT_FILTERS + OPTION_FILTERS + ["SMA 5/20", "Volume", "ATR 14"]
+ALL_FILTERS = DEFAULT_FILTERS + OPTION_FILTERS + ["SMA 5/20", "Volume", "ATR 14", "News Headlines"]
 
 def ema(values, period):
     out = []
@@ -137,7 +137,9 @@ def analyze(bars, selected=None, timeframe="5m"):
                      else -1 if vol[-1]>avgvol*1.2 and p<close[-2] else 0)
         add("Volume",volume_side,f"Volume {vol[-1]:.0f}, 20-bar avg {avgvol:.0f}")
     for name in OPTION_FILTERS:
-        add(name,None,"UNAVAILABLE: verified live option chain not connected")
+        add(name,None,"WAIT: Dhan option-chain metrics are informational, not verified directional votes")
+    # News can be selected, but headlines are never converted into a candle vote.
+    add("News Headlines",None,"WAIT: news headlines are informational; no verified directional vote")
     directional=[v for v in votes if v["vote"] in (-1,1)]
     bulls=sum(v["vote"]==1 for v in directional)
     bears=sum(v["vote"]==-1 for v in directional)
