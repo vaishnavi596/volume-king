@@ -51,3 +51,14 @@ Six screenshots distinguish two installed builds: four images labeled **2.3.115*
 - Regression guard for the legacy option chart prompt: 7ddbaaea.
 
 **Pending before release:** Verify authenticated Oracle Dhan option-expiries and option-chain responses and whether ATM seven-strike data is present, run offline CI and Android device tests, and bump both app versionName and versionCode for a new signed APK. Do not claim Dhan historical CE/PE premium candles until a verified route exists.
+
+## 15 Nov — user-confirmed filter baseline and A2 extension
+
+The user confirmed the existing 10-slot remove-three/add-three behavior works; **do not change or regress it**. Keep maximum ten active, ordered and saved. Additional feature work is separated from the APK acceptance gate.
+
+- News Headlines is now a selectable context filter, not an eleventh default slot; selecting it requires a free slot. It reports cached headline counts/cautious headline cues without manufacturing directional votes (commit 713706d2).
+- OI Support, OI Resistance, OI Profile and Max Pain are selectable/savable. For matching NIFTY expiry, scanner details show Dhan read-only option-chain context (highest PE/CE OI strike in seven-row ATM window, seven-strike profile availability, Max Pain). Unverified chain context is never a BULLISH/BEARISH scanner vote (commit 70a9541a).
+- Offline regression guards for ten-slot cap and news/OI context were added (commit 01346b15).
+- Futures expansion and other new features are deferred; existing Dhan Option Chain and white-chart fixes stay in A2 scope.
+
+**Release is still blocked** until offline CI PASS, confirmed Oracle authenticated option-chain payload, Android verification and signed APK/versionName/versionCode checks. Do not assume a GitHub commit produces an APK.
