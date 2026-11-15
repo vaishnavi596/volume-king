@@ -47,7 +47,9 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         chip=SOURCE.split("    def five_engine_chips(sym):",1)[1].split("    def super_five_card():",1)[0]
         self.assertIn("C HIST B",chip)
         self.assertIn("NOT live",chip)
-        self.assertNotIn("dhan_feed.",chip)
+        self.assertNotIn("dhan_feed.option_chain",chip)
+        self.assertNotIn("asyncio.to_thread",chip)
+        self.assertNotIn("get_market_data(",chip)
 
     def test_no_extra_poll_on_dashboard_render(self):
         view=SOURCE.split("    def dashboard():",1)[1].split("    search=ft.TextField(",1)[0]

@@ -1543,6 +1543,12 @@ def app_main(page:ft.Page):
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
+            # The 70-equity allowance is global across all five lists,
+            # not 70 new securities in EACH list. Shared duplicates are free.
+            if sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
+                feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
+                page.update()
+                return
             if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
                 if active_watch[0]==target_list:
                     feedback.value="List is full (70 symbols maximum). Remove a symbol first."
@@ -1568,6 +1574,8 @@ def app_main(page:ft.Page):
             feedback.value="Enter a valid NSE ticker (letters, numbers, -, &, .)."
         elif sym in watch_groups[target_list]:
             feedback.value="Already in this list."
+        elif sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
+            feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
         elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
             feedback.value="List is full (70 symbols maximum). Remove a symbol first."
         else:

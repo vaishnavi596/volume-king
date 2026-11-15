@@ -243,6 +243,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:", source)
         self.assertIn("elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:", source)
         self.assertIn("List is full (70 symbols maximum). Remove a symbol first.", source)
+        self.assertIn("sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES",source)
+        self.assertIn("Watchlist total is full (70 distinct equities). Remove an equity first.",source)
 
     def test_chart_drawing_guides_do_not_claim_touch_support(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
