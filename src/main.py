@@ -3528,6 +3528,7 @@ def app_main(page:ft.Page):
     tv_view=[None]
     tv_booted=[False]
     tv_context=[None];tv_ready=[False];tv_js_view=[None];tv_history=[[]];tv_pending=[None];tv_limit=[300]
+    tv_last_html_load=[0.0];tv_mount_retries=[0]
     def lightweight_payload(bars):
         import math
         rows={}
@@ -3641,6 +3642,7 @@ console.log('BOT KING Lightweight Charts ready');
             if cached.get("bars"):
                 tv_history[0]=cached["bars"]
                 if view is not tv_view[0] or context!=tv_context[0] or view.page is None:return
+                tv_last_html_load[0]=time.monotonic()
                 view.load_html(tradingview_widget_html(sym,tv_history[0][-tv_limit[0]:]),base_url="https://www.tradingview.com/")
                 loaded=True
                 tv_set_status("Saved chart visible • checking newer data...")
@@ -3655,7 +3657,9 @@ console.log('BOT KING Lightweight Charts ready');
             # Chart history must never overwrite the independent Dhan LTP snapshot.
             tv_history[0]=hist.get("bars") or []
             tv_pending[0]=tv_history[0][-tv_limit[0]:]
-            if not loaded:view.load_html(tradingview_widget_html(sym,tv_pending[0]),base_url="https://www.tradingview.com/")
+            if not loaded:
+                tv_last_html_load[0]=time.monotonic()
+                view.load_html(tradingview_widget_html(sym,tv_pending[0]),base_url="https://www.tradingview.com/")
             elif tv_ready[0]:push_chart_data()
         except Exception as exc:
             log_error("chart",exc)
@@ -3995,7 +3999,24 @@ console.log('BOT KING Lightweight Charts ready');
             tv_booted[0]=True
             await tv_load_widget()
             return
-        if not tv_ready[0]:return
+        if not tv_ready[0]:
+            # Android WebView sometimes never emits the expected ready/ended
+            # callback after a symbol switch. Recover only the current view
+            # from saved candles, without a second Dhan history request.
+            if (tv_last_html_load[0] and time.monotonic()-tv_last_html_load[0]>=6
+                    and tv_mount_retries[0]<2):
+                tv_mount_retries[0]+=1
+                tv_last_html_load[0]=time.monotonic()
+                saved=tv_history[0]
+                if not saved and tf=="5m":
+                    shared=shared_history(sym)
+                    if shared.get("source")==provider:saved=shared.get("bars") or []
+                if view is tv_view[0] and context==tv_context[0] and view.page is not None:
+                    tv_pending[0]=saved[-tv_limit[0]:] if saved else None
+                    view.load_html(tradingview_widget_html(sym,saved[-tv_limit[0]:]),
+                                   base_url="https://www.tradingview.com/")
+                    tv_set_status("Chart initializing for "+sym+" • recovering WebView")
+            return
         # A failed JS delivery keeps its pending candles. Retry that delivery
         # on the next local tick without fetching new history or rebuilding WebView.
         if tv_pending[0] is not None:
@@ -4175,6 +4196,8 @@ console.log('BOT KING Lightweight Charts ready');
                 context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Dhan"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
                 if tv_view[0] is None or tv_context[0]!=context:
                     tv_context[0]=context;tv_booted[0]=False;tv_ready[0]=False;tv_pending[0]=None;tv_limit[0]=300
+                    tv_history[0]=[];tv_js_view[0]=None;tv_last_html_load[0]=0.0;tv_mount_retries[0]=0
+                    chart_delivery_identity[0]=None
                     tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
                 parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
@@ -4767,6 +4790,14 @@ console.log('BOT KING Lightweight Charts ready');
             icon.color=GOLD if i==j else MUTED;label.color=GOLD if i==j else MUTED
         for root in page.controls:localize_tree(root,prefs.get("language","English"))
         page.update()
+        if i==3 and scanner_chart_visible[0] and chart_provider[0]=="TradingView Lightweight":
+            # An attached Android WebView can miss its about:blank callback.
+            # Kick its initialization after page.update rather than waiting
+            # for a navigation away/back to mount the selected-symbol chart.
+            if tv_view[0] is not None and not tv_booted[0]:
+                tv_booted[0]=True
+                tv_last_html_load[0]=time.monotonic()
+                page.run_task(tv_load_widget)
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
     # Keep the app chrome inside Android system insets, including cutouts.
