@@ -3065,6 +3065,7 @@ def app_main(page:ft.Page):
                                        value=str(prefs.get("paper_break_even_fees",0)))
     paper_bot_state=["Stopped"];paper_last_exit={};paper_exit_reason=["Manual paper exit"]
     paper_state_status=txt("Paper bot stopped • no live orders • manual marks required",12,GOLD)
+    paper_local_timing=txt("Paper decision latency: not measured • no broker timing",12,MUTED)
 
     bot_symbol=ft.Dropdown(label="Instrument",value=prefs.get("bot_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()+["Custom"]])
     bot_custom=ft.TextField(label="Custom symbol (optional)",value=prefs.get("bot_custom",""))
@@ -3487,8 +3488,22 @@ def app_main(page:ft.Page):
                 prefs["paper_journal"]=prefs.get("paper_journal",[])[-200:]
                 save();page.update()
             except (ValueError,TypeError,KeyError,OverflowError) as exc:paper_state_status.value="Paper tick blocked: "+str(exc);page.update()
+    def timed_paper_action(side):
+        started=time.perf_counter()
+        bot_paper_action(side)
+        measured=(time.perf_counter()-started)*1000
+        paper_local_timing.value=f"Local paper action {measured:.2f} ms • app callback + save only; no broker or UI delivery SLA"
+        page.update()
+
+    def timed_paper_tick(e=None):
+        started=time.perf_counter()
+        paper_tick()
+        measured=(time.perf_counter()-started)*1000
+        paper_local_timing.value=f"Local paper mark {measured:.2f} ms • excludes market-data age and network delivery"
+        page.update()
+
     def paper_control_card():
-        return section("PAPER BOT • MANUAL TICK ENGINE",ft.Column([paper_state_status,note("Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position."),ft.Row([ft.ElevatedButton("Start Paper",on_click=lambda e:paper_run("Start")),ft.OutlinedButton("Pause",on_click=lambda e:paper_run("Pause")),ft.OutlinedButton("Stop new actions",on_click=lambda e:paper_run("Stop"))],wrap=True),paper_mark,ft.TextButton("Process manual mark",on_click=paper_tick)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+        return section("PAPER BOT • MANUAL TICK ENGINE",ft.Column([paper_state_status,note("Start never enables real orders. Each Process mark press supplies one new manual price; phone lock pauses this engine. Stop blocks strategy actions but does not close a position."),ft.Row([ft.ElevatedButton("Start Paper",on_click=lambda e:paper_run("Start")),ft.OutlinedButton("Pause",on_click=lambda e:paper_run("Pause")),ft.OutlinedButton("Stop new actions",on_click=lambda e:paper_run("Stop"))],wrap=True),paper_mark,ft.TextButton("Process manual mark",on_click=timed_paper_tick),paper_local_timing],horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     def paper_journal_card():
         rows=[]
         for item in reversed(prefs.get("paper_journal",[])[-10:]):
@@ -3578,9 +3593,9 @@ def app_main(page:ft.Page):
                  ft.ElevatedButton("Calculate paper risk",on_click=calculate_bot),
                  bot_preview,bot_trade_status,
                  ft.Row([
-                     ft.ElevatedButton("BUY • PAPER",on_click=lambda e:bot_paper_action("BUY"),bgcolor=GREEN,color=BG),
-                     ft.ElevatedButton("SELL • PAPER",on_click=lambda e:bot_paper_action("SELL"),bgcolor=RED,color=BG),
-                     ft.OutlinedButton("EXIT • PAPER",on_click=lambda e:bot_paper_action("EXIT"))
+                     ft.ElevatedButton("BUY • PAPER",on_click=lambda e:timed_paper_action("BUY"),bgcolor=GREEN,color=BG),
+                     ft.ElevatedButton("SELL • PAPER",on_click=lambda e:timed_paper_action("SELL"),bgcolor=RED,color=BG),
+                     ft.OutlinedButton("EXIT • PAPER",on_click=lambda e:timed_paper_action("EXIT"))
                  ],wrap=True),paper_exit_price,paper_exit_fees],spacing=5)),
             paper_control_card(),
             section("PROFIT BOOKING PRESETS • MANUAL PAPER TICKS",
@@ -3710,10 +3725,10 @@ def app_main(page:ft.Page):
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
-        content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
+        content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
-        content.append(section("REAL TRADING • DISABLED",ft.Column([note("Live broker orders OFF"),ft.Row([sl,target],wrap=True)])))
+        content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
