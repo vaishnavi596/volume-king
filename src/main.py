@@ -1160,7 +1160,7 @@ def app_main(page:ft.Page):
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
             option_context=option_from_component(option_component(symbol, "5m"))
-            return note("5 engines • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT ("+
+            return note("5/5 modules configured (100% setup) • 0/5 verified • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT ("+
                         option_context.reason+")")
         names={"technical":"Technical","candle":"Candle","news":"News",
                "futures":"Futures","options":"Options"}
@@ -1175,7 +1175,7 @@ def app_main(page:ft.Page):
         option_context=option_from_component(option_component(symbol, "5m"))
         pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
-        return ft.ExpansionTile(title=note("5 engines • "+combined["state"]+" • "+str(combined["coverage"])+"/5 verified"),
+        return ft.ExpansionTile(title=note("5/5 modules configured (100% setup) • "+str(combined["coverage"])+"/5 data verified • "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
     def super_five_card():
@@ -1489,12 +1489,12 @@ def app_main(page:ft.Page):
         # The scanner already populated this cache; never poll Dhan from a row.
         snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
         if not snapshot:
-            return note("5E WAIT • verified 0/5")
+            return note("5E 5/5 configured • 0/5 verified • WAIT")
         technical=snapshot["engines"][0].display()
         coverage=snapshot["combined"]["coverage"]
         if technical["state"]=="WAIT":
-            return ft.Text("5E WAIT • verified "+str(coverage)+"/5",size=14,color=MUTED,tooltip=str(technical["reason"]))
-        return note("5E "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
+            return ft.Text("5E 5/5 configured • verified "+str(coverage)+"/5 • WAIT",size=14,color=MUTED,tooltip=str(technical["reason"]))
+        return note("5E 5/5 configured • "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
                     "/5 • T B"+str(technical["bullish"])+"% / S"+str(technical["bearish"])+"%")
 
     def fill_watch(_=None):
@@ -3494,6 +3494,7 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
+    MAX_ACTIVE_FILTERS=15  # Ten defaults plus five user-selectable slots.
     # One-time migration restores the original ten defaults without overriding later user edits.
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
@@ -3503,7 +3504,7 @@ def app_main(page:ft.Page):
     saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
     if not isinstance(saved_filters,(list,tuple)):
         saved_filters=DEFAULT_FILTERS
-    filter_selected=list(dict.fromkeys(x for x in saved_filters if isinstance(x,str) and x in filter_names))[:10]
+    filter_selected=list(dict.fromkeys(x for x in saved_filters if isinstance(x,str) and x in filter_names))[:MAX_ACTIVE_FILTERS]
     added_filters=list(dict.fromkeys(x for x in filter_selected if x not in DEFAULT_FILTERS))
     added_filter_list=ft.Column(spacing=8)
     def store_filters():
@@ -3529,7 +3530,7 @@ def app_main(page:ft.Page):
     def remove_added_filter(name):
         if name in filter_selected:
             filter_selected.remove(name)
-            filter_feedback.value="Removed "+name+" • "+str(len(filter_selected))+"/10 active"
+            filter_feedback.value="Removed "+name+" • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
             store_filters()
             select(current[0])
             if not scan_busy[0]:trigger_scan()
@@ -3538,8 +3539,8 @@ def app_main(page:ft.Page):
             filter_feedback.value="Select one supported filter"
         elif name in filter_selected:
             filter_feedback.value=name+" is already active"
-        elif len(filter_selected)>=10:
-            filter_feedback.value="10/10 slots full • remove one active filter first"
+        elif len(filter_selected)>=MAX_ACTIVE_FILTERS:
+            filter_feedback.value=str(MAX_ACTIVE_FILTERS)+"/"+str(MAX_ACTIVE_FILTERS)+" slots full • remove one active filter first"
             if filter_feedback.page is not None:filter_feedback.update()
         else:
             filter_selected.append(name)
@@ -3558,6 +3559,13 @@ def app_main(page:ft.Page):
         save()
     chart_provider=[prefs.get("chart_provider","TradingView Lightweight")]
     if chart_provider[0]=="TradingView":chart_provider[0]="TradingView Lightweight"
+    # Existing 2.3.117 installs can retain a permanently white Android WebView.
+    # Migrate only once to the local, Dhan-OHLC-native chart; users may opt back into Lightweight.
+    if not prefs.get("scanner_native_chart_migrated_23118"):
+        chart_provider[0]="BOT KING / Broker"
+        prefs["chart_provider"]=chart_provider[0]
+        prefs["scanner_native_chart_migrated_23118"]=True
+        save()
     def tradingview_url(symbol):
         ticker={"NIFTY":"NSE:NIFTY","BANKNIFTY":"NSE:BANKNIFTY","SENSEX":"BSE:SENSEX"}.get(symbol,"NSE:"+symbol)
         return "https://www.tradingview.com/chart/?symbol="+urllib.parse.quote(ticker,safe="")+"&interval=5"
@@ -4396,7 +4404,7 @@ console.log('BOT KING Lightweight Charts ready');
                     txt(name,13,WHITE,True),note(filter_availability(name))
                 ],spacing=2),expand=True),
                 ft.OutlinedButton("Add",on_click=lambda e,n=name:add_filter_slot(n),
-                                  disabled=len(filter_selected)>=10)
+                                  disabled=len(filter_selected)>=MAX_ACTIVE_FILTERS)
             ],spacing=6),padding=8,bgcolor=PANEL2,border_radius=8)
             for name in available_filters]
         if not available_filters:
@@ -4404,12 +4412,12 @@ console.log('BOT KING Lightweight Charts ready');
         filter_choice.options=[ft.dropdown.Option(name) for name in available_filters]
         if filter_choice.value not in available_filters:
             filter_choice.value=None
-        filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/10 active"
+        filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Active slots and order are saved."),
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Original 10 defaults preserved; 5 additional slots are optional and saved."),
             filter_coverage_panel(),
-            section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/10",
-                ft.Column([note("Remove any active filter to free a slot; available filters are listed below."),
+            section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
+                ft.Column([note("Original 10 defaults stay saved; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
                            filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
@@ -4417,7 +4425,7 @@ console.log('BOT KING Lightweight Charts ready');
             section("FIND & ADD FILTER",ft.Column([
                 filter_query,filter_choice,ft.Row([
                     ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True),
-                                      disabled=len(filter_selected)>=10),
+                                      disabled=len(filter_selected)>=MAX_ACTIVE_FILTERS),
                     ft.OutlinedButton("Remove selected",on_click=lambda e:filter_edit(False))]),
                 filter_feedback,note("Only verified data can vote. Adding a filter does not create a chart overlay.")
             ],spacing=5))
