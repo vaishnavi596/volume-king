@@ -2626,7 +2626,13 @@ def app_main(page:ft.Page):
                 page.update();return
             pairing_key=(dhan_feed._pairing_key if existing_session else server_access.value.strip())
             try:
-                from server_feed import server_origin, direct_https_opener
+                pairing_key=checked_pairing_key(pairing_key)
+            except FeedError as exc:
+                connection_status.value=str(exc)
+                connection_status.color=RED
+                page.update();return
+            try:
+                from server_feed import server_origin, direct_https_opener, checked_pairing_key
                 import urllib.request, urllib.error, json
                 origin=server_origin(endpoint)
                 def check_dhan():
@@ -2839,7 +2845,8 @@ def app_main(page:ft.Page):
             connection_status.color=GOLD
             page.update();return
         try:
-            from server_feed import server_origin, direct_https_opener
+            from server_feed import server_origin, direct_https_opener, checked_pairing_key
+            pairing_key=checked_pairing_key(pairing_key)
             import urllib.request, urllib.error, json
             from urllib.parse import urlsplit
             origin=server_origin(endpoint)
