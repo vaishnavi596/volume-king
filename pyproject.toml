@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.113" # Smart priority refresh: shared Watchlist request clock and local Super Five cache updates
+version = "2.3.114" # B1-B6 joint mobile fixes: Dhan key validation, snapshot diagnostics, chart and index guards
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
