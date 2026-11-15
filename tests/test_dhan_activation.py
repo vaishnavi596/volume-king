@@ -121,7 +121,12 @@ class DhanActivationTests(unittest.TestCase):
         self.assertIn("validated_login_index_batch(",block)
         self.assertIn('dhan_feed.activate_verified(endpoint,pairing_key,login_index_quotes["NIFTY"])',block)
         self.assertIn("for index_sym, index_row in login_index_quotes.items():",block)
-        self.assertIn("len(login_index_quotes)<3",block)
+        # An observed login batch must not be requested again immediately;
+        # if the batch was not used, the independent index pipeline starts.
+        self.assertIn('if login_index_quotes:',block)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"indices",len(login_index_quotes),3)',block)
+        self.assertIn('and not login_index_quotes',block)
+        self.assertIn('page.run_task(refresh_dhan_index_quotes,True)',block)
 
     def test_rejects_unverified_or_live_order_responses(self):
         for quote in (
