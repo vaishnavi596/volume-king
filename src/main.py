@@ -1810,9 +1810,11 @@ def app_main(page:ft.Page):
                 label=next_watch_refresh_label()
                 if watch_countdown.value!=label:
                     watch_countdown.value=label
-                    # The control can be detached during navigation. Rebuild through
-                    # the coalesced page refresh instead of updating a stale ref.
-                    request_view_refresh(4)
+                    # A countdown tick is not a reason to recreate 51 watchlist rows.
+                    # Update only the mounted label; a quote/signal change below
+                    # still requests a coalesced screen refresh.
+                    if watch_countdown.page is not None:
+                        watch_countdown.update()
                 visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
