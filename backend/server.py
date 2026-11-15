@@ -42,6 +42,10 @@ try:
 except ImportError:
     from dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 from pathlib import Path
+try:
+    from .dhan_registry import load_dynamic_instruments
+except ImportError:
+    from dhan_registry import load_dynamic_instruments
 
 _dhan_auth_logger = logging.getLogger("botking.dhan.auth")
 
@@ -118,6 +122,11 @@ DHAN_VERIFIED_INSTRUMENTS = {
     "SHRIRAMFIN": ("NSE_EQ", 4306, "EQUITY"),
     "BPCL": ("NSE_EQ", 526, "EQUITY"),
 }
+
+# Staged instrument-master catalogue supports resolving selected equities only.
+# The legacy /dhan/ltp-batch remains bounded to 51 known symbols; never fan
+# out 2,785 upstream LTP requests implicitly.
+DYNAMIC_INSTRUMENTS = load_dynamic_instruments(DHAN_VERIFIED_INSTRUMENTS)
 
 
 class DhanIntradayRequest(BaseModel):
@@ -459,13 +468,27 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
 
+    @app.get("/v2/instruments/search")
+    def dhan_instrument_search(q: str = "", limit: int = 25,
+                               x_botking_key: Optional[str] = Header(default=None)):
+        """Search staged Dhan NSE equity mappings without requesting market data."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        query = q.strip().upper()
+        if len(query) > 60 or type(limit) is not int or not 1 <= limit <= 50:
+            raise HTTPException(422, "Invalid instrument search parameters")
+        matches = sorted(symbol for symbol, instrument in DYNAMIC_INSTRUMENTS.items()
+                         if instrument[0] == "NSE_EQ" and query in symbol)
+        return {"source": "dhan_registry", "symbols": matches[:limit],
+                "total_matching": len(matches), "live_orders_enabled": False}
+
     @app.post("/dhan/option-expiries")
     def dhan_option_expiries(body: Symbol,
                             x_botking_key: Optional[str] = Header(default=None)):
         """Authenticated, read-only broker-listed option expiries."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        instrument = DHAN_VERIFIED_INSTRUMENTS.get(body.symbol)
+        instrument = DYNAMIC_INSTRUMENTS.get(body.symbol)
         if not instrument or instrument[0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
             raise HTTPException(422, "Verified Dhan underlying mapping unavailable")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
@@ -490,7 +513,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         """Dhan-only read-only option metrics; never certify live trading signals."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        instrument = DHAN_VERIFIED_INSTRUMENTS.get(body.symbol)
+        instrument = DYNAMIC_INSTRUMENTS.get(body.symbol)
         if not instrument or instrument[0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
             raise HTTPException(422, "Verified Dhan option underlying mapping unavailable")
         if body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date():
@@ -575,7 +598,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         """Read-only paired quotes for Dhan instrument-master-verified IDs."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        mapping = DHAN_VERIFIED_INSTRUMENTS
+        mapping = DYNAMIC_INSTRUMENTS
         if body.symbol not in mapping:
             raise HTTPException(422, "Dhan instrument mapping not verified")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
@@ -708,7 +731,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                             continue
                         symbol, interval = item.get("symbol"), item.get("interval")
                         bars = item.get("bars")
-                        if (symbol not in DHAN_VERIFIED_INSTRUMENTS or
+                        if (symbol not in DYNAMIC_INSTRUMENTS or
                                 interval not in ("1", "5", "15", "25", "60") or
                                 not isinstance(bars, list) or not 0 < len(bars) <= 5000):
                             continue
@@ -770,7 +793,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     def cached_candles(symbol: str, interval: str, x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
-        if symbol not in DHAN_VERIFIED_INSTRUMENTS or interval not in ("1", "5", "15", "25", "60"):
+        if symbol not in DYNAMIC_INSTRUMENTS or interval not in ("1", "5", "15", "25", "60"):
             raise HTTPException(422, "Unsupported candle instrument or interval")
         with candle_lock:
             entry = candle_cache.get((symbol, interval))
@@ -819,9 +842,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         token = dhan_market_token()
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
-        if body.symbol not in DHAN_VERIFIED_INSTRUMENTS:
+        if body.symbol not in DYNAMIC_INSTRUMENTS:
             raise HTTPException(422, "Dhan instrument mapping not verified")
-        segment, sid, instrument = DHAN_VERIFIED_INSTRUMENTS[body.symbol]
+        segment, sid, instrument = DYNAMIC_INSTRUMENTS[body.symbol]
         payload = {
             "securityId": str(sid), "exchangeSegment": segment, "instrument": instrument,
             "interval": str(body.interval),
