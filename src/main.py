@@ -3622,8 +3622,22 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("chart",exc)
             tv_set_status(("Chart refresh failed • saved chart retained" if loaded else "Chart unavailable • no saved candles")+" • "+safe_error(exc)+" • Retry available")
     def push_chart_data():
-        if tv_view[0] is not None and tv_view[0].page is not None and tv_ready[0] and tv_pending[0] is not None:
-            tv_view[0].run_javascript("window.botKingSetData("+json.dumps(lightweight_payload(tv_pending[0]),allow_nan=False)+");")
+        # Do not dispatch candles from a previous symbol or timeframe.
+        view=tv_view[0]
+        context=tv_context[0]
+        if (view is None or view.page is None or not tv_ready[0]
+                or tv_pending[0] is None or context is None):
+            return
+        if context[0]!=scan_symbol.value or context[1]!=scan_tf.value:
+            return
+        pending=tv_pending[0]
+        try:
+            payload=json.dumps(lightweight_payload(pending),allow_nan=False)
+            view.run_javascript("window.botKingSetData("+payload+");")
+        except Exception as exc:
+            tv_set_status("Chart update pending • "+safe_error(exc))
+            return
+        if view is tv_view[0] and context==tv_context[0] and tv_pending[0] is pending:
             tv_pending[0]=None
             tv_set_status("Chart ready • "+str(min(tv_limit[0],len(tv_history[0])))+" candles displayed • More loads older history")
     def tv_started(e):
