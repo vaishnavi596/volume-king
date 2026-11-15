@@ -113,3 +113,28 @@ and empty Watchlists, active failure/recovery in System Health, and the complete
 54-symbol server-audit program with mocked HTTP, including immediate rate-limit
 stop. Real broker freshness, physical Android layout/latency and server deployment
 remain acceptance gates. No additional numbered improvement groups are created.
+
+## Final GitHub consolidation and server handoff
+
+- Programmatic symbol changes (including a Super Five card tap) now invalidate
+  the selected scan context even without a dropdown event. This clears the old
+  report and makes obsolete in-flight work schedule the latest selection.
+  Intraday period normalization happens before that context is saved.
+- The full-scan ranking phase reuses the newest matching shared history when
+  its first-pass history succeeded. It cannot overwrite a newer selected-chart
+  result with an older cycle snapshot, and does not retry a failed fetch.
+- `backend/run-scanner-audit.sh FULL_COMMIT_SHA [--date YYYY-MM-DD]` downloads four
+  diagnostic sources from that immutable GitHub revision into its own temporary
+  directory. It uses the existing server Python environment when available,
+  runs the 54-symbol read-only audit, and removes its temporary directory.
+  It does not install files, edit configuration, restart services or place orders.
+  The existing pairing key is read internally by the audit and is never printed.
+- The runner is tested with fixture downloads and `--help`, so its test does not
+  contact either GitHub or a broker. Invalid revision strings stop before download.
+
+GitHub implementation is ready for server acceptance after its regression checks.
+On Oracle, run the pinned runner and return its output first. A successful offline
+suite does not establish real feed freshness or mobile performance. Review the
+server result before the final APK build; then validate the installed app. News,
+Futures and Options still require their real evidence sources and are never
+silently treated as verified by a successful candle test.

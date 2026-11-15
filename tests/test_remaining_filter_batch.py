@@ -58,6 +58,12 @@ class RemainingFilterBatchTests(unittest.TestCase):
         async def fake_io(fn, *args, **kwargs):
             if fn.__name__ == "get_market_data":
                 attempted.add(args[0])
+                if args[0]=="HDFCBANK":
+                    falling=[[b[0],200-i,200.2-i,199.8-i,200-i,1000] for i,b in enumerate(bars)]
+                    v["chart_snapshots"][("TCS","5m",v["provider_generation"][0])] = {
+                        "source":"Dhan","bars":falling,"candle_fetched_at":time.time()+1,
+                        "freshness":"unverified","live_verified":False}
+                    v["refresh_shared_analysis"]("TCS")
                 return {"source": "Dhan", "bars": bars, "cached": False,
                         "fetched_at": time.time(), "candle_fetched_at": time.time(),
                         "freshness": "unverified", "live_verified": False}
@@ -72,4 +78,5 @@ class RemainingFilterBatchTests(unittest.TestCase):
                 asyncio.run(v["refresh_market"]())
         self.assertEqual(attempted, DHAN_VERIFIED_SYMBOLS)
         self.assertEqual(v["current_filter_coverage"]()[1]["ANALYZED"], 54)
+        self.assertEqual(v["watch_signal_cache"]["TCS"]["bias"], "BEARISH")
         self.assertTrue(all(row["symbol"] in v["watch_symbols"] for row in v["top5_candidates"]))

@@ -829,8 +829,8 @@ def app_main(page:ft.Page):
         else:select(0)
     def open_candidate_chart(symbol):
         scan_symbol.value=symbol
-        select(3)
         trigger_scan()
+        select(3)
     page_save_status=[ft.Text("",size=12,color=MUTED) for _ in range(4)]
     def risk_overview():
         ledger=paper_risk_ledger()
@@ -3958,11 +3958,17 @@ console.log('BOT KING Lightweight Charts ready');
             # Short ticks make source changes, refresh interval changes and resume responsive.
             await asyncio.sleep(1)
     scan_live.on_change=auto_scan_changed
+    scan_selection_context=[(scan_symbol.value,scan_tf.value,scan_period.value)]
     def trigger_scan(e=None):
+        if scan_tf.value in ("1m","3m"):
+            scan_period.value="7d";prefs["scanner_period"]="7d"
+        context=(scan_symbol.value,scan_tf.value,scan_period.value)
+        selection_changed=context!=scan_selection_context[0]
+        scan_selection_context[0]=context
         prefs["scanner_symbol"]=scan_symbol.value or "NIFTY"
         prefs["scanner_timeframe"]=scan_tf.value or "5m"
         save()
-        if e is not None and e.control in (scan_symbol,scan_tf,scan_period):
+        if selection_changed or (e is not None and e.control in (scan_symbol,scan_tf,scan_period)):
             scan_generation[0]+=1
             # Explicit selection changes reload the chart; background scans do not.
             scan_result.controls.clear()
@@ -3982,8 +3988,6 @@ console.log('BOT KING Lightweight Charts ready');
         if e is not None and e.control is scan_budget:
             scan_min.visible=scan_budget.value=="Custom";scan_max.visible=scan_budget.value=="Custom"
             page.update()
-        if scan_tf.value in ("1m","3m"):
-            scan_period.value="7d";prefs["scanner_period"]="7d";save()
         if not scan_busy[0]:
             scan_busy[0]=True
             page.run_task(scan_market)
@@ -5071,6 +5075,10 @@ console.log('BOT KING Lightweight Charts ready');
                                 if prefs.get("source") == "Dhan":
                                     raise FeedError("Dhan history failed in first pass; use Retry")
                                 data=await asyncio.to_thread(get_market_data,sym,"5m","5d")
+                            if prefs.get("source")=="Dhan":
+                                # A selected chart may have delivered newer candles
+                                # while the serialized full scan was still running.
+                                data=shared_history(sym) or data
                             result=display_analysis(sym,data)
                         except Exception as exc:
                             log_error("super_five",exc)

@@ -41,6 +41,25 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
         self.assertIsNone(v["scan_last_candle"][0])
         self.assertIsNone(v["scan_last_success"][0])
 
+    def test_super_five_tap_invalidates_busy_scan_without_a_dropdown_event(self):
+        _, v, _ = self.setup_app()
+        v["refresh_shared_analysis"]("TCS")
+        v["scan_busy"][0] = True
+        generation = v["scan_generation"][0]
+        v["open_candidate_chart"]("INFY")
+        self.assertGreater(v["scan_generation"][0], generation)
+        self.assertEqual(v["scan_shared"]["symbol"], "INFY")
+        self.assertEqual(v["scan_selection_context"][0][0], "INFY")
+
+    def test_programmatic_timeframe_normalizes_period_before_context_is_saved(self):
+        _, v, _ = self.setup_app()
+        v["scan_busy"][0] = True
+        v["scan_tf"].value = "1m"
+        v["scan_period"].value = "1mo"
+        v["trigger_scan"]()
+        self.assertEqual(v["scan_selection_context"][0], ("TCS", "1m", "7d"))
+        self.assertEqual(v["prefs"]["scanner_period"], "7d")
+
     def test_cached_handoff_uses_newest_candle_series_not_newest_price(self):
         _, v, bars = self.setup_app()
         v["refresh_shared_analysis"]()
