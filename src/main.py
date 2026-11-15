@@ -3057,6 +3057,12 @@ def app_main(page:ft.Page):
     paper_partial_trigger=ft.TextField(label="Paper partial profit trigger (%)",value=str(prefs.get("paper_partial_trigger",2)))
     paper_partial_pct=ft.TextField(label="Paper partial quantity (%)",value=str(prefs.get("paper_partial_pct",50)))
     paper_reentry_after_sl=ft.Checkbox(label="Allow paper re-entry after stop-loss",value=bool(prefs.get("paper_reentry_after_sl",False)))
+    paper_break_even=ft.Checkbox(label="Move paper SL to break-even after profit threshold",
+                                 value=bool(prefs.get("paper_break_even",False)))
+    paper_break_even_trigger=ft.TextField(label="Break-even trigger % (paper)",
+                                          value=str(prefs.get("paper_break_even_trigger",2)))
+    paper_break_even_fees=ft.TextField(label="Estimated round-trip charges INR (paper only)",
+                                       value=str(prefs.get("paper_break_even_fees",0)))
     paper_bot_state=["Stopped"];paper_last_exit={};paper_exit_reason=["Manual paper exit"]
     paper_state_status=txt("Paper bot stopped • no live orders • manual marks required",12,GOLD)
 
@@ -3441,7 +3447,10 @@ def app_main(page:ft.Page):
                     if bot_values()[4]!=old["contract"]:raise ValueError("Contract changed; start a new paper plan")
                     bot_premium.value=str(mark);prefs["bot_premium"]=mark
                     bot_paper_action(old["side"]);return
-                settings={"trailing":bot_trailing.value,"trail_pct":paper_trail_pct.value,"partial":partial_profit.value,"partial_trigger":paper_partial_trigger.value,"partial_pct":paper_partial_pct.value,"average":buy_dip.value,"max_additions":int(paper_max_additions.value),"add_units":int(paper_add_units.value),"max_units":int(cash_max_quantity.value) if bot_position.get("segment")=="Cash" else int(max_total_lots.value),"dip_pct":dip_step.value}
+                settings={"breakeven":paper_break_even.value,
+                          "breakeven_trigger":paper_break_even_trigger.value,
+                          "breakeven_fee_buffer":paper_break_even_fees.value,
+                          "trailing":bot_trailing.value,"trail_pct":paper_trail_pct.value,"partial":partial_profit.value,"partial_trigger":paper_partial_trigger.value,"partial_pct":paper_partial_pct.value,"average":buy_dip.value,"max_additions":int(paper_max_additions.value),"add_units":int(paper_add_units.value),"max_units":int(cash_max_quantity.value) if bot_position.get("segment")=="Cash" else int(max_total_lots.value),"dip_pct":dip_step.value}
                 if bot_values()[4]!=bot_position["contract"]:raise ValueError("Contract changed; exit the existing paper position first")
                 decision=evaluate_mark(bot_position,mark,settings)
                 if decision["action"]=="EXIT":
@@ -3458,9 +3467,14 @@ def app_main(page:ft.Page):
                     ledger["entries"]+=1;ledger["planned_risk_used"]+=extra;new["last_add_time"]=now
                     bot_position.update(new)
                 elif decision["action"]=="PARTIAL":
-                    qty=decision["quantity"];gross,net=paper_pnl(bot_position["side"],bot_position["entry"],mark,qty)
+                    qty=decision["quantity"]
+                    fees=finite(paper_exit_fees.value or 0,"Paper partial charges")
+                    gross,net=paper_pnl(bot_position["side"],bot_position["entry"],mark,qty,fees)
+                    ledger=paper_risk_ledger()
+                    ledger["realized_profit"]=float(ledger.get("realized_profit",0))+max(0,net)
+                    ledger["realized_loss"]=float(ledger.get("realized_loss",0))+max(0,-net)
                     bot_position.update(decision["position"]);bot_position["quantity"]-=qty;bot_position["partial_done"]=True
-                    prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"PARTIAL","contract":bot_position["contract"],"quantity":qty,"entry":bot_position["entry"],"exit_price":mark,"paper_pnl":net,"reason":"Manual-mark paper partial; charges excluded"})
+                    prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"PARTIAL","contract":bot_position["contract"],"quantity":qty,"entry":bot_position["entry"],"exit_price":mark,"charges":fees,"paper_pnl":net,"reason":"Manual-mark paper partial; charges explicitly supplied"})
                 else:bot_position.update(decision["position"])
                 protection_sample.clear();prefs["bot_position"]=dict(bot_position)
                 save_active_paper_slot()
@@ -3468,7 +3482,7 @@ def app_main(page:ft.Page):
                     record_paper_event(prefs,paper_bot_active[0],decision["action"],bot_position,
                         price=mark,quantity=decision["quantity"],
                         pnl=net if decision["action"]=="PARTIAL" else None)
-                paper_state_status.value="Paper "+decision["action"]+" • "+decision.get("reason","")+" • manual mark "+str(mark)
+                paper_state_status.value="Paper "+decision["action"]+" • "+decision.get("reason","")+" • manual mark "+str(mark)+" • no live order"
                 if decision["action"]=="ADD":prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"ADD","contract":bot_position["contract"],"quantity":decision["quantity"],"entry":mark,"paper_pnl":None,"reason":"Manual-mark averaging; stop not widened"})
                 prefs["paper_journal"]=prefs.get("paper_journal",[])[-200:]
                 save();page.update()
@@ -3492,6 +3506,8 @@ def app_main(page:ft.Page):
             "paper_max_additions":paper_max_additions,"paper_add_units":paper_add_units,
             "bot_trailing":bot_trailing,"partial_profit":partial_profit,
             "buy_dip":buy_dip,"manual_contract_confirmed":manual_contract_confirmed,
+            "paper_break_even":paper_break_even,"paper_break_even_trigger":paper_break_even_trigger,
+            "paper_break_even_fees":paper_break_even_fees,
         }
 
     def save_active_paper_slot():
@@ -3557,6 +3573,7 @@ def app_main(page:ft.Page):
                  controls=[bot_trailing,partial_profit,buy_dip,
                            max_total_lots,cooldown,squareoff,
                            emergency_stop,auto_entry,auto_reentry,
+                           paper_break_even,paper_break_even_trigger,paper_break_even_fees,
                            paper_reentry_after_sl,
                            protection_mode,protection_enabled,
                            protection_loss,protection_profit,protection_trail,
@@ -5015,7 +5032,7 @@ console.log('BOT KING Lightweight Charts ready');
         (scan_period,"scanner_period"),(scan_expiry,"scanner_expiry"),(scan_auto,"scanner_trend"),(scan_live,"scanner_live"),(scan_refresh,"scanner_refresh"),
         (chain_symbol,"option_symbol"),(option_expiry_choice,"option_expiry_choice"),(expiry,"option_expiry"),(option_strike,"option_strike"),(option_side,"option_side"),(option_qty,"option_qty")]
     bindings.extend([(protection_mode,"protection_mode"),(protection_enabled,"protection_enabled"),(protection_loss,"protection_loss"),(protection_profit,"protection_profit"),(protection_trail,"protection_trail"),(protection_timeout,"protection_timeout"),(protection_no_reply,"protection_no_reply")])
-    bindings.extend([(bot_segment,"bot_segment"),(bot_side,"bot_side"),(cash_quantity,"cash_quantity"),(cash_max_quantity,"cash_max_quantity"),(manual_contract_confirmed,"manual_contract_confirmed"),(paper_capital,"paper_capital"),(paper_notional_limit,"paper_notional_limit"),(paper_trade_risk,"paper_trade_risk"),(paper_risk_pct,"paper_risk_pct"),(paper_max_additions,"paper_max_additions"),(paper_add_units,"paper_add_units"),(paper_trail_pct,"paper_trail_pct"),(paper_partial_trigger,"paper_partial_trigger"),(paper_partial_pct,"paper_partial_pct"),(paper_reentry_after_sl,"paper_reentry_after_sl")])
+    bindings.extend([(bot_segment,"bot_segment"),(bot_side,"bot_side"),(cash_quantity,"cash_quantity"),(cash_max_quantity,"cash_max_quantity"),(manual_contract_confirmed,"manual_contract_confirmed"),(paper_capital,"paper_capital"),(paper_notional_limit,"paper_notional_limit"),(paper_trade_risk,"paper_trade_risk"),(paper_risk_pct,"paper_risk_pct"),(paper_max_additions,"paper_max_additions"),(paper_add_units,"paper_add_units"),(paper_trail_pct,"paper_trail_pct"),(paper_partial_trigger,"paper_partial_trigger"),(paper_partial_pct,"paper_partial_pct"),(paper_reentry_after_sl,"paper_reentry_after_sl"),(paper_break_even,"paper_break_even"),(paper_break_even_trigger,"paper_break_even_trigger"),(paper_break_even_fees,"paper_break_even_fees")])
     for control,key in bindings:bind_saved(control,key)
     def provider_changed(e):
         nonlocal market_status
