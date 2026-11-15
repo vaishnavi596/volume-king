@@ -1753,11 +1753,11 @@ def app_main(page:ft.Page):
         while True:
             try:
                 if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and time.monotonic()-quote_auto_last_attempt[0]>=60
+                        and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
                         and not watch_batch_busy[0]):
-                    quote_auto_last_attempt[0]=time.monotonic()
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
+                        # The actual batch attempt owns the shared poll clock.
                         await refresh_watch_batch()
                         if current[0]==0:
                             request_view_refresh(0)
@@ -4719,7 +4719,11 @@ console.log('BOT KING Lightweight Charts ready');
         current[0]=i
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
-        if changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected:
+        # Navigation must not trigger a duplicate Oracle snapshot request.
+        if (changed and i==4 and prefs.get("source")=="Dhan" and dhan_feed.connected
+                and not watch_batch_busy[0]
+                and time.monotonic()-watch_batch_last_attempt[0]>=60
+                and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
             page.run_task(refresh_watch_batch)
         if changed and i==5 and not chart_load_busy[0]:
             # A watchlist quote may carry 5m bars, but it is not necessarily
