@@ -62,11 +62,11 @@ class DhanScanProgressTests(unittest.TestCase):
         poll=source.split("    async def dhan_quote_poll():",1)[1].split("    async def watch_visible_tick():",1)[0]
         self.assertIn("await asyncio.sleep(10)",poll)
         self.assertIn("await asyncio.sleep(10 if not dhan_feed.connected else 10)",poll)
-        self.assertIn("time.monotonic()-quote_auto_last_attempt[0]>=60",poll)
+        self.assertIn("time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",poll)
         self.assertIn("not watch_batch_busy[0]",poll)
         resume=source.split("    async def refresh_after_resume():",1)[1]
         self.assertIn("await asyncio.sleep(10)",resume)
-        self.assertIn("quote_auto_last_attempt[0]=time.monotonic()",resume)
+        self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",resume)
         self.assertIn("return ft.Column(index_cards,spacing=5)",source)
         self.assertIn("dashboard_market_indices(),",source)
         self.assertIn("def historical_vote_agreement(data):",source)
