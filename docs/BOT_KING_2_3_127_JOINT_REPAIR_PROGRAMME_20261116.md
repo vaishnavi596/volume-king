@@ -1,0 +1,50 @@
+# BOT KING 2.3.127 — Joint Repair Programme / Post-2.3.126 Phone FAIL
+Date: 2026-11-16 | status: **AUDIT + IMPLEMENTATION PROGRAMME**, NOT a built release.
+
+## Baseline — never erase this phone FAIL
+- User installed signed **2.3.126**, yet the Watchlist does **not** visibly auto-refresh after login, Super Five filter/B-S results and data remain incomplete. This overrides previous older Handoff's "v2.3.126 device untested" for these **reported failing behaviors**; it does not establish that every screen fails.
+- GitHub `fix/botking-joint-audit-70-15-20261115` at HEAD `46363ef0388c3058e872f118bf542c8e6163707f` before this documentation; code version 2.3.126; build run `43753960172` SUCCESS, 809 offline tests, signed APK versionCode 74101. **CI != mobile PASS.**
+- Earlier Oracle authenticated probes: `GET /dhan/status` 200, `GET /v2/snapshot` 51 quotes (collection age 79.1s, freshness unverified), `POST /dhan/index-ltp-batch` 3 quotes. S15 deployed selected LTP/option guards; S18 global-70 WatchlistStore patch staged only. Oracle current runtime not re-probed for this plan. Live orders OFF; leave token renewal alone.
+
+## Exact acceptance contract for each successful phone app login
+1. Verify a **Dhan-only read-only Oracle session**; if not enrolled or app cannot reopen a credential securely, explicitly show "Needs connection" rather than falsely claiming connected. Existing `server_access` pairing key clears after check; app startup is **not** an automatic authenticated session in current code. A proper session/re-enrollment lifecycle is a separate secure-design gate: never persist raw pairing key to ordinary preferences.
+2. One **per-login-generation bootstrap**, regardless of exchange open/closed, with independently observable outcomes for:
+   - equity snapshot (51 fixed and permitted selected equities, actual received/count, Oracle collection age),
+   - all three indexes (NIFTY/BANKNIFTY/SENSEX) via independent index batch,
+   - last valid cached 1m/5m/15m candles and top five stored analysis without waiting for new 51-symbol history scan,
+   - selected scanner/trading underlying's *available last-known* broker-listed expiry/Option Chain (if supported, with token/rate/429/422 safeguards).
+3. **Do not block the UI or dashboard** while fetching all 51 histories. Reuse last-good price separately from last-good candle; show `LOADING → LOADED / PARTIAL / FAILED / NO AUTH / COOLDOWN`, age, source and stage. None is a signal that exchange-time is verified live.
+4. On market CLOSED: one full initial login attempt, plus **bounded** recovery of missing/failed components, then no repeated market-data polling. App re-login/new authenticated generation triggers a new bounded bootstrap even if cached prices exist. On market OPEN: existing independent 60s equity/index quote cadence; 180s 5m history cycle; single-symbol fast cached UI recomputation; provider options quota >=3s and existing >=60s option fetch, respecting 429. These are **different clocks**; 3–5 seconds is not a promise of fresh exchange quotes.
+5. Mobile acceptance: status and records for first open, reconnect, closed-market login, failed partial snapshot, app background/resume, market-open session, selected HDFCBANK option expiry/chain and 5 Super Five cards, without removing app storage.
+
+## Source audit — evidence and hypotheses
+| ID | Current code evidence (GitHub 2.3.126) | Repair and test |
+| --- | --- | --- |
+| R127-01 | `src/main.py:connect_angel` only triggered through user Connect/Check flow; `server_access.value` cleared; no found startup `page.run_task(connect_angel)`; quote/index/historical polls guard on `dhan_feed.connected`. | **P0** Model app-open login vs authenticated Oracle session. Add explicit session-state, secure credential enrollment or clear user reconnect prompt, and exactly-once authorized `bootstrap_after_login` task. Instrument by generation with state, timestamp, component result, and failure reason; no unapproved plaintext token storage. |
+| R127-02 | `connect_angel` probes status+LTP, then equity batch; it bumps provider_generation after partial handling; `dhan_quote_poll` and index task recover separately only if already connected. Previous v2.3.126 correction fixed old-cache success test but **device still FAIL**. | **P0** Centralize one per-login bootstrap coordinator, avoid generation reset/race/task overlap; mock auth, market-open/closed, one-lost response, 429 cooldown, app reopen. Keep last good quote without promoting to live. |
+| R127-03 | `refresh_watch_batch` counts current valid returned symbols, retains old partials, but status/report alone does not guarantee view repaint or connected bootstrap. | **P0** Track LOADING/LOADED/PARTIAL/FAILED with requested/received, Oracle collected-at age; show on Dashboard and Watchlist independent from poll countdown. Test UI real Flet control tree, not source-string-only. |
+| R127-04 | Index quote task uses own `dhan_index_poll` and `refresh_dhan_index_quotes`; source indexes can be returned independently; not necessarily same login snapshot. | **P0** Schedule once on login regardless closed; preserve partial index results and independently retry missing index only under rate limit/cooldown. |
+| R127-05 | `refresh_market` requests paced 51+3 history and Super Five ranking; `super_five_minute_refresh` only recomputes when `regular_hours()` and has completed bars. Super Five blocks as actionable when freshness unverified. | **P0** Render available last-valid historical B/S and five cards instantly after login (explicit HIST/NOT LIVE), then enrich from paced scan; preserve independent actionability gates and matching symbol/timeframe/candle basis. No fabricated 5/5 signal. |
+| R127-06 | `option_poll` only runs in regular_hours; `refresh_selected_options` is a separate Dhan read-only auto-select path, requiring connection and mapped symbol, with 3.25s pacing. Only one mutable `dhan_option_metrics` holds selected symbol/expiry. | **P1** On each login restore selected valid expiry/option cached context (read-only), try once even after close if authenticated and entitled; bounded keyed (symbol,expiry) cache; HDFCBANK, NIFTY, BANKNIFTY, SENSEX and valid equity support must be tested against **actual Oracle**; 422 invalid/not-listed, 409 expiry-cache and 429 cooldown not hammered. |
+| R127-07 | Five engines: Technical historical available, other independently sourced News/Futures/Options/Candle may be WAIT; Oracle assessment 4 factors+5 filter contract is not proof of independent live vote data. | **P1/P2** Technical/Candle B/S historical status should be visible; real futures mapped OI/volume and sourced news require independent provider contracts before directional percentages; never count duplicate candle votes. |
+| R127-08 | Source has 15 movable filter slots (10 defaults +5); saved prefs/scan history/54 symbol audit built earlier. | **P1** Assert OI Support, OI Resistance, OI Profile, PCR, Max Pain add/remove/save and same Scanner/Watchlist/Super Five display (WAIT if no matched Option data). |
+| R127-09 | Legacy Yahoo/Angel paths are still in source and restored preferences can affect provider. S18 Oracle WatchlistStore global 70 still staged. | **P2** Clamp Dhan-only runtime; don't overwrite production Oracle modules. Deploy S18 only through backup+isolated tests separately, don't mix into P0 refresh release. |
+
+## Joint implementation batches (group 2–4 coherent edits, verify after each)
+| Batch | Edits/tests together | Pass gate |
+| --- | --- | --- |
+| **127-A — LOGIN BOOTSTRAP** | `src/main.py` session/initialization and coordinator; `src/server_feed.py` necessary contract-safe session helpers; **new behavioral tests** for app re-login, open/closed and exact once per generation | No silent disconnected mode, no stale-quote false success, fully visible stage; one initial authorized request per component |
+| **127-B — EQUITY + INDEX** | shared snapshot/index cache, per-login attempt status, coherent UI, 429/partial/timeout; regression preserving 60s and last-good rates | 51 equity snapshot and 3 indexes independent; last-good quote retained, no double requests |
+| **127-C — CANDLE + SUPER FIVE** | cached 54-history handoff, prioritized scanner/5 Super Five symbols, identical historical vote calculations/graphics, correct WAIT vs HIST | On login cached Super Five shows available data without waiting full scan; no 5/5 fictitious verification |
+| **127-D — OPTIONS / HDFCBANK** | expiry+chain actual deployed contract audit, selected auto-load after login even closed; symbol/expiry keyed cache, OI/PCR/Max Pain, selected ATM±3 strikes; 422/409/429 safe reporting | Authenticated Oracle data proof for actually option-listed symbols; UI does not mix underlying or invent premium |
+| **127-E — COMBINED REGRESSION + RELEASE** | target tests + entire offline regression + separate Oracle read-only smoke with backups if modifying server; versionName/visible UI+versionCode bump, signed APK build | **Only then** release `2.3.127`; signed artifact/old-app update; installed phone session/market tests still separate |
+
+## Do not repeat mistakes
+- No version bump or APK build before required P0/P1 acceptance tests **pass**, and do not claim phone FIX before device inspection.
+- Do **not** force server to fetch new exchange ticks while closed. Last-known source timestamp/Oracle collection age must be honest.
+- Keep `live_orders_enabled=false`, paper-only risk/position data, 15 movable filters, 5 lists/global 70, 54 historical universe, no non-Dhan fallback, same package/signature, saved data. Honor Dhan limits, request dedupe and low mobile-data budget.
+- Oracle `/opt/bot-king-server/server.py` has features absent from GitHub `backend/server.py`; never wholesale overwrite; preserve OAuth and existing backups and Rollback.
+- Avoid old misleading PASS: 2.3.126 GitHub **BUILD PASS** while user 2.3.126 **MOBILE AUTO-REFRESH FAIL**.
+
+## Current state
+**Audit/programme committed to GitHub only. No app code changes, server deployment, trading orders, or 2.3.127 APK build were performed by creating this plan.**
