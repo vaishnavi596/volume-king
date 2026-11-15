@@ -2845,6 +2845,7 @@ def app_main(page:ft.Page):
                             if len(raw)>8192:raise FeedError("Dhan LTP response too large")
                             return json.loads(raw)
                     live_ltp_verified=False
+                    login_index_quotes={}
                     dhan_check_endpoint="/dhan/ltp"
                     try:
                         quote=await asyncio.to_thread(check_ltp)
@@ -2863,29 +2864,65 @@ def app_main(page:ft.Page):
                         # Never compound a rate limit with another upstream request.
                         if isinstance(ltp_exc, urllib.error.HTTPError) and ltp_exc.code==429:
                             raise
-                        dhan_check_endpoint="/dhan/intraday"
-                        # Read-only historical access can work when Dhan LTP is unavailable.
-                        # Verify a real candle response before enabling it; never fake an LTP.
-                        from datetime import timedelta
-                        today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
-                        payload={"symbol":"RELIANCE","interval":5,
-                                 "from_date":str(today-timedelta(days=5)),"to_date":str(today)}
-                        def check_candles():
-                            req=urllib.request.Request(origin+"/dhan/intraday",
-                                data=json.dumps(payload).encode("utf-8"),
-                                headers={"X-BotKing-Key":pairing_key,
-                                         "Content-Type":"application/json","Accept":"application/json"},
-                                method="POST")
-                            with direct_https_opener().open(req,timeout=30) as response:
-                                raw=response.read(2_000_001)
-                                if len(raw)>2_000_000:raise FeedError("Dhan candles response too large")
-                                return json.loads(raw)
-                        candles=await asyncio.to_thread(check_candles)
-                        dhan_feed.activate_historical_verified(endpoint,pairing_key,candles)
-                        connection_status.value="Dhan historical candles verified • LIVE LTP UNAVAILABLE • read-only charts only"
-                        connection_status.color=GOLD
+                        # If a single NIFTY probe fails (other than 429), use the
+                        # independently verified three-index batch before falling back
+                        # to historical-only mode. S19 confirmed this route can return
+                        # all three while individual requests are unreliable.
+                        try:
+                            from server_feed import validated_login_index_batch
+                            dhan_check_endpoint="/dhan/index-ltp-batch"
+                            def check_index_login():
+                                req=urllib.request.Request(origin+"/dhan/index-ltp-batch",
+                                    data=b"{}",
+                                    headers={"X-BotKing-Key":pairing_key,
+                                             "Content-Type":"application/json","Accept":"application/json"},
+                                    method="POST")
+                                with direct_https_opener().open(req,timeout=15) as response:
+                                    raw=response.read(8193)
+                                    if len(raw)>8192:raise FeedError("Dhan index batch too large")
+                                    return json.loads(raw)
+                            login_index_quotes=validated_login_index_batch(
+                                await asyncio.to_thread(check_index_login))
+                            dhan_feed.activate_verified(endpoint,pairing_key,login_index_quotes["NIFTY"])
+                            live_ltp_verified=True
+                            connection_status.value="Dhan index batch verified • last-known prices, timestamps unverified"
+                            connection_status.color=GREEN
+                        except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as batch_exc:
+                            log_error("dhan_index_login",batch_exc)
+                            # Never compound a provider-wide rate limit with
+                            # a third market request for historical candles.
+                            if isinstance(batch_exc, urllib.error.HTTPError) and batch_exc.code==429:
+                                raise
+                            dhan_check_endpoint="/dhan/intraday"
+                            # Read-only historical access can work when Dhan LTP is unavailable.
+                            # Verify a real candle response before enabling it; never fake an LTP.
+                            from datetime import timedelta
+                            today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
+                            payload={"symbol":"RELIANCE","interval":5,
+                                     "from_date":str(today-timedelta(days=5)),"to_date":str(today)}
+                            def check_candles():
+                                req=urllib.request.Request(origin+"/dhan/intraday",
+                                    data=json.dumps(payload).encode("utf-8"),
+                                    headers={"X-BotKing-Key":pairing_key,
+                                             "Content-Type":"application/json","Accept":"application/json"},
+                                    method="POST")
+                                with direct_https_opener().open(req,timeout=30) as response:
+                                    raw=response.read(2_000_001)
+                                    if len(raw)>2_000_000:raise FeedError("Dhan candles response too large")
+                                    return json.loads(raw)
+                            candles=await asyncio.to_thread(check_candles)
+                            dhan_feed.activate_historical_verified(endpoint,pairing_key,candles)
+                            connection_status.value="Dhan historical candles verified • LIVE LTP UNAVAILABLE • read-only charts only"
+                            connection_status.color=GOLD
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
+                    # provider_changed clears prior-provider prices. Publish only
+                    # validated same-provider index batch values after the reset.
+                    for index_sym, index_row in login_index_quotes.items():
+                        quotes[index_sym]={"symbol": index_sym, "source": "Dhan",
+                            "price": index_row["ltp"], "quote_timestamp": None,
+                            "freshness": "unverified", "live_verified": False,
+                            "fetched_at": time.time()}
                     # Verify watchlist batch independently of the login check.
                     # Share this real request attempt with page-entry and auto polling.
                     try:
@@ -2952,7 +2989,8 @@ def app_main(page:ft.Page):
                         dhan_batch_cache["generation"]=provider_generation[0]
                     # One guarded index batch on connect also retrieves last-traded after-hours quotes.
                     # Dhan exchange timestamps remain unverified; never mark these LIVE.
-                    if app_active[0] and dhan_feed.connected:
+                    if (app_active[0] and dhan_feed.connected
+                            and len(login_index_quotes)<3):
                         page.run_task(refresh_dhan_index_quotes,True)
                     # The login path already fetched and published the equity batch.
                     # Do not duplicate that same upstream snapshot immediately.

@@ -154,6 +154,43 @@ DHAN_VERIFIED_INDEX_SYMBOLS = frozenset(("NIFTY", "BANKNIFTY", "SENSEX"))
 DHAN_VERIFIED_SYMBOLS = frozenset(["NIFTY","BANKNIFTY","SENSEX","RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"])
 
 
+
+def validated_login_index_batch(result):
+    """Validate a read-only, last-known three-index Dhan response for login.
+
+    This can recover a connected quote session when individual NIFTY LTP fails.
+    It does not certify exchange-live timestamps or enable orders.
+    """
+    import math
+    indexes = ("NIFTY", "BANKNIFTY", "SENSEX")
+    if (not isinstance(result, dict) or result.get("source") != "dhan"
+            or result.get("live_orders_enabled") is not False
+            or result.get("freshness") != "unverified"
+            or not isinstance(result.get("quotes"), dict)
+            or not isinstance(result.get("unavailable"), list)):
+        raise FeedError("Invalid read-only Dhan index batch for login")
+    raw, unavailable = result["quotes"], result["unavailable"]
+    if (any(sym not in indexes for sym in raw)
+            or any(sym not in indexes for sym in unavailable)
+            or len(unavailable) != len(set(unavailable))
+            or set(raw).intersection(unavailable)
+            or set(raw).union(unavailable) != set(indexes)):
+        raise FeedError("Inconsistent Dhan index login availability")
+    verified = {}
+    for sym, row in raw.items():
+        if not isinstance(row, dict):
+            raise FeedError("Invalid Dhan index login row")
+        price = row.get("ltp")
+        if (row.get("symbol") != sym or row.get("source") != "dhan"
+                or isinstance(price, bool) or not isinstance(price, (int, float))
+                or not math.isfinite(price) or price <= 0):
+            raise FeedError("Invalid Dhan index login price")
+        verified[sym] = {"source": "dhan", "symbol": sym, "ltp": float(price),
+                         "live_orders_enabled": False}
+    if "NIFTY" not in verified:
+        raise FeedError("Dhan NIFTY index login quote unavailable")
+    return verified
+
 class ServerDhanReadOnly:
     """Ephemeral, HTTPS-only Dhan gateway session; never persists pairing keys.
 
