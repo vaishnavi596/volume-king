@@ -2029,6 +2029,8 @@ def app_main(page:ft.Page):
             field.dense=True;field.text_size=16
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
         return [ft.Row([heading("Watchlist"),watch_countdown],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Text("Quote check • "+watch_batch_status[0],size=11,color=MUTED,
+                    max_lines=2,overflow=ft.TextOverflow.ELLIPSIS),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),
             ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED,padding=4)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO,spacing=2),

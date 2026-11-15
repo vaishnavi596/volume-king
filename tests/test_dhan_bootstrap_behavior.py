@@ -1,0 +1,76 @@
+"""Behavioral tests for the actual closed-market bootstrap condition.
+
+Expression evaluated from the checked-in app source, avoiding a fake,
+reimplemented guard that could pass while the Android callsite is broken.
+"""
+import ast
+from pathlib import Path
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+SRC=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+TREE=ast.parse(SRC)
+
+def bootstrap_expr(name):
+    matches=[node.value for node in ast.walk(TREE)
+             if isinstance(node,ast.Assign)
+             and any(isinstance(target,ast.Name) and target.id==name
+                     for target in node.targets)]
+    if len(matches)!=1:
+        raise AssertionError(f"Expected exactly one {name} assignment")
+    return compile(ast.Expression(body=matches[0]),"<actual-app-bootstrap-gate>","eval")
+
+class BootstrapBehaviorTests(unittest.TestCase):
+    def test_stale_saved_price_does_not_cancel_failed_login_retry(self):
+        expression=bootstrap_expr("closing_bootstrap")
+        for closed, attempted, successful, expected in [
+            (True,None,None,True),
+            (True,None,9,True),
+            (True,None,10,False),
+            (True,10,None,False),
+            (False,None,None,False),
+        ]:
+            with self.subTest(closed=closed,attempted=attempted,successful=successful):
+                state={"regular_hours":lambda:not closed,
+                       "closed_equity_bootstrap_generation":[attempted],
+                       "watch_batch_success_generation":[successful],
+                       "provider_generation":[10],
+                       # A saved price must not influence session-success gating.
+                       "quotes":{"RELIANCE":{"source":"Dhan","price":1339.70}}}
+                self.assertIs(eval(expression,state),expected)
+
+    def test_index_first_load_stays_separate_from_equity_and_once_per_generation(self):
+        expression=bootstrap_expr("closed_index_bootstrap")
+        q={"NIFTY":{"source":"Dhan","price":25144.3},
+           "BANKNIFTY":{"source":"Dhan","price":61034.1},
+           "SENSEX":{"source":"Dhan","price":81592.45}}
+        for closed,attempted,quotes,expected in [
+            (True,None,{},True),
+            (True,None,q,False),
+            (True,10,{},False),
+            (False,None,{},False),
+        ]:
+            with self.subTest(closed=closed,attempted=attempted):
+                env={"regular_hours":lambda:not closed,
+                     "closed_index_bootstrap_generation":[attempted],
+                     "provider_generation":[10],"quotes":quotes,
+                     "math":__import__("math")}
+                self.assertIs(eval(expression,env),expected)
+
+    def test_ui_shows_actual_quote_check_even_when_closed_timer_is_paused(self):
+        block=SRC.split("    def watchlist():",1)[1].split("    symbol=ft.Dropdown",1)[0]
+        self.assertIn('ft.Text("Quote check • "+watch_batch_status[0]',block)
+        self.assertIn('watch_countdown',block)
+        self.assertIn('ft.TextOverflow.ELLIPSIS',block)
+
+    def test_market_open_cadence_and_cooldown_unchanged(self):
+        poll=SRC.split("    async def dhan_quote_poll():",1)[1].split("    # Compact countdown",1)[0]
+        index=SRC.split("    async def dhan_index_poll():",1)[1].split("    page.run_task(dhan_index_poll)",1)[0]
+        self.assertIn('app_active[0] and regular_hours() and prefs.get("source")=="Dhan"',poll)
+        self.assertIn('app_active[0] and regular_hours() and prefs.get("source")=="Dhan"',index)
+        self.assertIn('>=60',poll)
+        self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")',poll)
+        self.assertIn('closed_equity_bootstrap_generation[0]=provider_generation[0]',poll)
+
+if __name__=="__main__":
+    unittest.main()
