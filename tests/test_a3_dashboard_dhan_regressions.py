@@ -1,4 +1,4 @@
-"""A3: user-targeted Dashboard 0/3 removal, native Dhan mini charts, saved 15 slots."""
+"""A3: user-targeted Dashboard 0/3 removal, native Dhan mini charts, saved 10 movable slots."""
 import ast
 from pathlib import Path
 from test_audit import start
@@ -31,14 +31,14 @@ def test_selected_dashboard_slots_reuse_dhan_native_candles_without_network():
     assert "shared_history(sym)" in section
 
 
-def test_preserve_ten_defaults_and_allow_five_extra_saved_slots():
+def test_preserve_ten_movable_saved_slots():
     source=MAIN.read_text(encoding="utf-8")
-    assert "MAX_ACTIVE_FILTERS=15" in source
+    assert "MAX_ACTIVE_FILTERS=10" in source
     assert "DEFAULT_FILTERS[:]" in source
     assert "[:MAX_ACTIVE_FILTERS]" in source
     assert "len(filter_selected)>=MAX_ACTIVE_FILTERS" in source
     assert 'prefs["scanner_filters"]=filter_selected[:]' in source
-    assert "15-slot list" in source
+    assert "10-slot list" in source
 
 
 def test_production_broker_and_help_are_dhan_only():
@@ -67,8 +67,8 @@ class A3RegressionTests(unittest.TestCase):
     def test_native_dashboard_candles_use_existing_dhan_history(self):
         test_selected_dashboard_slots_reuse_dhan_native_candles_without_network()
 
-    def test_fifteen_saved_filter_slots(self):
-        test_preserve_ten_defaults_and_allow_five_extra_saved_slots()
+    def test_ten_movable_saved_filter_slots(self):
+        test_preserve_ten_movable_saved_slots()
 
     def test_user_visible_provider_is_dhan_only(self):
         test_production_broker_and_help_are_dhan_only()
