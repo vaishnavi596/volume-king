@@ -27,6 +27,12 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertNotIn("dhan_feed.option_chain_metrics(",body)
         change=segment("    def provider_changed(e):","    broker_previous=broker.on_change")
         self.assertIn("publish_partial_ranking({})",change)
+        chips=segment("    def five_engine_chips(sym):","    def super_five_card():")
+        self.assertIn("top5_candidates",chips)
+        self.assertIn('row.get("historical") is True',chips)
+        self.assertIn('row.get("source")=="Dhan"',chips)
+        self.assertIn('historical=True',chips)
+        self.assertIn("signal_percentages(raw)",chips)
 
     def test_multi_underlying_option_context_isolated_to_session(self):
         body=segment("    async def refresh_selected_options():","    async def option_poll():")
