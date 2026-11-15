@@ -459,6 +459,31 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "token_validity": "expiry_checked" if authenticated else ("unverified" if token_configured else "missing"),
                     "live_orders_enabled": False}
 
+    @app.post("/dhan/option-expiries")
+    def dhan_option_expiries(body: Symbol,
+                            x_botking_key: Optional[str] = Header(default=None)):
+        """Authenticated, read-only broker-listed option expiries."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        instrument = DHAN_VERIFIED_INSTRUMENTS.get(body.symbol)
+        if not instrument or instrument[0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
+            raise HTTPException(422, "Verified Dhan underlying mapping unavailable")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        token = dhan_market_token()
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        try:
+            dates = DhanFeed(client, token).option_expiries(instrument[0], instrument[1])
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan option requests paced; retry later",
+                                headers={"Retry-After": "30"}) from None
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan listed expiries unavailable or not entitled") from None
+        if not dates:
+            raise HTTPException(422, "No Dhan listed option expiries for this underlying")
+        return {"source": "dhan", "symbol": body.symbol, "expiries": dates,
+                "live_orders_enabled": False}
+
     @app.post("/dhan/option-chain")
     def dhan_option_chain(body: DhanOptionChainRequest,
                           x_botking_key: Optional[str] = Header(default=None)):
@@ -466,7 +491,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
             raise HTTPException(403, "Server access denied")
         instrument = DHAN_VERIFIED_INSTRUMENTS.get(body.symbol)
-        if not instrument or instrument[2] != "INDEX" or instrument[0] != "IDX_I":
+        if not instrument or instrument[0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
             raise HTTPException(422, "Verified Dhan option underlying mapping unavailable")
         if body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date():
             raise HTTPException(422, "Option expiry has passed")
