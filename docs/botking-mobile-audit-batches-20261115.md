@@ -40,3 +40,29 @@ Reference: Android BOT KING v2.3.113 screenshots captured around 10:35–10:36 I
 - Android screenshots are observational evidence, not proof of current Oracle status.
 - Sundays/closed-market historical snapshots cannot demonstrate exchange-live updates.
 - No production server modifications or credential rotations are authorized by this audit alone.
+
+
+## Batch B7 (Priority 1) — Market-Aware One-Time Session Refresh (PLANNED)
+**Requirement decided 2026-11-15. Do not report as implemented.**
+- The global header prominently displays MARKET OPEN / MARKET CLOSED / MARKET HOLIDAY (specific holiday if known), with IST and the actual market-session calendar source. Allow special sessions (e.g. Muhurat Trading); do not assume every Sunday is permanently closed.
+- Normal NSE equity and derivatives refresh cadence: 09:15–15:30 IST subject to official product-specific holidays and exceptional trading schedules. Calendar unknown => label unverified, never imply verified market-open status.
+- When market is closed, suspend recurring *market-data* polling for equity quotes, scanner fast signals, Super Five, option-chain/premium, futures, and historical candles. Avoid useless 2s local loops as well as upstream requests.
+- On a *new authenticated login or a new app session*, permit one bounded serialized data refresh when closed: validate connection and fetch most-recent permitted snapshot(s) once, reusing shared caches; never loop retries, hit 429 repeatedly, or trigger a 51-symbol historical burst. Further page navigation/resume within the same session reuses the result. An explicit user Refresh can request a separate controlled refresh, honoring cooldown.
+- Display last actual source-data date/time and timezone per instrument and data type (spot LTP, futures, premium, candles, OI). Distinguish exchange timestamp from Oracle collection time, cache write time, last market date and unknown. Never invent a source time when unavailable.
+- Keep last valid same-Dhan-provider data with CLOSED / HISTORICAL / UNVERIFIED labels, not live. Do not turn an absent timestamp into a fresh quote simply because the login request succeeded.
+- On reopening: a single staggered data wake-up, priority order active read-only position/selected scanner, Super Five, then Watchlist; no duplicate polls. Keep server-side token/health monitoring separate from market-data polling; never enable live orders automatically.
+- Regression: weekend, declared holiday, exceptional session, 09:14/09:15/15:29/15:30 boundaries, new login once, repeated navigation, app resume, manual refresh, 429 cooldown, previous-value preservation, per-source timestamp accuracy, Dhan-only provenance, active position read-only reconciliation.
+
+## Batch B8 (Priority 2) — Dhan Option Chain NIFTY/BANKNIFTY/RELIANCE (PLANNED)
+**Requirement decided 2026-11-15. Do not report as live/available yet.**
+- DhanHQ supports option-chain by underlying instrument ID and segment including IDX_I (index) and NSE_EQ (equity); however BOT KING client currently hardcodes NIFTY in option_expiries and option_chain_metrics, and backend option-chain rejects non-IDX_I instruments. Confirm deployed Oracle code, entitlement and exchange-listed contracts before expanding.
+- Underlyings: NIFTY, BANKNIFTY, RELIANCE. Fetch real broker-listed expiries rather than forecasting expiry dates or inventing strikes. Confirm backend route for /dhan/option-expiries exists in the deployed service before claiming support.
+- Display actual CE/PE strike list, premiums (LTP), OI, volume, bid/ask and IV/Greeks where supplied; missing fields show —, not zero. Clearly show latest reliable data time if provider supplies it; otherwise UNVERIFIED.
+- Keep futures prices and futures symbol/contract mapping a **separate verified read-only feed**. Do not infer futures from cash spot or historical candles. Futures follow the same session-aware pause and one-login-refresh rules.
+- On OPEN: controlled, serialized snapshot reuse and rate-limit protection (Dhan option-chain documented minimum one unique request per three seconds); selected chain gets priority. No 2-second full-chain REST polling. On CLOSED/HOLIDAY: one bounded read-only check on login; no periodic chain, premium, OI or futures polling.
+- Signal calculation is WAIT until source, valid instrument mapping, expiry, data freshness and eligibility are established. Display-only broker data is not a certified live trading signal. Live broker order placement remains OFF.
+- Regression: each underlying, listed expiry, invalid/expired expiry, missing strikes/quotes, equity vs index segment IDs, 429, empty/partial provider response, holiday/weekend session, and cross-provider contamination.
+
+## Dependency and release sequencing
+B7 comes first (shared session/calendar + cache gate). B8 builds on that session gate. Then B1–B8 combined regression, Oracle read-only endpoint validation, Android screenshots/smoke testing, signing/versionName/versionCode checks, and one consolidated APK. Existing v2.3.113 is not evidence that B7 or B8 has been implemented.
+References consulted: NSE 2026 holiday and regular trading hours page (https://www.nseindia.com/resources/exchange-communication-holidays), DhanHQ official SDK option-chain documentation (https://dhanhq.co/docs/DhanHQ-py/_option_chain/).
