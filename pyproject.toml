@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.118" # A3 native dashboard candles, 15 filters, Dhan-only UI, exact 0/3 card removal
+version = "2.3.119" # A3 joint 5-engine chips, native dashboard candles, 15 filters and Dhan-only UI
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
