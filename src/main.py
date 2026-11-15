@@ -2624,6 +2624,7 @@ def app_main(page:ft.Page):
                 connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
                 connection_status.color=GOLD
                 page.update();return
+            from server_feed import checked_pairing_key
             pairing_key=(dhan_feed._pairing_key if existing_session else server_access.value.strip())
             try:
                 pairing_key=checked_pairing_key(pairing_key)
