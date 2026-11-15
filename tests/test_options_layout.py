@@ -45,7 +45,7 @@ class OptionsLayoutTests(unittest.TestCase):
         for control in controls:
             walk(control)
         self.assertIn("Refresh Dhan Option Chain", labels)
-        self.assertFalse(any("Angel One" in rendered_text(control) for control in controls))
+        self.assertFalse(any("Connect Angel One in Settings" in rendered_text(control) for control in controls))
 
     def test_options_have_no_expanded_controls_in_scroll_or_wrap(self):
         _, v = start({"scanner_live": False})
