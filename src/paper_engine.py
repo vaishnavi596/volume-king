@@ -43,6 +43,15 @@ def evaluate_mark(position,mark,settings):
         step=finite(settings.get("trail_pct",2),"Trail",.000001)
         if step>=100:raise ValueError("Trail must be below 100%")
         stop=max(stop,best*(1-step/100)) if side=="BUY" else min(stop,best*(1+step/100))
+    # Optional paper break-even: never widen the existing stop.
+    if settings.get("breakeven"):
+        threshold=finite(settings.get("breakeven_trigger",2),"Break-even trigger",.000001)
+        fee_buffer=finite(settings.get("breakeven_fee_buffer",0),"Break-even fees")
+        qty=finite(p.get("quantity",1),"Quantity",1)
+        gain_pct=(mark/entry-1)*(1 if side=="BUY" else -1)*100
+        if gain_pct>=threshold:
+            level=entry+fee_buffer/qty if side=="BUY" else entry-fee_buffer/qty
+            stop=max(stop,level) if side=="BUY" else min(stop,level)
     p["stop_price"]=stop;p["target_price"]=target
     stopped=mark<=stop if side=="BUY" else mark>=stop
     reached=mark>=target if side=="BUY" else mark<=target
