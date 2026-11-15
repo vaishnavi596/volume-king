@@ -445,8 +445,8 @@ class ServerDhanReadOnly:
 
     def option_expiries(self, symbol):
         """Broker-listed expiries from the Oracle Dhan read-only route."""
-        if symbol != "NIFTY":
-            raise FeedError("Verified Dhan option mapping unavailable")
+        if symbol not in DHAN_VERIFIED_SYMBOLS:
+            raise FeedError("Verified Dhan option underlying mapping unavailable")
         result = self._call("/dhan/option-expiries", {"symbol": symbol})
         dates = result.get("expiries")
         from datetime import date
@@ -466,8 +466,8 @@ class ServerDhanReadOnly:
         """Unverified OI metrics only; never a live trading signal."""
         from datetime import date
         import math
-        if symbol != "NIFTY":
-            raise FeedError("Verified Dhan option mapping unavailable")
+        if symbol not in DHAN_VERIFIED_SYMBOLS:
+            raise FeedError("Verified Dhan option underlying mapping unavailable")
         try:
             if date.fromisoformat(expiry).isoformat() != expiry:
                 raise ValueError("noncanonical date")
