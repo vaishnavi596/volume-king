@@ -137,3 +137,12 @@ The append-only batch journal is:
 - **2.3.126 Build #641 SUCCESS** with versionName `2.3.126`, versionCode `74101`, signing and artifact. **Phone 2.3.125 remains failing/unverified for first-login refresh, data and Super Five B/S**; newer APK is not automatically a device fix.
 - Futures real acquisition, authentic News and verified independent Options directional scoring remain **PENDING**; Oracle S18 total-70 unique-watchlist server patch is **NOT DEPLOYED** as far as existing evidence shows. No real orders enabled.
 - Older “need to finish 2.3.125 build” and “2.3.126 to be built” paragraphs above are **historical**; this checkpoint supersedes them. Do not silently edit/delete those historical records.
+
+
+## 2026-11-16 — NEWER DEVICE FAILURE AND 2.3.127 REPAIR TRACK
+
+- **Most recent user device report supersedes earlier installed-version notes:** v**2.3.126** was installed; **automatic refresh after login still fails/not observed** and Super Five B/S filters/data remain incomplete. Option Chain for HDFCBANK and other supported underlyings needs end-to-end verification. **MOBILE FAIL overrides any older "device untested" label for the reported behavior, but does not prove all screens failed.**
+- **Do NOT call 2.3.126 fixed merely because Build #641 and 809 offline tests passed.**
+- **Approved next repair programme:** `docs/BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md`. Read it before touching app: batches 127-A through 127-E (login bootstrap; independent equity/index; Super Five historical B/S; Options/HDFCBANK; regression/build). Version 2.3.127 is a **planned candidate, not yet built**.
+- App source audit found per-login session bootstrap is not guaranteed on app-open; connected-only poll guards and closed-hours option loop are potential blockers. Actual mobile and server correlation remains unverified.
+- Oracle production and Dhan OAuth unchanged; live orders OFF. Preserve old app data, 15 filters, five watchlists/global 70, historical 51+3 and signed package/versionCode policy.
