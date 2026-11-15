@@ -196,7 +196,8 @@ class ServerDhanReadOnly:
         if not self.connected:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         assessment_path = path.startswith("/v2/assessment/") and path.count("/") == 3
-        if not assessment_path and path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot", "/v2/server-readiness"):
+        instrument_search = path.startswith("/v2/instruments/search?") and path.count("/") == 3
+        if not assessment_path and not instrument_search and path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot", "/v2/server-readiness"):
             raise FeedError("Unsupported Dhan read-only request")
         # A rejected contract must not block another selected symbol/expiry.
         option_key = None
@@ -388,6 +389,20 @@ class ServerDhanReadOnly:
         # Let the app attempt independent /dhan/ltp for missing index symbols.
         # Never synthesize a price or mark an unavailable quote live.
         return quotes
+
+    def verified_equity_symbol(self, symbol):
+        """Authenticate a custom stock against the Oracle registry, without broker LTP."""
+        import re
+        if not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9&_-]{1,32}",symbol):
+            raise FeedError("Invalid NSE stock symbol")
+        path = "/v2/instruments/search?q=" + urllib.parse.quote(symbol, safe="") + "&limit=1"
+        result = self._call(path)
+        names = result.get("symbols")
+        if (result.get("source") != "dhan_registry"
+                or result.get("live_orders_enabled") is not False
+                or not isinstance(names, list) or names != [symbol]):
+            raise FeedError("NSE symbol not verified in Oracle Dhan registry")
+        return True
 
     def quote(self, symbol):
         if symbol not in DHAN_VERIFIED_SYMBOLS:

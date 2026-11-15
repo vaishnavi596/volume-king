@@ -1535,11 +1535,18 @@ def app_main(page:ft.Page):
         # Known NSE blue chips can be saved even when market data is unavailable.
         if sym not in watch_symbols:
             try:
-                q=await asyncio.to_thread(get_market_data,sym)
-                if q.get("price") is None:raise ValueError("No market price")
-                quotes[sym]=q
+                if prefs.get("source")=="Dhan":
+                    # Dynamic Registry validates identity independently of price.
+                    # Never request 2,785 quotes or use an unverified Yahoo fallback.
+                    if not dhan_feed.connected:
+                        raise FeedError("Connect Dhan first")
+                    await asyncio.to_thread(dhan_feed.verified_equity_symbol,sym)
+                else:
+                    q=await asyncio.to_thread(get_market_data,sym)
+                    if q.get("price") is None:raise ValueError("No market price")
+                    quotes[sym]=q
             except Exception:
-                feedback.value="Symbol not verified. Check ticker or provider; not added."
+                feedback.value="Symbol not verified in Oracle Registry. Check NSE ticker / Dhan connection."
                 page.update()
                 return
         if sym not in watch_groups[target_list]:
@@ -1560,7 +1567,9 @@ def app_main(page:ft.Page):
         if sym not in [o.key for o in chain_symbol.options]:
             chain_symbol.options.append(ft.dropdown.Option(sym))
         if active_watch[0]==target_list:
-            feedback.value=sym+" added and saved to List "+str(target_list+1)
+            feedback.value=(sym+" added to List "+str(target_list+1)+
+                            " • registry verified; Dhan quote pending" if sym not in watch_symbols and prefs.get("source")=="Dhan"
+                            else sym+" added and saved to List "+str(target_list+1))
             if (add_symbol.value or "").strip().upper().removesuffix(".NS")==sym:
                 add_symbol.value=""
             select(4)

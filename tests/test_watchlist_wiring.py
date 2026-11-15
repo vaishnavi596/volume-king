@@ -33,6 +33,15 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("if active_watch[0]==target_list:", body)
         self.assertIn("if sym not in watch_symbols:", body)
 
+    def test_custom_dhan_symbols_require_registry_not_yahoo_quote(self):
+        body = ast.get_source_segment(self.source, self.functions["validate_and_add"])
+        self.assertIn("verified_equity_symbol,sym",body)
+        self.assertIn('if prefs.get("source")=="Dhan"',body)
+        self.assertIn("Dhan quote pending",body)
+        feed = (SOURCE.parent / "server_feed.py").read_text(encoding="utf-8")
+        self.assertIn("def verified_equity_symbol(self, symbol):",feed)
+        self.assertIn("/v2/instruments/search?q=",feed)
+
     def test_remove_is_list_scoped_and_persisted(self):
         remove = ast.get_source_segment(self.source, self.functions["remove_stock"])
         self.assertIn("watch_groups[active_watch[0]]", remove)
