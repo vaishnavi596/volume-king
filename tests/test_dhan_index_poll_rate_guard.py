@@ -24,6 +24,23 @@ class IndexPollRateGuard(unittest.TestCase):
         self.assertNotIn("dhan_feed.quote,ticker",code)
         self.assertNotIn("asyncio.gather(",code)
 
+    def test_closed_market_first_index_load_once_per_generation(self):
+        self.assertIn("closed_index_bootstrap_generation=[None]",self.source)
+        self.assertIn('closed_index_bootstrap=(not regular_hours()',self.source)
+        self.assertIn('closed_index_bootstrap_generation[0]!=provider_generation[0]',self.source)
+        self.assertIn('and (regular_hours() or closed_index_bootstrap)',self.source)
+        self.assertIn('await refresh_dhan_index_quotes(force=closed_index_bootstrap)',self.source)
+        self.assertIn('closed_index_bootstrap_generation[0]=provider_generation[0]',self.source)
+
+    def test_closed_market_equity_recovery_once_then_normal_market_poll(self):
+        self.assertIn("closed_equity_bootstrap_generation=[None]",self.source)
+        self.assertIn("closing_bootstrap=(not regular_hours()",self.source)
+        self.assertIn("closed_equity_bootstrap_generation[0]!=provider_generation[0]",self.source)
+        self.assertIn("and (regular_hours() or closing_bootstrap)",self.source)
+        self.assertIn("closed_equity_bootstrap_generation[0]=provider_generation[0]",self.source)
+        self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60',self.source)
+        self.assertIn("await refresh_watch_batch()",self.source)
+
     def test_missing_index_message_is_not_stale_mapping_claim(self):
         fn=next(n for n in ast.walk(self.tree)
                 if isinstance(n,ast.FunctionDef) and n.name=="dashboard_index_analysis")

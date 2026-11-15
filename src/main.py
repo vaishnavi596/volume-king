@@ -1916,17 +1916,32 @@ def app_main(page:ft.Page):
         await refresh_dhan_index_quotes(force=True)
 
     quote_auto_last_attempt=[0.0]
+    closed_equity_bootstrap_generation=[None]
     async def dhan_quote_poll():
-        # BK-102: allow the app to settle before its first quote request.
-        # Subsequent equity snapshot requests are due every 60 seconds.
+        # First authenticated foreground session should display the last
+        # available equity snapshot even after market close. One closed-session
+        # recovery attempt per provider generation; regular polls remain gated
+        # by exchange hours and the existing 60-second cooldown.
         await asyncio.sleep(10)
         while True:
             try:
-                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
+                closing_bootstrap=(not regular_hours()
+                    and closed_equity_bootstrap_generation[0]!=provider_generation[0]
+                    and not any(isinstance(quotes.get(sym),dict)
+                                and quotes[sym].get("source")=="Dhan"
+                                and isinstance(quotes[sym].get("price"),(int,float))
+                                and not isinstance(quotes[sym].get("price"),bool)
+                                and math.isfinite(quotes[sym]["price"])
+                                and quotes[sym]["price"]>0
+                                for sym in all_watch_symbols()))
+                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and (regular_hours() or closing_bootstrap)
                         and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
                         and not watch_batch_busy[0]):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
+                        if closing_bootstrap:
+                            closed_equity_bootstrap_generation[0]=provider_generation[0]
                         # The actual batch attempt owns the shared poll clock.
                         await refresh_watch_batch()
                         if current[0]==0:
@@ -5868,15 +5883,29 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(supervised_market_refresh)
     page.run_task(dhan_quote_poll)
     page.run_task(visible_chart_poll)
+    closed_index_bootstrap_generation=[None]
     async def dhan_index_poll():
-        # Separate timer, shared index busy guard and 60s throttle. This avoids
-        # holding index refresh behind an awaited 51-equity snapshot.
+        # Index pipeline stays independent of the 51-stock watchlist.
+        # On a closed-market login, retrieve missing last-known index prices
+        # once, then pause exchange-hours polling until the market opens.
         await asyncio.sleep(10)
         while True:
             try:
-                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
-                        and dhan_feed.connected and not index_refresh_busy[0]):
-                    await refresh_dhan_index_quotes()
+                closed_index_bootstrap=(not regular_hours()
+                    and closed_index_bootstrap_generation[0]!=provider_generation[0]
+                    and any(not isinstance(quotes.get(sym),dict)
+                            or quotes[sym].get("source")!="Dhan"
+                            or not isinstance(quotes[sym].get("price"),(int,float))
+                            or isinstance(quotes[sym].get("price"),bool)
+                            or not math.isfinite(quotes[sym]["price"])
+                            or quotes[sym]["price"]<=0
+                            for sym in ("NIFTY","BANKNIFTY","SENSEX")))
+                if (app_active[0] and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected and not index_refresh_busy[0]
+                        and (regular_hours() or closed_index_bootstrap)):
+                    if closed_index_bootstrap:
+                        closed_index_bootstrap_generation[0]=provider_generation[0]
+                    await refresh_dhan_index_quotes(force=closed_index_bootstrap)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
