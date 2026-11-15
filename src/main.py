@@ -20,6 +20,7 @@ from error_doctor import diagnose
 from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
+from paper_bot_slots import SLOTS as PAPER_BOT_SLOTS, bootstrap as bootstrap_paper_slots, save_slot as save_paper_slot, load_slot as load_paper_slot, record as record_paper_event, positions_summary as paper_positions_summary
 from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, analyze, rank_candidates
 from shared_assessment_ui import assessment_lines
 from datetime import datetime, date, timedelta, timezone
@@ -2673,6 +2674,7 @@ def app_main(page:ft.Page):
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
+        content.append(paper_trading_center())
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
@@ -3120,7 +3122,13 @@ def app_main(page:ft.Page):
     protection_sample={};protection_pending={};protection_peak=[0.0]
     bot_preview=txt("Enter contract and tap Calculate.",13,MUTED)
     bot_trade_status=txt("Saved paper position: "+str((prefs.get("bot_position") or {}).get("contract") or "FLAT"),12,MUTED)
-    bot_position=dict(prefs.get("bot_position") or {"side":None,"entry":None,"quantity":0,"contract":None})
+    bootstrap_paper_slots(prefs)
+    selected_paper_slot=prefs.get("paper_bot_selected","Bot 1")
+    if selected_paper_slot not in PAPER_BOT_SLOTS:selected_paper_slot="Bot 1"
+    paper_bot_slot=ft.Dropdown(label="Paper bot profile",value=selected_paper_slot,options=[ft.dropdown.Option(v) for v in PAPER_BOT_SLOTS])
+    paper_bot_active=[selected_paper_slot]
+    bot_position=dict(prefs["paper_bot_positions"][selected_paper_slot])
+    prefs["bot_position"]=dict(bot_position)  # Legacy interface mirrors selected profile only.
     bot_expiry_mode.value=prefs.get("bot_expiry_mode","Nearest (preview)")
     update_expiry()
     def bot_values():
@@ -3249,6 +3257,13 @@ def app_main(page:ft.Page):
             del journal[:-200]
             if side=="EXIT":protection_pending.clear();protection_sample.clear();protection_peak[0]=0;paper_exit_fees.value="0"
         prefs["bot_position"]=dict(bot_position)
+        save_active_paper_slot()
+        if before.get("side")!=bot_position.get("side"):
+            old=before if side=="EXIT" else bot_position
+            item=prefs["paper_journal"][-1]
+            record_paper_event(prefs,paper_bot_active[0],side,old,
+                price=item.get("exit_price") if side=="EXIT" else old.get("entry"),
+                charges=item.get("charges") or 0,pnl=item.get("paper_pnl"))
         events=prefs.setdefault("bot_paper_events",[])
         events.append({"time":datetime.now(timezone.utc).isoformat(timespec="seconds"),"action":side,"position":dict(bot_position),"status":bot_trade_status.value})
         del events[:-200]
@@ -3448,6 +3463,11 @@ def app_main(page:ft.Page):
                     prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"PARTIAL","contract":bot_position["contract"],"quantity":qty,"entry":bot_position["entry"],"exit_price":mark,"paper_pnl":net,"reason":"Manual-mark paper partial; charges excluded"})
                 else:bot_position.update(decision["position"])
                 protection_sample.clear();prefs["bot_position"]=dict(bot_position)
+                save_active_paper_slot()
+                if decision["action"] in ("ADD","PARTIAL"):
+                    record_paper_event(prefs,paper_bot_active[0],decision["action"],bot_position,
+                        price=mark,quantity=decision["quantity"],
+                        pnl=net if decision["action"]=="PARTIAL" else None)
                 paper_state_status.value="Paper "+decision["action"]+" • "+decision.get("reason","")+" • manual mark "+str(mark)
                 if decision["action"]=="ADD":prefs.setdefault("paper_journal",[]).append({"time":datetime.now(timezone.utc).isoformat(),"event":"ADD","contract":bot_position["contract"],"quantity":decision["quantity"],"entry":mark,"paper_pnl":None,"reason":"Manual-mark averaging; stop not widened"})
                 prefs["paper_journal"]=prefs.get("paper_journal",[])[-200:]
@@ -3460,6 +3480,96 @@ def app_main(page:ft.Page):
         for item in reversed(prefs.get("paper_journal",[])[-10:]):
             rows.append(note(str(item["time"])+" • "+str(item["event"])+" • "+str(item.get("contract"))+" • Qty "+str(item.get("quantity"))+" • Paper P&L "+(str(item.get("paper_pnl")) if item.get("paper_pnl") is not None else "unknown")))
         return section("PAPER TRADE JOURNAL",ft.Column(rows or [note("No recorded entries/exits in this journal yet.")],spacing=6))
+    def paper_bot_config_controls():
+        return {
+            "bot_segment":bot_segment,"bot_symbol":bot_symbol,"bot_custom":bot_custom,
+            "bot_type":bot_type,"bot_strike":bot_strike,"bot_expiry":bot_expiry,
+            "bot_expiry_mode":bot_expiry_mode,"bot_lots":bot_lots,
+            "bot_lot_size":bot_lot_size,"bot_premium":bot_premium,
+            "cash_quantity":cash_quantity,"stop_loss":sl,"target":target,
+            "paper_trail_pct":paper_trail_pct,"paper_partial_pct":paper_partial_pct,
+            "paper_partial_trigger":paper_partial_trigger,
+            "paper_max_additions":paper_max_additions,"paper_add_units":paper_add_units,
+            "bot_trailing":bot_trailing,"partial_profit":partial_profit,
+            "buy_dip":buy_dip,"manual_contract_confirmed":manual_contract_confirmed,
+        }
+
+    def save_active_paper_slot():
+        settings={key:control.value for key,control in paper_bot_config_controls().items()}
+        save_paper_slot(prefs,paper_bot_active[0],bot_position,settings)
+
+    def switch_paper_bot(e):
+        destination=e.control.value
+        if destination not in PAPER_BOT_SLOTS:return
+        with trade_lock:
+            save_active_paper_slot()
+            target,settings=load_paper_slot(prefs,destination)
+            for key,control in paper_bot_config_controls().items():
+                if key in settings:control.value=settings[key]
+            bot_position.clear()
+            bot_position.update(target)
+            prefs["bot_position"]=dict(bot_position)
+            paper_bot_active[0]=destination
+            # A restored position never means an unattended running bot.
+            paper_bot_state[0]="Stopped"
+            paper_last_exit.clear()
+            protection_pending.clear()
+            protection_sample.clear()
+            paper_state_status.value="Paper bot "+destination+" • Stopped • manual marks only"
+            bot_trade_status.value="Selected "+destination+" • "+str(bot_position.get("contract") or "FLAT")
+            save()
+        select(1)
+
+    paper_bot_slot.on_change=switch_paper_bot
+
+    def paper_trading_center():
+        # One panel for paper configuration. Future broker execution is separately locked.
+        rows=[]
+        for item in paper_positions_summary(prefs):
+            rows.append(note(item["slot"]+" • "+str(item["contract"])+
+                (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")))
+        instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
+        context=[five_engine_chips(instrument),
+                 note(oracle_assessment_notes(instrument)[0]),
+                 note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders.")]
+        controls=[
+            note("Paper and future Live controls share this screen, NEVER the execution gateway."),
+            section("ALL PAPER BOTS",ft.Column(rows,spacing=2)),
+            paper_bot_slot,mode,
+            section("SYMBOL / CONTRACT",ft.Column(
+                [bot_segment,bot_symbol,bot_custom,bot_type,bot_strike,
+                 bot_expiry_mode,bot_expiry,bot_lots,bot_lot_size,
+                 manual_contract_confirmed],spacing=4)),
+            section("CANDLE / FILTER STATUS",ft.Column(context,spacing=4)),
+            section("PAPER ENTRY / RISK",ft.Column(
+                [bot_side,bot_premium,cash_quantity,sl,target,
+                 paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct,
+                 max_daily_loss,limit,
+                 ft.ElevatedButton("Calculate paper risk",on_click=calculate_bot),
+                 bot_preview,bot_trade_status,
+                 ft.Row([
+                     ft.ElevatedButton("BUY • PAPER",on_click=lambda e:bot_paper_action("BUY"),bgcolor=GREEN,color=BG),
+                     ft.ElevatedButton("SELL • PAPER",on_click=lambda e:bot_paper_action("SELL"),bgcolor=RED,color=BG),
+                     ft.OutlinedButton("EXIT • PAPER",on_click=lambda e:bot_paper_action("EXIT"))
+                 ],wrap=True),paper_exit_price,paper_exit_fees],spacing=5)),
+            paper_control_card(),
+            ft.ExpansionTile(title=note("Advanced paper risk / profit controls"),
+                 controls=[bot_trailing,partial_profit,buy_dip,
+                           max_total_lots,cooldown,squareoff,
+                           emergency_stop,auto_entry,auto_reentry,
+                           paper_reentry_after_sl,
+                           protection_mode,protection_enabled,
+                           protection_loss,protection_profit,protection_trail,
+                           protection_timeout,protection_no_reply,
+                           protection_status]),
+            paper_journal_card(),
+            section("LIVE TRADING • LOCKED",ft.Column([
+                note("Server readiness is read-only. Live orders are disabled; no live BUY/SELL will be sent."),
+                ft.Row([ft.ElevatedButton("LIVE BUY • LOCKED",disabled=True),
+                        ft.ElevatedButton("LIVE SELL • LOCKED",disabled=True)],wrap=True)]))
+        ]
+        return section("TRADING CENTER • PAPER BOT / LIVE LOCKED",ft.Column(controls,spacing=8))
+
     def undo_setting(e=None):
         history=prefs.get("setting_changes",[])
         if not history:backup_status.value="No setting change to undo";page.update();return
