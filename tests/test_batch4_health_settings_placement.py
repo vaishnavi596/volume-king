@@ -13,7 +13,7 @@ class HealthPlacementTest(unittest.TestCase):
     def test_settings_has_one_diagnostic_location(self):
         body=SOURCE.split("    def settings():",1)[1].split("    # Scanner-only upgrade.",1)[0]
         self.assertIn("content.append(data_overview())",body)
-        self.assertIn('content.append(section("RECENT ERROR TYPES"',body)
+        self.assertIn('content.append(section("ERROR HISTORY"',body)
         self.assertNotIn('section("09  DIAGNOSTICS"',body)
         self.assertEqual(SOURCE.count('return section("SYSTEM HEALTH"'),1)
         self.assertIn("ERROR DOCTOR • rule-based local diagnosis",SOURCE)

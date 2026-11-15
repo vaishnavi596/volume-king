@@ -870,12 +870,18 @@ def app_main(page:ft.Page):
         valid=int(scan_progress.get("valid",0) or 0)
         state=str(scan_progress.get("state","Waiting"))
         problems=[]
+        coverage_rows,coverage_counts=current_filter_coverage()
+        if dhan and connected and coverage_counts["ERROR"]:
+            symbols=", ".join(row["symbol"] for row in coverage_rows if row["status"]=="ERROR")
+            problems.append("Candle/filter audit: "+str(coverage_counts["ERROR"])+" active failure(s) • "+symbols)
         if dhan and dhan_batch_issue[0]:
             problems.append("Dhan watchlist batch: "+dhan_batch_issue[0])
         # Individual index/stock retries can fail even when the 51-equity scan
         # completed. Keep their failures visible until that symbol succeeds.
         if connected and failed_symbols:
+            audited_errors={row["symbol"] for row in coverage_rows if row["status"]=="ERROR"}
             for failed,reason in list(failed_symbols.items())[:3]:
+                if dhan and failed in audited_errors:continue
                 problems.append("Market data "+str(failed)+": "+str(reason)[:100])
         if not connected:problems.append("Yahoo quote not verified" if yahoo else "Provider disconnected; reconnect in Settings")
         # A disconnected Dhan session is one root cause, not four independent
@@ -913,6 +919,7 @@ def app_main(page:ft.Page):
         doctor_items=[diagnose(problem) for problem in problems[:3]]
         details=[
             note("ERROR DOCTOR • rule-based local diagnosis; no remote AI or secret upload"),
+            note("Error history includes recovered incidents; active failures are counted above."),
             *[note(code+" • "+cause+" • "+action) for code,cause,action in doctor_items],
             note("Provider: "+prefs.get("source","Unknown")+" • "+(("quote available; freshness unverified" if yahoo else "session active (quote freshness unverified)") if connected else ("quote not verified" if yahoo else "disconnected; reconnect required"))),
             note("Watchlist: "+str(sum(1 for symbol in watch_symbols if (quotes.get(symbol) or {}).get("source")=="Dhan" and isinstance((quotes.get(symbol) or {}).get("price"),(int,float))))+"/"+str(len(watch_symbols))+" saved/displayed LTP • quote time unverified"+(" • DISCONNECTED; cached prices are not live" if not connected else "") if dhan else "Watchlist: check selected feed"),
@@ -932,6 +939,9 @@ def app_main(page:ft.Page):
         return section("SYSTEM HEALTH",ft.Column([
             ft.Row([ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED if problems else ft.Icons.CHECK_CIRCLE_OUTLINE,color=RED if problems else GREEN,size=17),ft.Container(content=txt(str(len(problems))+" issue(s) need attention" if problems else "No active errors reported",11,RED if problems else GREEN,True),expand=True),txt(prefs.get("source",""),10,MUTED)],spacing=5),
             *[txt(item,11,RED) for item in problems[:3]],
+            note("54-symbol filters • "+str(coverage_counts["ANALYZED"])+" analyzed • "+
+                 str(coverage_counts["ERROR"])+" errors • "+str(coverage_counts["INSUFFICIENT"])+
+                 " insufficient • "+str(coverage_counts["PENDING"])+" pending") if dhan else note("Selected-feed analysis coverage"),
             ft.ExpansionTile(title=note("Full diagnostics • "+str(total)+" scan targets"),initially_expanded=False,controls=details),
             ft.TextButton("Retry data",on_click=lambda e:page.run_task(retry_selected_data))
         ],spacing=2))
@@ -1342,6 +1352,12 @@ def app_main(page:ft.Page):
         return save()
     def all_watch_symbols():
         return list(dict.fromkeys(sym for group in watch_groups for sym in group))
+    def configured_scan_symbols():
+        # Scanner coverage is independent of which symbols remain in a saved list.
+        if prefs.get("source")=="Dhan":
+            return [sym for sym in dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)
+                    if sym in DHAN_VERIFIED_SYMBOLS]
+        return list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
     def selection_symbols():
         return list(dict.fromkeys(["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols+all_watch_symbols()+list(prefs.get("custom_symbols",[]))))
     def sync_symbol_choices():
@@ -3383,7 +3399,7 @@ def app_main(page:ft.Page):
         ])
         content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Paper trading only • Live orders OFF")))
         content.append(data_overview())  # Unified System Health + Error Doctor at Settings bottom.
-        content.append(section("RECENT ERROR TYPES",txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)))
+        content.append(section("ERROR HISTORY",txt("\n".join(diagnostics[-10:]) or "No errors recorded this session",10,MUTED)))
         return content
 
 
@@ -3764,6 +3780,20 @@ console.log('BOT KING Lightweight Charts ready');
             return (last if type(last) in (int,float) and math.isfinite(last) else 0,
                     received if type(received) in (int,float) and math.isfinite(received) else 0)
         return max(candidates,key=revision_order) if candidates else {}
+    def remember_candle_failure(sym,tf,stage,exc):
+        detail=stage+" • "+type(exc).__name__
+        scan_fetch_failure[(provider_generation[0],sym,tf)]={"at":time.time(),"detail":detail}
+        record_analysis(sym,tf,stage=stage,error=detail)
+        prior=watch_signal_cache.get(sym) if tf=="5m" else None
+        if prior:
+            watch_signal_cache[sym]=dict(prior,historical=True,live_verified=False,freshness="unverified")
+            five_engine_snapshots[sym]=scanner_snapshot(watch_signal_cache[sym])
+            for row in top5_candidates:
+                if row.get("symbol")==sym:
+                    row.update(historical=True,live_verified=False,freshness="unverified",bias="WAIT",score=0)
+    def current_filter_coverage():
+        audit_context()
+        return analysis_audit.coverage(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)
     def clear_scan_failure(sym,tf,data):
         key=(provider_generation[0],sym,tf)
         failure=scan_fetch_failure.get(key)
@@ -3771,6 +3801,7 @@ console.log('BOT KING Lightweight Charts ready');
         if (failure and type(received) in (int,float) and math.isfinite(received)
                 and received>=failure["at"]):
             scan_fetch_failure.pop(key,None)
+            failed_symbols.pop(sym,None)
     def selected_presentation(result,tf):
         expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
         shown=presentation_result(result,expected_source=expected,now=time.time(),
@@ -4441,9 +4472,10 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner",exc)
             if generation!=scan_generation[0]:return
             if stage!="premium simulation":
-                scan_fetch_failure[(provider_generation[0],sym,interval)]={
-                    "at":time.time(),"detail":stage+" • "+type(exc).__name__}
-            record_analysis(sym,interval,stage=stage,error=type(exc).__name__,elapsed=time.monotonic()-started)
+                remember_candle_failure(sym,interval,stage,exc)
+            else:
+                # Optional premium modeling is separate from candle-filter coverage.
+                log_error("premium_simulation",exc)
             scan_status.value=sym+" • "+stage+" failed • previous result is historical"
             if stage!="premium simulation" or not scan_result.controls:
                 reason=sym+" • "+stage+": "+safe_error(exc)
@@ -4721,7 +4753,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # Connection is now ready: allow the first historical scan even on weekends.
                 last_scanned_generation=current_generation
                 successes=0
-                symbols=(list(dict.fromkeys(["NIFTY"]+[selected for i,default in enumerate(("NIFTY","RELIANCE","HDFCBANK"),1) for selected in [prefs.get("dashboard_analysis_slot_"+str(i),default)] if selected in watch_symbols]+all_watch_symbols())) if prefs.get("source")=="Dhan" else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols())))
+                symbols=configured_scan_symbols()
                 # B2-INDEX-FIRST: load all three index candle histories in the
                 # initial serialized Dhan scan, not after 51 equity histories.
                 # LTP remains on its independent quote endpoint. History requests
@@ -4824,7 +4856,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 return False
                             if generation==provider_generation[0]:
                                 failed_symbols[sym]=safe_error(exc)
-                                record_analysis(sym,"5m",stage="candle fetch",error=type(exc).__name__)
+                                remember_candle_failure(sym,"5m","candle fetch",exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
                                 scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
@@ -4896,6 +4928,8 @@ console.log('BOT KING Lightweight Charts ready');
                                           RuntimeError("Dhan index OHLC unavailable or empty; LTP retained"))
                         except Exception as exc:
                             log_error("index_candle_"+early_index,exc)
+                            if generation==provider_generation[0] and app_active[0] and not lifecycle_background[0]:
+                                remember_candle_failure(early_index,"5m","index candle fetch",exc)
                             if ("429" in safe_error(exc) or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                                 scan_progress["state"]="Dhan index history cooling down • equity history pending • last LTP retained"
                                 last_scanned_generation=None
@@ -4999,6 +5033,8 @@ console.log('BOT KING Lightweight Charts ready');
                                     request_view_refresh(current[0])
                         except Exception as exc:
                             log_error("index_candle_"+index_sym,exc)
+                            if generation==provider_generation[0] and app_active[0] and not lifecycle_background[0]:
+                                remember_candle_failure(index_sym,"5m","index candle fetch",exc)
                             if ("429" in safe_error(exc) or
                                     dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                                 break
@@ -5217,6 +5253,8 @@ console.log('BOT KING Lightweight Charts ready');
                             raise
                         except Exception as exc:
                             log_error("index_candle_poll_"+index_sym,exc)
+                            if generation==provider_generation[0] and app_active[0] and not lifecycle_background[0]:
+                                remember_candle_failure(index_sym,"5m","index candle fetch",exc)
                             if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
                                 break
             except asyncio.CancelledError:

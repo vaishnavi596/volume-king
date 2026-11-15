@@ -72,3 +72,44 @@ legacy automatic settings, news cancellation, cross-surface history selection,
 bad-data demotion and failure recovery, plus pure presentation-gate tests. These
 remain offline tests, not real broker/device certification. Build stays deferred
 until the final combined audit; no release version or build workflow is changed.
+
+## Remaining joint batch — full coverage and background diagnostics
+
+This closes additional source gaps within the existing groups 2–5:
+
+- The Dhan history scheduler always targets the fixed 51 equities plus three
+  indices, even if saved Watchlists are empty or the user removes a stock from a
+  list. Displayed Watchlists and their price cadence remain independent.
+- Background equity and index candle failures use the same failure registry as
+  selected Scanner requests. Last-available evidence is immediately demoted and
+  cannot become live through local cached re-analysis. A newer matching candle
+  response clears both the active failure and its stale per-symbol error.
+- System Health reads the same 54-symbol audit as central filter settings.
+  Pending and insufficient coverage remain explicit; error history is labelled
+  separately and may contain recovered incidents. Duplicate symbol/audit error
+  notices are not counted twice.
+- Optional premium simulation failures no longer overwrite successful technical
+  candle coverage with a filter failure.
+- The Oracle read-only audit previously excluded only NIFTY, which incorrectly
+  left two indices in its supposedly 51-equity list. The default is now exactly
+  51 equities; `--all-symbols` tests all 54. `--date YYYY-MM-DD` selects a known
+  completed past session. Each valid candle response must also produce all ten
+  default filter rows. Requests remain sequential, spaced 1.5 seconds apart,
+  and stop on HTTP 429/authentication/transport failure. No orders are called.
+
+Server-side acceptance command (on the existing Oracle checkout):
+
+```bash
+python3 backend/audit-dhan-51-candles.py --all-symbols --date YYYY-MM-DD
+```
+
+Replace the date with a known completed trading session; holidays are not inferred
+from empty data. This command has not been run against the user's live Oracle
+instance in this workspace. Static app/gateway mapping-name and segment-ID
+consistency is tested; that is not a new instrument-master verification.
+
+Tests exercise the actual complete app scheduler with 54 supplied candle feeds
+and empty Watchlists, active failure/recovery in System Health, and the complete
+54-symbol server-audit program with mocked HTTP, including immediate rate-limit
+stop. Real broker freshness, physical Android layout/latency and server deployment
+remain acceptance gates. No additional numbered improvement groups are created.

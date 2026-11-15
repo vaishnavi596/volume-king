@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Read-only, sequential Oracle audit of 51 mapped Dhan equity candle feeds.
 
-Run on the Oracle host: python3 backend/audit-dhan-51-candles.py
+Run on Oracle: python3 backend/audit-dhan-51-candles.py
+Full coverage: add --all-symbols --date YYYY-MM-DD for a known past trading day.
 Never prints credentials, prices, raw responses, or broker payloads.
 Requests one symbol at a time and stops on rate limiting.
 """
+import argparse
 import datetime as dt
 import pathlib
 import sys
@@ -37,7 +39,13 @@ spec = spec_from_file_location("dhan_live_check", pathlib.Path(__file__).with_na
 module = module_from_spec(spec)
 spec.loader.exec_module(module)
 
-SYMBOLS = sorted(DHAN_VERIFIED_SYMBOLS - {"NIFTY"})
+INDEX_SYMBOLS = frozenset(("NIFTY", "BANKNIFTY", "SENSEX"))
+
+def audit_symbols(all_symbols=False):
+    return sorted(DHAN_VERIFIED_SYMBOLS if all_symbols else DHAN_VERIFIED_SYMBOLS - INDEX_SYMBOLS)
+
+SYMBOLS = audit_symbols()
+from scanner_engine import analyze, DEFAULT_FILTERS
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
 
@@ -55,7 +63,15 @@ def bars_match_requested_day(bars, day):
         return False
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Read-only candle and filter audit; no orders")
+    parser.add_argument("--all-symbols", action="store_true", help="Include all 51 equities and 3 indices")
+    parser.add_argument("--date", type=dt.date.fromisoformat, help="Known completed trading day, YYYY-MM-DD")
+    args = parser.parse_args(argv)
+    symbols = audit_symbols(args.all_symbols)
+    today = dt.datetime.now(IST).date()
+    if args.date is not None and args.date >= today:
+        parser.error("Choose a completed past trading day; holiday calendar is not verified")
     try:
         key = module.KEY_FILE.read_text(encoding="utf-8").strip()
     except OSError:
@@ -72,23 +88,25 @@ def main():
         print("Dhan read-only session unavailable; no candle requests made")
         return 2
     # Previous weekday avoids partial intraday session and uses a bounded window.
-    day = dt.datetime.now(dt.timezone(dt.timedelta(hours=5, minutes=30))).date() - dt.timedelta(days=1)
-    while day.weekday() >= 5:
-        day -= dt.timedelta(days=1)
-    print("Dhan 51-equity 5m historical audit | day:", day, "| symbols:", len(SYMBOLS))
+    day = args.date or today - dt.timedelta(days=1)
+    if args.date is None:
+        while day.weekday() >= 5:
+            day -= dt.timedelta(days=1)
+    print("Dhan 5m historical candle/filter audit | day:", day, "| symbols:", len(symbols))
+    print("Holiday calendar not verified; empty data is not proof of a mapping error")
     counts = {"valid": 0, "empty": 0, "invalid": 0, "http_error": 0}
-    for i, symbol in enumerate(SYMBOLS, 1):
+    for i, symbol in enumerate(symbols, 1):
         code, result = module.request("/dhan/intraday", key, {
             "symbol": symbol, "interval": 5,
             "from_date": day.isoformat(), "to_date": day.isoformat()})
         if code == 429:
-            print(f"{i:02d}/{len(SYMBOLS)} {symbol}: HTTP 429 RATE_LIMIT; STOP")
+            print(f"{i:02d}/{len(symbols)} {symbol}: HTTP 429 RATE_LIMIT; STOP")
             return 3
         if code in (401, 403):
-            print(f"{i:02d}/{len(SYMBOLS)} {symbol}: HTTP {code} AUTHORIZATION_FAILURE; STOP")
+            print(f"{i:02d}/{len(symbols)} {symbol}: HTTP {code} AUTHORIZATION_FAILURE; STOP")
             return 2
         if code == 0:
-            print(f"{i:02d}/{len(SYMBOLS)} {symbol}: TRANSPORT_FAILURE; STOP")
+            print(f"{i:02d}/{len(symbols)} {symbol}: TRANSPORT_FAILURE; STOP")
             return 2
         bars = result.get("bars") if isinstance(result, dict) else None
         if code != 200:
@@ -103,12 +121,22 @@ def main():
             outcome = "valid"
         else:
             outcome = "invalid"
+        filter_count = 0
+        available_filters = 0
+        bias = "UNAVAILABLE"
+        if outcome == "valid":
+            analysis = analyze(bars, DEFAULT_FILTERS, "5m")
+            filter_count = len(analysis.get("votes") or [])
+            available_filters = sum(v.get("vote") is not None for v in analysis.get("votes", []))
+            bias = analysis.get("bias", "WAIT")
+            if filter_count != len(DEFAULT_FILTERS) or analysis.get("timestamp") is None:
+                outcome = "invalid"
         counts[outcome] += 1
-        print(f"{i:02d}/{len(SYMBOLS)} {symbol}: {outcome.upper()} HTTP {code} bars {len(bars) if isinstance(bars, list) else 'invalid'}")
-        if i < len(SYMBOLS):
-            time.sleep(1.2)
+        print(f"{i:02d}/{len(symbols)} {symbol}: {outcome.upper()} HTTP {code} bars {len(bars) if isinstance(bars, list) else 'invalid'} filters {filter_count}/{len(DEFAULT_FILTERS)} available {available_filters} unavailable {filter_count-available_filters} bias {bias}")
+        if i < len(symbols):
+            time.sleep(1.5)
     print("TOTAL", counts, "| no order endpoints called | timestamps not verified live")
-    return 0 if counts["valid"] == len(SYMBOLS) else 1
+    return 0 if counts["valid"] == len(symbols) else 1
 
 
 if __name__ == "__main__":
