@@ -1934,10 +1934,15 @@ def app_main(page:ft.Page):
                                 and math.isfinite(quotes[sym]["price"])
                                 and quotes[sym]["price"]>0
                                 for sym in all_watch_symbols()))
-                if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and (regular_hours() or closing_bootstrap)
-                        and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
-                        and not watch_batch_busy[0]):
+                if ((app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected)
+                        or (app_active[0] and closing_bootstrap and prefs.get("source")=="Dhan"
+                            and dhan_feed.connected)):
+                    poll_due=(time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
+                              and not watch_batch_busy[0])
+                else:
+                    poll_due=False
+                if poll_due and not watch_batch_busy[0]:
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
                     if remaining==0:
                         if closing_bootstrap:
@@ -5900,12 +5905,13 @@ console.log('BOT KING Lightweight Charts ready');
                             or not math.isfinite(quotes[sym]["price"])
                             or quotes[sym]["price"]<=0
                             for sym in ("NIFTY","BANKNIFTY","SENSEX")))
-                if (app_active[0] and prefs.get("source")=="Dhan"
-                        and dhan_feed.connected and not index_refresh_busy[0]
-                        and (regular_hours() or closed_index_bootstrap)):
-                    if closed_index_bootstrap:
-                        closed_index_bootstrap_generation[0]=provider_generation[0]
-                    await refresh_dhan_index_quotes(force=closed_index_bootstrap)
+                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected and not index_refresh_busy[0]):
+                    await refresh_dhan_index_quotes()
+                elif (app_active[0] and closed_index_bootstrap and prefs.get("source")=="Dhan"
+                        and dhan_feed.connected and not index_refresh_busy[0]):
+                    closed_index_bootstrap_generation[0]=provider_generation[0]
+                    await refresh_dhan_index_quotes(force=True)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
