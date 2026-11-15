@@ -197,6 +197,34 @@ def scanner_snapshot(scan_result):
     return compose_snapshot(technical=technical)
 
 
+def historical_candle_balance(bars, *, sample_size=8):
+    """Body-only historical candle direction; never eligible for live engine votes."""
+    if type(sample_size) is not int or not 5 <= sample_size <= 20:
+        raise ValueError("Invalid historical candle sample")
+    if not isinstance(bars, (list, tuple)) or len(bars) < sample_size:
+        return None
+    bulls = bears = 0
+    previous = None
+    for candle in bars[-sample_size:]:
+        if not isinstance(candle, (list, tuple)) or len(candle) < 5:
+            return None
+        ts, op, high, low, close = candle[:5]
+        if (any(type(x) not in (int, float) or not isfinite(x) or x <= 0
+                for x in (ts, op, high, low, close))
+                or (previous is not None and ts <= previous)
+                or high < max(op, close) or low > min(op, close)):
+            return None
+        previous = ts
+        bulls += close > op
+        bears += close < op
+    directional = bulls + bears
+    if directional < 5:
+        return None
+    bullish = round(bulls * 100 / directional)
+    return {"bullish": bullish, "bearish": 100 - bullish,
+            "historical": True, "verified": False, "count": directional}
+
+
 def option_from_component(component):
     """Adapt authenticated directional option flow; OI/volume alone never votes.
 

@@ -30,6 +30,25 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         self.assertTrue(all(("WAIT" in label or "HIST" in label) for label in values))
         self.assertNotIn("O B", " ".join(values))
 
+    def test_independent_candle_history_never_claims_verified_signal(self):
+        from five_engine import historical_candle_balance, compose_snapshot
+        bars=[(1700000000+i*300,100,102,98,101 if i%4 else 99,50)
+              for i in range(8)]
+        result=historical_candle_balance(bars)
+        self.assertEqual(result["bullish"],75)
+        self.assertEqual(result["bearish"],25)
+        self.assertTrue(result["historical"])
+        self.assertFalse(result["verified"])
+        self.assertEqual(compose_snapshot()["combined"]["state"],"WAIT")
+        self.assertIsNone(historical_candle_balance(bars[:4]))
+        self.assertIsNone(historical_candle_balance(bars[:-1]+[bars[-2]]))
+
+    def test_historical_candle_chip_never_fetches_broker_data(self):
+        chip=SOURCE.split("    def five_engine_chips(sym):",1)[1].split("    def super_five_card():",1)[0]
+        self.assertIn("C HIST B",chip)
+        self.assertIn("NOT live",chip)
+        self.assertNotIn("dhan_feed.",chip)
+
     def test_no_extra_poll_on_dashboard_render(self):
         view=SOURCE.split("    def dashboard():",1)[1].split("    search=ft.TextField(",1)[0]
         self.assertNotIn("dhan_feed.option_chain_metrics",view)

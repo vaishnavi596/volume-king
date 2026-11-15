@@ -10,7 +10,7 @@ from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
-from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context
+from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
 from help_content import describe
 from i18n import localize_tree,translate
@@ -1234,7 +1234,13 @@ def app_main(page:ft.Page):
         else:
             pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
-        return ft.ExpansionTile(title=note("5/5 modules configured (100% setup) • "+str(combined["coverage"])+"/5 data verified • "+combined["state"]),
+        candle_history=shared_history(symbol)
+        if candle_history.get("source")=="Dhan":
+            balance=historical_candle_balance(candle_history.get("bars"))
+            if balance and snapshot["engines"][1].display()["state"]=="WAIT":
+                pieces[1]=("Candle HIST B"+str(balance["bullish"])+"% / S"+
+                           str(balance["bearish"])+"% • not an independently verified engine vote")
+        return ft.ExpansionTile(title=note("5 engines • "+str(combined["coverage"])+"/5 verified • overall "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
     def five_engine_chips(sym):
@@ -1273,6 +1279,13 @@ def app_main(page:ft.Page):
                             and data.get("signal_eligible") is False
                             and isinstance(data.get("pcr"),(int,float))):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
+                elif name=="candle" and prefs.get("source")=="Dhan":
+                    candle_history=shared_history(sym)
+                    if candle_history.get("source")=="Dhan":
+                        balance=historical_candle_balance(candle_history.get("bars"))
+                        if balance:
+                            label=("C HIST B"+str(balance["bullish"])+"/S"+
+                                   str(balance["bearish"])+" • NOT live")
                 elif name=="news":
                     with news_lock:
                         data=news_cache.get(sym) or {}
