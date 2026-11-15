@@ -21,6 +21,7 @@ from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
 from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, analyze, rank_candidates
+from shared_assessment_ui import assessment_lines
 from datetime import datetime, date, timedelta, timezone
 from importlib.metadata import version as package_version, PackageNotFoundError
 
@@ -294,6 +295,15 @@ def app_main(page:ft.Page):
     dhan_option_metrics={}
     option_refresh_pending=[False]
     dhan_option_last_attempt=[0.0]
+    oracle_assessment_cache={}
+    oracle_assessment_attempts={}
+
+    def oracle_assessment_notes(symbol):
+        # One independent per-symbol cache for Scanner, Watchlist and Super Five.
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return ["Oracle assessment • WAIT • Dhan connection required"]
+        return assessment_lines(symbol,oracle_assessment_cache)
+
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
         # Report only allowlisted missing schema fields; never log arbitrary values or secrets.
@@ -4569,6 +4579,7 @@ console.log('BOT KING Lightweight Charts ready');
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
             safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY")),
             safe_scanner_widget("Options",scanner_option_context),
+            safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY")],spacing=3))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -5648,6 +5659,48 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(watch_visible_tick)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
+    async def oracle_assessment_poll():
+        """Reuse a 180s read-only Oracle cache; never request from a widget."""
+        await asyncio.sleep(4)
+        while True:
+            try:
+                if (app_active[0] and not lifecycle_background[0]
+                        and prefs.get("source")=="Dhan" and dhan_feed.connected):
+                    generation=provider_generation[0]
+                    # Only selected contexts, never one fetch per watchlist row.
+                    selected=list(dict.fromkeys(
+                        sym for sym in (scan_symbol.value,chain_symbol.value)
+                        if isinstance(sym,str) and sym in DHAN_VERIFIED_SYMBOLS))
+                    for sym in selected:
+                        if generation!=provider_generation[0] or not app_active[0]:
+                            break
+                        now=time.monotonic()
+                        key=(generation,sym)
+                        if now-oracle_assessment_attempts.get(key,0)<180:
+                            continue
+                        oracle_assessment_attempts[key]=now
+                        try:
+                            data=await asyncio.to_thread(dhan_feed.assessment,sym)
+                            if generation==provider_generation[0]:
+                                oracle_assessment_cache[sym]={"fetched":time.monotonic(),"data":data}
+                                if len(oracle_assessment_cache)>16:
+                                    del oracle_assessment_cache[next(iter(oracle_assessment_cache))]
+                                if current[0] in (0,3,4):
+                                    request_view_refresh(current[0])
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:
+                            log_error("oracle_assessment",exc)
+                    if len(oracle_assessment_attempts)>64:
+                        oracle_assessment_attempts.clear()
+                else:
+                    oracle_assessment_cache.clear()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("oracle_assessment_poll",exc)
+            await asyncio.sleep(15)
+    page.run_task(oracle_assessment_poll)
     async def refresh_after_resume():
         if resume_busy[0]:return
         resume_busy[0]=True
