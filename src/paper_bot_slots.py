@@ -76,9 +76,18 @@ def record(prefs, slot, event, position, *, price=None, quantity=None, charges=0
 def positions_summary(prefs):
     positions = bootstrap(prefs)
     summary = []
+    journal = prefs.get("paper_portfolio_journal", [])
     for slot in SLOTS:
         p = positions[slot]
+        realized = 0.0
+        for event in journal if isinstance(journal, list) else []:
+            if (isinstance(event, dict) and event.get("slot") == slot
+                    and event.get("event") in ("EXIT", "PARTIAL")
+                    and type(event.get("net_pnl")) in (int, float)
+                    and math.isfinite(event["net_pnl"])):
+                realized += event["net_pnl"]
         summary.append({"slot": slot, "contract": p.get("contract") or "FLAT",
                         "side": p.get("side"),
-                        "quantity": int(p.get("quantity") or 0)})
+                        "quantity": int(p.get("quantity") or 0),
+                        "realized_net_pnl": round(realized, 2)})
     return summary
