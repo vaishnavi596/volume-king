@@ -23,8 +23,8 @@ def test_mobile_filter_context_is_display_only_and_slots_stay_ten():
     source = (ROOT / "main.py").read_text(encoding="utf-8")
     ast.parse(source)
     assert 'filter_selected=list(dict.fromkeys' in source
-    assert '[:10]' in source
-    assert 'elif len(filter_selected)>=10:' in source
+    assert '[:MAX_ACTIVE_FILTERS]' in source
+    assert 'elif len(filter_selected)>=MAX_ACTIVE_FILTERS:' in source
     assert 'def enrich_context_filter_rows(sym,rows):' in source
     assert 'row["vote"]=None' in source
     assert 'data=dhan_option_metrics' in source
