@@ -23,5 +23,11 @@ class ScannerChartDeliveryRetryTests(unittest.TestCase):
         self.assertIn("tv_pending[0] is pending",body)
 
 
+    def test_chart_guidance_is_compact_and_does_not_duplicate_settings_help(self):
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        self.assertIn('parts.append(note("OHLC history • EMA 9/21 overlay • other filters: analysis only"))',source)
+        self.assertNotIn("Chart/Analysis/Both is selected in Settings",source)
+        self.assertIn('parts.append(tradingview_status)',source)
+
 if __name__=="__main__":
     unittest.main()
