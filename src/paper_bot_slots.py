@@ -80,7 +80,7 @@ def positions_summary(prefs):
     for slot in SLOTS:
         p = positions[slot]
         realized = 0.0
-        for event in journal if isinstance(journal, list) else []:
+        for event in (journal if isinstance(journal, list) else []):
             if (isinstance(event, dict) and event.get("slot") == slot
                     and event.get("event") in ("EXIT", "PARTIAL")
                     and type(event.get("net_pnl")) in (int, float)
