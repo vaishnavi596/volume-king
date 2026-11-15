@@ -306,7 +306,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("async def super_five_minute_refresh():", source)
         self.assertIn("page.run_task(super_five_minute_refresh)", source)
         local_loop = source.split("async def super_five_minute_refresh():", 1)[1].split("    def super_five_card():", 1)[0]
-        self.assertIn("await asyncio.sleep(15)", local_loop)
+        self.assertIn("await asyncio.sleep(10)", local_loop)
+        self.assertIn("fingerprint==last_fingerprint", local_loop)
         self.assertIn("snapshot.get(\"bars\")", local_loop)
         self.assertNotIn("get_market_data(", local_loop)
         self.assertNotIn("dhan_feed.intraday(", local_loop)
