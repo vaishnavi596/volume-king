@@ -12,7 +12,7 @@ class OptionChartCacheValidationTests(unittest.TestCase):
         end = source.index("    def ", start + 5)
         panel = source[start:end]
         self.assertIn('Dhan CE/PE premium history', panel)
-        self.assertIn('no simulated chart, no Angel One fallback', panel)
+        self.assertIn('no simulated chart; Dhan data only', panel)
         self.assertNotIn('market_store.get("option_chart"', panel)
         self.assertNotIn('angel_feed.option_history', panel)
 
