@@ -2724,18 +2724,28 @@ def app_main(page:ft.Page):
                 def value(leg, field, decimals=0):
                     v=leg.get(field)
                     return ("—" if v is None else f"{v:,.{decimals}f}")
+                def oi_change(leg):
+                    # Change in open interest is not money flow, and previous
+                    # OI may be missing. Never display invented zero change.
+                    current_oi=leg.get("oi")
+                    previous_oi=leg.get("previous_oi")
+                    if (type(current_oi) not in (int,float)
+                            or type(previous_oi) not in (int,float)):
+                        return "—"
+                    return f"{current_oi-previous_oi:+,.0f}"
                 display_rows.append(ft.DataRow(cells=[ft.DataCell(txt(v,12,MUTED)) for v in (
                     value(item["ce"],"last_price",2),value(item["ce"],"oi"),
-                    value(item["ce"],"volume"),f'{item["strike"]:g}',
-                    value(item["pe"],"volume"),value(item["pe"],"oi"),
+                    oi_change(item["ce"]),value(item["ce"],"volume"),
+                    f'{item["strike"]:g}',value(item["pe"],"volume"),
+                    oi_change(item["pe"]),value(item["pe"],"oi"),
                     value(item["pe"],"last_price",2))]))
             return ft.Column([
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note("Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
                 ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in
-                    ["CE Premium","CE OI","CE Vol","Strike","PE Vol","PE OI","PE Premium"]],
+                    ["CE Premium","CE OI","CE ΔOI","CE Vol","Strike","PE Vol","PE ΔOI","PE OI","PE Premium"]],
                     rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
-                note("CE/PE premiums and OI are display-only; missing values shown as —.")])
+                note("CE/PE premiums, OI and ΔOI are historical/unverified context only; ΔOI is NOT traded cash. Missing fields shown as —.")])
         if prefs.get("source") == "Dhan":
             return ft.Column([
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
