@@ -1201,7 +1201,18 @@ def app_main(page:ft.Page):
         # Reuse the existing read-only option component; never create a second API poll.
         # Current option snapshots lack measured directional strength and remain WAIT.
         option_context=option_from_component(option_component(symbol, "5m"))
-        pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
+        data=dhan_option_metrics
+        if (symbol=="NIFTY" and data.get("source")=="dhan"
+                and data.get("symbol")=="NIFTY" and data.get("expiry")==expiry.value
+                and data.get("signal_eligible") is False):
+            context=option_chain_display_context(data)
+            pieces[-1]=("Options WAIT • Dhan PCR "+format(data.get("pcr",0),".3f")+
+                        " • Max Pain "+format(data.get("max_pain",0),",.0f")+
+                        (" • 7 strikes displayed" if context.get("available")
+                         else " • ATM strikes unavailable")+
+                        " • unverified context, not a directional vote")
+        else:
+            pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
         return ft.ExpansionTile(title=note("5/5 modules configured (100% setup) • "+str(combined["coverage"])+"/5 data verified • "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
@@ -1233,7 +1244,20 @@ def app_main(page:ft.Page):
                        "B"+str(round(bull))+"/S"+str(round(bear)))
                 color=GREEN if bull>bear else RED if bear>bull else GOLD
             else:
+                # Show independent data readiness, never fabricated B/S ratios.
                 label=short+" WAIT";color=MUTED
+                if name=="options" and sym=="NIFTY":
+                    data=dhan_option_metrics
+                    if (data.get("source")=="dhan" and data.get("symbol")=="NIFTY"
+                            and data.get("expiry")==expiry.value
+                            and data.get("signal_eligible") is False
+                            and isinstance(data.get("pcr"),(int,float))):
+                        label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
+                elif name=="news":
+                    with news_lock:
+                        data=news_cache.get(sym) or {}
+                    items=data.get("items") or []
+                    if items:label="N "+str(len(items))+" news • WAIT"
             cards.append(ft.Container(
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD),
                 border=ft.border.all(1,color),border_radius=8,padding=5,
@@ -2500,6 +2524,8 @@ def app_main(page:ft.Page):
             option_feed.clear()  # Do not show legacy Angel One contract rows.
             option_snapshots.pop(sym,None)  # Unverified metrics must not drive signals.
             option_feed_status[0]="Dhan • expiry "+chosen+" • freshness unverified • signals and live orders OFF"
+            # Repaint shared, existing contexts; avoid recomputing 51 symbols.
+            if current[0] in (0,3):request_view_refresh(current[0])
             health.finish(health_key,request_id,"PARTIAL",source="Dhan",error="Option metrics unverified; signals disabled")
         except Exception as exc:
             log_error("dhan_options",exc)
@@ -2513,15 +2539,14 @@ def app_main(page:ft.Page):
         while True:
             if not app_active[0]:
                 await asyncio.sleep(5);continue
-            if current[0]==1 and regular_hours() and time.monotonic()-dhan_option_last_attempt[0]>=60:await refresh_selected_options()
-            elif current[0] in (0,3) and regular_hours():
-                sym=scan_symbol.value or "NIFTY";generation=provider_generation[0]
-                try:
-                    hist=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
-                    if generation==provider_generation[0] and sym==scan_symbol.value:
-                        quotes[sym]=hist
-                        if current[0]==0:request_view_refresh(0)
-                except Exception as exc:log_error("selected_quote",exc)
+            # One paced, shared Dhan option snapshot for Options, Home and Scanner.
+            # Do not launch a separate candle-history request every 15 seconds:
+            # scanner and dashboard already consume the same Dhan candle cache.
+            if (current[0] in (0,1,3) and regular_hours()
+                    and prefs.get("source")=="Dhan" and dhan_feed.connected
+                    and chain_symbol.value=="NIFTY" and not option_feed_busy[0]
+                    and time.monotonic()-dhan_option_last_attempt[0]>=60):
+                await refresh_selected_options()
             await asyncio.sleep(15)
     def selected_option_rows():
         # Cached Angel One contracts must never appear as current Dhan/Yahoo option data.
