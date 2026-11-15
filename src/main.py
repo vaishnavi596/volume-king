@@ -819,8 +819,8 @@ def app_main(page:ft.Page):
             ft.Row([
                 ft.Container(bgcolor=GREEN,expand=bull) if bull else ft.Container(width=0),
                 ft.Container(bgcolor=RED,expand=bear) if bear else ft.Container(width=0)
-            ],spacing=0,height=3),
-            ft.Text(timeframe+" • "+str(total)+" votes"+("" if fresh else " • NOT live"),
+            ],spacing=0,height=4),
+            ft.Text(timeframe+" • "+str(total)+" directional votes"+("" if fresh else " • NOT live"),
                     size=10,color=MUTED)
         ],spacing=1)
 
