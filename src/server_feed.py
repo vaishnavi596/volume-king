@@ -197,7 +197,7 @@ class ServerDhanReadOnly:
             raise FeedError("Dhan server not connected; use Connect / Check in Settings")
         assessment_path = path.startswith("/v2/assessment/") and path.count("/") == 3
         instrument_search = path.startswith("/v2/instruments/search?") and path.count("/") == 3
-        if not assessment_path and not instrument_search and path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot", "/v2/server-readiness"):
+        if not assessment_path and not instrument_search and path not in ("/dhan/status", "/dhan/ltp", "/dhan/index-ltp-batch", "/dhan/ltp-batch", "/dhan/selected-ltp-batch", "/dhan/intraday", "/dhan/option-expiries", "/dhan/option-chain", "/v2/snapshot", "/v2/server-readiness"):
             raise FeedError("Unsupported Dhan read-only request")
         # A rejected contract must not block another selected symbol/expiry.
         option_key = None
@@ -403,6 +403,37 @@ class ServerDhanReadOnly:
                 or not isinstance(names, list) or names != [symbol]):
             raise FeedError("NSE symbol not verified in Oracle Dhan registry")
         return True
+
+    def selected_equity_quotes(self, symbols):
+        """One bounded read-only Dhan batch for user-selected dynamic equities."""
+        import re
+        import math
+        if (not isinstance(symbols, (list, tuple)) or not 1 <= len(symbols) <= 70
+                or len(symbols) != len(set(symbols))
+                or any(not isinstance(sym, str)
+                       or not re.fullmatch(r"[A-Z0-9&_-]{1,32}", sym)
+                       for sym in symbols)):
+            raise FeedError("Invalid selected NSE equity list")
+        result = self._call("/dhan/selected-ltp-batch", {"symbols": list(symbols)})
+        raw, unavailable = result.get("quotes"), result.get("unavailable")
+        if (result.get("source") != "dhan"
+                or result.get("live_orders_enabled") is not False
+                or result.get("freshness") != "unverified"
+                or result.get("quote_timestamp") is not None
+                or not isinstance(raw, dict) or not isinstance(unavailable, list)
+                or len(unavailable) != len(set(unavailable))
+                or set(raw).intersection(unavailable)
+                or set(raw).union(unavailable) != set(symbols)):
+            raise FeedError("Inconsistent selected Dhan equity response")
+        output = {}
+        for sym, price in raw.items():
+            if (type(price) not in (int, float) or not math.isfinite(price)
+                    or price <= 0):
+                raise FeedError("Invalid selected NSE equity quote")
+            output[sym] = {"symbol": sym, "price": price, "source": "Dhan",
+                           "freshness": "unverified", "quote_timestamp": None,
+                           "live_verified": False}
+        return output
 
     def quote(self, symbol):
         if symbol not in DHAN_VERIFIED_SYMBOLS:

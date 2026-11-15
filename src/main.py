@@ -1708,6 +1708,16 @@ def app_main(page:ft.Page):
         request_view_refresh(4)
         try:
             batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
+            if dynamic:
+                # One selected read-only batch; no per-symbol Dhan fanout.
+                # If the running Oracle has not deployed this route, preserve
+                # existing quotes and report a partial response instead.
+                try:
+                    selected=await asyncio.to_thread(dhan_feed.selected_equity_quotes,dynamic)
+                    batch.update(selected)
+                except Exception as selected_exc:
+                    log_error("dhan_selected_equity_batch",selected_exc)
             if not batch:
                 raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
@@ -2872,6 +2882,13 @@ def app_main(page:ft.Page):
                     try:
                         watch_batch_last_attempt[0]=time.monotonic()
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
+                        if dynamic:
+                            try:
+                                selected=await asyncio.to_thread(dhan_feed.selected_equity_quotes,dynamic)
+                                batch.update(selected)
+                            except Exception as selected_exc:
+                                log_error("dhan_selected_equity_after_connect",selected_exc)
                         if not batch:
                             raise FeedError("Empty Dhan batch response")
                         with dhan_batch_lock:

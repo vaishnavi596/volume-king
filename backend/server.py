@@ -13,6 +13,7 @@ import secrets
 import threading
 import time
 import requests
+import re
 from urllib.parse import quote
 from fastapi.responses import HTMLResponse
 from collections import deque
@@ -134,6 +135,10 @@ class DhanIntradayRequest(BaseModel):
     interval: Literal[1, 5, 15, 25, 60]
     from_date: date
     to_date: date
+
+
+class SelectedEquityBatchRequest(BaseModel):
+    symbols: list[str]
 
 
 class Options(Symbol):
@@ -651,6 +656,53 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                                           "awaiting_next_collection" if age <= snapshot_collection_interval + 15 else
                                           "collection_overdue"),
                     "error": snapshot_cache["error"], "live_orders_enabled": False}
+
+    @app.post("/dhan/selected-ltp-batch")
+    def dhan_selected_ltp_batch(body: SelectedEquityBatchRequest,
+                                x_botking_key: Optional[str] = Header(default=None)):
+        """One request for ONLY selected staged NSE equities (1..70, never the full registry)."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        symbols = body.symbols
+        if (not 1 <= len(symbols) <= 70
+                or len(symbols) != len(set(symbols))
+                or any(not isinstance(sym, str) or not re.fullmatch(r"[A-Z0-9&_-]{1,32}", sym)
+                       or DYNAMIC_INSTRUMENTS.get(sym, (None,))[0] != "NSE_EQ"
+                       for sym in symbols)):
+            raise HTTPException(422, "Unverified or excessive NSE equity selection")
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        token = dhan_market_token()
+        if not client or not token:
+            raise HTTPException(503, "Dhan credentials not configured")
+        pairs = [(DYNAMIC_INSTRUMENTS[sym][0], DYNAMIC_INSTRUMENTS[sym][1])
+                 for sym in symbols]
+        try:
+            response = DhanFeed(client, token).batch_ltp(pairs)
+        except DhanRateLimitError:
+            raise HTTPException(429, "Dhan selected equity batch rate limited",
+                                headers={"Retry-After": "30"}) from None
+        except DhanFeedError:
+            raise HTTPException(502, "Dhan selected equity quotes unavailable") from None
+        entries = response.get("data", {}).get("NSE_EQ", {})
+        if response.get("status") != "success" or not isinstance(entries, dict):
+            raise HTTPException(502, "Invalid Dhan selected equity response")
+        quotes, unavailable = {}, []
+        for sym in symbols:
+            try:
+                raw = entries[str(DYNAMIC_INSTRUMENTS[sym][1])]["last_price"]
+                if isinstance(raw, bool):
+                    raise ValueError("Boolean LTP")
+                price = float(raw)
+                if not math.isfinite(price) or price <= 0:
+                    raise ValueError("Invalid LTP")
+                quotes[sym] = price
+            except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
+                unavailable.append(sym)
+        if not quotes:
+            raise HTTPException(502, "No valid selected Dhan equity prices")
+        return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
+                "freshness": "unverified", "live_orders_enabled": False,
+                "quote_timestamp": None}
 
     @app.post("/dhan/ltp-batch")
     def dhan_ltp_batch(x_botking_key: Optional[str] = Header(default=None)):
