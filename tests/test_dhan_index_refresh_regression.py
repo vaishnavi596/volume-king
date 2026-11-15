@@ -34,6 +34,16 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertNotIn('await refresh_watch_batch()', index_source)
         self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60', source)
 
+    def test_invalid_index_quote_retains_last_valid_price_but_downgrades_freshness(self):
+        fn = next(node for node in ast.walk(self.tree)
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == "refresh_dhan_index_quotes")
+        source = ast.get_source_segment(self.source, fn)
+        self.assertIn('snapshot={}', source)
+        self.assertIn('provider_status="provider_data_unavailable"', source)
+        self.assertIn('freshness="unverified",live_verified=False', source)
+        self.assertIn('price=snapshot.get("price")', source)
+        self.assertIn('else:\n                    # An invalid OR missing response', source)
+
     def test_index_candles_are_prioritized_and_reused(self):
         source = self.source
         self.assertIn('symbols=([equities[0]]+indices+equities[1:]) if equities else indices', source)
