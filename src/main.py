@@ -1781,17 +1781,21 @@ def app_main(page:ft.Page):
     def next_watch_refresh_label():
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             return "Next --"
+        if not app_active[0]:
+            return "Paused"
         if watch_batch_busy[0]:
             return "Refreshing"
         cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
         if cooldown>0:
             return f"Wait {math.ceil(cooldown)}s"
-        if not quote_auto_last_attempt[0]:
+        # Page-entry/manual batches also count as real attempts. The old label
+        # only used the background poll timestamp, leaving "Next due" stuck
+        # even after a successful on-entry watchlist refresh.
+        last_attempt=max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])
+        if not last_attempt:
             return "Next soon"
-        # Poll loop checks every 10s after connection; snapshot due every 60s; this is an estimate,
-        # not a claim that the Dhan server returned a fresh quote.
-        elapsed=time.monotonic()-quote_auto_last_attempt[0]
-        # Never reset a visual timer when no new request was actually made.
+        # This is an estimated scheduler countdown, not exchange-time freshness.
+        elapsed=time.monotonic()-last_attempt
         if elapsed>=60:
             return "Next due"
         return f"Next {max(0,math.ceil(60-elapsed))}s"
