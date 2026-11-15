@@ -24,9 +24,14 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         label=section("    def next_watch_refresh_label():","    async def watch_visible_tick():")
         self.assertIn('return "Market closed • auto-refresh paused"',label)
 
-    def test_super_five_local_loop_pauses_off_hours(self):
+    def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
         loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
-        self.assertIn("not regular_hours()",loop)
+        self.assertNotIn("not regular_hours()",loop)
+        self.assertIn('bars=snapshot.get("bars") or []',loop)
+        self.assertIn("fingerprint==last_fingerprint",loop)
+        self.assertIn("publish_partial_ranking(results)",loop)
+        self.assertNotIn("dhan_feed.batch_quotes",loop)
+        self.assertNotIn("dhan_feed.option_chain_metrics",loop)
 
     def test_index_force_is_explicit_bypass_only(self):
         index=section("    async def refresh_dhan_index_quotes(force=False):","    manual_quote_last_attempt=")
