@@ -22,9 +22,11 @@ def create_app():
     def dhan_index_ltp_batch(): pass
     def dhan_option_expiries():
         '''+OLD_OPTION+'''
+            raise ValueError("Fixture denied")
         return instrument
     def dhan_option_chain():
         '''+OLD_OPTION+'''
+            raise ValueError("Fixture denied")
         return instrument
     @app.post("/dhan/ltp-batch")
     def dhan_ltp_batch(): pass
