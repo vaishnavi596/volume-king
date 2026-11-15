@@ -4047,11 +4047,16 @@ console.log('BOT KING Lightweight Charts ready');
     async def scanner_fast_signal_loop():
         while True:
             try:
-                refresh_shared_analysis()
-                await sync_visible_chart()
+                # Market-closed: do not recalculate 51 symbols repeatedly.
+                # Still render a selected symbol's SAVED chart on demand,
+                # including its bounded local WebView recovery.
+                if regular_hours():
+                    refresh_shared_analysis()
+                if current[0]==3 and app_active[0]:
+                    await sync_visible_chart()
             except Exception as exc:
                 log_error("scanner_fast_signal",exc)
-            await asyncio.sleep(2)
+            await asyncio.sleep(2 if (regular_hours() or (current[0]==3 and app_active[0])) else 30)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
