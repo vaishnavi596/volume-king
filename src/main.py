@@ -1206,6 +1206,40 @@ def app_main(page:ft.Page):
         return ft.ExpansionTile(title=note("5/5 modules configured (100% setup) • "+str(combined["coverage"])+"/5 data verified • "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
+    def five_engine_chips(sym):
+        """Five independent evidence slots; percentages only when justified."""
+        names=(("technical","T"),("candle","C"),("news","N"),
+               ("futures","F"),("options","O"))
+        snapshot=(snapshot_for_display(five_engine_snapshots.get(sym),now=time.time())
+                  if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+        evidence={row.name:row.display() for row in snapshot["engines"]} if snapshot else {}
+        cards=[]
+        for name,short in names:
+            value=evidence.get(name,{})
+            bull=value.get("bullish");bear=value.get("bearish")
+            historical=False
+            if (name=="technical" and (bull is None or bear is None)
+                    and prefs.get("source")=="Dhan" and dhan_feed.connected):
+                raw=watch_signal_cache.get(sym) or {}
+                if raw.get("source")=="Dhan" and raw.get("timestamp"):
+                    counts=signal_percentages(raw)
+                    if counts and counts[2]>0:
+                        bull,bear=counts[:2];historical=True
+            valid=(type(bull) in (int,float) and type(bear) in (int,float)
+                   and math.isfinite(bull) and math.isfinite(bear)
+                   and 0<=bull<=100 and 0<=bear<=100 and abs(bull+bear-100)<=1)
+            if valid:
+                label=(short+(" HIST " if historical else " ")+
+                       "B"+str(round(bull))+"/S"+str(round(bear)))
+                color=GREEN if bull>bear else RED if bear>bull else GOLD
+            else:
+                label=short+" WAIT";color=MUTED
+            cards.append(ft.Container(
+                content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD),
+                border=ft.border.all(1,color),border_radius=8,padding=5,
+                bgcolor=PANEL2))
+        return ft.Row(cards,wrap=True,spacing=4,run_spacing=4)
+
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
@@ -1242,7 +1276,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1325,6 +1359,7 @@ def app_main(page:ft.Page):
                 rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
+                    rows.append(five_engine_chips(sym))
                     rows.append(dashboard_mini_candles(sym,candle_data))
                     rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))
                     analysis=display_analysis(sym,candle_data)
@@ -1359,7 +1394,7 @@ def app_main(page:ft.Page):
                 content=ft.Column([ft.Row([ft.Container(content=txt(index_name,16,WHITE,True),expand=True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True)]),
                     note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
-                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),five_engine_chips(index_name),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
         return ft.Column(index_cards,spacing=5)
@@ -1569,7 +1604,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),compact_five_engine_watch(sym),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED),ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v))
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),five_engine_chips(sym),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED),ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v))
             ],spacing=2))
         if visible_count==0:
             message="No matching stocks found. Clear search to show this list." if search.value or watch_filter[0]!="All" else "This watchlist is empty. Add a stock below."
@@ -4078,6 +4113,7 @@ console.log('BOT KING Lightweight Charts ready');
             note(result["display_state"]+" • refresh does not verify exchange time"),
             note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
             note(result.get("reason","Awaiting data")),
+            five_engine_chips(sym),
             vote_display(signal_percentages(result),result.get("display_state")=="LIVE",tf),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
                    else "NEUTRAL" if row.get("vote")==0 else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
@@ -4628,7 +4664,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
                 txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),
                 note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),
-                note(basis),vote_display(signal_percentages(advanced),False,interval),*lines,
+                note(basis),five_engine_chips(sym),vote_display(signal_percentages(advanced),False,interval),*lines,
                 note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
             ],spacing=5))]
             scan_filter_ready[0]=True
