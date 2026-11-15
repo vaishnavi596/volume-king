@@ -532,7 +532,7 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any('Underlying provider: Dhan' in x for x in values))
         self.assertTrue(any('CE/PE quotes require' in x for x in values))
         self.assertFalse(any('Underlying quotes may come from Yahoo Finance' in x for x in values))
-        self.assertTrue(any('Option chain not connected' in x for x in values))
+        self.assertTrue(any('Option-chain data not loaded' in x for x in values))
 
     def test_dhan_batch_errors_are_specific_and_do_not_echo_secrets(self):
         from feed_health import safe_error
