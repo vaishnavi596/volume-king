@@ -17,5 +17,16 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         self.assertIn("request_view_refresh(4)",worker)
 
 
+    def test_countdown_uses_any_actual_batch_attempt_and_pauses_in_background(self):
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=source.index("    def next_watch_refresh_label():")
+        end=source.index("    async def watch_visible_tick():",start)
+        label_source=source[start:end]
+        self.assertIn("watch_batch_last_attempt[0]",label_source)
+        self.assertIn("quote_auto_last_attempt[0]",label_source)
+        self.assertIn("last_attempt=max(",label_source)
+        self.assertIn('return "Paused"',label_source)
+        self.assertIn("if elapsed>=60:",label_source)
+
 if __name__=="__main__":
     unittest.main()
