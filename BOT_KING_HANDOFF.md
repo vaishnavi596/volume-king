@@ -5,7 +5,8 @@
 **Current integration branch:** `fix/botking-joint-audit-70-15-20261115`
 **Last documented release candidate:** `2.3.125`, commit `e587485b02aa1ee57de40eb5547d9f8ca5a144d1`
 **APK build run:** https://github.com/vaishnavi596/volume-king/actions/runs/43751755544
-**Last observed build status when handoff authored:** in_progress (NOT a PASS claim).
+**Latest verified 2.3.125 build:** SUCCESS, 804 tests PASS, versionName=2.3.125, versionCode=74001, pinned signing verification PASS; GitHub artifact `volume-king-apk` ID `14175849838` uploaded. **Device test still pending.**
+**Historical 14–15 Nov step-by-step audit:** `docs/BOT_KING_PREVIOUS_TWO_CHATS_STEP_BY_STEP_20261114_15.md` (51 numbered checks with provenance and limitations).
 **Prior verified full offline suite:** 804/804 PASS at commit `ee1d75a4137a172d776d0e6d607986fe4659605a` (run 43751577312).
 
 > **Required new-chat procedure:** Fetch this file and

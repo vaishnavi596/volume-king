@@ -45,3 +45,16 @@ guardedly stage/deploy S18 WatchlistStore and end-to-end API integrations.
 - Device test/version:
 - Unverified / failed:
 - Safety / next three actions:
+
+## 2026-11-16 — Backfilled audit of previous two work chats
+
+- Point-wise evidence audit: `docs/BOT_KING_PREVIOUS_TWO_CHATS_STEP_BY_STEP_20261114_15.md`, 51 numbered checkpoints
+  covering 14–15 November prior work and separately labeled current-chat checks.
+- Explicit provenance legend [U]/[G]/[A]/[P]/[C]; incomplete transcript
+  scope disclosed rather than inventing terminal commands.
+- GitHub v2.3.125 run 43751755544 verified **SUCCESS**:
+  804 tests, versionName=2.3.125, versionCode=74001, signer verified,
+  artifact `volume-king-apk` uploaded (artifact ID 14175849838).
+- No Android device verification or Oracle S18 watchlist deployment claimed.
+- Next: device quote/index/scan smoke; guarded S18 production parity check;
+  note exact latest HEAD and installed version in next batch.
