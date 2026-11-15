@@ -9,6 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
+from analysis_reports import AnalysisAudit, complete_filter_rows
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context
 from chart_indicators import chart_indicators
 from help_content import describe
@@ -279,6 +280,7 @@ def app_main(page:ft.Page):
     health=FeedHealth()
     scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
     failed_symbols={}
+    analysis_audit=AnalysisAudit()
     app_active=[True]
     lifecycle_background=[False]
     resume_busy=[False]
@@ -560,6 +562,7 @@ def app_main(page:ft.Page):
                     raise FeedError("Broker API not connected; connect Angel One in Settings")
                 raise FeedError("Unsupported market data provider: "+str(selected)[:32]+"; select Dhan in Settings")
             result["cached"]=False
+            if result.get("bars"):result["candle_fetched_at"]=time.time()
         except Exception as exc:
             fallback_reason=safe_error(exc)
             health.finish(health_key,request_id,"UNAVAILABLE",source=selected,error=fallback_reason)
@@ -658,13 +661,13 @@ def app_main(page:ft.Page):
         prefs["_prefs_revision"]=preference_writer.revision
         return result
     def txt(s,size=14,color=WHITE,bold=False):
-        return ft.Text(str(s),size=size,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
+        return ft.Text(str(s),size=max(14,size),color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
         return ft.Container(content=ft.Column(list(children),spacing=4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),bgcolor=PANEL,border_radius=10,padding=7,border=ft.border.all(1,BORDER))
     def heading(s):return txt(s,17,WHITE,True)
     def pill(s,selected=False):
         return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
-    def note(s):return txt(s,11,MUTED)
+    def note(s):return txt(s,14,MUTED)
     def unavailable(s):return txt("DATA UNAVAILABLE — "+s,13,RED)
     def dhan_offline():
         return prefs.get("source")=="Dhan" and not dhan_feed.connected
@@ -734,7 +737,14 @@ def app_main(page:ft.Page):
         header=ft.Row([ft.Container(content=txt(title,13,GOLD,True),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_color=MUTED,tooltip="आसान जानकारी और वर्तमान स्थिति",on_click=lambda e:show_help(title))])
         return card(header,child)
     def decorate_help(control,parent_wrap=False):
-        if getattr(control,"data",None)=="help_wrapper":return control
+        # Compact groups own their help; never allocate gutters or hidden-field rows.
+        if getattr(control,"data",None)=="compact_group":return control
+        if getattr(control,"data",None)=="help_wrapper":
+            field=getattr(control,"_bk_field",None)
+            if field is not None:control.visible=field.visible
+            return control
+        if getattr(control,"visible",True) is False:
+            return control
         fields=(ft.TextField,ft.Dropdown,ft.Checkbox,ft.Switch,ft.Slider)
         if isinstance(control,fields):
             label=getattr(control,"_bk_original_label",None) or getattr(control,"label",None) or getattr(control,"tooltip",None) or "Signal agreement"
@@ -755,7 +765,9 @@ def app_main(page:ft.Page):
                 row=ft.Column([ft.Row([ft.Container(content=control._bk_help_label,expand=True),info]),control],horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
             else:
                 row=ft.Row([ft.Container(content=control,expand=True),info],spacing=4,vertical_alignment=ft.CrossAxisAlignment.CENTER)
-            return ft.Column([row],data="help_wrapper",expand=expand,width=width,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            wrapper=ft.Column([row],data="help_wrapper",expand=expand,width=width,visible=control.visible,spacing=0,horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
+            wrapper._bk_field=control
+            return wrapper
         if isinstance(control,(ft.Column,ft.Row)):
             control.controls=[decorate_help(c,isinstance(control,ft.Row) and bool(control.wrap)) for c in control.controls]
         elif isinstance(control,ft.Container) and control.content is not None:
@@ -928,6 +940,27 @@ def app_main(page:ft.Page):
             rows.append(ft.TextButton(content=ft.Text(item["source"]+" • "+item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url)))
         if len(rows)==1:rows.append(note("No news loaded for the selected symbol yet. Open Scanner and refresh."))
         return section("NEWS & EVENT CONTEXT",ft.Column(rows,spacing=4))
+    def audit_context():
+        context=(provider_generation[0],prefs.get("source"),tuple(filter_selected),
+                 tuple(sorted(filter_modes.items())),prefs.get("confidence",75))
+        analysis_audit.reset(context)
+    def record_analysis(sym,tf,result=None,stage="analysis",error=None,elapsed=None,candle_count=0):
+        audit_context()
+        analysis_audit.record(sym,tf,result=result,stage=stage,error=error,
+                              elapsed=elapsed,candle_count=candle_count)
+    def filter_coverage_panel():
+        audit_context()
+        universe=["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols
+        rows,counts=analysis_audit.coverage(universe)
+        summary=" • ".join(str(counts[key])+" "+key.lower() for key in counts)
+        details=[txt(row["symbol"]+" • "+row["status"]+" • "+row["stage"],14,
+                     RED if row["status"]=="ERROR" else MUTED) for row in rows]
+        return ft.ExpansionTile(title=txt("54-symbol filter audit • 5m",14,GOLD),
+            subtitle=note(summary),controls=[note("Technical/candle coverage only; not proof of verified News, Futures or Options. Tap a symbol in Scanner for filter details."),
+            *[ft.Column([details[i],note(row["reason"]),
+                note("Candles "+str(row.get("candle_count",0))+" • local calculation "+
+                     (f'{row["elapsed"]:.3f}s' if row.get("elapsed") is not None else "not measured"))],spacing=2)
+              for i,row in enumerate(rows)]])
     def display_analysis(sym,data):
         raw=data.get("bars") or []
         live=analyze_current(raw,filter_selected[:],"5m")
@@ -955,6 +988,7 @@ def app_main(page:ft.Page):
                        historical=bool(data.get("cached")) or provider_unverified or
                        (data.get("source")=="Dhan" and dhan_feed.historical_only) or
                        not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
+        record_analysis(sym,"5m",result=display,candle_count=len(raw))
         return display
     def historical_vote_agreement(data):
         """Completed 5m candle votes only; never promote historical to live."""
@@ -1130,7 +1164,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,14,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note(status+" • "+age_label(stamp)+" • "+when),note("Source: "+row.get("source","Unavailable")),note("LTP: "+quote_price(row["symbol"])+" • quote time unverified" if prefs.get("source")=="Dhan" else "LTP: "+quote_price(row["symbol"])),note(row.get("reason","")),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1243,8 +1277,8 @@ def app_main(page:ft.Page):
                            or candles.get("scanner_chart_"+index_name) or {})
             index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
             index_cards.append(ft.Container(
-                content=ft.Column([txt(index_name,11,WHITE,True),
-                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
+                content=ft.Column([txt(index_name,16,WHITE,True),
+                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True),
                     note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
                          ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
@@ -1459,7 +1493,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),compact_five_engine_watch(sym),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),compact_watch_signal(signal_row,signal_available,signal_fresh),compact_five_engine_watch(sym),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -1502,7 +1536,7 @@ def app_main(page:ft.Page):
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
-                        fetched_at=time.time())
+                        candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time())
             # Missing symbols retain their last Dhan price, but must not retain
             # a previously verified-live freshness label after a partial poll.
             for ticker in all_watch_symbols():
@@ -1637,7 +1671,7 @@ def app_main(page:ft.Page):
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
-                        fetched_at=time.time(),live_verified=False)
+                        candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time(),live_verified=False)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -2615,7 +2649,7 @@ def app_main(page:ft.Page):
                                 previous=quotes.get(ticker) or {}
                                 quotes[ticker]=dict(snapshot,change=None,
                                     bars=previous.get('bars',[]) if previous.get('source')=='Dhan' else [],
-                                    fetched_at=time.time())
+                                    candle_fetched_at=previous.get('candle_fetched_at',0),fetched_at=time.time())
                         failed_symbols.clear()
                         expected=len(all_watch_symbols())
                         received=sum(1 for ticker in all_watch_symbols() if
@@ -3320,6 +3354,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings & Trading Bot"),status,note("All settings below • changes save automatically • credentials are not saved")]
+        content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan read-only charts/scanner support 51 mapped NSE equities and NIFTY after Connect / Check with a server-side token. Yahoo and Angel One remain separate feeds. Dhan timestamps are unverified; no live orders.')])))
         content.extend([section('01  PAPER BOT', ft.Column([mode, note('Paper trading is simulated; no real orders are sent.')])), section('REAL TRADING • NOT CONNECTED',ft.Column([note('Real BUY / SELL requires verified Dhan or Angel One trading authorization, static-IP configuration, order status and explicit confirmation. Live order submission is DISABLED in this build.'),ft.ElevatedButton('REAL BUY • DISABLED',disabled=True),ft.ElevatedButton('REAL SELL • DISABLED',disabled=True)])), section('02  OPTION CONTRACT', ft.Column([bot_segment,bot_side,symbol_search(bot_symbol),bot_symbol, bot_custom,cash_quantity, ft.Row([bot_type, bot_strike], wrap=True), bot_expiry_mode, bot_expiry, expiry_warning, ft.Row([bot_lots, bot_lot_size], wrap=True), bot_premium,manual_contract_confirmed, note('Paper calculator uses manual premium and lot size. Connected broker quotes are shown on Options.')], spacing=12)), section('03  RISK & TARGET', ft.Column([ft.Row([sl, target], wrap=True),paper_capital,paper_notional_limit,paper_trade_risk,paper_risk_pct, limit, note('Paper trailing runs only when a new manual mark is processed. No live broker order is updated.'), ft.ElevatedButton('CALCULATE PLAN', on_click=calculate_bot, bgcolor=GOLD, color=BG), bot_preview], spacing=12)), section('04  PAPER STRATEGY • MANUAL TICKS', ft.Column([auto_entry, auto_reentry, buy_dip, partial_profit, bot_trailing, max_total_lots, dip_step, cooldown, max_daily_loss, squareoff, emergency_stop, note('Paper daily entry limit and cumulative planned-stop-risk budget are enforced. EXIT stays available. Realized paper losses use supplied exit prices and charges; blank exits remain unknown. Start can enter paper once; new manual ticks can re-enter, average, partially close and trail under configured limits. Square-off time remains a saved plan; no unattended or live orders.')], spacing=12)), section('05  PAPER TRADE CONTROLS', ft.Column([ft.Row([ft.ElevatedButton('BUY (Paper)', on_click=lambda e: bot_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL (Paper)', on_click=lambda e: bot_paper_action('SELL'), bgcolor=RED, color=BG), ft.OutlinedButton('EXIT', on_click=lambda e: bot_paper_action('EXIT'))], wrap=True), bot_trade_status,paper_exit_price,paper_exit_fees, note('Paper entries use manually entered prices. Start + Process manual mark can simulate SL/target exits; no live or background execution.')], spacing=12))])
         content.extend([
@@ -3353,28 +3388,28 @@ def app_main(page:ft.Page):
         scanner_symbols=[v for v in scanner_symbols if v in DHAN_VERIFIED_SYMBOLS]
         if saved_scanner_symbol not in DHAN_VERIFIED_SYMBOLS:
             saved_scanner_symbol="NIFTY"
-    scan_symbol=ft.Dropdown(label="Market / NSE stock",value=saved_scanner_symbol,options=[ft.dropdown.Option(v) for v in scanner_symbols])
-    scan_budget=ft.Dropdown(label="Premium budget",value=prefs.get("scanner_budget","80-120"),options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
+    scan_symbol=ft.Dropdown(label="Symbol",value=saved_scanner_symbol,options=[ft.dropdown.Option(v) for v in scanner_symbols])
+    scan_budget=ft.Dropdown(label="Budget (simulation)",value=prefs.get("scanner_budget","80-120"),options=[ft.dropdown.Option(v) for v in ["40-80","60-120","80-120","100-200","120-200","200-300","Custom","Any"]])
     scan_min=ft.TextField(label="Custom minimum (₹)",value=str(prefs.get("scanner_min","50")),keyboard_type=ft.KeyboardType.NUMBER)
     scan_max=ft.TextField(label="Custom maximum (₹)",value=str(prefs.get("scanner_max","500")),keyboard_type=ft.KeyboardType.NUMBER)
-    scan_period=ft.Dropdown(label="Historical period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
+    scan_period=ft.Dropdown(label="Period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
     # Only expose intervals that the active Dhan gateway can actually fetch.
     scanner_intervals=(["1m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
                        else ["1m","3m","5m","15m","30m","1h","1d"])
     saved_scanner_tf=prefs.get("scanner_timeframe","5m")
     if saved_scanner_tf not in scanner_intervals:
         saved_scanner_tf="5m"
-    scan_tf=ft.Dropdown(label="Candle timeframe",value=saved_scanner_tf,options=[ft.dropdown.Option(v) for v in scanner_intervals])
-    scan_expiry=ft.Dropdown(label="Illustrative days to expiry (NOT actual NSE expiry)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
+    scan_tf=ft.Dropdown(label="Candle",value=saved_scanner_tf,options=[ft.dropdown.Option(v) for v in scanner_intervals])
+    scan_expiry=ft.Dropdown(label="Days (simulation)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
     scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","30")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
-    scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=11,color=MUTED)
+    scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=14,color=MUTED)
     if not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
     scan_last_candle=[None]
     scan_last_success=[None]
     scan_next_refresh=[None]
-    scan_age_display=ft.Text("Last successful scan: — | Candle age: — | Next refresh: —",size=11,color=MUTED)
+    scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
     # One-time migration restores the original ten defaults without overriding later user edits.
     if not prefs.get("default_ten_migrated"):
@@ -3389,6 +3424,7 @@ def app_main(page:ft.Page):
         prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_added_filters"]=added_filters[:]
         save()
+        refresh_shared_analysis()
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
             return "WAITING FOR DATA • verified option-chain feed not connected"
@@ -3399,7 +3435,7 @@ def app_main(page:ft.Page):
         if name in added_filters:added_filters.remove(name)
         if name in filter_selected:filter_selected.remove(name)
         filter_feedback.value="Removed "+name
-        store_filters();select(3)
+        store_filters();select(current[0])
         if not scan_busy[0]:trigger_scan()
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
@@ -3600,17 +3636,17 @@ console.log('BOT KING Lightweight Charts ready');
         scanner_chart_indicators[:]=chart_filter_names[:]
         prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
-        save();select(3)
+        save();select(current[0])
         if not scan_busy[0]:trigger_scan()
     def filter_checkbox_changed(e):
         name=e.control.data
         if name in OPTION_FILTERS:
             filter_feedback.value="Unavailable: verified option-chain OI/PCR data not connected"
-            select(3)
+            select(current[0])
             return
         if e.control.value and name not in filter_selected:filter_selected.append(name)
         elif not e.control.value and name in filter_selected:filter_selected.remove(name)
-        store_filters();select(3)
+        store_filters();select(current[0])
         if not scan_busy[0]:trigger_scan()
     def filter_edit(add):
         q=(filter_query.value.strip() if filter_query.value and filter_query.value.strip() else filter_choice.value or "").lower()
@@ -3631,7 +3667,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if name in added_filters:added_filters.remove(name)
                 filter_feedback.value="Removed "+name
         filter_query.value=""
-        store_filters();select(3)
+        store_filters();select(current[0])
         if not scan_busy[0]:trigger_scan()
     scan_auto_generation=[0]
     def refresh_scan_age():
@@ -3649,7 +3685,7 @@ console.log('BOT KING Lightweight Charts ready');
         elif scan_busy[0]:next_text="checking history now"
         elif scan_next_refresh[0] is None:next_text="waiting"
         else:next_text=str(max(0,int(scan_next_refresh[0]-now)))+" sec"
-        scan_age_display.value="Last scan: "+last+" | Candle age: "+candle+" | Next auto refresh: "+next_text
+        scan_age_display.value="Last scan: "+last+" • Candle age: "+candle+"\n"+next_text
     async def scan_age_clock():
         while True:
             refresh_scan_age()
@@ -3693,21 +3729,91 @@ console.log('BOT KING Lightweight Charts ready');
         scan_shared.update(direction=result["bias"],basis=result["reason"],tf=tf,symbol=sym,timestamp=last)
         if current[0]==0:
             request_view_refresh(0)
+    shared_analysis_seen={}
+    selected_report_identity=[None]
+    def refresh_shared_analysis(only=None):
+        # Local only: reuse completed candles; price polling cadence is unchanged.
+        if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return
+        universe=([only] if only else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)))
+        updated=False
+        for sym in universe:
+            candidates=[chart_snapshots.get((sym,"5m",provider_generation[0])) or {},quotes.get(sym) or {}]
+            scanner_data=candles.get("scanner_chart_"+sym) or {}
+            if (scanner_data.get("_scanner_timeframe")=="5m" and
+                    scanner_data.get("_scanner_generation")==scan_generation[0]):
+                candidates.append(scanner_data)
+            def revision_order(item):
+                bars=item.get("bars") or []
+                last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
+                return (last if type(last) in (int,float) else 0,item.get("candle_fetched_at") or 0)
+            candidates=[item for item in candidates if item.get("source")=="Dhan" and item.get("bars")]
+            data=max(candidates,key=revision_order) if candidates else {}
+            if data.get("source")!="Dhan" or not data.get("bars"):
+                continue
+            try:
+                raw=data["bars"]
+                # Full completed input revision, not LTP or only last timestamp.
+                completed=[list(b) for b in raw if isinstance(b,(tuple,list)) and len(b)>=6
+                           and type(b[0]) in (int,float) and b[0]+300<=time.time()]
+                identity=(provider_generation[0],tuple(filter_selected),tuple(sorted(filter_modes.items())),
+                          prefs.get("confidence",75),json.dumps(completed,allow_nan=False),
+                          data.get("freshness"),data.get("live_verified"),bool(data.get("cached")))
+                report_identity=(sym,"5m",identity)
+                if shared_analysis_seen.get(sym)==identity:
+                    if (sym==scan_symbol.value and scan_tf.value=="5m" and not scan_busy[0]
+                            and selected_report_identity[0]!=report_identity):
+                        prior=watch_signal_cache.get(sym)
+                        if prior:
+                            scan_result.controls=[shared_filter_report(sym,"5m",prior)]
+                            selected_report_identity[0]=report_identity
+                            updated=True
+                    continue
+                began=time.monotonic()
+                result=display_analysis(sym,data)
+                record_analysis(sym,"5m",result=result,elapsed=time.monotonic()-began,candle_count=len(raw))
+                shared_analysis_seen[sym]=identity
+                watch_signal_cache[sym]=dict(result,symbol=sym)
+                five_engine_snapshots[sym]=scanner_snapshot(result)
+                if sym==scan_symbol.value and scan_tf.value=="5m" and not scan_busy[0]:
+                    scan_result.controls=[shared_filter_report(sym,"5m",result)]
+                    selected_report_identity[0]=report_identity
+                updated=True
+            except Exception as exc:
+                record_analysis(sym,"5m",stage="local analysis",error=type(exc).__name__)
+                log_error("shared_analysis",exc)
+        if updated:
+            publish_partial_ranking(watch_signal_cache)
+            if current[0] in (0,3,4):request_view_refresh(current[0])
+    def shared_filter_report(sym,tf,result):
+        rows=complete_filter_rows(result,filter_selected,filter_modes)
+        when=result.get("timestamp")
+        stamp=(datetime.fromtimestamp(when,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
+               if isinstance(when,(int,float)) else "unavailable")
+        return section("ANALYSIS BASIS • Candles & Filters",ft.Column([
+            txt(sym+" • "+tf+" • "+str(result.get("bias","WAIT")),16,GOLD,True),
+            note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
+            note(result.get("reason","Awaiting data")),
+            *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
+                   else "NEUTRAL" if row.get("vote")==0 else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
+                   GREEN if row.get("vote")==1 else RED if row.get("vote")==-1 else MUTED) for row in rows]
+        ],spacing=4))
     async def scanner_fast_signal_loop():
         while True:
             try:
-                if scan_live.value and prefs.get("source")=="Dhan" and dhan_feed.connected:
-                    refresh_cached_scanner_signal()
+                refresh_shared_analysis()
             except Exception as exc:
                 log_error("scanner_fast_signal",exc)
-            await asyncio.sleep(20)
+            await asyncio.sleep(2)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
             # Dhan already has one shared historical scan scheduler (refresh_market).
             # Never run a second automatic selected-symbol scanner alongside it.
-            if prefs.get("source")=="Dhan":
+            if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):
+                # 5m reports follow the shared history scheduler. Other selected
+                # timeframes refresh only when that provider queue is idle.
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5)
                 continue
@@ -3748,7 +3854,12 @@ console.log('BOT KING Lightweight Charts ready');
             scan_generation[0]+=1
             # Explicit selection changes reload the chart; background scans do not.
             scan_result.controls.clear()
-            candles.pop("scanner_chart_"+(scan_symbol.value or "NIFTY"),None)
+            sym=scan_symbol.value or "NIFTY"
+            prior=watch_signal_cache.get(sym) if scan_tf.value=="5m" else None
+            if prior and prior.get("source")==prefs.get("source") and prior.get("timestamp"):
+                snapshot=quotes.get(sym) or chart_snapshots.get((sym,"5m",provider_generation[0])) or {}
+                if snapshot.get("source")==prefs.get("source") and snapshot.get("bars"):
+                    scan_result.controls=[shared_filter_report(sym,"5m",display_analysis(sym,snapshot))]
             if current[0]==3:select(3)
         if e is not None and e.control is scan_budget:
             scan_min.visible=scan_budget.value=="Custom";scan_max.visible=scan_budget.value=="Custom"
@@ -3778,13 +3889,15 @@ console.log('BOT KING Lightweight Charts ready');
         filter_modes[name]=mode
         prefs["filter_modes"]=dict(filter_modes);save()
         scan_generation[0]+=1
-        select(3)
+        mark_ranking_historical()
+        refresh_shared_analysis()
+        select(current[0])
         if not scan_busy[0]:trigger_scan()
     def filter_mode_control(name):
         choices=["Analysis","Chart","Both"] if name=="EMA 9/21" else ["Analysis"]
         mode=filter_modes.get(name,"Both" if name=="EMA 9/21" else "Analysis")
         if mode not in choices:mode="Analysis"
-        return ft.Dropdown(label="Use for" if name=="EMA 9/21" else "Use for • chart overlay not implemented",value=mode,data=name,options=[ft.dropdown.Option(x) for x in choices],on_change=filter_mode_changed)
+        return ft.Dropdown(label="Use for",value=mode,data=name,options=[ft.dropdown.Option(x) for x in choices],on_change=filter_mode_changed)
     def scanner_chart_filter(e):
         # Chart visibility is independent of the ten active background analysis filters.
         name=e.control.data
@@ -3820,7 +3933,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
             if chart_provider[0]=="TradingView Lightweight":
                 parts.append(note("TradingView Lightweight Charts • source OHLC • ＋ / − / Reset or pinch • EMA 9/21 overlay only; other filters are analysis, not plotted overlays."))
-                parts.append(note("Chart/Analysis/Both is selected per filter below. Only EMA currently has a chart overlay."))
+                parts.append(note("Chart/Analysis/Both is selected in Settings → Central filters. Only EMA currently has a chart overlay."))
                 parts.append(tradingview_status)
                 context=(sym,scan_tf.value or "5m",scan_period.value or "7d",prefs.get("source","Dhan"),scanner_chart_style[0],ema_on_chart(),provider_generation[0])
                 if tv_view[0] is None or tv_context[0]!=context:
@@ -3926,8 +4039,7 @@ console.log('BOT KING Lightweight Charts ready');
         except Exception as exc:
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
-    def scanner_content():
-        fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m"))]
+    def central_filter_settings():
         filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
         added_filter_list.controls=[ft.Container(content=ft.Column([
             ft.Checkbox(label=name,value=name in filter_selected,data=name,on_change=filter_checkbox_changed),
@@ -3935,17 +4047,47 @@ console.log('BOT KING Lightweight Charts ready');
             ft.OutlinedButton("Remove ×",on_click=lambda e,n=name:remove_added_filter(n)),filter_mode_control(name)
         ],spacing=3),padding=8,bgcolor=PANEL2,border_radius=8) for name in added_filters]
         if not added_filters:added_filter_list.controls=[note("No extra filters added. Add below; each extra filter will appear here.")]
+        return section("CENTRAL FILTER SETTINGS",ft.Column([
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Different timeframes can produce different results."),
+            filter_coverage_panel(),
+            section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5))
+        ],spacing=6))
+    def open_filter_settings(e=None):
+        select(2)
+    def scanner_controls():
+        # No fixed card heights: fields wrap with Android text scaling.
+        for control in (scan_symbol,scan_tf,scan_period,scan_budget,scan_min,scan_max,scan_expiry):
+            control.dense=True
+            control.text_size=16
+            control.label_style=ft.TextStyle(size=14)
+            control.content_padding=ft.padding.symmetric(horizontal=10,vertical=10)
+        scan_symbol.col={"xs":6,"sm":6}
+        scan_tf.col={"xs":3,"sm":3}
+        scan_period.col={"xs":3,"sm":3}
+        scan_budget.col={"xs":6}
+        scan_expiry.col={"xs":6}
+        scan_min.col={"xs":6};scan_max.col={"xs":6}
+        return ft.Container(content=ft.Column([
+            symbol_search(scan_symbol),
+            ft.ResponsiveRow([scan_symbol,scan_tf,scan_period],spacing=6,run_spacing=6),
+            ft.ExpansionTile(title=txt("Premium simulation settings",14,GOLD),controls=[
+                ft.ResponsiveRow([scan_budget,scan_expiry,scan_min,scan_max],spacing=6,run_spacing=6),
+                note("Illustrative premiums and days only; not actual exchange contracts or expiry.")]),
+            ft.TextButton("Filters: "+str(len(filter_selected))+" selected • Settings",on_click=open_filter_settings),
+            scan_status,scan_age_display,
+        ],spacing=6,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
+            padding=8,bgcolor=PANEL,border_radius=10,data="compact_group")
+    def scanner_content():
+        fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m"))]
         scan_min.visible=scan_budget.value=="Custom"
         scan_max.visible=scan_budget.value=="Custom"
         return [heading("RULE-BASED SCANNER • Chart & Analysis"),
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
-            card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,
-                 ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
+            scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
             safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY")),
             safe_scanner_widget("Options",scanner_option_context),
-            section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
-            scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
+            help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
             scan_status.value="Dhan login required • scan paused"
@@ -3971,6 +4113,8 @@ console.log('BOT KING Lightweight Charts ready');
         generation=scan_generation[0]
         import math
         from datetime import timezone
+        stage="selection"
+        started=time.monotonic()
         try:
             sym=scan_symbol.value or "NIFTY"
             period=scan_period.value or "1mo"
@@ -3982,7 +4126,9 @@ console.log('BOT KING Lightweight Charts ready');
                 raise ValueError("Broker 5m candles may not cover 3 months. Choose 7d or 1mo.")
             if interval in ("5m","15m","30m") and period=="3mo":
                 raise ValueError("Broker intraday history may be limited. Choose 7d or 1mo.")
+            stage="candle fetch"
             hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
+            stage="candle validation"
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             bars=hist.get("bars") or []
             candles["scanner_chart_"+sym]=dict(hist,_scanner_timeframe=interval,
@@ -4038,7 +4184,9 @@ console.log('BOT KING Lightweight Charts ready');
                 votes.append(("MACD",1 if line[-1]>sig else -1 if line[-1]<sig else 0,"MACD="+scan_num(line[-1])+" signal="+scan_num(sig)))
             up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
             direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
+            stage="filter calculation"
             advanced=analyze_current(bars,filter_selected,interval)
+            record_analysis(sym,interval,result=advanced,candle_count=len(bars))
             if hist.get("cached"):
                 advanced.update(bias="WAIT",score=0,reason=advanced["reason"]+" • Saved data only: refresh failed; no new live signal")
             direction=advanced["bias"]
@@ -4048,8 +4196,9 @@ console.log('BOT KING Lightweight Charts ready');
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
+            report_rows=complete_filter_rows(advanced,filter_selected,filter_modes)
             lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
-                       GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in (advanced.get("votes") or []) if isinstance(v,dict)]
+                       GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]
             # Show filter-by-filter votes as soon as candle analysis completes.
             # Option premium modeling, news or combined analysis must not hide them.
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
@@ -4060,6 +4209,7 @@ console.log('BOT KING Lightweight Charts ready');
             ],spacing=5))]
             if current[0]==3:
                 page.update()
+            stage="premium simulation"
             support=min(float(b[3]) for b in bars[-20:])
             resistance=max(float(b[2]) for b in bars[-20:])
             budget=scan_budget.value or "80-120"
@@ -4182,9 +4332,15 @@ console.log('BOT KING Lightweight Charts ready');
         except Exception as exc:
             log_error("scanner",exc)
             if generation!=scan_generation[0]:return
-            scan_status.value="Refresh failed • last results may be stale"
-            if not scan_live.value or not scan_result.controls:
-                scan_result.controls=[card(unavailable("Scanner: "+safe_error(exc)),note("No signal was generated. Check filters, broker connection and data availability."))]
+            record_analysis(sym,interval,stage=stage,error=type(exc).__name__,elapsed=time.monotonic()-started)
+            scan_status.value=sym+" • "+stage+" failed • previous result is historical"
+            if stage!="premium simulation" or not scan_result.controls:
+                reason=sym+" • "+stage+": "+safe_error(exc)
+                missing_rows=complete_filter_rows({"reason":reason},filter_selected,filter_modes)
+                scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
+                    unavailable(reason),
+                    *[txt(row["name"]+" • UNAVAILABLE • "+row["detail"],14,MUTED) for row in missing_rows],
+                    note("No new signal. Price availability does not prove candle availability.")],spacing=4))]
         finally:
             scan_busy[0]=False
             refresh_scan_age()
@@ -4340,15 +4496,14 @@ console.log('BOT KING Lightweight Charts ready');
     header=ft.Container(
         content=ft.Row([
             ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=24),
-            ft.Column([txt("BOT KING",17,GOLD,True),
-                       txt("v"+str(APP_VERSION),10,MUTED)],spacing=0,tight=True),
+            ft.Row([txt("BOT KING",18,GOLD,True),txt("v"+str(APP_VERSION),14,MUTED)],spacing=8,wrap=True),
             ft.Container(expand=True),
             ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD,size=24)
         ],spacing=8,vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.padding.only(left=12,right=12,top=8,bottom=5),bgcolor=BG)
     app_shell=ft.Column([
         header,
-        ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=12,vertical=5)),
+        ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=8,vertical=4)),
         ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
     ],expand=True,spacing=0)
     page.add(ft.SafeArea(content=app_shell,expand=True))
@@ -4427,7 +4582,7 @@ console.log('BOT KING Lightweight Charts ready');
                                     previous = quotes.get(ticker) or {}
                                     quotes[ticker] = dict(snapshot, change=None,
                                         bars=previous.get("bars", []) if previous.get("source") == "Dhan" else [],
-                                        fetched_at=time.time())
+                                        candle_fetched_at=previous.get("candle_fetched_at",0),fetched_at=time.time())
                             if current[0] == 4:
                                 request_view_refresh(4)
                     except Exception as exc:
@@ -4532,6 +4687,8 @@ console.log('BOT KING Lightweight Charts ready');
                                                  change=previous_quote.get("change"))
                             else:
                                 quotes[sym]=data
+                            # Shared local analysis publishes immediately; it performs no HTTP calls.
+                            refresh_shared_analysis(sym)
                             market_completed[0]+=1
                             history_cached[0]+=int(bool(data.get("cached")))
                             scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed • "+str(history_cached[0])+" cached"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
@@ -4545,6 +4702,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 return False
                             if generation==provider_generation[0]:
                                 failed_symbols[sym]=safe_error(exc)
+                                record_analysis(sym,"5m",stage="candle fetch",error=type(exc).__name__)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
                                 scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"

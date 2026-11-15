@@ -192,6 +192,7 @@ class AuditTests(unittest.TestCase):
 
     def test_added_filters_visible_toggle_restore_and_individual_remove(self):
         page,v=start({'scanner_live':False})
+        v['select'](2)  # The shared filter editor now lives in Settings.
         v['scan_busy'][0]=True
         names=['OI Support','OI Resistance','OI Profile','Max Pain','Volume']
         for name in names:
@@ -274,7 +275,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(before[0].isoformat(),'2026-11-03')
         self.assertEqual(after[0].isoformat(),'2026-11-10')
 
-    def test_paused_refresh_has_no_countdown_and_scanner_fields_not_in_rows(self):
+    def test_paused_refresh_has_no_countdown_and_compact_fields_share_responsive_row(self):
         _,v=start({'scanner_live':True})
         class ClosedClock(datetime):
             @classmethod
@@ -287,9 +288,11 @@ class AuditTests(unittest.TestCase):
         self.assertIn('PAUSED',v['scan_age_display'].value)
         self.assertIn('15 sec ago',v['scan_age_display'].value)
         top=v['scanner']()[2].content.controls
-        self.assertIn(v['scan_tf'],top);self.assertIn(v['scan_period'],top)
+        row=next(c for c in top if isinstance(c,ft.ResponsiveRow))
+        self.assertEqual(row.controls,[v['scan_symbol'],v['scan_tf'],v['scan_period']])
         self.assertNotIn(v['scan_refresh'],top);self.assertNotIn(v['scan_live'],top)
-        self.assertFalse(any(isinstance(c,ft.Row) and v['scan_tf'] in c.controls for c in top))
+        self.assertTrue(all(c.text_size==16 for c in row.controls))
+        self.assertEqual(v['decorate_help'](v['scanner_controls']()).data,'compact_group')
 
     def test_filter_routing_and_capability_limits(self):
         import time

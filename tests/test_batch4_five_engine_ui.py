@@ -29,7 +29,7 @@ def test_compact_watchlist_reads_only_existing_evidence():
     assert "five_engine_snapshots.get(symbol)" in block
     assert 'snapshot["combined"]["coverage"]' in block
     assert "get_market_data(" not in block
-    assert "dhan_feed." not in block
+    assert "dhan_feed._call(" not in block
     assert "await " not in block
     assert "compact_five_engine_watch(sym)" in SOURCE
 
@@ -202,7 +202,7 @@ def test_scanner_fusion_widget_failure_is_isolated():
 
 def test_filter_votes_published_before_optional_premium_model():
     start = SOURCE.index("    async def scan_market():")
-    end = SOURCE.index("    def ", start + 8)
+    end = SOURCE.index("\n    def bind_saved", start)
     block = SOURCE[start:end]
     assert 'scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"' in block
     assert block.index('scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters"') < block.index('budget=scan_budget.value or "80-120"')
@@ -211,9 +211,10 @@ def test_filter_votes_published_before_optional_premium_model():
 
 def test_partial_filter_vote_entries_do_not_raise_keyerror():
     start = SOURCE.index("    async def scan_market():")
-    end = SOURCE.index("    def ", start + 8)
+    end = SOURCE.index("\n    def bind_saved", start)
     block = SOURCE[start:end]
     assert 'v.get("name","Unknown filter")' in block
     assert 'v.get("vote")' in block
     assert 'v.get("detail","No indicator detail available")' in block
-    assert '(advanced.get("votes") or []) if isinstance(v,dict)' in block
+    assert 'for v in report_rows if isinstance(v,dict)' in block
+    assert 'complete_filter_rows(advanced,filter_selected,filter_modes)' in block

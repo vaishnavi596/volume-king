@@ -12,9 +12,9 @@ class ScreenshotAuditTests(unittest.TestCase):
         tiles = [c for root in state["body"].controls for c in walk(root) if isinstance(c, ft.ExpansionTile)]
         self.assertTrue(tiles, "Diagnostics must be available in Settings only")
 
-    def test_scanner_still_exposes_all_ten_filters(self):
+    def test_central_settings_exposes_all_ten_filters(self):
         _, state = start({"scanner_live": False})
-        state["select"](3)
+        state["select"](2)
         text = " ".join(str(getattr(c, "label", None) or getattr(c, "value", None) or "") for root in state["body"].controls for c in walk(root) if isinstance(c, (ft.Text, ft.Checkbox)))
         for name in ("Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                      "SMC Structure", "Order Block", "Pivot Points", "FVG", "Liquidity Sweep"):

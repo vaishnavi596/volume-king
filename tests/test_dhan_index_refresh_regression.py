@@ -71,12 +71,12 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn("dhan_history_scan_active[0]=False",
                       ast.get_source_segment(self.source, supervisor))
 
-    def test_dhan_has_no_second_automatic_scanner(self):
+    def test_dhan_selected_timeframes_wait_for_shared_provider_queue(self):
         source = self.source
         fn = next(node for node in ast.walk(self.tree)
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "auto_scan_loop")
         body = ast.get_source_segment(source, fn)
-        self.assertIn('if prefs.get("source")=="Dhan":', body)
+        self.assertIn('if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):', body)
         self.assertIn('await asyncio.sleep(5)', body)
 
     def test_equity_and_index_poll_are_both_scheduled(self):
