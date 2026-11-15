@@ -25,7 +25,8 @@ class MobileRegressionTests(unittest.TestCase):
     def test_scanner_fast_signal_is_cache_only_and_api_scan_keeps_30_second_floor(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         fast = source.split("    def refresh_cached_scanner_signal():", 1)[1].split("    async def auto_scan_loop(generation):", 1)[0]
-        self.assertIn('await asyncio.sleep(2)', fast)
+        self.assertIn('await asyncio.sleep(2 if (regular_hours()', fast)
+        self.assertIn('else 30)', fast)
         self.assertIn('snapshot=candles.get("scanner_chart_"+sym)', fast)
         self.assertIn('snapshot.get("cached")', fast)
         self.assertIn('snapshot.get("_scanner_timeframe")!=tf', fast)
