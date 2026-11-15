@@ -1789,7 +1789,7 @@ def app_main(page:ft.Page):
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
-            note(("Dhan quote refresh • every 180 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
+            note(("Dhan quote refresh • every 60 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed • candle signals are independent of LTP refresh") if prefs.get("source")=="Dhan" else note(""),
             ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
@@ -3783,7 +3783,9 @@ console.log('BOT KING Lightweight Charts ready');
                 record_analysis(sym,"5m",stage="local analysis",error=type(exc).__name__)
                 log_error("shared_analysis",exc)
         if updated:
-            publish_partial_ranking(watch_signal_cache)
+            # Index analysis shares the cache, but Super Five retains its
+            # existing 51-equity universe.
+            publish_partial_ranking({sym:row for sym,row in watch_signal_cache.items() if sym in watch_symbols})
             if current[0] in (0,3,4):request_view_refresh(current[0])
     def shared_filter_report(sym,tf,result):
         rows=complete_filter_rows(result,filter_selected,filter_modes)

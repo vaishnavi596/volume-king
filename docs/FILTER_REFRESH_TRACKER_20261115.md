@@ -14,6 +14,7 @@ under these five groups; do not count every caption or symptom as another fix.
 
 ## Validation
 
+- GitHub regression run `43666758251` passed for batch commit `6676dc1`.
 - Full offline unittest suite: 674 tests passed before the final candle-receipt
   metadata regression was added; subsequent targeted tests cover that change.
 - Actual Flet controls are used in runtime tests. These are not Android screenshot
@@ -22,6 +23,10 @@ under these five groups; do not count every caption or symptom as another fix.
   move, the local 2-second interval and the serialized alternate-timeframe guard.
   Two existing pytest source slices also needed to include nested scan helpers;
   reading `connected` is allowed, while row-level HTTP calls remain forbidden.
+  Additional pre-existing pytest expectations were corrected to inspect all three
+  index warmups and the index card helper on Dashboard. The Watchlist caption
+  now says 60 seconds, matching the existing poll throttle; the rate is unchanged.
+  Super Five still ranks 51 equities, while shared coverage includes all 54.
 - No release version change, APK workflow dispatch, live orders or Oracle
   deployment is included. Source pushes run regression workflows only.
 

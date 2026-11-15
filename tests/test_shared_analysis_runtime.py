@@ -24,6 +24,7 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         with patch.object(v["dhan_feed"], "_call", side_effect=AssertionError("unexpected HTTP")):
             v["refresh_shared_analysis"]()
             self.assertEqual(len(v["watch_signal_cache"]), 54)
+            self.assertTrue(all(row["symbol"] in v["watch_symbols"] for row in v["top5_candidates"]))
             rows, counts = v["analysis_audit"].coverage(DHAN_VERIFIED_SYMBOLS)
             self.assertEqual(counts["ANALYZED"], 54)
             self.assertTrue(all(r["available_filters"] == 10 for r in rows))
