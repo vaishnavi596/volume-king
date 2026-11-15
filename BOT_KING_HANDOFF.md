@@ -3,7 +3,7 @@
 **Project:** BOT KING (Dhan-only Android scanner and simulated Paper Bot)
 **GitHub:** `vaishnavi596/volume-king`
 **Current integration branch:** `fix/botking-joint-audit-70-15-20261115`
-**Last documented release candidate:** `2.3.125`, commit `e587485b02aa1ee57de40eb5547d9f8ca5a144d1`
+**Last documented source release candidate:** `2.3.126` (version bump in next commit; confirm latest HEAD and Build APK run before any install). Previous installed phone reported v2.3.125.
 **APK build run:** https://github.com/vaishnavi596/volume-king/actions/runs/43751755544
 **Latest verified 2.3.125 build:** SUCCESS, 804 tests PASS, versionName=2.3.125, versionCode=74001, pinned signing verification PASS; GitHub artifact `volume-king-apk` ID `14175849838` uploaded. **Device test still pending.**
 **Historical 14–15 Nov step-by-step audit:** `docs/BOT_KING_PREVIOUS_TWO_CHATS_STEP_BY_STEP_20261114_15.md` (51 numbered checks with provenance and limitations).
@@ -119,3 +119,11 @@ The historical authoritative contract is:
 `docs/BOT_KING_ORACLE_APP_CONTRACT_20261115.md`.
 The append-only batch journal is:
 `docs/BOT_KING_WORK_LOG.md`.
+
+## 2026-11-16 urgent phone feedback
+
+- **Installed v2.3.125**: old saved quote values visible (RELIANCE ₹1339.70), but login Watchlist refresh not confirmed.
+- Code defects patched `5da68b3a`, `9d94169a`, `bd5c2212`: stale saved quote prevented closed-market retry; Login outcome did not synchronize Watchlist status. New dedicated behavior tests PASS 809/809 on run 43753705425.
+- Release candidate 2.3.126 is to be built and **independently signed/installed/tested**; don't call the phone fixed from offline tests.
+- Market-open 09:15–15:30 IST polling and 60-second equity/index timers were preserved. The price may be numerically unchanged when the exchange is closed; inspect the displayed 'Login snapshot' status and snapshot collection age instead of demanding an impossible live tick.
+- No Oracle restart or token reset was performed for this fix.
