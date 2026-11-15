@@ -3997,6 +3997,11 @@ console.log('BOT KING Lightweight Charts ready');
             await tv_load_widget()
             return
         if not tv_ready[0]:return
+        # A failed JS delivery keeps its pending candles. Retry that delivery
+        # on the next local tick without fetching new history or rebuilding WebView.
+        if tv_pending[0] is not None:
+            push_chart_data()
+            if tv_pending[0] is not None:return
         hist=(candles.get("scanner_chart_"+provider+"_"+sym+"_"+tf+"_"+period) or {})
         selected=candles.get("scanner_chart_"+sym) or {}
         if (selected.get("source")==provider and selected.get("_scanner_timeframe")==tf
@@ -4011,7 +4016,9 @@ console.log('BOT KING Lightweight Charts ready');
         if bars and identity!=chart_delivery_identity[0]:
             tv_history[0]=bars;tv_pending[0]=bars[-tv_limit[0]:]
             push_chart_data()
-            chart_delivery_identity[0]=identity
+            # Mark delivery only after WebView accepted it; otherwise retry.
+            if tv_pending[0] is None:
+                chart_delivery_identity[0]=identity
 
     async def scanner_fast_signal_loop():
         while True:
