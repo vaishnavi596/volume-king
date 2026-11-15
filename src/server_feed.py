@@ -395,12 +395,17 @@ class ServerDhanReadOnly:
         import re
         if not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9&_-]{1,32}",symbol):
             raise FeedError("Invalid NSE stock symbol")
-        path = "/v2/instruments/search?q=" + urllib.parse.quote(symbol, safe="") + "&limit=1"
+        path = "/v2/instruments/search?q=" + urllib.parse.quote(symbol, safe="") + "&limit=50"
         result = self._call(path)
         names = result.get("symbols")
         if (result.get("source") != "dhan_registry"
-                or result.get("live_orders_enabled") is not False
-                or not isinstance(names, list) or names != [symbol]):
+                # Oracle S14 watchlist_api search predates the live_orders_enabled
+                # metadata field. Only explicit true is unacceptable; search is
+                # read-only, authenticated, and checked for the exact symbol.
+                or result.get("live_orders_enabled") is True
+                or not isinstance(names, list)
+                or not all(isinstance(x, str) for x in names)
+                or len(names) > 50 or symbol not in names):
             raise FeedError("NSE symbol not verified in Oracle Dhan registry")
         return True
 

@@ -15,7 +15,20 @@ class RegistrySearchTests(unittest.TestCase):
             "source":"dhan_registry","symbols":["RELIANCE"],
             "live_orders_enabled":False}) as call:
             self.assertTrue(self.feed.verified_equity_symbol("RELIANCE"))
-        call.assert_called_once_with("/v2/instruments/search?q=RELIANCE&limit=1")
+        call.assert_called_once_with("/v2/instruments/search?q=RELIANCE&limit=50")
+
+    def test_oracle_s14_search_response_without_live_flag(self):
+        # The existing Oracle watchlist_api returns source and symbols only.
+        with patch.object(self.feed,"_call",return_value={
+            "source":"dhan_registry","symbols":["OTHERRELIANCE","RELIANCE"]}):
+            self.assertTrue(self.feed.verified_equity_symbol("RELIANCE"))
+
+    def test_explicit_live_flag_is_rejected(self):
+        with patch.object(self.feed,"_call",return_value={
+            "source":"dhan_registry","symbols":["RELIANCE"],
+            "live_orders_enabled":True}):
+            with self.assertRaises(FeedError):
+                self.feed.verified_equity_symbol("RELIANCE")
 
     def test_invalid_or_unauthorized_payload_never_adds_symbol(self):
         with patch.object(self.feed,"_call",return_value={
