@@ -276,6 +276,8 @@ def app_main(page:ft.Page):
     view_lock=RLock()
     scan_generation=[0]
     provider_generation=[0]
+    from login_bootstrap import LoginBootstrapState
+    login_bootstrap=LoginBootstrapState()
     angel_feed=ServerAngelFeed()
     dhan_feed=ServerDhanReadOnly()
     broker_retry=[0.0]
@@ -1005,6 +1007,8 @@ def app_main(page:ft.Page):
             note("Cache: "+market_store.status),
             note("News: public RSS headlines; experimental phrase cues"),
             note("Latest feed: "+market_status[:130]),
+            note(login_bootstrap.label("equities")),
+            note(login_bootstrap.label("indices")),
             *feature_details
         ]
         return section("SYSTEM HEALTH",ft.Column([
@@ -1715,6 +1719,8 @@ def app_main(page:ft.Page):
             return
         watch_batch_busy[0]=True
         watch_batch_last_attempt[0]=time.monotonic()
+        if login_bootstrap.generation==provider_generation[0]:
+            login_bootstrap.stages["equities"]="LOADING"
         generation=provider_generation[0]
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
@@ -1775,11 +1781,13 @@ def app_main(page:ft.Page):
             snapshot_age_label=(f"Oracle snapshot age {max(snapshot_ages):.0f}s • "
                                 if snapshot_ages else "Oracle snapshot age unknown • ")
             watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • "
+            
                                    +snapshot_age_label+"exchange timestamp unverified"
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {received}/{total_symbols} valid prices • "+snapshot_age_label
                                    +f"polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
             market_status=watch_batch_status[0]
+            login_bootstrap.finish(generation,"equities",received,max(1,total_symbols))
             watch_batch_last_success[0]=time.monotonic()
             if received==total_symbols:
                 watch_batch_success_generation[0]=generation
@@ -1805,6 +1813,7 @@ def app_main(page:ft.Page):
             # A failed poll must not blank the last valid displayed Dhan prices.
             dhan_batch_issue[0]=safe_error(exc)
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
+            login_bootstrap.finish(generation,"equities",0,max(1,len(all_watch_symbols())),error=safe_error(exc))
             market_status=watch_batch_status[0]
         finally:
             watch_batch_busy[0]=False
@@ -1826,6 +1835,8 @@ def app_main(page:ft.Page):
                 and now-index_last_attempt[0]<60):
             return
         index_refresh_busy[0]=True
+        if login_bootstrap.generation==generation:
+            login_bootstrap.stages["indices"]="LOADING"
         index_last_attempt[0]=now
         index_refresh_generation[0]=generation
         try:
@@ -1882,6 +1893,12 @@ def app_main(page:ft.Page):
                     if isinstance(old,dict) and old.get("source")=="Dhan":
                         quotes[ticker]=dict(old,provider_status="provider_data_unavailable",
                             freshness="unverified",live_verified=False)
+            index_received=sum(1 for key in ("NIFTY","BANKNIFTY","SENSEX")
+                if isinstance(snapshots.get(key),dict) and snapshots[key].get("source")=="Dhan"
+                and isinstance(snapshots[key].get("price"),(int,float))
+                and not isinstance(snapshots[key]["price"],bool)
+                and math.isfinite(snapshots[key]["price"]) and snapshots[key]["price"]>0)
+            login_bootstrap.finish(generation,"indices",index_received,3)
             if all(isinstance(snapshots.get(key),dict) and isinstance(snapshots[key].get("price"),(int,float))
                    and not isinstance(snapshots[key].get("price"),bool) and math.isfinite(snapshots[key]["price"])
                    and snapshots[key]["price"]>0 and snapshots[key].get("source")=="Dhan"
@@ -1892,6 +1909,7 @@ def app_main(page:ft.Page):
             raise
         except Exception as exc:
             log_error("dhan_index_ltp_batch",exc)
+            login_bootstrap.finish(generation,"indices",0,3,error=safe_error(exc))
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 old=quotes.get(ticker)
                 if isinstance(old,dict) and old.get("source")=="Dhan":
@@ -2941,6 +2959,8 @@ def app_main(page:ft.Page):
                             connection_status.color=GOLD
                     source.value="Dhan";prefs["source"]="Dhan";save()
                     provider_changed(None)
+                    # Record this generation before evaluating fresh server observations.
+                    login_bootstrap.begin(provider_generation[0],authenticated=dhan_feed.connected)
                     # provider_changed clears prior-provider prices. Publish only
                     # validated same-provider index batch values after the reset.
                     for index_sym, index_row in login_index_quotes.items():
@@ -2996,6 +3016,7 @@ def app_main(page:ft.Page):
                             "Login snapshot • "+str(received)+"/"+str(expected)+
                             (" partial" if dhan_batch_issue[0] else " loaded")+
                             " • last-known Dhan prices; exchange time unverified")
+                        login_bootstrap.finish(provider_generation[0],"equities",received,max(1,expected))
                         if not dhan_batch_issue[0]:
                             watch_batch_last_success[0]=time.monotonic()
                         if current[0] in (0,4):request_view_refresh(current[0])
@@ -3008,6 +3029,7 @@ def app_main(page:ft.Page):
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
                         watch_batch_status[0]="Login snapshot failed • "+safe_error(exc)+" • last valid prices retained"
+                        login_bootstrap.finish(provider_generation[0],"equities",0,max(1,len(all_watch_symbols())),error=safe_error(exc))
                         if current[0] in (0,4):request_view_refresh(current[0])
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
                         connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
@@ -3023,26 +3045,23 @@ def app_main(page:ft.Page):
                     # Historical scan must run even if the independent LTP batch fails.
                     login_equity_complete=(not market_status.startswith(
                         "Dhan connected; watchlist batch failed") and not dhan_batch_issue[0])
-                    provider_generation[0]+=1;five_engine_snapshots.clear()
+                    five_engine_snapshots.clear()
                     if login_equity_complete:
                         watch_batch_success_generation[0]=provider_generation[0]
                     with dhan_batch_lock:
                         dhan_batch_cache["generation"]=provider_generation[0]
                     # One guarded index batch on connect also retrieves last-traded after-hours quotes.
                     # Dhan exchange timestamps remain unverified; never mark these LIVE.
+                    if login_index_quotes:
+                        login_bootstrap.finish(provider_generation[0],"indices",len(login_index_quotes),3)
                     if (app_active[0] and dhan_feed.connected
-                            and len(login_index_quotes)<3):
+                            and not login_index_quotes):
                         page.run_task(refresh_dhan_index_quotes,True)
                     # The login path already fetched and published the equity batch.
                     # Do not duplicate that same upstream snapshot immediately.
                     # On a failed login batch, schedule one guarded retry; index
                     # quotes still refresh independently on the normal poll loop.
-                    if (app_active[0] and dhan_feed.connected
-                            and regular_hours()
-                            and market_status.startswith("Dhan connected; watchlist batch failed")):
-                        # Open-hours retry respects snapshot attempt spacing.
-                        # Closed-hours retry belongs to the one-shot poll gate.
-                        page.run_task(refresh_watch_batch)
+                    # Failed login batches retry only through the normal throttled poll.
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
                         failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
                 else:
@@ -5238,6 +5257,7 @@ console.log('BOT KING Lightweight Charts ready');
         dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1;five_engine_snapshots.clear()
+        login_bootstrap.begin(provider_generation[0],authenticated=(source.value=="Dhan" and dhan_feed.connected))
         # Preserve the last displayed price while the new provider reconnects.
         # Mark it as historical/unverified rather than implying that the old
         # provider's quote is live data from the newly selected provider.
