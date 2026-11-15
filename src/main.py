@@ -3571,7 +3571,8 @@ def app_main(page:ft.Page):
         rows=[]
         for item in paper_positions_summary(prefs):
             rows.append(note(item["slot"]+" • "+str(item["contract"])+
-                (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")))
+                (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")+
+                " • Realized net paper P&L INR "+format(item["realized_net_pnl"],"+,.2f")))
         instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
         context=[five_engine_chips(instrument),
                  dashboard_mini_candles(instrument,shared_history(instrument) or {}),
@@ -3581,6 +3582,7 @@ def app_main(page:ft.Page):
             note("Paper and future Live controls share this screen, NEVER the execution gateway."),
             section("ALL PAPER BOTS",ft.Column(rows,spacing=2)),
             paper_bot_slot,mode,
+            ft.OutlinedButton("Save selected paper bot settings",on_click=lambda e:(save_active_paper_slot(),save(),page.update())),
             section("SYMBOL / CONTRACT",ft.Column(
                 [bot_segment,bot_symbol,bot_custom,bot_type,bot_strike,
                  bot_expiry_mode,bot_expiry,bot_lots,bot_lot_size,
