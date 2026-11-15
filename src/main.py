@@ -2988,6 +2988,16 @@ def app_main(page:ft.Page):
                         market_status=('Dhan • '+str(received)+'/'+str(expected)+
                                        ' equity LTP quotes returned; timestamps unverified'+
                                        (' • PARTIAL' if dhan_batch_issue[0] else ''))
+                        # The independent Watchlist status must reflect the
+                        # LOGIN snapshot, not remain "not checked" until a
+                        # separate scheduled 60s poll. Rates may stay numerically
+                        # unchanged after close even when the request succeeds.
+                        watch_batch_status[0]=(
+                            "Login snapshot • "+str(received)+"/"+str(expected)+
+                            (" partial" if dhan_batch_issue[0] else " loaded")+
+                            " • last-known Dhan prices; exchange time unverified")
+                        if not dhan_batch_issue[0]:
+                            watch_batch_last_success[0]=time.monotonic()
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
                         log_error('dhan_batch_after_connect',exc)
@@ -2997,6 +3007,8 @@ def app_main(page:ft.Page):
                         # The error status above makes refresh failure explicit.
                         dhan_batch_issue[0]=safe_error(exc)
                         market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
+                        watch_batch_status[0]="Login snapshot failed • "+safe_error(exc)+" • last valid prices retained"
+                        if current[0] in (0,4):request_view_refresh(current[0])
                     if market_status.startswith("Dhan connected; watchlist batch failed"):
                         connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
                                                   if live_ltp_verified else

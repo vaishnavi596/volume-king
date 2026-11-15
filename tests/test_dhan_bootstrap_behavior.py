@@ -63,6 +63,13 @@ class BootstrapBehaviorTests(unittest.TestCase):
         self.assertIn('watch_countdown',block)
         self.assertIn('ft.TextOverflow.ELLIPSIS',block)
 
+    def test_login_snapshot_status_is_visible_without_waiting_for_next_poll(self):
+        block=SRC.split("    async def connect_angel():",1)[1].split("    def pairing_diagnostic(",1)[0] if "    def pairing_diagnostic(" in SRC.split("    async def connect_angel():",1)[1] else SRC.split("    async def connect_angel():",1)[1].split("    def provider_changed(",1)[0]
+        self.assertIn('"Login snapshot • "+str(received)+"/"+str(expected)',block)
+        self.assertIn('"Login snapshot failed • "+safe_error(exc)',block)
+        self.assertIn('watch_batch_last_success[0]=time.monotonic()',block)
+        self.assertIn('last valid prices retained',block)
+
     def test_market_open_cadence_and_cooldown_unchanged(self):
         poll=SRC.split("    async def dhan_quote_poll():",1)[1].split("    # Compact countdown",1)[0]
         index=SRC.split("    async def dhan_index_poll():",1)[1].split("    page.run_task(dhan_index_poll)",1)[0]
