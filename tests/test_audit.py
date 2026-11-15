@@ -204,11 +204,16 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(v['filter_selected']),10)
         self.assertEqual(v['added_filters'],['OI Support','OI Resistance','Max Pain'])
         self.assertTrue(all(name in v['filter_selected'] for name in v['added_filters']))
-        # The user now has five optional slots beyond the original ten.
+        # All ten slots are occupied; remove one to make room for OI Profile.
+        v['add_filter_slot']('OI Profile')
+        self.assertNotIn('OI Profile',v['filter_selected'])
+        v['remove_added_filter']('Max Pain')
+        self.assertEqual(len(v['filter_selected']),9)
         v['add_filter_slot']('OI Profile')
         self.assertIn('OI Profile',v['filter_selected'])
-        self.assertEqual(len(v['filter_selected']),11)
+        self.assertEqual(len(v['filter_selected']),10)
         v['remove_added_filter']('OI Profile')
+        v['add_filter_slot']('Max Pain')
         self.assertEqual(len(v['filter_selected']),10)
         self.assertEqual(page.client_storage.get('bot_king_preferences')['scanner_filters'],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
