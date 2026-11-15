@@ -25,8 +25,10 @@ class HelpQualityTests(unittest.TestCase):
         self.assertIn('validation error',dialog.content.controls[2].value)
         v['close_help'](dialog);self.assertFalse(dialog.open)
     def test_help_does_not_reveal_credentials(self):
-        _,v=start({'scanner_live':False,'broker':'Angel One'})
-        field=next(iter(v['credential_inputs'].values()));field.value='PRIVATE_SECRET'
+        _,v=start({'scanner_live':False,'broker':'Dhan'})
+        # Dhan UI exposes no Angel credentials; test the redaction guard directly.
+        field=ft.TextField(label='API Key',value='PRIVATE_SECRET')
+        v['credential_inputs']['API Key']=field
         dialog=v['show_help']('API Key',field)
         self.assertNotIn('PRIVATE_SECRET',str([c.value for c in dialog.content.controls]))
     def test_missing_and_stale_options_help_is_dynamic(self):
