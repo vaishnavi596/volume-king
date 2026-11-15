@@ -3492,12 +3492,18 @@ def app_main(page:ft.Page):
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    filter_selected=[x for x in prefs.get("scanner_filters",DEFAULT_FILTERS) if x in filter_names and x not in OPTION_FILTERS]
-    added_filters=list(dict.fromkeys(x for x in prefs.get("scanner_added_filters",[])+filter_selected if x in filter_names and x not in DEFAULT_FILTERS))
+    # All supported filters are selectable, but at most ten slots are active.
+    # Option/OI filters remain WAIT until authenticated derivative evidence exists.
+    saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
+    if not isinstance(saved_filters,(list,tuple)):
+        saved_filters=DEFAULT_FILTERS
+    filter_selected=list(dict.fromkeys(x for x in saved_filters if isinstance(x,str) and x in filter_names))[:10]
+    added_filters=list(dict.fromkeys(x for x in filter_selected if x not in DEFAULT_FILTERS))
     added_filter_list=ft.Column(spacing=8)
     def store_filters():
         scan_generation[0]+=1
         mark_ranking_historical()
+        added_filters[:]=[x for x in filter_selected if x not in DEFAULT_FILTERS]
         prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_added_filters"]=added_filters[:]
         save()
@@ -3509,11 +3515,25 @@ def app_main(page:ft.Page):
             return "Analysis only • requires source volume; not a chart overlay"
         return "Analysis filter • not automatically drawn on chart"
     def remove_added_filter(name):
-        if name in added_filters:added_filters.remove(name)
-        if name in filter_selected:filter_selected.remove(name)
-        filter_feedback.value="Removed "+name
-        store_filters();select(current[0])
-        if not scan_busy[0]:trigger_scan()
+        if name in filter_selected:
+            filter_selected.remove(name)
+            filter_feedback.value="Removed "+name+" • "+str(len(filter_selected))+"/10 active"
+            store_filters()
+            select(current[0])
+            if not scan_busy[0]:trigger_scan()
+    def add_filter_slot(name):
+        if name not in filter_names:
+            filter_feedback.value="Select one supported filter"
+        elif name in filter_selected:
+            filter_feedback.value=name+" is already active"
+        elif len(filter_selected)>=10:
+            filter_feedback.value="10/10 slots full • remove one active filter first"
+        else:
+            filter_selected.append(name)
+            filter_feedback.value="Added "+name+" • "+str(len(filter_selected))+"/10 active • "+filter_availability(name)
+            store_filters()
+            select(current[0])
+            if not scan_busy[0]:trigger_scan()
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
     filter_feedback=note("Active: "+", ".join(filter_selected))
@@ -3734,46 +3754,27 @@ console.log('BOT KING Lightweight Charts ready');
         select(3)
     filter_checklist=ft.Column(spacing=0)
     def reset_default_filters(e):
-        scan_generation[0]+=1
-        mark_ranking_historical()
-        filter_selected[:]=DEFAULT_FILTERS[:]
-        added_filters.clear();prefs["scanner_added_filters"]=[]
+        filter_selected[:]=DEFAULT_FILTERS[:10]
         scanner_chart_indicators[:]=chart_filter_names[:]
-        prefs["scanner_filters"]=filter_selected[:]
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
-        save();select(current[0])
+        store_filters();select(current[0])
         if not scan_busy[0]:trigger_scan()
     def filter_checkbox_changed(e):
         name=e.control.data
-        if name in OPTION_FILTERS:
-            filter_feedback.value="Unavailable: verified option-chain OI/PCR data not connected"
-            select(current[0])
-            return
-        if e.control.value and name not in filter_selected:filter_selected.append(name)
-        elif not e.control.value and name in filter_selected:filter_selected.remove(name)
-        store_filters();select(current[0])
-        if not scan_busy[0]:trigger_scan()
+        if e.control.value:
+            add_filter_slot(name)
+        else:
+            remove_added_filter(name)
     def filter_edit(add):
         q=(filter_query.value.strip() if filter_query.value and filter_query.value.strip() else filter_choice.value or "").lower()
         hits=([x for x in filter_names if q==x.lower()] or [x for x in filter_names if q and q in x.lower()])
         if len(hits)!=1:
-            filter_feedback.value="Select one supported filter"
-        else:
-            name=hits[0]
-            if add:
-                if name in OPTION_FILTERS:
-                    filter_feedback.value="Unavailable: verified option-chain OI/PCR feed required"
-                    return
-                if name not in filter_selected:filter_selected.append(name)
-                if name not in DEFAULT_FILTERS and name not in added_filters:added_filters.append(name)
-                filter_feedback.value="Selected "+name+" • "+filter_availability(name)
-            else:
-                if name in filter_selected:filter_selected.remove(name)
-                if name in added_filters:added_filters.remove(name)
-                filter_feedback.value="Removed "+name
+            filter_feedback.value="Choose exactly one supported filter"
+            if filter_feedback.page is not None:filter_feedback.update()
+            return
         filter_query.value=""
-        store_filters();select(current[0])
-        if not scan_busy[0]:trigger_scan()
+        if add:add_filter_slot(hits[0])
+        else:remove_added_filter(hits[0])
     scan_auto_generation=[0]
     def refresh_scan_age():
         now=datetime.now().timestamp()
