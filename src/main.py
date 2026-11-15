@@ -2386,8 +2386,11 @@ def app_main(page:ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         # Dhan-only read-only option metrics. No Angel One fallback.
-        if option_feed_busy[0] or not dhan_feed.connected:
-            option_feed_status[0]="Connect Dhan in Settings to load listed option expiries."
+        if option_feed_busy[0]:
+            return
+        if not dhan_feed.connected:
+            option_feed_status[0]="Dhan connection unavailable • Connect / Check in Settings, then Refresh Dhan Option Chain."
+            if current[0]==1:request_view_refresh(1)
             return
         option_feed_busy[0]=True
         dhan_option_last_attempt[0]=time.monotonic()
@@ -2547,6 +2550,8 @@ def app_main(page:ft.Page):
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
+                 ft.ElevatedButton("Refresh Dhan Option Chain",on_click=lambda e:page.run_task(refresh_selected_options),disabled=option_feed_busy[0]),
+                 note(option_feed_status[0]),
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
@@ -3528,6 +3533,7 @@ def app_main(page:ft.Page):
             filter_feedback.value=name+" is already active"
         elif len(filter_selected)>=10:
             filter_feedback.value="10/10 slots full • remove one active filter first"
+            if filter_feedback.page is not None:filter_feedback.update()
         else:
             filter_selected.append(name)
             filter_feedback.value="Added "+name+" • "+str(len(filter_selected))+"/10 active • "+filter_availability(name)
@@ -3553,6 +3559,7 @@ def app_main(page:ft.Page):
     tv_booted=[False]
     tv_context=[None];tv_ready=[False];tv_js_view=[None];tv_history=[[]];tv_pending=[None];tv_limit=[300]
     tv_last_html_load=[0.0];tv_mount_retries=[0]
+    tv_native_fallback=[False]  # Native chart remains usable if WebView is blank.
     def lightweight_payload(bars):
         import math
         rows={}
@@ -3741,12 +3748,20 @@ console.log('BOT KING Lightweight Charts ready');
         if getattr(e,"control",None) is not tv_view[0]:
             return
         tv_ready[0]=False
-        tv_set_status("Chart resource error • retry available: "+str(getattr(e,"data",""))[:160])
+        tv_native_fallback[0]=True
+        tv_set_status("WebView resource error • showing native candle chart")
+        request_view_refresh(3)
     def tv_retry(e):
-        if tv_view[0] is not None:
-            tv_ready[0]=False
-            page.run_task(tv_load_widget)
+        tv_native_fallback[0]=False
+        tv_mount_retries[0]=0
+        tv_last_html_load[0]=0.0
+        tv_ready[0]=False
+        tv_booted[0]=False
+        tv_js_view[0]=None
+        tv_view[0]=None
+        select(3)
     def chart_provider_change(e):
+        tv_native_fallback[0]=False
         tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
         chart_provider[0]=e.control.value
         prefs["chart_provider"]=chart_provider[0]
@@ -3775,6 +3790,7 @@ console.log('BOT KING Lightweight Charts ready');
         filter_query.value=""
         if add:add_filter_slot(hits[0])
         else:remove_added_filter(hits[0])
+        filter_choice.value=None
     scan_auto_generation=[0]
     def refresh_scan_age():
         now=datetime.now().timestamp()
@@ -3996,7 +4012,7 @@ console.log('BOT KING Lightweight Charts ready');
         context=tv_context[0]
         if chart_provider[0]!="TradingView Lightweight" or not context:return
         view=tv_view[0]
-        if view is None or view.page is None:return
+        if view is None or view.page is None or tv_native_fallback[0]:return
         sym,tf,period,provider,style,ema,generation=context
         if generation!=provider_generation[0] or sym!=scan_symbol.value or tf!=scan_tf.value:return
         if not tv_booted[0]:
@@ -4021,6 +4037,11 @@ console.log('BOT KING Lightweight Charts ready');
                     view.load_html(tradingview_widget_html(sym,saved[-tv_limit[0]:]),
                                    base_url="https://www.tradingview.com/")
                     tv_set_status("Chart initializing for "+sym+" • recovering WebView")
+            elif (tv_last_html_load[0] and time.monotonic()-tv_last_html_load[0]>=6
+                  and tv_mount_retries[0]>=2):
+                tv_native_fallback[0]=True
+                tv_set_status("WebView not ready • showing native candle chart")
+                request_view_refresh(3)
             return
         # A failed JS delivery keeps its pending candles. Retry that delivery
         # on the next local tick without fetching new history or rebuilding WebView.
@@ -4198,7 +4219,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
-            if chart_provider[0]=="TradingView Lightweight":
+            if chart_provider[0]=="TradingView Lightweight" and not tv_native_fallback[0]:
                 # Keep detailed overlay guidance in Central filters / help.
                 # On the Scanner screen the chart should take priority over captions.
                 parts.append(note("OHLC history • EMA 9/21 overlay • other filters: analysis only"))
@@ -4207,12 +4228,16 @@ console.log('BOT KING Lightweight Charts ready');
                 if tv_view[0] is None or tv_context[0]!=context:
                     tv_context[0]=context;tv_booted[0]=False;tv_ready[0]=False;tv_pending[0]=None;tv_limit[0]=300
                     tv_history[0]=[];tv_js_view[0]=None;tv_last_html_load[0]=0.0;tv_mount_retries[0]=0
+                    tv_native_fallback[0]=False
                     chart_delivery_identity[0]=None
                     tv_view[0]=ft.WebView(url="about:blank",enable_javascript=True,expand=True,on_page_started=tv_started,on_page_ended=tv_ended,on_web_resource_error=tv_error,on_console_message=chart_console)
                 parts.append(ft.Container(content=tv_view[0],height=460,bgcolor=PANEL2,border_radius=8))
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Broker from Chart provider."))
                 return section("LIGHTWEIGHT CHART • "+sym,ft.Column(parts,spacing=4))
+            if tv_native_fallback[0]:
+                parts.append(note("Android WebView unavailable • native candles restored from same Dhan history"))
+                parts.append(ft.TextButton("Retry Lightweight chart",on_click=tv_retry))
             parts.append(note("Underlying OHLC • delayed historical candles, NOT option premium"))
             if len(bars)>=2:
                 closes=[float(b[4]) for b in bars]
