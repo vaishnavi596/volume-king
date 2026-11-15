@@ -80,7 +80,7 @@ class UiPaperTests(unittest.TestCase):
         self.assertTrue(field.error_text)
 
     def test_chart_reuses_view_until_context_changes(self):
-        _,v=start(dict(scanner_live=False,chart_provider='TradingView Lightweight'))
+        _,v=start(dict(scanner_live=False,chart_provider='TradingView Lightweight',scanner_native_chart_migrated_23118=True))
         v['scanner_compact_chart']();first=v['tv_view'][0]
         v['scanner_compact_chart']();self.assertIs(v['tv_view'][0],first)
         v['scan_tf'].value='15m';v['scanner_compact_chart']();self.assertIsNot(v['tv_view'][0],first)
