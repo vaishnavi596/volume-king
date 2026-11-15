@@ -4457,7 +4457,7 @@ console.log('BOT KING Lightweight Charts ready');
                     parts.append(note("Supertrend signal: see Analysis Basis; no fabricated overlay"))
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
             parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
-            parts.append(note("Chart switches affect display only. Up to 15 saved analysis filters work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
+            parts.append(note("Chart switches affect display only. Up to 10 saved analysis filters work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
             parts.append(note("OI / PCR / Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def scanner_option_context():
