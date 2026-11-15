@@ -22,7 +22,7 @@ class UnavailableOptionFilterTests(unittest.TestCase):
         result = analyze(self.bars(), ["EMA 9/21", "RSI 14", *OPTION_FILTERS], "5m")
         options = [vote for vote in result["votes"] if vote["name"] in OPTION_FILTERS]
         self.assertEqual(len(options), len(OPTION_FILTERS))
-        self.assertTrue(all(v["vote"] is None and "UNAVAILABLE" in v["detail"] for v in options))
+        self.assertTrue(all(v["vote"] is None and "WAIT" in v["detail"] for v in options))
         directional = [v for v in result["votes"] if v["vote"] in (-1, 1)]
         self.assertLessEqual(len(directional), 2)
         self.assertEqual(result["bias"], "WAIT")
