@@ -312,10 +312,18 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 raise HTTPException(422, "Invalid market value")
             try:
                 return getattr(feed, method)(*args)
-            except SessionExpired:
-                clear()
-                raise HTTPException(401, "Broker session expired; reconnect") from None
-            except Exception:
+            except Exception as exc:
+                # Packaging/test runners can load the same trusted adapter as
+                # market_feed or src.market_feed. Distinct module identities
+                # produce distinct SessionExpired classes. Fail closed on both
+                # without relying on an attacker-supplied exception message.
+                expired=(isinstance(exc, SessionExpired) or
+                         (type(exc).__name__ == "SessionExpired"
+                          and type(exc).__module__ in ("market_feed", "src.market_feed")
+                          and isinstance(exc, RuntimeError)))
+                if expired:
+                    clear()
+                    raise HTTPException(401, "Broker session expired; reconnect") from None
                 raise HTTPException(502, "Market data unavailable; verify session and listed contract") from None
         finally:
             lock.release()
