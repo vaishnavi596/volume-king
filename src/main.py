@@ -3683,9 +3683,13 @@ console.log('BOT KING Lightweight Charts ready');
             save()
         except (ValueError,TypeError,KeyError,AttributeError):pass
     def tv_error(e):
-        tv_set_status("TradingView resource error: "+str(e.data)[:220])
+        if getattr(e,"control",None) is not tv_view[0]:
+            return
+        tv_ready[0]=False
+        tv_set_status("Chart resource error • retry available: "+str(getattr(e,"data",""))[:160])
     def tv_retry(e):
         if tv_view[0] is not None:
+            tv_ready[0]=False
             page.run_task(tv_load_widget)
     def chart_provider_change(e):
         tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
