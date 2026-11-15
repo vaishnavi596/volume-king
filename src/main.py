@@ -3521,6 +3521,8 @@ def app_main(page:ft.Page):
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
             return "WAITING FOR DATA • verified option-chain feed not connected"
+        if name=="News Headlines":
+            return "News context ON when selected • cached headlines only; no directional vote"
         if name in ("Volume","VWAP"):
             return "Analysis only • requires source volume; not a chart overlay"
         return "Analysis filter • not automatically drawn on chart"
@@ -3995,9 +3997,43 @@ console.log('BOT KING Lightweight Charts ready');
             # existing 51-equity universe.
             publish_partial_ranking({sym:row for sym,row in watch_signal_cache.items() if sym in watch_symbols})
             if current[0] in (0,3,4):request_view_refresh(current[0])
+    def enrich_context_filter_rows(sym,rows):
+        # Dhan OI and cached headlines are display-only; never a directional vote.
+        for row in rows:
+            name=row.get("name")
+            if name=="News Headlines":
+                with news_lock:
+                    data=news_cache.get(sym) or {}
+                items=data.get("items") or []
+                if items:
+                    cue=headline_signal(items)
+                    row["detail"]=str(len(items))+" cached headlines • "+str(cue.get("bias","UNCLASSIFIED"))+" • context only"
+                else:
+                    row["detail"]="No cached headlines • open News context/refresh • WAIT"
+                row["vote"]=None
+            elif name in OPTION_FILTERS:
+                data=dhan_option_metrics
+                if (sym=="NIFTY" and data.get("source")=="dhan"
+                        and data.get("symbol")=="NIFTY" and data.get("expiry")==expiry.value
+                        and data.get("signal_eligible") is False):
+                    context=option_chain_display_context(data)
+                    if name=="Max Pain" and isinstance(data.get("max_pain"),(int,float)):
+                        row["detail"]="Dhan Max Pain "+format(data["max_pain"],",.0f")+" • unverified, display only"
+                    elif name=="OI Profile" and context.get("available"):
+                        row["detail"]="Dhan ATM ±3 listed strikes available • unverified, display only"
+                    elif name in ("OI Support","OI Resistance") and context.get("available"):
+                        side="pe" if name=="OI Support" else "ce"
+                        best=max(context["rows"],key=lambda item:item[side].get("oi",0))
+                        row["detail"]="Highest "+side.upper()+" OI in ATM window at "+format(best["strike"],",.0f")+" • unverified"
+                    else:
+                        row["detail"]="Dhan option data incomplete • WAIT"
+                else:
+                    row["detail"]="No matching Dhan expiry snapshot • WAIT"
+                row["vote"]=None
+        return rows
     def shared_filter_report(sym,tf,result):
         result=selected_presentation(result,tf)
-        rows=complete_filter_rows(result,filter_selected,filter_modes)
+        rows=enrich_context_filter_rows(sym,complete_filter_rows(result,filter_selected,filter_modes))
         when=result.get("timestamp")
         stamp=(datetime.fromtimestamp(when,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
                if isinstance(when,(int,float)) else "unavailable")
@@ -4548,7 +4584,7 @@ console.log('BOT KING Lightweight Charts ready');
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
-            report_rows=complete_filter_rows(advanced,filter_selected,filter_modes)
+            report_rows=enrich_context_filter_rows(sym,complete_filter_rows(advanced,filter_selected,filter_modes))
             lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
                        GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]
             # Show filter-by-filter votes as soon as candle analysis completes.
