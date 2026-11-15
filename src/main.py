@@ -292,6 +292,7 @@ def app_main(page:ft.Page):
     broker_connect_busy=[False]
     option_feed_status=["Dhan option metrics not loaded; live orders OFF."]
     dhan_option_metrics={}
+    option_refresh_pending=[False]
     dhan_option_last_attempt=[0.0]
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
@@ -2349,9 +2350,11 @@ def app_main(page:ft.Page):
         prefs.update(option_symbol=chain_symbol.value,option_expiry_choice=option_expiry_choice.value,option_expiry=expiry.value or "")
         save()
         if e is not None:
+            dhan_option_metrics.clear()
+            option_feed_status[0]="Dhan • "+str(chain_symbol.value)+" • loading broker-listed expiry automatically"
+            option_refresh_pending[0]=True
             select(1)
-            # A changed symbol/expiry must fetch its own Dhan read-only snapshot.
-            if prefs.get("source")=="Dhan" and dhan_feed.connected:
+            if prefs.get("source")=="Dhan" and dhan_feed.connected and not option_feed_busy[0]:
                 page.run_task(refresh_selected_options)
     def add_option_symbol(e):
         sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
@@ -2362,7 +2365,7 @@ def app_main(page:ft.Page):
         if sym and sym in [o.key for o in chain_symbol.options]:
             chain_symbol.value=sym
             option_add_symbol.value=""
-            refresh_option_expiry()
+            refresh_option_expiry(type("OptionSelection",(),{})())
         select(1)
     chain_symbol.on_change=refresh_option_expiry
     option_expiry_choice.on_change=refresh_option_expiry
@@ -2440,9 +2443,7 @@ def app_main(page:ft.Page):
             note("Dhan CE/PE premium history • not available from the current read-only gateway"),
             note("The Option Chain above can display Dhan strikes, OI and premiums when returned by the selected expiry."),
             note("Historical option candles unavailable • no simulated chart; Dhan data only."),
-            ft.ElevatedButton("Refresh Dhan Option Chain",
-                on_click=lambda e:page.run_task(refresh_selected_options),
-                disabled=option_feed_busy[0]),
+            note("Dhan option-chain data refreshes automatically when symbol or expiry changes."),
             note(option_feed_status[0])
         ],spacing=6))
     def quote_caption(sym):
@@ -2475,12 +2476,14 @@ def app_main(page:ft.Page):
     async def refresh_selected_options():
         # Dhan-only read-only option metrics. No Angel One fallback.
         if option_feed_busy[0]:
+            option_refresh_pending[0]=True
             return
         if not dhan_feed.connected:
             option_feed_status[0]="Dhan connection unavailable • Connect / Check in Settings, then Refresh Dhan Option Chain."
             if current[0]==1:request_view_refresh(1)
             return
         option_feed_busy[0]=True
+        option_refresh_pending[0]=False
         dhan_option_last_attempt[0]=time.monotonic()
         generation=provider_generation[0]
         sym=chain_symbol.value
@@ -2489,8 +2492,8 @@ def app_main(page:ft.Page):
         request_id=health.begin(health_key)
         option_feed_status[0]="Loading broker-listed Dhan expiries..."
         try:
-            if sym!="NIFTY":
-                raise FeedError("Dhan option-chain mapping is currently verified only for NIFTY")
+            if sym not in DHAN_VERIFIED_SYMBOLS:
+                raise FeedError("No mapped Dhan underlying for "+sym)
             dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value:return
             if choice=="Manual":
@@ -2535,6 +2538,9 @@ def app_main(page:ft.Page):
         finally:
             option_feed_busy[0]=False
             if current[0]==1:select(1)
+            if option_refresh_pending[0] and dhan_feed.connected:
+                option_refresh_pending[0]=False
+                page.run_task(refresh_selected_options)
     async def option_poll():
         while True:
             if not app_active[0]:
@@ -2544,7 +2550,7 @@ def app_main(page:ft.Page):
             # scanner and dashboard already consume the same Dhan candle cache.
             if (current[0] in (0,1,3) and regular_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and chain_symbol.value=="NIFTY" and not option_feed_busy[0]
+                    and chain_symbol.value in DHAN_VERIFIED_SYMBOLS and not option_feed_busy[0]
                     and time.monotonic()-dhan_option_last_attempt[0]>=60):
                 await refresh_selected_options()
             await asyncio.sleep(15)
@@ -2634,12 +2640,12 @@ def app_main(page:ft.Page):
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
-            ft.ElevatedButton("Refresh selected data",on_click=lambda e:page.run_task(refresh_selected_options)),
+            note("Dhan data auto-refreshes for the selected symbol and expiry."),
             note("Dhan broker-listed expiry and unverified metrics only. Strike premiums unavailable; paper orders remain disabled."),
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
-                 ft.ElevatedButton("Refresh Dhan Option Chain",on_click=lambda e:page.run_task(refresh_selected_options),disabled=option_feed_busy[0]),
+                 note("Auto refresh • Dhan broker-listed expiry and option metrics"),
                  note(option_feed_status[0]),
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
