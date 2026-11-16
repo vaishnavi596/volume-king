@@ -1949,3 +1949,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator created `/opt/bot-king-server/server.py.b3-rollback` with `sudo install -o root -g root -m 644`.
 - Final three-way SHA256: production `server.py` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; staged `server.py.b3-staged` `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`; rollback `server.py.b3-rollback` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`.
 - All static deployment gates PASS: independent candidate integrity, syntax/compile, minimal diff, worker count one, health baseline and rollback SHA. No deployment/restart yet; next operator-controlled atomic swap and one restart, followed by immediate health/log/rollback gate. This does **not** prove Dhan concurrency reduction or two-phone performance.
+
+
+## 2026-11-16 — Oracle B3 deployment health gate FAIL; rollback attempted (operator evidence)
+- Operator ran gated B3 staged swap/restart. Immediate local `curl` to `127.0.0.1:8000/health` failed `curl: (7) Failed to connect ... Connection refused`.
+- Deployment script printed `B3 health failed; restoring original...` and rollback restart returned `active`. **This proves rollback path was invoked and systemd active, NOT yet that old source SHA and HTTP health are restored.**
+- The gate did not wait for Uvicorn readiness; early connection refusal could be transient startup latency. Root cause unknown pending `sha256sum`, repeated local health check and `journalctl` with timestamps. Do not classify B3 as broken or PASS, do not redeploy until verified.
