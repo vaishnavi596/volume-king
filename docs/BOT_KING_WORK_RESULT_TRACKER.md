@@ -107,3 +107,12 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 5/6 — APK release | v2.3.130 Build #645 signed PASS but phone observed live data failures | **NOT ACCEPTED** | No new APK before complete audit, fixes, CI, Oracle+device verification |
 
 **No fabricated PCR:** mapping-only means the Dhan cash/index security ID is known, *not* that this equity is F&O-listed or that a fresh option chain exists. New endpoint performs zero Dhan requests. The 15–30 second data collection target and genuine Oracle filter producer remain unimplemented/unverified.
+
+## 2026-11-16 — Oracle five-filter read-only source classification
+
+| Stage | Work completed | Code / CI proof | Oracle Production | Residual Error / next action |
+|---|---|---|---|---|
+| 1 / 4 | Earlier PCR mapping route source tests completed | #1571 [43832625673](https://github.com/vaishnavi596/volume-king/actions/runs/43832625673) **932/932 PASS**, job `133181353353` | **NOT RUN** | Source vs live deployment still unknown |
+| 1 / 2 | Added Python AST audit of deployed `server.py` for actual five filter names, four factor names and known `not_configured` placeholder: `scripts/audit_oracle_five_filters_readonly.py` | `2bba9280` commit; new source tests `e6677c7f`, CI **PENDING** at initial inspection | **NOT RUN**; no SSH tool | Operator run grouped 9-route source+collector GET+five-filter AST audits on Oracle. Source that differs from known placeholder still does **not** prove calculations work |
+| 2 / 3 | No change to real Oracle producer: five filters still unavailable in GitHub source; no new Dhan/option/assessment requests | Static helper only, no network | No production deployment | Implement verified per-underlying factors only after source/contract/expiry/freshness audit; unavailable is safer than invented percentages |
+| 5 / 6 | New signed APK withheld as user instructed | #645 v2.3.130 diagnostic signed previously | Phone PCR/five filters not accepted | Complete all gates and journal evidence before next build |
