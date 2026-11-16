@@ -174,3 +174,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/2 · collector freshness | A self-reported recent status could contradict measured snapshot or last-success age | `c1c01b1b` + `0128ca1a`: two audit warnings, with 2 interval guard, new CI **PENDING**. Does not verify actual exchange freshness or live Oracle. |
 
 - **CI #1576 FINAL:** [run 43837330114](https://github.com/vaishnavi596/volume-king/actions/runs/43837330114), head `0f4397af`, job `133197110014`, **946/946 PASS** (`Ran 946 tests in 101.635s`; GitHub completed success). This validates decorator-guard offline regression only; Oracle runtime remains unknown. #1577 (43837462720) and new #1578 (43837640203, head `0128ca1a`) were **IN PROGRESS** at latest inspection; no premature PASS.
+
+
+## 2026-11-16 — AUDIT-05 CI closure (exact completed runs)
+- #1577 [43837462720](https://github.com/vaishnavi596/volume-king/actions/runs/43837462720), head `aa75e0cd2a2933218117e77e024f0405cf8cf128`, job `133197544414`: **947/947 PASS** (GitHub Actions completed success, `Ran 947 tests in 117.531s`). Tests cover joined source-SHA mismatch guard.
+- #1578 [43837640203](https://github.com/vaishnavi596/volume-king/actions/runs/43837640203), head `0128ca1ab0987d1c051052689beebd99a4fa3419`, job `133198147934`: **949/949 PASS** (GitHub Actions completed success, `Ran 949 tests in 228.965s`). Tests cover collector status-vs-age contradictions. Previous #1576 **946/946 PASS** on `0f4397af` is also recorded.
+- **Classification:** GitHub **SOURCE/CI PASS** only. **NO ORACLE SSH execution** or sanitized reports received, **NO production deployment**, **NO real equity F&O PCR proof** or running five-filter producer, **NO new APK/orders**. Do not misinterpret CI completion as an end-to-end market-data fix.
+- **Gate:** operator-run scripts listed in `docs/ORACLE_FILTER_AUDIT_02_OPERATOR_GATE_20261116.md` on Oracle, then run offline joined classifier. Source SHA in both AST reports must match; classify live GET errors and collector timestamps before backup-first remedial changes.
