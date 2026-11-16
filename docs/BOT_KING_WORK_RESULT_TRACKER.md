@@ -531,3 +531,9 @@ This is the persistent, numbered owner-facing checklist for the work still being
 ## 2026-11-16 — Two-job controlled sequence, B2 audit-only outcome
 - **Job 1 B3:** backend historical pacing source `d192027e` and offline concurrency tests `74ad03ec` committed, #1664 CI not yet concluded at observation; no Oracle production deployment or shared multi-host cache.
 - **Job 2 B2:** source-only review of completed 3m aggregation and last-good candle retention rules confirms existing safeguards; **NO NEW B2 PATCH**, no new Dhan calls. B2 remains **PARTIAL**, especially 51-equity 1m ingestion, real 3m coverage/freshness and Android acceptance. Do not elevate checklist status from code inspection alone.
+
+
+## 2026-11-16 — B3 checkpoint 11/12 latest CI evidence
+- **[CI #1663](https://github.com/vaishnavi596/volume-king/actions/runs/43885026879): 1033/1033 PASS** code `d192027e`.
+- **[CI #1664](https://github.com/vaishnavi596/volume-king/actions/runs/43885090122): 1035/1035 PASS** including offline concurrency and cooldown tests, test commit `74ad03ec`.
+- **Release gate still OPEN:** source-level backend historical pacing, process-local only; Oracle production not deployed or tested. Shared history cache/duplicate request coalescing between two phones not established; B2 Watchlist full 3m history and B4 genuine five filter scores remain incomplete. Android acceptance and APK deferred.
