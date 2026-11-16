@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from active_symbol_budget import plan_active_symbols
+from active_symbol_budget import plan_active_symbols, plan_due_history_symbols
 
 
 class Sdc4BudgetTests(unittest.TestCase):
@@ -38,6 +38,33 @@ class Sdc4BudgetTests(unittest.TestCase):
                        [["bad symbol"], [], [], [], []]):
             with self.subTest(groups=groups), self.assertRaises(ValueError):
                 plan_active_symbols(groups)
+
+    def test_due_history_batch_never_fans_out_all_fifty_one(self):
+        symbols = [f"STOCK{i:02d}" for i in range(51)]
+        plan = plan_active_symbols([symbols, [], [], [], []])
+        due = plan_due_history_symbols(plan, now=300, max_batch=3)
+        self.assertEqual(len(due), 3)
+        self.assertEqual(len(set(due)), 3)
+        self.assertTrue(set(due).issubset(set(plan.indices + plan.equities)))
+
+    def test_cooldown_blocks_all_requests(self):
+        plan = plan_active_symbols([["RELIANCE"], [], [], [], []])
+        self.assertEqual(plan_due_history_symbols(plan, now=300, cooldown_until=330), ())
+
+    def test_recent_and_expired_attempts(self):
+        plan = plan_active_symbols([["RELIANCE"], [], [], [], []], keep_indices=())
+        self.assertEqual(plan_due_history_symbols(plan, now=250,
+            last_attempts={"RELIANCE": 100}, minimum_spacing=180), ())
+        self.assertEqual(plan_due_history_symbols(plan, now=280,
+            last_attempts={"RELIANCE": 100}, minimum_spacing=180), ("RELIANCE",))
+
+    def test_rejects_unbounded_or_nonfinite_inputs(self):
+        plan = plan_active_symbols([["RELIANCE"], [], [], [], []])
+        for options in ({"max_batch": 4}, {"max_batch": 0},
+                        {"minimum_spacing": 0}, {"now": float("nan")},
+                        {"last_attempts": {"RELIANCE": float("inf")}}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                plan_due_history_symbols(plan, **dict({"now":300}, **options))
 
     def test_does_not_assume_any_provider_call_count(self):
         budget = plan_active_symbols([["RELIANCE", "TCS"], [], [], [], []])
