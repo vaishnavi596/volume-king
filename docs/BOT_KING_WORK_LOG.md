@@ -2326,3 +2326,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator used synthetic pairing key and isolated AST-extracted candidate functions (not running HTTP server). Exact output: `READINESS_FAIL_CLOSED PASS`; `FIVE_FILTERS_UNAVAILABLE PASS`; `FOUR_FACTORS_UNAVAILABLE PASS`; `NO_UNVERIFIED_SIGNAL PASS`; `LIVE_ORDERS_DISABLED PASS`.
 - Candidate isolated function tests now **9/9 PASS** across four missing/wrong-key 403 cases and five authorized-response safety contracts. Readiness collector reports not configured; five assessment filters and four factors explicitly unavailable; no signal eligibility and no live orders.
 - Scope: no real HTTP request to candidate, no production deployment, no real Dhan data integration, no verified functional filters. Candidate is a fail-closed placeholder, **not** scanner completion. Next gate should be candidate HTTP test in a separate isolated process or implement real filter data pipeline in GitHub with tests, before considering any deployment; production stays unchanged.
+
+
+## 2026-11-16 — Oracle ASGI test dependencies checked; user requests grouped commands
+- Operator executed read-only virtualenv module discovery and reported `FASTAPI= True`, `HTTPX= False`, `STARLETTE= True`, `PYTHON_TEST_ENV=CHECKED`.
+- `httpx` unavailable, so avoid installing dependencies or using TestClient. Plan single combined isolated in-process ASGI test using existing FastAPI/Starlette, AST-extracted candidate route functions and synthetic key, without importing production module, opening a port, reading secrets or touching service. User explicitly prefers grouped 2–4 safe checks per command to accelerate work. HTTP runtime results pending.
