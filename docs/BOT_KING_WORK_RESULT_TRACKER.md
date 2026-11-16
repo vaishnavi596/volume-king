@@ -206,3 +206,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - #1579 [run 43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, job `133201392828`: **951/951 PASS**, GitHub job/workflow success (`Ran 951 tests in 162.235s`). Tests for valid SHA256 and finite audit evidence.
 - #1580 [run 43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, job `133202162167`: **953/953 PASS**, GitHub job/workflow success (`Ran 953 tests in 200.350s`). Tests include recent label with zero/unknown equity cache quote count.
 - Historical in-progress entries for these runs are superseded. These results are strictly **offline CI**, not evidence of Oracle collector execution, five-filter live signals, or equity PCR entitlement. No deployment, no orders, no APK.
+
+
+## 2026-11-16 — AUDIT-08 protected read-only loopback request
+| Stage | Confirmed source exposure | Fix and validation | Actual environment |
+|---|---|---|---|
+| 1/2 · operator GET health/readiness/snapshot | Opener disabled proxy but allowed HTTP redirects, risking propagation of protected header beyond loopback | `92c3597f` no-redirect handler, `55cffa26` regression. **CI PENDING** | No live Oracle run or reported incident |
+| 3/4/5/6 · PCR, five filters, APK | No new producer or live entitlement proof | No APK/orders/deployment | UNVERIFIED |
