@@ -468,3 +468,17 @@ This is the persistent, numbered owner-facing checklist for the work still being
 ## 2026-11-16 — B2 checkpoint 05/08: index failure reporting fix
 - **Source fix** [b1bff4b8](https://github.com/vaishnavi596/volume-king/commit/b1bff4b88c9c563e4fb76300bf965c041568f503): independent Dashboard Dhan 1m history poll errors now carry the correct **1m** timeframe, not legacy 5m; **test added** [50e0ae6d](https://github.com/vaishnavi596/volume-king/commit/50e0ae6d38f8661b36d93af72d2a5fe7cc2abdb4). GitHub Actions CI **UNVERIFIED**; Oracle and mobile **NOT RUN**.
 - Proposed bounded reuse of already-cached 1m candles for Watchlist 3m was interrupted before a commit: **NOT DONE**. Remain B2 PARTIAL. No APK.
+
+
+## 2026-11-16 — Four coordinated lanes; B2 checkpoint 07 active cached history reuse
+
+| Work lane | Original numbered batches | Completed source component | Remaining proof/repair |
+|---|---|---|---|
+| **A** | **B1 + B2** | 1m/3m/5m cache selectors, Dashboard 1m index historical votes, Scanner-selected 3m, cached-only Watchlist 3m; cached Dhan 1m→3m local reuse [46d6491c](https://github.com/vaishnavi596/volume-king/commit/46d6491cf736f68b250fea2e223c7368384a7716), regression source [60100644](https://github.com/vaishnavi596/volume-king/commit/60100644982ba7e8a18948164c33ec88ab04d57b) | CI actual PASS; quota-safe upstream active-equity 1m acquisition, real Oracle 1m/3m provenance, 429/bytes/mobile |
+| **B** | **B3** | `active_symbol_budget.py` pure planner + offline test code | Actual subscribed worklist, Dhan call-count reduction, 70 dynamic symbols, quota limits |
+| **C** | **B4** | Five filter labels/source-agnostic WAIT validation and separate 4-factor UI contracts | Real Dhan OI/expiry/PCR/max pain and independent factor input/score definition; actual Oracle/phone evidence |
+| **D** | **B5 + B6** | Earlier UI/candle/cache fixes, error/release policy, previous signed diagnostic APK | Exact-head CI/phone regressions, Oracle backed-up parity/release gate; one new signed version only at end |
+
+- **Checkpoint 07 stays PARTIAL**: from already-cached authentic Dhan 1m candles, Watchlist can now derive completed 3m locally without new calls; automatically fetching all active 51-equity 1m histories is **not yet in place**. Do not interpret Group A SOURCE patch as 3m full mobile PASS.
+- **New regressions 3 written, NOT VERIFIED passing**. The search connector for old PR runs cannot establish new push CI; browser fetching GitHub Actions failed. Oracle NOT DEPLOYED, mobile NOT TESTED, new APK NOT BUILT.
+- **Conflict rule:** Groups can progress independently only for non-overlapping files. Changes to `src/main.py` and common data budget are staged sequentially behind pre-edit last-ten review and exact-head test gate. Source evidence vs deployed/live proof remain separate.
