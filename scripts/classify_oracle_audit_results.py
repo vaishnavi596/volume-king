@@ -38,6 +38,15 @@ def classify(routes, filters, collector):
     else:
         add("ASSESSMENT_IMPLEMENTATION_UNKNOWN", "source", "Inspect sanitized source, schema and freshness; do not assert working filters")
 
+    # Reports taken from different server.py versions cannot certify route parity.
+    route_sha = routes.get("source_sha256")
+    filter_sha = filters.get("source_sha256")
+    if (route_sha is None or filter_sha is None or
+            not isinstance(route_sha, str) or not isinstance(filter_sha, str) or
+            route_sha != filter_sha):
+        add("SOURCE_REPORT_MISMATCH", "source",
+            "Re-run both AST audits on the same deployed server.py version")
+
     for route, field in (("/health", "health_http"),
                          ("/v2/server-readiness", "readiness_http"),
                          ("/v2/snapshot", "snapshot_http")):
@@ -81,7 +90,9 @@ def classify(routes, filters, collector):
                                   and routes.get("source_present") == EXPECTED_ROUTES
                                   and routes.get("source_missing") == []
                                   and filters.get("syntax") == "PASS"
-                                  and filters.get("assessment_route_source_count") == 1),
+                                  and filters.get("assessment_route_source_count") == 1
+                                  and isinstance(route_sha, str)
+                                  and route_sha == filter_sha),
         "runtime_five_filters_proven": False,
         "equity_pcr_entitlement_proven": False,
         "oracle_production_changed": False,
