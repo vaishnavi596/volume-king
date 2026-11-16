@@ -129,3 +129,12 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 
 
 - **CI #1572 FINAL VERIFIED (2026-11-16):** [run 43833438579](https://github.com/vaishnavi596/volume-king/actions/runs/43833438579), commit `e6677c7f`, job `133184087265`, **936/936 PASS** (`Ran 936 tests in 351.753s; OK`). This supersedes the earlier in-progress snapshot above. It establishes offline audit regression success only; Oracle execution, five-filter producer, device PCR and deployment remain **UNVERIFIED**. No APK created.
+
+
+## 2026-11-16 — Joint batch ORACLE-FILTER-AUDIT-03 (evidence classification)
+
+| Stage | Exact work | Code/tests/observed result | Outstanding gate |
+|---|---|---|---|
+| 1/2 · source and collector | Reviewed three read-only Oracle scripts; identified absence of joined triage classification | New non-network classifier `ee9b0243` distinguishes source gaps, 403, 404, 429, disabled/stale status, known placeholder vs unknown producer. **Source added**, not run against production | Actual Oracle sanitized reports required; SSH unavailable here |
+| 3/4 · PCR / five filters | Fail-closed audit decision tests cover 6 cases `ef2ca0d0`; runbook updated `98b05dc6` | New suite **CI PENDING** at tracker update; prior #1572 **936/936 PASS** applies only to earlier audit test commit | Five-filter producer and equity PCR availability **UNVERIFIED**; do not fake percentages |
+| 5/6 · end-to-end / release | Journal written `aebbd77e`, no deployment/orders/APK | **NOT DEPLOYED, NOT RELEASED** | Source CI, Oracle backup-first corrective patch, device proof before APK |
