@@ -97,6 +97,21 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
         self.assertEqual(view["snapshot_status"], "not_collected")
         self.assertEqual(view["equity_quote_count"], 0)
 
+    def test_unexpected_http_json_shapes_are_not_green_or_crash(self):
+        a = module()
+        r = a.ProbeResult
+        result = a.summarize([
+            r("/health", 200, ["unexpected"]),
+            r("/v2/server-readiness", 200, ["unexpected"]),
+            r("/v2/snapshot", 200, ["unexpected"]),
+        ])
+        self.assertFalse(result["health_ok"])
+        self.assertIsNone(result["collector_enabled"])
+        self.assertEqual(result["collector_status"], "unknown")
+        self.assertEqual(result["snapshot_status"], "unknown")
+        self.assertIsNone(result["equity_quote_count"])
+        self.assertIsNone(result["live_orders_enabled"])
+
     def test_stale_and_403_do_not_pretend_success(self):
         a = module()
         r = a.ProbeResult
