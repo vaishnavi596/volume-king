@@ -1376,3 +1376,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **Tests** [6220e02e](https://github.com/vaishnavi596/volume-king/commit/6220e02e9b18de0c8956eda7b277fdfa5e9bca47) cover zero, missing and normal 51 count with fail-closed assertions. **New CI pending** at commit time. No Oracle SSH; not a live quote result. No APK or orders.
 
 - **Exact new CI runs:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, and #1580 [43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, both **IN PROGRESS** when inspected. Neither has Oracle runtime proof or release status. Keep both pending until GitHub completed result and job count verified.
+
+
+## 2026-11-16 — AUDIT-06/07 CI final results (confirmed)
+- #1579 [run 43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, job `133201392828`: **951/951 PASS**, GitHub job/workflow success (`Ran 951 tests in 162.235s`). Tests for valid SHA256 and finite audit evidence.
+- #1580 [run 43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, job `133202162167`: **953/953 PASS**, GitHub job/workflow success (`Ran 953 tests in 200.350s`). Tests include recent label with zero/unknown equity cache quote count.
+- Historical in-progress entries for these runs are superseded. These results are strictly **offline CI**, not evidence of Oracle collector execution, five-filter live signals, or equity PCR entitlement. No deployment, no orders, no APK.
