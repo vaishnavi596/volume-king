@@ -1999,3 +1999,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator requested `http://127.0.0.1:8000/openapi.json` via Python urllib; response `HTTP Error 404: Not Found`. No Dhan historical provider call occurred.
 - This means OpenAPI schema is unavailable at that URL (possibly disabled or mounted elsewhere), **not** that `/dhan/intraday` is missing or B3 failed. Avoid repeated probing and read production Pydantic request model directly via AST, without importing or executing the server.
 - B3 source deployment, service startup and Dhan status previously PASS; actual historical/cache/concurrency still pending.
+
+
+## 2026-11-16 — Oracle production Dhan intraday request model AST PASS
+- Operator parsed production `server.py` AST without importing/executing server: `DhanIntradayRequest` FOUND, fields `symbol: str`, `interval: Literal[1,3,5,15,25,30,60]`, `from_date: date`, `to_date: date`; `dhan_intraday` handler FOUND at line 880.
+- This establishes the **source request schema** and presence of handler, not an HTTP historical success or provider result. OpenAPI 404 remains documentation-only. Next perform one bounded authenticated historical read on a prior trading day, print only HTTP status/source/candle count/freshness and errors (redacted); do not send orders or expose key.
