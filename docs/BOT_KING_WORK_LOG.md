@@ -2181,3 +2181,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — CI #1682 one fixture error; repaired, next CI pending
 - Verified Actions #1682 (`43918151306`), tested SHA `c4c354455147396f3ae59fde7ae35d0b04237bf0`: **failure** with `Ran 1060 tests in 162.534s`, `FAILED (errors=1)`. Exact error in `test_late_binding_holds`: test fixture appended literal `\\n` bytes instead of a newline, causing `SyntaxError: unexpected character after line continuation character`. This is a fixture construction error, not evidence of Oracle production failure.
 - Updated the regression fixture to append an actual escaped newline in the Python bytes literal; corrective commits `3c6c8621` and `b36c6efd` (the latter retains the same resulting blob). Fresh CI result pending. No deployment, no Dhan access, no APK.
+
+
+## 2026-11-16 — CI #1683 late-binding fixture mismatch fixed; new CI pending
+- Verified run #1683 (`43919928747`), tested `3c6c8621`: **failure**, `Ran 1060 tests in 116.651s`, exactly one failure `test_late_binding_holds`: expected `static_pass=False`, got True. Root cause: fixture's `BASE.replace` searched for literal backslash-n rather than the actual newline, so it failed to remove the early `pairing_key` binding. This is a test fixture defect; no Oracle production fault demonstrated.
+- Corrected the early-binding replacement and late-binding appended fixture at commit `b30555a9`; new CI pending. Keep production deployment HOLD. No Dhan/token/APK operations.
