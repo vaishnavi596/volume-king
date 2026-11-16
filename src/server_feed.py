@@ -6,6 +6,7 @@ import urllib.parse
 import urllib.request
 
 from market_feed import AngelFeed, FeedError, SessionExpired
+from refresh_coordinator import LaneCoordinator
 
 
 def direct_https_opener():
@@ -209,6 +210,7 @@ class ServerDhanReadOnly:
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
         self._request_lock = threading.Lock()
+        self._lane_coordinator = LaneCoordinator(max_cached=8)
 
     @property
     def connected(self):
@@ -226,6 +228,8 @@ class ServerDhanReadOnly:
         self._global_cooldown_until = 0.0
         self._invalid_option_until = {}
         self._direct_equity_last_attempt = 0.0
+        # Do not reuse Oracle readiness across reconnects / pairing-key changes.
+        self._lane_coordinator = LaneCoordinator(max_cached=8)
 
     def _call(self, path, payload=None):
         with self._request_lock:
@@ -634,15 +638,28 @@ class ServerDhanReadOnly:
         return result
 
     def server_readiness(self):
-        """Read the disabled-execution readiness policy; never submit orders."""
-        result = self._call("/v2/server-readiness")
-        orders = result.get("orders")
-        if (not isinstance(orders, dict)
-                or orders.get("broker_submission_allowed") is not False
-                or orders.get("live_orders_enabled") is not False
-                or result.get("live_orders_enabled") is not False):
-            raise FeedError("Unsafe Dhan readiness response")
-        return result
+        """Share a validated, read-only Oracle readiness result for 10 seconds.
+
+        This never caches unsafe payloads, never contacts Dhan, and resets on
+        disconnect/reconnect. Market quotes/candles/options are unchanged.
+        """
+        if not self.connected:
+            raise FeedError("Dhan server not connected; use Connect / Check in Settings")
+
+        def fetch_and_validate():
+            result = self._call("/v2/server-readiness")
+            if not isinstance(result, dict):
+                raise FeedError("Invalid Dhan readiness response")
+            orders = result.get("orders")
+            if (not isinstance(orders, dict)
+                    or orders.get("broker_submission_allowed") is not False
+                    or orders.get("live_orders_enabled") is not False
+                    or result.get("live_orders_enabled") is not False):
+                raise FeedError("Unsafe Dhan readiness response")
+            return result
+
+        return self._lane_coordinator.run(
+            "context", "server-readiness", fetch_and_validate, ttl_seconds=10)
 
     def option_expiries(self, symbol):
         """Broker-listed expiries from the Oracle Dhan read-only route."""
