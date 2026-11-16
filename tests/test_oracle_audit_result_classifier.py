@@ -59,6 +59,22 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertNotIn("SNAPSHOT_AGE_CONFLICT", codes(out))
         self.assertNotIn("COLLECTOR_AGE_CONFLICT", codes(out))
 
+    def test_invalid_matching_hashes_do_not_certify_source(self):
+        self.routes["source_sha256"] = "placeholder"
+        self.filters["source_sha256"] = "placeholder"
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SOURCE_REPORT_MISMATCH", codes(out))
+        self.assertFalse(out["source_audit_complete"])
+
+    def test_nonfinite_age_does_not_create_false_freshness_warning(self):
+        self.collector.update(collector_interval_seconds=float("nan"),
+                              snapshot_age_seconds=10000.0,
+                              collector_last_success_age_seconds=10000.0)
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertNotIn("SNAPSHOT_AGE_CONFLICT", codes(out))
+        self.assertNotIn("COLLECTOR_AGE_CONFLICT", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+
     def test_mixed_version_audit_reports_never_mark_complete(self):
         self.filters["source_sha256"] = "b" * 64
         out = mod.classify(self.routes, self.filters, self.collector)
