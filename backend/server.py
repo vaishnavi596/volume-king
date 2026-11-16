@@ -47,6 +47,10 @@ try:
     from .dhan_registry import load_dynamic_instruments
 except ImportError:
     from dhan_registry import load_dynamic_instruments
+try:
+    from .option_underlying_status import option_underlying_status
+except ImportError:
+    from option_underlying_status import option_underlying_status
 
 _dhan_auth_logger = logging.getLogger("botking.dhan.auth")
 
@@ -494,6 +498,18 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                          if instrument[0] == "NSE_EQ" and query in symbol)
         return {"source": "dhan_registry", "symbols": matches[:limit],
                 "total_matching": len(matches), "live_orders_enabled": False}
+
+    @app.get("/v2/option-underlying-status/{symbol}")
+    def botking_option_underlying_status(symbol: str,
+                                        x_botking_key: Optional[str] = Header(default=None)):
+        """Mapping-only diagnostic. NO option-chain request or entitlement claim."""
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if not re.fullmatch(r"[A-Z0-9&_-]{1,32}", symbol):
+            raise HTTPException(422, "Invalid Dhan underlying symbol")
+        return {**option_underlying_status(symbol, DYNAMIC_INSTRUMENTS),
+                "source": "dhan_instrument_mapping",
+                "live_orders_enabled": False}
 
     @app.post("/dhan/option-expiries")
     def dhan_option_expiries(body: Symbol,
