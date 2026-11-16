@@ -41,6 +41,27 @@ class OracleFiveFiltersSourceAudit(TestCase):
         self.assertIn("Candle: WAIT", joined)
         self.assertIn("no verified 0–100 scores", joined)
 
+    def test_not_configured_explains_wait_on_compact_cards(self):
+        payload = {
+            "symbol": "RELIANCE", "collection_status": "not_configured",
+            "live_orders_enabled": False, "signal_eligible": False,
+        }
+        rows = assessment_lines("RELIANCE", {
+            "RELIANCE": {"fetched": 100, "data": payload}}, now=101)
+        self.assertEqual(len(rows), 1)
+        self.assertIn("WAIT", rows[0])
+        self.assertIn("server producer not configured", rows[0])
+        self.assertNotIn("100%", rows[0])
+
+    def test_not_configured_does_not_override_unsafe_order_guard(self):
+        payload = {
+            "symbol": "RELIANCE", "collection_status": "not_configured",
+            "live_orders_enabled": True, "signal_eligible": True,
+        }
+        rows = assessment_lines("RELIANCE", {
+            "RELIANCE": {"fetched": 100, "data": payload}}, now=101)
+        self.assertIn("unsafe response", rows[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
