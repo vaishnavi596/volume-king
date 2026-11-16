@@ -695,6 +695,43 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "freshness": "unverified", "live_orders_enabled": False,
                 "quote_timestamp": None}
 
+    @app.get("/v2/server-readiness")
+    def botking_server_readiness(x_botking_key: Optional[str] = Header(default=None)):
+        """Authenticated, sanitized Oracle collector readiness; orders remain OFF.
+
+        Configuration presence is not evidence that Dhan collection is healthy.
+        No OAuth credentials, pairing keys or account identifiers are returned.
+        """
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        with snapshot_lock:
+            age = (max(0.0, clock() - snapshot_cache["updated_monotonic"])
+                   if snapshot_cache["updated_monotonic"] else None)
+            collected = len(snapshot_cache["quotes"])
+            error = snapshot_cache["error"]
+        enabled = os.environ.get("BOTKING_226_INGEST_ENABLED", "0") == "1"
+        # Report only booleans / bounded intervals / aggregate counts.
+        status = ("disabled" if not enabled else
+                  "not_collected" if age is None else
+                  "upstream_error" if error is not None else
+                  "recently_collected" if age <= min(120, snapshot_collection_interval + 15)
+                  else "collection_overdue")
+        return {
+            "protocol": 2, "service": "BOT KING",
+            "collector": {
+                "configured_enabled": enabled,
+                "status": status,
+                "interval_seconds": snapshot_collection_interval,
+                "last_success_age_seconds": round(age, 1) if age is not None else None,
+                "equity_quote_count": collected,
+            },
+            "orders": {
+                "broker_submission_allowed": False,
+                "live_orders_enabled": False,
+            },
+            "live_orders_enabled": False,
+        }
+
     @app.get("/v2/snapshot")
     def botking_snapshot(x_botking_key: Optional[str] = Header(default=None)):
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
