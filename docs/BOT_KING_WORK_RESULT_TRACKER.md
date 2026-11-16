@@ -516,3 +516,9 @@ This is the persistent, numbered owner-facing checklist for the work still being
 ## 2026-11-16 — B3 #11/#12 exact source CI confirmed
 - **CI:** [#1662](https://github.com/vaishnavi596/volume-king/actions/runs/43883383158), exact test commit `73580eae`, job 133354923053: **1033 tests, 0 FAIL, 0 ERROR, SUCCESS**; source implementation `95e17af0` also confirmed by #1661.
 - **B3 status: SOURCE + OFFLINE TEST PASS; SERVER/PROVIDER/DEVICE NOT TESTED.** The capped cooldown-aware planner is still not connected to the real Dhan history queue, so its global 1.5s guard cannot be claimed to govern actual traffic. B1/B2 data quality and B4 genuine filter evidence remain open. Do not create APK or call all six batches PASS.
+
+
+## 2026-11-16 — B3 checkpoint #11/#12 request-flow audit (source, not production proof)
+- Offline CI #1662: 1033/1033 PASS on `73580eae`. Inspected `ServerDhanReadOnly` serialized per-client HTTPS call lock; per-path and global 429 cooldown (1–120s retry), 2 MB max response; `get_market_data` same-key 90s cache; index 180s schedule. These are **SOURCE observations**, not measured Oracle request or bandwidth rates.
+- **Unresolved gap:** `plan_due_history_symbols` still **NO runtime call sites** in `src/main.py`; cannot count its max-3 or 1.5s guard as live throttling. The client mutex is not global across two mobiles. Oracle-owned quota, single shared history collector, last-good cache and 2-device fanout protection must be audited/tested before activation; mobile remains one-device scope.
+- **Status:** B3 SOURCE/OFFLINE PASS, runtime integration **OPEN**, Oracle **NOT AUDITED LIVE**, device **NOT TESTED**, B6 release **BLOCKED**. No code changes during this audit, no APK.
