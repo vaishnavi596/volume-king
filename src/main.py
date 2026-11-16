@@ -2084,6 +2084,25 @@ def app_main(page:ft.Page):
 
     # The Watchlist observes changed quote/filter signatures at 2s UI cadence.
     # No on-screen 60s countdown: the broker poll rate and UI paint rate differ.
+    def watch_cell_age_flags(sym,now_epoch=None):
+        # Crossing the stale threshold must repaint labels even if price is
+        # unchanged. Purely local: no upstream quote/candle request.
+        now_epoch=now_epoch if now_epoch is not None else time.time()
+        quote=quotes.get(sym) or {}
+        signal=watch_signal_cache.get(sym) or {}
+        quote_at=quote.get("fetched_at")
+        signal_at=signal.get("timestamp")
+        quote_stale=(isinstance(quote_at,(int,float)) and not isinstance(quote_at,bool)
+                     and now_epoch-quote_at>60)
+        signal_stale=(isinstance(signal_at,(int,float)) and not isinstance(signal_at,bool)
+                      and now_epoch-signal_at>timeframe_spec("5m")["fresh_seconds"])
+        snapshot=five_engine_snapshots.get(sym) or {}
+        engines=snapshot.get("engines") or () if isinstance(snapshot,dict) else ()
+        five_stale=tuple(bool(getattr(e,"eligible",False) and
+                              isinstance(getattr(e,"timestamp",None),(int,float)) and
+                              now_epoch-e.timestamp>300) for e in engines)
+        return quote_stale,signal_stale,five_stale
+
     async def watch_visible_tick():
         # Local 2s observation does NOT call Dhan or reconstruct the entire page.
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
@@ -2103,7 +2122,8 @@ def app_main(page:ft.Page):
                            (quotes.get(sym) or {}).get("change"),
                            (watch_signal_cache.get(sym) or {}).get("timestamp"),
                            repr((watch_signal_cache.get(sym) or {}).get("votes")),
-                           id(five_engine_snapshots.get(sym))) for sym in visible))
+                           id(five_engine_snapshots.get(sym)),
+                           watch_cell_age_flags(sym)) for sym in visible))
                 button=watch_refresh_button[0]
                 if button is not None:
                     should_disable=(watch_batch_busy[0] or index_refresh_busy[0]
@@ -2135,7 +2155,8 @@ def app_main(page:ft.Page):
                                       q.get("freshness"),q.get("source"),
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
                                       signal_row.get("live_verified"),signal_row.get("freshness"),
-                                      id(five_engine_snapshots.get(sym)),watch_batch_status[0])
+                                      id(five_engine_snapshots.get(sym)),
+                                      watch_cell_age_flags(sym),watch_batch_status[0])
                     if last_cell_signatures.get(sym)==symbol_signature:
                         continue
                     last_cell_signatures[sym]=symbol_signature
