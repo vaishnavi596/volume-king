@@ -1178,6 +1178,15 @@ def app_main(page:ft.Page):
         news_bootstrap_generation[0]=generation
         candidates=list(dict.fromkeys(row.get("symbol") for row in top5_candidates
             if isinstance(row,dict) and row.get("symbol") in watch_symbols))[:5]
+        # A first install or cleared cache has no saved Top Five. Prime a
+        # bounded set of watchlist news contexts rather than silently sending
+        # zero requests for the whole login generation. These are NOT scored
+        # or promoted to trading signals.
+        for sym in watch_symbols:
+            if len(candidates)>=5:
+                break
+            if sym not in candidates:
+                candidates.append(sym)
         for sym in candidates:
             if (generation!=provider_generation[0] or not app_active[0]
                     or not dhan_feed.connected):
