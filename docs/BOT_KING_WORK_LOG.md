@@ -2059,3 +2059,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Rechecked latest journal commit `00ebbb4b98bd2131bd1424b0e2283cdda177a356`: GitHub connector's PR-trigger-filtered `fetch_commit_workflow_runs` returned `[]`; combined commit statuses returned `[]`.
 - This is **not** proof no Actions runs exist; the available lookup excludes push-triggered workflows. No CI PASS claim. No new source modifications, no Oracle commands, no live Dhan calls.
 - Next practical validation: obtain actual Actions run URL/job result from GitHub UI or use a workflow listing capability when available; execute committed `tests/test_prepare_oracle_b3_candidate.py` with Python unittest in a CI environment and record exact run id.
+
+
+## 2026-11-16 — B3 cold-cache mocked regression confirmed GitHub Actions PASS (#1673)
+- Independently verified GitHub Actions run [#1673](https://github.com/vaishnavi596/volume-king/actions/runs/43902663824), run ID `43902663824`, push-triggered at commit `099ccee85433ccb86007d8b0f4e7f3bb7eddc32e`. API: `status=completed`, `conclusion=success`, `run_attempt=1`.
+- Job `offline-tests` (job ID `133423133586`) completed successfully, including `Check Python syntax` and `Run offline regression suite (no APK build)`.
+- Retrieved job logs and confirmed `test_exact_oracle_lock_block_cold_miss_one_mock_provider_call` is in executed tests; final unittest summary: **Ran 1049 tests in 124.060s — OK**. This supersedes earlier uncertainty about CI visibility: the earlier commit-workflow lookup was PR-event filtered, while this was a `push` workflow.
+- Proof scope: the committed test executes the Oracle generator's exact lock block against mocked cache/provider. It does **not** instrument Oracle's production cold cache, verify real Dhan upstream request count, or prove two physical phones. No Oracle production deployment, restart, credentials, or orders involved.
