@@ -97,6 +97,24 @@ class OracleFiveFiltersSourceAudit(TestCase):
                 symbol: {"fetched": 90, "data": payload}}, now=100, max_age=float("inf"))
             self.assertIn("cached assessment expired", rows[0])
 
+    def test_malformed_filter_ids_do_not_crash_any_shared_symbol_view(self):
+        for symbol in ("RELIANCE", "NIFTY", "BANKNIFTY", "SENSEX"):
+            for bad_id in ([], {"unhashable": True}, None, 123):
+                filters = [{"id": name, "status": "unavailable"}
+                           for name in FILTER_NAMES]
+                filters[0]["id"] = bad_id
+                payload = {
+                    "symbol": symbol, "collection_status": "not_configured",
+                    "live_orders_enabled": False, "signal_eligible": False,
+                    "factors": {key: {"status": "unavailable"} for key in
+                                ("news", "futures", "options", "candle")},
+                    "assessment_filters": filters,
+                }
+                lines = assessment_lines(symbol, {
+                    symbol: {"fetched": 100, "data": payload}}, now=101)
+                self.assertIn("incomplete filters", lines[0])
+                self.assertNotIn("server producer not configured", lines[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
