@@ -1308,3 +1308,6 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - [ORACLE-FILTER-AUDIT-02 operator gate](ORACLE_FILTER_AUDIT_02_OPERATOR_GATE_20261116.md) committed as `5455ada6`: ordered three-script execution and sanitation requirements, 401/403-vs-404-vs-429 classifications, fallback when no key, and a production backup-first decision matrix. This is a **documentation/operational handoff**, not a live audit or filter repair.
 - Existing backend `/v2/assessment/{symbol}` source remains a known fail-closed five-filter placeholder, and PCR equity mapping still does not imply option expiry/chain/entitlement. Maintain **WAIT/unverified**, no 51-chain request burst, no live orders, **no new APK**.
 - Next: operator-run read-only Oracle scripts and sanitized outputs; compare live deployed-source SHA and collector state; implement only evidence-grounded fixes with backup, tests and server/device validation.
+
+
+- **CI #1572 FINAL VERIFIED (2026-11-16):** [run 43833438579](https://github.com/vaishnavi596/volume-king/actions/runs/43833438579), commit `e6677c7f`, job `133184087265`, **936/936 PASS** (`Ran 936 tests in 351.753s; OK`). This supersedes the earlier in-progress snapshot above. It establishes offline audit regression success only; Oracle execution, five-filter producer, device PCR and deployment remain **UNVERIFIED**. No APK created.
