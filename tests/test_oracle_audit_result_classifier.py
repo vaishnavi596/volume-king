@@ -59,6 +59,21 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertNotIn("SNAPSHOT_AGE_CONFLICT", codes(out))
         self.assertNotIn("COLLECTOR_AGE_CONFLICT", codes(out))
 
+    def test_recent_snapshot_zero_quote_coverage_is_warning(self):
+        self.collector.update(equity_quote_count=0)
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SNAPSHOT_EMPTY_QUOTES", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+
+    def test_recent_snapshot_unknown_quote_coverage_is_warning(self):
+        self.collector.update(equity_quote_count=None)
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SNAPSHOT_QUOTE_COVERAGE_UNKNOWN", codes(out))
+        self.collector.update(equity_quote_count=51)
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertNotIn("SNAPSHOT_QUOTE_COVERAGE_UNKNOWN", codes(out))
+        self.assertNotIn("SNAPSHOT_EMPTY_QUOTES", codes(out))
+
     def test_invalid_matching_hashes_do_not_certify_source(self):
         self.routes["source_sha256"] = "placeholder"
         self.filters["source_sha256"] = "placeholder"
