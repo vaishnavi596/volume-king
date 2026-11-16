@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.127" # Dhan 09:10-15:45 polling, incremental Watchlist cells, off-hours manual refresh
+version = "2.3.128" # Retain Dhan shared 5m candles, Super Five HIST and index history on feed failures
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
