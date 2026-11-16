@@ -72,6 +72,8 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn('delay=(300 if "422" in detail',body)
         self.assertIn('if "429" in detail or "cooldown" in detail.lower()',body)
         self.assertIn('option_retry_until[option_key]=time.monotonic()+delay',body)
+        self.assertIn("and sym==chain_symbol.value",body)
+        self.assertIn("and choice==option_expiry_choice.value",body)
         self.assertIn('option_retry_until.pop(option_key,None)',body)
         self.assertIn('len(option_retry_until)>32',body)
         self.assertIn('and dhan_feed.cooldown_remaining("/dhan/option-chain")==0',body)
