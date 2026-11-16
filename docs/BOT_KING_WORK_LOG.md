@@ -2406,3 +2406,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle isolated candidate authentication AST follow-up
 - Operator AST output for `botking_assessment_safe`: `symbol` has no default; `x_botking_key` uses `Header(default=...)`; call names include `HTTPException`, `Header`, `hmac.compare_digest`, `pairing_key.encode`, `x_botking_key.encode`, plus validation helpers. No explicit string arguments to Header. FastAPI's usual underscore-to-hyphen header conversion suggests `x-botking-key`, but this is source-structure evidence, not an authenticated runtime test.
 - Next gate is isolated synthetic FastAPI ASGI tests with dummy key, no production server import, no production token reads, no Dhan HTTP and no service restart. Confirm missing/incorrect keys rejected and valid synthetic key only returns safe placeholder contract; live data remains unverified. Production unchanged.
+
+
+## 2026-11-17 — Oracle synthetic ASGI auth test blocked by interpreter dependency
+- Operator attempted isolated synthetic FastAPI/HTTPX assessment handler test; it failed immediately at import: `ModuleNotFoundError: No module named 'fastapi'` in shell `python3`. No handler executed, no authentication verdict, no production mutation, no Dhan request. Classify as test-environment BLOCKED, not candidate code FAIL.
+- Next safe step: read-only discover service ExecStart Python and available virtualenv interpreters and their FastAPI/HTTPX import availability, without installing packages or printing environment secrets. Retry isolated test only with verified dependency-capable interpreter.
