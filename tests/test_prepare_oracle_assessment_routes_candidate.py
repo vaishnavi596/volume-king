@@ -44,6 +44,12 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "already present"):
                 module.prepare(source)
 
+    def test_rejects_snapshot_route_outside_create_app(self):
+        source = SOURCE.replace(b"def create_app():", b"def different_factory():")
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
+            with self.assertRaisesRegex(ValueError, "directly inside create_app"):
+                module.prepare(source)
+
     def test_rejects_missing_anchor(self):
         source = SOURCE.replace(b'/v2/snapshot', b'/v2/other')
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
