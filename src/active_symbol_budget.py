@@ -77,7 +77,8 @@ def plan_active_symbols(
 
 
 def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=0,
-                             minimum_spacing=180, max_batch=3, mapped_symbols=None):
+                             minimum_spacing=180, max_batch=3, mapped_symbols=None,
+                             last_global_attempt=None, global_spacing=1.5):
     """Pure bounded 1m history worklist; this function NEVER calls Dhan.
 
     Caller must serialize actual requests and persist last_attempts in its
@@ -87,11 +88,15 @@ def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=
     from math import isfinite
     if not isinstance(active, ActiveSymbolBudget):
         raise ValueError("active must be a validated ActiveSymbolBudget")
-    numeric = (now, cooldown_until, minimum_spacing)
+    numeric = (now, cooldown_until, minimum_spacing, global_spacing)
+    if last_global_attempt is not None:
+        numeric += (last_global_attempt,)
     if any(type(v) not in (int, float) or not isfinite(v) for v in numeric):
         raise ValueError("non-finite history scheduling time")
-    if now < 0 or cooldown_until < 0 or minimum_spacing < 30:
+    if now < 0 or cooldown_until < 0 or minimum_spacing < 30 or global_spacing < 1:
         raise ValueError("invalid history scheduling window")
+    if last_global_attempt is not None and last_global_attempt > now:
+        raise ValueError("last_global_attempt is in the future")
     if type(max_batch) is not int or not 1 <= max_batch <= 3:
         raise ValueError("max_batch must be from 1 through 3")
     if last_attempts is None:
@@ -107,6 +112,12 @@ def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=
             raise ValueError("invalid mapped symbol")
         mapped_symbols = frozenset(mapped_symbols)
     if now < cooldown_until:
+        return ()
+    # Batch cardinality alone does not constrain repeated scheduling ticks.
+    # Consumers must record every *actual* provider attempt on a shared
+    # monotonic clock and pass that timestamp here to prevent quick fanout.
+    if (last_global_attempt is not None
+            and now - last_global_attempt < global_spacing):
         return ()
     due = []
     for sym in active.indices + active.equities:
