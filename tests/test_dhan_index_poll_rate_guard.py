@@ -26,7 +26,7 @@ class IndexPollRateGuard(unittest.TestCase):
 
     def test_closed_market_first_index_load_once_per_generation(self):
         self.assertIn("closed_index_bootstrap_generation=[None]",self.source)
-        self.assertIn('closed_index_bootstrap=(not regular_hours()',self.source)
+        self.assertIn('closed_index_bootstrap=(not refresh_hours()',self.source)
         self.assertIn('closed_index_bootstrap_generation[0]!=provider_generation[0]',self.source)
         self.assertIn('and closed_index_bootstrap and prefs.get("source")=="Dhan"',self.source)
         self.assertIn('await refresh_dhan_index_quotes(force=True)',self.source)
@@ -34,7 +34,7 @@ class IndexPollRateGuard(unittest.TestCase):
 
     def test_closed_market_equity_recovery_once_then_normal_market_poll(self):
         self.assertIn("closed_equity_bootstrap_generation=[None]",self.source)
-        self.assertIn("closing_bootstrap=(not regular_hours()",self.source)
+        self.assertIn("closing_bootstrap=(not refresh_hours()",self.source)
         self.assertIn("watch_batch_success_generation[0]!=provider_generation[0]",self.source)
         self.assertIn("if received==total_symbols:",self.source)
         self.assertIn("watch_batch_success_generation[0]=generation",self.source)
