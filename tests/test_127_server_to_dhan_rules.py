@@ -26,7 +26,7 @@ class ServerToDhanRulesTests(unittest.TestCase):
         self.assertNotIn('cat "$token"',source)
         self.assertNotIn('source "$envfile"',source)
         self.assertIn("ss -H -ltn '( sport = :8000 )'",source)
-        self.assertIn("127[.]0[.]0[.]1:8000",source)
+        self.assertIn('$4 != "127.0.0.1:8000"',source)
         self.assertIn("'https://api.dhan.co/v2/profile'",source)
         self.assertIn("'https://auth.dhan.co/'",source)
         self.assertIn("--noproxy '*'",source)
@@ -36,21 +36,21 @@ class ServerToDhanRulesTests(unittest.TestCase):
     def test_port_8000_rejects_secondary_public_or_ipv6_listener(self):
         # Test actual shell validator against mock ss lines; no Oracle access.
         source=(BACKEND/"audit-oracle-dhan-readonly.sh").read_text(encoding="utf-8")
-        function=re.search(r"only_private_8000_listener\\(\\) \\{.*?\\n\\}",source,re.S)
+        function=re.search(r"only_private_8000_listener\(\) \{.*?\n\}",source,re.S)
         self.assertIsNotNone(function,"missing strict port listener validator")
         if not shutil.which("bash") or not shutil.which("awk"):
             self.skipTest("bash and awk are needed for shell validation")
-        safe="LISTEN 0 128 127.0.0.1:8000 0.0.0.0:*\\n"
+        safe="LISTEN 0 128 127.0.0.1:8000 0.0.0.0:*\n"
         for sample,expected in [
             (safe,0),
             ("",1),
-            ("LISTEN 0 128 0.0.0.0:8000 0.0.0.0:*\\n",1),
-            ("LISTEN 0 128 [::]:8000 [::]:*\\n",1),
-            (safe+"LISTEN 0 128 0.0.0.0:8000 0.0.0.0:*\\n",1),
-            (safe+"LISTEN 0 128 [::1]:8000 [::]:*\\n",1),
+            ("LISTEN 0 128 0.0.0.0:8000 0.0.0.0:*\n",1),
+            ("LISTEN 0 128 [::]:8000 [::]:*\n",1),
+            (safe+"LISTEN 0 128 0.0.0.0:8000 0.0.0.0:*\n",1),
+            (safe+"LISTEN 0 128 [::1]:8000 [::]:*\n",1),
         ]:
             with self.subTest(sample=sample):
-                result=subprocess.run(["bash","-c",function.group(0)+"\\nonly_private_8000_listener"],
+                result=subprocess.run(["bash","-c",function.group(0)+"\nonly_private_8000_listener"],
                         input=sample,capture_output=True,text=True,timeout=5,check=False)
                 self.assertEqual(result.returncode,expected,result.stderr)
 
