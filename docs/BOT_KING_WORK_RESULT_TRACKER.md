@@ -289,3 +289,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - **Scope limitation:** this validates uniform *client acceptance/rejection*, not actual real-time 54/54 producer data; server GitHub assessment endpoint still `not_configured`, Orion runtime unverified, listed options eligibility unverified. No APK or order submission.
 
 - **Exact follow-up CI:** #1592 [43845226696](https://github.com/vaishnavi596/volume-king/actions/runs/43845226696) source head `e8eaf916`, and #1593 [43845301953](https://github.com/vaishnavi596/volume-king/actions/runs/43845301953) test head `35797290`, both **IN PROGRESS** when recorded. Previous #1591 963/963 PASS verifies preceding UI code, NOT the newer 54-symbol feed transport fix.
+
+
+## 2026-11-16 — 54-symbol client transport non-object contract
+| Stage | Defect / patch | CI evidence | Live state |
+|---|---|---|---|
+| 3/4 · all 54 assessment symbols | Non-object JSON response could throw `AttributeError`; `5ea157c0` fails closed with `FeedError`, `986553fb` tests 54/54 symbols | New CI pending; preceding #1593 **965/965 PASS** | Oracle runtime and F&O eligibility **UNVERIFIED**, not green |
+| 5/6 · release | All historical-fix/54-symbol gates still mandatory | No APK built | BLOCKED |
