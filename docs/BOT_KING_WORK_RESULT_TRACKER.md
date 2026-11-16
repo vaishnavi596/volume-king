@@ -233,3 +233,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/4 · Oracle assessment compact views | Watchlist/Super Five render only `oracle_assessment_notes()[0]`, masking explicit `not_configured` cause behind generic WAIT | `a326be97` adds concise reason, `8992cc0a` adds two regressions | Source committed; new CI pending; Oracle deployed response unverified |
 | 2/3 · five-filter producer and equity PCR | GitHub source still placeholder; selected equity F&O expiry/entitlement unknown | No invented 0–100 scores, no extra API fan-out | UNRESOLVED; await Oracle evidence |
 | 5/6 · APK | No new build | CI #1582 955/955 PASS from preceding source | APK blocked, phone outcome pending future release |
+
+- **Exact new UI regression CI runs:** #1583 [43840874487](https://github.com/vaishnavi596/volume-king/actions/runs/43840874487), head `a326be97`, and #1584 [43840916114](https://github.com/vaishnavi596/volume-king/actions/runs/43840916114), head `8992cc0a`, both **IN PROGRESS** at inspection. Do not claim PASS yet. Source CI results do not prove device UI changed without APK deployment.
