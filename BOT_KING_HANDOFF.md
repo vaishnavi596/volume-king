@@ -157,3 +157,11 @@ The append-only batch journal is:
 - **Paper Bot:** already five manual simulated profiles, Start/Pause/Stop and paper ledger; source shows state in Error Doctor. Not an unattended Dhan-tick autobot; actual Android behavior UNVERIFIED. Live orders remain OFF.
 - **Unfinished release gates:** independently verified News/Futures directional engines are WAIT; authenticated 51+3 refresh and listed stock CE/PE/provider entitlement checks on current Oracle are PENDING; Android tests for open/closed login, historical Top Five, option selection and Paper Bot are PENDING. **No new APK or version bump.** Current installed user version is still 2.3.126. Do not trigger final 127-E signed APK before the required functional gates; CI success is not device success.
 - **Journal detail:** See latest append-only `docs/BOT_KING_WORK_LOG.md` entries for each patch, failed intermediate CI, successful run, production nonchanges and next tests. Treat this checkpoint as superseding older “127 audit only” status, without removing history.
+
+
+## 2026-11-16 — Current status: 831-test index Login Recovery PASS
+
+- Batch 127-B source fixes are now at tested SHA `7caac968c18437229a2d6384e99b1d9708fce6dc` ([Offline Regression CI 43786961360](https://github.com/vaishnavi596/volume-king/actions/runs/43786961360), **831 tests PASS**, verified log).
+- Closed-market index recovery no longer treats saved historical NIFTY/BANKNIFTY/SENSEX prices as proof of a new login's complete 3/3. A single bounded retry is allowed only after current-generation PARTIAL/FAILED/COOLDOWN, never concurrently with LOADING or after 3/3 LOADED. All index/equity Dhan quotes remain exchange-time unverified.
+- The durable full audit history—including intermediate failures and fixed tests—remains append-only at `docs/BOT_KING_WORK_LOG.md`; do not revert the newer index gate to a cached-price condition.
+- **Required live acceptance:** run the committed, credential-safe `scripts/check_127_oracle_readonly.py` from an authorized operator environment, then inspect actual Oracle 51/3 + selected extra quotes and RELIANCE/HDFCBANK option listed expiry/chain. Current chat has no Oracle shell, so this has **not been done**. No build v2.3.127, signed APK, device acceptance or Oracle production modification; source CI PASS is not a mobile/market-data PASS.
