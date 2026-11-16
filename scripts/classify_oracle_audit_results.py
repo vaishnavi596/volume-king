@@ -82,6 +82,27 @@ def classify(routes, filters, collector):
         if collector.get("live_orders_enabled") is not False:
             add("PAPER_ONLY_NOT_VERIFIED", "runtime", "Do not promote deployment without explicit live_orders_enabled=false")
 
+    # A status label is not enough if accompanying ages exceed a safe bound.
+    # Allow two collection intervals (minimum 30 seconds) to avoid false
+    # positives during a normal bounded poll; this is an audit warning only.
+    interval = collector.get("collector_interval_seconds")
+    snapshot_age = collector.get("snapshot_age_seconds")
+    if (collector.get("snapshot_http") == 200
+            and collector.get("snapshot_status") == "recently_collected"
+            and type(interval) in (int, float) and 0 < interval <= 3600
+            and type(snapshot_age) in (int, float)
+            and snapshot_age > max(30, 2 * interval)):
+        add("SNAPSHOT_AGE_CONFLICT", "runtime",
+            "Reconcile snapshot age with collector interval; do not infer fresh exchange quotes")
+    success_age = collector.get("collector_last_success_age_seconds")
+    if (collector.get("readiness_http") == 200
+            and collector.get("collector_status") == "recently_collected"
+            and type(interval) in (int, float) and 0 < interval <= 3600
+            and type(success_age) in (int, float)
+            and success_age > max(30, 2 * interval)):
+        add("COLLECTOR_AGE_CONFLICT", "runtime",
+            "Inspect last-success age and cooldown before declaring active collection")
+
     return {
         "audit": "ORACLE-FILTER-AUDIT-03",
         "issues": issues,
