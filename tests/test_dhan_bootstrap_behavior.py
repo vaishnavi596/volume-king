@@ -40,22 +40,38 @@ class BootstrapBehaviorTests(unittest.TestCase):
                 self.assertIs(eval(expression,state),expected)
 
     def test_index_first_load_stays_separate_from_equity_and_once_per_generation(self):
-        expression=bootstrap_expr("closed_index_bootstrap")
-        q={"NIFTY":{"source":"Dhan","price":25144.3},
-           "BANKNIFTY":{"source":"Dhan","price":61034.1},
-           "SENSEX":{"source":"Dhan","price":81592.45}}
-        for closed,attempted,quotes,expected in [
-            (True,None,{},True),
-            (True,None,q,False),
-            (True,10,{},False),
-            (False,None,{},False),
-        ]:
-            with self.subTest(closed=closed,attempted=attempted):
+        # Evaluate ALL prerequisite expressions from the real Android source,
+        # not a rewritten model of the condition. Cached prices are deliberately
+        # present even when the latest login only loaded one or two indices.
+        expressions={key:bootstrap_expr(key) for key in
+            ("same_index_login","index_loaded_this_login",
+             "index_login_recovery_ready","closed_index_bootstrap")}
+        old_prices={"NIFTY":{"source":"Dhan","price":25144.3},
+                    "BANKNIFTY":{"source":"Dhan","price":61034.1},
+                    "SENSEX":{"source":"Dhan","price":81592.45}}
+        for closed,attempted,prices,generation,state,counts,expected in (
+            (True,None,{},10,"PARTIAL",(2,3),True),
+            (True,None,old_prices,10,"PARTIAL",(2,3),True),
+            (True,None,old_prices,10,"LOADED",(3,3),False),
+            (True,None,{},10,"LOADING",None,False),
+            (True,None,{},10,"FAILED",(0,3),True),
+            (True,None,{},10,"COOLDOWN",(0,3),True),
+            (True,10,{},10,"FAILED",(0,3),False),
+            (False,None,{},10,"FAILED",(0,3),False),
+            (True,None,{},9,"FAILED",(0,3),False),
+        ):
+            with self.subTest(closed=closed,attempted=attempted,
+                              login_generation=generation,state=state):
+                bootstrap=type("Bootstrap",(),{
+                    "generation":generation,"stages":{"indices":state},
+                    "counts":{"indices":counts} if counts is not None else {}})()
                 env={"regular_hours":lambda:not closed,
                      "closed_index_bootstrap_generation":[attempted],
-                     "provider_generation":[10],"quotes":quotes,
-                     "math":__import__("math")}
-                self.assertIs(eval(expression,env),expected)
+                     "provider_generation":[10],
+                     "login_bootstrap":bootstrap,"quotes":prices}
+                for name,expression in expressions.items():
+                    env[name]=eval(expression,env)
+                self.assertIs(env["closed_index_bootstrap"],expected)
 
     def test_ui_shows_actual_quote_check_even_when_closed_timer_is_paused(self):
         block=SRC.split("    def watchlist():",1)[1].split("    symbol=ft.Dropdown",1)[0]
