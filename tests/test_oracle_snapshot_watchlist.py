@@ -48,6 +48,7 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(rows["RELIANCE"]["snapshot_age_seconds"], 7.8)
         self.assertIsNone(rows["RELIANCE"]["quote_timestamp"])
         self.assertEqual(rows["RELIANCE"]["freshness"], "unverified")
+        self.assertEqual(rows["RELIANCE"]["quote_collection"], "oracle_snapshot")
 
     def test_snapshot_cooldown_respects_global_and_route_backoff(self):
         import time
