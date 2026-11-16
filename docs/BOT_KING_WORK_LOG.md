@@ -1368,3 +1368,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **New regression** [685a35cc](https://github.com/vaishnavi596/volume-king/commit/685a35cc545443662154161919458362b254e0db): invalid matching hashes must not certify source; nonfinite interval must not generate artificial age conflict or live proof. **New CI PENDING at commit time.** These are defensive source fixes, not Oracle runtime observations. No SSH access, no production edits, no Dhan requests, no APK/orders.
 
 - **Exact CI run opened:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, was **IN PROGRESS** at inspection. The 949/949 PASS #1578 applies to the previous test head only; no claim yet for Audit-06.
+
+
+## 2026-11-16 — AUDIT-07: recent snapshot zero/unknown quote coverage
+- **Source inspection finding:** joined classifier could accept collector's `recently_collected` label with an empty/unknown equity cache without warning, potentially concealing the watchlist's missing quotes. It did not certify live filters, but failed to flag this actionable data coverage gap.
+- **Source** [374f3f16](https://github.com/vaishnavi596/volume-king/commit/374f3f16e2dbdcd100afa3c488ef00936ebae4be) emits `SNAPSHOT_EMPTY_QUOTES` for exact integer zero and `SNAPSHOT_QUOTE_COVERAGE_UNKNOWN` when count is missing/invalid despite HTTP200 + `recently_collected`; it does not fabricate Dhan coverage or exchange freshness.
+- **Tests** [6220e02e](https://github.com/vaishnavi596/volume-king/commit/6220e02e9b18de0c8956eda7b277fdfa5e9bca47) cover zero, missing and normal 51 count with fail-closed assertions. **New CI pending** at commit time. No Oracle SSH; not a live quote result. No APK or orders.
