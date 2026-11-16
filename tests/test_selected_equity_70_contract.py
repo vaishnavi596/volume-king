@@ -39,6 +39,18 @@ class SelectedEquity70ContractTests(unittest.TestCase):
                         self.feed.selected_equity_quotes(bad)
                     call.assert_not_called()
 
+    def test_registry_response_must_be_valid_object_before_save(self):
+        for invalid in (None, [], "error", 200):
+            with self.subTest(invalid=type(invalid).__name__):
+                with patch.object(self.feed, "_call", return_value=invalid):
+                    with self.assertRaises(FeedError):
+                        self.feed.verified_equity_symbol("HDFCBANK")
+        with patch.object(self.feed, "_call", return_value={
+            "source": "dhan_registry", "live_orders_enabled": False,
+            "symbols": ["HDFCBANK"]}) as call:
+            self.assertTrue(self.feed.verified_equity_symbol("HDFCBANK"))
+            self.assertEqual(call.call_count, 1)
+
     def test_nonobject_response_and_bad_unavailable_fail_closed(self):
         for bad in (None, [], "server error",
                     {"source": "dhan", "live_orders_enabled": False,
