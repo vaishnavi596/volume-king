@@ -156,3 +156,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/2 · Oracle collector audit | HTTP 200 malformed JSON list could crash summarizer instead of preserving unknown status | `a81c2470` + `b0da29d4` | **SOURCE PATCHED / CI PENDING**; live Oracle not tested |
 | 1/3 · Joined audit | Missing required route could still set `source_audit_complete=true` | `b9f6da33` + `dbd27e40` | **SOURCE PATCHED / CI PENDING**; now exact 9/9 and single assessment required |
 | 4/5/6 · PCR / five filters / release | Live assessment producer and equity option entitlement not proven | No real producer or APK change | **ORACLE UNVERIFIED; APK BLOCKED** |
+
+- **Exact new CI runs identified:** #1574 [43835829523](https://github.com/vaishnavi596/volume-king/actions/runs/43835829523) head `b0da29d4` and #1575 [43835881689](https://github.com/vaishnavi596/volume-king/actions/runs/43835881689) head `dbd27e40` were both **IN PROGRESS** at observation. Neither was called PASS prematurely. Previous #1573 (942/942) belongs to older source and does not validate these two fixes.
