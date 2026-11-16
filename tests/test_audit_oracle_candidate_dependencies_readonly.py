@@ -38,7 +38,7 @@ class DependencyPreflightTests(unittest.TestCase):
         self.assertFalse(module.inspect_source(BASE)["static_pass"])
 
     def test_late_binding_holds(self):
-        raw = BASE.replace(b"pairing_key = \"dummy\"\\n", b"") + b"pairing_key = \"late\"\n"
+        raw = BASE.replace(b'pairing_key = "dummy"\n', b"") + b'pairing_key = "late"\n'
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(raw).hexdigest()):
             result = module.inspect_source(raw)
         self.assertFalse(result["static_pass"])
