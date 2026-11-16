@@ -21,6 +21,13 @@ PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot")
 MAX_BYTES = 1_000_000
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward protected audit GET headers to another origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 @dataclass(frozen=True)
 class ProbeResult:
     route: str
@@ -38,7 +45,7 @@ def request_get(path, pairing_key=None, *, opener=None):
         headers["X-BotKing-Key"] = pairing_key
     req = urllib.request.Request(ORIGIN + path, headers=headers, method="GET")
     # Avoid leaking loopback bearer/pairing headers via proxy configuration.
-    opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
         with opener.open(req, timeout=5) as response:
             raw = response.read(MAX_BYTES + 1)
