@@ -138,3 +138,6 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/2 · source and collector | Reviewed three read-only Oracle scripts; identified absence of joined triage classification | New non-network classifier `ee9b0243` distinguishes source gaps, 403, 404, 429, disabled/stale status, known placeholder vs unknown producer. **Source added**, not run against production | Actual Oracle sanitized reports required; SSH unavailable here |
 | 3/4 · PCR / five filters | Fail-closed audit decision tests cover 6 cases `ef2ca0d0`; runbook updated `98b05dc6` | New suite **CI PENDING** at tracker update; prior #1572 **936/936 PASS** applies only to earlier audit test commit | Five-filter producer and equity PCR availability **UNVERIFIED**; do not fake percentages |
 | 5/6 · end-to-end / release | Journal written `aebbd77e`, no deployment/orders/APK | **NOT DEPLOYED, NOT RELEASED** | Source CI, Oracle backup-first corrective patch, device proof before APK |
+
+
+- **Audit-03 CI run identified:** [#1573 / 43835167845](https://github.com/vaishnavi596/volume-king/actions/runs/43835167845) at `ef2ca0d0` (six new classifier tests) was **in_progress** during inspection. This is **not a PASS yet** and is separate from #1572's verified 936/936 success; no Oracle or device proof. No APK.
