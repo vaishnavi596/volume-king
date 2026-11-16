@@ -52,3 +52,12 @@ GitHub Actions branch run collection inspected using the repository run endpoint
 - [#1544](https://github.com/vaishnavi596/volume-king/actions/runs/43814290775) at second repair `c08b7791`: **in_progress** at first lookup.
 - [#1545](https://github.com/vaishnavi596/volume-king/actions/runs/43814306599) at final known repair `5ca1e8f0`: **in_progress** at first lookup. Only this last run can validate ALL three corrected legacy files in one commit; avoid promoting earlier concurrent partial snapshots.
 - Next mandatory preflight uses **most recent eight completed/run statuses** from the branch collection (not only seven or eight supplied links). Ignore obsolete failures as proof current HEAD is broken, but retain the historical red matrix and compare against the final current-HEAD job.
+
+## Verified final CI closure after repair (2026-11-16)
+
+GitHub Actions run listing and exact job logs re-read after intermediate in-progress snapshots:
+- [#1542](https://github.com/vaishnavi596/volume-king/actions/runs/43813890608), job `133121406852`: Ran 887 tests in 327.345s, **4 failures** (older assertions).
+- [#1543](https://github.com/vaishnavi596/volume-king/actions/runs/43814272682), job `133122617608`: Ran 887 tests in 100.084s, **3 failures** (bootstrap repaired).
+- [#1544](https://github.com/vaishnavi596/volume-king/actions/runs/43814290775), job `133122676709`: Ran 887 tests in 83.224s, **1 failure** (watchlist timer old assertion).
+- **[#1545 SUCCESS](https://github.com/vaishnavi596/volume-king/actions/runs/43814306599)** exact head `5ca1e8f05659fa713eaa91174b20e626922c1510`, job `133122728103`: **Ran 887 tests in 113.429s; OK**, workflow `completed/success`. Full source tests pass at that commit, not APK or phone proof.
+- Newest 8-run preflight as of re-read: #1545 PASS; #1544/#1543/#1542/#1541/#1540/#1539/#1538 FAIL (all older commits). Old failure count 4→3→1→0 across repair commits; **current previously failing assertions resolved**.
