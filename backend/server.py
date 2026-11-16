@@ -43,6 +43,10 @@ try:
     from .dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 except ImportError:
     from dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
+try:
+    from .assessment_filter_adapter import option_filter_rows
+except ImportError:
+    from assessment_filter_adapter import option_filter_rows
 from pathlib import Path
 import hashlib
 try:
@@ -583,6 +587,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Dhan option chain unavailable or not entitled") from None
         return {"source": "dhan", "symbol": body.symbol,
                 "expiry": body.expiry.isoformat(), **metrics,
+                "assessment_filters": option_filter_rows(metrics),
                 "atm_window": window,
                 "atm_window_status": window_status,
                 "live_orders_enabled": False}
