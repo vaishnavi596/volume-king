@@ -1391,3 +1391,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **Scope:** GitHub audited script only, not Oracle deployed source. No production change, no APK or live orders. Real server collector/assessment and equity PCR entitlement still unverified.
 
 - **Exact Audit-08 CI started:** #1581 [run 43839664916](https://github.com/vaishnavi596/volume-king/actions/runs/43839664916), head `55cffa26`, was **IN PROGRESS** when checked. This source/test security fix is not yet CI PASS; previous #1580 953/953 applies to prior commit.
+
+
+## 2026-11-16 — AUDIT-08 CI closure and AUDIT-09 redirect outcome classification
+- [CI #1581 run 43839664916](https://github.com/vaishnavi596/volume-king/actions/runs/43839664916), tested head `55cffa26`, job `133204893303`, **954/954 PASS** (GitHub completed success, `Ran 954 tests in 112.782s`). Previous in-progress entry superseded. Tests cover no-redirect GET audit safety. This is source CI only.
+- **AUDIT-09 finding (source-level):** classifier treated HTTP 3xx as generic `HTTP_ERROR`, despite AUDIT-08 intentionally prohibiting protected redirect-following. This obscured routing/security diagnosis.
+- **Source fix** [76990163](https://github.com/vaishnavi596/volume-king/commit/76990163b2f3ec87208a9e0a2a9763bf5a99c725) classifies 300–399 as `UNEXPECTED_REDIRECT` and directs operator to inspect local routing; does not follow redirects. **New regression** [1b4a0113](https://github.com/vaishnavi596/volume-king/commit/1b4a01130d2720975d880446e7a7ce6e9573e661) verifies HTTP302 is not confused with authentication failures or green five-filter result. New CI result pending until exact run checked.
+- No actual Oracle production access/read-only reports, Dhan calls, orders, deployment or APK. Five-filter producer and equity PCR continue UNVERIFIED.
