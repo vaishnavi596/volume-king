@@ -1777,7 +1777,7 @@ def app_main(page:ft.Page):
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
         try:
-            batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            batch=await asyncio.to_thread(dhan_feed.equity_quotes_with_bootstrap)
             selected_batch_issue[0]=""
             dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
             if dynamic:
@@ -3073,7 +3073,7 @@ def app_main(page:ft.Page):
                     # Share this real request attempt with page-entry and auto polling.
                     try:
                         watch_batch_last_attempt[0]=time.monotonic()
-                        batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        batch=await asyncio.to_thread(dhan_feed.equity_quotes_with_bootstrap)
                         selected_batch_issue[0]=""
                         dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
                         if dynamic:
