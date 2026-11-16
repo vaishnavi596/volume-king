@@ -301,6 +301,9 @@ def app_main(page:ft.Page):
     dhan_option_context_cache={}
     option_refresh_pending=[False]
     dhan_option_last_attempt=[0.0]
+    # A rejected listed expiry must not repeatedly wake the provider every
+    # 60s. Isolate this guard per session, underlying and expiry selection.
+    option_retry_until={}
     oracle_assessment_cache={}
     oracle_assessment_attempts={}
     oracle_assessment_cache_generation=[provider_generation[0]]
@@ -2634,6 +2637,15 @@ def app_main(page:ft.Page):
             option_feed_status[0]="Dhan disconnected • Connect / Check in Settings; option auto-refresh will resume."
             if current[0]==1:request_view_refresh(1)
             return
+        option_key=(provider_generation[0],chain_symbol.value,option_expiry_choice.value,
+                    expiry.value if option_expiry_choice.value=="Manual" else "")
+        wait=max(0,option_retry_until.get(option_key,0.0)-time.monotonic())
+        wait=max(wait,dhan_feed.cooldown_remaining("/dhan/option-expiries"),
+                 dhan_feed.cooldown_remaining("/dhan/option-chain"))
+        if wait>0:
+            option_feed_status[0]=f"Dhan {chain_symbol.value} option cooldown • retry in {math.ceil(wait)}s • last saved context unverified"
+            if current[0]==1:request_view_refresh(1)
+            return
         option_feed_busy[0]=True
         option_refresh_pending[0]=False
         dhan_option_last_attempt[0]=time.monotonic()
@@ -2678,6 +2690,7 @@ def app_main(page:ft.Page):
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             dhan_option_metrics.clear()
             dhan_option_metrics.update(data)
+            option_retry_until.pop(option_key,None)
             # Keep distinct (generation, symbol, listed-expiry) contexts for
             # RELIANCE/HDFCBANK/indices; a later selection cannot borrow the
             # prior underlying\x27s CE/PE prices or OI.
@@ -2692,7 +2705,18 @@ def app_main(page:ft.Page):
             health.finish(health_key,request_id,"PARTIAL",source="Dhan",error="Option metrics unverified; signals disabled")
         except Exception as exc:
             log_error("dhan_options",exc)
-            health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
+            detail=safe_error(exc)
+            if generation==provider_generation[0]:
+                delay=(300 if "422" in detail else
+                       max(30,dhan_feed.cooldown_remaining("/dhan/option-expiries"),
+                           dhan_feed.cooldown_remaining("/dhan/option-chain"))
+                       if "429" in detail or "cooldown" in detail.lower() else 0)
+                if delay:
+                    option_retry_until[option_key]=time.monotonic()+delay
+                    # Bounded per-session error memory, not persisted.
+                    while len(option_retry_until)>32:
+                        del option_retry_until[next(iter(option_retry_until))]
+            health.finish(health_key,request_id,"UNAVAILABLE",error=detail)
             option_feed_status[0]="Dhan "+option_stage+" unavailable for "+sym+": "+safe_error(exc)
             # Keep last valid metrics for historical display, never for signals.
         finally:
@@ -2715,7 +2739,12 @@ def app_main(page:ft.Page):
             if (current[0] in (0,1,3) and regular_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and chain_symbol.value in DHAN_VERIFIED_SYMBOLS and not option_feed_busy[0]
-                    and time.monotonic()-dhan_option_last_attempt[0]>=60):
+                    and time.monotonic()-dhan_option_last_attempt[0]>=60
+                    and time.monotonic()>=option_retry_until.get(
+                        (provider_generation[0],chain_symbol.value,option_expiry_choice.value,
+                         expiry.value if option_expiry_choice.value=="Manual" else ""),0.0)
+                    and dhan_feed.cooldown_remaining("/dhan/option-expiries")==0
+                    and dhan_feed.cooldown_remaining("/dhan/option-chain")==0):
                 await refresh_selected_options()
             await asyncio.sleep(15)
     def selected_option_rows():
