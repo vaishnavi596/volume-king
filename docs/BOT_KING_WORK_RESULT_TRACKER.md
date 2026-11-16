@@ -336,3 +336,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - #1602 [43847655090](https://github.com/vaishnavi596/volume-king/actions/runs/43847655090) head `f3020d28`, job `133231769996`: **969/969 PASS**, workflow success.
 - #1603 [43847688861](https://github.com/vaishnavi596/volume-king/actions/runs/43847688861) head `96034db7`, job `133231890955`: **970/970 PASS**, workflow success.
 - **#1604 [43847718684](https://github.com/vaishnavi596/volume-king/actions/runs/43847718684) head `131b82f0`: GitHub workflow conclusion CANCELLED**, not PASS, despite job log mentioning `Ran 970 tests in 1199.348s` and no listed assertions. Do not count this cancelled head as successful CI. Subsequent run on a new source head is required for complete CI assurance. No Oracle/phone evidence, no production orders or APK.
+
+
+## 2026-11-16 — five-filter status parity over all 54
+| Stage | Verified source defect | Fix / tests | Remaining |
+|---|---|---|---|
+| 3/4 · shared five-filter UI | Filter IDs checked, status enum unchecked; malformed statuses could bypass full-schema rejection | `cd83be9d` + all 54 regression `74c965be`; CI PENDING | Actual Oracle 54/54 producer and equity PCR unverified |
+| 5/6 · pre-APK | #1604 was **CANCELLED**, #1603 970/970 PASS for earlier source | New head CI required | No APK created |
