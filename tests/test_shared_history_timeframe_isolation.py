@@ -86,6 +86,20 @@ class TimeframeHistoryIsolationTests(unittest.TestCase):
         self.assertIs(derived, select("NIFTY", "3m"))
         self.assertEqual(select("NIFTY", "5m"), {})
 
+    def test_in_place_last_minute_revision_invalidates_three_minute_cache(self):
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        source = history("1m")
+        source["bars"] = [[start+i*60, 100, 102, 99, 101, 1] for i in range(9)]
+        select = load_selector(charts={("NIFTY", "1m", 1): source})
+        old = select("NIFTY", "3m")
+        self.assertEqual(old["bars"][-1][4], 101)
+        source["bars"][-1][4] = 102
+        revised = select("NIFTY", "3m")
+        self.assertEqual(revised["bars"][-1][4], 102)
+        self.assertIsNot(revised, old)
+        self.assertFalse(revised["live_verified"])
+
     def test_cached_wrong_provider_one_minute_never_derives_dhan_three(self):
         start = int(datetime(2025, 11, 13, 9, 15,
                              tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
