@@ -641,3 +641,10 @@ by writing this journal.
 - **Root causes from job logs:** first failed an obsolete source-text test expecting `127[.]0[.]0[.]1:8000`, after validator changed to strict `awk` comparison; second failed the new `test_port_8000_rejects_secondary_public_or_ipv6_listener` regex fixture, showing `AssertionError: unexpectedly None : missing strict port listener validator`. These were offline regression/test assertions, **not real Oracle runtime failures**.
 - **Superseding fix:** [5245b0c8](https://github.com/vaishnavi596/volume-king/commit/5245b0c8803c2f064b1ba2913cdc82c85b0b9f47), CI [43795368582](https://github.com/vaishnavi596/volume-king/actions/runs/43795368582) **SUCCESS / 847 tests / OK**, verified from completed job log. No need to rerun the two old commits.
 - **Separate next S2D staging CI:** [43796217369](https://github.com/vaishnavi596/volume-king/actions/runs/43796217369) for `fc442e94` still **in_progress** at latest lookup; do not promote its quote gate staging code to production-ready yet. Oracle staging execution output still absent. No deploy/restart, credential rotation or APK build.
+
+
+## 2026-11-16 — S2D Oracle staging invocation failed due to pasted command concatenation
+
+- Owner's Oracle shell showed `python3: can't open file '/tmp/oracle_s2d_quote_gate_stage.pyecho': [Errno 2] No such file or directory` after two commands were pasted together without separation. The actual staged script name is `oracle_s2d_quote_gate_stage.py`; the incorrect `.pyecho` path is a concatenation artefact, not evidence of missing correct script or Dhan/Oracle failure.
+- **No successful stage output**, no `S2D_STAGE_PASS`, backup/proposed path, diff or deploy observed; staging NOT VERIFIED. Corrective operator instruction is a single independent command with an explicit existing-file check, and NO production install/restart.
+- GitHub source CI `43796217369` still `in_progress` at latest query; do not declare gate patch CI passed. Prior original-file SHA256 verification and localhost health 200 remain separate observed checks.
