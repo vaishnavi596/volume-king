@@ -2275,3 +2275,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle AST route inventory: two proposed routes absent
 - Operator read-only AST decorator scan of production `/opt/bot-king-server/server.py` returned exactly: `SNAPSHOT= True`, `SERVER_READINESS= False`, `ASSESSMENT= False`, `DECORATED_ROUTE_COUNT= 20`. This establishes that the two proposed literal route decorators are absent from inspected source; it does not exclude dynamically registered routes or prove runtime behavior.
 - Earlier `/openapi.json` returned HTTP 404, so no runtime route inventory obtained. Official SHA-pinned dependency preflight PASS; proposed `/v2/server-readiness` and `/v2/assessment/{symbol}` remain **source-absent and undeployed**. Candidate-only staging and diff are next; do not alter production or imply the placeholder assessment computes filters.
+
+
+## 2026-11-16 — Oracle candidate generator downloaded; AST syntax PASS
+- Operator transcript: `curl -fLsS --max-time 30 https://raw.githubusercontent.com/vaishnavi596/volume-king/af88226fb5f33ac0186547156cb7e1f915ebf851/scripts/prepare_oracle_assessment_routes_candidate.py -o /tmp/bk_prepare_candidate.py` returned to prompt with no visible error; `python3 -B -c 'import ast; ast.parse(open("/tmp/bk_prepare_candidate.py").read()); print("GENERATOR_SYNTAX=PASS")'` returned `GENERATOR_SYNTAX=PASS`.
+- Syntax PASS only; content integrity/hash and actual candidate generation not yet proven. Next verify generator bytes against pinned GitHub source and create separate `/tmp` candidate with `--server /opt/bot-king-server/server.py --output /tmp/bk_server_assessment_candidate.py` only after integrity gate. No production write, restart, Dhan request or deployment observed.
