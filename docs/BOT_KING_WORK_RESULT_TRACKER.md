@@ -254,3 +254,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4 | Scanner, Super Five, five filters, News/Futures/Options/Candle and PCR eligible per underlying | **Real validated producer absent in GitHub backend**, client polls only selected symbols; **not 54/54 PASS** |
 | 5/6 | Before any APK, regression-check **all prior fixes** listed in [54-symbol release gate](BOT_KING_54_SYMBOL_ALL_FIXES_RELEASE_GATE_20261116.md) | `768ba669` checklist committed; APK BLOCKED; no Oracle/phone proof |
 | CI | #1586 `118bbfe3` | **958/958 PASS**; other follow-up runs pending |
+
+- **CI #1587 FINAL:** [run 43842915421](https://github.com/vaishnavi596/volume-king/actions/runs/43842915421), test head `29912ce8`, job `133215785431`, **961/961 PASS** (`Ran 961 tests in 116.066s`; completed success). This validates the 51 equities + 3 indices roster contract and safeguards against falsely equating cash mapping with options entitlement. It is **not** live 54/54 feature coverage. #1585 remained in progress at last check. No APK/deployment/Oracle execution.
