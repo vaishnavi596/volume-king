@@ -1887,3 +1887,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle B3 candidate generator absent on host
 - Operator ran `ls -l /opt/bot-king-server/scripts/prepare_oracle_b3_candidate.py` and received `No such file or directory`. This confirms only that the GitHub-staged generator is **not at that Oracle path**; it is not a service failure.
 - No files copied, candidate generated, production patch applied or service restarted. Next safely transfer the reviewed commit-pinned generator to a separate operator-owned working directory, validate its SHA256 against the GitHub commit, and run only the create-only candidate generation after verifying current production source hash. Never download and execute an unpinned branch-head script.
+
+
+## 2026-11-16 — Operator downloaded commit-pinned Oracle B3 generator; verification pending
+- Operator reported successful curl download of **4128 bytes** to `/home/opc/botking-b3-review/prepare_oracle_b3_candidate.py`; local SHA256 `8175f83695373fdeb8fb751931e64cdaaa6f45fc21401c8df7d047e7fc8cca03`.
+- GitHub connector independently fetched the exact reviewed commit `7350a4845c9ee42c92d9aac71f8e593b52b48cc6`, path `scripts/prepare_oracle_b3_candidate.py`: 4128-byte content, Git blob SHA1 `833c5540335220ba12727bb4f3b61395f06ca54b`. **Local file SHA256 has not yet been independently matched to reference bytes**; next verify local Git blob hash with `git hash-object` against this pinned blob. No script execution, candidate generation or production changes.
