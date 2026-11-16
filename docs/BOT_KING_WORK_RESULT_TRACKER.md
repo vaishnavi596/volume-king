@@ -440,3 +440,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 
 ## 2026-11-16 — Numbered checkpoint 06 follow-up: duplicate-minute safeguard
 - **Checkpoint 06 B2** completed 3m candle derivation helper has additional source safety [2fc66d70](https://github.com/vaishnavi596/volume-king/commit/2fc66d70d1adab2eda14c21049721a16476af785): reject 3m bucket when any valid 1m source timestamp is duplicated, preventing ambiguous OHLC/volume and votes. Regression [04ec7acd](https://github.com/vaishnavi596/volume-king/commit/04ec7acdb8222ff44a9adc5a7bad4213d9a4baa6) added; exact Actions CI **UNVERIFIED**. Source-level correction only; Android 3m live UI/integration **OPEN**. No Oracle edit, Dhan query or APK. Corresponding journal checkpoint: B2 duplicate-minute data-quality fix.
+
+
+## 2026-11-16 — B2 checkpoint 08: Dhan-selected Scanner 3m source integration
+- Existing Dhan history code accepted 1m/5m/15m/1h, while `3m` was unsupported in the Scanner dropdown. [ecd8cfe6](https://github.com/vaishnavi596/volume-king/commit/ecd8cfe657aab67b3b4fbe37942dda93af043ad1) safely enables 3m Scanner calls by fetching actual Dhan 1m history and using the previously committed completed-3m helper. [879bcfb4](https://github.com/vaishnavi596/volume-king/commit/879bcfb475ee638f38658a6faee0d002b9a52ff8) adds two code-path regression tests. **SOURCE IMPLEMENTED / exact-head CI UNVERIFIED / Oracle+phone NOT TESTED**.
+- **Scope boundary:** this does NOT yet mean Watchlist's auto Bullish/Bearish shows true 3m; its source remains existing 5m `watch_signal_cache`. Dashboard index cards still use 5m and require real 1m feed. Super Five 5m preserved. Continue B2 without declaring checkpoints 07 or 08 release-PASS.
