@@ -2239,3 +2239,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator command `grep -nE '^(from fastapi import|import hmac|from .* import .*hmac)' /opt/bot-king-server/server.py` returned `8:import hmac` and `25:from fastapi import FastAPI, Header, HTTPException`. **Import presence confirmed**.
 - Operator command `grep -nE 'pairing_key[[:space:]]*=|/v2/snapshot' /opt/bot-king-server/server.py | cut -d: -f1` returned only `204`, `205`, `614`. These are match line numbers only; exact binding/decorator scope not established and mapping each line to a particular match is not yet proven. **Static AST dependency gate remains HOLD** pending execution of reviewed script or sanitized structural inspection.
 - No secrets printed, no service changes, no restart, no deployment, no APK.
+
+
+## 2026-11-16 — Oracle AST factory and pairing assignment evidence
+- Operator ran read-only `python3 -B -c` AST inspection of `/opt/bot-king-server/server.py`; exact sanitized output: `FACTORY_COUNT= 1`, `FACTORY_LINE= 204`, `PAIRING_ASSIGNMENT_LINES= [205]`.
+- Interpretation: exactly one top-level `create_app` factory is present at line 204 and an assignment target named `pairing_key` is within its AST at line 205. This is structural evidence, **not** proof of runtime value, unconditional assignment, or static preflight PASS. Earlier imports at lines 8/25 and SHA match stand separately. Next verify unique direct `/v2/snapshot` decorator and binding ordering, without printing secrets. Production unchanged.
