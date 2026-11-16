@@ -2138,3 +2138,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - #1675: 55 `FeedError("Unverified Dhan assessment collection status")` errors after prematurely tightening assessment/mock contract; code was reverted at `7b154872`, and its run #1676 `43905586592` passed.
 - #1677: 1 of 1,054 assertions failed because new inserted handlers split the contiguous original `SOURCE` fixture; other 1,053 passed. #1678: 1 of 1,054 assertions failed due to literal backslash-n versus newline in a test. Final regression run `43907125367` at `6f2d2e6b` completed **success**: `Ran 1054 tests in 262.178s`, `OK`, and Python syntax step passed. Current candidate test file has preserved handler assertion `"def snapshot():\\n        return {}"` as Python source (actual newline after string evaluation).
 - These older failed runs are superseded for the offline source/test gate; no Oracle deployment, live assessment producer, 54 live symbol validation, device validation or APK build should be inferred from CI PASS. Keep one-phone scope.
+
+
+## 2026-11-16 — Candidate security review: factory-scoped route insertion
+- Reviewed the SHA-pinned Oracle candidate generator and identified a safety gap: verifying the snapshot route exists somewhere in the AST does not prove the insertion anchor is a direct child of `create_app`. Added fail-closed direct-factory AST check in `ac0a0b11` and a negative regression test in `af88226f`.
+- Earlier 1,054-test CI success at `6f2d2e6b` remains evidence for that earlier version only. **New CI pending** for the factory-scope guard; do not transfer old PASS to these changes.
+- No server modification, no token access, no Dhan calls, no APK. Even after CI PASS, Oracle source runtime dependencies, backup/diff and protected HTTP tests are required before deployment. Five assessment filters remain unavailable pending a real data producer.
