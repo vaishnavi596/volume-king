@@ -35,3 +35,27 @@
 - Next: finish watchlist 3m data path with true 1m→3m aggregation and timeframe-specific cached analysis, then Dashboard 1m; add regression before changing polling, respecting Dhan limits and release gate.
 
 **Status:** Source gap audit complete for the named pathways only; cannot truthfully assert no other runtime error exists before Oracle and Android end-to-end tests.
+
+
+## B4 FILTER FRAMEWORK — mandatory full acceptance (owner 2026-11-16)
+
+**Do not call all five filters 100% repaired from a GitHub regression PASS alone.** This is a release-blocking feature, and it must not be skipped while completing B1–B3. There are two related but different existing concepts: (a) selectable Scanner technical filters (the up-to-10 active slot editor and timeframe-aware candle votes), and (b) Oracle five assessment filters. They must be labeled separately and composed without double counting.
+
+### Five Oracle assessment filters, all individually gated
+| Filter ID | Data contract | Required actual success proof |
+|---|---|---|
+| `oi_support` | Per-symbol, listed-expiry option-chain OI and strike/underlying mapping | Correct valid strike/support, timestamp and OI evidence |
+| `oi_resistance` | Same-chain OI resistance | Correct mapped resistance, timestamp, no stale/phantom contract |
+| `max_pain` | Supported strikes CE/PE OI calculation, exact expiry | Reproduce on bounded fixture and authorized mapped broker chain |
+| `pcr` | Put OI divided by Call OI, valid nonzero denominator | Exact mathematical test and per-equity/index real entitlement, WAIT otherwise |
+| `candle_trend` | Real completed 1m/3m/5m candles as required by consuming page | No wrong timeframe, malformed OHLC, partial bar or historical vote marked live |
+
+### Four independent factor categories
+- `news`: traced symbol-specific published headlines and timestamps, no fabricated sentiment.
+- `futures`: eligible and mapped futures instrument, price/volume/OI source; not derived blindly from cash LTP.
+- `options`: actual chain and money-flow inputs, preferably bounded near-ATM window, no unsupported entitlement assumptions.
+- `candle`: completed historical technical indicators with chosen page's timeframe; avoid counting identical technical votes twice as independent factors.
+
+**Acceptance matrix**: for NIFTY/BANKNIFTY/SENSEX, default fixed equities, and each selected custom equity, test source name, symbol, security ID, exchange segment, expiry where relevant, timeframe, input timestamp/freshness, available/unavailable status, numeric domain, score range (only if genuinely defined), common Bullish/Bearish rendering and red/green continuity; valid error, 429 and stale states remain WAIT with last-good historical data clearly marked. Test no option entitlement for unavailable symbols, no source fallback, zero orders. Cross-check Dashboard 1m, Scanner selected timeframe, Watchlist 3m and Super Five 5m.
+
+**Current evidence:** `src/shared_assessment_ui.py` has exact IDs `oi_support, oi_resistance, max_pain, pcr, candle_trend` plus factor keys `news,futures,options,candle`. It is a strict **presentation/validation** client; it explicitly says `News/Futures/Options/Candle: no verified 0–100 scores` and returns `WAIT • server producer not configured`. This protects against fake signals but does not produce real scoring inputs. The existing technical Scanner filter editor and 5m signal votes are separate. **B4 is OPEN, not functional PASS.** Required: actual Oracle data producer and authenticated bounded source parity, independent score definition, tests and mobile acceptance. Do not artificially populate five values to remove WAIT.
