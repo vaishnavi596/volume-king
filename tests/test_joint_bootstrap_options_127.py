@@ -38,6 +38,11 @@ class JointSessionRepairTests(unittest.TestCase):
         news=segment("    news_bootstrap_generation=[None]","    async def super_five_minute_refresh():")
         self.assertIn("news_bootstrap_generation[0]=generation",news)
         self.assertIn("[:5]",news)
+        # Without saved Top Five, prime no more than five equity RSS contexts.
+        self.assertIn("for sym in watch_symbols:",news)
+        self.assertIn("if len(candidates)>=5:",news)
+        self.assertIn("if sym not in candidates:",news)
+        self.assertIn("candidates.append(sym)",news)
         self.assertIn("await asyncio.to_thread(fetch_news,sym)",news)
         self.assertIn("await asyncio.sleep(0.5)",news)
         self.assertNotIn("dhan_feed.option_chain_metrics",news)
