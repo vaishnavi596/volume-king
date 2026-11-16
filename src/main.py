@@ -6049,13 +6049,19 @@ console.log('BOT KING Lightweight Charts ready');
                 # Saved last-valid prices must NOT mask an incomplete fresh
                 # login index batch. Require a new generation's actual 3/3
                 # observation, otherwise allow one bounded after-close retry.
-                index_loaded_this_login=(
-                    login_bootstrap.generation==provider_generation[0]
+                same_index_login=(login_bootstrap.generation==provider_generation[0])
+                index_loaded_this_login=(same_index_login
                     and login_bootstrap.stages.get("indices")=="LOADED"
                     and login_bootstrap.counts.get("indices")== (3,3))
+                # Do not race the asynchronous first login batch while its
+                # stage remains LOADING. A partial/failed completed login
+                # permits only one closed-session recovery per generation.
+                index_login_recovery_ready=(same_index_login
+                    and login_bootstrap.stages.get("indices") in
+                        ("PARTIAL","FAILED","COOLDOWN"))
                 closed_index_bootstrap=(not regular_hours()
                     and closed_index_bootstrap_generation[0]!=provider_generation[0]
-                    and not index_loaded_this_login)
+                    and index_login_recovery_ready and not index_loaded_this_login)
                 if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected and not index_refresh_busy[0]):
                     await refresh_dhan_index_quotes()
