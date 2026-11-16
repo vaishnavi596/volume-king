@@ -537,3 +537,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 - **[CI #1663](https://github.com/vaishnavi596/volume-king/actions/runs/43885026879): 1033/1033 PASS** code `d192027e`.
 - **[CI #1664](https://github.com/vaishnavi596/volume-king/actions/runs/43885090122): 1035/1035 PASS** including offline concurrency and cooldown tests, test commit `74ad03ec`.
 - **Release gate still OPEN:** source-level backend historical pacing, process-local only; Oracle production not deployed or tested. Shared history cache/duplicate request coalescing between two phones not established; B2 Watchlist full 3m history and B4 genuine five filter scores remain incomplete. Android acceptance and APK deferred.
+
+
+## 2026-11-16 — Oracle history multi-phone cache audit (B3 #11/#12)
+- SOURCE VERIFIED: `backend/server.py` `/dhan/intraday` reads a 180-second validated candle cache for identical symbol, interval and date range before the upstream broker request. This supports reuse for sequential two-device requests in one worker; actual production measurements still pending.
+- RACE OPEN: the cache read lock does not extend through broker fetch and cache write; simultaneous identical cache misses may cause two upstream calls. New backend DhanFeed history pacing limits provider request frequency but does not deduplicate them. Plan small per-key single-flight regression and patch only after reviewing existing server tests. No app code/deployment/APK in this audit.
