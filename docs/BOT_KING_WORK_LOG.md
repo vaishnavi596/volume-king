@@ -1382,3 +1382,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - #1579 [run 43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, job `133201392828`: **951/951 PASS**, GitHub job/workflow success (`Ran 951 tests in 162.235s`). Tests for valid SHA256 and finite audit evidence.
 - #1580 [run 43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, job `133202162167`: **953/953 PASS**, GitHub job/workflow success (`Ran 953 tests in 200.350s`). Tests include recent label with zero/unknown equity cache quote count.
 - Historical in-progress entries for these runs are superseded. These results are strictly **offline CI**, not evidence of Oracle collector execution, five-filter live signals, or equity PCR entitlement. No deployment, no orders, no APK.
+
+
+## 2026-11-16 — AUDIT-08 localhost redirect-protection hardening
+- **Code review issue:** `scripts/audit_oracle_collector_runtime_readonly.py::request_get` created an urllib opener disabling proxy usage but not automatic HTTP redirects. A 30x from a protected local GET could potentially forward its pairing header to a different origin or move the audit outside trusted loopback. This is a **source-level security exposure**, **not an observed Oracle production attack**.
+- **Source fix:** [92c3597f](https://github.com/vaishnavi596/volume-king/commit/92c3597f81cfaef80caeed8bed22864b01cf6947) adds `NoRedirect(HTTPRedirectHandler)`, returning `None` for all redirect requests. Default opener uses `ProxyHandler({})` and `NoRedirect()`. 30x are returned as HTTP status and never followed; no Dhan/quote/order calls.
+- **Regression:** [55cffa26](https://github.com/vaishnavi596/volume-king/commit/55cffa2642b53c4eeae33c876b68bc421ceecf2e) asserts the redirect handler refuses an external-origin redirect and is installed for the protected audit. **CI PENDING** at commit; do not claim successful tests yet.
+- **Scope:** GitHub audited script only, not Oracle deployed source. No production change, no APK or live orders. Real server collector/assessment and equity PCR entitlement still unverified.
