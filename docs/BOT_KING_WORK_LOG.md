@@ -2426,3 +2426,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle isolated handler AST global dependency inventory
 - Operator source-only audit returned handler `botking_assessment_safe`, globals `HTTPException`, `Header`, `Optional`, `app`, `hmac`, `pairing_key`; annotations `symbol: str`, `x_botking_key: Optional[str]`, default `Header(default=None)`. Candidate not executed and production unchanged.
 - Root cause of previous harness `NameError`: missing `typing.Optional` injection. Next HTTPX-free ASGI test injects all six globals, uses only dummy pairing key and synthetic ASGI scopes, asserts 403/403/200 and safe response flags. No deployment or live provider verification implied.
+
+
+## 2026-11-17 — Oracle isolated assessment authentication/safety ASGI 3/3 PASS
+- Operator executed AST-extracted `botking_assessment_safe` in a synthetic FastAPI ASGI app with dummy pairing key, no HTTPX, no real server import. Observed: missing `X-BotKing-Key` -> HTTP 403 PASS; wrong key -> HTTP 403 PASS; valid synthetic key -> HTTP 200 PASS. Valid response: `signal_eligible=False`, `live_orders_enabled=False`, `collection_status=not_configured`, `assessment_filters` length 5, `factors` length 4. `AUTH_AND_SAFETY_TESTS=3/3`, `RESULT=PASS`.
+- Test output explicitly: `LIVE_VERIFICATION=NOT_PERFORMED`, `PRODUCTION_CHANGED=NO`, `DHAN_REQUESTS=0`. Evidence is isolated candidate handler behavior only; full server wiring, production auth, actual Dhan source, freshness, numeric filter values and APK/mobile remain unverified. Next gate: detailed response schema/IDs/placeholder values/duplicate safety, then production deployment decision only after complete regression and backup/rollback plan.
