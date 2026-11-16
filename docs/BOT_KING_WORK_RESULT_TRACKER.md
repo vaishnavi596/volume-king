@@ -261,3 +261,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 ## 2026-11-16 — CI #1585 failure root cause and superseding fix
 - **Historical red CI explicitly retained:** [#1585 run 43842689096](https://github.com/vaishnavi596/volume-king/actions/runs/43842689096), head `5d4b7f8e`, job `133215020310`, **FAILED 1 of 957 tests** (`Ran 957 tests in 344.719s`, `FAILED (failures=1)`). Exact failed test: `test_not_configured_explains_wait_on_compact_cards`; assertion expected `server producer not configured` but new code correctly returned `Oracle 4 factors / 5 filters • WAIT • malformed response` for incomplete fixture. This is a **test-fixture/contract mismatch**, not evidence of live Oracle failure.
 - **Superseding correction:** [test commit `118bbfe3`](https://github.com/vaishnavi596/volume-king/commit/118bbfe3d510fa611f7c5c734f896c9c52cbdca5) added complete factor/filter placeholder fixture plus incomplete-payload rejection test. [CI #1586 run 43842735722](https://github.com/vaishnavi596/volume-king/actions/runs/43842735722), head `118bbfe3`, job `133215174383`: **958/958 PASS**. #1587 961/961 PASS at `29912ce8` confirmed 54-roster source test. Do not delete history of #1585 or mislabel it production failure. Oracle/runtime/mobile not verified; no APK.
+
+
+## 2026-11-16 — Shared 54-symbol assessment cache timestamp safety
+| Stage | Source finding | Patch and proof | Oracle/device |
+|---|---|---|---|
+| 3/4 · all 54 shared assessment views | NaN/bool fetched timestamps could evade age expiry checks | `5d72c7c4` + `b9fd95b4` regression for equity and index selections. **CI pending** | No live 54/54 producer or device proof |
+| 5/6 · release gate | Previous-fix and new-fix coverage still required | `docs/BOT_KING_54_SYMBOL_ALL_FIXES_RELEASE_GATE_20261116.md` | APK blocked |
