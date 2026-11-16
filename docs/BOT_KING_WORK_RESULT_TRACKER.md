@@ -268,3 +268,6 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 3/4 · all 54 shared assessment views | NaN/bool fetched timestamps could evade age expiry checks | `5d72c7c4` + `b9fd95b4` regression for equity and index selections. **CI pending** | No live 54/54 producer or device proof |
 | 5/6 · release gate | Previous-fix and new-fix coverage still required | `docs/BOT_KING_54_SYMBOL_ALL_FIXES_RELEASE_GATE_20261116.md` | APK blocked |
+
+
+| 3/4 · shared 54-symbol filter rendering | Malformed unhashable five-filter ID could raise `TypeError` and break screen | `3f0b0356` source + `51f67706` tests; CI PENDING; now fail-closed `WAIT • incomplete filters` for selected symbol; no 54/54 runtime proof |
