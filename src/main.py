@@ -2087,10 +2087,12 @@ def app_main(page:ft.Page):
         # Local 2s observation does NOT call Dhan or reconstruct the entire page.
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
         last_visible_signature=None
+        last_cell_signatures={}
         while True:
             await asyncio.sleep(2)
             if current[0]!=4 or not app_active[0]:
                 last_visible_signature=None
+                last_cell_signatures.clear()
                 continue
             try:
                 visible=tuple(watch_groups[active_watch[0]])
@@ -2109,9 +2111,6 @@ def app_main(page:ft.Page):
                 if watch_status_text.value!=status:
                     watch_status_text.value=status
                     if watch_status_text.page is not None:watch_status_text.update()
-                if set(watch_row_cells)!=set(sym for sym in visible if sym in watch_row_cells):
-                    # Membership changes are handled by the existing list builder.
-                    pass
                 if watch_filter[0]!="All":
                     # Direction may change filter membership; refresh only list.
                     fill_watch()
@@ -2122,6 +2121,16 @@ def app_main(page:ft.Page):
                 for sym in visible:
                     cells=watch_row_cells.get(sym)
                     if not cells:continue
+                    q=quotes.get(sym) or {}
+                    signal_row=watch_signal_cache.get(sym) or {}
+                    symbol_signature=(q.get("fetched_at"),q.get("price"),q.get("change"),
+                                      q.get("freshness"),q.get("source"),
+                                      signal_row.get("timestamp"),repr(signal_row.get("votes")),
+                                      signal_row.get("live_verified"),signal_row.get("freshness"),
+                                      id(five_engine_snapshots.get(sym)),watch_batch_status[0])
+                    if last_cell_signatures.get(sym)==symbol_signature:
+                        continue
+                    last_cell_signatures[sym]=symbol_signature
                     price,change,five,assessment,signal,freshness=cells
                     q=quotes.get(sym) or {}
                     same=q.get("source")==expected
