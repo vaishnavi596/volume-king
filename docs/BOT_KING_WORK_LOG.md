@@ -2632,3 +2632,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Commit b75f5f39d120e778e9223f7b9aa6ceaa9c40ad3f: backend/server.py now imports pure assessment_filter_adapter.option_filter_rows and adds assessment_filters to the existing authenticated /dhan/option-chain read-only response, reusing the already calculated metrics; no second Dhan call. OI support/resistance and candle trend remain unavailable; PCR/max pain informational and freshness unverified.
 - Commit 3664b84029d1ad9756069fb5638f9cae1586bd3e: AST offline regression checks exactly one option_chain provider call, one calculate_option_metrics call, one adapter call, and no adapter network/order calls.
 - This is repository source only, NOT Oracle production deployment; /v2/assessment remains placeholder and Android integration remains pending. Await current commit CI; APK HOLD.
+
+
+## 2026-11-17 — CI failure diagnosis and repair
+- Workflow 43942777255 for 3664b84 FAILED in test_no_trade_signal_or_score_in_adapter. Retrieved actual job logs: AST assertion incorrectly classified ordinary dict.get() as network I/O. The sibling option-chain wiring test passed; backend integration workflow 43942754975 (b75f5f3) completed SUCCESS.
+- Corrected AST test to reject post/order/place_order without rejecting dict.get; commit 4a7d34102b6958b0097740816eb305f4e4707989. CI for correction pending verification.
+- Earlier adapter test workflow 43941496655 SUCCESS, five-slot UI 43940494149 SUCCESS, option metric 43940468205 SUCCESS. Main /v2/assessment still placeholder. No Oracle deploy or APK build.
