@@ -2457,3 +2457,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle top-level AST comparison: create_app-only modification
 - Operator source-only comparison: `PRODUCTION_TOPLEVEL_NODES=40`, `CANDIDATE_TOPLEVEL_NODES=40`, one removed/modified fingerprint (`FUNCTION:create_app` SHA prefix `4128b64d49d44d30`) and one added/modified (`FUNCTION:create_app` prefix `a6f7c8f1749332ce`); no other top-level node difference. `PRODUCTION_CHANGED=NO`.
 - Interpretation: expected factory change from adding two routes is plausible, not proven. Next gate strips only the two known new decorated route definitions from candidate `create_app` and compares the remaining normalized AST to production, without executing source. HOLD if anything else differs.
+
+
+## 2026-11-17 — Oracle create_app factory remainder AST preservation PASS
+- Operator memory-only AST comparison removed exactly two new candidate decorated route definitions, `GET /v2/assessment/{symbol}` and `GET /v2/server-readiness`, then compared candidate `create_app` remainder to production `create_app`. Observed `REMOVED_COUNT=2`, `EXPECTED_COUNT=2`, `FACTORY_REMAINDER_IDENTICAL=True`, `FACTORY_PRESERVATION=PASS`, `FILES_MODIFIED=NO`, `PRODUCTION_CHANGED=NO`.
+- Scope: AST structural equality of factory after subtracting two known additions, not runtime equivalence or proof new readiness route is safe. Next gate: inspect isolated readiness handler and test synthetic ASGI behavior; no production deployment.
