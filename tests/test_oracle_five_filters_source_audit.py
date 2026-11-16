@@ -135,6 +135,26 @@ class OracleFiveFiltersSourceAudit(TestCase):
                 self.assertIn("incomplete factors", rows[0])
                 self.assertNotIn("server producer not configured", rows[0])
 
+    def test_not_configured_with_available_row_reports_inconsistency(self):
+        for symbol in ("RELIANCE", "NIFTY", "BANKNIFTY", "SENSEX"):
+            for row_type in ("filter", "factor"):
+                payload = {
+                    "symbol": symbol, "collection_status": "not_configured",
+                    "live_orders_enabled": False, "signal_eligible": False,
+                    "factors": {key: {"status": "unavailable"} for key in
+                                ("news", "futures", "options", "candle")},
+                    "assessment_filters": [
+                        {"id": name, "status": "unavailable"} for name in FILTER_NAMES],
+                }
+                if row_type == "filter":
+                    payload["assessment_filters"][0]["status"] = "available"
+                else:
+                    payload["factors"]["news"]["status"] = "available"
+                rows = assessment_lines(symbol, {
+                    symbol: {"fetched": 100, "data": payload}}, now=101)
+                self.assertIn("inconsistent server response", rows[0])
+                self.assertNotIn("server producer not configured", rows[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
