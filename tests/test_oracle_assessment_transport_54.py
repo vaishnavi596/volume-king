@@ -46,6 +46,21 @@ class AssessmentTransport54Tests(TestCase):
                         with self.assertRaises(FeedError):
                             feed.assessment(symbol)
 
+    def test_not_configured_cannot_claim_any_available_filter_or_factor(self):
+        feed = ServerDhanReadOnly()
+        for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
+            for field in ("factor", "filter"):
+                response = payload(symbol)
+                response["collection_status"] = "not_configured"
+                if field == "factor":
+                    response["factors"]["options"]["status"] = "available"
+                else:
+                    response["assessment_filters"][0]["status"] = "available"
+                with self.subTest(symbol=symbol, field=field):
+                    with patch.object(feed, "_call", return_value=response):
+                        with self.assertRaises(FeedError):
+                            feed.assessment(symbol)
+
     def test_malformed_factor_rows_fail_closed_for_all_54_symbols(self):
         feed = ServerDhanReadOnly()
         for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
