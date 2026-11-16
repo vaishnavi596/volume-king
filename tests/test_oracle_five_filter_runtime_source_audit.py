@@ -47,6 +47,21 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertFalse(result["known_placeholder_detected"])
         self.assertFalse(result["producer_proven_functional"])
 
+    def test_unrelated_object_get_is_not_oracle_app_route(self):
+        with TemporaryDirectory() as d:
+            path = Path(d) / "server.py"
+            path.write_text(
+                'def source():\n'
+                '    @other.get("/v2/assessment/{symbol}")\n'
+                '    def assessment(symbol):\n'
+                '        return {"status": "not_configured"}\n',
+                encoding="utf-8",
+            )
+            result = audit_module.audit(path)
+        self.assertEqual(result["assessment_route_source_count"], 0)
+        self.assertFalse(result["known_placeholder_detected"])
+        self.assertFalse(result["producer_proven_functional"])
+
     def test_symlink_is_never_followed(self):
         with TemporaryDirectory() as d:
             target = Path(d) / "source.py"
