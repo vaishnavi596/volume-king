@@ -54,6 +54,18 @@ class CompletedThreeMinuteBarsTest(unittest.TestCase):
         self.assertEqual(completed_three_minute_bars("bad", now_epoch=t+180), [])
         self.assertEqual(completed_three_minute_bars([], now_epoch=float("nan")), [])
 
+    def test_duplicate_minute_rejects_entire_bucket(self):
+        t = epoch()
+        bars = [
+            (t, 100, 101, 99, 100, 1),
+            (t+60, 100, 103, 99, 101, 2),
+            (t+60, 100, 107, 98, 106, 20),
+            (t+120, 101, 104, 100, 102, 3),
+        ]
+        # A duplicate provider record must not produce a misleading green
+        # or red Watchlist 3-minute vote or double-counted volume.
+        self.assertEqual(completed_three_minute_bars(bars, now_epoch=t+180), [])
+
     def test_different_trading_days_never_merge(self):
         t1, t2 = epoch(16), epoch(17)
         self.assertEqual(completed_three_minute_bars([
