@@ -110,6 +110,50 @@ class SingleFlightTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertFalse(second.json()["live_orders_enabled"])
 
+    def test_reentrant_stripe_supports_nested_derived_history_without_deadlock(self):
+        """Oracle's 3m->1m and 30m->5m recursion must never deadlock a lane."""
+        lanes = tuple(threading.RLock() for _ in range(32))
+        for derived, base in ((3, 1), (30, 5)):
+            # Force the worst-case collision: both calls take the SAME lane.
+            lane = lanes[0]
+            seen = []
+            def history(interval):
+                with lane:
+                    seen.append(interval)
+                    if interval == derived:
+                        return history(base)
+                    return "validated-base"
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                result = executor.submit(history, derived).result(timeout=2)
+            self.assertEqual(result, "validated-base")
+            self.assertEqual(seen, [derived, base])
+
+    def test_reentrant_lane_serializes_other_threads(self):
+        """RLock allows same-thread recursion but excludes another mobile thread."""
+        lane = threading.RLock()
+        entered = threading.Event()
+        release = threading.Event()
+        order = []
+        def first():
+            with lane:
+                with lane:
+                    order.append("first")
+                    entered.set()
+                    self.assertTrue(release.wait(timeout=3))
+        def second():
+            with lane:
+                order.append("second")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            a = executor.submit(first)
+            self.assertTrue(entered.wait(timeout=2))
+            z = executor.submit(second)
+            time.sleep(0.1)
+            self.assertEqual(order, ["first"])
+            release.set()
+            a.result(timeout=3)
+            z.result(timeout=3)
+        self.assertEqual(order, ["first", "second"])
+
     def test_missing_pairing_key_does_not_invoke_upstream(self):
         app = create_app(pairing_key=KEY, feed=StubAngel())
         with patch("backend.server.DhanFeed", side_effect=AssertionError("unexpected Dhan call")):
