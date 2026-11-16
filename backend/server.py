@@ -43,6 +43,11 @@ try:
 except ImportError:
     from dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 from pathlib import Path
+import hashlib
+try:
+    from .shared_quote_lane import SharedQuoteLane
+except ImportError:
+    from shared_quote_lane import SharedQuoteLane
 try:
     from .dhan_registry import load_dynamic_instruments
 except ImportError:
@@ -581,6 +586,10 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "atm_window_status": window_status,
                 "live_orders_enabled": False}
 
+    # Shared per-process quote lane across both phones. Redis/multiworker
+    # deployment would need a distributed equivalent (currently one worker).
+    shared_quote_lane = SharedQuoteLane(ttl_seconds=60, cooldown_seconds=30)
+
     @app.post("/dhan/index-ltp-batch")
     def dhan_index_ltp_batch(x_botking_key: Optional[str] = Header(default=None)):
         """One read-only provider request for three verified index instruments."""
@@ -595,8 +604,13 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
         try:
-            data = DhanFeed(client, token).batch_ltp(
-                [(segment, sid) for segment, sid, _ in mappings])
+            data = shared_quote_lane.run(
+                ("indices", client, hashlib.sha256(token.encode()).digest()),
+                lambda: DhanFeed(client, token).batch_ltp(
+                    [(segment, sid) for segment, sid, _ in mappings]),
+                lambda row: isinstance(row, dict) and row.get("status") == "success"
+                    and isinstance(row.get("data"), dict) and bool(row["data"]),
+                rate_limit_error=DhanRateLimitError)
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan market data rate limited; retry later",
                                 headers={"Retry-After": "30"}) from None
@@ -684,7 +698,15 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         pairs = [(DYNAMIC_INSTRUMENTS[sym][0], DYNAMIC_INSTRUMENTS[sym][1])
                  for sym in symbols]
         try:
-            response = DhanFeed(client, token).batch_ltp(pairs)
+            response = shared_quote_lane.run(
+                ("selected", client, hashlib.sha256(token.encode()).digest(),
+                 tuple(sorted(symbols))),
+                lambda: DhanFeed(client, token).batch_ltp(pairs),
+                lambda row: isinstance(row, dict) and row.get("status") == "success"
+                    and isinstance(row.get("data"), dict)
+                    and isinstance(row["data"].get("NSE_EQ"), dict)
+                    and bool(row["data"]["NSE_EQ"]),
+                rate_limit_error=DhanRateLimitError)
         except DhanRateLimitError:
             raise HTTPException(429, "Dhan selected equity batch rate limited",
                                 headers={"Retry-After": "30"}) from None
