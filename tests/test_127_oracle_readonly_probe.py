@@ -76,6 +76,21 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
         self.assertEqual([p for p,_ in calls].count("/dhan/option-expiries"),1)
         self.assertNotIn("/dhan/option-chain",[p for p,_ in calls])
 
+    def test_index_429_stops_option_calls_even_with_auth(self):
+        calls=[]
+        def fake(origin,key,path,payload=None):
+            calls.append(path)
+            if path=="/dhan/status":
+                return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
+            if path=="/dhan/index-ltp-batch":
+                return {"http":429,"error":"rate_limited"},None
+            return {"http":503,"error":"unavailable"},None
+        result=probe("https://example.org","x"*40,
+                     requester=fake,pause=lambda _:None)
+        self.assertEqual(result["options_status"],"skipped_account_rate_limit")
+        self.assertNotIn("/dhan/option-expiries",calls)
+        self.assertNotIn("/dhan/option-chain",calls)
+
     def test_no_auth_skips_all_option_requests_and_redirect_denied(self):
         calls=[]
         def fake(origin,key,path,payload=None):
