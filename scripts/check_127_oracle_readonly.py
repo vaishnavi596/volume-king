@@ -124,7 +124,17 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
     if summary["snapshot"].get("http")==429:
         summary["options_status"]="skipped_account_rate_limit"
         return summary
-    if direct_equities_if_stale and not snapshot_healthy:
+    # Do not turn an auth failure, gateway outage or invalid contract into
+    # a second upstream request. Only an authenticated 200, structurally valid
+    # read-only *stale* snapshot authorizes this optional diagnostic.
+    safe_stale_snapshot=(summary["snapshot"].get("http")==200
+        and summary["snapshot"].get("error") is None
+        and isinstance(data,dict) and data.get("source")=="dhan"
+        and data.get("live_orders_enabled") is False
+        and data.get("collection_status") in
+            ("not_collected","awaiting_next_collection","collection_overdue","upstream_error")
+        and data.get("freshness")=="stale_or_missing")
+    if direct_equities_if_stale and safe_stale_snapshot and not snapshot_healthy:
         # This causes at most ONE authenticated direct broker-market request,
         # only when explicitly requested by an operator. No retry storms.
         direct_info,direct_data=requester(origin,pairing_key,"/dhan/ltp-batch",{})
@@ -140,7 +150,9 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
             summary["options_status"]="skipped_account_rate_limit"
             return summary
     elif direct_equities_if_stale:
-        summary["direct_equities"]["status"]="skipped_healthy_oracle_snapshot"
+        summary["direct_equities"]["status"]=(
+            "skipped_healthy_oracle_snapshot" if snapshot_healthy
+            else "skipped_snapshot_contract_or_http_error")
     info, data = requester(origin, pairing_key, "/dhan/index-ltp-batch", {})
     quotes = data.get("quotes") if data else None
     summary["indices"] = {
