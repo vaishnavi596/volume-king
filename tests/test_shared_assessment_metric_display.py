@@ -33,6 +33,25 @@ class AssessmentMetricDisplayTests(unittest.TestCase):
         self.assertIn("PCR: 1.250", lines)
         self.assertIn("not a trade signal", lines[-1])
 
+    def test_duplicate_and_malformed_filter_ids_fail_closed(self):
+        for bad_id in ("unknown", ["pcr"], None):
+            with self.subTest(bad_id=repr(bad_id)):
+                cache = cached_assessment("pcr", 1.25)
+                cache["NIFTY"]["data"]["assessment_filters"][0]["id"] = bad_id
+                lines = assessment_lines("NIFTY", cache, now=110)
+                self.assertIn("WAIT", lines[0])
+        cache = cached_assessment("pcr", 1.25)
+        cache["NIFTY"]["data"]["assessment_filters"][0]["id"] = "pcr"
+        self.assertIn("WAIT", assessment_lines("NIFTY", cache, now=110)[0])
+
+    def test_placeholder_cannot_claim_available_values(self):
+        cache = cached_assessment("pcr", 1.25)
+        cache["NIFTY"]["data"]["collection_status"] = "not_configured"
+        self.assertIn("WAIT", assessment_lines("NIFTY", cache, now=110)[0])
+        cache["NIFTY"]["data"]["assessment_filters"][3]["status"] = "unavailable"
+        self.assertIn("server producer not configured",
+                      assessment_lines("NIFTY", cache, now=110)[0])
+
     def test_stale_and_unsafe_payloads_wait(self):
         cache = cached_assessment("pcr", 1.25)
         self.assertIn("WAIT", assessment_lines("NIFTY", cache, now=500)[0])
