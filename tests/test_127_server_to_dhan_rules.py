@@ -27,6 +27,7 @@ class ServerToDhanRulesTests(unittest.TestCase):
         self.assertIn("ss -H -ltn '( sport = :8000 )'",source)
         self.assertIn("127[.]0[.]0[.]1:8000",source)
         self.assertIn("'https://api.dhan.co/v2/profile'",source)
+        self.assertIn("'https://auth.dhan.co/'",source)
         self.assertIn("--noproxy '*'",source)
         self.assertNotIn("access-token:",source)
 
