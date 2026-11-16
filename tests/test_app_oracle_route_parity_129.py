@@ -71,6 +71,24 @@ class AppOracleRouteParity(unittest.TestCase):
         self.assertNotIn('access_token', body)
         self.assertNotIn('dhan_market_token()', body)
 
+    def test_assessment_is_protected_and_all_factors_fail_closed(self):
+        self.assertIn('@app.get("/v2/assessment/{symbol}")', SERVER)
+        self.assertIn('def assessment(self, symbol):', CLIENT)
+        a = SERVER.index("def botking_read_only_assessment(")
+        b = SERVER.index('    @app.get("/v2/server-readiness")', a)
+        section = SERVER[a:b]
+        self.assertIn('hmac.compare_digest', section)
+        self.assertIn('HTTPException(403', section)
+        self.assertIn('HTTPException(422', section)
+        self.assertIn('("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")', section)
+        self.assertIn('("news", "futures", "options", "candle")', section)
+        self.assertIn('"bullish_score": None', section)
+        self.assertIn('"bearish_score": None', section)
+        self.assertIn('"signal_eligible": False', section)
+        self.assertIn('"live_orders_enabled": False', section)
+        self.assertNotIn('DhanFeed(', section)
+        self.assertNotIn('dhan_market_token()', section)
+
     def test_no_new_unverified_four_lane_api_paths_were_assumed(self):
         # Future server coordinator routes need paired client+server+tests.
         self.assertNotIn('"/v3/pipeline/', CLIENT)
