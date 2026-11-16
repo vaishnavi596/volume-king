@@ -38,6 +38,27 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertFalse(out["apk_release_allowed"])
         self.assertEqual(out["orders_sent"], 0)
 
+    def test_recent_label_with_overdue_age_is_not_silent(self):
+        self.collector.update(
+            collector_interval_seconds=90,
+            collector_last_success_age_seconds=550,
+            snapshot_age_seconds=500,
+        )
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SNAPSHOT_AGE_CONFLICT", codes(out))
+        self.assertIn("COLLECTOR_AGE_CONFLICT", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+
+    def test_normal_recent_age_does_not_warn(self):
+        self.collector.update(
+            collector_interval_seconds=90,
+            collector_last_success_age_seconds=42,
+            snapshot_age_seconds=45,
+        )
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertNotIn("SNAPSHOT_AGE_CONFLICT", codes(out))
+        self.assertNotIn("COLLECTOR_AGE_CONFLICT", codes(out))
+
     def test_mixed_version_audit_reports_never_mark_complete(self):
         self.filters["source_sha256"] = "b" * 64
         out = mod.classify(self.routes, self.filters, self.collector)
