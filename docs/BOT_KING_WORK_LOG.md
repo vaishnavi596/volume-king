@@ -2331,3 +2331,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle ASGI test dependencies checked; user requests grouped commands
 - Operator executed read-only virtualenv module discovery and reported `FASTAPI= True`, `HTTPX= False`, `STARLETTE= True`, `PYTHON_TEST_ENV=CHECKED`.
 - `httpx` unavailable, so avoid installing dependencies or using TestClient. Plan single combined isolated in-process ASGI test using existing FastAPI/Starlette, AST-extracted candidate route functions and synthetic key, without importing production module, opening a port, reading secrets or touching service. User explicitly prefers grouped 2–4 safe checks per command to accelerate work. HTTP runtime results pending.
+
+
+## 2026-11-16 — Oracle isolated FastAPI ASGI HTTP test 6/6 PASS
+- Operator executed a single in-process FastAPI ASGI test using only AST-extracted candidate route functions and synthetic pairing key. Exact output: `/v2/server-readiness NO_KEY PASS HTTP 403`; `/v2/server-readiness WRONG_KEY PASS HTTP 403`; `/v2/server-readiness VALID_KEY PASS HTTP 200`; `/v2/assessment/NIFTY NO_KEY PASS HTTP 403`; `/v2/assessment/NIFTY WRONG_KEY PASS HTTP 403`; `/v2/assessment/NIFTY VALID_KEY PASS HTTP 200`; `ASGI_TOTAL= 6 /6`; `PRODUCTION_UNCHANGED=true`; `DHAN_REQUESTS=0`.
+- Isolated candidate tests total **15/15 PASS**: 4 function negative-auth + 5 authorized safety-contract + 6 FastAPI ASGI HTTP status checks. In-process synthetic app is not production application or network listener; this does **not** prove real production registration, Dhan filters, data freshness, real credentials or production deployment.
+- Next: GitHub code audit of five filters and four factor data contracts, implement/test against fixture data without silent Dhan fallback. Candidate remains undeployed, filters unavailable and live orders disabled. Continue grouped safe commands when useful.
