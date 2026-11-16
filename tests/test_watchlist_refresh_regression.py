@@ -40,7 +40,9 @@ class WatchlistRefreshRegression(unittest.TestCase):
 
     def test_change_aware_watchlist_refresh(self):
         self.assertIn("if signature==last_visible_signature", self.source)
-        self.assertIn("await asyncio.sleep(2)", self.source)\n        self.assertIn("if target==4 and current[0]==4 and watch_list.page is not None:", self.source)\n        self.assertIn("watch_row_cells[sym]=", self.source)
+        self.assertIn("await asyncio.sleep(2)", self.source)
+        self.assertIn("if target==4 and current[0]==4 and watch_list.page is not None:", self.source)
+        self.assertIn("watch_row_cells[sym]=", self.source)
 
 
 if __name__ == "__main__":
