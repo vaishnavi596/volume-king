@@ -10,6 +10,7 @@ from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
+from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
@@ -1204,13 +1205,13 @@ def app_main(page:ft.Page):
             await asyncio.sleep(0.5)
 
     async def super_five_minute_refresh():
-        # Priority P2: check local completed candles every 10s, even after close.
+        # Priority P2: 2s local revision observation; does not poll Dhan.
         # This does NOT poll Dhan; historical B/S stays non-actionable.
         # Re-analyze only when candles or filter choices change, without
         # issuing extra broker/Oracle historical or quote requests.
         last_fingerprint=None
         while True:
-            await asyncio.sleep(10)
+            await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)
             try:
                 if not app_active[0]:
                     last_fingerprint=None
