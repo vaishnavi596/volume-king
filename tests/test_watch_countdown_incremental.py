@@ -8,8 +8,8 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         worker=source.split("    async def watch_visible_tick():",1)[1].split("    def watchlist():",1)[0]
         self.assertIn("await asyncio.sleep(2)",worker)
-        self.assertIn("if signature!=last_visible_signature:",worker)
-        self.assertIn("request_view_refresh(4)",worker)
+        self.assertIn("if signature==last_visible_signature",worker)
+        self.assertIn("if cell.page is not None:cell.update()",worker)
         self.assertIn('watch_signal_cache.get(sym)',worker)
         self.assertNotIn("watch_countdown.update()",worker)
         self.assertNotIn("Next due",worker)
@@ -25,7 +25,7 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
 
     def test_watchlist_navigation_and_poll_share_request_clock(self):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        poll=source.split("    async def dhan_quote_poll():",1)[1].split("    # Compact countdown updates independently",1)[0]
+        poll=source.split("    async def dhan_quote_poll():",1)[1].split("    # The Watchlist observes",1)[0]
         render=source.split("    def render_page(i):",1)[1].split("    # Keep the app chrome inside Android system insets",1)[0]
         self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",poll)
         self.assertNotIn("quote_auto_last_attempt[0]=time.monotonic()",poll)
