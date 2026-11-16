@@ -436,3 +436,7 @@ This is the persistent, numbered owner-facing checklist for the work still being
 **Totals:** 24 checkpoints in six grouped batches. 7 checkpoints have a documented completed source/design/audit component (items 01, 02, 05, 06, 09, 10, 13, 17 actually eight), plus further PARTIAL components. This is NOT an official percentage of product completion; no count represents Android runtime proof. Existing source CI run numbers should be preserved separately from upcoming exact-HEAD CI.
 
 **Current next gate:** confirm real current branch CI fail/success without guessing from empty legacy-status responses, then integrate Watchlist true 3m data path and Dashboard true 1m, while preserving Scanner's chosen timeframe and Super Five 5m. Journal after each commit/test. No production edit or APK created by this checklist.
+
+
+## 2026-11-16 — Numbered checkpoint 06 follow-up: duplicate-minute safeguard
+- **Checkpoint 06 B2** completed 3m candle derivation helper has additional source safety [2fc66d70](https://github.com/vaishnavi596/volume-king/commit/2fc66d70d1adab2eda14c21049721a16476af785): reject 3m bucket when any valid 1m source timestamp is duplicated, preventing ambiguous OHLC/volume and votes. Regression [04ec7acd](https://github.com/vaishnavi596/volume-king/commit/04ec7acdb8222ff44a9adc5a7bad4213d9a4baa6) added; exact Actions CI **UNVERIFIED**. Source-level correction only; Android 3m live UI/integration **OPEN**. No Oracle edit, Dhan query or APK. Corresponding journal checkpoint: B2 duplicate-minute data-quality fix.
