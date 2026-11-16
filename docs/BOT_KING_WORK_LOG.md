@@ -1913,3 +1913,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle B3 candidate unified diff reviewed (operator excerpt)
 - Operator provided `diff -u` output for production `server.py` vs `~/botking-b3-review/server_b3_candidate.py`: one inserted 18-line B3 block immediately before historical candle cache declaration (reentrant 32-lane `history_miss_locks`, `history_singleflight` wrapper, auth guard) and one added `@history_singleflight` decorator beneath `@app.post("/dhan/intraday")`. No deletion or change to original cache, provider, resampling, 429 path visible in excerpt. Candidate SHA256 previously `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`.
 - Operator independently rechecked production SHA256 **unchanged** `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`. This is a **source diff review**, not a runtime/deploy PASS. Need fail-closed independent diff verification (no truncation), candidate AST audit, secure production backup with SHA, explicit rollback, then controlled deployment approval. No restart, production write or Dhan calls.
+
+
+## 2026-11-16 — Oracle B3 predeployment backup SHA verified (operator proof)
+- Operator created `~/botking-b3-review/backup` with mode 0700, copied production `/opt/bot-king-server/server.py` via `cp -p` to `~/botking-b3-review/backup/server.py.before_b3`.
+- Operator `sha256sum`: production **and backup** `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; separate candidate `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`. Backup integrity PASS at time of check; candidate hash stable.
+- No production replacement, service restart, endpoint smoke, concurrency test or mobile proof. Before any deployment, inspect permissions and ensure full diff (not truncated) is strictly limited to approved additions, confirm production SHA again, and agree controlled restart/rollback gate.
