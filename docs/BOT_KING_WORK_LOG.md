@@ -2304,3 +2304,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle candidate exact source-preservation check PASS
 - Operator Python byte-level check of production `/opt/bot-king-server/server.py` versus `/tmp/bk_server_assessment_candidate.py` returned `ORIGINAL_SOURCE_PRESERVED= True`, `INSERTED_BYTES= 2039`, `CANDIDATE_ONLY= True`. Check compared exact prefix before unique snapshot anchor and suffix from anchor onward, confirming one insertion with unchanged surrounding production source bytes.
 - Earlier AST candidate inventory: 22 decorated routes, including snapshot and both proposed routes. Generator Git blob integrity PASS, candidate AST syntax PASS. This is **candidate source verification only**; no candidate runtime/auth tests or deployment yet. New filter payloads explicitly unavailable; no live orders. Next isolated auth-negative tests only, without touching production or reading/printing credentials.
+
+
+## 2026-11-16 — Oracle candidate static auth guard presence PASS
+- Operator AST scan returned `AUTH_GUARDS_STATIC= {'botking_readiness_safe': True, 'botking_assessment_safe': True}` for `/tmp/bk_server_assessment_candidate.py`.
+- The check verifies only that each candidate function contains a `compare_digest` call and `HTTPException` call. It does **not** establish guard ordering, correct header mapping, actual 403 response, or authorized behavior. Candidate remains undeployed, no production service restart or Dhan calls. Next create/run isolated tests using synthetic pairing key and no network/server import if possible; keep real credentials out of test output.
