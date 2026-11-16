@@ -17,6 +17,22 @@ class AssessmentViewTests(unittest.TestCase):
         self.assertTrue(any("historical/unverified" in s for s in lines))
         self.assertTrue(any("not a trade signal" in s for s in lines))
 
+    def test_wait_reason_allowlist_and_no_signal_promotion(self):
+        d = make()
+        d["assessment_filters"][0] = {
+            "id": "oi_support", "status": "unavailable",
+            "reason": "option_chain_unavailable",
+        }
+        d["assessment_filters"][1] = {
+            "id": "oi_resistance", "status": "unavailable",
+            "reason": "SECRET_DO_NOT_DISPLAY",
+        }
+        lines = assessment_lines("NIFTY", {"NIFTY": {"fetched": 100, "data": d}}, now=120)
+        self.assertTrue(any("OI Support: WAIT • option chain unavailable" in line for line in lines))
+        self.assertTrue(any("OI Resistance: WAIT" in line for line in lines))
+        self.assertNotIn("SECRET_DO_NOT_DISPLAY", " ".join(lines))
+        self.assertTrue(any("not a trade signal" in line for line in lines))
+
     def test_symbol_and_ttl_isolation(self):
         cache = {"NIFTY": {"fetched": 100, "data": make()}}
         self.assertIn("not requested", assessment_lines("BANKNIFTY", cache, now=110)[0])
