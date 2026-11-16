@@ -166,3 +166,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/2 · collector classifier | #1574 943/943 PASS; #1575 945/945 PASS, exact earlier source heads | **OFFLINE CI PASS** | Oracle collector runtime not executed |
 | 2/3 · assessment route identification | Non-`app.get` decorator could masquerade as declared Oracle route; patched `a42089d5`, tested `0f4397af` | **CODE COMMITTED; NEW CI PENDING** | Live route and verified producer NOT established |
 | 4/5/6 · PCR/release | No entitlement proof or live Oracle checks | **BLOCKED** | No APK; operator audit then backup-first fixes |
+
+| 1/2 · source audit consistency | Joined AST reports could refer to different server.py revisions | `e582b84f` source + `aa75e0cd` SHA mismatch regression; **CI PENDING**, no live audit |
