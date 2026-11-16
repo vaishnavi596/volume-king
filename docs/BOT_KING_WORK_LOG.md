@@ -1849,3 +1849,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Source commit `c62bcf7a` switches **GitHub** worker-local history lock stripes from `threading.Lock` to `threading.RLock`; motivated by confirmed Oracle 3m/30m nested `dhan_intraday` recursion. It does not deploy or replace Oracle code.
 - Source audit commit `2788ca31` adds a fail-closed `singleflight_reentrant_locks` source indicator; test commit `3fb3a4fb` checks that a nonreentrant lock variant fails source readiness. These are source-contract checks, not a full Oracle derived-candle runtime regression. Need verify CI before claiming PASS.
 - **Important limitations:** Hash-striped reentrant lanes prevent same-thread deadlock but are worker-local, and actual Oracle still has no verified single-flight patch. The production-specific patch must preserve 500-entry persistence and recursive derived behavior and pass a full runtime test. No Oracle modification, restart, orders or token changes.
+
+
+## 2026-11-16 — B3 reentrant source/audit CI verified
+- GitHub Actions **#1669** run `43893215266` conclusion **success** at source commit `c62bcf7a` (RLock change).
+- GitHub Actions **#1670** run `43893256797`, job `133389826544`, conclusion **success** at test commit `3fb3a4fb`: logs show `test_nonreentrant_lane_fails_source_parity ... ok`, `Ran 1043 tests in 434.420s`, `OK` (0 failures/errors).
+- These are **GitHub offline tests only**, not Oracle source parity or live two-phone evidence. Production Oracle source remains unchanged, with SHA256 `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` from operator; `bot-king.service` active as reported. Next prepare narrowly scoped Oracle-specific patch and offline derived recursion/concurrency tests before deployment.
