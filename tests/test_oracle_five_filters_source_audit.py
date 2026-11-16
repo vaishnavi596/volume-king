@@ -115,6 +115,26 @@ class OracleFiveFiltersSourceAudit(TestCase):
                 self.assertIn("incomplete filters", lines[0])
                 self.assertNotIn("server producer not configured", lines[0])
 
+    def test_incomplete_factor_rows_do_not_mask_placeholder_on_any_index(self):
+        for symbol in ("RELIANCE", "NIFTY", "BANKNIFTY", "SENSEX"):
+            for bad_row in ([], None, {"status": "unknown"}):
+                data = {
+                    "symbol": symbol, "collection_status": "not_configured",
+                    "live_orders_enabled": False, "signal_eligible": False,
+                    "factors": {
+                        "news": {"status": "unavailable"},
+                        "futures": {"status": "unavailable"},
+                        "options": bad_row,
+                        "candle": {"status": "unavailable"},
+                    },
+                    "assessment_filters": [
+                        {"id": key, "status": "unavailable"} for key in FILTER_NAMES],
+                }
+                rows = assessment_lines(symbol, {
+                    symbol: {"fetched": 100, "data": data}}, now=101)
+                self.assertIn("incomplete factors", rows[0])
+                self.assertNotIn("server producer not configured", rows[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
