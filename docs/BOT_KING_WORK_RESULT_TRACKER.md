@@ -526,3 +526,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 
 ## 2026-11-16 — B3 #11/#12 source upstream lane added, acceptance OPEN
 - Code [d192027e](https://github.com/vaishnavi596/volume-king/commit/d192027e69a7c4b4f8d27ec9e6882cd568d9b054) serializes and paces `DhanFeed` /charts/intraday + /charts/historical **inside one backend Python process** at 1.1s, separate from existing LTP request lane; regression [74ad03ec](https://github.com/vaishnavi596/volume-king/commit/74ad03eced3b8454cef7cc1630c0232758c37095) simulates two instances and cooldown. **CI pending**; Oracle NOT DEPLOYED, Dhan bytes/rates NOT MEASURED, mobile NOT TESTED. Shared server cache/dedup for multi-phone remains OPEN. Last verified CI baseline #1662: 1033/1033 PASS on previous source.
+
+
+## 2026-11-16 — Two-job controlled sequence, B2 audit-only outcome
+- **Job 1 B3:** backend historical pacing source `d192027e` and offline concurrency tests `74ad03ec` committed, #1664 CI not yet concluded at observation; no Oracle production deployment or shared multi-host cache.
+- **Job 2 B2:** source-only review of completed 3m aggregation and last-good candle retention rules confirms existing safeguards; **NO NEW B2 PATCH**, no new Dhan calls. B2 remains **PARTIAL**, especially 51-equity 1m ingestion, real 3m coverage/freshness and Android acceptance. Do not elevate checklist status from code inspection alone.
