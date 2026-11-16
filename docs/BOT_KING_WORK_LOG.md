@@ -2452,3 +2452,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle existing route handler AST preservation PASS
 - Operator read-only AST digest comparison of production `/opt/bot-king-server/server.py` and isolated `/tmp/bk_server_assessment_candidate.py`: `PRODUCTION_ROUTE_KEYS=20`, `CANDIDATE_ROUTE_KEYS=22`, `CHANGED_EXISTING_HANDLERS=0`, `HANDLER_PRESERVATION=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
 - Scope: normalized AST equality of functions with existing HTTP method/path decorators. Does not establish equivalence of global helpers, middleware, app factory, initialization, auth dependencies, configuration, or runtime behavior. Next read-only gate: compare top-level global statements/functions excluding two new routes and audit server-readiness route safety; do not deploy yet.
+
+
+## 2026-11-17 — Oracle top-level AST comparison: create_app-only modification
+- Operator source-only comparison: `PRODUCTION_TOPLEVEL_NODES=40`, `CANDIDATE_TOPLEVEL_NODES=40`, one removed/modified fingerprint (`FUNCTION:create_app` SHA prefix `4128b64d49d44d30`) and one added/modified (`FUNCTION:create_app` prefix `a6f7c8f1749332ce`); no other top-level node difference. `PRODUCTION_CHANGED=NO`.
+- Interpretation: expected factory change from adding two routes is plausible, not proven. Next gate strips only the two known new decorated route definitions from candidate `create_app` and compares the remaining normalized AST to production, without executing source. HOLD if anything else differs.
