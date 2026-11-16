@@ -1,3 +1,7 @@
+## FIRST READ IN NEW CHATS — SIX-STAGE WORK/RESULT/ERROR/REPAIR TABLE
+
+Use [`docs/BOT_KING_WORK_RESULT_TRACKER.md`](docs/BOT_KING_WORK_RESULT_TRACKER.md) FIRST. It is the owner's permanent **Stage 1–6** audit checklist with columns for work, source CI, Oracle proof, APK/build/device result, error→repair and next action. Then read the append-only `docs/BOT_KING_WORK_LOG.md` and release gate `docs/BOT_KING_RELEASE_GATE_POLICY.md`. Update all relevant records **together with each change**, not merely at release time. As-of 2026-11-16 GitHub regression #1565 at `39b34182` is **919/919 PASS**. v2.3.130 #645 remains diagnostic while customized Oracle deployment is unverified. No next APK before all release gates.
+
 # BOT KING — START HERE IN EVERY NEW CHAT
 
 **Project:** BOT KING (Dhan-only Android scanner and simulated Paper Bot)
