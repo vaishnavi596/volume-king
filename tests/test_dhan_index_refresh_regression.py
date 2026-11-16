@@ -61,7 +61,7 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('generation!=provider_generation[0]', source)
         self.assertIn('market_recent.get(history_key)', source)
         self.assertIn('await asyncio.sleep(1.5)', source)
-        self.assertIn('asyncio.to_thread(get_market_data,index_sym,"5m","2d")', source)
+        self.assertIn('asyncio.to_thread(get_market_data,index_sym,"1m","2d")', source)
         self.assertIn('page.run_task(dhan_index_candle_poll)', self.source)
 
     def test_index_candle_timer_respects_explicit_scan_lifecycle(self):
