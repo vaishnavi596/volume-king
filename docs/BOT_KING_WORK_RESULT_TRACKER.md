@@ -451,3 +451,9 @@ This is the persistent, numbered owner-facing checklist for the work still being
 - **Code** [390f7d62](https://github.com/vaishnavi596/volume-king/commit/390f7d62ea8cc717b6015bd9cc1436c97c5e1488): canonical `shared_history(sym,tf="5m")` accepts exact timeframe, source and Scanner generation; unlabeled 5m quote bars never enter 1m/3m. Default 5m callers preserved.
 - **Test source** [97f76fc3](https://github.com/vaishnavi596/volume-king/commit/97f76fc359937a604056f9c8145ce0842f89e36e): 5 isolated execution cases, no network; **CI not verified**, Oracle and mobile not run.
 - **Remaining:** Dashboard 1m and Watchlist 3m now have a safer shared selection primitive, but real Dhan 1m history collection, pacing, per-timeframe vote cache and rendering remain OPEN. No extra Dhan fanout, no APK, no live orders.
+
+
+## 2026-11-16 — Numbered B2 checkpoint 07: Watchlist 3m display (cached-only milestone)
+- **Source commit** [21ec40a1](https://github.com/vaishnavi596/volume-king/commit/21ec40a107753f4c6fa02438446b89fe06ebf2fd) adds a true completed-3m Dhan candle vote selector for Watchlist rows, filter membership, and mounted 2s observation. Previous 5m `watch_signal_cache` remains solely Super Five/common ranking; it must NOT be relabeled Watchlist 3m. Missing 3m input produces **3m WAIT**. No new upstream Dhan request from rendering.
+- **Test source** [3f552681](https://github.com/vaishnavi596/volume-king/commit/3f55268197c8f04a6e2a9bbf0ab1f1e8d4f640d5) adds five AST contract tests, exact CI result **UNKNOWN** (not PASS). **Oracle/phone NOT TESTED**.
+- **Checkpoint 07 status: PARTIAL** — UI now reads real cached 3m source *when present*, but the 51-equity automatic 1m→3m collection is **NOT IMPLEMENTED**, and currently most rows can remain WAIT. Do not declare the full Watchlist 3m feature done; next priority quota-safe server shared collection and Dashboard 1m ingestion after actual CI/Oracle audit.
