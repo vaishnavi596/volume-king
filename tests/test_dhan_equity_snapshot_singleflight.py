@@ -21,7 +21,7 @@ class EquitySnapshotCoalescingTests(TestCase):
     def test_two_second_validated_snapshot_is_reused_without_broker_request(self):
         expected = {"RELIANCE": {"symbol": "RELIANCE", "price": 100,
                                  "source": "Dhan", "live_verified": False,
-                                 "freshness": "unverified"}}
+                                 "freshness": "unverified", "snapshot_age_seconds": 30}}
         with patch.object(self.client, "batch_quotes", return_value=expected) as snapshot:
             one = self.client.equity_quotes_with_bootstrap()
             one["RELIANCE"]["price"] = 1
@@ -33,9 +33,29 @@ class EquitySnapshotCoalescingTests(TestCase):
             self.client.equity_quotes_with_bootstrap()
             self.assertEqual(snapshot.call_count, 2)
 
+    def test_near_120s_snapshot_expires_before_two_second_ttl(self):
+        def snap(age, price):
+            return {"RELIANCE": {"symbol": "RELIANCE", "price": price,
+                                 "snapshot_age_seconds": age,
+                                 "source": "Dhan", "freshness": "unverified",
+                                 "live_verified": False}}
+        with patch.object(self.client, "batch_quotes",
+                          side_effect=[snap(119.6, 100), snap(10, 101)]) as fetch:
+            self.assertEqual(self.client.equity_quotes_with_bootstrap()["RELIANCE"]["price"], 100)
+            self.now[0] = 100.5
+            self.assertEqual(self.client.equity_quotes_with_bootstrap()["RELIANCE"]["price"], 101)
+            self.assertEqual(fetch.call_count, 2)
+
+    def test_unknown_cached_snapshot_age_never_reused(self):
+        rows = {"RELIANCE": {"price": 100}}
+        with patch.object(self.client, "batch_quotes", side_effect=[rows, rows]) as fetch:
+            self.client.equity_quotes_with_bootstrap()
+            self.client.equity_quotes_with_bootstrap()
+            self.assertEqual(fetch.call_count, 2)
+
     def test_malformed_snapshot_does_not_get_cached_or_trigger_broker(self):
         invalid = FeedError("Invalid Oracle Dhan snapshot quote")
-        with patch.object(self.client, "batch_quotes", side_effect=[invalid, {"RELIANCE": {"price": 100}}]) as snapshot:
+        with patch.object(self.client, "batch_quotes", side_effect=[invalid, {"RELIANCE": {"price": 100, "snapshot_age_seconds": 30}}]) as snapshot:
             with patch.object(self.client, "_call", side_effect=AssertionError("must not call Dhan")):
                 with self.assertRaises(FeedError):
                     self.client.equity_quotes_with_bootstrap()
@@ -44,12 +64,12 @@ class EquitySnapshotCoalescingTests(TestCase):
         self.assertEqual(snapshot.call_count, 2)
 
     def test_disconnect_and_reconnect_never_reuse_older_session_quotes(self):
-        with patch.object(self.client, "batch_quotes", return_value={"RELIANCE": {"price": 100}}):
+        with patch.object(self.client, "batch_quotes", return_value={"RELIANCE": {"price": 100, "snapshot_age_seconds": 30}}):
             self.client.equity_quotes_with_bootstrap()
         self.client.disconnect()
         self.client._origin = "https://example.org"
         self.client._pairing_key = "new-unit-test-only-key"
-        with patch.object(self.client, "batch_quotes", return_value={"RELIANCE": {"price": 200}}) as fresh:
+        with patch.object(self.client, "batch_quotes", return_value={"RELIANCE": {"price": 200, "snapshot_age_seconds": 30}}) as fresh:
             value = self.client.equity_quotes_with_bootstrap()
         self.assertEqual(value["RELIANCE"]["price"], 200)
         fresh.assert_called_once_with()
