@@ -36,6 +36,7 @@ class HistoricalVoteUiTests(unittest.TestCase):
             for child in control._get_children():
                 walk(child)
         walk(root)
-        self.assertTrue(any("Bearish 100%" in t for t in texts),texts[-30:])
+        self.assertFalse(any("Bearish 100%" in t for t in texts),texts[-30:])
+        self.assertTrue(any("1m historical candle votes unavailable" in t for t in texts),texts[-30:])
         self.assertTrue(any("HIST" in t for t in texts),texts[-30:])
         self.assertFalse(any(t=="LIVE" for t in texts),texts[-30:])
