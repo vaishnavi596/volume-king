@@ -656,7 +656,10 @@ class ServerDhanReadOnly:
                        or not isinstance(f.get("id"), str)
                        or f["id"] not in expected
                        or f.get("status") not in ("available", "unavailable") for f in filters)
-                or {f["id"] for f in filters} != expected):
+                or {f["id"] for f in filters} != expected
+                or (result.get("collection_status") == "not_configured"
+                    and (any(row["status"] != "unavailable" for row in factors.values())
+                         or any(row["status"] != "unavailable" for row in filters)))):
             raise FeedError("Invalid or unsafe Dhan assessment response")
         return result
 
