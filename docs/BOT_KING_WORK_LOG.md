@@ -2314,3 +2314,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle candidate first-statement auth guard AST ordering PASS
 - Operator read-only AST test returned `FIRST_STATEMENT_AUTH_IF= {'botking_readiness_safe': True, 'botking_assessment_safe': True}`.
 - Both candidate route functions begin with an `if` whose condition includes `compare_digest` and whose body includes `raise`. This is static ordering evidence only; it does not verify exact HTTP status or runtime auth. No production deployment/restart. Next isolated synthetic-key negative test, preferably evaluating only extracted route function AST with stubbed FastAPI `Header`, `HTTPException` and `app.get`, without importing the server or reading secrets.
+
+
+## 2026-11-16 — Oracle isolated candidate negative-auth function tests 4/4 PASS
+- Operator executed isolated AST-extracted candidate route functions with synthetic `pairing_key`, stubbed `Header` and `HTTPException`, no production import or server/network call. Exact output: `botking_readiness_safe NO_KEY PASS`; `botking_readiness_safe WRONG_KEY PASS`; `botking_assessment_safe NO_KEY PASS`; `botking_assessment_safe WRONG_KEY PASS`.
+- **4/4 negative authentication function tests PASS**: both route functions raised synthetic HTTPException with status_code 403 for missing/wrong keys. This does not establish real HTTP route registration, real header parsing, authorized response contract, or deployment. No production modifications or Dhan requests.
+- Next: synthetic authorized-key response contract test for readiness fail-closed fields, assessment five unavailable filters, four unavailable factors, `signal_eligible=false` and `live_orders_enabled=false`; no secrets. Deployment HOLD.
