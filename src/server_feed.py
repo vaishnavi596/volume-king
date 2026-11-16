@@ -543,7 +543,8 @@ class ServerDhanReadOnly:
                 raise FeedError("Invalid Oracle Dhan snapshot quote")
             quotes[symbol] = {"symbol": symbol, "price": price, "source": "Dhan",
                               "quote_timestamp": None, "freshness": "unverified",
-                              "snapshot_age_seconds": age, "live_verified": False}
+                              "snapshot_age_seconds": age, "live_verified": False,
+                              "quote_collection": "oracle_snapshot"}
         return quotes
 
     def equity_quotes_with_bootstrap(self):
@@ -594,7 +595,8 @@ class ServerDhanReadOnly:
                 checked[sym] = {"symbol": sym, "price": float(price),
                                 "source": "Dhan", "freshness": "unverified",
                                 "quote_timestamp": None, "live_verified": False,
-                                "snapshot_age_seconds": 0.0}
+                                "snapshot_age_seconds": None,
+                                "quote_collection": "direct_dhan_batch"}
             return checked
 
     def intraday(self, symbol, interval, from_date, to_date):
