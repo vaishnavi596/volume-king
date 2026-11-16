@@ -91,6 +91,20 @@ def classify(routes, filters, collector):
         if collector.get("live_orders_enabled") is not False:
             add("PAPER_ONLY_NOT_VERIFIED", "runtime", "Do not promote deployment without explicit live_orders_enabled=false")
 
+    # A recent marker without even one equity quote cannot certify usable
+    # data. Count unknown stays unknown; zero is an explicit diagnostic.
+    quote_count = collector.get("equity_quote_count")
+    if (collector.get("snapshot_http") == 200
+            and collector.get("snapshot_status") == "recently_collected"
+            and quote_count == 0 and type(quote_count) is int):
+        add("SNAPSHOT_EMPTY_QUOTES", "runtime",
+            "Check selected symbol cache and collector output; do not call market data healthy")
+    if (collector.get("snapshot_http") == 200
+            and collector.get("snapshot_status") == "recently_collected"
+            and (type(quote_count) is not int or quote_count < 0)):
+        add("SNAPSHOT_QUOTE_COVERAGE_UNKNOWN", "runtime",
+            "Require non-secret cached quote count before claiming collection coverage")
+
     # A status label is not enough if accompanying ages exceed a safe bound.
     # Allow two collection intervals (minimum 30 seconds) to avoid false
     # positives during a normal bounded poll; this is an audit warning only.
