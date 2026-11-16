@@ -2066,3 +2066,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Job `offline-tests` (job ID `133423133586`) completed successfully, including `Check Python syntax` and `Run offline regression suite (no APK build)`.
 - Retrieved job logs and confirmed `test_exact_oracle_lock_block_cold_miss_one_mock_provider_call` is in executed tests; final unittest summary: **Ran 1049 tests in 124.060s — OK**. This supersedes earlier uncertainty about CI visibility: the earlier commit-workflow lookup was PR-event filtered, while this was a `push` workflow.
 - Proof scope: the committed test executes the Oracle generator's exact lock block against mocked cache/provider. It does **not** instrument Oracle's production cold cache, verify real Dhan upstream request count, or prove two physical phones. No Oracle production deployment, restart, credentials, or orders involved.
+
+
+## 2026-11-16 — Two-client cold equity quote batch mock regression added
+- Audited GitHub `backend/server.py` `POST /dhan/ltp-batch`: `snapshot_refresh_lock` spans validated cache recheck, provider fetch and publication; `snapshot_lock` protects cache, successful nonempty quotes reused for 60s. Invalid/empty results are not promoted to fresh cache. Single-process scope; Oracle production parity for this endpoint not yet verified.
+- Added `test_two_phones_share_one_cold_equity_ltp_batch` to `tests/test_dhan_history_singleflight.py`, commit `7c46abacb484c81457c5514b2b9f2936e51d2342`. It creates two independent FastAPI TestClient instances sharing one app, races their cold `/dhan/ltp-batch` calls against a blocking mock Dhan adapter, expects both HTTP 200 and equal nonempty quotes, **one** mock `/marketfeed/ltp` upstream invocation, and `live_orders_enabled=false`.
+- Source committed; **CI pending**. No Dhan network calls, production writes, Oracle restart or credential changes. This test is not proof of physical two-device behavior or production Oracle cache parity.
