@@ -36,6 +36,18 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertFalse(out["apk_release_allowed"])
         self.assertEqual(out["orders_sent"], 0)
 
+    def test_missing_routes_never_mark_source_audit_complete(self):
+        self.routes["source_present"] = 8
+        self.routes["source_missing"] = ["/v2/assessment/{symbol}"]
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertFalse(out["source_audit_complete"])
+        self.assertIn("SOURCE_ROUTES_MISSING", codes(out))
+
+    def test_valid_source_count_does_not_imply_producer(self):
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertTrue(out["source_audit_complete"])
+        self.assertFalse(out["runtime_five_filters_proven"])
+
     def test_missing_and_auth_are_distinct(self):
         self.routes["source_missing"] = ["/v2/assessment/{symbol}"]
         self.routes["source_present"] = 8
