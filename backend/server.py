@@ -349,7 +349,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "https://auth.dhan.co/app/generate-consent",
                     params={"client_id": client},
                     headers={"app_id": key, "app_secret": secret},
-                    timeout=12,
+                    timeout=12, allow_redirects=False,
                 )
                 response.raise_for_status()
                 consent = response.json().get("consentAppId")
@@ -376,7 +376,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "https://auth.dhan.co/app/consumeApp-consent",
                     params={"tokenId": tokenId},
                     headers={"app_id": key, "app_secret": secret},
-                    timeout=12,
+                    timeout=12, allow_redirects=False,
                 )
                 response.raise_for_status()
                 result = response.json()
