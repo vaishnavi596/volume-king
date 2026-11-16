@@ -191,3 +191,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4/5/6 · PCR, assessment and APK | No Oracle source/runtime proof yet | No production patch or APK | Unverified/block unchanged |
 
 - **Exact CI run opened:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, was **IN PROGRESS** at inspection. The 949/949 PASS #1578 applies to the previous test head only; no claim yet for Audit-06.
+
+
+## 2026-11-16 — AUDIT-07 quote coverage warning
+| Stage | Issue | Code / tests | Runtime status |
+|---|---|---|---|
+| 1/2 · collector snapshot | Recent status with zero or unknown quote count lacked an explicit diagnostic | `374f3f16` source + `6220e02e` tests, CI PENDING | No real Oracle audit; no quote freshness proof |
+| 3/4/5/6 | PCR/Five Filter producers and release | No broker/production changes | Still UNVERIFIED; APK blocked |
