@@ -1919,3 +1919,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator created `~/botking-b3-review/backup` with mode 0700, copied production `/opt/bot-king-server/server.py` via `cp -p` to `~/botking-b3-review/backup/server.py.before_b3`.
 - Operator `sha256sum`: production **and backup** `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; separate candidate `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`. Backup integrity PASS at time of check; candidate hash stable.
 - No production replacement, service restart, endpoint smoke, concurrency test or mobile proof. Before any deployment, inspect permissions and ensure full diff (not truncated) is strictly limited to approved additions, confirm production SHA again, and agree controlled restart/rollback gate.
+
+
+## 2026-11-16 — Oracle B3 file ownership and diff gate checked
+- Operator `stat` evidence: production `/opt/bot-king-server/server.py` mode `644 root:root`; backup `~/botking-b3-review/backup/server.py.before_b3` mode `644 opc:opc` (parent backup directory previously chmod 0700); candidate `~/botking-b3-review/server_b3_candidate.py` mode `600 opc:opc`.
+- Operator's first diff command was accidentally concatenated and interrupted with Ctrl+C; second succeeded. Diff hunks `@@ -735,6 +735,24 @@` and `@@ -858,6 +876,7 @@` contain only 18-line reentrant worker-local history singleflight insertion and one `@history_singleflight` decorator; no removed source lines shown. This corroborates earlier full diff excerpt.
+- **Deployment not done**. Need inspect service execution identity, `sudo -n` availability and safe staging/ownership semantics before any root-owned production file replacement; maintain backup and rollback. Source review does not establish actual Dhan/runtime performance or two-phone behavior.
