@@ -64,6 +64,20 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn("symbol!=chain_symbol.value",context)
         self.assertIn("data.get(\"signal_eligible\") is False",context)
 
+    def test_option_retry_guard_is_per_selection_and_provider_cooldown(self):
+        body=segment("    async def refresh_selected_options():","    def selected_option_rows():")
+        self.assertIn('option_key=(provider_generation[0],chain_symbol.value',body)
+        self.assertIn('expiry.value if option_expiry_choice.value=="Manual" else ""',body)
+        self.assertIn('option_retry_until.get(option_key,0.0)',body)
+        self.assertIn('delay=(300 if "422" in detail',body)
+        self.assertIn('if "429" in detail or "cooldown" in detail.lower()',body)
+        self.assertIn('option_retry_until[option_key]=time.monotonic()+delay',body)
+        self.assertIn('option_retry_until.pop(option_key,None)',body)
+        self.assertIn('len(option_retry_until)>32',body)
+        self.assertIn('and dhan_feed.cooldown_remaining("/dhan/option-chain")==0',body)
+        self.assertIn('and dhan_feed.cooldown_remaining("/dhan/option-expiries")==0',body)
+        self.assertIn('last saved context unverified',body)
+
     def test_no_live_orders_and_paper_center_retained(self):
         self.assertIn("content.append(paper_trading_center())",SRC)
         self.assertIn('note("Paper Bot: "+paper_bot_state[0]',SRC)
