@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.126" # Watchlist login snapshot recovery and visible per-session refresh evidence
+version = "2.3.127" # Dhan 09:10-15:45 polling, incremental Watchlist cells, off-hours manual refresh
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
