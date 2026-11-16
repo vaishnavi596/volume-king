@@ -312,3 +312,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 5/6 · APK | Historical and current 54-symbol gate still applies | No build or deployment | BLOCKED |
 
 - **Exact new CI submissions:** #1596 [43846822794](https://github.com/vaishnavi596/volume-king/actions/runs/43846822794), head `bf9b0c18`; #1597 [43846845799](https://github.com/vaishnavi596/volume-king/actions/runs/43846845799), head `ca9f3164`; #1598 [43846871051](https://github.com/vaishnavi596/volume-king/actions/runs/43846871051), head `8dd1e24c`; #1599 [43846903826](https://github.com/vaishnavi596/volume-king/actions/runs/43846903826), head `b9a1b647`. All were **IN PROGRESS** at initial check. Do not claim PASS until exact GitHub results/logs. No Oracle host or Android build changed.
+
+
+## 2026-11-16 — UNIFIED-54 FOUR-FACTOR CI #1596–1599 completed
+- [#1596](https://github.com/vaishnavi596/volume-king/actions/runs/43846822794), head `bf9b0c18`, job `133228966849`: **966/966 PASS**, 101.699 s.
+- [#1597](https://github.com/vaishnavi596/volume-king/actions/runs/43846845799), head `ca9f3164`, job `133229046797`: **967/967 PASS**, 100.000 s.
+- [#1598](https://github.com/vaishnavi596/volume-king/actions/runs/43846871051), head `8dd1e24c`, job `133229131491`: **967/967 PASS**, 88.654 s.
+- [#1599](https://github.com/vaishnavi596/volume-king/actions/runs/43846903826), head `b9a1b647`, job `133229240962`: **968/968 PASS**, 163.784 s. Exact heads succeeded in GitHub Offline Regression Tests; previous pending entries superseded. This proves factor row schema guards in source CI, NOT live Oracle 54/54 market-data, real PCR, or APK testing. No production changes/orders.
