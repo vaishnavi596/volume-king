@@ -74,3 +74,42 @@ def plan_active_symbols(
         extra_equities=len(set(equities) - watched),
         total_instruments=len(active),
     )
+
+
+def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=0,
+                             minimum_spacing=180, max_batch=3):
+    """Pure bounded 1m history worklist; this function NEVER calls Dhan.
+
+    Caller must serialize actual requests and persist last_attempts in its
+    existing coordinator. All timestamps use the same monotonic clock.
+    On 429 cooldown, return no work. This is not an upstream quota guarantee.
+    """
+    from math import isfinite
+    if not isinstance(active, ActiveSymbolBudget):
+        raise ValueError("active must be a validated ActiveSymbolBudget")
+    numeric = (now, cooldown_until, minimum_spacing)
+    if any(type(v) not in (int, float) or not isfinite(v) for v in numeric):
+        raise ValueError("non-finite history scheduling time")
+    if now < 0 or cooldown_until < 0 or minimum_spacing < 30:
+        raise ValueError("invalid history scheduling window")
+    if type(max_batch) is not int or not 1 <= max_batch <= 3:
+        raise ValueError("max_batch must be from 1 through 3")
+    if last_attempts is None:
+        last_attempts = {}
+    if not isinstance(last_attempts, dict):
+        raise ValueError("last_attempts must be a mapping")
+    if now < cooldown_until:
+        return ()
+    due = []
+    for sym in active.indices + active.equities:
+        previous = last_attempts.get(sym)
+        if previous is not None:
+            if type(previous) not in (int, float) or not isfinite(previous) or previous < 0:
+                raise ValueError("invalid last attempt timestamp")
+            if now - previous < minimum_spacing:
+                continue
+        due.append(sym)
+    # Oldest attempt first; deterministic tie-break prevents per-cycle
+    # oscillation and keeps a fixed upper bound on request bursts.
+    return tuple(sorted(due, key=lambda sym: (
+        last_attempts.get(sym, -1), sym))[:max_batch])
