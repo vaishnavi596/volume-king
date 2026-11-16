@@ -21,6 +21,8 @@ def route_functions(tree):
             continue
         for dec in node.decorator_list:
             if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                    and isinstance(dec.func.value, ast.Name)
+                    and dec.func.value.id == "app"
                     and dec.func.attr.lower() == "get" and dec.args
                     and isinstance(dec.args[0], ast.Constant)
                     and dec.args[0].value == ROUTE):
