@@ -94,3 +94,11 @@
 - v2.3.125 की screen-level, data-display और next-open-session 09:15+ की mobile verification अभी pending।
 - Oracle global-70 WatchlistStore patch के successful deployment का प्रमाण नहीं।
 - News/Futures/Options पूर्ण स्वतंत्र verified scoring और official special-session calendar अपूर्ण/अप्रमाणित।
+
+
+## 2026-11-16 — Historical audit parity addendum (no retroactive PASS)
+
+- This report's bounded **Nov 14–15** historical audit remains intact. Its old release/status checkpoints must be read as dated snapshots; they are not a claim that today's v2.3.128 build or Oracle production is healthy.
+- Cross-compared its ten cross-chat rules with `BOT_KING_HANDOFF.md`, canonical master checklist, and the subsequent Nov 16 `docs/BOT_KING_WORK_LOG.md` entries. Earlier six-batch app, S15/S18 Oracle deployment gates, 70 globally unique cross-list watchlist rule, source-vs-CI-vs-device distinctions, and failure/cooldown rules are **already recorded**. No unsupported retroactive completion was marked.
+- Newly missing continuation is now explicitly linked rather than inserted into Nov 14–15 chronology: new four-pipeline **DISCUSSION/PROPOSAL**, 20 refresh-demand inventory, no-repeat Oracle evidence commands/sha dry-run, v2.3.127 actual mobile seven-error failure and user-reported v2.3.128 build FAIL. See `BOT_KING_REFRESH_DEMAND_INVENTORY_20261116.md`, `BOT_KING_EVIDENCE_AND_COMMAND_RUNBOOK_20261116.md`, and latest Work Log.
+- Remaining gap: a 100% transcript-level reconciliation of **every** prior shell command, timestamped full output, intermediate CI job and screenshot is impossible from the accessible historical summaries; preserve this limit instead of inventing a command result. For each newly supplied owner output, append a specific entry and link the runbook, instead of asking to redo proven checks.
