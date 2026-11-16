@@ -12,7 +12,7 @@ class IndexPlacementTest(unittest.TestCase):
         self.assertNotIn("data_overview(),", dashboard)
         builder = SOURCE.split("    def dashboard_market_indices():", 1)[1].split("    def dashboard():", 1)[0]
         self.assertIn('index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")', builder)
-        self.assertIn("historical_vote_agreement(index_history)", builder)
+        self.assertIn("historical_vote_agreement(index_history,"1m")", builder)
         self.assertIn("return ft.Column(index_cards", builder)
 
     def test_watchlist_no_longer_renders_fixed_indices(self):
