@@ -51,3 +51,34 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
                   historical=True,cached=True,freshness="historical_unverified",
                   live_verified=False,_candle_retained=True)
     return retained
+
+def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan"):
+    """Keep historical directional votes when a refresh has no usable analysis.
+
+    Never reuse a different filter configuration, provider or a vote lacking
+    the original candle timestamp. No live signal, score or trade eligibility.
+    """
+    new=dict(incoming) if isinstance(incoming,dict) else {}
+    old=previous if isinstance(previous,dict) else {}
+    if new.get("source")!=provider or old.get("source")!=provider:
+        return new
+    votes=new.get("votes") or ()
+    if any(isinstance(row,dict) and type(row.get("vote")) is int
+           and row["vote"] in (-1,1) for row in votes):
+        return new
+    prior_votes=old.get("votes") or ()
+    selected=set(selected_filters)
+    prior_names={v.get("name") for v in prior_votes if isinstance(v,dict)}
+    if not selected or prior_names!=selected:
+        return new
+    if not any(isinstance(row,dict) and type(row.get("vote")) is int
+               and row["vote"] in (-1,1) for row in prior_votes):
+        return new
+    timestamp=old.get("timestamp")
+    if type(timestamp) not in (int,float) or not isfinite(timestamp) or timestamp<=0:
+        return new
+    new.update(votes=list(prior_votes),timestamp=timestamp,
+               historical=True,live_verified=False,freshness="unverified",
+               bias="WAIT",score=0,_last_votes_retained=True,
+               reason="Last valid completed-candle filter votes retained as HIST; current analysis unavailable")
+    return new
