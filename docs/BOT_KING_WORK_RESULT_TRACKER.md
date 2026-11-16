@@ -246,3 +246,11 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 5/6 · release | No deployment, APK or orders | SOURCE ONLY | Oracle runtime and mobile signoff pending |
 
 - **Exact CI follow-up:** #1585 [43842689096](https://github.com/vaishnavi596/volume-king/actions/runs/43842689096) head `5d4b7f8e`, #1586 [43842735722](https://github.com/vaishnavi596/volume-king/actions/runs/43842735722) head `118bbfe3`, and new 54-roster #1587 [43842915421](https://github.com/vaishnavi596/volume-king/actions/runs/43842915421) head `29912ce8` were all **IN PROGRESS** at initial inspection. No PASS presumed before logs. All are offline-source CI, not an APK or real Oracle proof.
+
+## 2026-11-16 — All historical fixes / 54-symbol release acceptance gate
+| Stage | Coverage requirement | Verified / remaining |
+|---|---|---|
+| 1/2 | 51 equity + 3 index source universe, independent LTP/candle/rate limiting | Source roster test `29912ce8` CI pending; **54/54 Oracle/mobile not verified** |
+| 3/4 | Scanner, Super Five, five filters, News/Futures/Options/Candle and PCR eligible per underlying | **Real validated producer absent in GitHub backend**, client polls only selected symbols; **not 54/54 PASS** |
+| 5/6 | Before any APK, regression-check **all prior fixes** listed in [54-symbol release gate](BOT_KING_54_SYMBOL_ALL_FIXES_RELEASE_GATE_20261116.md) | `768ba669` checklist committed; APK BLOCKED; no Oracle/phone proof |
+| CI | #1586 `118bbfe3` | **958/958 PASS**; other follow-up runs pending |
