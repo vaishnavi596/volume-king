@@ -204,6 +204,7 @@ class ServerDhanReadOnly:
         self._cooldown_until = {}
         self._global_cooldown_until = 0.0
         self._invalid_option_until = {}
+        self._direct_equity_last_attempt = 0.0
         # One Dhan HTTPS request at a time across quote polling, scanner,
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
@@ -224,6 +225,7 @@ class ServerDhanReadOnly:
         self._cooldown_until = {}
         self._global_cooldown_until = 0.0
         self._invalid_option_until = {}
+        self._direct_equity_last_attempt = 0.0
 
     def _call(self, path, payload=None):
         with self._request_lock:
@@ -543,6 +545,57 @@ class ServerDhanReadOnly:
                               "quote_timestamp": None, "freshness": "unverified",
                               "snapshot_age_seconds": age, "live_verified": False}
         return quotes
+
+    def equity_quotes_with_bootstrap(self):
+        """Use cached Oracle quotes first; bounded read-only recovery if no valid snapshot.
+
+        The Oracle-owned 51-equity ingester is opt-in. When not provisioned or
+        overdue, the phone needs a first authenticated price observation without
+        pretending an old local cache is live. Only the fixed 51-stock Dhan
+        backend batch is permitted; never use Yahoo or per-symbol fanout.
+        """
+        try:
+            return self.batch_quotes()
+        except FeedError as exc:
+            # Do not retry network/auth/422/429 failures or malformed prices.
+            if str(exc) not in (
+                    "Oracle Dhan snapshot missing, stale or invalid",
+                    "Oracle Dhan snapshot contains no quotes"):
+                raise
+            if not self.connected:
+                raise
+            now = time.monotonic()
+            # One fixed-equity direct bootstrap in at most 180 seconds, even
+            # when UI login/page/resume and auto poll all request recovery.
+            if self._direct_equity_last_attempt and now-self._direct_equity_last_attempt < 180:
+                raise
+            if max(self.cooldown_remaining("/v2/snapshot"),
+                   self.cooldown_remaining("/dhan/ltp-batch")) > 0:
+                raise
+            self._direct_equity_last_attempt = now
+            result = self._call("/dhan/ltp-batch", {})
+            import math
+            expected = DHAN_VERIFIED_SYMBOLS - DHAN_VERIFIED_INDEX_SYMBOLS
+            raw, unavailable = result.get("quotes"), result.get("unavailable")
+            if (result.get("source") != "dhan"
+                    or result.get("live_orders_enabled") is not False
+                    or result.get("freshness") != "unverified"
+                    or not isinstance(raw, dict) or not raw
+                    or not isinstance(unavailable, list)
+                    or len(unavailable) != len(set(unavailable))
+                    or set(raw).intersection(unavailable)
+                    or set(raw).union(unavailable) != expected):
+                raise FeedError("Invalid read-only Dhan direct equity bootstrap")
+            checked = {}
+            for sym, price in raw.items():
+                if (type(price) not in (int, float) or not math.isfinite(price)
+                        or price <= 0):
+                    raise FeedError("Invalid read-only Dhan direct equity bootstrap price")
+                checked[sym] = {"symbol": sym, "price": float(price),
+                                "source": "Dhan", "freshness": "unverified",
+                                "quote_timestamp": None, "live_verified": False,
+                                "snapshot_age_seconds": 0.0}
+            return checked
 
     def intraday(self, symbol, interval, from_date, to_date):
         if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in (1, 5, 15, 25, 60):
