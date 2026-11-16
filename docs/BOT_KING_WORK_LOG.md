@@ -1925,3 +1925,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator `stat` evidence: production `/opt/bot-king-server/server.py` mode `644 root:root`; backup `~/botking-b3-review/backup/server.py.before_b3` mode `644 opc:opc` (parent backup directory previously chmod 0700); candidate `~/botking-b3-review/server_b3_candidate.py` mode `600 opc:opc`.
 - Operator's first diff command was accidentally concatenated and interrupted with Ctrl+C; second succeeded. Diff hunks `@@ -735,6 +735,24 @@` and `@@ -858,6 +876,7 @@` contain only 18-line reentrant worker-local history singleflight insertion and one `@history_singleflight` decorator; no removed source lines shown. This corroborates earlier full diff excerpt.
 - **Deployment not done**. Need inspect service execution identity, `sudo -n` availability and safe staging/ownership semantics before any root-owned production file replacement; maintain backup and rollback. Source review does not establish actual Dhan/runtime performance or two-phone behavior.
+
+
+## 2026-11-16 — Oracle B3 service baseline PASS (operator proof)
+- Operator `sudo systemctl show bot-king.service -p User -p Group -p ExecStart -p MainPID -p NRestarts`: `User=opc`, `Group=` (unspecified), `MainPID=579875`, `NRestarts=0`; `ExecStart` begins `/opt/bot-king-server/.venv/bin/python -m uvicorn server...` (terminal output truncated).
+- Local `curl --max-time 10 http://127.0.0.1:8000/health` returned `{"status":"ok","service":"BOT KING","protocol":1,"broker_connected":false,"live_orders_enabled":false}`. This is expected read-only health and does not prove Dhan auth status.
+- Production source remains unmodified; B3 deployment pending. Next establish sudo staging and rollback process with exact hashes, preserve root:root 0644 production metadata, and do not restart without explicit controlled change.
