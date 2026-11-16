@@ -10,6 +10,9 @@ class WatchlistMountedCellBehavior(unittest.TestCase):
     def test_price_change_updates_same_mounted_row_without_page_navigation(self):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
         v["select"](4)
+        # Fake in-memory connection: no outbound network or credentials.
+        v["dhan_feed"]._origin="https://offline.invalid"
+        v["dhan_feed"]._pairing_key="offline-test-only"
         symbols=list(v["watch_row_cells"])
         self.assertTrue(symbols,"Expected at least one saved watchlist row")
         sym=symbols[0]
