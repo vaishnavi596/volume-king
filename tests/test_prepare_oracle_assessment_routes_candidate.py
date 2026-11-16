@@ -27,7 +27,7 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(SOURCE).hexdigest()):
             candidate = module.prepare(SOURCE)
         output = candidate.decode()
-        self.assertIn("def snapshot():\\n        return {}", output)
+        self.assertIn("def snapshot():\n        return {}", output)
         self.assertIn('"/v2/server-readiness"', output)
         self.assertIn('"/v2/assessment/{symbol}"', output)
         self.assertIn('"not_configured"', output)
