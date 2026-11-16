@@ -12,8 +12,11 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     if not isinstance(record, dict):
         return ["Oracle 4 factors / 5 filters • WAIT • not requested"]
     now = time.monotonic() if now is None else now
-    if (not isinstance(record.get("fetched"), (int, float))
-            or now < record["fetched"] or now - record["fetched"] > max_age):
+    fetched = record.get("fetched")
+    if (type(fetched) not in (int, float) or not math.isfinite(fetched)
+            or type(now) not in (int, float) or not math.isfinite(now)
+            or type(max_age) not in (int, float) or not math.isfinite(max_age)
+            or max_age < 0 or now < fetched or now - fetched > max_age):
         return ["Oracle 4 factors / 5 filters • WAIT • cached assessment expired"]
     data = record.get("data")
     if not isinstance(data, dict) or data.get("symbol") != symbol:
