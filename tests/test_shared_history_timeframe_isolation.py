@@ -1,11 +1,15 @@
 """Execute the real shared_history function with isolated, no-network fixtures."""
 import ast
 import math
+import sys
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import textwrap
 import unittest
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "main.py"
+sys.path.insert(0, str(SOURCE.parent))
 
 
 def load_selector(*, charts=None, quote=None, scanner=None, source="Dhan"):
@@ -22,6 +26,8 @@ def load_selector(*, charts=None, quote=None, scanner=None, source="Dhan"):
         "scan_generation": [7],
         "valid_candle_history": lambda bars: len(bars or ()) >= 3,
         "math": math,
+        "time": time,
+        "derived_three_minute_cache": {},
     }
     exec(textwrap.dedent(ast.get_source_segment(code, fn)), context)
     return context["shared_history"]
@@ -61,6 +67,41 @@ class TimeframeHistoryIsolationTests(unittest.TestCase):
         select = load_selector(scanner=history("1m", generation=6),
                                charts={("NIFTY", "1m", 1): history("1m", src="Yahoo Finance")})
         self.assertEqual(select("NIFTY", "1m"), {})
+
+    def test_reuse_cached_dhan_one_minute_to_derive_three_minute(self):
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        bars = [[start+i*60, 100, 102, 99, 101, i+1] for i in range(9)]
+        source = history("1m")
+        source["bars"] = bars
+        select = load_selector(charts={("NIFTY", "1m", 1): source})
+        derived = select("NIFTY", "3m")
+        self.assertEqual(derived["_scanner_timeframe"], "3m")
+        self.assertEqual(derived["source"], "Dhan")
+        self.assertEqual(derived["bars"][0][0], start)
+        self.assertEqual(derived["bars"][0][5], 1+2+3)
+        self.assertEqual(len(derived["bars"]), 3)
+        self.assertTrue(derived["historical"])
+        self.assertFalse(derived["live_verified"])
+        self.assertIs(derived, select("NIFTY", "3m"))
+        self.assertEqual(select("NIFTY", "5m"), {})
+
+    def test_cached_wrong_provider_one_minute_never_derives_dhan_three(self):
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        source = history("1m", src="Yahoo Finance")
+        source["bars"] = [[start+i*60, 100, 102, 99, 101, 1] for i in range(9)]
+        select = load_selector(charts={("NIFTY", "1m", 1): source})
+        self.assertEqual(select("NIFTY", "3m"), {})
+
+    def test_three_minute_requires_complete_one_minute_buckets(self):
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        source = history("1m")
+        source["bars"] = [[start, 100, 102, 99, 101, 1],
+                          [start+120, 101, 104, 100, 103, 2]]
+        select = load_selector(charts={("NIFTY", "1m", 1): source})
+        self.assertEqual(select("NIFTY", "3m"), {})
 
     def test_reject_unsupported_timeframe(self):
         select = load_selector(quote=history(None))
