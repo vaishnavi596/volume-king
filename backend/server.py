@@ -825,55 +825,67 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         token = dhan_market_token()
         if not client or not token:
             raise HTTPException(503, "Dhan credentials not configured")
-        ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
-        try:
-            data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
-        except DhanRateLimitError:
-            raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
-        except DhanFeedError as exc:
-            # Classify safe adapter errors without exposing upstream bodies or tokens.
-            reason = str(exc).lower()
-            if "credentials are not configured" in reason:
-                raise HTTPException(503, "Dhan credentials not configured") from None
-            if "token expired or data access not entitled" in reason:
-                raise HTTPException(502, "Dhan token expired or market data not entitled") from None
-            if "rejected market data request" in reason:
-                raise HTTPException(502, "Dhan rejected batch quote request; check entitlement and instruments") from None
-            if "response exceeds size limit" in reason or "invalid dhan response" in reason:
-                raise HTTPException(502, "Dhan batch response malformed or too large") from None
-            if "market data request failed" in reason:
-                raise HTTPException(502, "Dhan batch network request failed") from None
-            raise HTTPException(502, "Dhan batch market data unavailable") from None
-        entries = data.get("data", {}).get("NSE_EQ", {})
-        if data.get("status") != "success" or not isinstance(entries, dict):
-            raise HTTPException(502, "Invalid Dhan batch quote response")
-        if not entries:
-            raise HTTPException(502, "Dhan returned no market data for verified NSE equities")
-        quotes = {}
-        unavailable = []
-        for symbol, (segment, sid, _) in DHAN_VERIFIED_INSTRUMENTS.items():
-            if segment != "NSE_EQ":
-                continue
+        # Two phones use one server-owned response window, not two Dhan calls.
+        # The lock covers cache recheck + upstream fetch + cache publication.
+        # No stale or failed snapshot may be promoted to a fresh observation.
+        with snapshot_refresh_lock:
+            with snapshot_lock:
+                checked_at = snapshot_cache["updated_monotonic"]
+                elapsed = clock() - checked_at if checked_at else float("inf")
+                if (snapshot_cache["error"] is None and snapshot_cache["quotes"]
+                        and 0 <= elapsed < 60):
+                    return {"source": "dhan", "quotes": dict(snapshot_cache["quotes"]),
+                            "unavailable": list(snapshot_cache["unavailable"]),
+                            "freshness": "unverified", "live_orders_enabled": False}
+            ids = [sid for segment, sid, _ in DHAN_VERIFIED_INSTRUMENTS.values() if segment == "NSE_EQ"]
             try:
-                raw = entries[str(sid)]["last_price"]
-                if isinstance(raw, bool):
-                    raise ValueError("Boolean price")
-                price = float(raw)
-                if not math.isfinite(price) or price <= 0:
-                    raise ValueError("Invalid price")
-                quotes[symbol] = price
-            except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
-                unavailable.append(symbol)
-        # Never publish a successful snapshot when every returned quote is invalid.
-        # Preserve the last cache and let ingestion expose an upstream error.
-        if not quotes:
-            raise HTTPException(502, "Dhan returned no usable verified equity prices")
-        with snapshot_lock:
-            snapshot_cache.update(quotes=dict(quotes), unavailable=list(unavailable),
-                                  observed_at=datetime.now(timezone.utc).isoformat(),
-                                  updated_monotonic=clock(), error=None)
-        return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
-                "freshness": "unverified", "live_orders_enabled": False}
+                data = DhanFeed(client, token)._post("/marketfeed/ltp", {"NSE_EQ": ids})
+            except DhanRateLimitError:
+                raise HTTPException(429, "Dhan market data rate limited; retry later", headers={"Retry-After": "30"}) from None
+            except DhanFeedError as exc:
+                # Classify safe adapter errors without exposing upstream bodies or tokens.
+                reason = str(exc).lower()
+                if "credentials are not configured" in reason:
+                    raise HTTPException(503, "Dhan credentials not configured") from None
+                if "token expired or data access not entitled" in reason:
+                    raise HTTPException(502, "Dhan token expired or market data not entitled") from None
+                if "rejected market data request" in reason:
+                    raise HTTPException(502, "Dhan rejected batch quote request; check entitlement and instruments") from None
+                if "response exceeds size limit" in reason or "invalid dhan response" in reason:
+                    raise HTTPException(502, "Dhan batch response malformed or too large") from None
+                if "market data request failed" in reason:
+                    raise HTTPException(502, "Dhan batch network request failed") from None
+                raise HTTPException(502, "Dhan batch market data unavailable") from None
+            entries = data.get("data", {}).get("NSE_EQ", {})
+            if data.get("status") != "success" or not isinstance(entries, dict):
+                raise HTTPException(502, "Invalid Dhan batch quote response")
+            if not entries:
+                raise HTTPException(502, "Dhan returned no market data for verified NSE equities")
+            quotes = {}
+            unavailable = []
+            for symbol, (segment, sid, _) in DHAN_VERIFIED_INSTRUMENTS.items():
+                if segment != "NSE_EQ":
+                    continue
+                try:
+                    raw = entries[str(sid)]["last_price"]
+                    if isinstance(raw, bool):
+                        raise ValueError("Boolean price")
+                    price = float(raw)
+                    if not math.isfinite(price) or price <= 0:
+                        raise ValueError("Invalid price")
+                    quotes[symbol] = price
+                except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+                    unavailable.append(symbol)
+            # Never publish a successful snapshot when every returned quote is invalid.
+            # Preserve the last cache and let ingestion expose an upstream error.
+            if not quotes:
+                raise HTTPException(502, "Dhan returned no usable verified equity prices")
+            with snapshot_lock:
+                snapshot_cache.update(quotes=dict(quotes), unavailable=list(unavailable),
+                                      observed_at=datetime.now(timezone.utc).isoformat(),
+                                      updated_monotonic=clock(), error=None)
+            return {"source": "dhan", "quotes": quotes, "unavailable": unavailable,
+                    "freshness": "unverified", "live_orders_enabled": False}
 
     # Historical candles are cached only after provider validation succeeds.
     candle_cache = {}
