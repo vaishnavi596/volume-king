@@ -636,6 +636,8 @@ class ServerDhanReadOnly:
                 or any(not (c.isascii() and (c.isalnum() or c in "-&")) for c in symbol)):
             raise FeedError("Invalid Dhan assessment symbol")
         result = self._call("/v2/assessment/" + symbol)
+        if not isinstance(result, dict):
+            raise FeedError("Invalid or unsafe Dhan assessment response")
         filters = result.get("assessment_filters")
         factors = result.get("factors")
         expected = {"oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend"}
