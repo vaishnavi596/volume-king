@@ -1788,3 +1788,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **Earlier #1665:** [run 43886314200](https://github.com/vaishnavi596/volume-king/actions/runs/43886314200) concluded **cancelled**, not PASS or FAIL; its two new tests are included in the successful #1666 run.
 - **True scope:** offline tests under FastAPI TestClient and mocked Dhan adapter validate in-process same-key cache-miss coalescing and no-auth rejection. No Oracle deployment, no real two-phone benchmark, no Dhan quota/byte-cost evidence, no cross-process/global single-flight and no Android release. Separate Oracle production server source needs inspection and guarded staging/backup; do not overwrite Oracle's custom server.py wholesale. Live orders remain OFF.
 - **Next:** read-only Oracle route/config/worker audit; only then choose the minimal compatible patch and guarded deploy with rollback. Distinguish actual production/mobile proof from successful offline CI.
+
+
+## 2026-11-16 — B3 follow-on regression: date-window isolation + retry after failed upstream
+- Baseline: [#1666](https://github.com/vaishnavi596/volume-king/actions/runs/43886346246) 1037/1037 PASS, upstream single-flight commit `2b4be343`; production still unchanged.
+- [6818eaf](https://github.com/vaishnavi596/volume-king/commit/6818eaf66b519ec067c77e386d987198f6a8257f) adds two offline regression cases to `tests/test_dhan_history_singleflight.py`: different date windows must not reuse identical-key old candles; a rejected first provider response must not poison the cache and a second attempt may recover. Tests use mocked Dhan only, no live provider traffic.
+- CI for this specific commit: **PENDING** at journal creation; no new PASS claim until completed run/log inspection. No app source modification, Oracle deployment, APK, credential or order activity.
+- Oracle parity gate remains open: actual Oracle `/opt/bot-king-server/server.py` has environment-specific features; inspect its handler and backup before staging minimal compatible changes, and verify live two-device request counts after deployment. No production access was established in this session.
