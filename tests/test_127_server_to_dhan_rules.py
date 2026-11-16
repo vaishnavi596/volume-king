@@ -36,6 +36,8 @@ class ServerToDhanRulesTests(unittest.TestCase):
         server=(BACKEND/"server.py").read_text(encoding="utf-8")
         adapter=(BACKEND/"dhan_feed.py").read_text(encoding="utf-8")
         self.assertIn("--host 127.0.0.1 --port 8000",installer)
+        # Per-process quote gate requires the service's documented single worker.
+        self.assertIn("--workers 1",installer)
         self.assertIn("listen 443 ssl",installer)
         self.assertIn("location /dhan/ {",installer)
         self.assertIn("location /v2/ {",installer)
