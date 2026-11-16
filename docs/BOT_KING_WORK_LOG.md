@@ -2613,3 +2613,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Committed src/shared_assessment_ui.py: display only allowlisted unavailable reasons (option_chain_unavailable, expiry_unavailable, candle_history_unavailable, stale_data, not_configured), otherwise WAIT. Arbitrary upstream text suppressed; no directional vote promoted. Commit b4fce57339a02579042978809dc3b2bbc01f8b9f.
 - Committed tests/test_b3_assessment_ui.py: verify allowlisted WAIT reason, unknown reason suppression, and not-a-trade-signal label. Commit 27b581f674a913abf54af2ce0bff65fc7ae571ac.
 - CI/device unverified. Functional backend producer NOT IMPLEMENTED, Oracle deployment HOLD, APK HOLD.
+
+
+## 2026-11-17 — Parallel filter regression batches launched
+- Batch A committed tests/test_five_filter_option_metric_contract_20261117.py (03695cb71a78151aa10b8322106eee92365b5982): synthetic Dhan chain PCR/max pain and fail-closed invalid/missing OI tests. Workflow run 43940468205 observed in_progress; outcome pending.
+- Batch B committed tests/test_five_filter_assessment_ui_contract_20261117.py (df14a47d1a235272387d79175e62cf19c30cdab2): five filter UI WAIT slots, no fake percentages, duplicate-ID rejection. Its workflow result not yet verified.
+- Earlier UI commits b4fce57 and 27b581f both had completed-success offline regression workflows (43939581661, 43939604210).
+- Both new batches are offline tests, NOT a functional Dhan producer or mobile integration. No Oracle deploy, no APK build. Do not infer live market readiness from CI PASS.
