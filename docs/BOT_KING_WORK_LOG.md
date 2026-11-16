@@ -2107,3 +2107,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator ran GET-only local probes against `127.0.0.1:8000`: `/health=200`, `/v2/server-readiness=403`, `/v2/assessment/NIFTY=403`.
 - **403 without authentication is not proof of route existence**: global middleware can reject before router matching. The deployed `server.py` AST inventory still shows those two route declarations absent. Do not mark readiness/assessment PASS and do not conclude 404 from this unauthenticated result.
 - Next safe discriminator: GET loopback `/openapi.json` (without exposing its body) and inspect only documented paths if accessible, plus an unknown sentinel GET to distinguish global pre-router 403. No credentials, provider calls, production mutation, or APK build.
+
+
+## 2026-11-16 — Oracle unauthenticated routing discrimination, still inconclusive
+- Operator loopback GET output: `/openapi.json=404`, `/v2/assessment/NIFTY=403`, `/v2/server-readiness=403`, deliberately unknown `/__botking_unknown_route_check__=404`.
+- 404 on OpenAPI may reflect disabled documentation, not a service failure. The unknown path 404 shows not every request is blanket 403. Yet unauthenticated 403 on two target paths still does **not** establish handler registration or functional assessment; middleware/proxy or catch-all path handling may respond 403. Deployed source AST previously showed both named decorators absent at SHA `c9577aaf...`.
+- Decision: inspect only route declaration forms and sanitized middleware structure in deployed source before targeted patch. Do not request or print credentials, do not call live Dhan, do not deploy or build APK yet. One-phone scope unchanged.
