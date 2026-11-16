@@ -343,3 +343,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 3/4 · shared five-filter UI | Filter IDs checked, status enum unchecked; malformed statuses could bypass full-schema rejection | `cd83be9d` + all 54 regression `74c965be`; CI PENDING | Actual Oracle 54/54 producer and equity PCR unverified |
 | 5/6 · pre-APK | #1604 was **CANCELLED**, #1603 970/970 PASS for earlier source | New head CI required | No APK created |
+
+- **Exact CI:** #1605 [43858265540](https://github.com/vaishnavi596/volume-king/actions/runs/43858265540), source head `cd83be9d`, and #1606 [43858299127](https://github.com/vaishnavi596/volume-king/actions/runs/43858299127), regression head `74c965be`, both **IN PROGRESS** when inspected. Do not describe as PASS until complete. #1604 remains cancelled even though its log contained a test-count line.
