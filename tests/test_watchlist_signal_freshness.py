@@ -12,7 +12,7 @@ class WatchlistSignalFreshnessTests(unittest.TestCase):
         fresh = body.split("signal_fresh=(", 1)[1].split("signal_available=", 1)[0]
         self.assertIn("not isinstance(signal_stamp,bool)", fresh)
         self.assertIn("math.isfinite(signal_stamp) and signal_stamp>0", fresh)
-        self.assertIn('0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"]', fresh)
+        self.assertIn('0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("3m")["fresh_seconds"]', fresh)
 
 
 if __name__ == "__main__":
