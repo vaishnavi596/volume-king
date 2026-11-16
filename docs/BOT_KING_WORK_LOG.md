@@ -1962,3 +1962,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - `journalctl -u bot-king.service -n 60 -o short-iso`: initial B3 restart began at **2026-11-16 15:43:41 UTC**, health was probed before Uvicorn bound the port and rollback immediately restarted service; final old-code process PID **622893** logged `Application startup complete` and listening on `127.0.0.1:8000` at **15:43:43 UTC**. This supports a **premature readiness probe**, not proof of candidate runtime failure. B3 remains **NOT DEPLOYED**.
 - Separate earlier `DHAN_LTP_PROVIDER_HTTP_STATUS=502` events at 02:10:26, 02:11:56, 02:13:26, 02:14:56 UTC occurred before B3 attempt; track provider reliability separately, do not attribute to B3.
 - Next: restage verified candidate (the first deployment consumed `server.py.b3-staged` via mv), verify old/new/rollback hashes, then use bounded readiness polling after restart and rollback on timeout/health mismatch. No token or live-order changes.
+
+
+## 2026-11-16 — Oracle B3 restaging SHA gate PASS after premature-health rollback
+- Operator recreated `/opt/bot-king-server/server.py.b3-staged` with `sudo install -o root -g root -m 644` from independently verified `~/botking-b3-review/server_b3_candidate.py`.
+- Three-way SHA256 verified again: production `server.py` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; staged `server.py.b3-staged` `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`; rollback `server.py.b3-rollback` same as production. No second deployment yet.
+- Next controlled restart must poll local HTTP readiness up to 30 seconds instead of immediate curl, verify service is active and deployed source SHA, and restore rollback on failure. Record actual outcome, not assumed success.
