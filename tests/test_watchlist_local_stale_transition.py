@@ -11,7 +11,7 @@ def actual_age_flags(quotes,signals,engines):
     matches=[node for node in ast.walk(TREE) if isinstance(node,ast.FunctionDef)
              and node.name=="watch_cell_age_flags"]
     assert len(matches)==1
-    namespace={"quotes":quotes,"watch_signal_cache":signals,
+    namespace={"quotes":quotes,"watch_signal_cache":signals,"watch_three_minute_signal":lambda sym: signals.get(sym,{}),
                "five_engine_snapshots":engines,
                "timeframe_spec":lambda _tf:{"fresh_seconds":300},
                "time":SimpleNamespace(time=lambda:1000)}
