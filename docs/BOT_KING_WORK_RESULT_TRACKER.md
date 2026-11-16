@@ -225,3 +225,11 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4/5/6 · five filters/PCR/release | No live producer or entitlement proof | No Oracle patch, orders, APK | Blocked on read-only Oracle outputs |
 
 - **AUDIT-09 exact CI run:** #1582 [43840281883](https://github.com/vaishnavi596/volume-king/actions/runs/43840281883), head `1b4a0113`, was **IN PROGRESS** when inspected. Do not claim PASS until completed; this is not Oracle runtime verification.
+
+
+## 2026-11-16 — FIVE-FILTER-UI-01
+| Stage | Observation | Corrective work | Verified / pending |
+|---|---|---|---|
+| 1/4 · Oracle assessment compact views | Watchlist/Super Five render only `oracle_assessment_notes()[0]`, masking explicit `not_configured` cause behind generic WAIT | `a326be97` adds concise reason, `8992cc0a` adds two regressions | Source committed; new CI pending; Oracle deployed response unverified |
+| 2/3 · five-filter producer and equity PCR | GitHub source still placeholder; selected equity F&O expiry/entitlement unknown | No invented 0–100 scores, no extra API fan-out | UNRESOLVED; await Oracle evidence |
+| 5/6 · APK | No new build | CI #1582 955/955 PASS from preceding source | APK blocked, phone outcome pending future release |
