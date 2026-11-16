@@ -2594,3 +2594,7 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 
 ## 2026-11-17 — 28-route/auth integration harness failure, not candidate failure
 - Operator's isolated route inventory subprocess exited 1 during `import asyncio` -> `import ssl`: harness replaced `socket.socket` class with a function before importing ssl; `class SSLSocket(socket)` raised `TypeError: function() argument 'code' must be code, not str`. No route/auth results were obtained; previous factory construction PASS remains valid. Correct harness by importing ssl/asyncio/httpx before patching network connect methods; preserve socket.socket class and block socket.socket.connect/connect_ex, socket.create_connection and getaddrinfo as needed. Keep production unchanged, no live Dhan or lifespan, deployment HOLD.
+
+
+## 2026-11-17 — Integration harness dependency HOLD: httpx absent
+- Operator's corrected route/auth harness failed before factory import with `ModuleNotFoundError: No module named 'httpx'` in Oracle venv. This is a test dependency issue, not an app regression; no route inventory or auth result from this attempt. Avoid installing dependencies into production venv. Next use stdlib ASGI HTTP harness with fake feed, sanitized env and guarded socket connect; preserve no lifespan/no Dhan/no deploy policy.
