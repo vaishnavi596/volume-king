@@ -583,3 +583,11 @@ by writing this journal.
 - **User-supplied Oracle output:** `LISTEN 0 2048 127.0.0.1:8000 0.0.0.0:*`. This supports an IPv4 **loopback listening socket** on port 8000; the `0.0.0.0:*` value appears in the *peer address* column and is NOT a public local binding. A full `ss` snapshot is still needed to exclude additional IPv6/public listeners; do not assert complete firewall or listener audit.
 - The user's pasted terminal transcript contains no actual `HTTP 200` line for `/health` and no source-file hashes. **Local HTTP health, backend binary parity, OAuth authorization, Dhan 51+3 response and profile entitlement stay unverified by this particular output.**
 - No Oracle code/config edit, service restart or Dhan key/token operation performed. Next safe probe: `sudo ss -H -ltn '( sport = :8000 )'`, `curl -sS --max-time 8 -o /dev/null -w 'HTTP %{http_code}\\n' http://127.0.0.1:8000/health`, SHA256 of deployed adapter/server, then curated source diff and targeted patch with exact backups only if needed.
+
+
+## 2026-11-16 — S2D Oracle pasted terminal output reconciliation
+
+- Owner's follow-up terminal output was interleaved/garbled, with the clean `sudo ss -H -ltn '( sport = :8000 )'` result `LISTEN 0 2048 127.0.0.1:8000 0.0.0.0:*`. It shows an IPv4 loopback local listener; the wildcard is the peer column. No additional listener appeared in this pasted `ss` result.
+- The owner output did **not** show a reliable `curl` HTTP result for `/health` or `https://api.dhan.co/v2/profile`, nor SHA256 file fingerprints; those checks are **NOT VERIFIED**, not PASS/FAIL. The URL/echo strings and prompt fragments were interleaved; avoid deriving network errors from the corrupted paste.
+- Provided a single-line, read-only health and unauthenticated Dhan TLS connectivity probe to avoid multiline paste corruption. An unauthenticated Dhan HTTP401/403 may demonstrate endpoint reachability only, not OAuth, token, Data Plan or LTP entitlement.
+- No GitHub backend source changes, Oracle deploy/restart, credential rotation or APK build in this checkpoint. Pending: usable health/Dhan HTTP outputs, Oracle file fingerprints/source comparison, authorized read-only authenticated checks, and targeted backup-before-deploy if a concrete gap is found.
