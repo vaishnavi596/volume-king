@@ -2626,3 +2626,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Implemented backend/assessment_filter_adapter.py pure no-I/O mapping of already collected unverified Dhan PCR and Max Pain into five assessment filter slots. Other three slots remain unavailable until independent verified evidence; no live directional score. Commit 170f5666afcd8479a2ac1f5559a1317f24dd34c7.
 - Added tests/test_assessment_filter_adapter_20261117.py for numeric mapping, missing/unsafe payload rejection, and nonfinite/negative numbers. Commit 5ad92e92508a59812a9b99411fbc58b360155546.
 - Previous UI-contract workflow 43940494149 completed success; option metric workflow 43940468205 was still in_progress at last check. New adapter CI not yet confirmed. Adapter is not yet wired into Oracle assessment route or deployed; APK HOLD.
+
+
+## 2026-11-17 — Option-chain to five-filter adapter wiring
+- Commit b75f5f39d120e778e9223f7b9aa6ceaa9c40ad3f: backend/server.py now imports pure assessment_filter_adapter.option_filter_rows and adds assessment_filters to the existing authenticated /dhan/option-chain read-only response, reusing the already calculated metrics; no second Dhan call. OI support/resistance and candle trend remain unavailable; PCR/max pain informational and freshness unverified.
+- Commit 3664b84029d1ad9756069fb5638f9cae1586bd3e: AST offline regression checks exactly one option_chain provider call, one calculate_option_metrics call, one adapter call, and no adapter network/order calls.
+- This is repository source only, NOT Oracle production deployment; /v2/assessment remains placeholder and Android integration remains pending. Await current commit CI; APK HOLD.
