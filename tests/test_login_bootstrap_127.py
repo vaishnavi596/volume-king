@@ -21,6 +21,19 @@ class LoginBootstrapTests(unittest.TestCase):
         self.assertFalse(state.finish(7, "equities", 51, 51))
         self.assertEqual(state.stages["equities"], "LOADING")
 
+    def test_closed_index_recovery_checks_login_generation_not_saved_price(self):
+        main=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        poll=main.split("    async def dhan_index_poll():",1)[1].split(
+            "    page.run_task(dhan_index_poll)",1)[0]
+        self.assertIn('login_bootstrap.generation==provider_generation[0]',poll)
+        self.assertIn('login_bootstrap.stages.get("indices")=="LOADED"',poll)
+        self.assertIn('login_bootstrap.counts.get("indices")== (3,3)',poll)
+        self.assertIn('and not index_loaded_this_login',poll)
+        self.assertIn('closed_index_bootstrap_generation[0]=provider_generation[0]',poll)
+        self.assertNotIn('quotes.get(sym)',poll)
+        self.assertIn('await refresh_dhan_index_quotes(force=True)',poll)
+        self.assertIn('and not regular_hours()',poll)
+
     def test_partial_cannot_be_satisfied_from_old_saved_quote(self):
         state = LoginBootstrapState()
         state.begin(1, authenticated=True)
