@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from candle_retention import retain_candle_history, retain_last_filter_votes
+from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
@@ -4574,7 +4574,11 @@ console.log('BOT KING Lightweight Charts ready');
             received=item.get("candle_fetched_at")
             return (last if type(last) in (int,float) and math.isfinite(last) else 0,
                     received if type(received) in (int,float) and math.isfinite(received) else 0)
-        return max(candidates,key=revision_order) if candidates else {}
+        # An incomplete 1–4 bar response must not outrank the previous
+        # 30+ good candles merely because its timestamp is newer.
+        verified_history=[item for item in candidates
+                          if valid_candle_history(item.get("bars"))]
+        return max(verified_history or candidates,key=revision_order) if candidates else {}
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__
         scan_fetch_failure[(provider_generation[0],sym,tf)]={"at":time.time(),"detail":detail}
