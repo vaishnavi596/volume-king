@@ -2442,3 +2442,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle isolated candidate placeholder safety 5/5 PASS
 - Operator executed AST-extracted `botking_assessment_safe` with synthetic key, using FastAPI from production venv but no production server import or provider calls. Observed `freshness` is string `unverified`; checks `SAFE_FLAGS`, `NO_NUMERIC_SCORES`, `FILTERS_UNAVAILABLE`, `FACTORS_UNAVAILABLE`, `FRESHNESS_NOT_LIVE_VERIFIED` all PASS, `TOTAL=5/5`, `RESULT=PASS`, `PRODUCTION_CHANGED=NO`, `DHAN_REQUESTS=0`.
 - This confirms only isolated placeholder fail-closed behavior, not live data accuracy, real Dhan retrieval, freshness or production integration. Next: check current GitHub offline CI statuses and audit isolated handler for source/static failure modes; keep deployment HOLD.
+
+
+## 2026-11-17 — Oracle production vs candidate route preservation AST PASS
+- Operator read-only AST route comparison: production `server.py` has 20 method/path route declarations; isolated candidate `/tmp/bk_server_assessment_candidate.py` has 22; `MISSING_PRODUCTION_ROUTES=0`; added `GET /v2/assessment/{symbol}` and `GET /v2/server-readiness`; `ROUTE_PRESERVATION=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
+- Scope limitation: method/path presence only; no proof existing handlers, dependencies, auth, middleware or behavior unchanged. Next gate: compare normalized AST of existing route handlers (excluding new endpoints) and then isolated regression. No deployment.
