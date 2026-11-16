@@ -36,7 +36,9 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     if (len(filters) != len(FILTER_NAMES)
             or any(not isinstance(item, dict)
                    or not isinstance(item.get("id"), str)
-                   or item["id"] not in FILTER_NAMES for item in filters)):
+                   or item["id"] not in FILTER_NAMES
+                   or item.get("status") not in ("available", "unavailable")
+                   for item in filters)):
         return ["Oracle 4 factors / 5 filters • WAIT • incomplete filters"]
     indexed = {item["id"]: item for item in filters}
     if set(indexed) != set(FILTER_NAMES):
