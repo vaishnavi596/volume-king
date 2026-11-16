@@ -1,7 +1,7 @@
-"""Dashboard three-index historical vote fallback contract (source-only).
+"""Dashboard three-index 1m historical-vote contract (source-only).
 
-The Android Flet UI requires device QA; these guards prevent the previously
-confirmed regression where nonempty unusable history hides cached vote bars.
+The index poll has changed from 5m to real 1m historical candles. A 5m
+Super Five vote must never masquerade as Dashboard 1m evidence.
 """
 import ast
 from pathlib import Path
@@ -13,43 +13,53 @@ SOURCE = Path(__file__).resolve().parents[1] / "src" / "main.py"
 class DashboardIndexVoteFallbackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
-        cls.target = next(
-            node for node in ast.walk(cls.tree)
+        cls.source = SOURCE.read_text(encoding="utf-8")
+        cls.tree = ast.parse(cls.source)
+        cls.functions = {
+            node.name: ast.get_source_segment(cls.source, node)
+            for node in ast.walk(cls.tree)
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name == "dashboard_market_indices"
-        )
+        }
 
-    def test_all_three_index_cards_use_same_rendering(self):
-        source = ast.get_source_segment(SOURCE.read_text(encoding="utf-8"), self.target)
+    def test_three_index_cards_share_real_one_minute_renderer(self):
+        source = self.functions["dashboard_market_indices"]
         self.assertIn('("NIFTY", "BANKNIFTY", "SENSEX")', source)
-        self.assertIn("shared_history(index_name)", source)
-        self.assertIn("historical_vote_agreement(index_history)", source)
+        self.assertIn('shared_history(index_name,"1m")', source)
+        self.assertIn('historical_vote_agreement(index_history,"1m")', source)
+        self.assertIn('historical_vote_bar(index_agreement,"1m")', source)
 
-    def test_fallback_handles_nonempty_but_unusable_history(self):
-        conditions = [
-            node.test for node in ast.walk(self.target)
-            if isinstance(node, ast.If)
-        ]
-        self.assertTrue(any(
-            isinstance(test, ast.Compare)
-            and isinstance(test.left, ast.Name)
-            and test.left.id == "index_agreement"
-            and len(test.ops) == 1
-            and isinstance(test.ops[0], ast.Is)
-            and isinstance(test.comparators[0], ast.Constant)
-            and test.comparators[0].value is None
-            for test in conditions
-        ))
-        source = ast.get_source_segment(SOURCE.read_text(encoding="utf-8"), self.target)
-        self.assertNotIn('if not index_history.get("bars"):', source)
+    def test_incomplete_one_minute_does_not_borrow_five_minute_ranking(self):
+        source = self.functions["dashboard_market_indices"]
+        self.assertIn('if index_agreement is None:', source)
+        self.assertIn('index_signal_row=historical_vote_bar(None,"1m")', source)
+        self.assertNotIn('watch_signal_cache.get(index_name)', source)
+        self.assertNotIn('vote_display(counts,False)', source)
 
-    def test_previous_vote_never_marked_live(self):
-        source = ast.get_source_segment(SOURCE.read_text(encoding="utf-8"), self.target)
-        self.assertIn('prior.get("source")=="Dhan"', source)
-        self.assertIn('counts=signal_percentages(prior)', source)
-        self.assertIn('index_signal_row=vote_display(counts,False)', source)
-        self.assertIn('index_signal_row=historical_vote_bar(index_agreement)', source)
+    def test_three_slot_dashboard_does_not_label_five_minute_as_one(self):
+        source = self.functions["dashboard_index_analysis"]
+        self.assertIn('shared_history(sym,"1m")', source)
+        self.assertIn('historical_vote_agreement(candle_data,"1m")', source)
+        self.assertIn('historical_vote_bar(agreement,"1m")', source)
+        self.assertNotIn('display_analysis(sym,candle_data)', source)
+
+    def test_completed_bar_calculation_is_timeframe_specific(self):
+        source = self.functions["historical_vote_agreement"]
+        self.assertIn('seconds=timeframe_spec(tf)["seconds"]', source)
+        self.assertIn('bar[0]+seconds<=now', source)
+        self.assertIn('quality_check(completed,seconds', source)
+        self.assertIn('analyze(quality["bars"],selected,tf)', source)
+        self.assertIn('data.get("_scanner_timeframe","5m")!=tf', source)
+
+    def test_index_candle_poller_reuses_existing_cadence(self):
+        source = self.functions["dhan_index_candle_poll"]
+        self.assertIn('get_market_data,index_sym,"1m","2d"', source)
+        self.assertIn('chart_snapshots[(index_sym,"1m",generation)]', source)
+        self.assertIn('shared_history(index_sym,"1m")', source)
+        self.assertNotIn('get_market_data,index_sym,"5m","2d"', source)
+
+    def test_one_minute_index_histories_never_presented_live(self):
+        source = self.functions["historical_vote_bar"]
+        self.assertIn('vote_display(agreement,False,timeframe=tf)', source)
 
 
 if __name__ == "__main__":
