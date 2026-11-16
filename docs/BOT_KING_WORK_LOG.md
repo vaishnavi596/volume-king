@@ -2367,3 +2367,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 
 ## 2026-11-17 — CI run 43929936770 final result confirmed
 - Direct GitHub Actions run endpoint recheck returned `status=completed`, `conclusion=success`, `head_sha=20e32ce452e53a2e8aee0a330de7d77036b27e10`, `updated_at=2026-11-16T18:41:07Z`. Thus the tests-only seven-strike regression commit has **offline CI PASS**. Earlier branch-list response still showed `in_progress`; the direct run result supersedes that stale observation. This is not proof of Oracle deployment, live Dhan filters, signed APK or mobile behavior. BK-5F runtime and APK gates remain HOLD.
+
+
+## 2026-11-17 — BK-5F read-only audit and nonpositive metric display hardening
+- Verified GitHub workflow run `43929936770` offline-tests job `133519325546` concluded `success`; this is prior tests-only SHA evidence, not validation of the following UI patch.
+- Read `src/shared_assessment_ui.py`, `scripts/audit_oracle_five_filters_readonly.py`, `tests/test_five_engine.py`, and B1 joint audit. Confirmed UI validates five IDs and four factors, while AST audit explicitly cannot prove functional production runtime. Futures/News/Candle/Options live data blockers persist.
+- Changed `src/shared_assessment_ui.py` at commit `3b5713d279210c89ff135cc3d77dcd70417970a3`: numeric assessment metrics (OI support, OI resistance, Max Pain, PCR) render only when finite and strictly positive. Zero/negative/malformed numeric values remain WAIT rather than displaying invalid context as a meaningful level. Candle trend continues to require a recognized textual label. This is a presentation safety hardening, not a Dhan producer change. CI for this new SHA has not yet been confirmed.
+- No production change, Oracle SSH, Dhan requests, token read, signed APK or live order operation. Pending: check new SHA CI and add a focused regression fixture for zero/negative/nonfinite values; only then consider this gate passed.
