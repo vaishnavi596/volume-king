@@ -1113,21 +1113,25 @@ def app_main(page:ft.Page):
                            reason=str(display.get("reason",""))+" • Latest request failed: "+failure["detail"])
         record_analysis(sym,"5m",result=display,candle_count=len(raw))
         return display
-    def historical_vote_agreement(data):
-        """Completed 5m candle votes only; never promote historical to live."""
+    def historical_vote_agreement(data,tf="5m"):
+        """Completed exact-timeframe Dhan votes; historical never equals live."""
+        if tf not in ("1m","3m","5m") or data.get("_scanner_timeframe","5m")!=tf:
+            return None
         raw=data.get("bars") or []
         if data.get("source")!="Dhan" or not isinstance(raw,list):
             return None
+        seconds=timeframe_spec(tf)["seconds"]
         now=datetime.now(timezone.utc).timestamp()
-        completed=[bar for bar in raw if isinstance(bar,(list,tuple)) and len(bar)>=5
-                   and isinstance(bar[0],(int,float)) and bar[0]+300<=now]
+        completed=[bar for bar in raw if isinstance(bar,(list,tuple)) and len(bar)>=6
+                   and type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                   and bar[0]+seconds<=now]
         if not completed:
             return None
-        quality=quality_check(completed,300,now=completed[-1][0]+300)
+        quality=quality_check(completed,seconds,now=completed[-1][0]+seconds)
         if not quality.get("usable"):
             return None
         selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
-        result=analyze(quality["bars"],selected,"5m")
+        result=analyze(quality["bars"],selected,tf)
         votes=[v.get("vote") for v in result.get("votes",[]) if isinstance(v,dict)]
         bulls=votes.count(1)
         bears=votes.count(-1)
@@ -1136,10 +1140,10 @@ def app_main(page:ft.Page):
             return None
         return (round(100*bulls/total),round(100*bears/total),total)
 
-    def historical_vote_bar(agreement):
+    def historical_vote_bar(agreement,tf="5m"):
         if agreement is None:
-            return note("5m historical candle votes unavailable • data quality pending")
-        return vote_display(agreement)
+            return note(tf+" historical candle votes unavailable • data quality pending")
+        return vote_display(agreement,False,timeframe=tf)
 
     def publish_partial_ranking(results):
         expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
@@ -1481,15 +1485,12 @@ def app_main(page:ft.Page):
                 rows.append(note("Dhan index provider data unavailable • displayed price is LAST KNOWN, not a fresh live quote"))
             elif rows_note:
                 rows.append(note(rows_note))
-            # Reuse an already-loaded 5m candle series, never an index LTP
-            # snapshot (which contains no historical bars). Do not issue a
-            # network request while building the dashboard.
-            candle_data=(shared_history(sym) if prefs.get("source")=="Dhan" else
-                (chart_snapshots.get((sym,"5m",provider_generation[0])) or
-                 candles.get("scanner_chart_"+sym) or (snapshot if snapshot.get("bars") else {})))
-            candle_tf=candle_data.get("_scanner_timeframe","5m")
+            # Dashboard is genuinely 1m; no mislabeled 5m quote or history.
+            # Rendering must never initiate upstream market-data requests.
+            candle_data=(shared_history(sym,"1m") if prefs.get("source")=="Dhan" else {})
+            candle_tf=candle_data.get("_scanner_timeframe")
             expected_candle_source={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
-            if candle_tf!="5m" or candle_data.get("source")!=expected_candle_source:
+            if candle_tf!="1m" or candle_data.get("source")!=expected_candle_source:
                 candle_data={}
             quote_stamp=snapshot.get("fetched_at")
             if (valid_source and isinstance(quote_stamp,(int,float))
@@ -1499,22 +1500,15 @@ def app_main(page:ft.Page):
             else:
                 rows.append(note("LTP update unavailable • last known value only"))
             if not candle_data.get("bars"):
-                rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
+                rows.append(note("1m candle votes WAIT • select 1m Scanner chart or await shared 1m history"))
             else:
                 try:
                     rows.append(five_engine_chips(sym))
                     rows.append(dashboard_mini_candles(sym,candle_data))
-                    rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))
-                    analysis=display_analysis(sym,candle_data)
-                    if not analysis.get("timestamp"):
-                        rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
-                    else:
-                        historical=analysis.get("historical",True)
-                        rows.append(note(("HISTORICAL • " if historical else "5m • ")+
-                                         str(analysis.get("bias","WAIT"))+
-                                         " • "+age_label(analysis["timestamp"])))
-                        if historical:
-                            rows.append(note("Previous candle direction is not a current signal"))
+                    agreement=historical_vote_agreement(candle_data,"1m")
+                    rows.append(historical_vote_bar(agreement,"1m"))
+                    rows.append(note("1m • HISTORICAL • NOT live • candle votes only" if agreement is not None
+                                     else "1m • WAIT • insufficient completed candle filters"))
                 except Exception as exc:
                     log_error("dashboard_index_analysis_"+sym,exc)
                     rows.append(note("Candle analysis unavailable • see diagnostics"))
@@ -1531,20 +1525,17 @@ def app_main(page:ft.Page):
                    and not isinstance(index_quote.get("price"),bool)
                    and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
-            index_history=shared_history(index_name)
-            index_agreement=historical_vote_agreement(index_history)
-            index_signal_row=historical_vote_bar(index_agreement)
+            index_history=shared_history(index_name,"1m")
+            index_agreement=historical_vote_agreement(index_history,"1m")
+            index_signal_row=historical_vote_bar(index_agreement,"1m")
             # A nonempty candle response can still have zero usable completed
             # votes (partial/malformed bars, transient data quality failure).
             # Keep the last valid same-source historical agreement visible
             # instead of dropping the Dashboard red/green index bar.
             # Never promote a cached agreement to a live directional signal.
             if index_agreement is None:
-                prior=watch_signal_cache.get(index_name) or {}
-                if prior.get("source")=="Dhan" and prior.get("timestamp"):
-                    counts=signal_percentages(prior)
-                    if counts and counts[2]>0:
-                        index_signal_row=vote_display(counts,False)
+                # A valid 5m Super Five ranking is not 1m index evidence.
+                index_signal_row=historical_vote_bar(None,"1m")
             index_cards.append(ft.Container(
                 content=ft.Column([ft.Row([ft.Container(content=txt(index_name,16,WHITE,True),expand=True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True)]),
@@ -6292,7 +6283,7 @@ console.log('BOT KING Lightweight Charts ready');
     index_candle_last_attempt=[0.0]
     index_candle_generation=[None]
     async def dhan_index_candle_poll():
-        # Independent 180s index history cadence. Avoid competing with the
+        # Independent 180s Dhan 1m index history cadence. Avoid competing with the
         # 51-equity scan; Dhan HTTPS requests are serialized in server_feed.
         await asyncio.sleep(20)
         while True:
@@ -6317,7 +6308,7 @@ console.log('BOT KING Lightweight Charts ready');
                         # Reuse scanner/chart 90s history cache, and pace fresh
                         # upstream history calls to protect the provider.
                         history_key=(generation,angel_feed.epoch,dhan_feed.connected,
-                                     "Dhan",index_sym,"5m","2d")
+                                     "Dhan",index_sym,"1m","2d")
                         with market_registry_lock:
                             existing=market_recent.get(history_key)
                             fresh=bool(existing and time.monotonic()-existing[0]<87)
@@ -6328,19 +6319,19 @@ console.log('BOT KING Lightweight Charts ready');
                             break
                         try:
                             data=await asyncio.wait_for(
-                                asyncio.to_thread(get_market_data,index_sym,"5m","2d"),timeout=25)
+                                asyncio.to_thread(get_market_data,index_sym,"1m","2d"),timeout=25)
                             if generation==provider_generation[0] and data.get("source")=="Dhan":
                                 # Only a valid 30+ bar series may replace the last
                                 # completed index chart; a short response cannot
                                 # blank NIFTY/BANKNIFTY/SENSEX visual evidence.
-                                prior=shared_history(index_sym)
+                                prior=shared_history(index_sym,"1m")
                                 data=retain_candle_history(data,prior,provider="Dhan")
                             if (data.get("source")=="Dhan"
                                     and valid_candle_history(data.get("bars"))
                                     and generation==provider_generation[0]):
-                                chart_snapshots[(index_sym,"5m",generation)]=dict(
-                                    data,_scanner_timeframe="5m")
-                                refresh_shared_analysis(index_sym)
+                                chart_snapshots[(index_sym,"1m",generation)]=dict(
+                                    data,_scanner_timeframe="1m")
+                                # 5m Super Five/Watchlist ranking remains independent.
                                 if current[0] in (0,4,5):
                                     request_view_refresh(current[0])
                         except asyncio.CancelledError:
