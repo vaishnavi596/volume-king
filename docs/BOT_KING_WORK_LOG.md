@@ -2477,3 +2477,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle existing API signature preflight PASS
 - Operator read-only AST comparison of 20 production route declarations against isolated candidate: `EXISTING_ROUTES=20`, `SIGNATURE_MISMATCHES=0`, `EXISTING_API_PREFLIGHT=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
 - Combined evidence: 20/20 routes retained; old route handlers AST-identical; candidate factory remainder AST-identical after removing two new endpoints; isolated assessment auth 3/3, assessment structure PASS, placeholder safety 5/5, readiness auth/order safety 3/3. These do not establish full runtime equivalence or live Dhan correctness. Next read-only production baseline: systemd active state, loopback health response, no credentials printed; no candidate deployment or restart.
+
+
+## 2026-11-17 — Production runtime health baseline PASS; consolidated audit workflow requested
+- Operator read-only Oracle probe: `bot-king.service` active; loopback `GET http://127.0.0.1:8000/health` HTTP 200 JSON dict, `status=ok`, `broker_connected=False`, `live_orders_enabled=False`; `HEALTH_RESULT=PASS`, `READ_ONLY=YES`, `CANDIDATE_DEPLOYED=NO`, `PRODUCTION_CHANGED=NO`. This is health baseline only, not Dhan live verification.
+- User explicitly requested one consolidated shell command and full PASS/FAIL/HOLD report instead of repeated small commands. Next operator workflow should run independent source, health, synthetic ASGI authentication, response-contract and readiness tests in one safe read-only Python script; never print credentials, install packages, import production server module, contact Dhan or restart service. Report any unsupported integration check as HOLD rather than PASS.
