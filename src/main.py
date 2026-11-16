@@ -1524,11 +1524,14 @@ def app_main(page:ft.Page):
                    and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_history=shared_history(index_name)
-            index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
-            # Index LTP price color is NOT a candle vote. If the currently
-            # fetched history is partial, display a previous same-source
-            # completed 5m filter agreement as HIST rather than blank/WAIT.
-            if not index_history.get("bars"):
+            index_agreement=historical_vote_agreement(index_history)
+            index_signal_row=historical_vote_bar(index_agreement)
+            # A nonempty candle response can still have zero usable completed
+            # votes (partial/malformed bars, transient data quality failure).
+            # Keep the last valid same-source historical agreement visible
+            # instead of dropping the Dashboard red/green index bar.
+            # Never promote a cached agreement to a live directional signal.
+            if index_agreement is None:
                 prior=watch_signal_cache.get(index_name) or {}
                 if prior.get("source")=="Dhan" and prior.get("timestamp"):
                     counts=signal_percentages(prior)
