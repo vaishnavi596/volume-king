@@ -2411,3 +2411,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle synthetic ASGI auth test blocked by interpreter dependency
 - Operator attempted isolated synthetic FastAPI/HTTPX assessment handler test; it failed immediately at import: `ModuleNotFoundError: No module named 'fastapi'` in shell `python3`. No handler executed, no authentication verdict, no production mutation, no Dhan request. Classify as test-environment BLOCKED, not candidate code FAIL.
 - Next safe step: read-only discover service ExecStart Python and available virtualenv interpreters and their FastAPI/HTTPX import availability, without installing packages or printing environment secrets. Retry isolated test only with verified dependency-capable interpreter.
+
+
+## 2026-11-17 — Oracle interpreter discovery: FastAPI yes, HTTPX no
+- Operator read-only `systemctl show bot-king.service --property=ExecStart` identified `/opt/bot-king-server/.venv/bin/python -m uvicorn server:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 ...`; process PID 622936 reported. Dependency probe of that interpreter: FASTAPI=True, HTTPX=False. No package install or production change.
+- Next test uses the available FastAPI ASGI app directly with synthetic ASGI scope/send/receive and dummy pairing key, avoiding HTTPX and actual HTTP/Dhan calls. Only AST-selected isolated handler should be compiled, not the candidate module or production server. Authentication result remains unverified pending operator output.
