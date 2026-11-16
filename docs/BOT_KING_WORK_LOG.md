@@ -1987,3 +1987,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator listed **only environment variable names** from `/etc/bot-king/server.env`: `BOTKING_PAIRING_KEY`, `DHAN_CLIENT_ID`, `DHAN_API_KEY`, `DHAN_API_SECRET`, `DHAN_SESSION_FILE`. No values disclosed.
 - Operator inspected `server.py` lines 204–207: `create_app(pairing_key=None,...)` loads `os.environ.get("BOTKING_PAIRING_KEY", "")` and requires at least 32 characters. Prior `/etc/bot-king/pairing-key` file assumption was wrong; 403 was a missing header, **not Dhan credential failure**.
 - Next use a short-lived Python process that parses only `BOTKING_PAIRING_KEY` from the root-protected env file, sends header to loopback and prints only redacted status fields, never the key or complete response if it contains secrets. Do not rotate Dhan credentials or restart service.
+
+
+## 2026-11-16 — Oracle B3 authenticated Dhan status PASS (operator proof)
+- Operator executed a short-lived Python loopback request to `/dhan/status` using `BOTKING_PAIRING_KEY` read from `/etc/bot-king/server.env` without printing credentials.
+- Response: `HTTP_STATUS: 200`, `authenticated: True`, `market_data_configured: True`, `token_source: oauth_consent`, `token_validity: expiry_checked`, `reauthentication_required: False`, `renewal_supported: False`.
+- This verifies current Dhan status/authentication and market-data configuration after B3 deployment, **not** historical endpoint payload correctness, actual provider response, cache hit or concurrent duplicate suppression. No credential rotation, Dhan order or service restart.
