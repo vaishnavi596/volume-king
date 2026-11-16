@@ -31,7 +31,7 @@ class LaneCoordinator:
         self._active = {}
         self._cache = {}
 
-    def run(self, lane, key, fetch, *, ttl_seconds=0):
+    def run(self, lane, key, fetch, *, ttl_seconds=0, reuse_if=None):
         if lane not in VALID_LANES:
             raise ValueError("Unsupported refresh lane")
         if not isinstance(key, str) or not key or len(key) > 256:
@@ -40,12 +40,17 @@ class LaneCoordinator:
             raise TypeError("fetch must be callable")
         if type(ttl_seconds) not in (int, float) or not 0 <= ttl_seconds <= 900:
             raise ValueError("Unsafe cache TTL")
+        if reuse_if is not None and not callable(reuse_if):
+            raise TypeError("reuse_if must be callable")
         slot = (lane, key)
         with self._lock:
             old = self._cache.get(slot)
             now = self._clock()
             if old is not None and now >= old[0] and now - old[0] < ttl_seconds:
-                return deepcopy(old[1])
+                # Client-specific freshness guards may narrow a TTL but may
+                # never extend it. A rejected reuse goes back to the owner.
+                if reuse_if is None or reuse_if(old[1], now - old[0]):
+                    return deepcopy(old[1])
             flight = self._active.get(slot)
             if flight is None:
                 flight = Future()
