@@ -560,7 +560,11 @@ class ServerDhanReadOnly:
         backend batch is permitted; never use Yahoo or per-symbol fanout.
         """
         try:
-            return self.batch_quotes()
+            # Coalesce validated Oracle snapshot reads across login/resume
+            # consumers for two seconds. No new Dhan requests or LIVE claims.
+            # Invalid snapshots are never cached by this coordinator.
+            return self._lane_coordinator.run(
+                "quotes", "equity-snapshot", self.batch_quotes, ttl_seconds=2)
         except FeedError as exc:
             # Do not retry network/auth/422/429 failures or malformed prices.
             if str(exc) not in (
