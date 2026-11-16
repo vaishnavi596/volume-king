@@ -9,7 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
-from candle_retention import retain_candle_history
+from candle_retention import retain_candle_history, retain_last_filter_votes
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
@@ -4655,6 +4655,9 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 began=time.monotonic()
                 result=display_analysis(sym,data)
+                result=retain_last_filter_votes(
+                    result,watch_signal_cache.get(sym),
+                    selected_filters=active_analysis_filters(),provider="Dhan")
                 record_analysis(sym,"5m",result=result,elapsed=time.monotonic()-began,candle_count=len(raw))
                 shared_analysis_seen[sym]=identity
                 shared_analysis_calculated[sym]=time.time()
