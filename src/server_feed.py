@@ -643,6 +643,10 @@ class ServerDhanReadOnly:
         result = self._call("/v2/assessment/" + symbol)
         if not isinstance(result, dict):
             raise FeedError("Invalid or unsafe Dhan assessment response")
+        # Never treat an unknown/missing collection state as validated evidence.
+        collection_status = result.get("collection_status")
+        if collection_status not in ("not_configured", "ready"):
+            raise FeedError("Unverified Dhan assessment collection status")
         filters = result.get("assessment_filters")
         factors = result.get("factors")
         expected = {"oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend"}
@@ -662,7 +666,7 @@ class ServerDhanReadOnly:
                        or f["id"] not in expected
                        or f.get("status") not in ("available", "unavailable") for f in filters)
                 or {f["id"] for f in filters} != expected
-                or (result.get("collection_status") == "not_configured"
+                or (collection_status == "not_configured"
                     and (any(row["status"] != "unavailable" for row in factors.values())
                          or any(row["status"] != "unavailable" for row in filters)))):
             raise FeedError("Invalid or unsafe Dhan assessment response")
