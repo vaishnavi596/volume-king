@@ -463,3 +463,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 - **Code** [2e4acdcf](https://github.com/vaishnavi596/volume-king/commit/2e4acdcf8d208df9c7ccc7c97e29200da11ef7bd): three Dashboard index cards and three selectable slots now use exact Dhan **1m** historical votes rather than 5m source or fallback. Indexed poller changed its *existing 180s three-index history requests* to 1m: not an added 3-call fanout, but higher 1m payload remains unmeasured. Historical only; missing input WAIT. Super Five independently 5m, Scanner chosen interval, Watchlist strict 3m display remain scoped.
 - **Regression source** [5470e34a](https://github.com/vaishnavi596/volume-king/commit/5470e34a0794b45ba498790a41f68b82eaa0842b) revised obsolete Dashboard 5m fallback guards to six updated 1m contracts. **Exact-head CI UNKNOWN**, Oracle market data/429 NOT RUN, phone NOT RUN. No complete B2 or release PASS.
 - **B2 remaining:** quota-safe real shared 1m history for three selectable equity slots and active 3m Watchlist equities, actual Dhan source time/bytes/429 validation, CI and Android QA; no APK until last gate.
+
+
+## 2026-11-16 — B2 checkpoint 05/08: index failure reporting fix
+- **Source fix** [b1bff4b8](https://github.com/vaishnavi596/volume-king/commit/b1bff4b88c9c563e4fb76300bf965c041568f503): independent Dashboard Dhan 1m history poll errors now carry the correct **1m** timeframe, not legacy 5m; **test added** [50e0ae6d](https://github.com/vaishnavi596/volume-king/commit/50e0ae6d38f8661b36d93af72d2a5fe7cc2abdb4). GitHub Actions CI **UNVERIFIED**; Oracle and mobile **NOT RUN**.
+- Proposed bounded reuse of already-cached 1m candles for Watchlist 3m was interrupted before a commit: **NOT DONE**. Remain B2 PARTIAL. No APK.
