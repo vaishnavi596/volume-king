@@ -598,3 +598,10 @@ by writing this journal.
 - **Direct operator-supplied Oracle outputs:** `LOCAL HTTP 200` on `http://127.0.0.1:8000/health` and `DHAN HTTP 401` on credential-free `https://api.dhan.co/v2/profile` (explicit direct/no-proxy HTTPS connection). This establishes local FastAPI HTTP readiness and Dhan HTTPS endpoint reachability. Dhan's 401 is **expected without credentials**; it is NOT an OAuth/token/plan/market-data authorization PASS.
 - Earlier `ss` shows only `127.0.0.1:8000` for the reported snapshot; no exposed local listener shown. Nginx external 443, actual broker token status, `dataPlan`/`dataValidity`, protected pairing-key flows, authenticated 51+3 quote delivery and source-file parity remain unverified in this new check.
 - **No production change or restart**, no Dhan credential change and no new APK. Next: compare SHA256/deployed code and run existing safe paired `/dhan/status` probe without exposing the pairing key; independently check entitlement/real market requests under authorized operator controls. Keep `live_orders_enabled=false`.
+
+
+## 2026-11-16 — Owner Oracle Dhan adapter SHA256 captured (comparison pending)
+
+- Owner terminal provided SHA256 of deployed `/opt/bot-king-server/dhan_feed.py`: `7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75`. This proves a file was hashed, NOT that it matches GitHub, includes the quote gate, or is deployed in the currently running process.
+- Terminal `-bash: ate: command not found` is a stray/incomplete shell input; it is not a Dhan failure. No `server.py` SHA256 or actual adapter diff supplied.
+- GitHub working branch backend adapter contains `QUOTE_MIN_INTERVAL_SECONDS = 1.05`; Oracle rate-gate parity still PENDING. Next: inspect the deployed adapter's gate markers read-only, compare with a trusted GitHub copy, then back up and stage only verified necessary modifications. No Oracle edit, restart, token change or APK build.
