@@ -296,3 +296,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 3/4 · all 54 assessment symbols | Non-object JSON response could throw `AttributeError`; `5ea157c0` fails closed with `FeedError`, `986553fb` tests 54/54 symbols | New CI pending; preceding #1593 **965/965 PASS** | Oracle runtime and F&O eligibility **UNVERIFIED**, not green |
 | 5/6 · release | All historical-fix/54-symbol gates still mandatory | No APK built | BLOCKED |
+
+- **Exact current regression runs:** #1594 [43846169503](https://github.com/vaishnavi596/volume-king/actions/runs/43846169503), head `5ea157c0`, and #1595 [43846192736](https://github.com/vaishnavi596/volume-king/actions/runs/43846192736), head `986553fb`, both **IN PROGRESS** at check. Do not claim 54-symbol transport fix PASS until exact GitHub outcome and test count are available.
