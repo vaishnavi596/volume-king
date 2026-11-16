@@ -126,3 +126,6 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1, 2 · Oracle audit | Read-only scripts for 9 source routes, collector health GET and five-filter source AST inspected; [execution matrix](ORACLE_FILTER_AUDIT_02_OPERATOR_GATE_20261116.md) committed `5455ada6` | **AUDIT PLAN READY ONLY** | No SSH executor / no Oracle commands executed; await sanitized production output |
 | 3 · CI follow-up | #1572 (run 43833438579) head `e6677c7f` at inspection | **IN PROGRESS, NOT PASS** | Re-check result and tests before next code gate |
 | 5, 6 · Deployment and APK | Explicit server-first/no-order release gate retained | **NOT DEPLOYED; NO NEW APK** | Backup-first specific source fix, CI, Oracle verification, then independent phone validation |
+
+
+- **CI #1572 FINAL VERIFIED (2026-11-16):** [run 43833438579](https://github.com/vaishnavi596/volume-king/actions/runs/43833438579), commit `e6677c7f`, job `133184087265`, **936/936 PASS** (`Ran 936 tests in 351.753s; OK`). This supersedes the earlier in-progress snapshot above. It establishes offline audit regression success only; Oracle execution, five-filter producer, device PCR and deployment remain **UNVERIFIED**. No APK created.
