@@ -2286,3 +2286,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator `git hash-object /tmp/bk_prepare_candidate.py` returned `-bash: git: command not found`; requested Git blob integrity gate **not performed**.
 - Operator nevertheless executed `python3 -B /tmp/bk_prepare_candidate.py --server /opt/bot-king-server/server.py --output /tmp/bk_server_assessment_candidate.py` and received `candidate_sha256=8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36`, `candidate_only=true; deployed=false; filters_functional=false`.
 - Candidate generation reported success, but downloaded generator's bytes were not yet independently integrity-verified. No production deployment observed. Next: verify downloaded generator's SHA256 against trusted pinned repository bytes (Python hashlib, no git required); inspect candidate syntax/routes/diff separately. Do not mark candidate reviewed/approved or filters functional yet.
+
+
+## 2026-11-16 — Oracle generator Git blob integrity PASS and candidate syntax PASS
+- Operator ran Python Git blob SHA-1 calculation on `/tmp/bk_prepare_candidate.py`, received exactly `GENERATOR_INTEGRITY= PASS` and `GIT_BLOB_SHA1= bdfc1f33b3c23fc3f3f8d155f4c5bb560746cef3`, matching GitHub blob for pinned generator. Git CLI unavailable, Python verified integrity instead.
+- Operator AST-parsed separate `/tmp/bk_server_assessment_candidate.py` and received `CANDIDATE_SYNTAX=PASS`.
+- Earlier candidate generation reported `candidate_sha256=8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36` and `candidate_only=true; deployed=false; filters_functional=false`. Route inventory, diff content, and runtime behavior still unverified. No production deployment, service restart or Dhan request observed.
+- Next: compare production and candidate AST route sets and diff summary read-only; require exact only-two-additions before any future approval. Candidate placeholder filters must remain unavailable, not be represented as functional.
