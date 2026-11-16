@@ -44,6 +44,9 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     # Only label a *validated full contract* as a known server placeholder.
     # An incomplete payload remains malformed even when it says not_configured.
     if data.get("collection_status") == "not_configured":
+        if (any(row["status"] != "unavailable" for row in factors.values())
+                or any(row["status"] != "unavailable" for row in filters)):
+            return ["Oracle 4 factors / 5 filters • WAIT • inconsistent server response"]
         return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     lines = ["Oracle 4 factors / 5 filters • informational only • live orders OFF"]
     labels = {"oi_support": "OI Support", "oi_resistance": "OI Resistance",
