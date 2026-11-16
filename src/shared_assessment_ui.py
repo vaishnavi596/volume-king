@@ -45,7 +45,7 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     # An incomplete payload remains malformed even when it says not_configured.
     if data.get("collection_status") == "not_configured":
         if (any(row["status"] != "unavailable" for row in factors.values())
-                or any(row["status"] != "unavailable" for row in filters)):
+                or any(row.get("status") != "unavailable" for row in filters)):
             return ["Oracle 4 factors / 5 filters • WAIT • inconsistent server response"]
         return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     lines = ["Oracle 4 factors / 5 filters • informational only • live orders OFF"]
