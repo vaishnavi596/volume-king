@@ -49,6 +49,7 @@ def audit(server: Path):
         "route_preserves_nonlive_provenance": bool(body and
                                                   '"live_orders_enabled": False' in body),
         "singleflight_lock_declaration": "history_miss_locks =" in source,
+        "singleflight_reentrant_locks": "history_miss_locks = tuple(threading.RLock()" in source,
         "singleflight_guard_defined": "def history_singleflight(" in source,
     }
     return {
