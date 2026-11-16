@@ -77,7 +77,7 @@ def plan_active_symbols(
 
 
 def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=0,
-                             minimum_spacing=180, max_batch=3):
+                             minimum_spacing=180, max_batch=3, mapped_symbols=None):
     """Pure bounded 1m history worklist; this function NEVER calls Dhan.
 
     Caller must serialize actual requests and persist last_attempts in its
@@ -98,10 +98,20 @@ def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=
         last_attempts = {}
     if not isinstance(last_attempts, dict):
         raise ValueError("last_attempts must be a mapping")
+    # Optional broker entitlement/security-ID whitelist: unmapped saved
+    # equities must not consume attempts or pretend to have live candles.
+    if mapped_symbols is not None:
+        if not isinstance(mapped_symbols, (list, tuple, set, frozenset)):
+            raise ValueError("mapped_symbols must be a sequence")
+        if any(not _valid_symbol(sym) for sym in mapped_symbols):
+            raise ValueError("invalid mapped symbol")
+        mapped_symbols = frozenset(mapped_symbols)
     if now < cooldown_until:
         return ()
     due = []
     for sym in active.indices + active.equities:
+        if mapped_symbols is not None and sym not in mapped_symbols:
+            continue
         previous = last_attempts.get(sym)
         if previous is not None:
             if type(previous) not in (int, float) or not isfinite(previous) or previous < 0:
