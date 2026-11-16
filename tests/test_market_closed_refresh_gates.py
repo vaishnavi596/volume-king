@@ -11,7 +11,7 @@ def section(start,end):
 
 class ClosedSessionRefreshGates(unittest.TestCase):
     def test_equity_and_index_poll_require_open_session(self):
-        self.assertIn("app_active[0] and refresh_hours()", section("    async def dhan_quote_poll():","    # Compact countdown updates independently"))
+        self.assertIn("app_active[0] and refresh_hours()", section("    async def dhan_quote_poll():","    # The Watchlist observes"))
         self.assertIn("app_active[0] and refresh_hours()", section("    async def dhan_index_poll():","    page.run_task(dhan_index_poll)"))
 
     def test_page_entry_and_resume_reuse_cached_closed_data(self):
