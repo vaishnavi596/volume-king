@@ -63,8 +63,11 @@ def summarize(results):
     health = by_route.get("/health")
     readiness = by_route.get("/v2/server-readiness")
     snapshot = by_route.get("/v2/snapshot")
-    collector = (readiness.body or {}).get("collector", {}) if readiness and readiness.http == 200 else {}
-    data = snapshot.body or {} if snapshot and snapshot.http == 200 else {}
+    readiness_body = (readiness.body if readiness and readiness.http == 200
+                      and isinstance(readiness.body, dict) else {})
+    collector = readiness_body.get("collector", {})
+    data = (snapshot.body if snapshot and snapshot.http == 200
+            and isinstance(snapshot.body, dict) else {})
     if not isinstance(collector, dict):
         collector = {}
     if not isinstance(data, dict):
@@ -78,7 +81,8 @@ def summarize(results):
     return {
         "health_http": health.http if health else 0,
         "health_ok": bool(health and health.http == 200
-                          and (health.body or {}).get("status") == "ok"),
+                          and isinstance(health.body, dict)
+                          and health.body.get("status") == "ok"),
         "readiness_http": readiness.http if readiness else 0,
         "readiness_route_available": bool(readiness and readiness.http == 200),
         "collector_enabled": collector.get("configured_enabled")
