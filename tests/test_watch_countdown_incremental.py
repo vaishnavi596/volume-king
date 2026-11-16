@@ -10,7 +10,7 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         self.assertIn("await asyncio.sleep(2)",worker)
         self.assertIn("if signature==last_visible_signature",worker)
         self.assertIn("if cell.page is not None:cell.update()",worker)
-        self.assertIn('watch_signal_cache.get(sym)',worker)
+        self.assertIn('watch_three_minute_signal(sym)',worker)
         self.assertNotIn("watch_countdown.update()",worker)
         self.assertNotIn("Next due",worker)
 
