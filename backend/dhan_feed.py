@@ -41,6 +41,11 @@ class DhanFeed:
     _quote_lock = threading.Lock()
     _quote_next_allowed = 0.0
     QUOTE_MIN_INTERVAL_SECONDS = 1.05
+    # Independent provider-owned historical lane shared across instances in
+    # this worker. App refreshers and two phones cannot bypass this per process.
+    _history_lock = threading.Lock()
+    _history_next_allowed = 0.0
+    HISTORY_MIN_INTERVAL_SECONDS = 1.1
     _retry_after = 0.0
     _option_next_allowed = 0.0
     OPTION_CHAIN_INTERVAL_SECONDS = 3.0
@@ -73,20 +78,28 @@ class DhanFeed:
             method="POST",
         )
         try:
-            gate = self._quote_lock if endpoint == "/marketfeed/ltp" else nullcontext()
+            is_quote = endpoint == "/marketfeed/ltp"
+            is_history = endpoint in ("/charts/intraday", "/charts/historical")
+            gate = self._quote_lock if is_quote else self._history_lock if is_history else nullcontext()
             with gate:
-                if endpoint == "/marketfeed/ltp":
+                if is_quote or is_history:
                     # Serialize the *entire* outbound quote exchange, including
                     # network latency. A 1.05s floor protects the documented
                     # 1 request/second quota from clock jitter.
-                    remaining = type(self)._quote_next_allowed - time.monotonic()
+                    next_allowed = (type(self)._quote_next_allowed if is_quote
+                                    else type(self)._history_next_allowed)
+                    remaining = next_allowed - time.monotonic()
                     if remaining > 0:
                         time.sleep(remaining)
                     with self._rate_lock:
                         if time.monotonic() < self._retry_after:
                             raise DhanRateLimitError("Dhan rate limit cooldown active")
-                    type(self)._quote_next_allowed = (
-                        time.monotonic() + self.QUOTE_MIN_INTERVAL_SECONDS)
+                    if is_quote:
+                        type(self)._quote_next_allowed = (
+                            time.monotonic() + self.QUOTE_MIN_INTERVAL_SECONDS)
+                    else:
+                        type(self)._history_next_allowed = (
+                            time.monotonic() + self.HISTORY_MIN_INTERVAL_SECONDS)
                 with self._opener(request, timeout=12) as response:
                     raw = response.read(2_000_001)
             if len(raw) > 2_000_000:
