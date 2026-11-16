@@ -58,6 +58,58 @@ class SingleFlightTests(unittest.TestCase):
             self.assertEqual(responses[1].json()["freshness"], "historical_unverified")
             self.assertFalse(responses[1].json()["live_orders_enabled"])
 
+    def test_distinct_date_windows_do_not_reuse_wrong_candles(self):
+        calls = []
+
+        class DateDhan:
+            def __init__(self, client, token):
+                pass
+            def intraday(self, payload):
+                calls.append(payload["fromDate"])
+                price = 100 if "2025-10-09" in payload["fromDate"] else 200
+                return {"open": [price], "high": [price + 2],
+                        "low": [price - 1], "close": [price + 1],
+                        "volume": [50], "timestamp": [1760000000]}
+
+        with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}), \
+             patch("backend.server.Path.read_text", return_value="fake-token"), \
+             patch("backend.server.DhanFeed", DateDhan):
+            client = TestClient(create_app(pairing_key=KEY, feed=StubAngel()))
+            first = client.post("/dhan/intraday", json=REQUEST,
+                                headers={"X-BotKing-Key": KEY})
+            other = dict(REQUEST, from_date="2025-10-10", to_date="2025-10-10")
+            second = client.post("/dhan/intraday", json=other,
+                                 headers={"X-BotKing-Key": KEY})
+        self.assertEqual((first.status_code, second.status_code), (200, 200))
+        self.assertEqual(len(calls), 2)
+        self.assertNotEqual(first.json()["bars"][0][1], second.json()["bars"][0][1])
+
+    def test_failed_upstream_does_not_poison_cache(self):
+        calls = []
+
+        class FlakyDhan:
+            def __init__(self, client, token):
+                pass
+            def intraday(self, payload):
+                calls.append(1)
+                if len(calls) == 1:
+                    return {"status": "failure"}
+                return {"open": [100], "high": [102], "low": [99],
+                        "close": [101], "volume": [50], "timestamp": [1760000000]}
+
+        with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}), \
+             patch("backend.server.Path.read_text", return_value="fake-token"), \
+             patch("backend.server.DhanFeed", FlakyDhan):
+            client = TestClient(create_app(pairing_key=KEY, feed=StubAngel()))
+            first = client.post("/dhan/intraday", json=REQUEST,
+                                headers={"X-BotKing-Key": KEY})
+            second = client.post("/dhan/intraday", json=REQUEST,
+                                 headers={"X-BotKing-Key": KEY})
+        self.assertEqual(first.status_code, 502)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(calls), 2)
+        self.assertFalse(second.json()["live_orders_enabled"])
+
     def test_missing_pairing_key_does_not_invoke_upstream(self):
         app = create_app(pairing_key=KEY, feed=StubAngel())
         with patch("backend.server.DhanFeed", side_effect=AssertionError("unexpected Dhan call")):
