@@ -2144,3 +2144,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Reviewed the SHA-pinned Oracle candidate generator and identified a safety gap: verifying the snapshot route exists somewhere in the AST does not prove the insertion anchor is a direct child of `create_app`. Added fail-closed direct-factory AST check in `ac0a0b11` and a negative regression test in `af88226f`.
 - Earlier 1,054-test CI success at `6f2d2e6b` remains evidence for that earlier version only. **New CI pending** for the factory-scope guard; do not transfer old PASS to these changes.
 - No server modification, no token access, no Dhan calls, no APK. Even after CI PASS, Oracle source runtime dependencies, backup/diff and protected HTTP tests are required before deployment. Five assessment filters remain unavailable pending a real data producer.
+
+
+## 2026-11-16 — Factory-scope Oracle candidate CI #1680 PASS (offline only)
+- Verified GitHub Actions `BOT KING Offline Regression Tests` run #1680, ID `43908718083`, exact tested commit `af88226fb5f33ac0186547156cb7e1f915ebf851`: completed **success**. Both `Check Python syntax` and `Run offline regression suite (no APK build)` job steps succeeded. This supersedes the earlier pending-CI note for the factory-scoped guard, but only for this exact commit.
+- This run does **not** demonstrate deployed Oracle routes, functional five assessment filters, verified Dhan market data, a mobile test, or an APK build. The candidate remains create-only/SHA-pinned; production unchanged. Next gates: verify deployed source/runtime dependencies, backup and staged diff, authenticated loopback checks, then separately implement and verify real assessment producers. Keep one-mobile scope and live orders disabled.
