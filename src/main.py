@@ -4575,6 +4575,7 @@ console.log('BOT KING Lightweight Charts ready');
     shared_analysis_seen={}
     shared_analysis_calculated={}
     selected_report_identity=[None]
+    derived_three_minute_cache={}
     def shared_history(sym,tf="5m"):
         """Newest verified-source *matching timeframe* candle series, never LTP age.
 
@@ -4595,6 +4596,40 @@ console.log('BOT KING Lightweight Charts ready');
             candidates.append(scanner_data)
         candidates=[item for item in candidates if item.get("source")==expected and item.get("bars")
                     and item.get("_scanner_timeframe","5m")==tf]
+        # B2: If a Dhan 1m candle history is ALREADY present, derive the
+        # matching 3m series locally. This does not initiate any new request,
+        # nor borrow unlabeled 5m ranking/quote candles.
+        if tf=="3m" and not candidates and expected=="Dhan":
+            one_minute=[chart_snapshots.get((sym,"1m",provider_generation[0])) or {}]
+            if (scanner_data.get("_scanner_generation")==scan_generation[0]
+                    and scanner_data.get("_scanner_timeframe")=="1m"):
+                one_minute.append(scanner_data)
+            one_minute=[item for item in one_minute
+                        if item.get("source")=="Dhan" and item.get("bars")
+                        and item.get("_scanner_timeframe")=="1m"]
+            if one_minute:
+                source_1m=max(one_minute,key=lambda item: (
+                    len(item.get("bars") or []),
+                    item.get("candle_fetched_at") or 0))
+                bars_1m=source_1m["bars"]
+                now_epoch=time.time()
+                identity=(provider_generation[0],id(bars_1m),len(bars_1m),
+                          int(now_epoch//180))
+                saved=derived_three_minute_cache.get(sym)
+                if not saved or saved[0]!=identity:
+                    from dhan_three_minute import completed_three_minute_bars
+                    completed=completed_three_minute_bars(
+                        bars_1m,now_epoch=now_epoch)
+                    derived=dict(source_1m,bars=[list(row) for row in completed],
+                                 _scanner_timeframe="3m",historical=True,
+                                 live_verified=False,freshness="historical_unverified")
+                    # Limit retained derived histories for changing watchlists.
+                    if len(derived_three_minute_cache)>140:
+                        derived_three_minute_cache.clear()
+                    derived_three_minute_cache[sym]=(identity,derived)
+                candidate=derived_three_minute_cache[sym][1]
+                if candidate.get("bars"):
+                    candidates.append(candidate)
         def revision_order(item):
             bars=item.get("bars") or []
             last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
