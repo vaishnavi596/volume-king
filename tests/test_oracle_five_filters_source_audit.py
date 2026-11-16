@@ -155,6 +155,24 @@ class OracleFiveFiltersSourceAudit(TestCase):
                 self.assertIn("inconsistent server response", rows[0])
                 self.assertNotIn("server producer not configured", rows[0])
 
+    def test_invalid_five_filter_status_is_incomplete_for_all_54(self):
+        from server_feed import DHAN_VERIFIED_SYMBOLS
+        for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
+            for wrong in ("unknown", None, [], 7):
+                payload = {
+                    "symbol": symbol, "live_orders_enabled": False,
+                    "signal_eligible": False, "collection_status": "not_configured",
+                    "factors": {name: {"status": "unavailable"} for name in
+                                ("news", "futures", "options", "candle")},
+                    "assessment_filters": [
+                        {"id": key, "status": "unavailable"} for key in FILTER_NAMES],
+                }
+                payload["assessment_filters"][0]["status"] = wrong
+                rows = assessment_lines(symbol, {
+                    symbol: {"fetched": 100, "data": payload}}, now=101)
+                self.assertIn("incomplete filters", rows[0])
+                self.assertNotIn("server producer not configured", rows[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
