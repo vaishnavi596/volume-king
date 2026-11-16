@@ -35,7 +35,7 @@ class LoginBootstrapTests(unittest.TestCase):
         self.assertIn('closed_index_bootstrap_generation[0]=provider_generation[0]',poll)
         self.assertNotIn('quotes.get(sym)',poll)
         self.assertIn('await refresh_dhan_index_quotes(force=True)',poll)
-        self.assertIn('and not regular_hours()',poll)
+        self.assertIn('closed_index_bootstrap=(not regular_hours()',poll)
 
     def test_partial_cannot_be_satisfied_from_old_saved_quote(self):
         state = LoginBootstrapState()
