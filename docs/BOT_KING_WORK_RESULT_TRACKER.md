@@ -445,3 +445,9 @@ This is the persistent, numbered owner-facing checklist for the work still being
 ## 2026-11-16 — B2 checkpoint 08: Dhan-selected Scanner 3m source integration
 - Existing Dhan history code accepted 1m/5m/15m/1h, while `3m` was unsupported in the Scanner dropdown. [ecd8cfe6](https://github.com/vaishnavi596/volume-king/commit/ecd8cfe657aab67b3b4fbe37942dda93af043ad1) safely enables 3m Scanner calls by fetching actual Dhan 1m history and using the previously committed completed-3m helper. [879bcfb4](https://github.com/vaishnavi596/volume-king/commit/879bcfb475ee638f38658a6faee0d002b9a52ff8) adds two code-path regression tests. **SOURCE IMPLEMENTED / exact-head CI UNVERIFIED / Oracle+phone NOT TESTED**.
 - **Scope boundary:** this does NOT yet mean Watchlist's auto Bullish/Bearish shows true 3m; its source remains existing 5m `watch_signal_cache`. Dashboard index cards still use 5m and require real 1m feed. Super Five 5m preserved. Continue B2 without declaring checkpoints 07 or 08 release-PASS.
+
+
+## 2026-11-16 — Checkpoints 05/07/08: strict 1m/3m/5m cache separation
+- **Code** [390f7d62](https://github.com/vaishnavi596/volume-king/commit/390f7d62ea8cc717b6015bd9cc1436c97c5e1488): canonical `shared_history(sym,tf="5m")` accepts exact timeframe, source and Scanner generation; unlabeled 5m quote bars never enter 1m/3m. Default 5m callers preserved.
+- **Test source** [97f76fc3](https://github.com/vaishnavi596/volume-king/commit/97f76fc359937a604056f9c8145ce0842f89e36e): 5 isolated execution cases, no network; **CI not verified**, Oracle and mobile not run.
+- **Remaining:** Dashboard 1m and Watchlist 3m now have a safer shared selection primitive, but real Dhan 1m history collection, pacing, per-timeframe vote cache and rendering remain OPEN. No extra Dhan fanout, no APK, no live orders.
