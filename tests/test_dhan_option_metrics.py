@@ -71,6 +71,54 @@ class DhanOptionMetricsTests(unittest.TestCase):
             listed_atm_window(raw,spot=140)
 
 
+    def test_atm_window_requires_all_seven_broker_listed_contracts(self):
+        def chain(strikes):
+            return {"status": "success", "data": {"oc": {
+                str(k): {"ce": {"oi": 120}, "pe": {"oi": 95}}
+                for k in strikes
+            }}}
+        # A seven-row chain is not sufficient when ATM lacks three strikes
+        # on each side. Never synthesize missing or unlisted strikes.
+        for strikes, spot in (
+            ((100, 110, 120, 130, 140, 150, 160), 100),
+            ((100, 110, 120, 130, 140, 150, 160), 160),
+            ((100, 110, 120, 130, 140, 150), 130),
+        ):
+            with self.subTest(strikes=strikes, spot=spot):
+                with self.assertRaises(OptionMetricsUnavailable):
+                    listed_atm_window(chain(strikes), spot=spot)
+
+    def test_atm_window_invalid_oi_and_optional_fields_fail_closed(self):
+        strikes = tuple(range(80, 171, 10))
+        for side, field, value in (
+            ("ce", "oi", None), ("pe", "oi", -1),
+            ("ce", "oi", float("nan")), ("pe", "oi", True),
+            ("ce", "volume", -1), ("pe", "last_price", float("inf")),
+            ("ce", "previous_oi", "100"),
+        ):
+            with self.subTest(side=side, field=field, value=str(value)):
+                response = {"status": "success", "data": {"oc": {
+                    str(k): {"ce": {"oi": 100}, "pe": {"oi": 90}}
+                    for k in strikes
+                }}}
+                response["data"]["oc"]["120"][side][field] = value
+                with self.assertRaises(OptionMetricsUnavailable):
+                    listed_atm_window(response, spot=120)
+
+    def test_atm_window_never_promotes_broker_envelope_to_fresh_signal(self):
+        response = {"status": "success", "data": {"oc": {
+            str(k): {"ce": {"oi": 100, "previous_oi": 80},
+                     "pe": {"oi": 120, "previous_oi": 100}}
+            for k in range(80, 171, 10)
+        }}, "freshness": "exchange_verified", "signal_eligible": True}
+        window = listed_atm_window(response, spot=120)
+        self.assertEqual(len(window["rows"]), 7)
+        self.assertEqual(window["freshness"], "unverified")
+        self.assertIs(window["signal_eligible"], False)
+        self.assertEqual(window["source"], "dhan")
+        self.assertEqual(window["rows"][3]["ce"]["previous_oi"], 80.0)
+
+
 
 if __name__=="__main__":
     unittest.main()
