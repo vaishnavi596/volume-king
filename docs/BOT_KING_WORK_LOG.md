@@ -1860,3 +1860,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — B3 recursive RLock offline regressions staged
 - Commit `3e141047` adds two isolated concurrency tests in `tests/test_dhan_history_singleflight.py`: worst-case same-stripe nested 3m→1m and 30m→5m history recursion with bounded timeout, and exclusion of a second thread while one thread holds a reentrantly acquired lane. These specifically cover the Oracle recursive history compatibility hazard.
 - Tests use in-process simulated locks only; they **do not execute actual Oracle server.py** or prove Dhan request deduplication across workers. CI status must be checked separately before marking PASS. Oracle production unchanged.
+
+
+## 2026-11-16 — B3 recursive-lock CI #1671 verified
+- GitHub Actions run **#1671** `43894932117`, commit `3e1410471af79423a430970d25d5b71ab08f54f6`, status completed, conclusion **success**. Job logs show both new tests `test_reentrant_lane_serializes_other_threads` and `test_reentrant_stripe_supports_nested_derived_history_without_deadlock`; suite `Ran 1045 tests in 361.434s`, `OK` (0 failures/errors).
+- This validates simulated lock semantics and GitHub offline regression, **not** actual Oracle code, production concurrency, multi-worker deduplication or mobile results. Operator-provided Oracle source SHA remains `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; no Oracle deployment/restart.
