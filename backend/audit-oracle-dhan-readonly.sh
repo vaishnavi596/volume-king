@@ -81,6 +81,28 @@ done
 if command -v nginx >/dev/null; then
     if nginx -t >/dev/null 2>&1; then echo 'nginx syntax: valid'; else echo 'nginx syntax: FAILED or insufficient permissions'; exit 2; fi
 fi
+# Port ownership and Dhan outbound 443 tests are metadata-only; do not
+# send pairing keys or token headers through these network checks.
+if command -v ss >/dev/null 2>&1; then
+    listeners=$(ss -H -ltn '( sport = :8000 )' 2>/dev/null || true)
+    if grep -Eq '127[.]0[.]0[.]1:8000([[:space:]]|$)' <<< "$listeners"; then
+        echo 'FastAPI port 8000: loopback-only listener verified'
+    else
+        echo 'FastAPI port 8000: missing/unsafe binding (must be 127.0.0.1)'
+        exit 2
+    fi
+else
+    echo 'Port binding visibility: ss unavailable (requires manual check)'
+fi
+if command -v curl >/dev/null; then
+    if curl --silent --show-error --output /dev/null --connect-timeout 3 --max-time 8 \
+            --noproxy '*' 'https://api.dhan.co/v2/profile'; then
+        echo 'Dhan API TLS 443 egress: reachable (NO authorization/entitlement checked)'
+    else
+        echo 'Dhan API TLS 443 egress: FAILED (DNS/TLS/route/firewall)'
+        exit 2
+    fi
+fi
 if curl --fail --silent --max-time 3 http://127.0.0.1:8000/health >/dev/null; then
     echo 'local gateway health: HTTP success (not Dhan market-data proof)'
 else
