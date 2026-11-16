@@ -25,8 +25,10 @@ class DhanIndexWatchlistRecovery(unittest.TestCase):
         self.assertIn("await refresh_watch_batch()",s)
         self.assertIn("await refresh_dhan_index_quotes()",s)
 
-    def test_watchlist_change_detection_includes_indexes(self):
-        self.assertIn('visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")',
+    def test_watchlist_cell_updates_scope_to_visible_equities_and_dashboard_keeps_indexes(self):
+        # Index cards have an independent poller; a Watchlist cell repaint
+        # must not redraw the whole Watchlist due to hidden index changes.
+        self.assertIn('visible=tuple(watch_groups[active_watch[0]])',
                       self.function("watch_visible_tick"))
         self.assertIn('index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")',self.function("dashboard_market_indices"))
 
