@@ -19,6 +19,12 @@ ALLOWED_OPTIONS = ("NIFTY", "BANKNIFTY", "SENSEX", "RELIANCE", "HDFCBANK")
 SAFE_ROUTES = frozenset((
     "/dhan/status", "/v2/snapshot", "/dhan/index-ltp-batch",
     "/dhan/selected-ltp-batch", "/dhan/option-expiries", "/dhan/option-chain"))
+class RejectRedirect(urllib.request.HTTPRedirectHandler):
+    """Pairing credentials must never follow a redirect to another origin."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 HTTP_REASONS = {
     403: "pairing_rejected", 404: "not_deployed", 409: "expiry_cache_required",
     422: "symbol_or_expiry_not_listed", 429: "rate_limited",
@@ -55,7 +61,7 @@ def request(origin, pairing_key, path, payload=None, opener=None):
                                  method="POST" if payload is not None else "GET")
     if opener is None:
         # Ignore machine-wide proxy variables when sending sensitive headers.
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), RejectRedirect())
     try:
         with opener.open(req, timeout=25) as response:
             raw = response.read(2_000_001)
@@ -106,9 +112,15 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
         rows = data.get("quotes") if data else None
         summary["selected"] = {**info, "count": len(rows) if isinstance(rows, dict) else None,
                                "requested": len(selected), "source": data.get("source") if data else None}
+    # Validate selections *before* any authenticated outbound requests.
+    if any(symbol not in ALLOWED_OPTIONS for symbol in option_symbols):
+        raise ValueError("Options underlying must be allowlisted")
+    if len(option_symbols) != len(set(option_symbols)):
+        raise ValueError("Duplicate option underlying")
+    if not summary["status"]["authenticated"] or not summary["status"]["market_data_configured"]:
+        summary["options_status"] = "skipped_no_authenticated_market_data"
+        return summary
     for i, symbol in enumerate(option_symbols):
-        if symbol not in ALLOWED_OPTIONS:
-            raise ValueError("Options underlying must be allowlisted")
         if i:
             pause(3.5)
         expiry_info, expiry_payload = requester(origin, pairing_key, "/dhan/option-expiries",
@@ -138,6 +150,9 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
                 result["pcr_available"] = valid and type(chain.get("pcr")) in (int, float)
                 result["max_pain_available"] = valid and type(chain.get("max_pain")) in (int, float)
         summary["options"][symbol] = result
+        if result["expiry_http"] == 429 or result["chain_http"] == 429:
+            summary["options_status"] = "rate_limited_remaining_skipped"
+            break
     return summary
 
 
