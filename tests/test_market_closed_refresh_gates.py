@@ -20,7 +20,7 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertIn("if not refresh_hours():",resume)
         self.assertIn("saved data retained",resume)
 
-    def test_closed_market_disables_auto_poll_but_manual_refresh_is_available():
+    def test_closed_market_disables_auto_poll_but_manual_refresh_is_available(self):
         label=section("    def watchlist():","    symbol=ft.Dropdown(")
         self.assertIn('ft.TextButton("Refresh data"',label)
         self.assertNotIn("watch_countdown",label)
