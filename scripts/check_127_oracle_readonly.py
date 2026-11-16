@@ -210,6 +210,57 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
     return summary
 
 
+def acceptance(result, *, selected=(), option_symbols=("RELIANCE", "HDFCBANK")):
+    """A *probe* PASS requires complete measured data, not just HTTP 200.
+
+    This is NOT exchange-live timestamp proof, nor order authorization.
+    Direct fixed-51 evidence is accepted only if operator explicitly opted in.
+    """
+    status=result.get("status",{})
+    snapshot=result.get("snapshot",{})
+    direct=result.get("direct_equities",{})
+    indices=result.get("indices",{})
+    selected_summary=result.get("selected",{})
+    options=result.get("options",{})
+    snapshot_ok=(snapshot.get("http")==200 and snapshot.get("error") is None
+                 and snapshot.get("source")=="dhan" and snapshot.get("count")==51
+                 and snapshot.get("freshness")=="unverified"
+                 and type(snapshot.get("age_seconds")) in (int,float)
+                 and 0<=snapshot["age_seconds"]<=120)
+    direct_ok=(direct.get("status")=="attempted"
+               and direct.get("http")==200 and direct.get("error") is None
+               and direct.get("source")=="dhan" and direct.get("freshness")=="unverified"
+               and direct.get("count")==51 and direct.get("unavailable_count")==0)
+    index_ok=(indices.get("http")==200 and indices.get("error") is None
+              and indices.get("source")=="dhan" and indices.get("count")==3
+              and indices.get("unavailable_count")==0)
+    selected_ok=(not selected or
+        (selected_summary.get("http")==200 and selected_summary.get("error") is None
+         and selected_summary.get("source")=="dhan"
+         and selected_summary.get("count")==len(selected)))
+    options_ok=all(
+        isinstance(options.get(sym),dict)
+        and options[sym].get("expiry_http")==200
+        and options[sym].get("expiry_error") is None
+        and options[sym].get("chain_http")==200
+        and options[sym].get("chain_error") is None
+        and options[sym].get("source")=="dhan"
+        and options[sym].get("atm_strike_count")==7
+        and options[sym].get("pcr_available") is True
+        and options[sym].get("max_pain_available") is True
+        for sym in option_symbols)
+    checks={"session":status.get("http")==200 and status.get("error") is None
+            and status.get("authenticated") is True
+            and status.get("market_data_configured") is True,
+            "equities_51":snapshot_ok or direct_ok,
+            "indices_3":index_ok,
+            "selected_equities":selected_ok,
+            "broker_listed_options":options_ok}
+    return {"verdict":"READ_ONLY_PROBE_PASS" if all(checks.values())
+            else "NOT_VERIFIED", "checks":checks,
+            "exchange_live_verified":False, "live_orders_enabled":False}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Read-only BOT KING Oracle 127 probe")
     parser.add_argument("--options", nargs="*", choices=ALLOWED_OPTIONS,
@@ -226,8 +277,10 @@ def main(argv=None):
     except (ValueError, TypeError):
         print(json.dumps({"error": "invalid_configuration", "live_orders_enabled": False}))
         return 2
+    result["acceptance"]=acceptance(result,selected=tuple(args.selected),
+                                    option_symbols=tuple(args.options))
     print(json.dumps(result, sort_keys=True, allow_nan=False))
-    return 0
+    return 0 if result["acceptance"]["verdict"]=="READ_ONLY_PROBE_PASS" else 1
 
 
 if __name__ == "__main__":
