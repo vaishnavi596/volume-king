@@ -44,6 +44,25 @@ class Opener:
 
 
 class OracleCollectorRuntimeAuditTests(unittest.TestCase):
+    def test_protected_audit_does_not_follow_redirect(self):
+        a = module()
+        handler = a.NoRedirect()
+        import urllib.request
+        req = urllib.request.Request(
+            "http://127.0.0.1:8000/v2/snapshot",
+            headers={"X-BotKing-Key": "secret"}, method="GET")
+        self.assertIsNone(handler.redirect_request(
+            req, None, 302, "Found", {"Location": "https://outside.invalid/"},
+            "https://outside.invalid/"))
+        with mock.patch.object(a.urllib.request, "build_opener") as build:
+            build.return_value.open.side_effect = a.urllib.error.HTTPError(
+                req.full_url, 302, "Found", {}, None)
+            result = a.request_get("/v2/snapshot", "secret")
+            self.assertEqual(result.http, 302)
+            handlers = build.call_args.args
+            self.assertTrue(any(isinstance(h, a.NoRedirect) for h in handlers))
+        self.assertEqual(result.body, None)
+
     def test_no_protected_request_without_operator_key(self):
         a = module()
         opener = Opener({"status": "ok"})
