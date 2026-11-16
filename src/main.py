@@ -1212,7 +1212,7 @@ def app_main(page:ft.Page):
         while True:
             await asyncio.sleep(10)
             try:
-                if not app_active[0] or (prefs.get("source")=="Dhan" and not dhan_feed.connected):
+                if not app_active[0]:
                     last_fingerprint=None
                     continue
                 generation=provider_generation[0]
@@ -1223,9 +1223,14 @@ def app_main(page:ft.Page):
                     continue
                 available=[]
                 for sym in watch_symbols:
-                    snapshot=quotes.get(sym) or {}
+                    # A failed LTP poll may leave quotes without bars while the
+                    # matching 5m history survives in the chart/shared cache.
+                    # This loop is LOCAL ONLY, including while disconnected.
+                    snapshot=(shared_history(sym) if expected_source=="Dhan"
+                              else quotes.get(sym) or {})
                     bars=snapshot.get("bars") or []
-                    if snapshot.get("source")==expected_source and bars:
+                    if (snapshot.get("source")==expected_source
+                            and valid_candle_history(bars)):
                         available.append((sym,snapshot,bars))
                 fingerprint=(generation,expected_source,tuple(filter_selected),
                              tuple((sym,len(bars),repr(bars[-1])) for sym,_,bars in available))
@@ -1234,6 +1239,10 @@ def app_main(page:ft.Page):
                 results={}
                 for sym,snapshot,_ in available:
                     result=display_analysis(sym,snapshot)
+                    if expected_source=="Dhan":
+                        result=retain_last_filter_votes(
+                            result,watch_signal_cache.get(sym),
+                            selected_filters=active_analysis_filters(),provider="Dhan")
                     if result.get("timestamp"):
                         results[sym]=result
                 if generation!=provider_generation[0] or not results:
@@ -6262,10 +6271,18 @@ console.log('BOT KING Lightweight Charts ready');
                         try:
                             data=await asyncio.wait_for(
                                 asyncio.to_thread(get_market_data,index_sym,"5m","2d"),timeout=25)
-                            if (data.get("source")=="Dhan" and data.get("bars")
+                            if generation==provider_generation[0] and data.get("source")=="Dhan":
+                                # Only a valid 30+ bar series may replace the last
+                                # completed index chart; a short response cannot
+                                # blank NIFTY/BANKNIFTY/SENSEX visual evidence.
+                                prior=shared_history(index_sym)
+                                data=retain_candle_history(data,prior,provider="Dhan")
+                            if (data.get("source")=="Dhan"
+                                    and valid_candle_history(data.get("bars"))
                                     and generation==provider_generation[0]):
                                 chart_snapshots[(index_sym,"5m",generation)]=dict(
                                     data,_scanner_timeframe="5m")
+                                refresh_shared_analysis(index_sym)
                                 if current[0] in (0,4,5):
                                     request_view_refresh(current[0])
                         except asyncio.CancelledError:
