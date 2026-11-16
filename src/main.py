@@ -336,11 +336,17 @@ def app_main(page:ft.Page):
             rows.append(state+" • "+entry)
         return "\n".join(rows) or "No errors recorded this session"
     def regular_hours(now=None):
+        # Exchange regular trading hours determine LIVE signal eligibility.
         now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
         return now.weekday()<5 and (9,15)<=(now.hour,now.minute)<(15,30)
+    def refresh_hours(now=None):
+        # BOT KING read-only polling: pre-open/post-close data is not LIVE.
+        now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
+        return now.weekday()<5 and (9,10)<=(now.hour,now.minute)<(15,45)
     def session_caption():
-        return ("Regular session hours • exchange holidays not verified" if regular_hours()
-                else "Outside regular session hours • automatic refresh paused")
+        return ("BOT KING refresh window • exchange live signals separately gated"
+                if refresh_hours() else
+                "Outside refresh window (09:10–15:45 IST) • automatic refresh paused")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
@@ -1890,7 +1896,7 @@ def app_main(page:ft.Page):
             return
         generation=provider_generation[0]
         now=time.monotonic()
-        if not force and not regular_hours():
+        if not force and not refresh_hours():
             return
         if (not force and index_refresh_generation[0]==generation
                 and now-index_last_attempt[0]<60):
@@ -2009,14 +2015,14 @@ def app_main(page:ft.Page):
         await asyncio.sleep(10)
         while True:
             try:
-                closing_bootstrap=(not regular_hours()
+                closing_bootstrap=(not refresh_hours()
                     and closed_equity_bootstrap_generation[0]!=provider_generation[0]
                     and watch_batch_success_generation[0]!=provider_generation[0])
                 # Already-saved prices are never a substitute for this login's
                 # Oracle snapshot. Retry just once after the normal 60s floor
                 # when login failed/was partial, without starting off-hours
                 # periodic polling.
-                if ((app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
+                if ((app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected)
                         or (app_active[0] and closing_bootstrap and prefs.get("source")=="Dhan"
                             and dhan_feed.connected)):
@@ -2055,7 +2061,7 @@ def app_main(page:ft.Page):
             return "Next --"
         if not app_active[0]:
             return "Paused"
-        if not regular_hours():
+        if not refresh_hours():
             return "Market closed • auto-refresh paused"
         if watch_batch_busy[0]:
             return "Refreshing"
@@ -4390,7 +4396,7 @@ console.log('BOT KING Lightweight Charts ready');
             next_text="PAUSED — app in background"
         elif prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
             next_text="PAUSED — select a market feed";scan_next_refresh[0]=None
-        elif not regular_hours():
+        elif not refresh_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
         elif scan_busy[0]:next_text="checking history now"
         elif prefs.get("source")=="Dhan" and scan_tf.value=="5m":
@@ -4417,7 +4423,7 @@ console.log('BOT KING Lightweight Charts ready');
     # A signal can change only when a newer verified-source candle arrives.
     scan_fast_seen=[None]
     def refresh_cached_scanner_signal():
-        if not app_active[0] or scan_busy[0] or not regular_hours():
+        if not app_active[0] or scan_busy[0] or not refresh_hours():
             return
         sym=scan_symbol.value or "NIFTY"
         tf=scan_tf.value or "5m"
@@ -4699,7 +4705,7 @@ console.log('BOT KING Lightweight Charts ready');
                     await sync_visible_chart()
             except Exception as exc:
                 log_error("scanner_fast_signal",exc)
-            await asyncio.sleep(2 if (regular_hours() or (current[0]==3 and app_active[0])) else 30)
+            await asyncio.sleep(2 if (refresh_hours() or (current[0]==3 and app_active[0])) else 30)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
@@ -4719,7 +4725,7 @@ console.log('BOT KING Lightweight Charts ready');
             if not app_active[0]:
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5);continue
-            if not initial and not regular_hours():
+            if not initial and not refresh_hours():
                 scan_next_refresh[0]=None
                 scan_status.value=session_caption()
                 refresh_scan_age()
@@ -5480,7 +5486,7 @@ console.log('BOT KING Lightweight Charts ready');
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
         # Navigation must not trigger a duplicate Oracle snapshot request.
-        if (changed and i==4 and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
+        if (changed and i==4 and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
                 and not watch_batch_busy[0]
                 and time.monotonic()-watch_batch_last_attempt[0]>=60
                 and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
@@ -5551,7 +5557,7 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(5);continue
             # Scan historical candles once after provider changes, even on closed days.
             current_generation=provider_generation[0]
-            if not initial and not regular_hours() and last_scanned_generation==current_generation:
+            if not initial and not refresh_hours() and last_scanned_generation==current_generation:
                 # Closed-market history does not change every two minutes.
                 # Keep the last successful result visible until resume or reconnect.
                 if prefs.get("source")=="Dhan" and scan_progress.get("state")=="Complete":
@@ -6007,7 +6013,7 @@ console.log('BOT KING Lightweight Charts ready');
             # provider generation after a 3-minute cooldown; never loop rapidly
             # over 51 rate-sensitive Dhan history endpoints.
             if (prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and not regular_hours() and successes==0
+                    and not refresh_hours() and successes==0
                     and not any("rate limited" in reason.lower() or "cooldown" in reason.lower()
                                 or "http 429" in reason.lower() for reason in failed_symbols.values())
                     and closed_session_retry_generation!=generation):
@@ -6077,10 +6083,10 @@ console.log('BOT KING Lightweight Charts ready');
                 index_login_recovery_ready=(same_index_login
                     and login_bootstrap.stages.get("indices") in
                         ("PARTIAL","FAILED","COOLDOWN"))
-                closed_index_bootstrap=(not regular_hours()
+                closed_index_bootstrap=(not refresh_hours()
                     and closed_index_bootstrap_generation[0]!=provider_generation[0]
                     and index_login_recovery_ready and not index_loaded_this_login)
-                if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
+                if (app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected and not index_refresh_busy[0]):
                     await refresh_dhan_index_quotes()
                 elif (app_active[0] and closed_index_bootstrap and prefs.get("source")=="Dhan"
@@ -6104,7 +6110,7 @@ console.log('BOT KING Lightweight Charts ready');
                 generation=provider_generation[0]
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and regular_hours()
+                        and refresh_hours()
                         and not dhan_history_scan_active[0]
                         and dhan_feed.cooldown_remaining("/dhan/intraday")==0
                         and not str(scan_progress.get("state","")).startswith(
@@ -6210,7 +6216,7 @@ console.log('BOT KING Lightweight Charts ready');
             # Resume the fast shared quote path before expensive candle history.
             # The background poll is suspended, so waiting up to 45 seconds
             # for its next tick unnecessarily delays the visible watchlist.
-            if app_active[0] and regular_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected:
+            if app_active[0] and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
                 if (app_active[0] and generation==provider_generation[0]
                         and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
@@ -6222,7 +6228,7 @@ console.log('BOT KING Lightweight Charts ready');
                     await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
-            if not regular_hours():
+            if not refresh_hours():
                 runtime_status.value="Market closed • saved data retained • auto-refresh paused"
                 return
             if current[0]==1:await refresh_selected_options()
