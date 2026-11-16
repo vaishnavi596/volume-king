@@ -2191,3 +2191,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — CI #1684 PASS: 1,060/1,060 offline tests
 - Verified GitHub Actions #1684 run ID `43921745126`, tested commit `b30555a98bb09f540ab42334dea3495d902ec7f4`: completed **success**. Job `133490538960` shows Python syntax success and offline regression suite success. Inspected full job log summary: `Ran 1060 tests in 681.717s`, `OK`. This supersedes CI #1682/#1683 fixture failures for the tested source.
 - Oracle dependency preflight now checks binding ordering relative to snapshot insertion in an offline fixture. It has **not** been executed on the real Oracle host/source. Production deployment, authenticated route tests, five functional filters, live Dhan verification and APK remain pending. Do not infer runtime readiness from this CI PASS; keep one-phone scope and orders disabled.
+
+
+## 2026-11-16 — Oracle operator read-only runbook committed; execution pending
+- Added `docs/ORACLE_READONLY_DEPENDENCY_GATE.md` in `dd65e30c`, then removed `py_compile`'s potential cache write at `40906548` by switching to Python builtin `compile()` with no output file. Runbook specifies reviewed script commit, SHA check, static binding flags, fail-closed HOLD rules, no secret disclosure, and staged backup/diff/runtime gates.
+- **No Oracle SSH/production execution available in this session.** This is an operator procedure, not a completed Oracle audit. Latest proven CI remains #1684 (`b30555a9`, 1060/1060 PASS); documentation commits do not imply new CI evidence. Production unchanged; no Dhan calls, tokens, APK, or orders.
