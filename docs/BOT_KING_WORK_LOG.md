@@ -2280,3 +2280,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle candidate generator downloaded; AST syntax PASS
 - Operator transcript: `curl -fLsS --max-time 30 https://raw.githubusercontent.com/vaishnavi596/volume-king/af88226fb5f33ac0186547156cb7e1f915ebf851/scripts/prepare_oracle_assessment_routes_candidate.py -o /tmp/bk_prepare_candidate.py` returned to prompt with no visible error; `python3 -B -c 'import ast; ast.parse(open("/tmp/bk_prepare_candidate.py").read()); print("GENERATOR_SYNTAX=PASS")'` returned `GENERATOR_SYNTAX=PASS`.
 - Syntax PASS only; content integrity/hash and actual candidate generation not yet proven. Next verify generator bytes against pinned GitHub source and create separate `/tmp` candidate with `--server /opt/bot-king-server/server.py --output /tmp/bk_server_assessment_candidate.py` only after integrity gate. No production write, restart, Dhan request or deployment observed.
+
+
+## 2026-11-16 — Oracle Git unavailable; separate candidate generated (integrity HOLD)
+- Operator `git hash-object /tmp/bk_prepare_candidate.py` returned `-bash: git: command not found`; requested Git blob integrity gate **not performed**.
+- Operator nevertheless executed `python3 -B /tmp/bk_prepare_candidate.py --server /opt/bot-king-server/server.py --output /tmp/bk_server_assessment_candidate.py` and received `candidate_sha256=8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36`, `candidate_only=true; deployed=false; filters_functional=false`.
+- Candidate generation reported success, but downloaded generator's bytes were not yet independently integrity-verified. No production deployment observed. Next: verify downloaded generator's SHA256 against trusted pinned repository bytes (Python hashlib, no git required); inspect candidate syntax/routes/diff separately. Do not mark candidate reviewed/approved or filters functional yet.
