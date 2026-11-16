@@ -1499,3 +1499,11 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - This is offline source-level error hardening; Oracle deployed code and actual five filter scores/equity PCR not verified, and none of these commits are present in a tested Android APK. No production edits, no Dhan broker calls, no orders.
 
 - **Exact new CI runs:** #1600 [43847594630](https://github.com/vaishnavi596/volume-king/actions/runs/43847594630) head `e49d45b7`; #1601 [43847620521](https://github.com/vaishnavi596/volume-king/actions/runs/43847620521) head `faa14c64`; #1602 [43847655090](https://github.com/vaishnavi596/volume-king/actions/runs/43847655090) head `f3020d28`; #1603 [43847688861](https://github.com/vaishnavi596/volume-king/actions/runs/43847688861) head `96034db7`; #1604 [43847718684](https://github.com/vaishnavi596/volume-king/actions/runs/43847718684) head `131b82f0`. All **IN PROGRESS** at GitHub inspection. No claim of PASS for these heads, only #1599 968/968 for preceding code. No Oracle or device proof.
+
+
+## 2026-11-16 — CI #1600–1604 exact final status
+- #1600 [43847594630](https://github.com/vaishnavi596/volume-king/actions/runs/43847594630) head `e49d45b7`, job `133231562512`: **968/968 PASS**, workflow success.
+- #1601 [43847620521](https://github.com/vaishnavi596/volume-king/actions/runs/43847620521) head `faa14c64`, job `133231651175`: **968/968 PASS**, workflow success.
+- #1602 [43847655090](https://github.com/vaishnavi596/volume-king/actions/runs/43847655090) head `f3020d28`, job `133231769996`: **969/969 PASS**, workflow success.
+- #1603 [43847688861](https://github.com/vaishnavi596/volume-king/actions/runs/43847688861) head `96034db7`, job `133231890955`: **970/970 PASS**, workflow success.
+- **#1604 [43847718684](https://github.com/vaishnavi596/volume-king/actions/runs/43847718684) head `131b82f0`: GitHub workflow conclusion CANCELLED**, not PASS, despite job log mentioning `Ran 970 tests in 1199.348s` and no listed assertions. Do not count this cancelled head as successful CI. Subsequent run on a new source head is required for complete CI assurance. No Oracle/phone evidence, no production orders or APK.
