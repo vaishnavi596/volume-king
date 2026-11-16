@@ -213,3 +213,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 1/2 · operator GET health/readiness/snapshot | Opener disabled proxy but allowed HTTP redirects, risking propagation of protected header beyond loopback | `92c3597f` no-redirect handler, `55cffa26` regression. **CI PENDING** | No live Oracle run or reported incident |
 | 3/4/5/6 · PCR, five filters, APK | No new producer or live entitlement proof | No APK/orders/deployment | UNVERIFIED |
+
+- **Exact Audit-08 CI started:** #1581 [run 43839664916](https://github.com/vaishnavi596/volume-king/actions/runs/43839664916), head `55cffa26`, was **IN PROGRESS** when checked. This source/test security fix is not yet CI PASS; previous #1580 953/953 applies to prior commit.
