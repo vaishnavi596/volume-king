@@ -2016,3 +2016,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator repeated the identical RELIANCE 5m 2026-11-13 historical POST twice: request 1 HTTP 200 in 0.008s; request 2 HTTP 200 in 0.005s; both `source=dhan`, `freshness=historical_unverified`.
 - Test script printed `CANDLES: 0` **because it counted `data.get("candles", [])`**, not because data disappeared. The initial probe had confirmed 71 candles, and GitHub `backend/server.py` handler returns a `bars` list (not `candles`). A corrected read-only check must count `bars`.
 - Fast repeat latency is consistent with a warm cache but is not proof of zero upstream provider calls or concurrency single-flight. No evidence of 429 during these calls; do not overclaim. No orders or token changes.
+
+
+## 2026-11-16 — Oracle B3 corrected historical bars count PASS
+- Operator ran corrected authenticated `POST /dhan/intraday` for RELIANCE, 5m, 2026-11-13 and counted actual `bars` field: `HTTP: 200`, `BARS: 71`, `SOURCE: dhan`, `FRESHNESS: historical_unverified`, `LIVE_ORDERS: False`.
+- Confirms prior `CANDLES: 0` output was a test-script field-name error, not a disappearance of data. Repeated HTTP responses and fast latency have been observed, but **upstream call-count reduction and concurrent B3 single-flight remain unproven**.
+- Next: bounded two-request same-key concurrent test with same dates, and separate source/code audit for exact cache behavior. Do not assume two separate mobile sessions have been tested.
