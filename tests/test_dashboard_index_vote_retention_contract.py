@@ -56,6 +56,8 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         self.assertIn('chart_snapshots[(index_sym,"1m",generation)]', source)
         self.assertIn('shared_history(index_sym,"1m")', source)
         self.assertNotIn('get_market_data,index_sym,"5m","2d"', source)
+        self.assertIn('remember_candle_failure(index_sym,"1m","index candle fetch",exc)', source)
+        self.assertNotIn('remember_candle_failure(index_sym,"5m","index candle fetch",exc)', source)
 
     def test_one_minute_index_histories_never_presented_live(self):
         source = self.functions["historical_vote_bar"]
