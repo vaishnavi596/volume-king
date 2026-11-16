@@ -2462,3 +2462,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle create_app factory remainder AST preservation PASS
 - Operator memory-only AST comparison removed exactly two new candidate decorated route definitions, `GET /v2/assessment/{symbol}` and `GET /v2/server-readiness`, then compared candidate `create_app` remainder to production `create_app`. Observed `REMOVED_COUNT=2`, `EXPECTED_COUNT=2`, `FACTORY_REMAINDER_IDENTICAL=True`, `FACTORY_PRESERVATION=PASS`, `FILES_MODIFIED=NO`, `PRODUCTION_CHANGED=NO`.
 - Scope: AST structural equality of factory after subtracting two known additions, not runtime equivalence or proof new readiness route is safe. Next gate: inspect isolated readiness handler and test synthetic ASGI behavior; no production deployment.
+
+
+## 2026-11-17 — Oracle readiness route source-only AST inventory
+- Operator inspected isolated candidate GET `/v2/server-readiness`: exactly one synchronous handler `botking_readiness_safe`, parameter `x_botking_key`; calls `HTTPException`, `Header`, `app.get`, `hmac.compare_digest`, `pairing_key.encode`, `x_botking_key.encode`. Literal response dictionary fields: `broker_submission_allowed`, `collector`, `configured_enabled`, `equity_quote_count`, `interval_seconds`, `last_success_age_seconds`, `live_orders_enabled`, `orders`, `protocol`, `service`, `status`.
+- Source-only, no candidate execution, no production changes. Auth enforcement and read-only semantics not yet runtime-proven. Next gate: isolated synthetic ASGI 403/403/200 and safe order flags; no secrets or Dhan calls.
