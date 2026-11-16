@@ -37,6 +37,19 @@ class B3OracleHistorySourceAuditTests(unittest.TestCase):
         self.assertFalse(outcome["source_checks"]["route_guarded_by_history_singleflight"])
         self.assertFalse(outcome["source_ready_for_manual_review"])
 
+    def test_nonreentrant_lane_fails_source_parity(self):
+        a = audit_module()
+        with tempfile.TemporaryDirectory() as directory:
+            source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
+            self.assertIn("history_miss_locks = tuple(threading.RLock()", source)
+            path = Path(directory) / "server.py"
+            path.write_text(source.replace(
+                "history_miss_locks = tuple(threading.RLock()",
+                "history_miss_locks = tuple(threading.Lock()"), encoding="utf-8")
+            result = a.audit(path)
+        self.assertFalse(result["source_checks"]["singleflight_reentrant_locks"])
+        self.assertFalse(result["source_ready_for_manual_review"])
+
     def test_reject_symlink_before_reading(self):
         with tempfile.TemporaryDirectory() as directory:
             original = Path(directory) / "normal.py"
