@@ -6339,7 +6339,7 @@ console.log('BOT KING Lightweight Charts ready');
                         except Exception as exc:
                             log_error("index_candle_poll_"+index_sym,exc)
                             if generation==provider_generation[0] and app_active[0] and not lifecycle_background[0]:
-                                remember_candle_failure(index_sym,"5m","index candle fetch",exc)
+                                remember_candle_failure(index_sym,"1m","index candle fetch",exc)
                             if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
                                 break
             except asyncio.CancelledError:
