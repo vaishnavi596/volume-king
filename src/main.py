@@ -1832,7 +1832,12 @@ def app_main(page:ft.Page):
                            if isinstance(item,dict) and isinstance(item.get("snapshot_age_seconds"),(int,float))
                            and not isinstance(item.get("snapshot_age_seconds"),bool)
                            and math.isfinite(item["snapshot_age_seconds"]) and item["snapshot_age_seconds"]>=0]
-            snapshot_age_label=(f"Oracle snapshot age {max(snapshot_ages):.0f}s • "
+            direct_equity_observation=any(
+                isinstance(item,dict) and item.get("quote_collection")=="direct_dhan_batch"
+                for item in batch.values())
+            snapshot_age_label=("Dhan direct 51-equity batch • "
+                                if direct_equity_observation else
+                                f"Oracle snapshot age {max(snapshot_ages):.0f}s • "
                                 if snapshot_ages else "Oracle snapshot age unknown • ")
             watch_batch_status[0]=(f"Dhan LTP partial: {received}/{total_symbols} • previous quotes retained • "
             
@@ -3115,8 +3120,12 @@ def app_main(page:ft.Page):
                         # LOGIN snapshot, not remain "not checked" until a
                         # separate scheduled 60s poll. Rates may stay numerically
                         # unchanged after close even when the request succeeds.
+                        direct_login_batch=any(
+                            isinstance(item,dict) and item.get("quote_collection")=="direct_dhan_batch"
+                            for item in batch.values())
                         watch_batch_status[0]=(
-                            "Login snapshot • "+str(received)+"/"+str(expected)+
+                            ("Login Dhan direct batch • " if direct_login_batch else "Login Oracle snapshot • ")+
+                            str(received)+"/"+str(expected)+
                             (" partial" if dhan_batch_issue[0] else " loaded")+
                             " • last-known Dhan prices; exchange time unverified")
                         if selected_batch_issue[0]:
