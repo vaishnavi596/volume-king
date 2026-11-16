@@ -2374,3 +2374,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Read `src/shared_assessment_ui.py`, `scripts/audit_oracle_five_filters_readonly.py`, `tests/test_five_engine.py`, and B1 joint audit. Confirmed UI validates five IDs and four factors, while AST audit explicitly cannot prove functional production runtime. Futures/News/Candle/Options live data blockers persist.
 - Changed `src/shared_assessment_ui.py` at commit `3b5713d279210c89ff135cc3d77dcd70417970a3`: numeric assessment metrics (OI support, OI resistance, Max Pain, PCR) render only when finite and strictly positive. Zero/negative/malformed numeric values remain WAIT rather than displaying invalid context as a meaningful level. Candle trend continues to require a recognized textual label. This is a presentation safety hardening, not a Dhan producer change. CI for this new SHA has not yet been confirmed.
 - No production change, Oracle SSH, Dhan requests, token read, signed APK or live order operation. Pending: check new SHA CI and add a focused regression fixture for zero/negative/nonfinite values; only then consider this gate passed.
+
+
+## 2026-11-17 — BK-5F assessment display regression fixture added
+- Direct GitHub Actions query for UI hardening SHA `3b5713d` showed run `43931554681` `in_progress` at check time; no PASS asserted.
+- Created `tests/test_shared_assessment_metric_display.py` at commit `92e658443bb69b55343db3126b54295f30447945`. New unittest fixtures exercise four numeric filter IDs with zero/negative/NaN/infinity/boolean/string values, positive PCR informational display, stale cache and unsafe signal flag. These are offline regression tests only, not a live producer integration or Dhan call.
+- New test commit CI pending. Existing Oracle candidate remains undeployed, live BK-5F producers unverified, APK HOLD. No production mutations or credentials accessed.
