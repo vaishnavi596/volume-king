@@ -24,6 +24,12 @@ class ServerToDhanRulesTests(unittest.TestCase):
         self.assertIn('runuser -u "$user" -- test -r "$token"',source)
         self.assertNotIn('cat "$token"',source)
         self.assertNotIn('source "$envfile"',source)
+        self.assertIn("ss -H -ltn '( sport = :8000 )'",source)
+        self.assertIn("127[.]0[.]0[.]1:8000",source)
+        self.assertIn("'https://api.dhan.co/v2/profile'",source)
+        self.assertIn("--noproxy '*'",source)
+        self.assertNotIn("access-token:",source)
+
 
     def test_gateway_ports_and_pairing_header_separated_from_dhan_token(self):
         installer=(BACKEND/"install-oracle.sh").read_text(encoding="utf-8")
