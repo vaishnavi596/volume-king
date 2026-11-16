@@ -2186,3 +2186,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — CI #1683 late-binding fixture mismatch fixed; new CI pending
 - Verified run #1683 (`43919928747`), tested `3c6c8621`: **failure**, `Ran 1060 tests in 116.651s`, exactly one failure `test_late_binding_holds`: expected `static_pass=False`, got True. Root cause: fixture's `BASE.replace` searched for literal backslash-n rather than the actual newline, so it failed to remove the early `pairing_key` binding. This is a test fixture defect; no Oracle production fault demonstrated.
 - Corrected the early-binding replacement and late-binding appended fixture at commit `b30555a9`; new CI pending. Keep production deployment HOLD. No Dhan/token/APK operations.
+
+
+## 2026-11-16 — CI #1684 PASS: 1,060/1,060 offline tests
+- Verified GitHub Actions #1684 run ID `43921745126`, tested commit `b30555a98bb09f540ab42334dea3495d902ec7f4`: completed **success**. Job `133490538960` shows Python syntax success and offline regression suite success. Inspected full job log summary: `Ran 1060 tests in 681.717s`, `OK`. This supersedes CI #1682/#1683 fixture failures for the tested source.
+- Oracle dependency preflight now checks binding ordering relative to snapshot insertion in an offline fixture. It has **not** been executed on the real Oracle host/source. Production deployment, authenticated route tests, five functional filters, live Dhan verification and APK remain pending. Do not infer runtime readiness from this CI PASS; keep one-phone scope and orders disabled.
