@@ -2706,7 +2706,8 @@ def app_main(page:ft.Page):
         except Exception as exc:
             log_error("dhan_options",exc)
             detail=safe_error(exc)
-            if generation==provider_generation[0]:
+            if (generation==provider_generation[0] and sym==chain_symbol.value
+                    and choice==option_expiry_choice.value):
                 delay=(300 if "422" in detail else
                        max(30,dhan_feed.cooldown_remaining("/dhan/option-expiries"),
                            dhan_feed.cooldown_remaining("/dhan/option-chain"))
@@ -2717,7 +2718,9 @@ def app_main(page:ft.Page):
                     while len(option_retry_until)>32:
                         del option_retry_until[next(iter(option_retry_until))]
             health.finish(health_key,request_id,"UNAVAILABLE",error=detail)
-            option_feed_status[0]="Dhan "+option_stage+" unavailable for "+sym+": "+safe_error(exc)
+            if (generation==provider_generation[0] and sym==chain_symbol.value
+                    and choice==option_expiry_choice.value):
+                option_feed_status[0]="Dhan "+option_stage+" unavailable for "+sym+": "+detail
             # Keep last valid metrics for historical display, never for signals.
         finally:
             option_feed_busy[0]=False
