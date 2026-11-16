@@ -18,6 +18,7 @@ from urllib.parse import quote
 from fastapi.responses import HTMLResponse
 from collections import deque
 from contextlib import asynccontextmanager, suppress
+from functools import wraps
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Literal, Optional
@@ -890,6 +891,22 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     # Historical candles are cached only after provider validation succeeds.
     candle_cache = {}
     candle_lock = threading.RLock()
+    # Bounded shared single-flight lanes for identical history misses in this worker.
+    history_miss_locks = tuple(threading.Lock() for _ in range(32))
+
+    def history_singleflight(handler):
+        @wraps(handler)
+        def guarded(body: DhanIntradayRequest,
+                    x_botking_key: Optional[str] = Header(default=None)):
+            if (not x_botking_key or
+                    not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode())):
+                raise HTTPException(403, "Server access denied")
+            stripe = hash((body.symbol, body.interval)) % len(history_miss_locks)
+            with history_miss_locks[stripe]:
+                # The handler rechecks its 180-second cache while this lock
+                # is held; never hold candle_lock across a network call.
+                return handler(body, x_botking_key=x_botking_key)
+        return guarded
     candle_cache_max_entries = 100
     candle_cache_file = os.environ.get("BOTKING_CANDLE_CACHE_FILE", "").strip()
 
@@ -985,6 +1002,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                     "live_orders_enabled": False}
 
     @app.post("/dhan/intraday")
+    @history_singleflight
     def dhan_intraday(body: DhanIntradayRequest, x_botking_key: Optional[str] = Header(default=None)):
         """Read-only historical candles; reject unverifiable and malformed responses."""
         if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
