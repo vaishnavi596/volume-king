@@ -626,3 +626,10 @@ by writing this journal.
 
 - User re-ran `sudo sha256sum /opt/bot-king-server/dhan_feed.py` and supplied `7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75`, matching the earlier owner observation exactly. **Oracle adapter byte integrity relative to prior observation PASS**; this does NOT imply patched quote pacing already deployed.
 - Latest available check of CI `43796217369` still reports `in_progress`; do not claim PASS. Staging-only script is committed at `b358421d` and regression at `fc442e94`. Next owner action: download source pinned to reviewed commit, validate `python3 -m py_compile`, run staging script with `sudo` only after rechecking SHA256, inspect generated proposed diff and backup. No live file edit/restart/order/token/APK performed.
+
+
+## 2026-11-16 — S2D staging command issued; staging verdict not yet visible
+
+- User-supplied Oracle terminal shows `python3 -m py_compile oracle_s2d_quote_gate_stage.py` returned to prompt without error and `sha256sum -c` explicitly printed `/opt/bot-king-server/dhan_feed.py: OK` for expected SHA256 `7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75`. These establish script syntax and unchanged production input at the probe time.
+- User invoked `sudo python3 /tmp/oracle_s2d_quote_gate_stage.py`, but the pasted output stops there: **no `S2D_STAGE_PASS`, `PRODUCTION_CHANGED`, `PROPOSED`, `BACKUP` or traceback yet**. STAGING STATUS = NOT VERIFIED; do not mark PASS or perform production deployment.
+- Current GitHub CI `43796217369` still reported `in_progress` at latest lookup. Next verify staging command exit and exact proposed/backup artifacts, inspect generated diff and complete CI before any live update. No evidence of production edit, restart, credentials change or new APK.
