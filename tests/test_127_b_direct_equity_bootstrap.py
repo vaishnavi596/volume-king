@@ -31,7 +31,9 @@ class DirectEquityBootstrapTests(unittest.TestCase):
             self.assertEqual(set(first),EQUITIES)
             self.assertTrue(all(row["source"]=="Dhan" and
                 row["freshness"]=="unverified" and row["live_verified"] is False and
-                row["quote_timestamp"] is None for row in first.values()))
+                row["quote_timestamp"] is None and row["snapshot_age_seconds"] is None
+                and row["quote_collection"]=="direct_dhan_batch"
+                for row in first.values()))
             with self.assertRaises(FeedError):
                 self.feed.equity_quotes_with_bootstrap()
         self.assertEqual([p for p,_ in calls],
