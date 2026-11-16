@@ -1,5 +1,10 @@
 """Offline safety checks for the Oracle B3 candidate generator; never deploys."""
 import hashlib
+import concurrent.futures
+import hmac
+import threading
+import time
+from typing import Optional
 import importlib.util
 from pathlib import Path
 import unittest
@@ -49,6 +54,64 @@ class OracleB3CandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "already present"):
                 module.prepare(source)
 
+
+    def test_exact_oracle_lock_block_cold_miss_one_mock_provider_call(self):
+        """Execute the exact inserted lock wrapper with mocked cache/provider."""
+        class Header:
+            def __init__(self, default=None):
+                self.default = default
+
+        class HTTPException(Exception):
+            def __init__(self, status, detail):
+                self.status_code = status
+
+        class DhanIntradayRequest:
+            symbol = "RELIANCE"
+            interval = 5
+
+        namespace = {"threading": threading, "hmac": hmac, "Optional": Optional,
+                     "Header": Header, "HTTPException": HTTPException,
+                     "DhanIntradayRequest": DhanIntradayRequest}
+        code = ('def build_guard(handler):\n'
+                '    pairing_key = "K" * 40\n'
+                + module.LOCK_BLOCK
+                + '    return history_singleflight(handler)\n')
+        exec(compile(code, "<oracle-b3-lock-runtime>", "exec"), namespace)
+        cache = {}
+        calls = []
+        entered = threading.Event()
+        release = threading.Event()
+
+        def mock_handler(body, x_botking_key=None):
+            if (body.symbol, body.interval) in cache:
+                return cache[(body.symbol, body.interval)]
+            calls.append(1)
+            entered.set()
+            if not release.wait(timeout=3):
+                raise AssertionError("mock provider timed out")
+            cache[(body.symbol, body.interval)] = [71]
+            return [71]
+
+        guarded = namespace["build_guard"](mock_handler)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(guarded, DhanIntradayRequest(),
+                                x_botking_key="K" * 40)
+            self.assertTrue(entered.wait(timeout=2))
+            second = pool.submit(guarded, DhanIntradayRequest(),
+                                 x_botking_key="K" * 40)
+            time.sleep(0.05)
+            try:
+                self.assertEqual(len(calls), 1)
+            finally:
+                release.set()
+            self.assertEqual(first.result(timeout=3), [71])
+            self.assertEqual(second.result(timeout=3), [71])
+        self.assertEqual(len(calls), 1)
+
+        with self.assertRaises(HTTPException) as error:
+            guarded(DhanIntradayRequest(), x_botking_key="wrong")
+        self.assertEqual(error.exception.status_code, 403)
+        self.assertEqual(len(calls), 1)
 
 if __name__ == "__main__":
     unittest.main()
