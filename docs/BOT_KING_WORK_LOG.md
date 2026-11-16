@@ -2113,3 +2113,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator loopback GET output: `/openapi.json=404`, `/v2/assessment/NIFTY=403`, `/v2/server-readiness=403`, deliberately unknown `/__botking_unknown_route_check__=404`.
 - 404 on OpenAPI may reflect disabled documentation, not a service failure. The unknown path 404 shows not every request is blanket 403. Yet unauthenticated 403 on two target paths still does **not** establish handler registration or functional assessment; middleware/proxy or catch-all path handling may respond 403. Deployed source AST previously showed both named decorators absent at SHA `c9577aaf...`.
 - Decision: inspect only route declaration forms and sanitized middleware structure in deployed source before targeted patch. Do not request or print credentials, do not call live Dhan, do not deploy or build APK yet. One-phone scope unchanged.
+
+
+## 2026-11-16 — Oracle source registration audit: middleware only
+- Operator ran read-only AST registration scan on `/opt/bot-king-server/server.py` for `include_router`, `add_api_route`, `add_route`, `mount`, `add_middleware`, `middleware`. Output: `REGISTRATION_TYPE: middleware`, `SOURCE_STRUCTURE_AUDIT_COMPLETE`; no dynamic route-registration call of the checked types found.
+- Combined with SHA-pinned prior decorator audit: 7/9 expected source routes present; `GET /v2/server-readiness` and `GET /v2/assessment/{symbol}` absent from inspected source. HTTP 403 without key is **not** route proof; middleware may reject first. Source audit does not exclude every possible indirect registration or prove live handler implementation.
+- Production remains unchanged. Targeted route patch must be prepared and reviewed against exact deployed SHA, with backup and syntax/test gates; **do not copy entire GitHub backend** or claim five filters functional. Single-phone scope; APK blocked.
