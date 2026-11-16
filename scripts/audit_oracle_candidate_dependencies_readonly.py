@@ -30,9 +30,21 @@ def inspect_source(raw: bytes) -> dict:
         elif isinstance(target, (ast.Tuple, ast.List)):
             for item in target.elts:
                 add_targets(item)
-    # Module-level imports/assignments and direct factory assignments are visible.
-    # This deliberately does not claim that nested or conditional bindings are safe.
-    for node in list(tree.body) + list(factories[0].body):
+    # Only module bindings established before factory definition, and direct factory
+    # bindings established before the snapshot insertion point, can qualify.
+    # Later assignments must never produce a false PASS.
+    factory = factories[0]
+    anchors = [node for node in factory.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and any(isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                       and isinstance(dec.func.value, ast.Name) and dec.func.value.id == "app"
+                       and dec.func.attr == "get" and dec.args
+                       and isinstance(dec.args[0], ast.Constant)
+                       and dec.args[0].value == "/v2/snapshot" for dec in node.decorator_list)]
+    if len(anchors) != 1:
+        return result
+    before_factory = [node for node in tree.body if node.lineno < factory.lineno]
+    before_anchor = [node for node in factory.body if node.lineno < anchors[0].lineno]
+    for node in before_factory + before_anchor:
         if isinstance(node, ast.Import):
             visible.update(alias.asname or alias.name.split(".")[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
