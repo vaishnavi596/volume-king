@@ -2456,7 +2456,7 @@ def app_main(page:ft.Page):
     async def visible_chart_poll():
         while True:
             await asyncio.sleep(60)
-            if (current[0]==5 and app_active[0] and regular_hours()
+            if (current[0]==5 and app_active[0] and refresh_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and not chart_load_busy[0] and not dhan_history_scan_active[0]
                     and dhan_feed.cooldown_remaining("/dhan/intraday")==0):
@@ -2764,7 +2764,7 @@ def app_main(page:ft.Page):
             # One paced, shared Dhan option snapshot for Options, Home and Scanner.
             # Do not launch a separate candle-history request every 15 seconds:
             # scanner and dashboard already consume the same Dhan candle cache.
-            if (current[0] in (0,1,3) and regular_hours()
+            if (current[0] in (0,1,3) and refresh_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and chain_symbol.value in DHAN_VERIFIED_SYMBOLS and not option_feed_busy[0]
                     and time.monotonic()-dhan_option_last_attempt[0]>=60
