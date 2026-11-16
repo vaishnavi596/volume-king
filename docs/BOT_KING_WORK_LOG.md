@@ -2010,3 +2010,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator performed exactly one authenticated `POST /dhan/intraday` with `{"symbol":"RELIANCE","interval":5,"from_date":"2026-11-13","to_date":"2026-11-13"}`.
 - Result: `HTTP_STATUS: 200`, `SOURCE: dhan`, `FRESHNESS: historical_unverified`, `LIVE_ORDERS_ENABLED: False`, `CANDLE_COUNT: 71`.
 - Confirms successful historical endpoint response under deployed B3 and read-only response flag. Historical freshness remains explicitly unverified; do not call it live data. Cache hit, actual upstream request count, concurrent single-flight, other symbols/intervals and two-phone behavior **not yet proven**. Avoid high-volume tests.
+
+
+## 2026-11-16 — Oracle B3 repeated historical calls HTTP 200; test counter corrected
+- Operator repeated the identical RELIANCE 5m 2026-11-13 historical POST twice: request 1 HTTP 200 in 0.008s; request 2 HTTP 200 in 0.005s; both `source=dhan`, `freshness=historical_unverified`.
+- Test script printed `CANDLES: 0` **because it counted `data.get("candles", [])`**, not because data disappeared. The initial probe had confirmed 71 candles, and GitHub `backend/server.py` handler returns a `bars` list (not `candles`). A corrected read-only check must count `bars`.
+- Fast repeat latency is consistent with a warm cache but is not proof of zero upstream provider calls or concurrency single-flight. No evidence of 429 during these calls; do not overclaim. No orders or token changes.
