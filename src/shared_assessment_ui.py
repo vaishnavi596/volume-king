@@ -20,6 +20,10 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         return ["Oracle 4 factors / 5 filters • WAIT • mismatched symbol"]
     if data.get("live_orders_enabled") is not False or data.get("signal_eligible") is not False:
         return ["Oracle 4 factors / 5 filters • WAIT • unsafe response"]
+    # Explain a legitimate fail-closed server response in the single summary
+    # line shown by Watchlist/Super Five; never pretend WAIT is a calculation.
+    if data.get("collection_status") == "not_configured":
+        return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     filters = data.get("assessment_filters")
     factors = data.get("factors")
     if not isinstance(filters, list) or not isinstance(factors, dict):
