@@ -2196,3 +2196,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle operator read-only runbook committed; execution pending
 - Added `docs/ORACLE_READONLY_DEPENDENCY_GATE.md` in `dd65e30c`, then removed `py_compile`'s potential cache write at `40906548` by switching to Python builtin `compile()` with no output file. Runbook specifies reviewed script commit, SHA check, static binding flags, fail-closed HOLD rules, no secret disclosure, and staged backup/diff/runtime gates.
 - **No Oracle SSH/production execution available in this session.** This is an operator procedure, not a completed Oracle audit. Latest proven CI remains #1684 (`b30555a9`, 1060/1060 PASS); documentation commits do not imply new CI evidence. Production unchanged; no Dhan calls, tokens, APK, or orders.
+
+
+## 2026-11-16 — Operator Oracle partial audit: service/health mismatch, SHA and AST pending
+- User-provided Oracle SSH transcript confirms login as `opc` on `bot-king-vnic` and `cd /opt/bot-king-server` succeeded. `curl` against `http://127.0.0.1:8000/health` returned **HTTP_STATUS=200**. Terminal also displayed `inactive` following `sudo systemctl is-active bot-king-server`, but mixed/interleaved paste means command/output association needs clean recheck. Do not infer a functioning systemd unit from HTTP alone or a dead backend from `inactive` alone.
+- Multiline heredoc was corrupted/interleaved in terminal; Python code subsequently interpreted by bash, producing syntax errors. `sha256sum server.py`, Python AST and binding flags have **no reliable results** in this transcript. Oracle static gate remains HOLD. Next operator instructions: short separate read-only commands to inspect unit ActiveState/MainPID and listener process, SHA and syntax; no restart or secrets.
+- GitHub CI #1684 remains 1060/1060 PASS for offline source only. No deployment, no APK, no credential changes.
