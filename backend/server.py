@@ -891,8 +891,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
     # Historical candles are cached only after provider validation succeeds.
     candle_cache = {}
     candle_lock = threading.RLock()
-    # Bounded shared single-flight lanes for identical history misses in this worker.
-    history_miss_locks = tuple(threading.Lock() for _ in range(32))
+    # Bounded reentrant single-flight lanes for history misses in this worker.
+    # Reentrancy is required by Oracle's derived 3m/30m nested history calls.
+    history_miss_locks = tuple(threading.RLock() for _ in range(32))
 
     def history_singleflight(handler):
         @wraps(handler)
