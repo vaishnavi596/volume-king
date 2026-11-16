@@ -235,3 +235,12 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 5/6 · APK | No new build | CI #1582 955/955 PASS from preceding source | APK blocked, phone outcome pending future release |
 
 - **Exact new UI regression CI runs:** #1583 [43840874487](https://github.com/vaishnavi596/volume-king/actions/runs/43840874487), head `a326be97`, and #1584 [43840916114](https://github.com/vaishnavi596/volume-king/actions/runs/43840916114), head `8992cc0a`, both **IN PROGRESS** at inspection. Do not claim PASS yet. Source CI results do not prove device UI changed without APK deployment.
+
+
+## 2026-11-16 — UNIFIED-54 coverage baseline and UI-02
+| Stage | Invariant / work | Evidence status | Remaining |
+|---|---|---|---|
+| 1,3,4 · shared Dhan roster | Exactly **51 NSE equities + 3 indices = 54 symbols**; same shared filter/assessment contract across all | `29912ce8` new source regression; CI PENDING | Current Oracle assessment poll only selected symbols, no 54/54 real producer coverage; rate-safe design still required |
+| 4 · known-placeholder UI | Full five-filter/four-factor response validated before marking `not_configured` | `5d4b7f8e` + `118bbfe3` committed, CI pending | Mobile APK not built |
+| 2/4 · option PCR | All 54 mapping coverage does **not** mean all equities have listed derivatives | Mapping-only helper remains fail-closed | Per-symbol Dhan expiry/chain eligibility unverified |
+| 5/6 · release | No deployment, APK or orders | SOURCE ONLY | Oracle runtime and mobile signoff pending |
