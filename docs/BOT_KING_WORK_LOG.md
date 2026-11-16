@@ -2004,3 +2004,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle production Dhan intraday request model AST PASS
 - Operator parsed production `server.py` AST without importing/executing server: `DhanIntradayRequest` FOUND, fields `symbol: str`, `interval: Literal[1,3,5,15,25,30,60]`, `from_date: date`, `to_date: date`; `dhan_intraday` handler FOUND at line 880.
 - This establishes the **source request schema** and presence of handler, not an HTTP historical success or provider result. OpenAPI 404 remains documentation-only. Next perform one bounded authenticated historical read on a prior trading day, print only HTTP status/source/candle count/freshness and errors (redacted); do not send orders or expose key.
+
+
+## 2026-11-16 — Oracle B3 Dhan historical endpoint read-only smoke PASS
+- Operator performed exactly one authenticated `POST /dhan/intraday` with `{"symbol":"RELIANCE","interval":5,"from_date":"2026-11-13","to_date":"2026-11-13"}`.
+- Result: `HTTP_STATUS: 200`, `SOURCE: dhan`, `FRESHNESS: historical_unverified`, `LIVE_ORDERS_ENABLED: False`, `CANDLE_COUNT: 71`.
+- Confirms successful historical endpoint response under deployed B3 and read-only response flag. Historical freshness remains explicitly unverified; do not call it live data. Cache hit, actual upstream request count, concurrent single-flight, other symbols/intervals and two-phone behavior **not yet proven**. Avoid high-volume tests.
