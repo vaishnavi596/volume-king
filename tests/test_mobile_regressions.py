@@ -289,8 +289,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn("def dashboard_index_analysis():", source)
         self.assertIn("dashboard_index_analysis(),", source)
         self.assertIn('("NIFTY","BANKNIFTY","SENSEX")', source)
-        self.assertIn("Previous candle direction is not a current signal", source)
-        self.assertIn("no verified 5m candle series", source)
+        self.assertIn("1m • HISTORICAL • NOT live", source)
+        self.assertIn("1m candle votes WAIT", source)
 
     def test_dashboard_indexes_use_shared_quotes_without_duplicate_poll(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
@@ -438,7 +438,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_dhan_scanner_offers_only_supported_candle_intervals(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('scanner_intervals=(["1m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
+        self.assertIn('scanner_intervals=(["1m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
         self.assertIn('if saved_scanner_tf not in scanner_intervals:', source)
         self.assertIn('saved_scanner_tf="5m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
