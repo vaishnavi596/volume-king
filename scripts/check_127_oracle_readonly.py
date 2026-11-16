@@ -81,6 +81,16 @@ def request(origin, pairing_key, path, payload=None, opener=None):
 
 def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFCBANK"),
           requester=request, pause=time.sleep):
+    # Reject invalid options before any outbound call, including auth status.
+    if any(symbol not in ALLOWED_OPTIONS for symbol in option_symbols):
+        raise ValueError("Options underlying must be allowlisted")
+    if len(option_symbols) != len(set(option_symbols)):
+        raise ValueError("Duplicate option underlying")
+    if len(selected) > 70 or len(selected) != len(set(selected)) or any(
+            not isinstance(sym, str) or not 1 <= len(sym) <= 32 or not sym.isascii()
+            or not sym.replace("-", "").replace("_", "").replace("&", "").isalnum()
+            for sym in selected):
+        raise ValueError("Invalid bounded selected-equity symbols")
     summary = {"scope": "READ_ONLY", "live_orders_enabled": False, "status": {},
                "snapshot": {}, "indices": {}, "selected": {}, "options": {}}
     status, data = requester(origin, pairing_key, "/dhan/status")
@@ -106,10 +116,6 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
         "freshness": data.get("freshness") if data else None,
     }
     if selected:
-        if len(selected) > 70 or len(selected) != len(set(selected)) or any(
-                not s.isascii() or not s.replace("-", "").replace("_", "").replace("&", "").isalnum()
-                for s in selected):
-            raise ValueError("Invalid bounded selected-equity symbols")
         info, data = requester(origin, pairing_key, "/dhan/selected-ltp-batch",
                                {"symbols": list(selected)})
         rows = data.get("quotes") if data else None
@@ -118,13 +124,6 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
     # Validate selections *before* any authenticated outbound requests.
     if summary["indices"].get("http") == 429 or summary["snapshot"].get("http") == 429 or summary["selected"].get("http") == 429:
         summary["options_status"] = "skipped_account_rate_limit"
-        return summary
-    if any(symbol not in ALLOWED_OPTIONS for symbol in option_symbols):
-        raise ValueError("Options underlying must be allowlisted")
-    if len(option_symbols) != len(set(option_symbols)):
-        raise ValueError("Duplicate option underlying")
-    if not summary["status"]["authenticated"] or not summary["status"]["market_data_configured"]:
-        summary["options_status"] = "skipped_no_authenticated_market_data"
         return summary
     for i, symbol in enumerate(option_symbols):
         if i:
