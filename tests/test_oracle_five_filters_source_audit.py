@@ -45,6 +45,10 @@ class OracleFiveFiltersSourceAudit(TestCase):
         payload = {
             "symbol": "RELIANCE", "collection_status": "not_configured",
             "live_orders_enabled": False, "signal_eligible": False,
+            "factors": {name: {"status": "unavailable"} for name in
+                        ("news", "futures", "options", "candle")},
+            "assessment_filters": [
+                {"id": name, "status": "unavailable"} for name in FILTER_NAMES],
         }
         rows = assessment_lines("RELIANCE", {
             "RELIANCE": {"fetched": 100, "data": payload}}, now=101)
@@ -52,6 +56,16 @@ class OracleFiveFiltersSourceAudit(TestCase):
         self.assertIn("WAIT", rows[0])
         self.assertIn("server producer not configured", rows[0])
         self.assertNotIn("100%", rows[0])
+
+    def test_incomplete_not_configured_payload_is_malformed_not_proven(self):
+        payload = {
+            "symbol": "RELIANCE", "collection_status": "not_configured",
+            "live_orders_enabled": False, "signal_eligible": False,
+        }
+        rows = assessment_lines("RELIANCE", {
+            "RELIANCE": {"fetched": 100, "data": payload}}, now=101)
+        self.assertIn("malformed response", rows[0])
+        self.assertNotIn("server producer not configured", rows[0])
 
     def test_not_configured_does_not_override_unsafe_order_guard(self):
         payload = {
