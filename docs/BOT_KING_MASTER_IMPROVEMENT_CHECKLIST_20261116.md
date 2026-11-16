@@ -136,3 +136,11 @@ This canonical list consolidates the historical six-batch register, Batch 4 five
 - [ ] **SERVER-S2D:** Oracle 1.05s quote gate staged, hash/diff, mocked behavior and deploy dry-run PASS; **not production applied**, operator command and restart/health/broker proof pending.
 - [ ] **APK-127:** A **test-candidate** v2.3.127 single-source version bump `a34fb4a3` triggered [GitHub Build #642](https://github.com/vaishnavi596/volume-king/actions/runs/43805532600). The workflow self-gates with full tests, pinned permanent signing and expected incremented versionCode. **No full build/artifact/signature/phone PASS until separately verified.** This candidate is NOT a declaration that the entire earlier 127-A–E repair programme is complete or production-ready.
 - Previous checklist text `2.3.127 planned, not built` was correct when written. As of this entry: candidate build **started**, final result **pending**. Do not rewrite historical entries.
+
+
+## 2026-11-16 — Candidate APK #642 BUILD VERIFIED (NOT MOBILE ACCEPTANCE)
+
+- [x] **APK-127 BUILD PASS:** [Run #642](https://github.com/vaishnavi596/volume-king/actions/runs/43805532600), GitHub full offline test suite **862/862 PASS**, actual APK aapt badging `com.botking.bot_king / 2.3.127 / code 74201`, signature V3 SHA256 pinned and matching old #641's `2.3.126 / code 74101`, artifact `volume-king-apk` ID `14198317482`.
+- [ ] **APK-127 MOBILE ACCEPTANCE:** Install as upgrade without clearing data; test first login, open/closed market, Watchlist incremental price changes, 5 filters/Candle, Manual Refresh off-hours, NIFTY/BANKNIFTY/SENSEX, Super Five, HDFCBANK Options, background/resume, last-valid quote age and error recovery. **No phone proof yet; v2.3.126 phone FAIL remains historical.**
+- [ ] **SERVER-S2D PRODUCTION:** Source hash-pinned 1.05-second quote gate is still staged, **not applied** on Oracle production. Apply only with backup, guarded restart and protected authenticated smoke checks; no live orders.
+- Scope note: signed 2.3.127 is a test candidate, not full 127-A–E closure. Do not infer app auto-reconnect/session success from Build PASS alone.
