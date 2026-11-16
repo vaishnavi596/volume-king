@@ -2233,3 +2233,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator `sudo systemctl is-enabled bot-king.service`: `enabled`.
 - Operator `sudo systemctl status bot-king.service --no-pager -l`: `BOT KING API service`, active/running since 2026-11-16 15:48:36 GMT; PID 622936; Tasks 3; Memory 45.9M (peak 47.8M); CPU 16.265s; CGroup `/system.slice/bot-king.service`; startup complete and Uvicorn listening 127.0.0.1:8000. Drop-ins listed `40-watchlists.conf`, `gateway.conf` (contents **not inspected**).
 - **Corrected earlier service concern:** `bot-king-server` was the wrong unit name; `bot-king.service` is running, enabled and on-failure restart configured. No service repair or restart warranted from these observations. Prior `/health` 200 and production SHA match remain valid point-in-time observations. **Static AST dependency gate and runtime assessment routes still pending**; no deploy, APK or credentials touched.
+
+
+## 2026-11-16 — Oracle operator import and line-number evidence
+- Operator command `grep -nE '^(from fastapi import|import hmac|from .* import .*hmac)' /opt/bot-king-server/server.py` returned `8:import hmac` and `25:from fastapi import FastAPI, Header, HTTPException`. **Import presence confirmed**.
+- Operator command `grep -nE 'pairing_key[[:space:]]*=|/v2/snapshot' /opt/bot-king-server/server.py | cut -d: -f1` returned only `204`, `205`, `614`. These are match line numbers only; exact binding/decorator scope not established and mapping each line to a particular match is not yet proven. **Static AST dependency gate remains HOLD** pending execution of reviewed script or sanitized structural inspection.
+- No secrets printed, no service changes, no restart, no deployment, no APK.
