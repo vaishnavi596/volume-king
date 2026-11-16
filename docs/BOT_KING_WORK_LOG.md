@@ -1943,3 +1943,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator used production venv Python to `compile(ast.parse(...), ..., "exec")` on `/opt/bot-king-server/server.py.b3-staged`: `B3 staged compile: PASS`.
 - `ps -p 579875 -o pid=,user=,args= -ww` returned `opc /opt/bot-king-server/.venv/bin/python -m uvicorn server:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --limit-concurrency 8 --timeout-keep-alive 5`. Worker-local B3 is appropriate for this one-worker topology, though compile does not prove concurrency correctness.
 - No deployment or restart yet. Next use root-owned rollback snapshot and atomic rename only if production hash remains exact; then restart once and validate `/health`, `systemctl` and journal. Roll back on failure.
+
+
+## 2026-11-16 — Oracle B3 root-owned rollback deployment gate PASS
+- Operator created `/opt/bot-king-server/server.py.b3-rollback` with `sudo install -o root -g root -m 644`.
+- Final three-way SHA256: production `server.py` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; staged `server.py.b3-staged` `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`; rollback `server.py.b3-rollback` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`.
+- All static deployment gates PASS: independent candidate integrity, syntax/compile, minimal diff, worker count one, health baseline and rollback SHA. No deployment/restart yet; next operator-controlled atomic swap and one restart, followed by immediate health/log/rollback gate. This does **not** prove Dhan concurrency reduction or two-phone performance.
