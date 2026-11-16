@@ -80,6 +80,17 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn('and dhan_feed.cooldown_remaining("/dhan/option-expiries")==0',body)
         self.assertIn('last saved context unverified',body)
 
+    def test_selected_equity_error_exposed_on_login_and_poll(self):
+        main=segment('    async def refresh_watch_batch():','    index_refresh_busy=[False]')
+        self.assertIn('selected_batch_issue[0]=safe_error(selected_exc)[:120]',main)
+        self.assertIn('selected equities unavailable: ',main)
+        self.assertIn('login_bootstrap.finish(generation,"equities"',main)
+        login=segment('    async def connect_angel():','    def provider_changed(')
+        self.assertIn('log_error("dhan_selected_equity_after_connect"',login)
+        self.assertIn('selected_batch_issue[0]=safe_error(selected_exc)[:120]',login)
+        self.assertIn('selected equities unavailable: ',login)
+        self.assertIn('dhan_batch_issue[0]',login)
+
     def test_no_live_orders_and_paper_center_retained(self):
         self.assertIn("content.append(paper_trading_center())",SRC)
         self.assertIn('note("Paper Bot: "+paper_bot_state[0]',SRC)
