@@ -1724,13 +1724,10 @@ def app_main(page:ft.Page):
             feedback.value=sym+" removed from List "+str(active_watch[0]+1)
         select(4)
     def compact_watch_signal(row, available, fresh):
-        # Compact vote display is historical context unless explicitly verified live.
-        counts=signal_percentages(row) if available else None
-        if not counts:
-            return note("T — • candle unavailable")
-        if counts[2]<=0:return note("T — • no directional votes")
-        # The same presentation is used on Dashboard and Super Five.
-        return vote_display(counts,fresh)
+        # Watchlist 3m: never substitute Super Five 5m ranking votes.
+        counts=signal_percentages(row) if available and row.get("timeframe")=="3m" else None
+        if not counts:return note("3m • WAIT • completed candle data unavailable")
+        return vote_display(counts,False,timeframe="3m")
 
     def compact_five_engine_watch(symbol):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
@@ -1774,7 +1771,7 @@ def app_main(page:ft.Page):
                          if prefs.get("source")=="Dhan" and watch_batch_status[0].startswith("Dhan batch failed:") else
                          ("Recent Dhan LTP • exchange time unverified" if prefs.get("source")=="Dhan" else
                           "Recent quote • exchange time unverified") if quote_fresh else "Cached/unverified quote")
-            signal_row=watch_signal_cache.get(sym,{})
+            signal_row=watch_three_minute_signal(sym)
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
             signal_fresh=(signal_row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))
@@ -1786,8 +1783,8 @@ def app_main(page:ft.Page):
                                 signal_row.get("freshness") in ("verified_live","live_verified")))
                           and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
                           and math.isfinite(signal_stamp) and signal_stamp>0
-                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("5m")["fresh_seconds"])
-            signal_available=(signal_row.get("source")==expected_quote_source and
+                          and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("3m")["fresh_seconds"])
+            signal_available=(signal_row.get("timeframe")=="3m" and signal_row.get("source")==expected_quote_source and
                               isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
                               and math.isfinite(signal_stamp) and signal_stamp>0 and signal_counts is not None)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
@@ -2130,13 +2127,13 @@ def app_main(page:ft.Page):
         # unchanged. Purely local: no upstream quote/candle request.
         now_epoch=now_epoch if now_epoch is not None else time.time()
         quote=quotes.get(sym) or {}
-        signal=watch_signal_cache.get(sym) or {}
+        signal=watch_three_minute_signal(sym)
         quote_at=quote.get("fetched_at")
         signal_at=signal.get("timestamp")
         quote_stale=(isinstance(quote_at,(int,float)) and not isinstance(quote_at,bool)
                      and now_epoch-quote_at>60)
         signal_stale=(isinstance(signal_at,(int,float)) and not isinstance(signal_at,bool)
-                      and now_epoch-signal_at>timeframe_spec("5m")["fresh_seconds"])
+                      and now_epoch-signal_at>timeframe_spec("3m")["fresh_seconds"])
         snapshot=five_engine_snapshots.get(sym) or {}
         engines=snapshot.get("engines") or () if isinstance(snapshot,dict) else ()
         five_stale=tuple(bool(getattr(e,"eligible",False) and
@@ -2161,8 +2158,8 @@ def app_main(page:ft.Page):
                     tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                            (quotes.get(sym) or {}).get("price"),
                            (quotes.get(sym) or {}).get("change"),
-                           (watch_signal_cache.get(sym) or {}).get("timestamp"),
-                           repr((watch_signal_cache.get(sym) or {}).get("votes")),
+                           watch_three_minute_signal(sym).get("timestamp"),
+                           repr(watch_three_minute_signal(sym).get("votes")),
                            id(five_engine_snapshots.get(sym)),
                            watch_cell_age_flags(sym)) for sym in visible))
                 button=watch_refresh_button[0]
@@ -2191,7 +2188,7 @@ def app_main(page:ft.Page):
                     cells=watch_row_cells.get(sym)
                     if not cells:continue
                     q=quotes.get(sym) or {}
-                    signal_row=watch_signal_cache.get(sym) or {}
+                    signal_row=watch_three_minute_signal(sym)
                     symbol_signature=(q.get("fetched_at"),q.get("price"),q.get("change"),
                                       q.get("freshness"),q.get("source"),
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
@@ -2211,17 +2208,17 @@ def app_main(page:ft.Page):
                         if cell.value!=val or cell.color!=col:
                             cell.value=val;cell.color=col
                             if cell.page is not None:cell.update()
-                    row=watch_signal_cache.get(sym) or {}
+                    row=watch_three_minute_signal(sym)
                     stamp=row.get("timestamp")
                     counts=signal_percentages(row)
-                    available=(row.get("source")==expected and counts is not None
+                    available=(row.get("timeframe")=="3m" and row.get("source")==expected and counts is not None
                         and isinstance(stamp,(int,float)) and not isinstance(stamp,bool)
                         and math.isfinite(stamp) and stamp>0)
                     fresh=(available and not row.get("historical") and regular_hours()
                         and (prefs.get("source")!="Dhan" or (
                             row.get("live_verified") is True and
                             row.get("freshness") in ("verified_live","live_verified")))
-                        and 0<=time.time()-stamp<=timeframe_spec("5m")["fresh_seconds"])
+                        and 0<=time.time()-stamp<=timeframe_spec("3m")["fresh_seconds"])
                     # Replace child content inside persistent mounted containers,
                     # not the static symbol, containing Row or whole Watchlist page.
                     five.content=five_engine_chips(sym)
@@ -4618,6 +4615,37 @@ console.log('BOT KING Lightweight Charts ready');
         verified_history=[item for item in candidates
                           if valid_candle_history(item.get("bars"))]
         return max(verified_history or candidates,key=revision_order) if candidates else {}
+    watch_three_minute_cache={}
+    def watch_three_minute_signal(sym):
+        """Read only already-cached matching 3m Dhan candles. No network."""
+        pending={"source":"Dhan","timeframe":"3m","historical":True,
+                 "live_verified":False,"freshness":"unverified","bias":"WAIT"}
+        if prefs.get("source")!="Dhan":return pending
+        data=shared_history(sym,"3m")
+        if data.get("source")!="Dhan" or not data.get("bars"):return pending
+        now=time.time()
+        completed=[bar for bar in data["bars"] if isinstance(bar,(tuple,list))
+                   and len(bar)>=6 and type(bar[0]) in (int,float)
+                   and math.isfinite(bar[0]) and bar[0]+180<=now]
+        if not completed:return pending
+        identity=(provider_generation[0],tuple(filter_selected),
+                  tuple(sorted(filter_modes.items())),prefs.get("confidence",75),
+                  completed[-1][0],len(completed),data.get("candle_fetched_at"))
+        saved=watch_three_minute_cache.get(sym)
+        if saved and saved[0]==identity:return saved[1]
+        try:
+            quality=quality_check(completed,180,now=completed[-1][0]+180)
+            if not quality.get("usable"):return pending
+            selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
+            result=analyze(quality["bars"],selected,"3m")
+            result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
+                        historical=True,live_verified=False,freshness="unverified")
+            if not signal_percentages(result):return pending
+            watch_three_minute_cache[sym]=(identity,result)
+            return result
+        except Exception as exc:
+            log_error("watch_three_minute_analysis",exc)
+            return pending
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__
         scan_fetch_failure[(provider_generation[0],sym,tf)]={"at":time.time(),"detail":detail}
