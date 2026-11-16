@@ -2254,3 +2254,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle operator audit-script download command returned without visible error
 - User SSH transcript shows execution of `curl -fLsS --max-time 30 https://raw.githubusercontent.com/vaishnavi596/volume-king/b30555a98bb09f540ab42334dea3495d902ec7f4/scripts/audit_oracle_candidate_dependencies_readonly.py -o /tmp/bk_oracle_dependency_audit.py`, followed by normal shell prompt and no visible stderr. **Download command returned without visible error**, but file contents, syntax and provenance were not separately checked in this transcript.
 - Pending operator commands: `python3 -B -c 'import ast; ast.parse(open("/tmp/bk_oracle_dependency_audit.py").read()); print("AUDIT_SCRIPT_SYNTAX=PASS")'` and `python3 -B /tmp/bk_oracle_dependency_audit.py --server /opt/bot-king-server/server.py`. **Do not claim static_preflight PASS before actual output**. No production changes, service restart, Dhan call, APK or credentials.
+
+
+## 2026-11-16 — Downloaded Oracle audit script syntax verified twice
+- Operator SSH transcript shows the Python AST syntax check of `/tmp/bk_oracle_dependency_audit.py` returned `AUDIT_SCRIPT_SYNTAX=PASS` twice (one first command is partly truncated in transcript, one complete command: `python3 -B -c 'import ast; ast.parse(open("/tmp/bk_oracle_dependency_audit.py").read()); print("AUDIT_SCRIPT_SYNTAX=PASS")'`). This confirms Python syntax only; not execution of dependency inspection or script content integrity.
+- Next operator command pending: `python3 -B /tmp/bk_oracle_dependency_audit.py --server /opt/bot-king-server/server.py`. Do not mark `static_preflight=PASS` before its real output. Production and Dhan credentials unchanged.
