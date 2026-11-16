@@ -82,6 +82,25 @@ class Sdc4BudgetTests(unittest.TestCase):
             with self.subTest(mapped=mapped), self.assertRaises(ValueError):
                 plan_due_history_symbols(plan, now=1000, mapped_symbols=mapped)
 
+    def test_global_request_gap_blocks_rapid_repeat_cycles(self):
+        budget = plan_active_symbols([["RELIANCE", "TCS"], [], [], [], []])
+        self.assertEqual(plan_due_history_symbols(
+            budget, now=101, last_global_attempt=100, global_spacing=1.5), ())
+        due = plan_due_history_symbols(
+            budget, now=101.5, last_global_attempt=100, global_spacing=1.5)
+        self.assertGreater(len(due), 0)
+        self.assertLessEqual(len(due), 3)
+
+    def test_global_gap_validation_fails_closed(self):
+        budget = plan_active_symbols([["RELIANCE"], [], [], [], []])
+        for kwargs in (
+                {"last_global_attempt": float("nan")},
+                {"last_global_attempt": 101},
+                {"global_spacing": 0},
+                {"global_spacing": float("inf")}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                plan_due_history_symbols(budget, now=100, **kwargs)
+
     def test_does_not_assume_any_provider_call_count(self):
         budget = plan_active_symbols([["RELIANCE", "TCS"], [], [], [], []])
         self.assertFalse(hasattr(budget, "saved_api_calls"))
