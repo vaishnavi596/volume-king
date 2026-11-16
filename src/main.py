@@ -1310,7 +1310,9 @@ def app_main(page:ft.Page):
             bull=value.get("bullish");bear=value.get("bearish")
             historical=False
             if (name=="technical" and (bull is None or bear is None)
-                    and prefs.get("source")=="Dhan" and dhan_feed.connected):
+                    and prefs.get("source")=="Dhan"):
+                # Last-known completed-candle votes are still useful as HIST
+                # after expiry/disconnection. Never promote them as LIVE.
                 raw=(watch_signal_cache.get(sym) or
                      next((row for row in top5_candidates
                            if row.get("symbol")==sym and row.get("source")=="Dhan"
@@ -1509,6 +1511,15 @@ def app_main(page:ft.Page):
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_history=shared_history(index_name)
             index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))
+            # Index LTP price color is NOT a candle vote. If the currently
+            # fetched history is partial, display a previous same-source
+            # completed 5m filter agreement as HIST rather than blank/WAIT.
+            if not index_history.get("bars"):
+                prior=watch_signal_cache.get(index_name) or {}
+                if prior.get("source")=="Dhan" and prior.get("timestamp"):
+                    counts=signal_percentages(prior)
+                    if counts and counts[2]>0:
+                        index_signal_row=vote_display(counts,False)
             index_cards.append(ft.Container(
                 content=ft.Column([ft.Row([ft.Container(content=txt(index_name,16,WHITE,True),expand=True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True)]),
