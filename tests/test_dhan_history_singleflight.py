@@ -161,5 +161,50 @@ class SingleFlightTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
 
+    def test_two_phones_share_one_cold_equity_ltp_batch(self):
+        """Concurrent clients must share one validated provider batch in one worker."""
+        entered = threading.Event()
+        release = threading.Event()
+        calls = []
+
+        class SlowDhan:
+            def __init__(self, client, token):
+                pass
+
+            def _post(self, path, payload):
+                self_outer = payload.get("NSE_EQ", [])
+                calls.append((path, len(self_outer)))
+                entered.set()
+                if not release.wait(timeout=4):
+                    raise RuntimeError("mock Dhan release timed out")
+                return {"status": "success", "data": {"NSE_EQ": {
+                    str(sid): {"last_price": 101.5} for sid in self_outer
+                }}}
+
+        with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}), \
+             patch("backend.server.Path.read_text", return_value="fake-token"), \
+             patch("backend.server.DhanFeed", SlowDhan):
+            app = create_app(pairing_key=KEY, feed=StubAngel())
+            first_client = TestClient(app)
+            second_client = TestClient(app)
+            headers = {"X-BotKing-Key": KEY}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(first_client.post, "/dhan/ltp-batch",
+                                    headers=headers)
+                self.assertTrue(entered.wait(timeout=3))
+                second = pool.submit(second_client.post, "/dhan/ltp-batch",
+                                     headers=headers)
+                time.sleep(0.1)
+                try:
+                    self.assertEqual(len(calls), 1)
+                finally:
+                    release.set()
+                results = [first.result(timeout=6), second.result(timeout=6)]
+        self.assertEqual([res.status_code for res in results], [200, 200])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(results[0].json()["quotes"], results[1].json()["quotes"])
+        self.assertTrue(results[0].json()["quotes"])
+        self.assertFalse(results[1].json()["live_orders_enabled"])
+
 if __name__ == "__main__":
     unittest.main()
