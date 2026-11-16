@@ -695,6 +695,35 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "freshness": "unverified", "live_orders_enabled": False,
                 "quote_timestamp": None}
 
+    @app.get("/v2/assessment/{symbol}")
+    def botking_read_only_assessment(symbol: str,
+                                     x_botking_key: Optional[str] = Header(default=None)):
+        """Fail-closed four-factor evidence until an actual Oracle producer exists.
+
+        This replaces a confusing 404 with an honest, bounded WAIT response.
+        It does not request Dhan, infer option OI or manufacture votes.
+        """
+        if not x_botking_key or not hmac.compare_digest(x_botking_key.encode(), pairing_key.encode()):
+            raise HTTPException(403, "Server access denied")
+        if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9&-]{1,40}", symbol)):
+            raise HTTPException(422, "Invalid assessment symbol")
+        ids = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
+        return {
+            "protocol": 2,
+            "symbol": symbol,
+            "source": "dhan",
+            "collection_status": "not_configured",
+            "freshness": "unverified",
+            "assessment_filters": [
+                {"id": name, "status": "unavailable", "reason": "Independent Oracle assessment not configured"}
+                for name in ids
+            ],
+            "factors": {name: {"status": "unavailable", "bullish": None, "bearish": None}
+                        for name in ("news", "futures", "options", "candle")},
+            "bullish_score": None, "bearish_score": None,
+            "signal_eligible": False, "live_orders_enabled": False,
+        }
+
     @app.get("/v2/server-readiness")
     def botking_server_readiness(x_botking_key: Optional[str] = Header(default=None)):
         """Authenticated, sanitized Oracle collector readiness; orders remain OFF.
