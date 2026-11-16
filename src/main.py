@@ -1746,6 +1746,7 @@ def app_main(page:ft.Page):
         fill_watch()
     watch_batch_busy=[False]
     watch_batch_status=["Dhan batch not checked on this screen"]
+    selected_batch_issue=[""]  # Staged NSE equity route diagnostics.
     watch_batch_last_attempt=[0.0]
     watch_batch_last_success=[0.0]
     # A saved last-good quote does NOT prove this login generation fetched data.
@@ -1768,6 +1769,7 @@ def app_main(page:ft.Page):
         request_view_refresh(4)
         try:
             batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+            selected_batch_issue[0]=""
             dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
             if dynamic:
                 # One selected read-only batch; no per-symbol Dhan fanout.
@@ -1778,6 +1780,7 @@ def app_main(page:ft.Page):
                     batch.update(selected)
                 except Exception as selected_exc:
                     log_error("dhan_selected_equity_batch",selected_exc)
+                    selected_batch_issue[0]=safe_error(selected_exc)[:120]
             if not batch:
                 raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
@@ -1828,6 +1831,8 @@ def app_main(page:ft.Page):
                                    if dhan_batch_issue[0] else
                                    f"Dhan LTP loaded: {received}/{total_symbols} valid prices • "+snapshot_age_label
                                    +f"polled {datetime.now().strftime('%H:%M:%S')} • exchange timestamp unverified")
+            if selected_batch_issue[0]:
+                watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
             market_status=watch_batch_status[0]
             login_bootstrap.finish(generation,"equities",received,max(1,total_symbols))
             watch_batch_last_success[0]=time.monotonic()
@@ -3060,6 +3065,7 @@ def app_main(page:ft.Page):
                     try:
                         watch_batch_last_attempt[0]=time.monotonic()
                         batch=await asyncio.to_thread(dhan_feed.batch_quotes)
+                        selected_batch_issue[0]=""
                         dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
                         if dynamic:
                             try:
@@ -3067,6 +3073,7 @@ def app_main(page:ft.Page):
                                 batch.update(selected)
                             except Exception as selected_exc:
                                 log_error("dhan_selected_equity_after_connect",selected_exc)
+                                selected_batch_issue[0]=safe_error(selected_exc)[:120]
                         if not batch:
                             raise FeedError("Empty Dhan batch response")
                         with dhan_batch_lock:
@@ -3103,6 +3110,8 @@ def app_main(page:ft.Page):
                             "Login snapshot • "+str(received)+"/"+str(expected)+
                             (" partial" if dhan_batch_issue[0] else " loaded")+
                             " • last-known Dhan prices; exchange time unverified")
+                        if selected_batch_issue[0]:
+                            watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
                         login_bootstrap.finish(provider_generation[0],"equities",received,max(1,expected))
                         if not dhan_batch_issue[0]:
                             watch_batch_last_success[0]=time.monotonic()
