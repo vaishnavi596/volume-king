@@ -2176,3 +2176,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Dependency preflight ordering guard added; CI pending
 - Reviewed the new read-only Oracle AST dependency preflight and identified a false-PASS possibility: a module or factory binding declared *after* the snapshot insertion point could have been counted as available. Changed scanner at `befad74b` to require one direct snapshot decorator anchor and count only module-level bindings preceding `create_app`, plus direct factory bindings preceding that anchor. Added a matching snapshot fixture and negative late-binding regression at `c4c35445`.
 - This is **source-only**, no Oracle execution or server SSH access available here. **New CI pending** for `c4c35445`; do not inherit #1681 PASS for these changes. Next check latest CI, repair any failures, then obtain actual Oracle read-only preflight results. Production remains unchanged; five filters still lack a verified producer and APK remains on hold.
+
+
+## 2026-11-16 — CI #1682 one fixture error; repaired, next CI pending
+- Verified Actions #1682 (`43918151306`), tested SHA `c4c354455147396f3ae59fde7ae35d0b04237bf0`: **failure** with `Ran 1060 tests in 162.534s`, `FAILED (errors=1)`. Exact error in `test_late_binding_holds`: test fixture appended literal `\\n` bytes instead of a newline, causing `SyntaxError: unexpected character after line continuation character`. This is a fixture construction error, not evidence of Oracle production failure.
+- Updated the regression fixture to append an actual escaped newline in the Python bytes literal; corrective commits `3c6c8621` and `b36c6efd` (the latter retains the same resulting blob). Fresh CI result pending. No deployment, no Dhan access, no APK.
