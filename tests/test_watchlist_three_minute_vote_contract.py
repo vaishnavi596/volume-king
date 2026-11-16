@@ -1,0 +1,63 @@
+"""Watchlist must never label 5m Super Five votes as 3m candles.
+
+Source/AST guards only; passing these tests does not prove live Dhan or phone.
+"""
+import ast
+from pathlib import Path
+import unittest
+
+MAIN = Path(__file__).resolve().parents[1] / "src" / "main.py"
+
+
+class WatchThreeMinuteContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        source = MAIN.read_text(encoding="utf-8")
+        cls.source = source
+        tree = ast.parse(source)
+        cls.functions = {n.name: ast.get_source_segment(source, n)
+                         for n in ast.walk(tree)
+                         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+    def test_true_three_minute_source_not_five_minute_rankings(self):
+        fn = self.functions["watch_three_minute_signal"]
+        self.assertIn('data=shared_history(sym,"3m")', fn)
+        self.assertIn('bar[0]+180<=now', fn)
+        self.assertIn('quality_check(completed,180', fn)
+        self.assertIn('analyze(quality["bars"],selected,"3m")', fn)
+        self.assertNotIn("get_market_data(", fn)
+        self.assertNotIn("dhan_feed.intraday", fn)
+        self.assertNotIn("watch_signal_cache", fn)
+
+    def test_no_verified_source_shows_wait_not_fake_votes(self):
+        fn = self.functions["watch_three_minute_signal"]
+        self.assertIn('"bias":"WAIT"', fn)
+        self.assertIn('data.get("source")!="Dhan"', fn)
+        self.assertIn('"historical":True', fn)
+        self.assertIn('"live_verified":False', fn)
+
+    def test_watch_row_never_displays_legacy_5m_vote(self):
+        compact = self.functions["compact_watch_signal"]
+        self.assertIn('row.get("timeframe")=="3m"', compact)
+        self.assertIn('vote_display(counts,False,timeframe="3m")', compact)
+        self.assertNotIn('vote_display(counts,fresh)', compact)
+        watch = self.functions["fill_watch"]
+        self.assertIn('signal_row=watch_three_minute_signal(sym)', watch)
+        self.assertIn('timeframe_spec("3m")', watch)
+
+    def test_mounted_watchlist_tick_uses_three_minute_only(self):
+        tick = self.functions["watch_visible_tick"]
+        self.assertIn('signal_row=watch_three_minute_signal(sym)', tick)
+        self.assertIn('row=watch_three_minute_signal(sym)', tick)
+        self.assertIn('timeframe_spec("3m")', tick)
+        self.assertIn('watch_three_minute_signal(sym).get("timestamp")', tick)
+
+    def test_super_five_shared_five_minute_path_remains(self):
+        source = self.source
+        self.assertIn('data=shared_history(sym) or data', source)
+        self.assertIn('report_identity=(sym,"5m",identity)', source)
+        self.assertIn('five_engine_snapshots[sym]=scanner_snapshot(result)', source)
+
+
+if __name__ == "__main__":
+    unittest.main()
