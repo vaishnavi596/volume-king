@@ -2131,3 +2131,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - GitHub Actions run `43906794557` at candidate test commit `c7243c19` was `in_progress` when inspected; `43906774116` likewise `in_progress`. Earlier completed offline regression `43905586592` at `7b154872` concluded `success`; two-client historical test run `43904910167` concluded `success`. Neither older success certifies the new candidate.
 - Source review found preservation assertion incorrectly searched for a literal backslash-n rather than a newline. Fixed assertion at `a6141667` (intermediate edit `6f2d2e6b`); no Oracle production changes. Candidate CI **pending latest commit**. Do not claim candidate PASS before exact run verifies it.
 - Candidate still only stages fail-closed missing routes; it cannot make five filters functional. One-phone scope and APK hold remain.
+
+
+## 2026-11-16 — CI #1675/#1677/#1678 failures reconciled against later passing run
+- Operator surfaced failed runs #1675 `43905559210` (`0d8d1504`), #1677 `43906774116` (`6beaa22c`), #1678 `43906794557` (`c7243c19`). Inspected all three GitHub Actions job logs, not just notification titles.
+- #1675: 55 `FeedError("Unverified Dhan assessment collection status")` errors after prematurely tightening assessment/mock contract; code was reverted at `7b154872`, and its run #1676 `43905586592` passed.
+- #1677: 1 of 1,054 assertions failed because new inserted handlers split the contiguous original `SOURCE` fixture; other 1,053 passed. #1678: 1 of 1,054 assertions failed due to literal backslash-n versus newline in a test. Final regression run `43907125367` at `6f2d2e6b` completed **success**: `Ran 1054 tests in 262.178s`, `OK`, and Python syntax step passed. Current candidate test file has preserved handler assertion `"def snapshot():\\n        return {}"` as Python source (actual newline after string evaluation).
+- These older failed runs are superseded for the offline source/test gate; no Oracle deployment, live assessment producer, 54 live symbol validation, device validation or APK build should be inferred from CI PASS. Keep one-phone scope.
