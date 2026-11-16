@@ -98,6 +98,19 @@ class DhanEndpointTests(unittest.TestCase):
             self.assertEqual(cached.json()["freshness"], "historical_unverified")
             self.assertFalse(cached.json()["live_orders_enabled"])
 
+    def test_dhan_oauth_never_follows_app_secret_redirects(self):
+        from unittest.mock import MagicMock
+        response=MagicMock()
+        response.raise_for_status.return_value=None
+        response.json.return_value={"consentAppId":"safe-id"}
+        with patch.dict(os.environ,{"DHAN_CLIENT_ID":"test-client",
+             "DHAN_API_KEY":"test-api-key","DHAN_API_SECRET":"test-api-secret"}), \
+             patch("backend.server.requests.post",return_value=response) as consent:
+            result=self.client.post("/dhan/start",headers=self.headers)
+        self.assertEqual(result.status_code,200)
+        self.assertIs(consent.call_args.kwargs["allow_redirects"],False)
+        self.assertNotIn("test-api-secret",result.text)
+
     def test_dhan_session_restores_after_server_restart(self):
         class Response:
             def __init__(self, data): self.data = data
