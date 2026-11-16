@@ -2620,3 +2620,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Batch B committed tests/test_five_filter_assessment_ui_contract_20261117.py (df14a47d1a235272387d79175e62cf19c30cdab2): five filter UI WAIT slots, no fake percentages, duplicate-ID rejection. Its workflow result not yet verified.
 - Earlier UI commits b4fce57 and 27b581f both had completed-success offline regression workflows (43939581661, 43939604210).
 - Both new batches are offline tests, NOT a functional Dhan producer or mobile integration. No Oracle deploy, no APK build. Do not infer live market readiness from CI PASS.
+
+
+## 2026-11-17 — Cached Dhan metric adapter batch
+- Implemented backend/assessment_filter_adapter.py pure no-I/O mapping of already collected unverified Dhan PCR and Max Pain into five assessment filter slots. Other three slots remain unavailable until independent verified evidence; no live directional score. Commit 170f5666afcd8479a2ac1f5559a1317f24dd34c7.
+- Added tests/test_assessment_filter_adapter_20261117.py for numeric mapping, missing/unsafe payload rejection, and nonfinite/negative numbers. Commit 5ad92e92508a59812a9b99411fbc58b360155546.
+- Previous UI-contract workflow 43940494149 completed success; option metric workflow 43940468205 was still in_progress at last check. New adapter CI not yet confirmed. Adapter is not yet wired into Oracle assessment route or deployed; APK HOLD.
