@@ -1993,3 +1993,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator executed a short-lived Python loopback request to `/dhan/status` using `BOTKING_PAIRING_KEY` read from `/etc/bot-king/server.env` without printing credentials.
 - Response: `HTTP_STATUS: 200`, `authenticated: True`, `market_data_configured: True`, `token_source: oauth_consent`, `token_validity: expiry_checked`, `reauthentication_required: False`, `renewal_supported: False`.
 - This verifies current Dhan status/authentication and market-data configuration after B3 deployment, **not** historical endpoint payload correctness, actual provider response, cache hit or concurrent duplicate suppression. No credential rotation, Dhan order or service restart.
+
+
+## 2026-11-16 — Oracle OpenAPI schema probe returned 404 (not Dhan failure)
+- Operator requested `http://127.0.0.1:8000/openapi.json` via Python urllib; response `HTTP Error 404: Not Found`. No Dhan historical provider call occurred.
+- This means OpenAPI schema is unavailable at that URL (possibly disabled or mounted elsewhere), **not** that `/dhan/intraday` is missing or B3 failed. Avoid repeated probing and read production Pydantic request model directly via AST, without importing or executing the server.
+- B3 source deployment, service startup and Dhan status previously PASS; actual historical/cache/concurrency still pending.
