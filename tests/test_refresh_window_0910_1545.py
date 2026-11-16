@@ -34,8 +34,8 @@ class RefreshWindow0910Tests(unittest.TestCase):
         self.assertFalse(refresh(saturday))
         self.assertFalse(trading(saturday))
 
-    def test_pollers_and_countdown_use_wider_window(self):
-        self.assertIn("app_active[0] and refresh_hours()",MAIN.split("    async def dhan_quote_poll():",1)[1].split("    # Compact countdown",1)[0])
+    def test_pollers_and_manual_watchlist_use_wider_window(self):
+        self.assertIn("app_active[0] and refresh_hours()",MAIN.split("    async def dhan_quote_poll():",1)[1].split("    # The Watchlist observes",1)[0])
         self.assertIn("app_active[0] and refresh_hours()",MAIN.split("    async def dhan_index_poll():",1)[1].split("    page.run_task(dhan_index_poll)",1)[0])
         self.assertIn("if not refresh_hours():",MAIN.split("    def next_watch_refresh_label():",1)[1].split("    async def watch_visible_tick():",1)[0])
         self.assertIn("if not force and not refresh_hours():",MAIN.split("    async def refresh_dhan_index_quotes(force=False):",1)[1].split("    manual_quote_last_attempt=",1)[0])
