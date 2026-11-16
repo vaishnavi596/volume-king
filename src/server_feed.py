@@ -458,18 +458,21 @@ class ServerDhanReadOnly:
         import re
         import math
         if (not isinstance(symbols, (list, tuple)) or not 1 <= len(symbols) <= 70
-                or len(symbols) != len(set(symbols))
                 or any(not isinstance(sym, str)
                        or not re.fullmatch(r"[A-Z0-9&_-]{1,32}", sym)
-                       for sym in symbols)):
+                       for sym in symbols)
+                or len(symbols) != len(set(symbols))):
             raise FeedError("Invalid selected NSE equity list")
         result = self._call("/dhan/selected-ltp-batch", {"symbols": list(symbols)})
+        if not isinstance(result, dict):
+            raise FeedError("Inconsistent selected Dhan equity response")
         raw, unavailable = result.get("quotes"), result.get("unavailable")
         if (result.get("source") != "dhan"
                 or result.get("live_orders_enabled") is not False
                 or result.get("freshness") != "unverified"
                 or result.get("quote_timestamp") is not None
                 or not isinstance(raw, dict) or not isinstance(unavailable, list)
+                or any(not isinstance(sym, str) for sym in unavailable)
                 or len(unavailable) != len(set(unavailable))
                 or set(raw).intersection(unavailable)
                 or set(raw).union(unavailable) != set(symbols)):
