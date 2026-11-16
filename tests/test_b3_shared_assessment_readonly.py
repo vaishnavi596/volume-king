@@ -40,13 +40,25 @@ class AssessmentReadOnlyTests(unittest.TestCase):
     def test_readiness_execution_locked(self):
         ok = {"live_orders_enabled": False, "orders":
               {"live_orders_enabled": False, "broker_submission_allowed": False}}
-        with patch.object(self.client, "_call", return_value=ok):
+        # The real API requires an authenticated server session before an
+        # Oracle readiness check, even when transport is mocked.
+        with patch.object(self.client, "_call", side_effect=AssertionError("network")):
+            with self.assertRaises(FeedError):
+                self.client.server_readiness()
+        self.client._origin = "https://example.org"
+        self.client._pairing_key = "unit-test-only"
+        with patch.object(self.client, "_call", return_value=ok) as request:
             self.assertFalse(self.client.server_readiness()["orders"]["broker_submission_allowed"])
+            request.assert_called_once_with("/v2/server-readiness")
         for bad in ({**ok, "live_orders_enabled": True}, {"orders": {}},
                     {"live_orders_enabled": False, "orders": {"live_orders_enabled": False, "broker_submission_allowed": True}}):
-            with patch.object(self.client, "_call", return_value=bad):
+            # Each independent invalid-response case must reach the mocked
+            # transport, not consume the previously cached valid readiness.
+            self.client._lane_coordinator.invalidate("context", "server-readiness")
+            with patch.object(self.client, "_call", return_value=bad) as request:
                 with self.assertRaises(FeedError):
                     self.client.server_readiness()
+                request.assert_called_once_with("/v2/server-readiness")
 
 if __name__ == "__main__":
     unittest.main()
