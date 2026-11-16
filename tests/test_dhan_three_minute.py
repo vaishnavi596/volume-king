@@ -66,6 +66,21 @@ class CompletedThreeMinuteBarsTest(unittest.TestCase):
         # or red Watchlist 3-minute vote or double-counted volume.
         self.assertEqual(completed_three_minute_bars(bars, now_epoch=t+180), [])
 
+    def test_scanner_real_dhan_3m_path_is_supported_without_yahoo(self):
+        # Structural check: existing Dhan gateway must fetch one-minute source,
+        # not invent an unsupported native Dhan 3-minute endpoint.
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('source_interval="1m" if interval=="3m" else interval', source)
+        self.assertIn('bars=completed_three_minute_bars(candle_result["bars"],now_epoch=time.time())', source)
+        self.assertIn('scanner_intervals=(["1m","3m","5m","15m","1h"]', source)
+        self.assertNotIn('{"1m":1,"3m":3,"5m":5', source)
+
+    def test_3m_scanner_does_not_overwrite_shared_5m_signal_contract(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('report_identity=(sym,"5m",identity)', source)
+        self.assertIn('watch_signal_cache[sym]=dict(result,symbol=sym)', source)
+        self.assertIn('data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)', source)
+
     def test_different_trading_days_never_merge(self):
         t1, t2 = epoch(16), epoch(17)
         self.assertEqual(completed_three_minute_bars([
