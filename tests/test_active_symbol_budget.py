@@ -66,6 +66,22 @@ class Sdc4BudgetTests(unittest.TestCase):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 plan_due_history_symbols(plan, **dict({"now":300}, **options))
 
+    def test_mapped_symbols_whitelist_skips_unverified_candles(self):
+        plan = plan_active_symbols([["RELIANCE", "TCS"], [], [], [], []])
+        due = plan_due_history_symbols(
+            plan, now=1000, mapped_symbols={"TCS", "NIFTY"}, max_batch=3)
+        self.assertEqual(set(due), {"TCS", "NIFTY"})
+        self.assertNotIn("RELIANCE", due)
+        self.assertNotIn("SENSEX", due)
+        self.assertEqual(plan_due_history_symbols(
+            plan, now=1000, mapped_symbols=set()), ())
+
+    def test_invalid_broker_mapping_fails_closed(self):
+        plan = plan_active_symbols([["RELIANCE"], [], [], [], []])
+        for mapped in ("RELIANCE", {"RELIANCE", "bad symbol"}, [123]):
+            with self.subTest(mapped=mapped), self.assertRaises(ValueError):
+                plan_due_history_symbols(plan, now=1000, mapped_symbols=mapped)
+
     def test_does_not_assume_any_provider_call_count(self):
         budget = plan_active_symbols([["RELIANCE", "TCS"], [], [], [], []])
         self.assertFalse(hasattr(budget, "saved_api_calls"))
