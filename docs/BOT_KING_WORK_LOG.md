@@ -2467,3 +2467,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle readiness route source-only AST inventory
 - Operator inspected isolated candidate GET `/v2/server-readiness`: exactly one synchronous handler `botking_readiness_safe`, parameter `x_botking_key`; calls `HTTPException`, `Header`, `app.get`, `hmac.compare_digest`, `pairing_key.encode`, `x_botking_key.encode`. Literal response dictionary fields: `broker_submission_allowed`, `collector`, `configured_enabled`, `equity_quote_count`, `interval_seconds`, `last_success_age_seconds`, `live_orders_enabled`, `orders`, `protocol`, `service`, `status`.
 - Source-only, no candidate execution, no production changes. Auth enforcement and read-only semantics not yet runtime-proven. Next gate: isolated synthetic ASGI 403/403/200 and safe order flags; no secrets or Dhan calls.
+
+
+## 2026-11-17 — Oracle isolated readiness auth and order-safety 3/3 PASS
+- Operator tested AST-extracted `botking_readiness_safe` in synthetic FastAPI ASGI app with dummy key: missing key HTTP403 PASS, wrong key HTTP403 PASS, valid synthetic key HTTP200 PASS. Valid response top-level `collector`, `live_orders_enabled`, `orders`, `protocol`, `service`; orders `broker_submission_allowed=False`, `live_orders_enabled=False`, order safety PASS. Collector `configured_enabled=False`, `status=unverified`, `interval_seconds=None`, `last_success_age_seconds=None`, `equity_quote_count=0`. `READINESS_TESTS=3/3`, `RESULT=PASS`, `PRODUCTION_CHANGED=NO`, `DHAN_REQUESTS=0`.
+- Isolated placeholder contract only, not proof of production integration, active collection or real broker execution. Next gate existing API regression and app factory startup safety; production deployment HOLD.
