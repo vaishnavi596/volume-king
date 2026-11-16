@@ -441,6 +441,8 @@ class ServerDhanReadOnly:
             raise FeedError("Invalid NSE stock symbol")
         path = "/v2/instruments/search?q=" + urllib.parse.quote(symbol, safe="") + "&limit=50"
         result = self._call(path)
+        if not isinstance(result, dict):
+            raise FeedError("NSE symbol not verified in Oracle Dhan registry")
         names = result.get("symbols")
         if (result.get("source") != "dhan_registry"
                 # Oracle S14 watchlist_api search predates the live_orders_enabled
