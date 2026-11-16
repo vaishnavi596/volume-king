@@ -38,7 +38,7 @@ class MobileHistoryContinuity(unittest.TestCase):
         source = method_source("dhan_index_candle_poll")
         self.assertIn("retain_candle_history(data,prior", source)
         self.assertIn('valid_candle_history(data.get("bars"))', source)
-        self.assertIn('refresh_shared_analysis(index_sym)', source)
+        self.assertIn('chart_snapshots[(index_sym,"1m",generation)]', source)
         self.assertIn('cooldown_remaining("/dhan/intraday")', source)
 
 
