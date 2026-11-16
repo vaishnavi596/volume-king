@@ -31,7 +31,7 @@ class BootstrapBehaviorTests(unittest.TestCase):
             (False,None,None,False),
         ]:
             with self.subTest(closed=closed,attempted=attempted,successful=successful):
-                state={"regular_hours":lambda:not closed,
+                state={"refresh_hours":lambda:not closed,
                        "closed_equity_bootstrap_generation":[attempted],
                        "watch_batch_success_generation":[successful],
                        "provider_generation":[10],
@@ -65,7 +65,7 @@ class BootstrapBehaviorTests(unittest.TestCase):
                 bootstrap=type("Bootstrap",(),{
                     "generation":generation,"stages":{"indices":state},
                     "counts":{"indices":counts} if counts is not None else {}})()
-                env={"regular_hours":lambda:not closed,
+                env={"refresh_hours":lambda:not closed,
                      "closed_index_bootstrap_generation":[attempted],
                      "provider_generation":[10],
                      "login_bootstrap":bootstrap,"quotes":prices}
@@ -76,7 +76,7 @@ class BootstrapBehaviorTests(unittest.TestCase):
     def test_ui_shows_actual_quote_check_even_when_closed_timer_is_paused(self):
         block=SRC.split("    def watchlist():",1)[1].split("    symbol=ft.Dropdown",1)[0]
         self.assertIn('ft.Text("Quote check • "+watch_batch_status[0]',block)
-        self.assertIn('watch_countdown',block)
+        self.assertIn('ft.TextButton("Refresh data"',block)
         self.assertIn('ft.TextOverflow.ELLIPSIS',block)
 
     def test_login_snapshot_status_is_visible_without_waiting_for_next_poll(self):
@@ -87,10 +87,10 @@ class BootstrapBehaviorTests(unittest.TestCase):
         self.assertIn('last valid prices retained',block)
 
     def test_market_open_cadence_and_cooldown_unchanged(self):
-        poll=SRC.split("    async def dhan_quote_poll():",1)[1].split("    # Compact countdown",1)[0]
+        poll=SRC.split("    async def dhan_quote_poll():",1)[1].split("    # The Watchlist observes",1)[0]
         index=SRC.split("    async def dhan_index_poll():",1)[1].split("    page.run_task(dhan_index_poll)",1)[0]
-        self.assertIn('app_active[0] and regular_hours() and prefs.get("source")=="Dhan"',poll)
-        self.assertIn('app_active[0] and regular_hours() and prefs.get("source")=="Dhan"',index)
+        self.assertIn('app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"',poll)
+        self.assertIn('app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"',index)
         self.assertIn('>=60',poll)
         self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")',poll)
         self.assertIn('closed_equity_bootstrap_generation[0]=provider_generation[0]',poll)
