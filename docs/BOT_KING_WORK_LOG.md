@@ -1855,3 +1855,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - GitHub Actions **#1669** run `43893215266` conclusion **success** at source commit `c62bcf7a` (RLock change).
 - GitHub Actions **#1670** run `43893256797`, job `133389826544`, conclusion **success** at test commit `3fb3a4fb`: logs show `test_nonreentrant_lane_fails_source_parity ... ok`, `Ran 1043 tests in 434.420s`, `OK` (0 failures/errors).
 - These are **GitHub offline tests only**, not Oracle source parity or live two-phone evidence. Production Oracle source remains unchanged, with SHA256 `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` from operator; `bot-king.service` active as reported. Next prepare narrowly scoped Oracle-specific patch and offline derived recursion/concurrency tests before deployment.
+
+
+## 2026-11-16 — B3 recursive RLock offline regressions staged
+- Commit `3e141047` adds two isolated concurrency tests in `tests/test_dhan_history_singleflight.py`: worst-case same-stripe nested 3m→1m and 30m→5m history recursion with bounded timeout, and exclusion of a second thread while one thread holds a reentrantly acquired lane. These specifically cover the Oracle recursive history compatibility hazard.
+- Tests use in-process simulated locks only; they **do not execute actual Oracle server.py** or prove Dhan request deduplication across workers. CI status must be checked separately before marking PASS. Oracle production unchanged.
