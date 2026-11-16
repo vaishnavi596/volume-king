@@ -132,6 +132,13 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertIn("ASSESSMENT_IMPLEMENTATION_UNKNOWN", codes(out))
         self.assertFalse(out["runtime_five_filters_proven"])
 
+    def test_redirect_is_separate_from_generic_http_failure(self):
+        self.collector["readiness_http"] = 302
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("UNEXPECTED_REDIRECT", codes(out))
+        self.assertNotIn("AUTH_DENIED", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+
     def test_missing_key_and_429_distinct(self):
         self.collector.update(readiness_http=0, snapshot_http=429)
         out = mod.classify(self.routes, self.filters, self.collector)
