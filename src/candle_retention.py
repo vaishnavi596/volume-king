@@ -14,7 +14,7 @@ def _valid_bars(rows, *, minimum=30):
             return False
         try:
             ts,op,hi,lo,cl,vol=row[:6]
-            vals=(float(ts),float(op),float(hi),float(lo),float(cl),float(vol))
+            vals=(float(ts),float(op),float(hi),float(lo),float(cl),0.0 if vol is None else float(vol))
         except (TypeError,ValueError,OverflowError):
             return False
         if not all(isfinite(v) for v in vals):
@@ -24,6 +24,11 @@ def _valid_bars(rows, *, minimum=30):
             return False
         previous=t
     return True
+
+
+def valid_candle_history(rows):
+    """Enough ordered OHLCV bars to support completed-candle filter analysis."""
+    return _valid_bars(rows)
 
 
 def retain_candle_history(incoming,previous,*,provider="Dhan"):
