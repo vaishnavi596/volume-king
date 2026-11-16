@@ -42,3 +42,13 @@ All six linked Actions runs were inspected using exact `fetch_workflow_run_jobs`
 4. Oracle backend remains untouched in this batch; no reason to repeat previously passed nginx/443/8000/staging fake quotes.
 
 **Note:** latest-eight requirement is a working preflight; only the six runs explicitly provided were available to this audit so far. The next preflight must collect the next two chronological runs or latest two available before declaring an eight-run pass, rather than fabricating them.
+
+## Follow-up: live GitHub run-collection cross-check
+
+GitHub Actions branch run collection inspected using the repository run endpoint, revealing newer runs not in the original six links:
+- [#1541](https://github.com/vaishnavi596/volume-king/actions/runs/43813853302) at `21cf1f5c`: **completed/failure**, job `133121299316` log `Ran 887 tests ... FAILED (failures=4)`, the **same four stale assertions** as #1540, before the test repairs.
+- [#1542](https://github.com/vaishnavi596/volume-king/actions/runs/43813890608) at `b3aba3aa`: **in_progress** at first lookup, no PASS claimed.
+- [#1543](https://github.com/vaishnavi596/volume-king/actions/runs/43814272682) at first repair `51321c92`: **in_progress** at first lookup.
+- [#1544](https://github.com/vaishnavi596/volume-king/actions/runs/43814290775) at second repair `c08b7791`: **in_progress** at first lookup.
+- [#1545](https://github.com/vaishnavi596/volume-king/actions/runs/43814306599) at final known repair `5ca1e8f0`: **in_progress** at first lookup. Only this last run can validate ALL three corrected legacy files in one commit; avoid promoting earlier concurrent partial snapshots.
+- Next mandatory preflight uses **most recent eight completed/run statuses** from the branch collection (not only seven or eight supplied links). Ignore obsolete failures as proof current HEAD is broken, but retain the historical red matrix and compare against the final current-HEAD job.
