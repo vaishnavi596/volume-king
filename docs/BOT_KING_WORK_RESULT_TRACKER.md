@@ -511,3 +511,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 - **Last verified CI baseline:** [#1660](https://github.com/vaishnavi596/volume-king/actions/runs/43881867611), commit `f25270bf`, 1031 offline tests **PASS**; not a proof of subsequent edits.
 - **Group B source** [95e17af0](https://github.com/vaishnavi596/volume-king/commit/95e17af040a3eddd42cb39f1449d1ed009d30f06): pure planner now accepts previous *global* broker attempt and enforces at least 1-second spacing, 1.5-second default between separate due batches, in addition to per-symbol 180s and max-batch 3. **Test source** [73580eae](https://github.com/vaishnavi596/volume-king/commit/73580eae1b37666a394738a218f2dd738dacb6e8): 2 cases added. CI #1661/#1662 initially in progress; exact source CI **NOT YET VERIFIED**.
 - **B3 still PARTIAL:** planner isn't connected to live Dhan/Oracle coordinator; no measured 429/request/byte savings. B1/B2, B4, B5/B6 device and release gates remain OPEN. No APK or production change.
+
+
+## 2026-11-16 — B3 #11/#12 exact source CI confirmed
+- **CI:** [#1662](https://github.com/vaishnavi596/volume-king/actions/runs/43883383158), exact test commit `73580eae`, job 133354923053: **1033 tests, 0 FAIL, 0 ERROR, SUCCESS**; source implementation `95e17af0` also confirmed by #1661.
+- **B3 status: SOURCE + OFFLINE TEST PASS; SERVER/PROVIDER/DEVICE NOT TESTED.** The capped cooldown-aware planner is still not connected to the real Dhan history queue, so its global 1.5s guard cannot be claimed to govern actual traffic. B1/B2 data quality and B4 genuine filter evidence remain open. Do not create APK or call all six batches PASS.
