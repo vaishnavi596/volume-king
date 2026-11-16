@@ -372,3 +372,14 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - **WATCHLIST-70 REGISTRY-03 source finding:** `ServerDhanReadOnly.verified_equity_symbol` called `.get` on an unvalidated Oracle registry JSON response; a scalar/list/null response could escape as AttributeError rather than controlled `FeedError`, interrupting 70-slot dynamic add flow. **Patch** [61f282db](https://github.com/vaishnavi596/volume-king/commit/61f282db867fe42c5fec13c13a9dea898aaa3ddb) rejects non-dictionary registry response; **test** [5101b562](https://github.com/vaishnavi596/volume-king/commit/5101b562872441bb6e0f5a192ab8f42c6d71dbce) verifies null/array/string/integer fail closed and an exact matching symbol succeeds once via mocked call. New CI pending. No production Oracle or mobile test, orders, Dhan API requests or APK build.
 
 - **Exact follow-up CI submissions:** #1610 [43860483970](https://github.com/vaishnavi596/volume-king/actions/runs/43860483970) head `effccb14`, #1611 [43860534856](https://github.com/vaishnavi596/volume-king/actions/runs/43860534856) head `eb63d488`, #1612 [43860658781](https://github.com/vaishnavi596/volume-king/actions/runs/43860658781) head `61f282db`, #1613 [43860690538](https://github.com/vaishnavi596/volume-king/actions/runs/43860690538) head `5101b562` all **IN PROGRESS** at inspection. No PASS claimed. Previous #1609 **977/977 PASS** applies to earlier saved-list normalization only.
+
+
+## 2026-11-16 — TWO-MOBILE SERVER REQUEST COALESCING
+| Path | Two mobile upstream Dhan behavior | GitHub repair/status | Oracle / phones |
+|---|---|---|---|
+| `/v2/snapshot` 51 verified equities | Server ingester cache read, no Dhan call for fresh reads | Existing source; still verify collector freshness & first-boot recovery | NOT TESTED |
+| `/dhan/index-ltp-batch` 3 indices | Previously two identical Dhan requests | `46cc4e2d` and `1672629f` single shared 60s lane; test `7055db1b`, CI PENDING | NOT DEPLOYED |
+| `/dhan/selected-ltp-batch` up to 70 selected equities | Previously two same-set Dhan requests | Shared keyed 60s lane, 30s shared 429 cooldown, token isolation; CI PENDING | NOT DEPLOYED |
+| `/dhan/intraday` historical candles | 180s validated response cache but concurrent miss risk | OPEN: add single-flight server fetch / do not fabricate timestamps | NOT TESTED |
+| `/dhan/ltp-batch` bootstrap | Existing snapshot cache, direct bootstrap still callable from each phone when stale | OPEN: shared server recovery coordination | NOT TESTED |
+| All | Respect Dhan 429, 70 max, Dhan-only, no live orders | No extra 54/70 provider fanout | APK BLOCKED |
