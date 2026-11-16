@@ -20,10 +20,6 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         return ["Oracle 4 factors / 5 filters • WAIT • mismatched symbol"]
     if data.get("live_orders_enabled") is not False or data.get("signal_eligible") is not False:
         return ["Oracle 4 factors / 5 filters • WAIT • unsafe response"]
-    # Explain a legitimate fail-closed server response in the single summary
-    # line shown by Watchlist/Super Five; never pretend WAIT is a calculation.
-    if data.get("collection_status") == "not_configured":
-        return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     filters = data.get("assessment_filters")
     factors = data.get("factors")
     if not isinstance(filters, list) or not isinstance(factors, dict):
@@ -33,6 +29,10 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     indexed = {f.get("id"): f for f in filters if isinstance(f, dict)}
     if set(indexed) != set(FILTER_NAMES) or len(filters) != 5:
         return ["Oracle 4 factors / 5 filters • WAIT • incomplete filters"]
+    # Only label a *validated full contract* as a known server placeholder.
+    # An incomplete payload remains malformed even when it says not_configured.
+    if data.get("collection_status") == "not_configured":
+        return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     lines = ["Oracle 4 factors / 5 filters • informational only • live orders OFF"]
     labels = {"oi_support": "OI Support", "oi_resistance": "OI Resistance",
               "max_pain": "Max Pain", "pcr": "PCR", "candle_trend": "Candle"}
