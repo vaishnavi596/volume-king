@@ -44,7 +44,8 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
     def test_super_five_reuses_cache_and_skips_unmodified_candles(self):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         body=source.split("    async def super_five_minute_refresh():",1)[1].split("    def five_engine_summary(symbol):",1)[0]
-        self.assertIn("await asyncio.sleep(10)",body)
+        self.assertIn("await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)",body)
+        self.assertIn("shared_history(sym)",body)
         self.assertIn("fingerprint==last_fingerprint",body)
         self.assertIn("tuple(filter_selected)",body)
         self.assertIn("publish_partial_ranking(results)",body)
