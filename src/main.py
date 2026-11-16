@@ -4587,16 +4587,26 @@ console.log('BOT KING Lightweight Charts ready');
     shared_analysis_seen={}
     shared_analysis_calculated={}
     selected_report_identity=[None]
-    def shared_history(sym):
-        """Newest matching 5m series, using candle receipt rather than LTP time."""
+    def shared_history(sym,tf="5m"):
+        """Newest verified-source *matching timeframe* candle series, never LTP age.
+
+        The default stays 5m for existing Super Five / Watchlist consumers.
+        Additional 1m/3m callers cannot borrow the unlabeled 5m quote history.
+        """
+        if tf not in ("1m","3m","5m","15m","1h"):
+            return {}
         expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
-        candidates=[chart_snapshots.get((sym,"5m",provider_generation[0])) or {},quotes.get(sym) or {}]
+        candidates=[chart_snapshots.get((sym,tf,provider_generation[0])) or {}]
+        if tf=="5m":
+            # Legacy quotes containing candle bars were populated by the
+            # existing 5m shared scan; never promote them into 1m/3m.
+            candidates.append(quotes.get(sym) or {})
         scanner_data=candles.get("scanner_chart_"+sym) or {}
-        if (scanner_data.get("_scanner_timeframe")=="5m" and
+        if (scanner_data.get("_scanner_timeframe")==tf and
                 scanner_data.get("_scanner_generation")==scan_generation[0]):
             candidates.append(scanner_data)
         candidates=[item for item in candidates if item.get("source")==expected and item.get("bars")
-                    and item.get("_scanner_timeframe","5m")=="5m"]
+                    and item.get("_scanner_timeframe","5m")==tf]
         def revision_order(item):
             bars=item.get("bars") or []
             last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
