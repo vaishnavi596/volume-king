@@ -116,3 +116,13 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1 / 2 | Added Python AST audit of deployed `server.py` for actual five filter names, four factor names and known `not_configured` placeholder: `scripts/audit_oracle_five_filters_readonly.py` | `2bba9280` commit; new source tests `e6677c7f`, CI **PENDING** at initial inspection | **NOT RUN**; no SSH tool | Operator run grouped 9-route source+collector GET+five-filter AST audits on Oracle. Source that differs from known placeholder still does **not** prove calculations work |
 | 2 / 3 | No change to real Oracle producer: five filters still unavailable in GitHub source; no new Dhan/option/assessment requests | Static helper only, no network | No production deployment | Implement verified per-underlying factors only after source/contract/expiry/freshness audit; unavailable is safer than invented percentages |
 | 5 / 6 | New signed APK withheld as user instructed | #645 v2.3.130 diagnostic signed previously | Phone PCR/five filters not accepted | Complete all gates and journal evidence before next build |
+
+
+## 2026-11-16 — PCR-02 continuation: ORACLE-FILTER-AUDIT-02
+
+| Stage | Work / evidence | Verified status | Not verified / next gate |
+|---|---|---|---|
+| 1, 4 · PCR-02 source | CI #1570 931/931 and #1571 932/932 PASS from Actions, mapping-only diagnostic; GitHub source has known five-filter placeholder | **SOURCE CI PASS; FILTER PRODUCER FAIL/PLACEHOLDER** | Equity F&O expiry, chain, PCR and all five live filter percentages **UNVERIFIED** |
+| 1, 2 · Oracle audit | Read-only scripts for 9 source routes, collector health GET and five-filter source AST inspected; [execution matrix](ORACLE_FILTER_AUDIT_02_OPERATOR_GATE_20261116.md) committed `5455ada6` | **AUDIT PLAN READY ONLY** | No SSH executor / no Oracle commands executed; await sanitized production output |
+| 3 · CI follow-up | #1572 (run 43833438579) head `e6677c7f` at inspection | **IN PROGRESS, NOT PASS** | Re-check result and tests before next code gate |
+| 5, 6 · Deployment and APK | Explicit server-first/no-order release gate retained | **NOT DEPLOYED; NO NEW APK** | Backup-first specific source fix, CI, Oracle verification, then independent phone validation |
