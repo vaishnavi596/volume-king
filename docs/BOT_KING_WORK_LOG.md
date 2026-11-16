@@ -2551,3 +2551,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 
 ## 2026-11-17 — Oracle candidate-only duplicate route removal PASS
 - Operator created `/tmp/bk_server_assessment_deduplicated.py` (SHA256 `dca7cdbaff37e895ca9f497fd6e0f50ec3a1df039f9bba1fd4f1a84db2962c6a`) from `/tmp/bk_server_assessment_candidate.py` (SHA256 `8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36`). Removed only two inline decorated handlers `botking_readiness_safe`, `botking_assessment_safe`; module `register_assessment_routes` and `register_readiness_routes` calls preserved. New candidate syntax PASS, 20 inline routes remain. Production `server.py` SHA unchanged. Previous module-only synthetic HTTP PASS is not a combined candidate runtime test. Full candidate runtime and deployment HOLD; next verify original 20 route handler AST equality and unique combined module paths, plus isolated factory integration without lifespan and without real Dhan.
+
+
+## 2026-11-17 — Deduplicated candidate combined 22-route AST regression PASS
+- Operator read-only combined source regression: production 20 route handlers; deduplicated candidate 20 inline handlers; assessment/readiness modules 2 additional routes; total 22; duplicate method/path pairs `[]`. `OLD_20_HANDLERS_PRESERVED=PASS` via handler AST equality, `MODULE_ENDPOINTS_EXPECTED=PASS`, `TOTAL_22_ROUTES=PASS`, `NO_DUPLICATE_METHOD_PATH=PASS`, `OVERALL=PASS`. No production change, no Dhan requests. Full candidate runtime and deployment HOLD.
+- Next: check factory eager effects, module registration and lifespan isolation before any factory execution; synthetic HTTP module tests already passed independently but combined factory still untested. Do not claim live data or mobile validation.
