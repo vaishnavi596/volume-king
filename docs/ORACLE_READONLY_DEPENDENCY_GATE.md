@@ -9,11 +9,11 @@ Use an SSH session already authorized for `bot-king-vnic`. Obtain the audited pr
 ```sh
 cd /opt/bot-king-server || exit 1
 sha256sum server.py
-python3 -m py_compile /path/to/reviewed/audit_oracle_candidate_dependencies_readonly.py
+python3 -B -c 'from pathlib import Path; p=Path("/path/to/reviewed/audit_oracle_candidate_dependencies_readonly.py"); compile(p.read_text(), str(p), "exec")'
 python3 /path/to/reviewed/audit_oracle_candidate_dependencies_readonly.py --server /opt/bot-king-server/server.py
 ```
 
-Note: `py_compile` writes a `__pycache__` next to the audit script. To avoid even that write, use the Python `compile` builtin against script text in a separate local review environment instead. The read-only preflight itself reads `server.py` and emits only flags.
+The compile-only command avoids creating `__pycache__`. The preflight reads `server.py` and emits only flags.
 
 ## 2. Interpret the sanitized result
 
