@@ -400,3 +400,39 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | Manual / UI | 30s manual retry; Watchlist paint ~2s | UI paint not equivalent to provider request | 70 watchlist ownership Source CI #1609 977/977 PASS |
 
 - **Exact CI verification for two-device pipeline:** #1614 [43862190170](https://github.com/vaishnavi596/volume-king/actions/runs/43862190170), job `133281548897`: **981/981 PASS**; #1616 [43862328810](https://github.com/vaishnavi596/volume-king/actions/runs/43862328810), job `133282035342`: **988/988 PASS**; #1618 [43863041839](https://github.com/vaishnavi596/volume-king/actions/runs/43863041839), head `b4ed0be0`, job `133284462041`: **990/990 PASS** (`Ran 990 tests in 87.448s`) for 51-equity bootstrap single-flight integration source. #1615 and #1617 were IN PROGRESS at this follow-up and are not counted PASS. This remains GitHub offline CI, not deployed Oracle or phone evidence.
+
+
+## 2026-11-16 — MASTER-24 POINT-WISE SIX-BATCH CHECKLIST
+
+This is the persistent, numbered owner-facing checklist for the work still being completed. **All six batches remain release-open**; SOURCE DONE is not Oracle/phone PASS. Review last 5–10 relevant branch commits and CI before code changes. Single mobile only, dual mobile deferred, Dhan market-data read-only, no live orders, **one APK last**.
+
+| No. | Batch | Checkpoint | Status at recorded inspection | Remaining acceptance |
+|---|---|---|---|---|
+| 01 | B1 Oracle/Indices | Read-only server audit scripts | SOURCE DONE; prior mocked CI PASS | Actual Oracle deployed route/collector audit |
+| 02 | B1 Oracle/Indices | Index cached-vote fallback | SOURCE DONE 050cc5ad; test 1ea0d0cc | Exact CI and phone red/green acceptance |
+| 03 | B1 Oracle/Indices | Newest CI failure closeout | OPEN; no verified new-run result | Inspect exact branch run/job and repair failures |
+| 04 | B1 Oracle/Indices | Dhan three-index price and candle parity | OPEN | Actual Oracle data, history and cooldown |
+| 05 | B2 Timeframes | Timeframe source audit | AUDIT DONE | Separate 1m/3m/selected/5m data paths |
+| 06 | B2 Timeframes | Completed 3m OHLC source helper | SOURCE DONE ae60db3d; test source 92082b45 | Exact CI and Dhan 1m input integration |
+| 07 | B2 Timeframes | Watchlist 3m red/green | OPEN | True 3m votes/cache, preserve history on error |
+| 08 | B2 Timeframes | Dashboard 1m, Scanner selection, Super Five 5m | PARTIAL | Independent timeframe source and QA |
+| 09 | B3 Smart Controller | Four-lane budget policy | DESIGN DONE | Validate Dhan endpoint quotas |
+| 10 | B3 Smart Controller | Active-symbol planner | SOURCE DONE 211cee48; test 62c09227 | Exact CI and integration |
+| 11 | B3 Smart Controller | Dynamic symbol subscriptions | OPEN | Unused symbols stop consuming avoidable workload |
+| 12 | B3 Smart Controller | Latency/429/bandwidth measurements | OPEN | Compare 54 vs 34, rate limits and cache freshness |
+| 13 | B4 Five Filters | Five-filter schema and WAIT safety | SOURCE DONE; historic offline CI reports PASS | Real Oracle producer evidence |
+| 14 | B4 Five Filters | OI support/resistance and Max Pain | OPEN | Mapped strike/expiry/OI calculations and entitlement |
+| 15 | B4 Five Filters | PCR and per-symbol option chain | OPEN | Actual NSE/BSE equity and index eligibility/values |
+| 16 | B4 Five Filters | Four independent News/Futures/Options/Candle scores | OPEN | Independent data sources; avoid fake percentages |
+| 17 | B5 Resilience | Five watchlists and 70 unique save policy | SOURCE DONE; CI #1609 977/977 PASS | Phone add/restart and dynamic symbol tests |
+| 18 | B5 Resilience | Scanner/Super Five shared candles | PARTIAL | White chart, flicker, signal consistency mobile tests |
+| 19 | B5 Resilience | Session and last-good display | PARTIAL | Holiday calendar, first refresh, background/resume |
+| 20 | B5 Resilience | Health/Error Doctor recovery | PARTIAL | Active vs recovered issues; HTTP 429 and freshness |
+| 21 | B6 Release | Full regression on release HEAD | OPEN | Resolve exact branch failures and full CI |
+| 22 | B6 Release | Guarded Oracle parity and backup-first deployment | OPEN | Proof of deployed source, health and rollback |
+| 23 | B6 Release | VersionName+versionCode+signed APK | OPEN; previous v2.3.130 diagnostic signed | One final release after earlier gates |
+| 24 | B6 Release | Single mobile end-to-end acceptance | OPEN | Dashboard/Watchlist/Scanner/Super Five/Options pass |
+
+**Totals:** 24 checkpoints in six grouped batches. 7 checkpoints have a documented completed source/design/audit component (items 01, 02, 05, 06, 09, 10, 13, 17 actually eight), plus further PARTIAL components. This is NOT an official percentage of product completion; no count represents Android runtime proof. Existing source CI run numbers should be preserved separately from upcoming exact-HEAD CI.
+
+**Current next gate:** confirm real current branch CI fail/success without guessing from empty legacy-status responses, then integrate Watchlist true 3m data path and Dashboard true 1m, while preserving Scanner's chosen timeframe and Super Five 5m. Journal after each commit/test. No production edit or APK created by this checklist.
