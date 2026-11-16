@@ -2556,3 +2556,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Deduplicated candidate combined 22-route AST regression PASS
 - Operator read-only combined source regression: production 20 route handlers; deduplicated candidate 20 inline handlers; assessment/readiness modules 2 additional routes; total 22; duplicate method/path pairs `[]`. `OLD_20_HANDLERS_PRESERVED=PASS` via handler AST equality, `MODULE_ENDPOINTS_EXPECTED=PASS`, `TOTAL_22_ROUTES=PASS`, `NO_DUPLICATE_METHOD_PATH=PASS`, `OVERALL=PASS`. No production change, no Dhan requests. Full candidate runtime and deployment HOLD.
 - Next: check factory eager effects, module registration and lifespan isolation before any factory execution; synthetic HTTP module tests already passed independently but combined factory still untested. Do not claim live data or mobile validation.
+
+
+## 2026-11-17 — Deduplicated candidate factory eager-call preflight HOLD
+- Operator source-only AST preflight of `/tmp/bk_server_assessment_deduplicated.py`: `EAGER_CALL_COUNT=75` under current visitor, `SENSITIVE_EAGER_CALLS` includes line 208 `AngelFeed` and multiple `.get` calls; module registration calls lines 1188 and 1196; one lifespan function. Factory not executed; production unchanged; Dhan requests zero; runtime gate HOLD pending isolation.
+- Caution: AST visitor includes calls in decorator/default contexts and `.get` is ambiguous; 75 is not a network-call count. `feed = feed or AngelFeed()` potentially constructs legacy feed when no injected feed; need inspect `AngelFeed.__init__`, factory defaults and imports before running. Dhan-only active provider policy remains mandatory; no production deploy.
