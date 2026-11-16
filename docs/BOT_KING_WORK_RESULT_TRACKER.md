@@ -158,3 +158,11 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 4/5/6 · PCR / five filters / release | Live assessment producer and equity option entitlement not proven | No real producer or APK change | **ORACLE UNVERIFIED; APK BLOCKED** |
 
 - **Exact new CI runs identified:** #1574 [43835829523](https://github.com/vaishnavi596/volume-king/actions/runs/43835829523) head `b0da29d4` and #1575 [43835881689](https://github.com/vaishnavi596/volume-king/actions/runs/43835881689) head `dbd27e40` were both **IN PROGRESS** at observation. Neither was called PASS prematurely. Previous #1573 (942/942) belongs to older source and does not validate these two fixes.
+
+
+## 2026-11-16 — AUDIT-04 CI closeout / AUDIT-05 source-route guard
+| Stage | Specific proof | Verified result | Remaining |
+|---|---|---|---|
+| 1/2 · collector classifier | #1574 943/943 PASS; #1575 945/945 PASS, exact earlier source heads | **OFFLINE CI PASS** | Oracle collector runtime not executed |
+| 2/3 · assessment route identification | Non-`app.get` decorator could masquerade as declared Oracle route; patched `a42089d5`, tested `0f4397af` | **CODE COMMITTED; NEW CI PENDING** | Live route and verified producer NOT established |
+| 4/5/6 · PCR/release | No entitlement proof or live Oracle checks | **BLOCKED** | No APK; operator audit then backup-first fixes |
