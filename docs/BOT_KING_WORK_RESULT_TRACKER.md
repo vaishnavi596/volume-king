@@ -96,3 +96,14 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | Release gate | **No more APK** until real Oracle 9-route/collector check, per-supported equity expiry status and five-filter validated producer | Signed #645 v2.3.130 remains earlier diagnostic candidate | Phone has historical WAIT/PCR uncertainty, server unverified | **BLOCKED**, preserve source→Oracle→phone proof separation |
 
 **Interpretation:** PCR cannot be promised for every one of 51 equities; option underlying eligibility must be verified from Dhan-listed expiries / option chain and entitlements, with 422/no-expiry, 429/pacing and 502/unavailable separated. The new helper performs ZERO broker requests and is not a real PCR implementation. Five filter statuses remain unavailable in GitHub source.
+
+## 2026-11-16 — PCR equity mapping-only route: release gate update
+
+| Stage | GitHub source/CI proof | Oracle/phone result | Remaining |
+|---|---|---|---|
+| 1/4 — Option PCR source | #1569 [43831492105](https://github.com/vaishnavi596/volume-king/actions/runs/43831492105) job `133177640327`: **931/931 PASS**; #1568 `928/928 PASS` | No real equity option entitlement verified | Bounded selected-equity expiry/chain runtime audit |
+| 2 — Server diagnostic | `backend/server.py` added authenticated GET `/v2/option-underlying-status/{symbol}` at `3fa20d64`, with pure mapping status only. Tests `4b28e245` guard 403/422/no Dhan request; #1570/#1571 CI PENDING at first check | **Source-only, NOT DEPLOYED** on customized Oracle | Compare production source, backup+deploy only after operator read-only audits |
+| 3/4 — Five filters | Known source `/v2/assessment/{symbol}` remains hard-coded `not_configured` and five WAIT; no proven 0–100 directional producer | User device five filters WAIT | Validate separate actual factor inputs/expiry/time; don't mix with historical technical scores |
+| 5/6 — APK release | v2.3.130 Build #645 signed PASS but phone observed live data failures | **NOT ACCEPTED** | No new APK before complete audit, fixes, CI, Oracle+device verification |
+
+**No fabricated PCR:** mapping-only means the Dhan cash/index security ID is known, *not* that this equity is F&O-listed or that a fresh option chain exists. New endpoint performs zero Dhan requests. The 15–30 second data collection target and genuine Oracle filter producer remain unimplemented/unverified.
