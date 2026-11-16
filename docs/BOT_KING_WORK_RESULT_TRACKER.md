@@ -388,3 +388,13 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 ## 2026-11-16 — Follow-up CI exact status for dynamic 70 and dual-mobile lane
 - Previously pending [#1610](https://github.com/vaishnavi596/volume-king/actions/runs/43860483970) head `effccb14`, job `133275695507`: **977/977 PASS** (`Ran 977 tests in 97.771s`). [#1611](https://github.com/vaishnavi596/volume-king/actions/runs/43860534856) head `eb63d488`, job `133275861390`: **980/980 PASS** (`Ran 980 tests in 273.337s`). [#1612](https://github.com/vaishnavi596/volume-king/actions/runs/43860658781) head `61f282db`, job `133276289172`: **980/980 PASS** (`Ran 980 tests in 290.518s`). #1613 was **IN PROGRESS** at inspection, not counted as success.
 - New dual-mobile shared quote tests were submitted: [#1614](https://github.com/vaishnavi596/volume-king/actions/runs/43862190170) head `46cc4e2d`; [#1615](https://github.com/vaishnavi596/volume-king/actions/runs/43862263412) head `1672629f`; [#1616](https://github.com/vaishnavi596/volume-king/actions/runs/43862328810) head `7055db1b`. All were **IN PROGRESS** at first check; do not say PASS yet. Their success, if any, would be offline CI, not Oracle deployment or real two-device proof.
+
+
+## 2026-11-16 — Four-pipeline cadence for 2 phones, 51→70 equities
+| Lane | Mobile request floor | Server cadence/cache | 70-equity readiness |
+|---|---|---|---|
+| 3 index LTP | 60s / 10s poll check | New 60s shared source response cache; not deployed | Independent of cash cap |
+| 51 fixed equity quotes | 60s / 10s poll check | Optional ingestion default 90s (OFF by default); snapshot age limit 120s; new 60s bootstrap single-flight `75229c9a` | Future selected up to 19 extra equity quotes |
+| Selected dynamic equities | Bundled with equity watchlist fetch | New 60s shared keyed batch, 30s shared 429 cooldown, source CI #1616 988/988 PASS | Registry/70-quote support source-only; Oracle not tested |
+| Candles / assessment | Index historical 180s; assessment 180s; Options selected 60s | Historical cache 180s, single-flight on miss OPEN; real filter producer not configured | 70 dynamic historical/options not proven |
+| Manual / UI | 30s manual retry; Watchlist paint ~2s | UI paint not equivalent to provider request | 70 watchlist ownership Source CI #1609 977/977 PASS |
