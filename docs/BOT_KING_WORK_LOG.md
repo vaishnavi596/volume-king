@@ -2028,3 +2028,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator executed exactly two concurrent identical authenticated `POST /dhan/intraday` requests (RELIANCE, 5m, 2026-11-13): request 1 HTTP 200, 71 bars, 0.010s; request 2 HTTP 200, 71 bars, 0.011s.
 - No 429, 502 or missing candles in this bounded warm-cache smoke. This is **not** a cold-cache single-flight upstream-count proof or an actual two-device test; fast timings are consistent with existing validated cache.
 - Next prefer offline source and unit-test audit for lock/cache recheck and instrumented mock provider invocation counts. Do not invalidate production cache or force upstream Dhan requests merely to test deduplication.
+
+
+## 2026-11-16 — Oracle production B3 single-flight source audit PASS (static)
+- Operator showed production `server.py` lines 739–760: 32 `threading.RLock()` lanes, `history_singleflight` validates `X-BotKing-Key` before locking, selects lane via `hash((body.symbol, body.interval)) % 32`, and calls the original handler under the lane lock. Production retains `candle_lock`, 500-entry cap and optional cache file.
+- GitHub `backend/server.py` confirms the handler rechecks a validated identical symbol/interval/date-window cache with `0 <= age < 180` and nonempty bars before provider fetch. Static mechanism is consistent with suppressing duplicate cold misses within one worker, subject to runtime behavior; separate worker/process deduplication not provided.
+- Prior Oracle warm-cache parallel test: both HTTP 200, 71 bars, 10/11 ms. **Still unproven**: instrumented cold-cache provider-call count, actual two-phone experience, multi-worker/distributed coordination. Avoid destructive cache clearing or excess Dhan requests.
