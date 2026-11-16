@@ -1,5 +1,6 @@
 """Optional owner-operated HTTPS transport for the read-only Angel adapter."""
 import json
+import math
 import time
 import urllib.error
 import urllib.parse
@@ -563,8 +564,18 @@ class ServerDhanReadOnly:
             # Coalesce validated Oracle snapshot reads across login/resume
             # consumers for two seconds. No new Dhan requests or LIVE claims.
             # Invalid snapshots are never cached by this coordinator.
+            # An Oracle snapshot already near its 120s age limit must
+            # expire before the full two-second local cache TTL.
+            def still_within_source_age(rows, elapsed):
+                return (isinstance(rows, dict) and bool(rows)
+                        and all(isinstance(row, dict)
+                                and type(row.get("snapshot_age_seconds")) in (int, float)
+                                and math.isfinite(row["snapshot_age_seconds"])
+                                and 0 <= row["snapshot_age_seconds"] + elapsed <= 120
+                                for row in rows.values()))
             return self._lane_coordinator.run(
-                "quotes", "equity-snapshot", self.batch_quotes, ttl_seconds=2)
+                "quotes", "equity-snapshot", self.batch_quotes,
+                ttl_seconds=2, reuse_if=still_within_source_age)
         except FeedError as exc:
             # Do not retry network/auth/422/429 failures or malformed prices.
             if str(exc) not in (
