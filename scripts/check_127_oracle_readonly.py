@@ -18,7 +18,7 @@ import urllib.request
 ALLOWED_OPTIONS = ("NIFTY", "BANKNIFTY", "SENSEX", "RELIANCE", "HDFCBANK")
 SAFE_ROUTES = frozenset((
     "/dhan/status", "/v2/snapshot", "/dhan/index-ltp-batch",
-    "/dhan/selected-ltp-batch", "/dhan/option-expiries", "/dhan/option-chain"))
+    "/dhan/ltp-batch", "/dhan/selected-ltp-batch", "/dhan/option-expiries", "/dhan/option-chain"))
 class RejectRedirect(urllib.request.HTTPRedirectHandler):
     """Pairing credentials must never follow a redirect to another origin."""
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -80,7 +80,7 @@ def request(origin, pairing_key, path, payload=None, opener=None):
 
 
 def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFCBANK"),
-          requester=request, pause=time.sleep):
+          direct_equities_if_stale=False, requester=request, pause=time.sleep):
     # Reject invalid options before any outbound call, including auth status.
     if any(symbol not in ALLOWED_OPTIONS for symbol in option_symbols):
         raise ValueError("Options underlying must be allowlisted")
@@ -91,8 +91,11 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
             or not sym.replace("-", "").replace("_", "").replace("&", "").isalnum()
             for sym in selected):
         raise ValueError("Invalid bounded selected-equity symbols")
+    if type(direct_equities_if_stale) is not bool:
+        raise ValueError("Invalid opt-in direct equity probe setting")
     summary = {"scope": "READ_ONLY", "live_orders_enabled": False, "status": {},
-               "snapshot": {}, "indices": {}, "selected": {}, "options": {}}
+               "snapshot": {}, "direct_equities": {"status": "not_requested"},
+               "indices": {}, "selected": {}, "options": {}}
     status, data = requester(origin, pairing_key, "/dhan/status")
     summary["status"] = {**status, "authenticated": data.get("authenticated") is True if data else False,
                          "market_data_configured": data.get("market_data_configured") is True if data else False}
@@ -107,6 +110,37 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
         "age_seconds": data.get("age_seconds") if data else None,
         "freshness": data.get("freshness") if data else None,
     }
+    # The fixed 51-stock provider batch is *opt-in* and only useful when
+    # Oracle collection is stale/empty; never double-fetch after a good cache.
+    snapshot_healthy=(summary["snapshot"].get("http")==200
+        and summary["snapshot"].get("error") is None
+        and summary["snapshot"].get("source")=="dhan"
+        and data.get("collection_status")=="recently_collected"
+        and data.get("freshness")=="unverified"
+        and isinstance(data.get("age_seconds"),(int,float))
+        and not isinstance(data.get("age_seconds"),bool)
+        and 0<=data["age_seconds"]<=120
+        and summary["snapshot"].get("count",0)>0) if isinstance(data,dict) else False
+    if summary["snapshot"].get("http")==429:
+        summary["options_status"]="skipped_account_rate_limit"
+        return summary
+    if direct_equities_if_stale and not snapshot_healthy:
+        # This causes at most ONE authenticated direct broker-market request,
+        # only when explicitly requested by an operator. No retry storms.
+        direct_info,direct_data=requester(origin,pairing_key,"/dhan/ltp-batch",{})
+        direct_rows=direct_data.get("quotes") if isinstance(direct_data,dict) else None
+        missing=direct_data.get("unavailable") if isinstance(direct_data,dict) else None
+        summary["direct_equities"]={**direct_info,
+            "status":"attempted",
+            "count":len(direct_rows) if isinstance(direct_rows,dict) else None,
+            "unavailable_count":len(missing) if isinstance(missing,list) else None,
+            "source":direct_data.get("source") if isinstance(direct_data,dict) else None,
+            "freshness":direct_data.get("freshness") if isinstance(direct_data,dict) else None}
+        if direct_info.get("http")==429:
+            summary["options_status"]="skipped_account_rate_limit"
+            return summary
+    elif direct_equities_if_stale:
+        summary["direct_equities"]["status"]="skipped_healthy_oracle_snapshot"
     info, data = requester(origin, pairing_key, "/dhan/index-ltp-batch", {})
     quotes = data.get("quotes") if data else None
     summary["indices"] = {
@@ -115,6 +149,9 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
         "unavailable_count": len(data.get("unavailable", [])) if data else None,
         "freshness": data.get("freshness") if data else None,
     }
+    if summary["indices"].get("http")==429:
+        summary["options_status"]="skipped_account_rate_limit"
+        return summary
     if selected:
         info, data = requester(origin, pairing_key, "/dhan/selected-ltp-batch",
                                {"symbols": list(selected)})
@@ -166,11 +203,14 @@ def main(argv=None):
     parser.add_argument("--options", nargs="*", choices=ALLOWED_OPTIONS,
                         default=["RELIANCE", "HDFCBANK"])
     parser.add_argument("--selected", nargs="*", default=[])
+    parser.add_argument("--direct-equities-if-stale", action="store_true",
+                        help="Opt in to one fixed 51-stock Dhan batch only if Oracle snapshot is stale/empty")
     args = parser.parse_args(argv)
     try:
         result = probe(os.environ.get("BOTKING_URL", ""),
                        os.environ.get("BOTKING_PAIRING_KEY", ""),
-                       selected=tuple(args.selected), option_symbols=tuple(args.options))
+                       selected=tuple(args.selected), option_symbols=tuple(args.options),
+                       direct_equities_if_stale=args.direct_equities_if_stale)
     except (ValueError, TypeError):
         print(json.dumps({"error": "invalid_configuration", "live_orders_enabled": False}))
         return 2
