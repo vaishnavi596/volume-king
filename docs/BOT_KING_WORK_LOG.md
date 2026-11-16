@@ -2293,3 +2293,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator AST-parsed separate `/tmp/bk_server_assessment_candidate.py` and received `CANDIDATE_SYNTAX=PASS`.
 - Earlier candidate generation reported `candidate_sha256=8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36` and `candidate_only=true; deployed=false; filters_functional=false`. Route inventory, diff content, and runtime behavior still unverified. No production deployment, service restart or Dhan request observed.
 - Next: compare production and candidate AST route sets and diff summary read-only; require exact only-two-additions before any future approval. Candidate placeholder filters must remain unavailable, not be represented as functional.
+
+
+## 2026-11-16 — Oracle candidate AST routes PASS; filtered diff shows insertion at line 611
+- Operator candidate AST scan output: `SNAPSHOT= True`, `SERVER_READINESS= True`, `ASSESSMENT= True`, `CANDIDATE_ROUTE_COUNT= 22`; production earlier had 20 and lacked the two proposed routes.
+- Operator filtered diff `diff -u /opt/bot-king-server/server.py /tmp/bk_server_assessment_candidate.py | grep -E '^(@@|\+    @app\.get|\+    def botking_)' || true` returned `@@ -611,6 +611,38 @@` plus decorators and function definitions for `/v2/server-readiness` and `/v2/assessment/{symbol}`. This is consistent with one 32-line insertion but filtered diff alone does not verify all content unchanged or behavior.
+- Candidate SHA256 previously `8933088a70755182d97adadf82bbde5e1fe26d30d34b9de2a3c7cbda0b5d0f36`; generator integrity and candidate AST syntax PASS. Next verify exact insertion-only equivalence, candidate no-token auth fail-closed in isolated process if safe. No production write, restart or deployment. Filters remain placeholders/unavailable.
