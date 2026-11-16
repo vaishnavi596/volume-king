@@ -1937,3 +1937,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator successfully ran `sudo install -o root -g root -m 644 ~/botking-b3-review/server_b3_candidate.py /opt/bot-king-server/server.py.b3-staged`; prior incomplete shell command was interrupted with Ctrl+C.
 - Operator `sha256sum` verified production `/opt/bot-king-server/server.py` remains `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` and staged `/opt/bot-king-server/server.py.b3-staged` is `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`.
 - Root-owned staged copy is ready for final runtime preflight; no production replacement/restart. Next verify staged compile in server venv, process entrypoint and one-worker constraint, then perform controlled atomic replacement with root-owned rollback and health gate if authorized.
+
+
+## 2026-11-16 — Oracle B3 staged compile and single-worker preflight PASS
+- Operator used production venv Python to `compile(ast.parse(...), ..., "exec")` on `/opt/bot-king-server/server.py.b3-staged`: `B3 staged compile: PASS`.
+- `ps -p 579875 -o pid=,user=,args= -ww` returned `opc /opt/bot-king-server/.venv/bin/python -m uvicorn server:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --limit-concurrency 8 --timeout-keep-alive 5`. Worker-local B3 is appropriate for this one-worker topology, though compile does not prove concurrency correctness.
+- No deployment or restart yet. Next use root-owned rollback snapshot and atomic rename only if production hash remains exact; then restart once and validate `/health`, `systemctl` and journal. Roll back on failure.
