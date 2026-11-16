@@ -50,7 +50,8 @@ class AppOracleRouteParity(unittest.TestCase):
     def test_quotes_and_history_remain_read_only_and_historical(self):
         self.assertIn('live_orders_enabled', SERVER)
         self.assertIn('result.get("live_orders_enabled") is not False', CLIENT)
-        self.assertIn('fallback', CLIENT.lower())
+        self.assertIn('def equity_quotes_with_bootstrap(self):', CLIENT)
+        self.assertIn('self._call("/dhan/ltp-batch", {})', CLIENT)
         self.assertIn('historical_unverified', SERVER)
         self.assertIn('async def super_five_minute_refresh():', MAIN)
 
