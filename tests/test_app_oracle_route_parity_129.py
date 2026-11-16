@@ -54,6 +54,22 @@ class AppOracleRouteParity(unittest.TestCase):
         self.assertIn('historical_unverified', SERVER)
         self.assertIn('async def super_five_minute_refresh():', MAIN)
 
+    def test_server_readiness_is_authenticated_sanitized_and_orders_off(self):
+        self.assertIn('@app.get("/v2/server-readiness")', SERVER)
+        self.assertIn('def botking_server_readiness(', SERVER)
+        self.assertIn('def server_readiness(self):', CLIENT)
+        start = SERVER.index('def botking_server_readiness(')
+        end = SERVER.index('    @app.get("/v2/snapshot")', start)
+        body = SERVER[start:end]
+        self.assertIn('hmac.compare_digest', body)
+        self.assertIn('"configured_enabled": enabled', body)
+        self.assertIn('"interval_seconds": snapshot_collection_interval', body)
+        self.assertIn('"last_success_age_seconds"', body)
+        self.assertIn('"broker_submission_allowed": False', body)
+        self.assertIn('"live_orders_enabled": False', body)
+        self.assertNotIn('access_token', body)
+        self.assertNotIn('dhan_market_token()', body)
+
     def test_no_new_unverified_four_lane_api_paths_were_assumed(self):
         # Future server coordinator routes need paired client+server+tests.
         self.assertNotIn('"/v3/pipeline/', CLIENT)
