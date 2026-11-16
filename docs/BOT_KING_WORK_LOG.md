@@ -2244,3 +2244,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle AST factory and pairing assignment evidence
 - Operator ran read-only `python3 -B -c` AST inspection of `/opt/bot-king-server/server.py`; exact sanitized output: `FACTORY_COUNT= 1`, `FACTORY_LINE= 204`, `PAIRING_ASSIGNMENT_LINES= [205]`.
 - Interpretation: exactly one top-level `create_app` factory is present at line 204 and an assignment target named `pairing_key` is within its AST at line 205. This is structural evidence, **not** proof of runtime value, unconditional assignment, or static preflight PASS. Earlier imports at lines 8/25 and SHA match stand separately. Next verify unique direct `/v2/snapshot` decorator and binding ordering, without printing secrets. Production unchanged.
+
+
+## 2026-11-16 — Oracle snapshot anchor order verified by operator AST inspection
+- User SSH command returned `SNAPSHOT_ANCHOR_COUNT= 1`, `SNAPSHOT_LINE= 615`, `PAIRING_BEFORE_SNAPSHOT= True`. The command checked one direct factory-body `@app.get('/v2/snapshot')` anchor and a direct factory-body `pairing_key` assignment before it. This corroborates factory at line 204 and pairing assignment at 205, imports at 8/25, exact source SHA and syntax PASS.
+- **Structural checks PASS; official SHA-pinned `scripts/audit_oracle_candidate_dependencies_readonly.py` has not yet been executed on Oracle**, so do not mark the scripted gate as executed. Runtime auth/route checks and five filter implementation remain HOLD. No source modification, restart, token or APK action.
