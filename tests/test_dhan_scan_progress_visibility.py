@@ -41,8 +41,8 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_dashboard_uses_shared_candles_and_quote_age_without_network(self):
         source = SOURCE.read_text(encoding="utf-8")
         body = source.split("    def dashboard_index_analysis():", 1)[1].split("    def dashboard():", 1)[0]
-        self.assertIn('chart_snapshots.get((sym,"5m",provider_generation[0]))', body)
-        self.assertIn('candles.get("scanner_chart_"+sym)', body)
+        self.assertIn('shared_history(sym,"1m")', body)
+        self.assertIn('historical_vote_agreement(candle_data,"1m")', body)
         self.assertIn('LTP last collected • ', body)
         self.assertIn('exchange timestamp unverified', body)
         self.assertNotIn('get_market_data(', body)
@@ -51,8 +51,8 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_index_candle_signals_are_separate_from_equity_scan(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
-        self.assertIn('chart_snapshots[(index_sym,"5m",generation)]', source)
-        self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))", source)
+        self.assertIn('chart_snapshots[(index_sym,"1m",generation)]', source)
+        self.assertIn("index_signal_row=historical_vote_bar(index_agreement,"1m")", source)
         self.assertIn('index_signal_row', source)
         self.assertIn('directional votes', source)
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
@@ -69,9 +69,9 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",resume)
         self.assertIn("return ft.Column(index_cards,spacing=5)",source)
         self.assertIn("dashboard_market_indices(),",source)
-        self.assertIn("def historical_vote_agreement(data):",source)
-        self.assertIn("rows.append(historical_vote_bar(historical_vote_agreement(candle_data)))",source)
-        self.assertIn("index_signal_row=historical_vote_bar(historical_vote_agreement(index_history))",source)
+        self.assertIn("def historical_vote_agreement(data,tf="5m"):",source)
+        self.assertIn("rows.append(historical_vote_bar(agreement,"1m"))",source)
+        self.assertIn("index_signal_row=historical_vote_bar(index_agreement,"1m")",source)
 
     def test_b1_b2_index_warmup_reused_in_post_scan_without_duplicate_request(self):
         source = SOURCE.read_text(encoding="utf-8")
