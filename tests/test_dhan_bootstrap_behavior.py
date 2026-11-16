@@ -75,7 +75,8 @@ class BootstrapBehaviorTests(unittest.TestCase):
 
     def test_ui_shows_actual_quote_check_even_when_closed_timer_is_paused(self):
         block=SRC.split("    def watchlist():",1)[1].split("    symbol=ft.Dropdown",1)[0]
-        self.assertIn('ft.Text("Quote check • "+watch_batch_status[0]',block)
+        self.assertIn('watch_status_text',block)
+        self.assertIn('watch_status_text=ft.Text(',SRC)
         self.assertIn('ft.TextButton("Refresh data"',block)
         self.assertIn('ft.TextOverflow.ELLIPSIS',block)
 
