@@ -60,6 +60,17 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertNotIn("request_view_refresh(4)",tick)
         self.assertNotIn("dhan_feed.batch_quotes",tick)
 
+    def test_manual_button_disabled_flag_tracks_login_and_busy_state(self):
+        worker=self.source.split("    async def watch_visible_tick():",1)[1].split(
+            "    def watchlist():",1)[0]
+        self.assertIn("button=watch_refresh_button[0]",worker)
+        self.assertIn("button.disabled=should_disable",worker)
+        self.assertIn("if button.page is not None:button.update()",worker)
+        builder=self.source.split("    def watchlist():",1)[1].split(
+            "    symbol=ft.Dropdown(",1)[0]
+        self.assertIn("watch_refresh_button[0]=refresh_btn",builder)
+        self.assertIn("watch_status_text.value=",builder)
+
     def test_watchlist_auto_refresh_is_non_destructive(self):
         flush=self.source.split("    async def flush_view_refresh():",1)[1].split(
             "    def request_view_refresh(i):",1)[0]
