@@ -168,3 +168,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 4/5/6 · PCR/release | No entitlement proof or live Oracle checks | **BLOCKED** | No APK; operator audit then backup-first fixes |
 
 | 1/2 · source audit consistency | Joined AST reports could refer to different server.py revisions | `e582b84f` source + `aa75e0cd` SHA mismatch regression; **CI PENDING**, no live audit |
+
+- **Exact Audit-05 CI submissions:** #1576 [43837330114](https://github.com/vaishnavi596/volume-king/actions/runs/43837330114), tested head `0f4397af` (decorator guard), and #1577 [43837462720](https://github.com/vaishnavi596/volume-king/actions/runs/43837462720), tested head `aa75e0cd` (cross-report SHA guard). Both were **in_progress** when last checked; neither is yet counted PASS. Previous #1575 **945/945 PASS** is independent prior head.
