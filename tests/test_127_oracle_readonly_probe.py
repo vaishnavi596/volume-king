@@ -45,6 +45,87 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
             for path,_ in calls))
         self.assertFalse(out["live_orders_enabled"])
 
+    def test_direct_51_probe_requires_opt_in_and_unhealthy_cache(self):
+        requests=[]
+        def fake(origin,key,path,payload=None):
+            requests.append(path)
+            ok={"http":200,"error":None}
+            if path=="/dhan/status":
+                return ok,{"authenticated":True,"market_data_configured":True}
+            if path=="/v2/snapshot":
+                return ok,{"source":"dhan","quotes":{"RELIANCE":1339.7},
+                           "collection_status":"recently_collected",
+                           "freshness":"unverified","age_seconds":20}
+            if path=="/dhan/ltp-batch":
+                raise AssertionError("Healthy Oracle cache must not cause a new Dhan request")
+            return {"http":503,"error":"unavailable"},None
+        result=probe("https://example.org","unit-test-key",
+                     direct_equities_if_stale=True,option_symbols=(),
+                     requester=fake,pause=lambda _:None)
+        self.assertEqual(result["direct_equities"]["status"],"skipped_healthy_oracle_snapshot")
+        self.assertNotIn("/dhan/ltp-batch",requests)
+
+    def test_direct_stale_probe_once_and_no_extra_429_fanout(self):
+        requests=[]
+        def fake(origin,key,path,payload=None):
+            requests.append((path,payload))
+            ok={"http":200,"error":None}
+            if path=="/dhan/status":
+                return ok,{"authenticated":True,"market_data_configured":True}
+            if path=="/v2/snapshot":
+                return ok,{"source":"dhan","quotes":{},
+                           "collection_status":"collection_overdue",
+                           "freshness":"stale_or_missing","age_seconds":500}
+            if path=="/dhan/ltp-batch":
+                self.assertEqual(payload,{})
+                return {"http":429,"error":"rate_limited"},None
+            raise AssertionError("Account-wide 429 should stop later requests")
+        result=probe("https://example.org","unit-test-key",
+                     direct_equities_if_stale=True,requester=fake,pause=lambda _:None)
+        self.assertEqual(result["direct_equities"]["http"],429)
+        self.assertEqual(result["options_status"],"skipped_account_rate_limit")
+        self.assertEqual([p for p,_ in requests],
+                         ["/dhan/status","/v2/snapshot","/dhan/ltp-batch"])
+
+    def test_direct_stale_response_only_counts_no_quotes_or_secrets(self):
+        calls=[]
+        def fake(origin,key,path,payload=None):
+            calls.append(path)
+            if path=="/dhan/status":
+                return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
+            if path=="/v2/snapshot":
+                return {"http":200,"error":None},{"source":"dhan","quotes":{},
+                    "collection_status":"not_collected","freshness":"stale_or_missing",
+                    "age_seconds":None}
+            if path=="/dhan/ltp-batch":
+                return {"http":200,"error":None},{"source":"dhan",
+                    "freshness":"unverified","quotes":{"RELIANCE":1339.7},
+                    "unavailable":["HDFCBANK"]}
+            return {"http":503,"error":"unavailable"},None
+        result=probe("https://example.org","secret-not-disclosed",
+                     direct_equities_if_stale=True,option_symbols=(),
+                     requester=fake,pause=lambda _:None)
+        self.assertEqual(result["direct_equities"]["count"],1)
+        self.assertEqual(result["direct_equities"]["unavailable_count"],1)
+        self.assertEqual(result["direct_equities"]["status"],"attempted")
+        self.assertNotIn("1339.7",repr(result))
+        self.assertNotIn("secret-not-disclosed",repr(result))
+        self.assertEqual(calls.count("/dhan/ltp-batch"),1)
+
+    def test_index_rate_limit_does_not_call_selected_equities(self):
+        calls=[]
+        def fake(origin,key,path,payload=None):
+            calls.append(path)
+            if path=="/dhan/status":
+                return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
+            if path=="/dhan/index-ltp-batch":
+                return {"http":429,"error":"rate_limited"},None
+            return {"http":503,"error":"unavailable"},None
+        result=probe("https://example.org","unit-test-key",
+                     selected=("RELIANCE",),requester=fake,pause=lambda _:None)
+        self.assertEqual(result["options_status"],"skipped_account_rate_limit")
+        self.assertNotIn("/dhan/selected-ltp-batch",calls)
+
     def test_unlisted_option_does_not_guess_expiry_or_retry(self):
         calls=[]
         def fake(origin,key,path,payload=None):
