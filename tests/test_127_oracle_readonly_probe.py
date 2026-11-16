@@ -73,7 +73,7 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
             if path=="/dhan/status":
                 return ok,{"authenticated":True,"market_data_configured":True}
             if path=="/v2/snapshot":
-                return ok,{"source":"dhan","quotes":{},
+                return ok,{"source":"dhan","quotes":{},"live_orders_enabled":False,
                            "collection_status":"collection_overdue",
                            "freshness":"stale_or_missing","age_seconds":500}
             if path=="/dhan/ltp-batch":
@@ -94,7 +94,7 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
             if path=="/dhan/status":
                 return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
             if path=="/v2/snapshot":
-                return {"http":200,"error":None},{"source":"dhan","quotes":{},
+                return {"http":200,"error":None},{"source":"dhan","quotes":{},"live_orders_enabled":False,
                     "collection_status":"not_collected","freshness":"stale_or_missing",
                     "age_seconds":None}
             if path=="/dhan/ltp-batch":
@@ -111,6 +111,27 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
         self.assertNotIn("1339.7",repr(result))
         self.assertNotIn("secret-not-disclosed",repr(result))
         self.assertEqual(calls.count("/dhan/ltp-batch"),1)
+
+    def test_direct_probe_does_not_bypass_bad_snapshot_contract(self):
+        for code,error in ((403,"pairing_rejected"),(503,"credentials_unavailable"),
+                           (200,"read_only_safety_mismatch")):
+            with self.subTest(code=code,error=error):
+                calls=[]
+                def fake(origin,key,path,payload=None):
+                    calls.append(path)
+                    if path=="/dhan/status":
+                        return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
+                    if path=="/v2/snapshot":
+                        return {"http":code,"error":error},None
+                    if path=="/dhan/ltp-batch":
+                        raise AssertionError("Cannot bypass failed Oracle snapshot validation")
+                    return {"http":503,"error":"unavailable"},None
+                result=probe("https://example.org","unit-test-key",
+                    direct_equities_if_stale=True,option_symbols=(),
+                    requester=fake,pause=lambda _:None)
+                self.assertEqual(result["direct_equities"]["status"],
+                                 "skipped_snapshot_contract_or_http_error")
+                self.assertNotIn("/dhan/ltp-batch",calls)
 
     def test_index_rate_limit_does_not_call_selected_equities(self):
         calls=[]
