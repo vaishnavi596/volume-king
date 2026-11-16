@@ -17,6 +17,7 @@ def completed_three_minute_bars(minute_bars, *, now_epoch):
     if type(now_epoch) not in (int, float) or not isfinite(now_epoch):
         return []
     grouped = {}
+    duplicate_buckets = set()
     for row in minute_bars:
         if not isinstance(row, (tuple, list)) or len(row) < 6:
             continue
@@ -41,9 +42,18 @@ def completed_three_minute_bars(minute_bars, *, now_epoch):
         bucket = int(session_start + (minutes // 3) * 180)
         if bucket + 180 > now_epoch:
             continue  # Never display the still-forming 3-minute candle.
-        grouped.setdefault(bucket, {})[int(ts)] = (float(op), float(hi), float(lo), float(cl), float(vol))
+        minute = int(ts)
+        candles = grouped.setdefault(bucket, {})
+        # Duplicate source minutes make ordering/volume ambiguous. Reject the
+        # entire 3m group rather than silently keeping the last duplicate.
+        if minute in candles:
+            duplicate_buckets.add(bucket)
+            continue
+        candles[minute] = (float(op), float(hi), float(lo), float(cl), float(vol))
     out = []
     for start, candles in sorted(grouped.items()):
+        if start in duplicate_buckets:
+            continue
         required = (start, start + 60, start + 120)
         if any(t not in candles for t in required):
             continue
