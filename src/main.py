@@ -1708,6 +1708,7 @@ def app_main(page:ft.Page):
     watch_row_cells={}
     watch_status_text=ft.Text("",size=11,color=MUTED,max_lines=2,
                               overflow=ft.TextOverflow.ELLIPSIS)
+    watch_refresh_button=[None]
     def fill_watch(_=None):
         watch_row_cells.clear()
         watch_list.controls.clear()
@@ -2103,6 +2104,13 @@ def app_main(page:ft.Page):
                            (watch_signal_cache.get(sym) or {}).get("timestamp"),
                            repr((watch_signal_cache.get(sym) or {}).get("votes")),
                            id(five_engine_snapshots.get(sym))) for sym in visible))
+                button=watch_refresh_button[0]
+                if button is not None:
+                    should_disable=(watch_batch_busy[0] or index_refresh_busy[0]
+                                    or prefs.get("source")!="Dhan" or not dhan_feed.connected)
+                    if button.disabled!=should_disable:
+                        button.disabled=should_disable
+                        if button.page is not None:button.update()
                 if signature==last_visible_signature and watch_status_text.value==(
                         "Quote check • "+watch_batch_status[0]):
                     continue
@@ -2175,11 +2183,13 @@ def app_main(page:ft.Page):
         for field in (search,add_symbol):
             field.dense=True;field.text_size=16
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
-        return [ft.Row([heading("Watchlist"),
-                ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
+        watch_status_text.value="Quote check • "+watch_batch_status[0]
+        refresh_btn=ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
                     tooltip="Check Dhan equity and index quotes now, even when the market is closed; 30s manual cooldown",
                     on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
-                    disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)],
+                    disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)
+        watch_refresh_button[0]=refresh_btn
+        return [ft.Row([heading("Watchlist"),refresh_btn],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             watch_status_text,
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
