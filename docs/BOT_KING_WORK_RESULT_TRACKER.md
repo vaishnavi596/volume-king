@@ -271,3 +271,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 
 
 | 3/4 · shared 54-symbol filter rendering | Malformed unhashable five-filter ID could raise `TypeError` and break screen | `3f0b0356` source + `51f67706` tests; CI PENDING; now fail-closed `WAIT • incomplete filters` for selected symbol; no 54/54 runtime proof |
+
+- **Exact staged CI runs:** #1588 [43843886780](https://github.com/vaishnavi596/volume-king/actions/runs/43843886780) head `5d72c7c4`, #1589 [43843930827](https://github.com/vaishnavi596/volume-king/actions/runs/43843930827) head `b9fd95b4`, #1590 [43844067017](https://github.com/vaishnavi596/volume-king/actions/runs/43844067017) head `3f0b0356`, and #1591 [43844108880](https://github.com/vaishnavi596/volume-king/actions/runs/43844108880) head `51f67706` were **IN PROGRESS** at first check. Do not call any of these PASS yet; previous #1587 961/961 is older head. These are source/CI-only and not Oracle or mobile proofs.
