@@ -198,3 +198,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 1/2 · collector snapshot | Recent status with zero or unknown quote count lacked an explicit diagnostic | `374f3f16` source + `6220e02e` tests, CI PENDING | No real Oracle audit; no quote freshness proof |
 | 3/4/5/6 | PCR/Five Filter producers and release | No broker/production changes | Still UNVERIFIED; APK blocked |
+
+- **Exact new CI runs:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, and #1580 [43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, both **IN PROGRESS** when inspected. Neither has Oracle runtime proof or release status. Keep both pending until GitHub completed result and job count verified.
