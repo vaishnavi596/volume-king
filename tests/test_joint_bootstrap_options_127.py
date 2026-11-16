@@ -20,8 +20,11 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertNotIn("not regular_hours()",body)
         self.assertIn('bars=snapshot.get("bars") or []',body)
         self.assertIn("publish_partial_ranking(results)",body)
-        # Checking connection state is allowed; no provider endpoint is called.
-        self.assertIn("dhan_feed.connected",body)
+        # Cached completed Dhan candles must remain available as HIST even after disconnect.
+        # Local recomputation must not invoke any provider endpoint.
+        self.assertIn("shared_history(sym)",body)
+        self.assertIn("valid_candle_history(bars)",body)
+        self.assertNotIn('and not dhan_feed.connected',body)
         self.assertNotIn("dhan_feed.batch_quotes(",body)
         self.assertNotIn("dhan_feed.intraday(",body)
         self.assertNotIn("dhan_feed.option_chain_metrics(",body)
