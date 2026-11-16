@@ -29,8 +29,14 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         return ["Oracle 4 factors / 5 filters • WAIT • malformed response"]
     if set(factors) != {"news", "futures", "options", "candle"}:
         return ["Oracle 4 factors / 5 filters • WAIT • incomplete factors"]
-    indexed = {f.get("id"): f for f in filters if isinstance(f, dict)}
-    if set(indexed) != set(FILTER_NAMES) or len(filters) != 5:
+    # A malformed/unhashable id must show WAIT, never crash a 54-symbol view.
+    if (len(filters) != len(FILTER_NAMES)
+            or any(not isinstance(item, dict)
+                   or not isinstance(item.get("id"), str)
+                   or item["id"] not in FILTER_NAMES for item in filters)):
+        return ["Oracle 4 factors / 5 filters • WAIT • incomplete filters"]
+    indexed = {item["id"]: item for item in filters}
+    if set(indexed) != set(FILTER_NAMES):
         return ["Oracle 4 factors / 5 filters • WAIT • incomplete filters"]
     # Only label a *validated full contract* as a known server placeholder.
     # An incomplete payload remains malformed even when it says not_configured.
