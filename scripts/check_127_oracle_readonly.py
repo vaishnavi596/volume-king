@@ -86,6 +86,9 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
     status, data = requester(origin, pairing_key, "/dhan/status")
     summary["status"] = {**status, "authenticated": data.get("authenticated") is True if data else False,
                          "market_data_configured": data.get("market_data_configured") is True if data else False}
+    if not summary["status"]["authenticated"] or not summary["status"]["market_data_configured"]:
+        summary["options_status"] = "skipped_no_authenticated_market_data"
+        return summary
     info, data = requester(origin, pairing_key, "/v2/snapshot")
     quotes = data.get("quotes") if data else None
     summary["snapshot"] = {
@@ -113,6 +116,9 @@ def probe(origin, pairing_key, *, selected=(), option_symbols=("RELIANCE", "HDFC
         summary["selected"] = {**info, "count": len(rows) if isinstance(rows, dict) else None,
                                "requested": len(selected), "source": data.get("source") if data else None}
     # Validate selections *before* any authenticated outbound requests.
+    if summary["indices"].get("http") == 429 or summary["snapshot"].get("http") == 429 or summary["selected"].get("http") == 429:
+        summary["options_status"] = "skipped_account_rate_limit"
+        return summary
     if any(symbol not in ALLOWED_OPTIONS for symbol in option_symbols):
         raise ValueError("Options underlying must be allowlisted")
     if len(option_symbols) != len(set(option_symbols)):
