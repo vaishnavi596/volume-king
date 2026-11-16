@@ -58,7 +58,8 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         value = row.get("value")
         if row.get("status") != "available":
             rendered = "WAIT"
-        elif type(value) in (int, float) and math.isfinite(value):
+        elif (key != "candle_trend" and type(value) in (int, float)
+              and math.isfinite(value) and value > 0):
             rendered = f"{value:.3f}" if key == "pcr" else f"{value:,.2f}"
         elif isinstance(value, str) and key == "candle_trend" and value in ("bullish", "bearish", "neutral", "BULLISH", "BEARISH", "NEUTRAL"):
             rendered = value.upper() + " • historical/unverified"
