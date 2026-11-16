@@ -1974,3 +1974,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator executed the readiness-polled, SHA-gated B3 deployment block. Terminal printed `B3_DEPLOY_HEALTH_PASS`; `sha256sum server.py` returned `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`, matching independently reviewed B3 candidate. No rollback was triggered.
 - This verifies production source swap, systemd restart, and local `/health` readiness in the deployment gate. Previous root-owned `server.py.b3-rollback` remains old-source SHA `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` as of pre-deployment verification.
 - **Still pending**: independent post-deploy systemd/journal check, Dhan auth/quote/historical route response, 180s cache, concurrency duplicate-request suppression and two-phone behavior. Do not mark B3 end-to-end PASS based on health alone. No live orders/token changes.
+
+
+## 2026-11-16 — Oracle B3 post-deploy process PASS; Dhan status probe lacked pairing key
+- Operator `systemctl show` reported `ActiveState=active`, `MainPID=622936`, `NRestarts=0`.
+- Operator `journalctl -u bot-king.service -n 25` showed controlled restart at 15:48:36 UTC, PID 622936 `Application startup complete` and listening on 127.0.0.1:8000 at 15:48:38 UTC; no startup exception in excerpt.
+- Operator attempted `curl -H "X-BotKing-Key: $(sudo cat /etc/bot-king/pairing-key)" ... /dhan/status`; `cat` returned `No such file or directory` and endpoint returned `{"detail":"Server access denied"}`. This is **not a valid Dhan auth test** because header key was missing; do not rotate token or infer Dhan auth failure. Need identify configured pairing-key source **without printing secret values**, then make authorized request via secure environment or local operator-only method. No credential disclosed.
+- B3 production source and health PASS; Dhan status/history, cache reuse and concurrency remain unverified.
