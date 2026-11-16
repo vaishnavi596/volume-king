@@ -2093,3 +2093,11 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Evidence scope: **source route declaration missing according to this inspection**. It does not prove running FastAPI route table or data producer state; runtime verification remains pending. GitHub `backend/server.py` declares `GET /v2/assessment/{symbol}` but is a `not_configured` placeholder, not a functional filter producer. Do not blindly copy GitHub backend to Oracle.
 - Impact: five-filter feature **BLOCKED**; APK release remains blocked. Next safe operator action: read-only route inventory and deployed source SHA using `scripts/audit_oracle_app_routes_readonly.py` or equivalent minimal AST inspector, then plan a backup-first, source-SHA-pinned targeted patch only after source/runtime parity and producer requirements are established.
 - One-mobile-only owner scope retained; no production changes, orders, secrets, two-mobile tests or APK build.
+
+
+## 2026-11-16 — Oracle source route parity confirmed 7/9 (operator evidence)
+- Operator ran a read-only AST inventory of `/opt/bot-king-server/server.py` and supplied `SOURCE_SHA256=c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`. Python AST parsed successfully.
+- **PRESENT**: `GET /v2/snapshot`; `POST /dhan/ltp-batch`, `/dhan/index-ltp-batch`, `/dhan/selected-ltp-batch`, `/dhan/intraday`, `/dhan/option-expiries`, `/dhan/option-chain` (7 of 9).
+- **MISSING IN DEPLOYED SOURCE**: `GET /v2/server-readiness` and `GET /v2/assessment/{symbol}` (2 of 9). Matches prior B3 deployed SHA, so do not assume new code deployed. This is source-only proof, not authenticated running-route evidence.
+- GitHub backend includes an assessment **WAIT-only placeholder**; copying it would not activate five factors or verified votes. A production patch requires actual Oracle source review and validated producer design, exact SHA pin, backup, staged diff and regression; no blind server overwrite. APK release remains BLOCKED, one-phone scope.
+- No Oracle mutation, token exposure, live orders, or APK build in this audit.
