@@ -500,3 +500,8 @@ This is the persistent, numbered owner-facing checklist for the work still being
 - **Confirmed actual Actions job logs:** #1619 990 tests/2 FAIL (old 5m structural guard); #1641 1028 tests/16 FAIL+2 ERROR (old 5m Dashboard/Watchlist contracts + two missing test-fixture dependencies); #1654 Python syntax compilation failure caused by test update's nested quotation, suite not run. This is **NOT ALL PASS** and does not validate Oracle/phone.
 - **Corrective test commits:** `b6b13456`, `f9cf5548`, `70c4b633`, `b2c17f35`, `4662540b`, `0bbdb52a`, `d0326982`, `89eb8716`, `c8574e6c`, `d6439bbd`, `69586b92`, `439d69c2`, `f2448f97`, `1e86b7cb`, with test quote fix `5a364abc` + `f25270bf`. Journal commit `44e427fd`.
 - **Current gate:** exact-HEAD run #1660 was in progress on inspection; verify new run and any fresh failures, do not close B5/B6. B2 source 1m/3m semantics remain and no fallback to fake 5m percentages should be restored to make old tests pass. No production deployment, signed APK, or phone acceptance.
+
+
+## 2026-11-16 — Checkpoint 21: exact tested source commit CI PASS (NOT release PASS)
+- **Verified GitHub Actions** [#1660](https://github.com/vaishnavi596/volume-king/actions/runs/43881867611), commit `f25270bf47d9c550491374c0d0cbbcd43dc8af0d`, offline-tests job 133349553938: **SUCCESS**; Python syntax PASS; **1031 tests run, OK (317.339s)**. Former #1619–#1659 failures are superseded **for this particular tested commit**.
+- **Not verified:** future code changes, Dhan rate/bytes and freshness, Oracle production, 1m/3m equity completeness, phone, or new signed APK. Do not set overall B1–B6 to PASS. Continue the agreed slower edit/test/commit sequence and record each subsequent exact commit's CI independently.
