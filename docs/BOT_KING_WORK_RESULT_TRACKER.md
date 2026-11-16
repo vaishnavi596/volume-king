@@ -303,3 +303,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 ## 2026-11-16 — CI #1594/#1595 verified closure
 - [#1594 run 43846169503](https://github.com/vaishnavi596/volume-king/actions/runs/43846169503), head `5ea157c0660a08d97a09428ad35a9d897240d052`, job `133226767740`: **965/965 PASS** (`Ran 965 tests in 122.296s`).
 - [#1595 run 43846192736](https://github.com/vaishnavi596/volume-king/actions/runs/43846192736), head `986553fb738c438d8f0a9913c267ca7854fca500`, job `133226843998`: **966/966 PASS** (`Ran 966 tests in 138.269s`). These supersede the prior pending CI notes and validate fail-closed non-object assessment transport across the fixed symbol roster in offline source tests. **Oracle deployment, five live factors, 54/54 market data/PCR and Android acceptance remain unverified; no APK or orders.**
+
+
+## 2026-11-16 — all-54 four-factor schema parity
+| Stage | Confirmed source issue | Fix/tests | Real runtime |
+|---|---|---|---|
+| 3/4 · four factors across 54 configured symbols | Name-only validation accepted malformed nested factor rows | Client `bf9b0c18`, 54-symbol tests `ca9f3164`; UI `8dd1e24c`, UI test `b9a1b647` | **CODE COMMITTED; new CI PENDING; Oracle producer still unverified** |
+| 5/6 · APK | Historical and current 54-symbol gate still applies | No build or deployment | BLOCKED |
