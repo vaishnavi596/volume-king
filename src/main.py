@@ -2054,36 +2054,9 @@ def app_main(page:ft.Page):
             # Snapshot requests still honor busy flags, 60s throttle and cooldown.
             await asyncio.sleep(10 if not dhan_feed.connected else 10)
 
-    # Compact countdown updates independently; never rebuild Watchlist rows per second.
-    watch_countdown=ft.Text("Next --",size=11,color=GOLD)
-    def next_watch_refresh_label():
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
-            return "Next --"
-        if not app_active[0]:
-            return "Paused"
-        if not refresh_hours():
-            return "Market closed • auto-refresh paused"
-        if watch_batch_busy[0]:
-            return "Refreshing"
-        cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
-        if cooldown>0:
-            return f"Wait {math.ceil(cooldown)}s"
-        # Page-entry/manual batches also count as real attempts. The old label
-        # only used the background poll timestamp, leaving "Next due" stuck
-        # even after a successful on-entry watchlist refresh.
-        last_attempt=max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])
-        if not last_attempt:
-            return "Next soon"
-        # This is an estimated scheduler countdown, not exchange-time freshness.
-        elapsed=time.monotonic()-last_attempt
-        if elapsed>=60:
-            return "Next due"
-        return f"Next {max(0,math.ceil(60-elapsed))}s"
-
+    # The Watchlist observes changed quote/filter signatures at 2s UI cadence.
+    # No on-screen 60s countdown: the broker poll rate and UI paint rate differ.
     async def watch_visible_tick():
-        # Never rebuild the scrolling list every two seconds when quotes are unchanged.
-        # The quote batch and scroll handler already request a view refresh.
-        # Rebuilding all rows continuously resets Android scroll position.
         last_visible_signature=None
         while True:
             await asyncio.sleep(2)
@@ -2091,14 +2064,6 @@ def app_main(page:ft.Page):
                 last_visible_signature=None
                 continue
             try:
-                label=next_watch_refresh_label()
-                if watch_countdown.value!=label:
-                    watch_countdown.value=label
-                    # A countdown tick is not a reason to recreate 51 watchlist rows.
-                    # Update only the mounted label; a quote/signal change below
-                    # still requests a coalesced screen refresh.
-                    if watch_countdown.page is not None:
-                        watch_countdown.update()
                 visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
@@ -2113,7 +2078,12 @@ def app_main(page:ft.Page):
         for field in (search,add_symbol):
             field.dense=True;field.text_size=16
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
-        return [ft.Row([heading("Watchlist"),watch_countdown],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+        return [ft.Row([heading("Watchlist"),
+                ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
+                    tooltip="Check Dhan equity and index quotes now, even when the market is closed; 30s manual cooldown",
+                    on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
+                    disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Text("Quote check • "+watch_batch_status[0],size=11,color=MUTED,
                     max_lines=2,overflow=ft.TextOverflow.ELLIPSIS),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
@@ -2122,9 +2092,8 @@ def app_main(page:ft.Page):
             ft.ExpansionTile(title=note("Add symbol / Feed details"),controls=[
                 ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
                 note("Filters use candle votes; neutral includes unavailable signals."),
-                note("LTP • every 60 sec • "+watch_batch_status[0]),
-                note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed"),
-                ft.TextButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_all_dhan_quotes),disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan")]),
+                note("LTP checked automatically during the refresh window; no full-page timer"),
+                note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed")]),
             watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
     timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m") if prefs.get("chart_timeframe","5m") in ("1m","5m","15m","1h") else "5m",options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h"]],width=120)
