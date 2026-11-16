@@ -566,6 +566,7 @@ class ServerDhanReadOnly:
             # Invalid snapshots are never cached by this coordinator.
             # An Oracle snapshot already near its 120s age limit must
             # expire before the full two-second local cache TTL.
+            import math  # Define before closure; later bootstrap also uses math.
             def still_within_source_age(rows, elapsed):
                 return (isinstance(rows, dict) and bool(rows)
                         and all(isinstance(row, dict)
