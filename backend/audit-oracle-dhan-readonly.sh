@@ -102,6 +102,13 @@ if command -v curl >/dev/null; then
         echo 'Dhan API TLS 443 egress: FAILED (DNS/TLS/route/firewall)'
         exit 2
     fi
+    if curl --silent --show-error --output /dev/null --connect-timeout 3 --max-time 8 \
+            --noproxy '*' 'https://auth.dhan.co/'; then
+        echo 'Dhan OAuth TLS 443 egress: reachable (NO login/token requested)'
+    else
+        echo 'Dhan OAuth TLS 443 egress: FAILED (DNS/TLS/route/firewall)'
+        exit 2
+    fi
 fi
 if curl --fail --silent --max-time 3 http://127.0.0.1:8000/health >/dev/null; then
     echo 'local gateway health: HTTP success (not Dhan market-data proof)'
