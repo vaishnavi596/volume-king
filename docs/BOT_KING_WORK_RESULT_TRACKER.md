@@ -319,3 +319,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - [#1597](https://github.com/vaishnavi596/volume-king/actions/runs/43846845799), head `ca9f3164`, job `133229046797`: **967/967 PASS**, 100.000 s.
 - [#1598](https://github.com/vaishnavi596/volume-king/actions/runs/43846871051), head `8dd1e24c`, job `133229131491`: **967/967 PASS**, 88.654 s.
 - [#1599](https://github.com/vaishnavi596/volume-king/actions/runs/43846903826), head `b9a1b647`, job `133229240962`: **968/968 PASS**, 163.784 s. Exact heads succeeded in GitHub Offline Regression Tests; previous pending entries superseded. This proves factor row schema guards in source CI, NOT live Oracle 54/54 market-data, real PCR, or APK testing. No production changes/orders.
+
+
+## 2026-11-16 — 54-symbol assessment contradictory status guard
+| Stage | Problem / fix | CI/source evidence | Production evidence |
+|---|---|---|---|
+| 3/4 · four factor + five filter contract | `not_configured` could co-exist with `available` rows. Client `e49d45b7`, UI `faa14c64` and `131b82f0` fail closed; tests `f3020d28` and `96034db7` include all 54 client symbols | Source committed; NEW CI PENDING. Prior #1599 **968/968 PASS** on older head | No Oracle data/producer/entitlement confirmed |
+| 5/6 · release | 54/54 old+new regression gate remains | No Android APK | BLOCKED |
