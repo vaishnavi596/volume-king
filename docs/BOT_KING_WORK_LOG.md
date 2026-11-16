@@ -1865,3 +1865,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — B3 recursive-lock CI #1671 verified
 - GitHub Actions run **#1671** `43894932117`, commit `3e1410471af79423a430970d25d5b71ab08f54f6`, status completed, conclusion **success**. Job logs show both new tests `test_reentrant_lane_serializes_other_threads` and `test_reentrant_stripe_supports_nested_derived_history_without_deadlock`; suite `Ran 1045 tests in 361.434s`, `OK` (0 failures/errors).
 - This validates simulated lock semantics and GitHub offline regression, **not** actual Oracle code, production concurrency, multi-worker deduplication or mobile results. Operator-provided Oracle source SHA remains `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; no Oracle deployment/restart.
+
+
+## 2026-11-16 — Oracle actual Uvicorn topology verified (operator shell)
+- Operator supplied `systemctl show bot-king.service -p MainPID -p NRestarts`: `MainPID=579875`, `NRestarts=0`.
+- Operator supplied `ps -eo pid,ppid,args | grep '[u]vicorn'`: exactly one observed Uvicorn process PID `579875`, command `/opt/bot-king-server/.venv/bin/python -m uvicorn server:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --limit-concurrency 8 --timeout-keep-alive 5`. Prior `systemctl is-active` = `active`.
+- **Design implication:** worker-local reentrant striped locking is compatible with the *currently observed* single-worker topology, but is not distributed deduplication and does not protect distinct keys, cross-process restarts, or separate upstream endpoints. The runtime must be rechecked after deployment or configuration changes. No production patch or restart performed.
