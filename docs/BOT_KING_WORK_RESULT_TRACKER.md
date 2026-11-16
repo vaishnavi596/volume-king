@@ -181,3 +181,11 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 - #1578 [43837640203](https://github.com/vaishnavi596/volume-king/actions/runs/43837640203), head `0128ca1ab0987d1c051052689beebd99a4fa3419`, job `133198147934`: **949/949 PASS** (GitHub Actions completed success, `Ran 949 tests in 228.965s`). Tests cover collector status-vs-age contradictions. Previous #1576 **946/946 PASS** on `0f4397af` is also recorded.
 - **Classification:** GitHub **SOURCE/CI PASS** only. **NO ORACLE SSH execution** or sanitized reports received, **NO production deployment**, **NO real equity F&O PCR proof** or running five-filter producer, **NO new APK/orders**. Do not misinterpret CI completion as an end-to-end market-data fix.
 - **Gate:** operator-run scripts listed in `docs/ORACLE_FILTER_AUDIT_02_OPERATOR_GATE_20261116.md` on Oracle, then run offline joined classifier. Source SHA in both AST reports must match; classify live GET errors and collector timestamps before backup-first remedial changes.
+
+
+## 2026-11-16 — AUDIT-06 evidence validation
+| Stage | Confirmed source-level issue | Fix/test | Evidence status |
+|---|---|---|---|
+| 1/2 · source SHA parity | Identical arbitrary strings could pass SHA agreement without real fingerprint | `0115b72e` + `685a35cc` | Code/test committed; CI pending; Oracle unverified |
+| 2 · collector age audit | Nonfinite/negative values lacked strict bounded validation | `0115b72e` + `685a35cc` | Code/test committed; no real runtime readings |
+| 3/4/5/6 · PCR, assessment and APK | No Oracle source/runtime proof yet | No production patch or APK | Unverified/block unchanged |
