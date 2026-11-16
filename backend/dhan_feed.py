@@ -13,6 +13,18 @@ import urllib.error
 import urllib.request
 
 
+class RejectDhanRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward the Dhan access-token/client-id headers to a redirect."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def direct_dhan_https_opener():
+    """TLS-verified, direct Dhan API transport; ignore proxy variables."""
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), RejectDhanRedirect())
+
+
 class DhanFeedError(RuntimeError):
     pass
 
@@ -38,7 +50,7 @@ class DhanFeed:
     def __init__(self, client_id, access_token, opener=None):
         self.client_id = str(client_id or "").strip()
         self._token = str(access_token or "").strip()
-        self._opener = opener or urllib.request.urlopen
+        self._opener = opener if opener is not None else direct_dhan_https_opener().open
         if not self.client_id or not self._token:
             raise DhanFeedError("Dhan credentials are not configured")
 
