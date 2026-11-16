@@ -2421,3 +2421,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle isolated ASGI test harness missing Optional
 - Operator ran HTTPX-free synthetic ASGI test using production venv and AST-selected candidate handler. Test stopped before any ASGI request at `exec(compile(...))`: `NameError: name 'Optional' is not defined` (`<isolated-test>` line 628). This is a harness namespace/type-annotation dependency error, not an authentication FAIL. No 403/200 outcomes obtained; production unchanged, no Dhan requests.
 - Next safe job: inspect AST handler global names and annotations without executing candidate, then construct a complete isolated harness namespace and rerun synthetic authentication contract. Avoid repeated one-symbol trial-and-error; do not install packages or deploy.
+
+
+## 2026-11-17 — Oracle isolated handler AST global dependency inventory
+- Operator source-only audit returned handler `botking_assessment_safe`, globals `HTTPException`, `Header`, `Optional`, `app`, `hmac`, `pairing_key`; annotations `symbol: str`, `x_botking_key: Optional[str]`, default `Header(default=None)`. Candidate not executed and production unchanged.
+- Root cause of previous harness `NameError`: missing `typing.Optional` injection. Next HTTPX-free ASGI test injects all six globals, uses only dummy pairing key and synthetic ASGI scopes, asserts 403/403/200 and safe response flags. No deployment or live provider verification implied.
