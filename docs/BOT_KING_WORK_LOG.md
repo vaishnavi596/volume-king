@@ -2447,3 +2447,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle production vs candidate route preservation AST PASS
 - Operator read-only AST route comparison: production `server.py` has 20 method/path route declarations; isolated candidate `/tmp/bk_server_assessment_candidate.py` has 22; `MISSING_PRODUCTION_ROUTES=0`; added `GET /v2/assessment/{symbol}` and `GET /v2/server-readiness`; `ROUTE_PRESERVATION=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
 - Scope limitation: method/path presence only; no proof existing handlers, dependencies, auth, middleware or behavior unchanged. Next gate: compare normalized AST of existing route handlers (excluding new endpoints) and then isolated regression. No deployment.
+
+
+## 2026-11-17 — Oracle existing route handler AST preservation PASS
+- Operator read-only AST digest comparison of production `/opt/bot-king-server/server.py` and isolated `/tmp/bk_server_assessment_candidate.py`: `PRODUCTION_ROUTE_KEYS=20`, `CANDIDATE_ROUTE_KEYS=22`, `CHANGED_EXISTING_HANDLERS=0`, `HANDLER_PRESERVATION=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
+- Scope: normalized AST equality of functions with existing HTTP method/path decorators. Does not establish equivalence of global helpers, middleware, app factory, initialization, auth dependencies, configuration, or runtime behavior. Next read-only gate: compare top-level global statements/functions excluding two new routes and audit server-readiness route safety; do not deploy yet.
