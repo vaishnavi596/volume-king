@@ -8,9 +8,19 @@ No network, auth secrets, broker calls, deployment or side effects.
 """
 import argparse
 import json
+import math
+import re
 from pathlib import Path
 
 EXPECTED_ROUTES = 9
+
+
+def valid_sha(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
+def finite_age(value):
+    return type(value) in (int, float) and math.isfinite(value) and value >= 0
 
 
 def classify(routes, filters, collector):
@@ -41,8 +51,7 @@ def classify(routes, filters, collector):
     # Reports taken from different server.py versions cannot certify route parity.
     route_sha = routes.get("source_sha256")
     filter_sha = filters.get("source_sha256")
-    if (route_sha is None or filter_sha is None or
-            not isinstance(route_sha, str) or not isinstance(filter_sha, str) or
+    if (not valid_sha(route_sha) or not valid_sha(filter_sha) or
             route_sha != filter_sha):
         add("SOURCE_REPORT_MISMATCH", "source",
             "Re-run both AST audits on the same deployed server.py version")
@@ -89,8 +98,8 @@ def classify(routes, filters, collector):
     snapshot_age = collector.get("snapshot_age_seconds")
     if (collector.get("snapshot_http") == 200
             and collector.get("snapshot_status") == "recently_collected"
-            and type(interval) in (int, float) and 0 < interval <= 3600
-            and type(snapshot_age) in (int, float)
+            and finite_age(interval) and 0 < interval <= 3600
+            and finite_age(snapshot_age)
             and snapshot_age > max(30, 2 * interval)):
         add("SNAPSHOT_AGE_CONFLICT", "runtime",
             "Reconcile snapshot age with collector interval; do not infer fresh exchange quotes")
@@ -98,7 +107,7 @@ def classify(routes, filters, collector):
     if (collector.get("readiness_http") == 200
             and collector.get("collector_status") == "recently_collected"
             and type(interval) in (int, float) and 0 < interval <= 3600
-            and type(success_age) in (int, float)
+            and finite_age(success_age)
             and success_age > max(30, 2 * interval)):
         add("COLLECTOR_AGE_CONFLICT", "runtime",
             "Inspect last-success age and cooldown before declaring active collection")
@@ -112,7 +121,7 @@ def classify(routes, filters, collector):
                                   and routes.get("source_missing") == []
                                   and filters.get("syntax") == "PASS"
                                   and filters.get("assessment_route_source_count") == 1
-                                  and isinstance(route_sha, str)
+                                  and valid_sha(route_sha)
                                   and route_sha == filter_sha),
         "runtime_five_filters_proven": False,
         "equity_pcr_entitlement_proven": False,
