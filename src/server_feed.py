@@ -648,6 +648,9 @@ class ServerDhanReadOnly:
                 or result.get("bearish_score") is not None
                 or not isinstance(factors, dict)
                 or set(factors) != {"news", "futures", "options", "candle"}
+                or any(not isinstance(row, dict)
+                       or row.get("status") not in ("available", "unavailable")
+                       for row in factors.values())
                 or not isinstance(filters, list) or len(filters) != 5
                 or any(not isinstance(f, dict)
                        or not isinstance(f.get("id"), str)
