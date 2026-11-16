@@ -76,7 +76,12 @@ def classify(routes, filters, collector):
     return {
         "audit": "ORACLE-FILTER-AUDIT-03",
         "issues": issues,
-        "source_audit_complete": routes.get("syntax") == "PASS" and filters.get("syntax") == "PASS",
+        "source_audit_complete": (routes.get("syntax") == "PASS"
+                                  and routes.get("expected_routes") == EXPECTED_ROUTES
+                                  and routes.get("source_present") == EXPECTED_ROUTES
+                                  and routes.get("source_missing") == []
+                                  and filters.get("syntax") == "PASS"
+                                  and filters.get("assessment_route_source_count") == 1),
         "runtime_five_filters_proven": False,
         "equity_pcr_entitlement_proven": False,
         "oracle_production_changed": False,
