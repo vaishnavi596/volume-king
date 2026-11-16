@@ -76,6 +76,27 @@ class OracleFiveFiltersSourceAudit(TestCase):
             "RELIANCE": {"fetched": 100, "data": payload}}, now=101)
         self.assertIn("unsafe response", rows[0])
 
+    def test_nonfinite_assessment_cache_age_fails_closed_for_any_symbol(self):
+        for symbol in ("RELIANCE", "HDFCBANK", "NIFTY", "BANKNIFTY", "SENSEX"):
+            payload = {
+                "symbol": symbol, "live_orders_enabled": False,
+                "signal_eligible": False, "collection_status": "not_configured",
+                "factors": {key: {"status": "unavailable"} for key in
+                            ("news", "futures", "options", "candle")},
+                "assessment_filters": [
+                    {"id": key, "status": "unavailable"} for key in FILTER_NAMES],
+            }
+            for timestamp in (float("nan"), float("inf"), -float("inf"), True):
+                rows = assessment_lines(symbol, {
+                    symbol: {"fetched": timestamp, "data": payload}}, now=100)
+                self.assertIn("cached assessment expired", rows[0])
+            rows = assessment_lines(symbol, {
+                symbol: {"fetched": 90, "data": payload}}, now=float("nan"))
+            self.assertIn("cached assessment expired", rows[0])
+            rows = assessment_lines(symbol, {
+                symbol: {"fetched": 90, "data": payload}}, now=100, max_age=float("inf"))
+            self.assertIn("cached assessment expired", rows[0])
+
     def test_backend_has_no_assessment_producer_yet(self):
         source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
         begin = source.index('    @app.get("/v2/assessment/{symbol}")')
