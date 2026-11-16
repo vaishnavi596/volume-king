@@ -2259,3 +2259,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Downloaded Oracle audit script syntax verified twice
 - Operator SSH transcript shows the Python AST syntax check of `/tmp/bk_oracle_dependency_audit.py` returned `AUDIT_SCRIPT_SYNTAX=PASS` twice (one first command is partly truncated in transcript, one complete command: `python3 -B -c 'import ast; ast.parse(open("/tmp/bk_oracle_dependency_audit.py").read()); print("AUDIT_SCRIPT_SYNTAX=PASS")'`). This confirms Python syntax only; not execution of dependency inspection or script content integrity.
 - Next operator command pending: `python3 -B /tmp/bk_oracle_dependency_audit.py --server /opt/bot-king-server/server.py`. Do not mark `static_preflight=PASS` before its real output. Production and Dhan credentials unchanged.
+
+
+## 2026-11-16 — Oracle official SHA-pinned static preflight PASS (operator evidence)
+- Operator executed downloaded reviewed `scripts/audit_oracle_candidate_dependencies_readonly.py` against `/opt/bot-king-server/server.py` and supplied exact sanitized output: `sha_matches=true`; `factory_found=true`; `binding_Header=present`; `binding_HTTPException=present`; `binding_hmac=present`; `binding_pairing_key=present`; `static_preflight=PASS`; `runtime_verified=false; deployed=false`.
+- **Official Oracle static dependency gate PASS** for SHA-pinned production source; previous syntax and service checks corroborate but are distinct. This does **not** establish runtime route readiness, authenticated assessment data, five filters, or deployment. Production source and running service unchanged; no Dhan request or APK build.
+- Next read-only gate: inspect existing `/openapi.json` route presence/status via loopback and inspect route names without credentials; avoid exposing auth headers or tokens. Candidate-only staging and backup still required before any deployment.
