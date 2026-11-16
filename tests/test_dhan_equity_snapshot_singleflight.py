@@ -33,6 +33,15 @@ class EquitySnapshotCoalescingTests(TestCase):
             self.client.equity_quotes_with_bootstrap()
             self.assertEqual(snapshot.call_count, 2)
 
+    def test_source_math_is_bound_before_age_closure(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "server_feed.py").read_text()
+        start = source.index("    def equity_quotes_with_bootstrap(self):")
+        end = source.index("    def intraday(self,", start)
+        local = source[start:end]
+        self.assertLess(local.index("            import math"),
+                        local.index("            def still_within_source_age("))
+        self.assertIn("math.isfinite(row", local)
+
     def test_near_120s_snapshot_expires_before_two_second_ttl(self):
         def snap(age, price):
             return {"RELIANCE": {"symbol": "RELIANCE", "price": price,
