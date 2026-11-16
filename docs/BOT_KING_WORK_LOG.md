@@ -4,6 +4,12 @@ Use this append-only log for successive batches. Keep the newest entry at the
 bottom; preserve evidence and corrections. The quick-start document at repository
 root is `BOT_KING_HANDOFF.md`.
 
+## Quick status: six-stage Work → Test → APK → Error → Repair tracker
+
+**See [the permanent six-stage table](BOT_KING_WORK_RESULT_TRACKER.md)** for the 1–6 work stages, completed code, GitHub CI, Oracle deployed evidence, APK build, phone checks, Errors, fixes and the next owner action. This index is part of the Journal; preserve historical batch entries below, never change a prior PENDING statement into retroactive PASS.
+
+**Latest exact CI evidence as of 2026-11-16:** #1565 [run 43825647952](https://github.com/vaishnavi596/volume-king/actions/runs/43825647952), job `133158750736`: **919/919 PASS** at `39b34182`. Prior #1563 had 918 tests / 2 NameError failures at `79a0b8f2`, corrected by `24c03cb9` (source) and `39b34182` (regression). APK #645 v2.3.130 remains **diagnostic / not final approved** while Oracle production collector/route parity has not been audited.
+
 ## 2026-11-15 — Cross-chat recovery and release candidate
 
 **Baseline:** joint branch HEAD `e587485b02aa1ee57de40eb5547d9f8ca5a144d1`,
@@ -1229,3 +1235,11 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **Preflight newest eight Actions at owner instruction:** #645 Build [43825726713](https://github.com/vaishnavi596/volume-king/actions/runs/43825726713) in_progress at HEAD `26455d17`; #1565 [43825647952](https://github.com/vaishnavi596/volume-king/actions/runs/43825647952) success at `39b34182`; #1564 [43825611092](https://github.com/vaishnavi596/volume-king/actions/runs/43825611092) success at `24c03cb9`; #1563 FAIL 918 tests/2 NameError before math closure repair; #1562 in_progress; #1561, #1560, #1559 success. This proves GitHub CI source for the math repair; no Oracle host correction.
 - **Open production blockers to audit next:** actual running `/opt/bot-king-server/server.py` nine API route/methods, access-protected Readiness and Snapshot status/age/count, collector enabled flag and source code vs custom deployed SHA, quote collection frequency vs 15–30s target, history/429 cooldown, index batch 3/3, options expiry/chain/assessment readiness. Repository backend source default collector OFF/min60s; do not enable/tune blindly. Two already prepared scripts `scripts/audit_oracle_app_routes_readonly.py` and `scripts/audit_oracle_collector_runtime_readonly.py` run only with authorized operator access and secure pairing-key injection; no probes, restart or credentials performed in this chat.
 - **Operational next step:** don't start another APK build. First run the two grouped read-only source/runtime audits on Oracle using previously approved secure operator procedure, compare results and stage only targeted changes with timestamped backups; then record live route/collector and Dhan pacing evidence, close all remaining source/CI issues, and only then release. Existing #645 can finish as diagnostic candidate, but app phone PASS and live API parity remain NOT VERIFIED.
+
+
+## 2026-11-16 — PERMANENT JOURNAL TABLE: stage, work, result, APK errors and follow-up fixes
+
+- **Owner request:** GitHub Journal must have explicit columns for stages **1–6**, work attempted, done/remaining, exact test result, Oracle result, APK result, device result, error and follow-up commit. Adopt a cross-chat summary instead of repeatedly guessing from long chronological entries.
+- [6affd493](https://github.com/vaishnavi596/volume-king/commit/6affd493e9555813c00b603a4e3c1f72dd1a2b75) created `docs/BOT_KING_WORK_RESULT_TRACKER.md` with a six-row work-stage table, seven-row Error→Repair→Retest ledger, and mandatory per-change ten-column template. This file is linked near the beginning of the append-only Journal and should be updated with each new batch.
+- **Verified regression:** #1565 [43825647952](https://github.com/vaishnavi596/volume-king/actions/runs/43825647952) job `133158750736` full log: `Ran 919 tests in 151.384s`, `OK`, at `39b34182`. This closes two local-math NameError source tests from #1563, but is not Oracle data/Android-device acceptance.
+- **Release evidence separation:** #645 Build at commit `26455d17` was **in_progress** when first reviewed; do not mark APK installed/signed/failed unless exact later job/Artifact proves it. It remains a diagnostic candidate by owner policy, and no next APK should start before real Oracle audit and all six release gates. Ledger deliberately labels older mobile symptoms **open for latest-device verification** rather than fabricated PASS.
