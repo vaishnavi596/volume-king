@@ -215,3 +215,11 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4/5/6 · PCR, five filters, APK | No new producer or live entitlement proof | No APK/orders/deployment | UNVERIFIED |
 
 - **Exact Audit-08 CI started:** #1581 [run 43839664916](https://github.com/vaishnavi596/volume-king/actions/runs/43839664916), head `55cffa26`, was **IN PROGRESS** when checked. This source/test security fix is not yet CI PASS; previous #1580 953/953 applies to prior commit.
+
+
+## 2026-11-16 — AUDIT-08 closure / AUDIT-09
+| Stage | Work completed | Verified evidence | Remaining |
+|---|---|---|---|
+| 1/2 · protected Oracle GET | No redirect follow source + regression in CI #1581 | **954/954 PASS** at `55cffa26` | Real Oracle routing not probed |
+| 1/2 · runtime error triage | HTTP 3xx now emits `UNEXPECTED_REDIRECT`, patch `76990163`, regression `1b4a0113` | **SOURCE COMMITTED; CI PENDING** | No production 3xx observed, not claim actual incident |
+| 3/4/5/6 · five filters/PCR/release | No live producer or entitlement proof | No Oracle patch, orders, APK | Blocked on read-only Oracle outputs |
