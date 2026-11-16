@@ -14,7 +14,9 @@ BASE = b"""import hmac
 from fastapi import Header, HTTPException
 pairing_key = "dummy"
 def create_app():
-    return object()
+    @app.get("/v2/snapshot")
+    def snapshot():
+        return object()
 """
 
 
@@ -34,6 +36,13 @@ class DependencyPreflightTests(unittest.TestCase):
 
     def test_wrong_sha_holds(self):
         self.assertFalse(module.inspect_source(BASE)["static_pass"])
+
+    def test_late_binding_holds(self):
+        raw = BASE.replace(b"pairing_key = \"dummy\"\\n", b"") + b"pairing_key = \"late\"\\n"
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(raw).hexdigest()):
+            result = module.inspect_source(raw)
+        self.assertFalse(result["static_pass"])
+        self.assertFalse(result["bindings"]["pairing_key"])
 
     def test_wrong_factory_holds(self):
         raw = BASE.replace(b"def create_app():", b"def other():")
