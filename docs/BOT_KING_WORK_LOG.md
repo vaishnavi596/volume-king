@@ -1968,3 +1968,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator recreated `/opt/bot-king-server/server.py.b3-staged` with `sudo install -o root -g root -m 644` from independently verified `~/botking-b3-review/server_b3_candidate.py`.
 - Three-way SHA256 verified again: production `server.py` `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`; staged `server.py.b3-staged` `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`; rollback `server.py.b3-rollback` same as production. No second deployment yet.
 - Next controlled restart must poll local HTTP readiness up to 30 seconds instead of immediate curl, verify service is active and deployed source SHA, and restore rollback on failure. Record actual outcome, not assumed success.
+
+
+## 2026-11-16 — Oracle B3 controlled deployment initial health PASS (operator proof)
+- Operator executed the readiness-polled, SHA-gated B3 deployment block. Terminal printed `B3_DEPLOY_HEALTH_PASS`; `sha256sum server.py` returned `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`, matching independently reviewed B3 candidate. No rollback was triggered.
+- This verifies production source swap, systemd restart, and local `/health` readiness in the deployment gate. Previous root-owned `server.py.b3-rollback` remains old-source SHA `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` as of pre-deployment verification.
+- **Still pending**: independent post-deploy systemd/journal check, Dhan auth/quote/historical route response, 180s cache, concurrency duplicate-request suppression and two-phone behavior. Do not mark B3 end-to-end PASS based on health alone. No live orders/token changes.
