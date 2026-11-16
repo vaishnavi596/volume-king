@@ -189,3 +189,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 1/2 · source SHA parity | Identical arbitrary strings could pass SHA agreement without real fingerprint | `0115b72e` + `685a35cc` | Code/test committed; CI pending; Oracle unverified |
 | 2 · collector age audit | Nonfinite/negative values lacked strict bounded validation | `0115b72e` + `685a35cc` | Code/test committed; no real runtime readings |
 | 3/4/5/6 · PCR, assessment and APK | No Oracle source/runtime proof yet | No production patch or APK | Unverified/block unchanged |
+
+- **Exact CI run opened:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, was **IN PROGRESS** at inspection. The 949/949 PASS #1578 applies to the previous test head only; no claim yet for Audit-06.
