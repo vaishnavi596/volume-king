@@ -244,3 +244,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 4 · known-placeholder UI | Full five-filter/four-factor response validated before marking `not_configured` | `5d4b7f8e` + `118bbfe3` committed, CI pending | Mobile APK not built |
 | 2/4 · option PCR | All 54 mapping coverage does **not** mean all equities have listed derivatives | Mapping-only helper remains fail-closed | Per-symbol Dhan expiry/chain eligibility unverified |
 | 5/6 · release | No deployment, APK or orders | SOURCE ONLY | Oracle runtime and mobile signoff pending |
+
+- **Exact CI follow-up:** #1585 [43842689096](https://github.com/vaishnavi596/volume-king/actions/runs/43842689096) head `5d4b7f8e`, #1586 [43842735722](https://github.com/vaishnavi596/volume-king/actions/runs/43842735722) head `118bbfe3`, and new 54-roster #1587 [43842915421](https://github.com/vaishnavi596/volume-king/actions/runs/43842915421) head `29912ce8` were all **IN PROGRESS** at initial inspection. No PASS presumed before logs. All are offline-source CI, not an APK or real Oracle proof.
