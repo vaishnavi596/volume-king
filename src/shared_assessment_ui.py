@@ -57,7 +57,17 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         row = indexed[key]
         value = row.get("value")
         if row.get("status") != "available":
-            rendered = "WAIT"
+            # Show only allowlisted reasons; never render arbitrary upstream text.
+            reasons = {
+                "option_chain_unavailable": "option chain unavailable",
+                "expiry_unavailable": "expiry unavailable",
+                "candle_history_unavailable": "candle history unavailable",
+                "stale_data": "stale data",
+                "not_configured": "data source not configured",
+            }
+            reason = row.get("reason")
+            detail = reasons.get(reason) if isinstance(reason, str) else None
+            rendered = "WAIT" + (" • " + detail if detail else "")
         elif (key != "candle_trend" and type(value) in (int, float)
               and math.isfinite(value) and value > 0):
             rendered = f"{value:.3f}" if key == "pcr" else f"{value:,.2f}"
