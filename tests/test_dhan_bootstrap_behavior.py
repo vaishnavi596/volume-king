@@ -78,7 +78,7 @@ class BootstrapBehaviorTests(unittest.TestCase):
         self.assertIn('watch_status_text',block)
         self.assertIn('watch_status_text=ft.Text(',SRC)
         self.assertIn('ft.TextButton("Refresh data"',block)
-        self.assertIn('ft.TextOverflow.ELLIPSIS',block)
+        self.assertIn('overflow=ft.TextOverflow.ELLIPSIS',SRC)
 
     def test_login_snapshot_status_is_visible_without_waiting_for_next_poll(self):
         block=SRC.split("    async def connect_angel():",1)[1].split("    def pairing_diagnostic(",1)[0] if "    def pairing_diagnostic(" in SRC.split("    async def connect_angel():",1)[1] else SRC.split("    async def connect_angel():",1)[1].split("    def provider_changed(",1)[0]
