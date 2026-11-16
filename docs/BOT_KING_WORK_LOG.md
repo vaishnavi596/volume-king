@@ -2207,3 +2207,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle operator follow-up: unmanaged-looking listener, syntax PASS
 - User-provided SSH output: `systemctl show bot-king-server -p ActiveState -p SubState -p MainPID` returned `ActiveState=inactive`, `SubState=dead`, `MainPID=0`. `sudo ss -ltnp '( sport = :8000 )'` showed loopback listener `127.0.0.1:8000` held by `python` PID `622936` fd 6. Python `ast.parse` of `/opt/bot-king-server/server.py` printed `SYNTAX=PASS`. Earlier local `/health` HTTP 200.
 - This establishes a live Python listener while the named systemd unit is inactive; it does **not** yet establish the listener's executable, command, process parent, source version, or whether a different supervisor owns it. Next operator gate is read-only `ps`/`/proc` metadata and unit definition, followed by SHA256; **do not kill/restart** before attribution. SHA and dependency AST gate still pending.
+
+
+## 2026-11-16 — Oracle SHA-pinned source confirmed; process provenance pending
+- User-provided SSH report: `ps -o pid,ppid,user,lstart,etime,args -p 622936` identified listener PID `622936` as user `opc`, PPID `1`, started Mon Nov 16 15:48:36 2026, command prefix `/opt/bot-king-server/.venv/bin/python -m uvicorn server:cr` (truncated). Parent PID 1 is `/usr/lib/systemd/systemd`; this alone does not prove ownership by `bot-king-server.service`.
+- Production `/opt/bot-king-server/server.py` SHA256 is **`c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`**, an exact match to the SHA-pinned preflight expectation. Python AST syntax PASS; earlier health 200, but named unit inactive/dead. SHA gate PASS, **binding-order/static preflight and runtime/deployment gates remain HOLD**.
+- Next read-only operator checks: `/proc/622936/cgroup`, full `ps -ww` command line and sanitized `systemctl cat bot-king-server`; no restart, kill, token changes, or APK.
