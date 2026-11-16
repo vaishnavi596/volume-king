@@ -32,3 +32,12 @@ Prerequisite: trusted checkout of *this working branch* accessible on Oracle, an
 ## Subsequent gate
 
 Only after operator's sanitized output: compare source SHA to intended deployment, isolate actual cause, back up production source/config, apply minimum necessary Dhan-only read-only data patch, run regression CI, recheck server, and separately retest phone. Preserve `live_orders_enabled=false`. Append each observed result to `docs/BOT_KING_WORK_LOG.md` and `docs/BOT_KING_WORK_RESULT_TRACKER.md` with commit/run ID and source-vs-CI-vs-Oracle-vs-device distinction.
+
+## ORACLE-FILTER-AUDIT-03 — deterministic joined classifier (staged on GitHub)
+
+After collecting *sanitized* outputs from the three operator scripts into local JSON files, run:
+```bash
+python3 scripts/classify_oracle_audit_results.py \
+  --routes routes-report.json --filters filters-report.json --collector collector-report.json
+```
+No broker/network calls are made by the classifier; it reads only the three local sanitized JSON files. These files must not contain secrets or raw Dhan responses. The classifier separates source route declarations, missing/duplicate assessments, known WAIT placeholder, authentication failures, missing runtime routes, rate limits, and collector freshness. It **always refuses to certify live five-filter function, equity PCR eligibility, or APK release**. This is a sorting aid for operator evidence, not a replacement for server investigation. Original production status is still UNVERIFIED until the operator runs the three audits.
