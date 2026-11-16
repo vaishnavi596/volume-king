@@ -20,9 +20,15 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertIn("if not refresh_hours():",resume)
         self.assertIn("saved data retained",resume)
 
-    def test_watch_countdown_displays_pause_not_next_interval(self):
-        label=section("    def next_watch_refresh_label():","    async def watch_visible_tick():")
-        self.assertIn('return "Market closed • auto-refresh paused"',label)
+    def test_closed_market_disables_auto_poll_but_manual_refresh_is_available():
+        label=section("    def watchlist():","    symbol=ft.Dropdown(")
+        self.assertIn('ft.TextButton("Refresh data"',label)
+        self.assertNotIn("watch_countdown",label)
+        manual=section("    async def refresh_all_dhan_quotes():","    quote_auto_last_attempt=")
+        self.assertIn("await refresh_watch_batch()",manual)
+        self.assertIn("await refresh_dhan_index_quotes(force=True)",manual)
+        self.assertNotIn("refresh_hours()",manual)
+        self.assertIn("max(0,30-",manual)
 
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
         loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
