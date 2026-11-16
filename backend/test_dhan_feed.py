@@ -69,6 +69,22 @@ class DhanFeedTests(unittest.TestCase):
                 DhanFeed("client","test-key",opener=opener).ltp("IDX_I",13)
         self.assertEqual(sent,[])
 
+    def test_default_dhan_transport_blocks_redirect_and_environment_proxy(self):
+        import dhan_feed
+        from urllib.request import ProxyHandler
+        opener=dhan_feed.direct_dhan_https_opener()
+        self.assertTrue(any(isinstance(h,dhan_feed.RejectDhanRedirect)
+                            for h in opener.handlers))
+        proxy=[h for h in opener.handlers if isinstance(h,ProxyHandler)]
+        self.assertEqual(len(proxy),1)
+        self.assertEqual(proxy[0].proxies,{})
+        self.assertIsNone(dhan_feed.RejectDhanRedirect().redirect_request(
+            None,None,302,"Found",{},"https://attacker.invalid/capture"))
+        with patch.object(dhan_feed,"direct_dhan_https_opener",return_value=opener) as built:
+            adapter=DhanFeed("client","token-placeholder")
+        built.assert_called_once_with()
+        self.assertEqual(adapter._opener,opener.open)
+
     def test_invalid_security_id(self):
         with self.assertRaises(DhanFeedError):
             DhanFeed("client", "secret").ltp("IDX_I", "invalid")
