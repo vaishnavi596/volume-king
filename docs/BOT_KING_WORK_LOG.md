@@ -1882,3 +1882,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle B3 candidate generator CI #1672 PASS
 - GitHub Actions run **#1672** `43897060201`, source head `7350a4845c9ee42c92d9aac71f8e593b52b48cc6`, completed **success**. Logs show `test_inserts_only_lock_block_and_decorator ... ok`, `test_refuses_existing_singleflight ... ok`, `test_reject_wrong_production_hash ... ok`; `Ran 1048 tests in 97.378s`, `OK`.
 - These are offline tests of the patch generator with synthetic source, not proof of actual Oracle candidate or deployment. Next operator step: run generator against SHA-pinned Oracle server.py to a distinct private temporary candidate, review `diff -u`, run AST audit and compile candidate; do NOT replace production source or restart service until independently approved. Oracle remains unchanged.
+
+
+## 2026-11-16 — Oracle B3 candidate generator absent on host
+- Operator ran `ls -l /opt/bot-king-server/scripts/prepare_oracle_b3_candidate.py` and received `No such file or directory`. This confirms only that the GitHub-staged generator is **not at that Oracle path**; it is not a service failure.
+- No files copied, candidate generated, production patch applied or service restarted. Next safely transfer the reviewed commit-pinned generator to a separate operator-owned working directory, validate its SHA256 against the GitHub commit, and run only the create-only candidate generation after verifying current production source hash. Never download and execute an unpinned branch-head script.
