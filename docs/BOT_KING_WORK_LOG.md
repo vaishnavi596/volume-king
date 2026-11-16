@@ -672,3 +672,56 @@ by writing this journal.
 - **Current verified handoff:** Oracle staged quote-gate script reported PASS (backup and proposal), source SHA256 `7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75`, proposal `beccda3067e14efb750e029383919e73ce5b41410caa424f5671bfa7ce43c33c`. Operator-supplied unified diff reviewed as limited to LTP quote pacing; no production patch or restart. Last requested stage `py_compile` and SHA recheck **not yet supplied**.
 - **CI lookup at this entry:** [43796217369](https://github.com/vaishnavi596/volume-king/actions/runs/43796217369) remains `in_progress`; do not mark new S2D staged patch validated by CI. Earlier port listener fix CI [43795368582](https://github.com/vaishnavi596/volume-king/actions/runs/43795368582) finished SUCCESS with 847 offline tests (verified logs).
 - **Safety gates:** Do not overwrite Oracle's customized `dhan_feed.py` or `server.py` wholesale; backup and inspect exact targeted diffs, syntax and behavior tests first. Keep order execution disabled, no token exposure/rotation, and no APK until source ↔ Oracle runtime contract + mobile smoke checks are resolved.
+
+
+## 2026-11-16 — COMPLETE CHAT RECONCILIATION: backend-to-backend S2D evidence ledger and handoff
+
+**Purpose:** Retrospective roll-up of **this conversation's** Oracle operator terminal outputs, GitHub commits, failures/corrections, staging artifacts, findings and pending next steps. Original chronological entries earlier in this journal are retained as the audit trail, including initially unresolved states that were later resolved. Do not conflate a past observation with current production state.
+
+### 1. GitHub source edits, tests and CI
+
+| Scope | GitHub evidence | Final verified result |
+|---|---|---|
+| S2D source audit identified shared Dhan LTP rate-gate requirement | GitHub \`backend/dhan_feed.py\`: class-shared \`_quote_lock\`, \`_quote_next_allowed\`, \`QUOTE_MIN_INTERVAL_SECONDS=1.05\`; single Uvicorn worker required | Present in GitHub source, **not then present in Oracle production** |
+| Strict Oracle TCP 8000 audit script | \`a27f32a7\`, \`backend/audit-oracle-dhan-readonly.sh\` | All port 8000 local listener addresses must be \`127.0.0.1:8000\`; source patch committed; Oracle production audit script execution not proven |
+| Strict listener negative regressions | \`dbd13dfd\`; test fixture correction \`5245b0c8\` | Intermediate CI runs [43795320471](https://github.com/vaishnavi596/volume-king/actions/runs/43795320471) **FAILED**, [43795340118](https://github.com/vaishnavi596/volume-king/actions/runs/43795340118) **FAILED**; corrected [43795368582](https://github.com/vaishnavi596/volume-king/actions/runs/43795368582) **SUCCESS, 847/847 tests OK** per completed job logs |
+| Historical failure root causes | Actual Actions job logs | Run #1487 obsolete source-text assertion expected former escaped \`127[.]0[.]0[.]1:8000\`; run #1488 regex overescaping yielded \`AssertionError: unexpectedly None: missing strict port listener validator\`; **test-code errors, not Oracle faults** |
+| Fail-closed Oracle-specific quote gate staging tool | \`b358421d\`: \`scripts/oracle_s2d_quote_gate_stage.py\` | GitHub committed; stages separate before/proposed files with syntax check; production target not changed |
+| Offline staging regression | \`fc442e94\`: \`tests/test_oracle_s2d_quote_gate_stage.py\` | Tests added for changed-layout rejection, custom cooldown preservation, fake opener/timing. Corresponding CI [43796217369](https://github.com/vaishnavi596/volume-king/actions/runs/43796217369) was **IN_PROGRESS on latest checked response**; no PASS claimed for this separate workflow |
+
+### 2. Oracle operator command outcomes (source: user-pasted terminal only)
+
+| Command / probe | Actual evidence | Accurate interpretation |
+|---|---|---|
+| \`sudo ss -H -ltn '( sport = :8000 )'\` | \`LISTEN 0 2048 127.0.0.1:8000 0.0.0.0:*\` (repeated) | IPv4 **localhost** listener present, no second listener in supplied snapshot; wildcard is peer address, not exposed bind; full external firewall/IPv6 policy not independently proven |
+| \`curl ... http://127.0.0.1:8000/health\` | \`LOCAL HTTP 200\` in clean output | Local FastAPI health **PASS at that time**; later corrupt/interleaved command copy did *not* produce a new valid health result |
+| \`curl --noproxy '*' ... https://api.dhan.co/v2/profile\` without token | \`DHAN HTTP 401\` | HTTPS/TLS reachability to Dhan REST endpoint **PASS**; without token, **NOT OAuth authentication, plan entitlement, or live quotes proof** |
+| \`sha256sum /opt/bot-king-server/dhan_feed.py\` | \`7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75\` repeated and \`sha256sum -c\` printed \`/opt/bot-king-server/dhan_feed.py: OK\` | Oracle source-byte integrity **PASS against observed prior hash**, *not* GitHub byte-for-byte parity or running worker module proof |
+| \`grep -nE 'QUOTE_MIN_INTERVAL_SECONDS|_quote_lock|_quote_next_allowed|DhanRateLimitError' ...\` | Only DhanRateLimitError lines 20,52,60,94,128,165 | GitHub's named 1.05-second shared quote gate markers absent from live Oracle source at inspection time; other custom pacing exists |
+| \`sed -n '1,115p' /opt/bot-king-server/dhan_feed.py\` | Existing \`_intraday_next_allowed\`, \`_historical_retry_after\`, \`_option_retry_after\`, 3s chain pacing, HTTP429 30s cooldown, LTP logging; duplicate \`_option_retry_after = 0.0\` declaration | **Oracle code differs materially** from generic GitHub adapter. Never wholesale overwrite custom production file; duplicate assignment is a cleanup candidate only after separate tested patch |
+| \`python3 -m py_compile /tmp/oracle_s2d_quote_gate_stage.py\` and original \`sha256sum -c\` | No syntax error; \`OK\` on original SHA | Script syntax and unchanged input **PASS** |
+| Interleaved multiline paste | \`-bash: ate: command not found\`; \`python3: can't open file '/tmp/oracle_s2d_quote_gate_stage.pyecho'\` | Terminal command-concatenation mistakes only; **not** evidence of Dhan API or service failure |
+| \`test -f /tmp/oracle_s2d_quote_gate_stage.py && sudo python3 /tmp/oracle_s2d_quote_gate_stage.py\` | \`S2D_STAGE_PASS: YES\`, \`PRODUCTION_CHANGED: NO\`, \`PYTHON_SYNTAX: PASS\`, backup/proposed paths/hashes | Real Oracle **staging PASS** on source; service not deployed/restarted |
+| \`sudo diff -u ...before...py ...proposed...py\` | Owner supplied unified diff: one nullcontext import, 3 class quote-gate members, \`_post\` LTP lock+1.05s gate+cooldown recheck | **Diff-scope review PASS**; custom historical/option cooldown and error handling untouched. This is not behavioral load-test PASS |
+| Last requested recheck \`sudo python3 -m py_compile <proposed> && sudo sha256sum ...\` | No later terminal result in this chat | **NOT YET VERIFIED**; no extrapolated PASS |
+
+### 3. Oracle Staging artifacts — exact operator evidence
+
+- **Original:** \`/opt/bot-king-server/dhan_feed.py\` SHA256 \`7a8db92e8b791af89d7f6e1e14511ad53904b1e0e84c23f880657dd2a46beb75\`.
+- **Independent before copy:** \`/opt/bot-king-backups/s2d-stage/dhan_feed.s2d.before.20261116T031325151738Z.py\`.
+- **Independent proposed copy:** \`/opt/bot-king-backups/s2d-stage/dhan_feed.s2d.proposed.20261116T031325151738Z.py\`, SHA256 \`beccda3067e14efb750e029383919e73ce5b41410caa424f5671bfa7ce43c33c\`.
+- All these file paths and hashes were supplied by Oracle operator, not directly accessed by the assistant. **No evidence of Oracle production-file modification, service restart, secrets rotation, authenticated quote calls or Android APK build.** Preserve these files for comparison and rollback planning.
+
+### 4. Prior and current journal commits in this chat
+
+The journal itself was updated repeatedly as evidence arrived. Relevant append-only history: \`e2ecce75\` (listener guard), \`b8f28d11\` (CI/sockets), \`0b07c2e8\` (garbled paste), \`59557905\` (health200/Dhan401), \`57e844b5\` (Oracle adapter hash), \`3f9ad7d0\` (missing quote gate), \`461c7af2\` (staging tool/tests), \`7c67c792\` (unchanged original hash), \`e5a40177\` (staging initially unverified), \`d1b676f1\` (failed old CI reconciled), \`1fd6b310\` (command concatenation), \`d0867939\` (staging PASS), \`87497f35\` (diff reviewed), \`220987ac\` (standing journal rule). Current recap is supplementary, not a replacement of entries above.
+
+### 5. Outstanding execution gates and no-overclaim rules
+
+1. **Verify GitHub staged-patch CI** 43796217369 to final result; if failed, inspect exact logs, repair on working branch, rerun and journal every outcome. Corrected port-listener CI 43795368582 already succeeded independently.
+2. **Offline validate exact Oracle proposed module** (no broker calls, no secrets): staged Python syntax/hash and mock-opener quote spacing, shared instance lock, HTTP429 cooldown, historical/options unchanged. Avoid creating \`__pycache__\` in production code location if possible.
+3. **Before any production edit:** exact current original file SHA match, preserved separate backup, inspect source diff and write atomic target-replacement/rollback procedure. Keep single worker and test \`/health\`, authenticated \`/dhan/status\`, index/51 quote results within provider rate limits without logging keys. Note provider data freshness and holiday/market-hours uncertainty.
+4. **Backend parity next:** customized Oracle \`server.py\` routes/headers versus GitHub \`backend/server.py\`, options and 5 watchlist semantics, private localhost8000 ↔ Nginx HTTPS443, outbound Dhan HTTPS443, OAuth versus pairing-key separation. Do not copy GitHub server.py over Oracle server.py.
+5. **APK later:** Only after backend/runtime/data verification and complete test journal. Keep read-only market data and \`live_orders_enabled=false\`; do not represent paper mode as live order execution.
+
+**Working policy (user instruction):** Every substantive new command/result, edit, add/delete, CI, source-vs-Oracle mismatch, backup, deployment or unresolved fault must get an accurately scoped append entry in this GitHub journal on the working branch. Batch related work to save time, preserve production safety, and do not call unverified states PASS.
