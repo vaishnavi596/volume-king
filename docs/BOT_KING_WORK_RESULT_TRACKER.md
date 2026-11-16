@@ -310,3 +310,5 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 |---|---|---|---|
 | 3/4 · four factors across 54 configured symbols | Name-only validation accepted malformed nested factor rows | Client `bf9b0c18`, 54-symbol tests `ca9f3164`; UI `8dd1e24c`, UI test `b9a1b647` | **CODE COMMITTED; new CI PENDING; Oracle producer still unverified** |
 | 5/6 · APK | Historical and current 54-symbol gate still applies | No build or deployment | BLOCKED |
+
+- **Exact new CI submissions:** #1596 [43846822794](https://github.com/vaishnavi596/volume-king/actions/runs/43846822794), head `bf9b0c18`; #1597 [43846845799](https://github.com/vaishnavi596/volume-king/actions/runs/43846845799), head `ca9f3164`; #1598 [43846871051](https://github.com/vaishnavi596/volume-king/actions/runs/43846871051), head `8dd1e24c`; #1599 [43846903826](https://github.com/vaishnavi596/volume-king/actions/runs/43846903826), head `b9a1b647`. All were **IN PROGRESS** at initial check. Do not claim PASS until exact GitHub results/logs. No Oracle host or Android build changed.
