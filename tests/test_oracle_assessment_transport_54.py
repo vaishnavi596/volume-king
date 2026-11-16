@@ -37,6 +37,15 @@ class AssessmentTransport54Tests(TestCase):
                     self.assertEqual(feed.assessment(symbol)["symbol"], symbol)
                     call.assert_called_once_with("/v2/assessment/" + symbol)
 
+    def test_nonobject_assessment_payload_fails_as_feederror_for_every_symbol(self):
+        feed = ServerDhanReadOnly()
+        for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
+            for invalid in (None, [], "not configured", 200):
+                with self.subTest(symbol=symbol, invalid=type(invalid).__name__):
+                    with patch.object(feed, "_call", return_value=invalid):
+                        with self.assertRaises(FeedError):
+                            feed.assessment(symbol)
+
     def test_unhashable_filter_ids_fail_as_feederror_for_every_symbol(self):
         feed = ServerDhanReadOnly()
         for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
