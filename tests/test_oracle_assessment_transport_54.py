@@ -46,6 +46,18 @@ class AssessmentTransport54Tests(TestCase):
                         with self.assertRaises(FeedError):
                             feed.assessment(symbol)
 
+    def test_malformed_factor_rows_fail_closed_for_all_54_symbols(self):
+        feed = ServerDhanReadOnly()
+        for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
+            for invalid in (None, [], "unavailable", {"status": "unknown"},
+                            {"status": None}):
+                with self.subTest(symbol=symbol, type=type(invalid).__name__):
+                    response = payload(symbol)
+                    response["factors"]["options"] = invalid
+                    with patch.object(feed, "_call", return_value=response):
+                        with self.assertRaises(FeedError):
+                            feed.assessment(symbol)
+
     def test_unhashable_filter_ids_fail_as_feederror_for_every_symbol(self):
         feed = ServerDhanReadOnly()
         for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
