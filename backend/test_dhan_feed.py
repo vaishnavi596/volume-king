@@ -3,6 +3,7 @@ import io
 import json
 import unittest
 import urllib.error
+from unittest.mock import patch
 from dhan_feed import DhanFeed, DhanFeedError
 
 class Response:
@@ -24,6 +25,49 @@ class DhanFeedTests(unittest.TestCase):
             return Response({"status": "success", "data": {"IDX_I": {"13": {"last_price": 25030.35}}}})
         result = DhanFeed("client", "secret", opener=opener).ltp("IDX_I", 13)
         self.assertEqual(result["data"]["IDX_I"]["13"]["last_price"], 25030.35)
+
+    def test_quote_one_per_second_across_multiple_adapter_instances(self):
+        import dhan_feed
+        clock=[100.0]
+        sent=[]
+        slept=[]
+        def now():
+            return clock[0]
+        def sleep(seconds):
+            self.assertGreater(seconds,0)
+            slept.append(seconds)
+            clock[0]+=seconds
+        def opener(request, timeout):
+            sent.append((clock[0],json.loads(request.data)))
+            return Response({"status":"success","data":{}})
+        with patch.object(dhan_feed.time,"monotonic",side_effect=now), \
+             patch.object(dhan_feed.time,"sleep",side_effect=sleep), \
+             patch.object(DhanFeed,"_quote_next_allowed",0.0), \
+             patch.object(DhanFeed,"_retry_after",0.0):
+            DhanFeed("client","test-key",opener=opener).ltp("IDX_I",13)
+            DhanFeed("client","test-key",opener=opener).batch_ltp([("NSE_EQ",2885)])
+        self.assertEqual(len(sent),2)
+        self.assertEqual(sent[0][0],100.0)
+        self.assertGreaterEqual(sent[1][0]-sent[0][0],1.05)
+        self.assertEqual(len(slept),1)
+
+    def test_cooldown_after_quote_wait_does_not_send_upstream(self):
+        import dhan_feed
+        clock=[100.0]
+        sent=[]
+        def now():return clock[0]
+        def sleep(seconds):
+            clock[0]+=seconds
+        def opener(request, timeout):
+            sent.append(request.full_url)
+            return Response({"status":"success","data":{}})
+        with patch.object(dhan_feed.time,"monotonic",side_effect=now), \
+             patch.object(dhan_feed.time,"sleep",side_effect=sleep), \
+             patch.object(DhanFeed,"_quote_next_allowed",101.05), \
+             patch.object(DhanFeed,"_retry_after",102.0):
+            with self.assertRaises(dhan_feed.DhanRateLimitError):
+                DhanFeed("client","test-key",opener=opener).ltp("IDX_I",13)
+        self.assertEqual(sent,[])
 
     def test_invalid_security_id(self):
         with self.assertRaises(DhanFeedError):
