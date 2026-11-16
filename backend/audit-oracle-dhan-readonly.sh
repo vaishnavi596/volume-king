@@ -41,12 +41,9 @@ if (( ! has_token && ! has_oauth )); then
     echo 'No readable token source configured; Dhan market data unavailable'
     exit 2
 fi
-if [[ $(id -u) == 0 ]] && command -v runuser >/dev/null; then
-    if ! runuser -u "$user" -- test -x /etc/bot-king; then
-        echo 'Dhan environment directory not traversable by service user'
-        exit 2
-    fi
-fi
+# systemd reads EnvironmentFile as manager/root; an unprivileged service
+# user does NOT need traversal access to /etc/bot-king for OAuth sessions.
+# The *actual* token source is checked below under the effective service user.
 # Only report whether Dhan client configuration exists; never display its value.
 if [[ -f "$envfile" ]]; then
     if grep -Eq '^DHAN_CLIENT_ID=[^[:space:]]+' "$envfile"; then
