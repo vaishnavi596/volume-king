@@ -1705,7 +1705,11 @@ def app_main(page:ft.Page):
         return note("5E 5/5 configured • "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
                     "/5 • T B"+str(technical["bullish"])+"% / S"+str(technical["bearish"])+"%")
 
+    watch_row_cells={}
+    watch_status_text=ft.Text("",size=11,color=MUTED,max_lines=2,
+                              overflow=ft.TextOverflow.ELLIPSIS)
     def fill_watch(_=None):
+        watch_row_cells.clear()
         watch_list.controls.clear()
         visible_count=0
         for sym in watch_groups[active_watch[0]]:
@@ -1748,8 +1752,31 @@ def app_main(page:ft.Page):
                               "Bearish" if signal_counts[1]>signal_counts[0] else "Neutral") if signal_available else "Neutral"
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
+            # Mounted controls retain identity during quote/filter changes.
+            # The symbol label, action button, rows and scroll position stay put.
+            price_cell=txt(quote_price(sym) if quote_source==expected_quote_source else "—",
+                           16,price_color(sym) if quote_source==expected_quote_source else MUTED,True)
+            change_cell=txt("CONNECT DHAN" if dhan_offline() else
+                            quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
+                            10,price_color(sym) if quote_source==expected_quote_source else MUTED)
+            five_cell=ft.Container(content=five_engine_chips(sym))
+            assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym)[0]))
+            signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
+            freshness_cell=ft.Text(("LTP cached • not live" if not quote_fresh else "LTP time unverified")+
+                                   (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""),
+                                   size=11,color=MUTED)
+            watch_row_cells[sym]=(price_cell,change_cell,five_cell,assessment_cell,signal_cell,freshness_cell)
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,16,WHITE,True),five_engine_chips(sym),note(oracle_assessment_notes(sym)[0]),compact_watch_signal(signal_row,signal_available,signal_fresh),note(("LTP cached • not live" if not quote_fresh else "LTP time unverified") + (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""))],expand=True,spacing=2),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",16,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED),ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=8,padding=5,expand=True,on_click=lambda e,v=sym:open_stock(v))
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),
+                    ft.Column([txt(sym,16,WHITE,True),five_cell,assessment_cell,signal_cell,freshness_cell],
+                              expand=True,spacing=2),
+                    ft.Column([price_cell,change_cell,
+                        ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,
+                                      tooltip="Remove from this list",
+                                      on_click=lambda e,v=sym:remove_stock(v))],
+                        horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),
+                    bgcolor=PANEL,border_radius=8,padding=5,expand=True,
+                    on_click=lambda e,v=sym:open_stock(v))
             ],spacing=2))
         if visible_count==0:
             message="No matching stocks found. Clear search to show this list." if search.value or watch_filter[0]!="All" else "This watchlist is empty. Add a stock below."
@@ -2057,6 +2084,8 @@ def app_main(page:ft.Page):
     # The Watchlist observes changed quote/filter signatures at 2s UI cadence.
     # No on-screen 60s countdown: the broker poll rate and UI paint rate differ.
     async def watch_visible_tick():
+        # Local 2s observation does NOT call Dhan or reconstruct the entire page.
+        # Update only mounted Price/Change/Five-filter/Candle/Status controls.
         last_visible_signature=None
         while True:
             await asyncio.sleep(2)
@@ -2064,13 +2093,72 @@ def app_main(page:ft.Page):
                 last_visible_signature=None
                 continue
             try:
-                visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
-                signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
-                            (quotes.get(sym) or {}).get("price"),
-                            (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
-                if signature!=last_visible_signature:
-                    last_visible_signature=signature
-                    request_view_refresh(4)
+                visible=tuple(watch_groups[active_watch[0]])
+                signature=(active_watch[0],watch_filter[0],search.value,
+                    tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
+                           (quotes.get(sym) or {}).get("price"),
+                           (quotes.get(sym) or {}).get("change"),
+                           (watch_signal_cache.get(sym) or {}).get("timestamp"),
+                           repr((watch_signal_cache.get(sym) or {}).get("votes")),
+                           id(five_engine_snapshots.get(sym))) for sym in visible))
+                if signature==last_visible_signature and watch_status_text.value==(
+                        "Quote check • "+watch_batch_status[0]):
+                    continue
+                last_visible_signature=signature
+                status="Quote check • "+watch_batch_status[0]
+                if watch_status_text.value!=status:
+                    watch_status_text.value=status
+                    if watch_status_text.page is not None:watch_status_text.update()
+                if set(watch_row_cells)!=set(sym for sym in visible if sym in watch_row_cells):
+                    # Membership changes are handled by the existing list builder.
+                    pass
+                if watch_filter[0]!="All":
+                    # Direction may change filter membership; refresh only list.
+                    fill_watch()
+                    if watch_list.page is not None:watch_list.update()
+                    continue
+                expected={"Broker API":"Angel One","Dhan":"Dhan",
+                          "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
+                for sym in visible:
+                    cells=watch_row_cells.get(sym)
+                    if not cells:continue
+                    price,change,five,assessment,signal,freshness=cells
+                    q=quotes.get(sym) or {}
+                    same=q.get("source")==expected
+                    p=quote_price(sym) if same else "—"
+                    c="CONNECT DHAN" if dhan_offline() else quote_change(sym) if same else "SOURCE MISMATCH"
+                    color=price_color(sym) if same else MUTED
+                    for cell,val,col in ((price,p,color),(change,c,color)):
+                        if cell.value!=val or cell.color!=col:
+                            cell.value=val;cell.color=col
+                            if cell.page is not None:cell.update()
+                    row=watch_signal_cache.get(sym) or {}
+                    stamp=row.get("timestamp")
+                    counts=signal_percentages(row)
+                    available=(row.get("source")==expected and counts is not None
+                        and isinstance(stamp,(int,float)) and not isinstance(stamp,bool)
+                        and math.isfinite(stamp) and stamp>0)
+                    fresh=(available and not row.get("historical") and regular_hours()
+                        and (prefs.get("source")!="Dhan" or (
+                            row.get("live_verified") is True and
+                            row.get("freshness") in ("verified_live","live_verified")))
+                        and 0<=time.time()-stamp<=timeframe_spec("5m")["fresh_seconds"])
+                    # Replace child content inside persistent mounted containers,
+                    # not the static symbol, containing Row or whole Watchlist page.
+                    five.content=five_engine_chips(sym)
+                    assessment.content=note(oracle_assessment_notes(sym)[0])
+                    signal.content=compact_watch_signal(row,available,fresh)
+                    for cell in (five,assessment,signal):
+                        if cell.page is not None:cell.update()
+                    age=time.time()-q.get("fetched_at",0) if isinstance(q.get("fetched_at"),(int,float)) else None
+                    valid=(same and not dhan_offline() and age is not None and 0<=age<=60
+                           and isinstance(q.get("price"),(int,float)) and not isinstance(q.get("price"),bool)
+                           and math.isfinite(q["price"]) and q["price"]>0)
+                    label=("LTP time unverified" if valid else "LTP cached • not live")+(
+                        " • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else "")
+                    if freshness.value!=label:
+                        freshness.value=label
+                        if freshness.page is not None:freshness.update()
             except Exception as exc:log_error("watch_visible_tick",exc)
 
     def watchlist():
@@ -2084,8 +2172,7 @@ def app_main(page:ft.Page):
                     on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                     disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            ft.Text("Quote check • "+watch_batch_status[0],size=11,color=MUTED,
-                    max_lines=2,overflow=ft.TextOverflow.ELLIPSIS),
+            watch_status_text,
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),
             ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED,padding=4)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO,spacing=2),
@@ -5429,6 +5516,10 @@ console.log('BOT KING Lightweight Charts ready');
     async def flush_view_refresh():
         await asyncio.sleep(.25)
         target=refresh_target[0];refresh_pending[0]=False;refresh_target[0]=None
+        if target==4 and current[0]==4 and watch_list.page is not None:
+            # Quotes and filters are repainted by watch_visible_tick in-place.
+            # Do not reconstruct page chrome or scrolling rows on data refresh.
+            return
         select(target,refresh_only=True)
     def request_view_refresh(i):
         if current[0]!=i:return
