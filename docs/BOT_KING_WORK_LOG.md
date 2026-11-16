@@ -2472,3 +2472,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-17 — Oracle isolated readiness auth and order-safety 3/3 PASS
 - Operator tested AST-extracted `botking_readiness_safe` in synthetic FastAPI ASGI app with dummy key: missing key HTTP403 PASS, wrong key HTTP403 PASS, valid synthetic key HTTP200 PASS. Valid response top-level `collector`, `live_orders_enabled`, `orders`, `protocol`, `service`; orders `broker_submission_allowed=False`, `live_orders_enabled=False`, order safety PASS. Collector `configured_enabled=False`, `status=unverified`, `interval_seconds=None`, `last_success_age_seconds=None`, `equity_quote_count=0`. `READINESS_TESTS=3/3`, `RESULT=PASS`, `PRODUCTION_CHANGED=NO`, `DHAN_REQUESTS=0`.
 - Isolated placeholder contract only, not proof of production integration, active collection or real broker execution. Next gate existing API regression and app factory startup safety; production deployment HOLD.
+
+
+## 2026-11-17 — Oracle existing API signature preflight PASS
+- Operator read-only AST comparison of 20 production route declarations against isolated candidate: `EXISTING_ROUTES=20`, `SIGNATURE_MISMATCHES=0`, `EXISTING_API_PREFLIGHT=PASS`, `SOURCE_ONLY=YES`, `PRODUCTION_CHANGED=NO`.
+- Combined evidence: 20/20 routes retained; old route handlers AST-identical; candidate factory remainder AST-identical after removing two new endpoints; isolated assessment auth 3/3, assessment structure PASS, placeholder safety 5/5, readiness auth/order safety 3/3. These do not establish full runtime equivalence or live Dhan correctness. Next read-only production baseline: systemd active state, loopback health response, no credentials printed; no candidate deployment or restart.
