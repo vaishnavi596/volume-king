@@ -505,3 +505,9 @@ This is the persistent, numbered owner-facing checklist for the work still being
 ## 2026-11-16 — Checkpoint 21: exact tested source commit CI PASS (NOT release PASS)
 - **Verified GitHub Actions** [#1660](https://github.com/vaishnavi596/volume-king/actions/runs/43881867611), commit `f25270bf47d9c550491374c0d0cbbcd43dc8af0d`, offline-tests job 133349553938: **SUCCESS**; Python syntax PASS; **1031 tests run, OK (317.339s)**. Former #1619–#1659 failures are superseded **for this particular tested commit**.
 - **Not verified:** future code changes, Dhan rate/bytes and freshness, Oracle production, 1m/3m equity completeness, phone, or new signed APK. Do not set overall B1–B6 to PASS. Continue the agreed slower edit/test/commit sequence and record each subsequent exact commit's CI independently.
+
+
+## 2026-11-16 — B3 checkpoint 11/12 global request gap (small controlled patch)
+- **Last verified CI baseline:** [#1660](https://github.com/vaishnavi596/volume-king/actions/runs/43881867611), commit `f25270bf`, 1031 offline tests **PASS**; not a proof of subsequent edits.
+- **Group B source** [95e17af0](https://github.com/vaishnavi596/volume-king/commit/95e17af040a3eddd42cb39f1449d1ed009d30f06): pure planner now accepts previous *global* broker attempt and enforces at least 1-second spacing, 1.5-second default between separate due batches, in addition to per-symbol 180s and max-batch 3. **Test source** [73580eae](https://github.com/vaishnavi596/volume-king/commit/73580eae1b37666a394738a218f2dd738dacb6e8): 2 cases added. CI #1661/#1662 initially in progress; exact source CI **NOT YET VERIFIED**.
+- **B3 still PARTIAL:** planner isn't connected to live Dhan/Oracle coordinator; no measured 429/request/byte savings. B1/B2, B4, B5/B6 device and release gates remain OPEN. No APK or production change.
