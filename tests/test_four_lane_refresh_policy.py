@@ -49,6 +49,8 @@ class FourLanePolicyTests(unittest.TestCase):
         section = ast.get_source_segment(source, methods[0])
         self.assertIn("await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)", section)
         self.assertIn("shared_history(sym)", section)
+        self.assertIn("tuple(sorted(filter_modes.items()))", section)
+        self.assertIn('prefs.get("confidence",75)', section)
         self.assertNotIn("dhan_feed.intraday(", section)
         self.assertNotIn("dhan_feed.batch_quotes(", section)
 
