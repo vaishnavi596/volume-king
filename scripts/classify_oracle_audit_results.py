@@ -66,6 +66,8 @@ def classify(routes, filters, collector):
             add("AUTH_DENIED", route, "Verify operator-provided pairing key safely; do not rotate without cause")
         elif http == 404:
             add("LIVE_ROUTE_MISSING", route, "Compare running deployment to declared source")
+        elif 300 <= http < 400:
+            add("UNEXPECTED_REDIRECT", route, "Inspect local routing; protected audit redirects are blocked")
         elif http == 429:
             add("RATE_LIMIT", route, "Respect Retry-After and 30-second broker cooldown; avoid retries storm")
         elif http != 200:
