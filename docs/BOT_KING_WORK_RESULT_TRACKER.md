@@ -273,3 +273,10 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4 · shared 54-symbol filter rendering | Malformed unhashable five-filter ID could raise `TypeError` and break screen | `3f0b0356` source + `51f67706` tests; CI PENDING; now fail-closed `WAIT • incomplete filters` for selected symbol; no 54/54 runtime proof |
 
 - **Exact staged CI runs:** #1588 [43843886780](https://github.com/vaishnavi596/volume-king/actions/runs/43843886780) head `5d72c7c4`, #1589 [43843930827](https://github.com/vaishnavi596/volume-king/actions/runs/43843930827) head `b9fd95b4`, #1590 [43844067017](https://github.com/vaishnavi596/volume-king/actions/runs/43844067017) head `3f0b0356`, and #1591 [43844108880](https://github.com/vaishnavi596/volume-king/actions/runs/43844108880) head `51f67706` were **IN PROGRESS** at first check. Do not call any of these PASS yet; previous #1587 961/961 is older head. These are source/CI-only and not Oracle or mobile proofs.
+
+
+## 2026-11-16 — UNIFIED-54 cache/filter safety CI closure
+- [CI #1588](https://github.com/vaishnavi596/volume-king/actions/runs/43843886780), head `5d72c7c4`, job `133219084105`: **961/961 PASS** (`Ran 961 tests in 109.035s`).
+- [CI #1589](https://github.com/vaishnavi596/volume-king/actions/runs/43843930827), head `b9fd95b4`, job `133219231687`: **962/962 PASS** (`Ran 962 tests in 224.708s`). Confirms regression on nonfinite cache timestamps.
+- [CI #1590](https://github.com/vaishnavi596/volume-king/actions/runs/43844067017), head `3f0b0356`, job `133219690419`: **962/962 PASS** (`Ran 962 tests in 93.440s`).
+- [CI #1591](https://github.com/vaishnavi596/volume-king/actions/runs/43844108880), head `51f67706`, job `133219823105`: **963/963 PASS** (`Ran 963 tests in 264.624s`). Confirms malformed/unhashable filter ID fail-closed regression. Previous pending entries superseded. **Only source CI is proven**, no evidence of real 54/54 oracle five-factor data, option entitlement or device acceptance. No production changes, orders or APK.
