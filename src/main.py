@@ -8,6 +8,7 @@ import urllib.request
 import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
+from watchlist_policy import normalize_watchlists
 from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
 from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
@@ -1563,7 +1564,9 @@ def app_main(page:ft.Page):
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
     MAX_WATCHLIST_EQUITIES=70  # UI capacity; mapped Dhan data stays separately verified.
-    watch_groups=[list(prefs.get("watchlist_"+str(i),watch_symbols if i==1 else [])) for i in range(1,6)]
+    saved_watch_groups=[prefs.get("watchlist_"+str(i),watch_symbols if i==1 else []) for i in range(1,6)]
+    watch_groups=normalize_watchlists(saved_watch_groups, maximum=MAX_WATCHLIST_EQUITIES)
+    watch_normalized=watch_groups!=saved_watch_groups
     # Preserve existing user lists while migrating the old Tata Motors symbol.
     watch_migrated=False
     for group in watch_groups:
@@ -1573,7 +1576,9 @@ def app_main(page:ft.Page):
                 expanded.extend(["TMPV","TMCV"] if item=="TATAMOTORS" else [item])
             group[:]=list(dict.fromkeys(expanded))
             watch_migrated=True
-    if watch_migrated:
+    # Re-apply the global cap and unique-list ownership after migrations.
+    watch_groups=normalize_watchlists(watch_groups, maximum=MAX_WATCHLIST_EQUITIES)
+    if watch_migrated or watch_normalized:
         for i,group in enumerate(watch_groups,1):
             prefs["watchlist_"+str(i)]=list(group)
         save()
