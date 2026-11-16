@@ -591,3 +591,10 @@ by writing this journal.
 - The owner output did **not** show a reliable `curl` HTTP result for `/health` or `https://api.dhan.co/v2/profile`, nor SHA256 file fingerprints; those checks are **NOT VERIFIED**, not PASS/FAIL. The URL/echo strings and prompt fragments were interleaved; avoid deriving network errors from the corrupted paste.
 - Provided a single-line, read-only health and unauthenticated Dhan TLS connectivity probe to avoid multiline paste corruption. An unauthenticated Dhan HTTP401/403 may demonstrate endpoint reachability only, not OAuth, token, Data Plan or LTP entitlement.
 - No GitHub backend source changes, Oracle deploy/restart, credential rotation or APK build in this checkpoint. Pending: usable health/Dhan HTTP outputs, Oracle file fingerprints/source comparison, authorized read-only authenticated checks, and targeted backup-before-deploy if a concrete gap is found.
+
+
+## 2026-11-16 — S2D owner Oracle local health and unauthenticated Dhan HTTPS PASS
+
+- **Direct operator-supplied Oracle outputs:** `LOCAL HTTP 200` on `http://127.0.0.1:8000/health` and `DHAN HTTP 401` on credential-free `https://api.dhan.co/v2/profile` (explicit direct/no-proxy HTTPS connection). This establishes local FastAPI HTTP readiness and Dhan HTTPS endpoint reachability. Dhan's 401 is **expected without credentials**; it is NOT an OAuth/token/plan/market-data authorization PASS.
+- Earlier `ss` shows only `127.0.0.1:8000` for the reported snapshot; no exposed local listener shown. Nginx external 443, actual broker token status, `dataPlan`/`dataValidity`, protected pairing-key flows, authenticated 51+3 quote delivery and source-file parity remain unverified in this new check.
+- **No production change or restart**, no Dhan credential change and no new APK. Next: compare SHA256/deployed code and run existing safe paired `/dhan/status` probe without exposing the pairing key; independently check entitlement/real market requests under authorized operator controls. Keep `live_orders_enabled=false`.
