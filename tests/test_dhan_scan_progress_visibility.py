@@ -181,7 +181,7 @@ class DhanScanProgressTests(unittest.TestCase):
     def test_dhan_history_scans_equities_before_index(self):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('symbols=([equities[0]]+indices+equities[1:]) if equities else indices', source)
-        self.assertIn("LTP • every 60 sec", source)
+        self.assertIn("LTP checked automatically during the refresh window", source)
         self.assertIn("exchange timestamp unverified", source)
 
     def test_scanner_chart_cache_respects_timeframe_and_scan_generation(self):
