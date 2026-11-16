@@ -85,3 +85,14 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 **Source test commits (no provider calls):** `695e5d9c` adds equity/index read-only PCR source-contract tests; `a0faec39` adds five-filter no-fabrication tests. **CI outcomes PENDING** when committed. No Oracle Production deployment/change and no new APK.
 
 **Release gate:** block the next APK until the data-provider availability matrix and real five-filter producer are either verified for supported underlyings or explicitly labeled out-of-scope with user-approved scope. No live orders.
+
+## 2026-11-16 — PCR symbol eligibility and source-audit follow-on result
+
+| Stage / file | Work done | Exact proof | Oracle / actual mobile proof | Result / next |
+|---|---|---|---|---|
+| Stage 1/4 · PCR + 5 filters | Previous source audit tests for equity/index PCR and unavailable Oracle 5 filters `695e5d9c`/`a0faec39` | #1567 [43830743529](https://github.com/vaishnavi596/volume-king/actions/runs/43830743529) job `133175214724` **928/928 PASS** | **NO** actual Oracle or newly available PCR / five filters | Source contract confirmed, real five-filter producer still missing |
+| Stage 2 · option underlying mapping-only utility | `backend/option_underlying_status.py` `38926b79`: return mapped/unknown, NEVER treat NSE_EQ instrument security ID as proof of listed F&O, option expiry, chain or PCR; no provider requests | CI #1568 pending on first check | Not deployed on Oracle, no live market evidence | Partial safe diagnostic / no source data aggregation |
+| Stage 4 · regression | `tests/test_option_underlying_status.py` `ee08f363`: index/equity/unmapped/cash-only, 70-limit, no broker calls | CI #1569 pending on first check | Not a live Dhan test | Test source created, await full CI |
+| Release gate | **No more APK** until real Oracle 9-route/collector check, per-supported equity expiry status and five-filter validated producer | Signed #645 v2.3.130 remains earlier diagnostic candidate | Phone has historical WAIT/PCR uncertainty, server unverified | **BLOCKED**, preserve source→Oracle→phone proof separation |
+
+**Interpretation:** PCR cannot be promised for every one of 51 equities; option underlying eligibility must be verified from Dhan-listed expiries / option chain and entitlements, with 422/no-expiry, 429/pacing and 502/unavailable separated. The new helper performs ZERO broker requests and is not a real PCR implementation. Five filter statuses remain unavailable in GitHub source.
