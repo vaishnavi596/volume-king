@@ -1931,3 +1931,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator `sudo systemctl show bot-king.service -p User -p Group -p ExecStart -p MainPID -p NRestarts`: `User=opc`, `Group=` (unspecified), `MainPID=579875`, `NRestarts=0`; `ExecStart` begins `/opt/bot-king-server/.venv/bin/python -m uvicorn server...` (terminal output truncated).
 - Local `curl --max-time 10 http://127.0.0.1:8000/health` returned `{"status":"ok","service":"BOT KING","protocol":1,"broker_connected":false,"live_orders_enabled":false}`. This is expected read-only health and does not prove Dhan auth status.
 - Production source remains unmodified; B3 deployment pending. Next establish sudo staging and rollback process with exact hashes, preserve root:root 0644 production metadata, and do not restart without explicit controlled change.
+
+
+## 2026-11-16 — Oracle B3 root-owned staged candidate SHA PASS
+- Operator successfully ran `sudo install -o root -g root -m 644 ~/botking-b3-review/server_b3_candidate.py /opt/bot-king-server/server.py.b3-staged`; prior incomplete shell command was interrupted with Ctrl+C.
+- Operator `sha256sum` verified production `/opt/bot-king-server/server.py` remains `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` and staged `/opt/bot-king-server/server.py.b3-staged` is `c9577aafb00960a982e9782c9ab154ef2c944b39197740b53aac63d3cd81d625`.
+- Root-owned staged copy is ready for final runtime preflight; no production replacement/restart. Next verify staged compile in server venv, process entrypoint and one-worker constraint, then perform controlled atomic replacement with root-owned rollback and health gate if authorized.
