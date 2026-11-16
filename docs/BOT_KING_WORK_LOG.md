@@ -2101,3 +2101,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - **MISSING IN DEPLOYED SOURCE**: `GET /v2/server-readiness` and `GET /v2/assessment/{symbol}` (2 of 9). Matches prior B3 deployed SHA, so do not assume new code deployed. This is source-only proof, not authenticated running-route evidence.
 - GitHub backend includes an assessment **WAIT-only placeholder**; copying it would not activate five factors or verified votes. A production patch requires actual Oracle source review and validated producer design, exact SHA pin, backup, staged diff and regression; no blind server overwrite. APK release remains BLOCKED, one-phone scope.
 - No Oracle mutation, token exposure, live orders, or APK build in this audit.
+
+
+## 2026-11-16 — Oracle loopback unauthenticated route probes
+- Operator ran GET-only local probes against `127.0.0.1:8000`: `/health=200`, `/v2/server-readiness=403`, `/v2/assessment/NIFTY=403`.
+- **403 without authentication is not proof of route existence**: global middleware can reject before router matching. The deployed `server.py` AST inventory still shows those two route declarations absent. Do not mark readiness/assessment PASS and do not conclude 404 from this unauthenticated result.
+- Next safe discriminator: GET loopback `/openapi.json` (without exposing its body) and inspect only documented paths if accessible, plus an unknown sentinel GET to distinguish global pre-router 403. No credentials, provider calls, production mutation, or APK build.
