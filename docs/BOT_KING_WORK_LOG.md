@@ -2022,3 +2022,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator ran corrected authenticated `POST /dhan/intraday` for RELIANCE, 5m, 2026-11-13 and counted actual `bars` field: `HTTP: 200`, `BARS: 71`, `SOURCE: dhan`, `FRESHNESS: historical_unverified`, `LIVE_ORDERS: False`.
 - Confirms prior `CANDLES: 0` output was a test-script field-name error, not a disappearance of data. Repeated HTTP responses and fast latency have been observed, but **upstream call-count reduction and concurrent B3 single-flight remain unproven**.
 - Next: bounded two-request same-key concurrent test with same dates, and separate source/code audit for exact cache behavior. Do not assume two separate mobile sessions have been tested.
+
+
+## 2026-11-16 — Oracle B3 warm-cache parallel two-request smoke PASS
+- Operator executed exactly two concurrent identical authenticated `POST /dhan/intraday` requests (RELIANCE, 5m, 2026-11-13): request 1 HTTP 200, 71 bars, 0.010s; request 2 HTTP 200, 71 bars, 0.011s.
+- No 429, 502 or missing candles in this bounded warm-cache smoke. This is **not** a cold-cache single-flight upstream-count proof or an actual two-device test; fast timings are consistent with existing validated cache.
+- Next prefer offline source and unit-test audit for lock/cache recheck and instrumented mock provider invocation counts. Do not invalidate production cache or force upstream Dhan requests merely to test deduplication.
