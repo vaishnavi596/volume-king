@@ -2053,3 +2053,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - GitHub connector `fetch_commit_workflow_runs` for test commit `099ccee85433ccb86007d8b0f4e7f3bb7eddc32e` returned no PR-triggered runs; `get_commit_combined_status` returned empty statuses. These APIs do **not** establish CI success or failure; GitHub Actions may be push-triggered and not exposed through this filtered workflow lookup.
 - Independently executed a local Python reproduction of the exact 32-lane RLock decorator semantics with two concurrent cold-cache callers, mock handler and cache, and invalid key. Output `MOCK_B3_CONCURRENCY_PASS; upstream_calls=1; responses=2; invalid_key=403`.
 - **Evidence distinction**: This was an independent local reproduction of the test logic, not a direct execution of the committed GitHub test file and not Oracle's production handler. CI for committed test and instrumented Oracle provider-call count remain pending. No Oracle changes or Dhan calls.
+
+
+## 2026-11-16 — Follow-up GitHub CI status recheck inconclusive
+- Rechecked latest journal commit `00ebbb4b98bd2131bd1424b0e2283cdda177a356`: GitHub connector's PR-trigger-filtered `fetch_commit_workflow_runs` returned `[]`; combined commit statuses returned `[]`.
+- This is **not** proof no Actions runs exist; the available lookup excludes push-triggered workflows. No CI PASS claim. No new source modifications, no Oracle commands, no live Dhan calls.
+- Next practical validation: obtain actual Actions run URL/job result from GitHub UI or use a workflow listing capability when available; execute committed `tests/test_prepare_oracle_b3_candidate.py` with Python unittest in a CI environment and record exact run id.
