@@ -6046,15 +6046,16 @@ console.log('BOT KING Lightweight Charts ready');
         await asyncio.sleep(10)
         while True:
             try:
+                # Saved last-valid prices must NOT mask an incomplete fresh
+                # login index batch. Require a new generation's actual 3/3
+                # observation, otherwise allow one bounded after-close retry.
+                index_loaded_this_login=(
+                    login_bootstrap.generation==provider_generation[0]
+                    and login_bootstrap.stages.get("indices")=="LOADED"
+                    and login_bootstrap.counts.get("indices")== (3,3))
                 closed_index_bootstrap=(not regular_hours()
                     and closed_index_bootstrap_generation[0]!=provider_generation[0]
-                    and any(not isinstance(quotes.get(sym),dict)
-                            or quotes[sym].get("source")!="Dhan"
-                            or not isinstance(quotes[sym].get("price"),(int,float))
-                            or isinstance(quotes[sym].get("price"),bool)
-                            or not math.isfinite(quotes[sym]["price"])
-                            or quotes[sym]["price"]<=0
-                            for sym in ("NIFTY","BANKNIFTY","SENSEX")))
+                    and not index_loaded_this_login)
                 if (app_active[0] and regular_hours() and prefs.get("source")=="Dhan"
                         and dhan_feed.connected and not index_refresh_busy[0]):
                     await refresh_dhan_index_quotes()
