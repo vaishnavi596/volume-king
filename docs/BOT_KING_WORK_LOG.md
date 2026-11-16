@@ -1892,3 +1892,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Operator downloaded commit-pinned Oracle B3 generator; verification pending
 - Operator reported successful curl download of **4128 bytes** to `/home/opc/botking-b3-review/prepare_oracle_b3_candidate.py`; local SHA256 `8175f83695373fdeb8fb751931e64cdaaa6f45fc21401c8df7d047e7fc8cca03`.
 - GitHub connector independently fetched the exact reviewed commit `7350a4845c9ee42c92d9aac71f8e593b52b48cc6`, path `scripts/prepare_oracle_b3_candidate.py`: 4128-byte content, Git blob SHA1 `833c5540335220ba12727bb4f3b61395f06ca54b`. **Local file SHA256 has not yet been independently matched to reference bytes**; next verify local Git blob hash with `git hash-object` against this pinned blob. No script execution, candidate generation or production changes.
+
+
+## 2026-11-16 — Oracle Git unavailable; production hash stable
+- Operator attempted `git hash-object ~/botking-b3-review/prepare_oracle_b3_candidate.py`; shell returned `git: command not found`. Operator then pasted the expected Git blob hash as a shell command, which also returned `command not found`; no system modification occurred.
+- Operator repeated `sha256sum /opt/bot-king-server/server.py`: **unchanged** `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`. The script download's integrity still needs verification. Use Python standard-library Git blob computation, not a Git installation or blind trust in file size. No script execution, candidate, restart or production patch.
