@@ -164,7 +164,8 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
             if isinstance(control, ft.Text): values.append(str(control.value))
             for child in control._get_children(): walk(child)
         walk(v["dashboard_index_analysis"]())
-        self.assertIn("Bearish 100%", values)
+        self.assertNotIn("Bearish 100%", values)
+        self.assertTrue(any("1m candle votes WAIT" in label for label in values))
 
     def test_old_cache_cannot_clear_request_failure_but_new_response_can(self):
         _, v, _ = self.setup_app()
