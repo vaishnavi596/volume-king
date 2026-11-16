@@ -36,6 +36,20 @@ class OptionUnderlyingDiagnosticsTest(TestCase):
         self.assertFalse(option_underlying_status("X", {"X": ("NSE_EQ", True, "EQUITY")})["mapped"])
         self.assertFalse(option_underlying_status("X", {"X": ("OTHER", 1, "EQUITY")})["mapped"])
 
+    def test_protected_mapping_route_source_and_no_broker_in_handler(self):
+        source = (ROOT / "backend" / "server.py").read_text(encoding="utf-8")
+        start = source.index('    @app.get("/v2/option-underlying-status/{symbol}")')
+        end = source.index('    @app.post("/dhan/option-expiries")', start)
+        block = source[start:end]
+        self.assertIn('hmac.compare_digest', block)
+        self.assertIn('HTTPException(403', block)
+        self.assertIn('HTTPException(422', block)
+        self.assertIn('option_underlying_status(symbol, DYNAMIC_INSTRUMENTS)', block)
+        self.assertIn('"live_orders_enabled": False', block)
+        self.assertNotIn('DhanFeed(', block)
+        self.assertNotIn('dhan_market_token()', block)
+        self.assertNotIn('/optionchain', block)
+
     def test_bounded_70_symbol_no_broker_scan(self):
         out = summarize_underlyings(["NIFTY", "RELIANCE", "CASHONLY", "UNMAPPED"],
                                     self.INSTRUMENTS)
