@@ -44,6 +44,33 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertIn("if target==4 and current[0]==4 and watch_list.page is not None:", self.source)
         self.assertIn("watch_row_cells[sym]=", self.source)
 
+    def test_price_and_filter_cells_have_mounted_identity(self):
+        body=self.source.split("    def fill_watch(_=None):",1)[1].split("    search.on_change=fill_watch",1)[0]
+        for name in ("price_cell","change_cell","five_cell","assessment_cell",
+                     "signal_cell","freshness_cell"):
+            self.assertIn(name+"=",body)
+        self.assertIn("watch_row_cells[sym]=",body)
+        self.assertIn("txt(sym,16,WHITE,True)",body)
+        tick=self.source.split("    async def watch_visible_tick():",1)[1].split(
+            "    def watchlist():",1)[0]
+        self.assertIn("last_cell_signatures[sym]=symbol_signature",tick)
+        self.assertIn("if last_cell_signatures.get(sym)==symbol_signature:",tick)
+        self.assertIn("if cell.page is not None:cell.update()",tick)
+        self.assertIn("if freshness.page is not None:freshness.update()",tick)
+        self.assertNotIn("request_view_refresh(4)",tick)
+        self.assertNotIn("dhan_feed.batch_quotes",tick)
+
+    def test_watchlist_auto_refresh_is_non_destructive(self):
+        flush=self.source.split("    async def flush_view_refresh():",1)[1].split(
+            "    def request_view_refresh(i):",1)[0]
+        self.assertIn("target==4 and current[0]==4",flush)
+        self.assertIn("return",flush)
+        manual=self.source.split("    async def refresh_all_dhan_quotes():",1)[1].split(
+            "    quote_auto_last_attempt=",1)[0]
+        self.assertIn("await refresh_watch_batch()",manual)
+        self.assertIn("await refresh_dhan_index_quotes(force=True)",manual)
+        self.assertNotIn("quotes.clear()",manual)
+
 
 if __name__ == "__main__":
     unittest.main()
