@@ -1,0 +1,85 @@
+"""Offline guard tests for sanitized Oracle result classification."""
+import importlib.util
+from pathlib import Path
+import tempfile
+import json
+import unittest
+
+SOURCE = Path(__file__).resolve().parents[1] / "scripts" / "classify_oracle_audit_results.py"
+spec = importlib.util.spec_from_file_location("oracle_audit_classifier", SOURCE)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+
+def codes(result):
+    return [x["code"] for x in result["issues"]]
+
+
+class OracleAuditClassifierTests(unittest.TestCase):
+    def setUp(self):
+        self.routes = {"syntax": "PASS", "expected_routes": 9,
+                       "source_present": 9, "source_missing": []}
+        self.filters = {"syntax": "PASS", "assessment_route_source_count": 1,
+                        "known_placeholder_detected": True}
+        self.collector = {"health_http": 200, "health_ok": True,
+                          "readiness_http": 200, "collector_enabled": True,
+                          "collector_status": "recently_collected",
+                          "snapshot_http": 200, "snapshot_protocol": 2,
+                          "snapshot_status": "recently_collected",
+                          "live_orders_enabled": False}
+
+    def test_green_runtime_still_does_not_prove_five_filters(self):
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("FIVE_FILTER_PLACEHOLDER", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+        self.assertFalse(out["equity_pcr_entitlement_proven"])
+        self.assertFalse(out["apk_release_allowed"])
+        self.assertEqual(out["orders_sent"], 0)
+
+    def test_missing_and_auth_are_distinct(self):
+        self.routes["source_missing"] = ["/v2/assessment/{symbol}"]
+        self.routes["source_present"] = 8
+        self.collector["readiness_http"] = 403
+        self.collector["snapshot_http"] = 404
+        result = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SOURCE_ROUTES_MISSING", codes(result))
+        self.assertIn("AUTH_DENIED", codes(result))
+        self.assertIn("LIVE_ROUTE_MISSING", codes(result))
+
+    def test_disabled_collector_and_stale_snapshot(self):
+        self.collector.update(collector_enabled=False, collector_status="disabled",
+                              snapshot_status="collection_overdue")
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("COLLECTOR_DISABLED", codes(out))
+        self.assertIn("SNAPSHOT_NOT_CURRENTLY_COLLECTED", codes(out))
+
+    def test_nonplaceholder_is_unknown_not_pass(self):
+        self.filters["known_placeholder_detected"] = False
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("ASSESSMENT_IMPLEMENTATION_UNKNOWN", codes(out))
+        self.assertFalse(out["runtime_five_filters_proven"])
+
+    def test_missing_key_and_429_distinct(self):
+        self.collector.update(readiness_http=0, snapshot_http=429)
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("RUNTIME_NOT_VERIFIED", codes(out))
+        self.assertIn("RATE_LIMIT", codes(out))
+
+    def test_malformed_reports_fail_closed(self):
+        with self.assertRaises(ValueError):
+            mod.classify([], self.filters, self.collector)
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "data.json"
+            p.write_text(json.dumps([{"bad": 1}]))
+            with self.assertRaises(ValueError):
+                mod.read_report(p)
+            p.write_text(json.dumps(self.routes))
+            self.assertEqual(mod.read_report(p), self.routes)
+            link = Path(tmp) / "link.json"
+            link.symlink_to(p)
+            with self.assertRaises(ValueError):
+                mod.read_report(link)
+
+
+if __name__ == "__main__":
+    unittest.main()
