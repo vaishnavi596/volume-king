@@ -83,12 +83,18 @@ if command -v nginx >/dev/null; then
 fi
 # Port ownership and Dhan outbound 443 tests are metadata-only; do not
 # send pairing keys or token headers through these network checks.
+# Every listener matters: one safe IPv4 socket does not excuse a second
+# wildcard/IPv6/public socket on the same port.
+only_private_8000_listener() {
+    awk 'NF { seen=1; if ($4 != "127.0.0.1:8000") unsafe=1 }
+         END { exit (!seen || unsafe) }'
+}
 if command -v ss >/dev/null 2>&1; then
     listeners=$(ss -H -ltn '( sport = :8000 )' 2>/dev/null || true)
-    if grep -Eq '127[.]0[.]0[.]1:8000([[:space:]]|$)' <<< "$listeners"; then
+    if printf '%s\n' "$listeners" | only_private_8000_listener; then
         echo 'FastAPI port 8000: loopback-only listener verified'
     else
-        echo 'FastAPI port 8000: missing/unsafe binding (must be 127.0.0.1)'
+        echo 'FastAPI port 8000: missing/unsafe binding (all listeners must be 127.0.0.1)'
         exit 2
     fi
 else
