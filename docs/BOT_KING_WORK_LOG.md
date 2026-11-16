@@ -2638,3 +2638,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Workflow 43942777255 for 3664b84 FAILED in test_no_trade_signal_or_score_in_adapter. Retrieved actual job logs: AST assertion incorrectly classified ordinary dict.get() as network I/O. The sibling option-chain wiring test passed; backend integration workflow 43942754975 (b75f5f3) completed SUCCESS.
 - Corrected AST test to reject post/order/place_order without rejecting dict.get; commit 4a7d34102b6958b0097740816eb305f4e4707989. CI for correction pending verification.
 - Earlier adapter test workflow 43941496655 SUCCESS, five-slot UI 43940494149 SUCCESS, option metric 43940468205 SUCCESS. Main /v2/assessment still placeholder. No Oracle deploy or APK build.
+
+
+## 2026-11-17 — Mandatory 10-commit backward verification rule
+- User instruction: BEFORE every future GitHub file/test/patch commit, inspect the preceding ten relevant branch commits, changed files, associated workflow runs and outcomes; review failing job logs and resolve related failures before dependent changes. Record PASS/FAIL/PENDING/CANCELLED accurately; docs-only commits without CI must not be labeled PASS. Independent non-overlapping work may proceed when unrelated failures are isolated. Recheck post-commit CI and journal the result.
+- Initial backward check on branch: bb39e59 (docs), 4a7d341 (test fix), 675d486 (docs), 3664b84 (original failed AST test), b75f5f3 (backend wiring), 8d271f3 (docs), 5ad92e9 (adapter tests), 170f566 (adapter), 3622eb7 (docs), df14a47 (UI tests). Run 43942777255 FAILED for 3664b84; corrective 4a7d341 run 43943467995 SUCCESS. Runs 43942754975, 43941496655, 43940494149 SUCCESS; run 43941469905 still reported in_progress. No production or APK verification implied.
