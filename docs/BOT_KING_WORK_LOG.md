@@ -2598,3 +2598,7 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 
 ## 2026-11-17 — Integration harness dependency HOLD: httpx absent
 - Operator's corrected route/auth harness failed before factory import with `ModuleNotFoundError: No module named 'httpx'` in Oracle venv. This is a test dependency issue, not an app regression; no route inventory or auth result from this attempt. Avoid installing dependencies into production venv. Next use stdlib ASGI HTTP harness with fake feed, sanitized env and guarded socket connect; preserve no lifespan/no Dhan/no deploy policy.
+
+
+## 2026-11-17 — User reprioritized to five-filter functionality and APK
+- User explicitly requested to defer lengthy factory/28-route integration investigation and prioritize functional five filters and a verified Android build when feasible. Scope: candle_trend, oi_support, oi_resistance, pcr, max_pain; central calculation consumed consistently by Watchlist, Super Five, Scanner, Dashboard; Dhan-only, fail-closed WAIT with reasons for unavailable/unverified inputs, no invented bullish/bearish scores, last-good cache, watchlist 3m, scanner/index 1m. Next work: inspect existing backend filter implementation and Android consumers, implement in 2–4-change tested batches, then minimal route/auth/login/refresh/filter regressions and versionCode/versionName bump before signed APK. Do not deploy or build until tests pass; factory deep audit deferred, not certified.
