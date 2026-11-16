@@ -66,6 +66,21 @@ def prepare(raw):
         raise ValueError("Target route already present; refuse duplicate")
     if source.count(ANCHOR) != 1:
         raise ValueError("Unique snapshot decorator anchor not found")
+    # Ensure the insertion lands inside the active app factory, not another scope.
+    factories = [n for n in ast.parse(source).body
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                 and n.name == "create_app"]
+    if len(factories) != 1 or not any(
+        isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)
+                and isinstance(d.func.value, ast.Name) and d.func.value.id == "app"
+                and d.func.attr == "get" and d.args
+                and isinstance(d.args[0], ast.Constant)
+                and d.args[0].value == "/v2/snapshot"
+                for d in n.decorator_list)
+        for n in factories[0].body
+    ):
+        raise ValueError("Snapshot route must be directly inside create_app")
     candidate = source.replace(ANCHOR, BLOCK + ANCHOR, 1)
     parsed = ast.parse(candidate)
     for path in ("/v2/server-readiness", "/v2/assessment/{symbol}"):
