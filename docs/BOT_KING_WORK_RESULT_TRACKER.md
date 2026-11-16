@@ -345,3 +345,13 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 5/6 · pre-APK | #1604 was **CANCELLED**, #1603 970/970 PASS for earlier source | New head CI required | No APK created |
 
 - **Exact CI:** #1605 [43858265540](https://github.com/vaishnavi596/volume-king/actions/runs/43858265540), source head `cd83be9d`, and #1606 [43858299127](https://github.com/vaishnavi596/volume-king/actions/runs/43858299127), regression head `74c965be`, both **IN PROGRESS** when inspected. Do not describe as PASS until complete. #1604 remains cancelled even though its log contained a test-count line.
+
+
+## 2026-11-16 — WATCHLIST-70-UNIQUE-01
+| Requirement | GitHub source status | Repair and evidence | Remaining |
+|---|---|---|---|
+| Five lists, 70 TOTAL distinct NSE cash equities | **Implemented** by `MAX_WATCHLIST_EQUITIES=70`; default 51 equities, 3 independent index symbols | Source audit, not mobile proof | Confirm actual add / remove / restart on phone |
+| HDFCBANK cannot be in both List 1 and List 2 | Add-time guards already present; **legacy saved-list gap fixed** | `fb6e18a2` shared normalization + `db1b7387` startup integration + `0725074a` six tests, CI PENDING | Validate old settings migration on phone |
+| 70 user-selected Dhan symbols | Dhan Registry identity check and selected batch quotes for nonfixed symbols are in source | Quotes availability unverified on real Oracle | Dhan registry entitlement & 70/70 selected quote coverage OPEN |
+| Scanner & 5 filters for all user-selected symbols | **NOT 70/70 yet**: Dhan scanner still restricts `DHAN_VERIFIED_SYMBOLS` fixed 54; real assessment producer `not_configured` | Do not claim done | Oracle dynamic historical input + eligibility design/audit required |
+| APK release | 54 fixed roster regression and extended 70-slot ownership rules both required | Source CI upcoming | No APK until Oracle and on-device acceptance |
