@@ -1,6 +1,6 @@
 """127-B/D read-only Oracle probe contract tests; no external requests."""
 import unittest
-from scripts.check_127_oracle_readonly import probe, request, origin_checked
+from scripts.check_127_oracle_readonly import probe, request, origin_checked, RejectRedirect
 
 
 class ReadOnlyOracleProbeTests(unittest.TestCase):
@@ -56,6 +56,35 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
                   requester=fake,pause=lambda x:None)
         self.assertEqual(out["options"]["RELIANCE"]["chain_error"],"no_listed_expiry")
         self.assertNotIn("/dhan/option-chain",calls)
+
+    def test_option_429_stops_later_symbol_requests(self):
+        calls=[]
+        def fake(origin,key,path,payload=None):
+            calls.append((path,payload))
+            if path=="/dhan/status":
+                return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
+            if path=="/dhan/option-expiries":
+                return {"http":429,"error":"rate_limited"},None
+            return {"http":503,"error":"unavailable"},None
+        out=probe("https://example.org","x"*40,
+                  option_symbols=("RELIANCE","HDFCBANK"),requester=fake,pause=lambda _:None)
+        self.assertEqual(out["options_status"],"rate_limited_remaining_skipped")
+        self.assertIn("RELIANCE",out["options"])
+        self.assertNotIn("HDFCBANK",out["options"])
+        self.assertEqual([p for p,_ in calls].count("/dhan/option-expiries"),1)
+        self.assertNotIn("/dhan/option-chain",[p for p,_ in calls])
+
+    def test_no_auth_skips_all_option_requests_and_redirect_denied(self):
+        calls=[]
+        def fake(origin,key,path,payload=None):
+            calls.append(path)
+            return {"http":403,"error":"pairing_rejected"},None
+        out=probe("https://example.org","x"*40,
+                  requester=fake,pause=lambda _:None)
+        self.assertEqual(out["options_status"],"skipped_no_authenticated_market_data")
+        self.assertNotIn("/dhan/option-expiries",calls)
+        self.assertIsNone(RejectRedirect().redirect_request(
+            None,None,302,"Found",{},"https://untrusted.example/secret"))
 
     def test_non_readonly_routes_rejected_before_network(self):
         self.assertEqual(origin_checked("https://example.org"),"https://example.org")
