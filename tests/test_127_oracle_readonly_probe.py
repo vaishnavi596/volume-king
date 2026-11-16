@@ -1,6 +1,6 @@
 """127-B/D read-only Oracle probe contract tests; no external requests."""
 import unittest
-from scripts.check_127_oracle_readonly import probe, request, origin_checked, RejectRedirect
+from scripts.check_127_oracle_readonly import probe, request, origin_checked, RejectRedirect, acceptance
 
 
 class ReadOnlyOracleProbeTests(unittest.TestCase):
@@ -146,6 +146,59 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
                      selected=("RELIANCE",),requester=fake,pause=lambda _:None)
         self.assertEqual(result["options_status"],"skipped_account_rate_limit")
         self.assertNotIn("/dhan/selected-ltp-batch",calls)
+
+    def test_acceptance_requires_real_quote_counts_and_chain_contract(self):
+        full={"status":{"http":200,"error":None,"authenticated":True,
+                        "market_data_configured":True},
+              "snapshot":{"http":200,"error":None,"source":"dhan",
+                          "count":51,"age_seconds":45,"freshness":"unverified"},
+              "direct_equities":{"status":"not_requested"},
+              "indices":{"http":200,"error":None,"source":"dhan",
+                         "count":3,"unavailable_count":0},
+              "selected":{"http":200,"error":None,"source":"dhan","count":2},
+              "options":{sym:{"expiry_http":200,"expiry_error":None,
+                  "chain_http":200,"chain_error":None,"source":"dhan",
+                  "atm_strike_count":7,"pcr_available":True,
+                  "max_pain_available":True} for sym in ("RELIANCE","HDFCBANK")}}
+        good=acceptance(full,selected=("RELIANCE","HDFCBANK"))
+        self.assertEqual(good["verdict"],"READ_ONLY_PROBE_PASS")
+        self.assertFalse(good["exchange_live_verified"])
+        self.assertFalse(good["live_orders_enabled"])
+        full["indices"]["count"]=2
+        self.assertEqual(acceptance(full,selected=("RELIANCE","HDFCBANK"))["verdict"],
+                         "NOT_VERIFIED")
+        full["indices"]["count"]=3
+        full["options"]["HDFCBANK"]["atm_strike_count"]=None
+        self.assertEqual(acceptance(full,selected=("RELIANCE","HDFCBANK"))["verdict"],
+                         "NOT_VERIFIED")
+        full["options"]["HDFCBANK"]["atm_strike_count"]=7
+        full["snapshot"]["age_seconds"]=180
+        self.assertEqual(acceptance(full,selected=("RELIANCE","HDFCBANK"))["verdict"],
+                         "NOT_VERIFIED")
+        full["direct_equities"]={"status":"attempted","http":200,"error":None,
+             "source":"dhan","freshness":"unverified","count":51,
+             "unavailable_count":0}
+        self.assertEqual(acceptance(full,selected=("RELIANCE","HDFCBANK"))["verdict"],
+                         "READ_ONLY_PROBE_PASS")
+        full["direct_equities"]["count"]=50
+        self.assertEqual(acceptance(full,selected=("RELIANCE","HDFCBANK"))["verdict"],
+                         "NOT_VERIFIED")
+
+    def test_main_returns_nonzero_when_acceptance_not_verified(self):
+        from unittest.mock import patch
+        from io import StringIO
+        from scripts.check_127_oracle_readonly import main
+        bogus={"status":{"http":200,"authenticated":True,"market_data_configured":True},
+               "snapshot":{"http":200,"count":49},"indices":{"http":200,"count":2},
+               "options":{}}
+        output=StringIO()
+        with patch.dict("os.environ",{"BOTKING_URL":"https://example.org",
+             "BOTKING_PAIRING_KEY":"x"*40}),patch(
+             "scripts.check_127_oracle_readonly.probe",return_value=bogus),patch(
+             "sys.stdout",output):
+            code=main(["--options","RELIANCE"])
+        self.assertEqual(code,1)
+        self.assertIn('"verdict": "NOT_VERIFIED"',output.getvalue())
 
     def test_unlisted_option_does_not_guess_expiry_or_retry(self):
         calls=[]
