@@ -28,7 +28,7 @@ def test_selected_dashboard_slots_reuse_dhan_native_candles_without_network():
     assert "get_market_data(" not in chart
     section=source.split("    def dashboard_index_analysis():",1)[1].split("    def dashboard_market_indices():",1)[0]
     assert "rows.append(dashboard_mini_candles(sym,candle_data))" in section
-    assert "shared_history(sym)" in section
+    assert 'shared_history(sym,"1m")' in section
 
 
 def test_preserve_fifteen_movable_saved_slots():
