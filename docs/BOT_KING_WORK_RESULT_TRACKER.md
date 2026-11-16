@@ -486,3 +486,11 @@ This is the persistent, numbered owner-facing checklist for the work still being
 
 ## 2026-11-16 — Master-24 checkpoint 11/12 Group B controller pacing
 - **Source module** [819136c5](https://github.com/vaishnavi596/volume-king/commit/819136c511d27c337630034c471f4eb3e1ff0064) adds pure cooldown-aware history worklist selection, hard cap **3 symbols per planned cycle**, default 180s minimum repeat interval. **Tests source** [e4cc7d93](https://github.com/vaishnavi596/volume-king/commit/e4cc7d938b31fe330bff2fcd7765defe80fee38a) adds four offline cases; **CI result UNKNOWN**. **NOT CONNECTED** to actual Dhan/Oracle polling and does not establish 51→3 network reduction or improved freshness. B3 still **PARTIAL**. Parallel group A's cached 1m→3m reuse remained unchanged; B4 real filter producer and B5/B6 final gates remain OPEN.
+
+
+## 2026-11-16 — Numbered checklist source increments (B2 #07, B3 #11/#12)
+| Checkpoint | New evidence | Status and remaining |
+|---|---|---|
+| **07 (Group A/B2 Watchlist true 3m)** | Last-row 1m OHLCV correction now invalidates cached derived 3m: [1571c691](https://github.com/vaishnavi596/volume-king/commit/1571c6915db9543d5dd4ebc83b37101fc85d2448); regression [25b5b3de](https://github.com/vaishnavi596/volume-king/commit/25b5b3de61fb2d57918c3e4af0b4bf0a2f681070) | **SOURCE PARTIAL / CI UNVERIFIED / ORACLE NOT TESTED / PHONE NOT TESTED**. Most 51 equity 1m histories still need rate-safe collection. |
+| **11/12 (Group B/B3 workload + quota)** | Optional verified Dhan mapped-symbol allowlist added to existing bounded pure planner: [3cea96ac](https://github.com/vaishnavi596/volume-king/commit/3cea96acc32469c4158c7bf67928c431f3a04147); 2 regression tests [a2275c3c](https://github.com/vaishnavi596/volume-king/commit/a2275c3c8a913bcf8ab4763f0aeebb10b111e6d9) | **SOURCE PARTIAL / CI UNVERIFIED**. Planner not connected to actual Dhan history scheduler; 429/bytes not measured. |
+- **Overall six batches still release-OPEN**. Existing four coordinated groups A/B/C/D unchanged; B4 genuine five filters remain blocking. No APK or Oracle production deployment.
