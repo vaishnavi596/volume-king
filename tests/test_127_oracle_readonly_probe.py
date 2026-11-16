@@ -49,6 +49,8 @@ class ReadOnlyOracleProbeTests(unittest.TestCase):
         calls=[]
         def fake(origin,key,path,payload=None):
             calls.append(path)
+            if path=="/dhan/status":
+                return {"http":200,"error":None},{"authenticated":True,"market_data_configured":True}
             if path=="/dhan/option-expiries":
                 return {"http":422,"error":"symbol_or_expiry_not_listed"},None
             return {"http":503,"error":"unavailable"},None
