@@ -9,6 +9,7 @@ import urllib.parse
 from market_feed import FeedError, SessionExpired
 from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
 from analysis_quality import quality_check, agreement_detail
+from candle_retention import retain_candle_history
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
@@ -5766,6 +5767,10 @@ console.log('BOT KING Lightweight Charts ready');
                             # requests in the outer scan loop; avoid double sleeping.
                             data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","2d"),timeout=25)
                             if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
+                            if prefs.get("source")=="Dhan":
+                                # A 429/partial/older history must never progressively
+                                # erase prior completed candle/filter evidence.
+                                data=retain_candle_history(data,shared_history(sym),provider="Dhan")
                             # Preserve the verified Dhan batch quote when historical candles refresh.
                             if prefs.get("source")=="Dhan":
                                 with dhan_batch_lock:
