@@ -1400,3 +1400,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - No actual Oracle production access/read-only reports, Dhan calls, orders, deployment or APK. Five-filter producer and equity PCR continue UNVERIFIED.
 
 - **AUDIT-09 exact CI run:** #1582 [43840281883](https://github.com/vaishnavi596/volume-king/actions/runs/43840281883), head `1b4a0113`, was **IN PROGRESS** when inspected. Do not claim PASS until completed; this is not Oracle runtime verification.
+
+
+## 2026-11-16 — AUDIT-09 closure + FIVE-FILTER-UI-01 compact WAIT diagnosis
+- **Verified CI #1582:** [run 43840281883](https://github.com/vaishnavi596/volume-king/actions/runs/43840281883), head `1b4a0113`, job `133206944978`, **955/955 PASS** (`Ran 955 tests in 104.499s`; GitHub completed success). This validates offline redirect classification only, not Oracle.
+- **Actual source/UI finding:** GitHub `backend/server.py::GET /v2/assessment/{symbol}` is explicitly `collection_status=not_configured` placeholder. `src/main.py` displays only `oracle_assessment_notes(symbol)[0]` on Watchlist and Super Five. Previously, even an accurately returned placeholder was indistinguishable from a generic WAIT at these compact views. This does not prove whether customized Oracle production currently has the placeholder.
+- **Source fix** [a326be97](https://github.com/vaishnavi596/volume-king/commit/a326be9794edd7ce6ed4640f230af49e146ae8cf) changes `src/shared_assessment_ui.py` first-line summary for explicit `collection_status=not_configured` to `WAIT • server producer not configured`, preserving strict unsafe-order checks before this label. No percentages are fabricated, no market/API calls added.
+- **Regression** [8992cc0a](https://github.com/vaishnavi596/volume-king/commit/8992cc0ae10bea76e36357789ec78411b4a9d401) checks explanatory single-line WAIT and unsafe response precedence. **New CI pending** at commit. No Android APK built, no live phone proof; this source change reaches device only after a future approved release. The missing genuine five-filter producer, equity expiry/chain/PCR eligibility and live Oracle evidence remain unresolved.
