@@ -1233,7 +1233,10 @@ def app_main(page:ft.Page):
                     if (snapshot.get("source")==expected_source
                             and valid_candle_history(bars)):
                         available.append((sym,snapshot,bars))
+                # Filter-mode/confidence changes need a fresh LOCAL calculation
+                # even when the last 5m candle has not changed.
                 fingerprint=(generation,expected_source,tuple(filter_selected),
+                             tuple(sorted(filter_modes.items())),prefs.get("confidence",75),
                              tuple((sym,len(bars),repr(bars[-1])) for sym,_,bars in available))
                 if fingerprint==last_fingerprint:
                     continue
