@@ -2309,3 +2309,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — Oracle candidate static auth guard presence PASS
 - Operator AST scan returned `AUTH_GUARDS_STATIC= {'botking_readiness_safe': True, 'botking_assessment_safe': True}` for `/tmp/bk_server_assessment_candidate.py`.
 - The check verifies only that each candidate function contains a `compare_digest` call and `HTTPException` call. It does **not** establish guard ordering, correct header mapping, actual 403 response, or authorized behavior. Candidate remains undeployed, no production service restart or Dhan calls. Next create/run isolated tests using synthetic pairing key and no network/server import if possible; keep real credentials out of test output.
+
+
+## 2026-11-16 — Oracle candidate first-statement auth guard AST ordering PASS
+- Operator read-only AST test returned `FIRST_STATEMENT_AUTH_IF= {'botking_readiness_safe': True, 'botking_assessment_safe': True}`.
+- Both candidate route functions begin with an `if` whose condition includes `compare_digest` and whose body includes `raise`. This is static ordering evidence only; it does not verify exact HTTP status or runtime auth. No production deployment/restart. Next isolated synthetic-key negative test, preferably evaluating only extracted route function AST with stubbed FastAPI `Header`, `HTTPException` and `app.get`, without importing the server or reading secrets.
