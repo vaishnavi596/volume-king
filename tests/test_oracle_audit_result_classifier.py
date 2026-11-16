@@ -18,9 +18,11 @@ def codes(result):
 class OracleAuditClassifierTests(unittest.TestCase):
     def setUp(self):
         self.routes = {"syntax": "PASS", "expected_routes": 9,
-                       "source_present": 9, "source_missing": []}
+                       "source_present": 9, "source_missing": [],
+                       "source_sha256": "a" * 64}
         self.filters = {"syntax": "PASS", "assessment_route_source_count": 1,
-                        "known_placeholder_detected": True}
+                        "known_placeholder_detected": True,
+                        "source_sha256": "a" * 64}
         self.collector = {"health_http": 200, "health_ok": True,
                           "readiness_http": 200, "collector_enabled": True,
                           "collector_status": "recently_collected",
@@ -35,6 +37,13 @@ class OracleAuditClassifierTests(unittest.TestCase):
         self.assertFalse(out["equity_pcr_entitlement_proven"])
         self.assertFalse(out["apk_release_allowed"])
         self.assertEqual(out["orders_sent"], 0)
+
+    def test_mixed_version_audit_reports_never_mark_complete(self):
+        self.filters["source_sha256"] = "b" * 64
+        out = mod.classify(self.routes, self.filters, self.collector)
+        self.assertIn("SOURCE_REPORT_MISMATCH", codes(out))
+        self.assertFalse(out["source_audit_complete"])
+        self.assertFalse(out["apk_release_allowed"])
 
     def test_missing_routes_never_mark_source_audit_complete(self):
         self.routes["source_present"] = 8
