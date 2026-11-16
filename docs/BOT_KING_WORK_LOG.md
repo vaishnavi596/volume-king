@@ -1819,3 +1819,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 ## 2026-11-16 — B3 production parity operator handoff created
 - Added [`docs/BOT_KING_B3_ORACLE_PARITY_RUNBOOK.md`](https://github.com/vaishnavi596/volume-king/blob/fix/botking-joint-audit-70-15-20261115/docs/BOT_KING_B3_ORACLE_PARITY_RUNBOOK.md) at commit `661c1c419aedf5e232e2683fa45db77e71d0eb00`. Includes read-only actual Oracle server AST/source audit commands, service metadata/hash capture, strict secret handling, a fail-closed decision matrix, and explicit backup/hash/rollback gates.
 - No remote SSH/Oracle execution capability was available in this session, so no actual Oracle hashes, route results, worker count or runtime evidence were collected. **Do not treat the runbook as execution.** CI #1668 still the last verified code result (1042/1042 PASS); documentation commit is not a new test result. No Dhan calls, orders, tokens, service restart, production patch or APK.
+
+
+## 2026-11-16 — Operator-supplied Oracle server fingerprint (partial evidence)
+- Operator pasted a read-only Oracle shell result: `sha256sum /opt/bot-king-server/server.py` = `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b`. Also pasted `NRestarts=0`; the `systemctl is-active` result and MainPID were not legible in the supplied excerpt.
+- This is **operator-provided** production file fingerprint, not a verified GitHub commit or runtime parity result. No contents of Oracle `server.py` have been read, and the B3 source audit has not yet run on that file. Next: read-only AST checks and local service activity; no deployment or restart.
