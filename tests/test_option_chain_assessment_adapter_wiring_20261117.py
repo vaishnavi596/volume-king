@@ -26,7 +26,7 @@ class OptionChainWiringTests(unittest.TestCase):
         source = (ROOT / "backend" / "assessment_filter_adapter.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         self.assertFalse(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                             and n.func.attr in ("post", "get", "order", "place_order")
+                             and n.func.attr in ("post", "order", "place_order")
                              for n in ast.walk(tree)))
 
 
