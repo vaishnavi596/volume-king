@@ -1955,3 +1955,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Operator ran gated B3 staged swap/restart. Immediate local `curl` to `127.0.0.1:8000/health` failed `curl: (7) Failed to connect ... Connection refused`.
 - Deployment script printed `B3 health failed; restoring original...` and rollback restart returned `active`. **This proves rollback path was invoked and systemd active, NOT yet that old source SHA and HTTP health are restored.**
 - The gate did not wait for Uvicorn readiness; early connection refusal could be transient startup latency. Root cause unknown pending `sha256sum`, repeated local health check and `journalctl` with timestamps. Do not classify B3 as broken or PASS, do not redeploy until verified.
+
+
+## 2026-11-16 — Oracle B3 rollback fully verified; initial failure was premature health probe
+- Operator verified production `server.py` SHA256 `b26902b26bfd1b74a013f962f39f35f70725bd1820a61e040401925524ce1e9b` after rollback, and local `/health` returned `{"status":"ok","service":"BOT KING","protocol":1,"broker_connected":false,"live_orders_enabled":false}`.
+- `journalctl -u bot-king.service -n 60 -o short-iso`: initial B3 restart began at **2026-11-16 15:43:41 UTC**, health was probed before Uvicorn bound the port and rollback immediately restarted service; final old-code process PID **622893** logged `Application startup complete` and listening on `127.0.0.1:8000` at **15:43:43 UTC**. This supports a **premature readiness probe**, not proof of candidate runtime failure. B3 remains **NOT DEPLOYED**.
+- Separate earlier `DHAN_LTP_PROVIDER_HTTP_STATUS=502` events at 02:10:26, 02:11:56, 02:13:26, 02:14:56 UTC occurred before B3 attempt; track provider reliability separately, do not attribute to B3.
+- Next: restage verified candidate (the first deployment consumed `server.py.b3-staged` via mv), verify old/new/rollback hashes, then use bounded readiness polling after restart and rollback on timeout/health mismatch. No token or live-order changes.
