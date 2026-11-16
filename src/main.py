@@ -4613,8 +4613,13 @@ console.log('BOT KING Lightweight Charts ready');
                     item.get("candle_fetched_at") or 0))
                 bars_1m=source_1m["bars"]
                 now_epoch=time.time()
+                # Same list and length can still have revised last-minute
+                # OHLCV. Invalidate derived 3m on a changed last row, not
+                # only on append or the next 3-minute clock boundary.
+                last_minute=tuple(bars_1m[-1]) if isinstance(bars_1m[-1],(list,tuple)) else None
                 identity=(provider_generation[0],id(bars_1m),len(bars_1m),
-                          int(now_epoch//180))
+                          last_minute,source_1m.get("candle_fetched_at"),
+                          source_1m.get("fetched_at"),int(now_epoch//180))
                 saved=derived_three_minute_cache.get(sym)
                 if not saved or saved[0]!=identity:
                     from dhan_three_minute import completed_three_minute_bars
