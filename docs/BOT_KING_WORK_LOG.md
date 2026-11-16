@@ -2047,3 +2047,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Test compiles and executes **the exact `LOCK_BLOCK` emitted by** `scripts/prepare_oracle_b3_candidate.py` in an isolated namespace. A mocked handler models cache recheck and slow upstream call; two threads issue identical cold-cache requests, expecting two equal 71-bar results and exactly one mock upstream invocation. It additionally rejects an invalid pairing key with HTTP 403 and no extra upstream call.
 - Scope: exact injected wrapper with representative mocked cache/provider; **not** a full Oracle production handler runtime test, real Dhan call-count proof, or actual two-mobile validation. No production restart, token changes, or orders.
 - GitHub test source committed; CI/test result pending verification. Do not mark new regression PASS until CI or local test execution confirms.
+
+
+## 2026-11-16 — B3 mocked concurrency independent local reproduction PASS; GitHub CI not verified
+- GitHub connector `fetch_commit_workflow_runs` for test commit `099ccee85433ccb86007d8b0f4e7f3bb7eddc32e` returned no PR-triggered runs; `get_commit_combined_status` returned empty statuses. These APIs do **not** establish CI success or failure; GitHub Actions may be push-triggered and not exposed through this filtered workflow lookup.
+- Independently executed a local Python reproduction of the exact 32-lane RLock decorator semantics with two concurrent cold-cache callers, mock handler and cache, and invalid key. Output `MOCK_B3_CONCURRENCY_PASS; upstream_calls=1; responses=2; invalid_key=403`.
+- **Evidence distinction**: This was an independent local reproduction of the test logic, not a direct execution of the committed GitHub test file and not Oracle's production handler. CI for committed test and instrumented Oracle provider-call count remain pending. No Oracle changes or Dhan calls.
