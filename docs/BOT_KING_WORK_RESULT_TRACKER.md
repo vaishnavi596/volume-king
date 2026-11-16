@@ -200,3 +200,9 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | 3/4/5/6 | PCR/Five Filter producers and release | No broker/production changes | Still UNVERIFIED; APK blocked |
 
 - **Exact new CI runs:** #1579 [43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, and #1580 [43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, both **IN PROGRESS** when inspected. Neither has Oracle runtime proof or release status. Keep both pending until GitHub completed result and job count verified.
+
+
+## 2026-11-16 — AUDIT-06/07 CI final results (confirmed)
+- #1579 [run 43838615921](https://github.com/vaishnavi596/volume-king/actions/runs/43838615921), head `685a35cc`, job `133201392828`: **951/951 PASS**, GitHub job/workflow success (`Ran 951 tests in 162.235s`). Tests for valid SHA256 and finite audit evidence.
+- #1580 [run 43838847662](https://github.com/vaishnavi596/volume-king/actions/runs/43838847662), head `6220e02e`, job `133202162167`: **953/953 PASS**, GitHub job/workflow success (`Ran 953 tests in 200.350s`). Tests include recent label with zero/unknown equity cache quote count.
+- Historical in-progress entries for these runs are superseded. These results are strictly **offline CI**, not evidence of Oracle collector execution, five-filter live signals, or equity PCR entitlement. No deployment, no orders, no APK.
