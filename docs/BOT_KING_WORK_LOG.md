@@ -2380,3 +2380,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Direct GitHub Actions query for UI hardening SHA `3b5713d` showed run `43931554681` `in_progress` at check time; no PASS asserted.
 - Created `tests/test_shared_assessment_metric_display.py` at commit `92e658443bb69b55343db3126b54295f30447945`. New unittest fixtures exercise four numeric filter IDs with zero/negative/NaN/infinity/boolean/string values, positive PCR informational display, stale cache and unsafe signal flag. These are offline regression tests only, not a live producer integration or Dhan call.
 - New test commit CI pending. Existing Oracle candidate remains undeployed, live BK-5F producers unverified, APK HOLD. No production mutations or credentials accessed.
+
+
+## 2026-11-17 — BK-5F UI patch CI PASS; regression run still pending
+- Rechecked latest eight GitHub Actions runs. Run `43931554681` for UI safety patch SHA `3b5713d279210c89ff135cc3d77dcd70417970a3` is now completed `success` (offline CI PASS). Run `43931708325` for newly added assessment metric fixture SHA `92e658443bb69b55343db3126b54295f30447945` remains `in_progress` at observation time; do not mark PASS yet.
+- Reviewed `.github/workflows/build.yml` release gates: APK build triggers only version-file changes or manual dispatch; prebuild offline tests, permanent pinned signing key, versionName/versionCode and APK certificate checks. No APK dispatched, no version bump.
+- Candidate/production distinction unchanged: Oracle production assessment route absent by previous source audit, isolated candidate declares five filters and four factors but is not a functional deployed producer. Live authenticated Dhan verification HOLD. No production edits.
