@@ -383,3 +383,8 @@ Append dated factual rows to `docs/BOT_KING_WORK_LOG.md`; maintain this compact 
 | `/dhan/intraday` historical candles | 180s validated response cache but concurrent miss risk | OPEN: add single-flight server fetch / do not fabricate timestamps | NOT TESTED |
 | `/dhan/ltp-batch` bootstrap | Existing snapshot cache, direct bootstrap still callable from each phone when stale | OPEN: shared server recovery coordination | NOT TESTED |
 | All | Respect Dhan 429, 70 max, Dhan-only, no live orders | No extra 54/70 provider fanout | APK BLOCKED |
+
+
+## 2026-11-16 — Follow-up CI exact status for dynamic 70 and dual-mobile lane
+- Previously pending [#1610](https://github.com/vaishnavi596/volume-king/actions/runs/43860483970) head `effccb14`, job `133275695507`: **977/977 PASS** (`Ran 977 tests in 97.771s`). [#1611](https://github.com/vaishnavi596/volume-king/actions/runs/43860534856) head `eb63d488`, job `133275861390`: **980/980 PASS** (`Ran 980 tests in 273.337s`). [#1612](https://github.com/vaishnavi596/volume-king/actions/runs/43860658781) head `61f282db`, job `133276289172`: **980/980 PASS** (`Ran 980 tests in 290.518s`). #1613 was **IN PROGRESS** at inspection, not counted as success.
+- New dual-mobile shared quote tests were submitted: [#1614](https://github.com/vaishnavi596/volume-king/actions/runs/43862190170) head `46cc4e2d`; [#1615](https://github.com/vaishnavi596/volume-king/actions/runs/43862263412) head `1672629f`; [#1616](https://github.com/vaishnavi596/volume-king/actions/runs/43862328810) head `7055db1b`. All were **IN PROGRESS** at first check; do not say PASS yet. Their success, if any, would be offline CI, not Oracle deployment or real two-device proof.
