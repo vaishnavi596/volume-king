@@ -647,7 +647,9 @@ class ServerDhanReadOnly:
                 or not isinstance(factors, dict)
                 or set(factors) != {"news", "futures", "options", "candle"}
                 or not isinstance(filters, list) or len(filters) != 5
-                or any(not isinstance(f, dict) or f.get("id") not in expected
+                or any(not isinstance(f, dict)
+                       or not isinstance(f.get("id"), str)
+                       or f["id"] not in expected
                        or f.get("status") not in ("available", "unavailable") for f in filters)
                 or {f["id"] for f in filters} != expected):
             raise FeedError("Invalid or unsafe Dhan assessment response")
