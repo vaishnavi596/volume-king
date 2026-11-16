@@ -2386,3 +2386,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Rechecked latest eight GitHub Actions runs. Run `43931554681` for UI safety patch SHA `3b5713d279210c89ff135cc3d77dcd70417970a3` is now completed `success` (offline CI PASS). Run `43931708325` for newly added assessment metric fixture SHA `92e658443bb69b55343db3126b54295f30447945` remains `in_progress` at observation time; do not mark PASS yet.
 - Reviewed `.github/workflows/build.yml` release gates: APK build triggers only version-file changes or manual dispatch; prebuild offline tests, permanent pinned signing key, versionName/versionCode and APK certificate checks. No APK dispatched, no version bump.
 - Candidate/production distinction unchanged: Oracle production assessment route absent by previous source audit, isolated candidate declares five filters and four factors but is not a functional deployed producer. Live authenticated Dhan verification HOLD. No production edits.
+
+
+## 2026-11-17 — BK-5F next independent regression batch
+- Following user instruction to proceed to the next job rather than stop after reporting, committed `530d1bcd895a815fbc9b8f5900c8f999d6f11173` to `tests/test_shared_assessment_metric_display.py`. Added fail-closed tests for duplicate/unhashable/unknown filter IDs and contradictory `not_configured` plus `available` response; these protect 54-symbol display stability and placeholder integrity.
+- Prior run `43931554681` on UI SHA `3b5713d` completed `success`; run `43931708325` on earlier fixture SHA `92e6584` was still `in_progress` on latest direct check. New fixture commit CI not yet verified. No claim of production/live verification; no APK or Oracle mutation.
