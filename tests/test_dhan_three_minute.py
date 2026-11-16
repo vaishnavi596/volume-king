@@ -79,7 +79,7 @@ class CompletedThreeMinuteBarsTest(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('report_identity=(sym,"5m",identity)', source)
         self.assertIn('watch_signal_cache[sym]=dict(result,symbol=sym)', source)
-        self.assertIn('data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)', source)
+        self.assertIn('hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)', source)
 
     def test_different_trading_days_never_merge(self):
         t1, t2 = epoch(16), epoch(17)
