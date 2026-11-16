@@ -52,7 +52,7 @@ class DhanScanProgressTests(unittest.TestCase):
         source = SOURCE.read_text(encoding="utf-8")
         self.assertIn('for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):', source)
         self.assertIn('chart_snapshots[(index_sym,"1m",generation)]', source)
-        self.assertIn("index_signal_row=historical_vote_bar(index_agreement,"1m")", source)
+        self.assertIn('index_signal_row=historical_vote_bar(index_agreement,"1m")', source)
         self.assertIn('index_signal_row', source)
         self.assertIn('directional votes', source)
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")>0', source)
@@ -69,9 +69,9 @@ class DhanScanProgressTests(unittest.TestCase):
         self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",resume)
         self.assertIn("return ft.Column(index_cards,spacing=5)",source)
         self.assertIn("dashboard_market_indices(),",source)
-        self.assertIn("def historical_vote_agreement(data,tf="5m"):",source)
-        self.assertIn("rows.append(historical_vote_bar(agreement,"1m"))",source)
-        self.assertIn("index_signal_row=historical_vote_bar(index_agreement,"1m")",source)
+        self.assertIn('def historical_vote_agreement(data,tf="5m"):',source)
+        self.assertIn('rows.append(historical_vote_bar(agreement,"1m"))',source)
+        self.assertIn('index_signal_row=historical_vote_bar(index_agreement,"1m")',source)
 
     def test_b1_b2_index_warmup_reused_in_post_scan_without_duplicate_request(self):
         source = SOURCE.read_text(encoding="utf-8")
