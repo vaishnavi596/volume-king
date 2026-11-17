@@ -45,6 +45,9 @@ class DocsReferenceAuditTests(unittest.TestCase):
         result = audit(root)
         self.assertGreaterEqual(result["document_count"], 40)  # Pruned archived reports reduce the fixed count
         self.assertEqual(result["files_deleted"], 0)
+        self.assertEqual(result["broken_relative_link_count"], 0)
+        self.assertNotIn("A3_DASHBOARD_NATIVE_15_SLOTS_DHAN_AUDIT_20261115.md", result["documents"])
+        self.assertNotIn("A2_CHART_FILTER_OPTIONS_REPORT_20261115.md", result["documents"])
         orphan = [
             {"name": name, "unique_marker": data["potential_unique_evidence"]}
             for name, data in result["documents"].items()
