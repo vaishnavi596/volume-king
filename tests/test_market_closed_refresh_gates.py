@@ -27,7 +27,16 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         manual=section("    async def refresh_all_dhan_quotes():","    quote_auto_last_attempt=")
         self.assertIn("await refresh_watch_batch()",manual)
         self.assertIn("await refresh_dhan_index_quotes(force=True)",manual)
-        self.assertNotIn("refresh_hours()",manual)
+        # The market-hours condition applies only to the extra explicit HIST
+        # request, NEVER to the manual equity/index quote refresh itself.
+        self.assertIn('if not refresh_hours() and current[0]==4:',manual)
+        self.assertLess(manual.index('await refresh_watch_batch()'),
+                        manual.index('await refresh_dhan_index_quotes(force=True)'))
+        self.assertLess(manual.index('await refresh_dhan_index_quotes(force=True)'),
+                        manual.index('if not refresh_hours() and current[0]==4:'))
+        self.assertIn('warm_selected_watch_three_minute_early(',manual)
+        self.assertIn('explicit_closed=True',manual)
+        self.assertIn('if dhan_history_scan_active[0]:',manual)
         self.assertIn("max(0,30-",manual)
 
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
