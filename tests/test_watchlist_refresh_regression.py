@@ -11,6 +11,12 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def setUpClass(cls):
         cls.source = SOURCE.read_text(encoding="utf-8")
 
+    def test_missing_three_minute_votes_are_not_labeled_live(self):
+        body=self.source.split("    def compact_watch_signal(row, available, fresh):",1)[1].split(
+            "    def compact_five_engine_watch(",1)[0]
+        self.assertIn("3m • WAIT • matching 3m candles / valid votes unavailable",body)
+        self.assertIn('row.get("timeframe")=="3m"',body)
+
     def test_three_minute_signal_recalculates_revised_ohlcv(self):
         # Same timestamp and bar count may still contain a corrected close,
         # high, low or volume; a timestamp-only identity would retain stale votes.
