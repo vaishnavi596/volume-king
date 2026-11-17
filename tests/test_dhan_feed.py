@@ -18,9 +18,13 @@ class FakeResponse:
 class DhanFeedTests(unittest.TestCase):
     def setUp(self):
         # Global provider cooldown must not leak across independent offline tests.
-        self._previous_retry_after = DhanFeed._retry_after
-        DhanFeed._retry_after = 0.0
-        self.addCleanup(setattr, DhanFeed, "_retry_after", self._previous_retry_after)
+        # Mocked monotonic clocks (100/130s) must not inherit a real-clock
+        # quote timestamp from another test: that caused >500s CI sleeps.
+        # Save and restore each process-shared gate so other tests are unaffected.
+        for name in ("_retry_after", "_quote_next_allowed", "_history_next_allowed"):
+            previous = getattr(DhanFeed, name)
+            setattr(DhanFeed, name, 0.0)
+            self.addCleanup(setattr, DhanFeed, name, previous)
 
     def test_missing_credentials(self):
         with self.assertRaises(DhanFeedError):
@@ -101,7 +105,9 @@ class DhanFeedTests(unittest.TestCase):
             with self.assertRaises(DhanRateLimitError):
                 feed.ltp("IDX_I", 13)
         with patch("backend.dhan_feed.time.monotonic", return_value=130.0):
-            feed.ltp("IDX_I", 13)
+            with patch("backend.dhan_feed.time.sleep",
+                       side_effect=AssertionError("Offline test must not wait for real quote gate")):
+                feed.ltp("IDX_I", 13)
         self.assertEqual(len(calls), 1)
 
     def test_trading_endpoint_cannot_be_called(self):
