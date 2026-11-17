@@ -2549,6 +2549,10 @@ def app_main(page:ft.Page):
             data=await asyncio.to_thread(get_market_data,sym,tf,"5d" if tf in ["1m","5m","15m"] else "1mo")
             if generation!=provider_generation[0] or sym!=symbol.value or tf!=timeframe.value:
                 return
+            # An empty/partial response must not erase the last valid selected chart.
+            if prefs.get("source")=="Dhan":
+                prior=chart_snapshots.get((sym,tf,generation)) or {}
+                data=retain_candle_history(data,prior,provider="Dhan")
             chart_snapshots[(sym,tf,generation)]=data
             bars=data.get("bars") or []
             if bars:display_failures.pop("load_chart",None)
