@@ -2864,3 +2864,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Added repository-root `AGENTS.md` at commit 55d6ab22afdca9a1c32fa10ce8e4f48466a5cf61: OK means continue; pre-edit last-ten review; consolidated T01–T16 intake; independent audits/CI overlap while conflicting edits and broker lanes serialize; 2–4 coherent fixes; exact-SHA evidence ladder; journal and release gates; Dhan-only/read-only and 09:10–15:45 IST constraints; accuracy requires backtesting, no promised percentage; no invented autonomous work after turn ends.
 - Updated root `BOT_KING_HANDOFF.md` at commit 62c2e8ea3c24f04ab87ace30902212ebcc7a662b to prominently direct future chats to `AGENTS.md` and the consolidated matrix. No app source/Oracle production/APK change in this batch.
 - Next operational task: continue matrix T01–T16 evidence collection, retrieve CI results and exact failing steps, then grouped fixes. This journal entry records rules, not completion of remaining tests.
+
+
+## 2026-11-17 — Parallel CI + controlled repair lane adopted
+- Reviewed last ten commits and last ten CI runs before editing. At check 44021906603 IN_PROGRESS (7e1274049), 44021896629 SUCCESS (0d968c673), 44018312569 SUCCESS (4c504aece); older cancelled/failed runs preserved. No claim of success for running test.
+- Updated root AGENTS.md in bc61b217fe9e61b2dc6d61a564ab92991c5776f7: separate pinned-SHA Test lane, read-only Analysis lane, single-writer Fix lane. Fix completed FAILs after root-cause evidence while independent tests run; 2–4 coherent fixes and retest new SHA; no release freeze until critical gates complete; no false background execution claims.
+- This batch is workflow-only. No source fix, broker call, APK or production deploy. Continue evidence intake and fixes on available results.
