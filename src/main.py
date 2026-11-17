@@ -6725,20 +6725,40 @@ console.log('BOT KING Lightweight Charts ready');
                     for sym in selected:
                         if generation!=provider_generation[0] or not app_active[0]:
                             break
+                        # Assessment cache must match the actual requested
+                        # candle timeframe and selected option-chain expiry.
+                        # Do not relabel 5m evidence as 1m/3m.
+                        tf=(scan_tf.value if sym==scan_symbol.value
+                            and scan_tf.value in ("1m","3m","5m")
+                            else "1m" if sym in ("NIFTY","BANKNIFTY","SENSEX")
+                            else "3m")
+                        selected_expiry=(expiry.value if sym==chain_symbol.value
+                                         and isinstance(expiry.value,str)
+                                         else None)
+                        try:
+                            selected_expiry=(selected_expiry
+                                             if selected_expiry and date.fromisoformat(
+                                                 selected_expiry).isoformat()==selected_expiry
+                                             else None)
+                        except ValueError:
+                            selected_expiry=None
                         now=time.monotonic()
-                        key=(generation,sym)
-                        # Missing key means no assessment request yet this login.
+                        key=(generation,sym,tf,selected_expiry)
+                        # Selection changes must not reuse an unrelated 180s response.
                         if (key in oracle_assessment_attempts
                                 and now-oracle_assessment_attempts[key]<180):
                             continue
                         oracle_assessment_attempts[key]=now
                         try:
-                            data=await asyncio.to_thread(dhan_feed.assessment,sym)
+                            data=await asyncio.to_thread(
+                                dhan_feed.assessment,sym,timeframe=tf,expiry=selected_expiry)
                             if generation==provider_generation[0]:
                                 if oracle_assessment_cache_generation[0]!=generation:
                                     oracle_assessment_cache.clear()
                                     oracle_assessment_cache_generation[0]=generation
-                                oracle_assessment_cache[sym]={"fetched":time.monotonic(),"data":data}
+                                oracle_assessment_cache[sym]={
+                                    "fetched":time.monotonic(),"data":data,
+                                    "timeframe":tf,"expiry":selected_expiry}
                                 if len(oracle_assessment_cache)>16:
                                     del oracle_assessment_cache[next(iter(oracle_assessment_cache))]
                                 if current[0] in (0,3,4):
