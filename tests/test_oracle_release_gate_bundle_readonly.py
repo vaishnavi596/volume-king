@@ -15,7 +15,7 @@ class OracleBundleTests(unittest.TestCase):
         self.assertEqual(RELEASE_GATE_PATHS, (
             "/health", "/v2/server-readiness", "/v2/snapshot"))
         self.assertEqual(len(RELEASE_GATE_PATHS), 3)
-        self.assertEqual(len(COLLECTOR_PATHS), 6)
+        self.assertEqual(len(COLLECTOR_PATHS), 9)
         self.assertTrue(all(path in COLLECTOR_PATHS for path in RELEASE_GATE_PATHS))
 
     def test_source_signatures_and_bounded_three_gets(self):
