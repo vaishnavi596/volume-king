@@ -52,8 +52,18 @@ record("missing_selector_evidence_not_reused","candle" not in m.read("acc_A","NI
 record("account_scope_isolated", not m.read("acc_B","NIFTY",timeframe="1m",expiry="2099-01-01"))
 m.clear()
 
-# Extract only the standalone completed-candle helper AST to test its real code.
+# Ensure FastAPI original route registration survives helper insertion.
 helper=function(trees["server.py"],"_assessment_bars_completed")
+candle_route=function(trees["server.py"],"cached_candles")
+def is_get_route(dec):
+    return (isinstance(dec,ast.Call) and isinstance(dec.func,ast.Attribute)
+            and isinstance(dec.func.value,ast.Name)
+            and dec.func.value.id=="app" and dec.func.attr=="get")
+record("candle_route_decorator_preserved",
+       not helper.decorator_list and len(candle_route.decorator_list)==1
+       and is_get_route(candle_route.decorator_list[0]))
+if not checks["candle_route_decorator_preserved"]=="PASS":
+    raise RuntimeError("HOLD: a helper stole the FastAPI route decorator")
 namespace={"datetime":datetime,"timezone":timezone,"math":math}
 exec(compile(ast.Module(body=[helper],type_ignores=[]),"<stage_helper>","exec"),namespace)
 completed=namespace["_assessment_bars_completed"]
