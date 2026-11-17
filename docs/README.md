@@ -158,6 +158,20 @@ These historical controls may already have modern equivalents. Their obsolete Ya
 - **Historical code/test source anchors retained:** `a966a908` native candle fallback/options refresh/filter feedback; `dfa6b16b` and `0350b865` regressions; `47521e91` selected expiry switch; `d12b4548` nonblocking filter callback; `15af1e95` old Angel One prompt removal and `7ddbaaea` regression; `713706d2` and `70a9541a` News/OI contextual reader; `01346b15` ten-slot tests; `422b72c9` report; `b61674f9` 2.3.116 build trigger. **No signed 2.3.116 APK PASS** was claimed by original report. Old 10-slot selectable scanner feature must not be confused with today's five assessment slots plus a blank sixth.
 - **Decision:** preserve original in Git history and this compact historical provenance, remove only the redundant current-branch A2 Markdown document once its link is removed; DO NOT delete current scanner/filter code, tests or Oracle scripts. Subsequent post-prune CI and relative link scan remain mandatory.
  
+## Current zero-inbound documents retained after both prunes
+
+After #1845 and a direct content review of the remaining twelve zero-inbound documents, the files below are **retained** because they describe live safety requirements, future roadmap commitments or exact historical regression evidence. A zero inbound-reference count is not a relevance or deletion score.
+
+| Group | Documents | Why retained |
+|---|---|---|
+| Five-engine filters | `B1_FIVE_ENGINE_SHARED_DHAN_AUDIT_20261115.md`, `BOT_KING_BATCH4_BENCHMARK_20261114.md`, `FILTER_REFRESH_TRACKER_20261115.md` | Authenticity, historical source/provenance casing warning, watchlist/scanner update evidence |
+| Smart Engine roadmap | `BOT_KING_DEFERRED_PIPELINE_20261117.md` | Scalp, future sixth time/reversal filter, global 70 rule and data budget constraints |
+| Android security | `BOT-KING-226-ANDROID-KEYSTORE-INTEGRATION.md`, `BOT-KING-226-DEVICE-ENROLLMENT.md`, `FLET_SECURE_STORAGE_COMPATIBILITY.md`, `secure-login-release-gate.md` | Device key, PIN protection, credential storage and upgrade safety acceptance |
+| Oracle commands | `BOT_KING_B3_ORACLE_PARITY_RUNBOOK.md`, `ORACLE_READONLY_DEPENDENCY_GATE.md` | Customized production source/backup/SSH read-only parity, safe operator commands |
+| Legacy security reference | `server-gateway.md` | Old Angel One route **superseded and not current Dhan-only implementation**; retained temporarily for historical credential/session revocation safety and forensic reference |
+
+This completes *content triage* of all twelve zero-inbound files originally reported after A3 removal. The A2 legacy report has subsequently been removed with its evidence and full Git original retained in the index. No other security, filter, Smart Engine or Oracle document is approved for deletion. Source code, journal and tests remain untouched by the two prose-only deletion commits.
+
 ## Documentation housekeeping register
 
 | Stage | Status | Meaning |
