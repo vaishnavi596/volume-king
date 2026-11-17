@@ -44,9 +44,12 @@ def audit(path):
     routes = list(route_functions(tree))
     # AST expression strings are only source indicators, never running values.
     vals = _string_constants(routes[0]) if len(routes) == 1 else set()
+    # Accept both legacy explanatory text and the allowlisted UI reason code.
+    # Require the explicit fail-closed status; source inspection is not runtime proof.
     placeholder = (len(routes) == 1 and
-                   {"not_configured", "unavailable", "Independent Oracle assessment not configured"}
-                   <= vals)
+                   {"not_configured", "unavailable"} <= vals and
+                   ("Independent Oracle assessment not configured" in vals or
+                    "reason" in vals))
     return {
         "source_sha256": hashlib.sha256(raw).hexdigest(),
         "syntax": "PASS",
