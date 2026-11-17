@@ -5,16 +5,21 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import time
 from datetime import datetime,timezone
 from pathlib import Path
 
-ROOT=Path("/tmp/bk_oracle_joint_repair_jtzebav3")
+ROOT=Path(os.environ["BOTKING_JOINT_BUNDLE_DIR"])
 EXPECTED={
-"assessment_state.py":"ea2db1787be5cddc1ff2235db6592c7858519fc97b18d8c65c011ef9c7a3e3d2",
-"assessment_api.py":"f421292725adadd825cbfa2a2a14f358aa6d07f29e3d71c0aa073d4b2827a2a5",
-"server.py":"b6ba77057a92fa8b33da64af1c242a0c802e0bd78ce4370dfe118ce51b45ac61",
+    "assessment_state.py":os.environ["BOTKING_STATE_SHA256"],
+    "assessment_api.py":os.environ["BOTKING_API_SHA256"],
+    "server.py":os.environ["BOTKING_SERVER_SHA256"],
 }
+if ROOT.is_symlink() or not ROOT.is_dir() or not str(ROOT).startswith("/tmp/bk_oracle_joint_repair_"):
+    raise RuntimeError("HOLD: unsafe staged bundle directory")
+if any(len(s)!=64 or any(c not in "0123456789abcdef" for c in s) for s in EXPECTED.values()):
+    raise RuntimeError("HOLD: invalid expected bundle SHA")
 checks={}
 def record(k,v):
     checks[k]="PASS" if v else "FAIL"
