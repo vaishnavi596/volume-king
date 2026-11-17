@@ -1,0 +1,60 @@
+name: BOT KING Joint Regression Gate (No APK)
+on:
+  push:
+    branches: [fix/botking-joint-audit-70-15-20261115]
+    paths:
+      - '.github/workflows/botking-joint-regression-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: botking-joint-gate-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  joint-regression:
+    name: ${{ matrix.scope }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scope: complete-offline-suite
+            patterns: all
+          - scope: login-watchlist-index
+            patterns: 'test_login_bootstrap_127.py test_dhan_bootstrap_behavior.py test_watchlist*.py test_dhan_index*.py test_refresh_window_0910_1545.py'
+          - scope: candles-scanner-superfive
+            patterns: 'test_candle*.py test_scanner*.py test_b3_assessment_ui.py test_five_filter_assessment_ui_contract_20261117.py'
+          - scope: option-chain-five-filters
+            patterns: 'test_option*.py test_five_filter*.py test_assessment*.py test_shared_assessment*.py'
+          - scope: android-release-contract
+            patterns: 'test_android*.py test_joint*.py test_oracle*.py'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install flet==0.25.2 flet-webview==0.1.0
+          python -m pip install -r backend/requirements.txt httpx==0.28.1
+      - name: Python syntax
+        run: python -m compileall -q src tests backend
+      - name: Run selected regressions
+        env:
+          PATTERNS: ${{ matrix.patterns }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$PATTERNS" == all ]]; then
+            python -m unittest discover -s tests -v
+          else
+            for pattern in $PATTERNS; do
+              echo "::group::$pattern"
+              python -m unittest discover -s tests -p "$pattern" -v
+              echo "::endgroup::"
+            done
+          fi
