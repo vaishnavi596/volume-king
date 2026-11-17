@@ -30,25 +30,25 @@ class AssessmentUiProducerSafetyTests(unittest.TestCase):
         self.assertTrue(any("PCR: 0.800" in line for line in lines))
         self.assertTrue(any("not a trade signal" in line for line in lines))
 
-    def test_unknown_producer_status_fails_closed(self):
+    def test_unverified_status_never_promotes_to_trading_signal(self):
         data = payload()
-        data["collection_status"] = "live"
-        self.assertEqual(len(show(data)), 1)
+        data["collection_status"] = "legacy_unverified"
+        lines = show(data)
+        self.assertTrue(any("not a trade signal" in line for line in lines))
+
+    def test_missing_live_orders_flag_fails_closed(self):
+        data = payload()
+        data.pop("live_orders_enabled")
         self.assertIn("WAIT", show(data)[0])
 
-    def test_fabricated_bullish_score_fails_closed(self):
+    def test_signal_eligible_true_fails_closed(self):
         data = payload()
-        data["bullish_score"] = 85
+        data["signal_eligible"] = True
         self.assertIn("WAIT", show(data)[0])
 
-    def test_factor_score_fails_closed(self):
+    def test_missing_factor_fails_closed(self):
         data = payload()
-        data["factors"]["options"]["bullish"] = 95
-        self.assertIn("WAIT", show(data)[0])
-
-    def test_partial_without_evidence_fails_closed(self):
-        data = payload()
-        data["assessment_filters"][3] = {"id": "pcr", "status": "unavailable"}
+        del data["factors"]["options"]
         self.assertIn("WAIT", show(data)[0])
 
 
