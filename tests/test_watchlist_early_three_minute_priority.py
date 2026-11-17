@@ -62,6 +62,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             "watch_three_minute_warm_attempts":attempts,
             "watch_three_minute_warm_last_provider":last_provider,
             "index_one_minute_busy":[False],
+            "dhan_history_scan_active":[False],
             "watch_groups":[["TCS","INFY"],[],[],[],[]],"active_watch":[0],
             "search":SimpleNamespace(value=""),
             "DHAN_VERIFIED_SYMBOLS":{"TCS","INFY","NIFTY"},
@@ -198,6 +199,59 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 self.assertFalse(self.requests(calls))
                 self.assertFalse(s["watch_three_minute_warm_busy"][0])
 
+    def test_after_hours_history_requires_explicit_manual_flag_and_is_historical(self):
+        s,calls,errors,window,rows,prior,now=self.fixture()
+        window["open"]=False
+        self.assertFalse(self.invoke(s)) # Automatic early priority still closed.
+        self.assertTrue(asyncio.run(s["warm_selected_watch_three_minute_early"](
+            0,explicit_closed=True)))
+        req=self.requests(calls)
+        self.assertEqual(len(req),1)
+        self.assertEqual(req[0][1],("TCS","1m","2d"))
+        self.assertEqual(len(s["watch_three_minute_upstream_times"]),1)
+        entry=s["chart_snapshots"][("TCS","1m",0)]
+        self.assertEqual(entry["_scanner_timeframe"],"1m")
+        self.assertEqual(entry["freshness"],"historical_unverified")
+        self.assertTrue(entry["historical"])
+        self.assertFalse(entry["live_verified"])
+        self.assertFalse(errors)
+
+    def test_explicit_after_hours_never_competes_with_main_scan_or_cooldown(self):
+        for reason in ("main_scan","provider_cooldown","three_budget","thirty_gap",
+                       "wrong_provider","wrong_generation","background"):
+            with self.subTest(reason=reason):
+                s,calls,errors,window,rows,prior,now=self.fixture()
+                window["open"]=False
+                if reason=="main_scan":s["dhan_history_scan_active"][0]=True
+                elif reason=="provider_cooldown":s["dhan_feed"].cooldown_remaining=lambda _:30
+                elif reason=="three_budget":
+                    s["watch_three_minute_upstream_times"][:]=[now-90,now-60,now-30]
+                elif reason=="thirty_gap":
+                    s["watch_three_minute_warm_last_provider"][0]=now-10
+                elif reason=="wrong_provider":s["prefs"]["source"]="Yahoo Finance"
+                elif reason=="wrong_generation":s["provider_generation"][0]=1
+                elif reason=="background":s["lifecycle_background"][0]=True
+                self.assertFalse(asyncio.run(s["warm_selected_watch_three_minute_early"](
+                    0,explicit_closed=True)))
+                self.assertEqual(self.requests(calls),[])
+                self.assertFalse(s["watch_three_minute_warm_busy"][0])
+
+    def test_explicit_manual_retains_last_candle_when_partial_response_after_close(self):
+        s,calls,errors,window,rows,prior,now=self.fixture()
+        window["open"]=False
+        prior[("TCS","1m")]={"source":"Dhan","bars":rows,
+                            "candle_fetched_at":time.time()-300}
+        s["get_market_data"]=lambda *args:{"source":"Dhan","bars":rows[-3:],
+                                            "live_verified":True}
+        self.assertTrue(asyncio.run(s["warm_selected_watch_three_minute_early"](
+            0,explicit_closed=True)))
+        data=s["chart_snapshots"][("TCS","1m",0)]
+        self.assertEqual(data["bars"],rows)
+        self.assertTrue(data["historical"])
+        self.assertFalse(data["live_verified"])
+        self.assertEqual(data["freshness"],"historical_unverified")
+        self.assertFalse(errors)
+
     def test_partial_new_series_keeps_previous_one_minute_history_not_fake_live(self):
         s,calls,_,_,rows,prior,_=self.fixture()
         prior[("TCS","1m")]={"source":"Dhan","bars":rows,
@@ -242,7 +296,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
         self.assertIn('watch_three_minute_warm_last_provider[0]<30',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)
-        self.assertIn('or not refresh_hours()',helper)
+        self.assertIn('(not refresh_hours() and not explicit_closed)',helper)
         self.assertNotIn('get_market_data,sym,"3m"',helper)
         regular=method_source("watch_three_minute_warmup")
         for token in ('watch_three_minute_upstream_times','watch_three_minute_warm_attempts',
