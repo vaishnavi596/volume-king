@@ -156,11 +156,11 @@ These historical controls may already have modern equivalents. Their obsolete Ya
 
 | Stage | Status | Meaning |
 |---|---|---|
-| Inventory 44 original docs / 24 scripts | **DONE** | Original files inventoried; index adds 45th docs file |
+| Inventory 44 original docs / 24 scripts | **DONE** | Original 44 inventoried; one safely pruned, index remains, 44 docs currently |
 | Category navigation index | **DONE** | One entry point for new chat and category-specific evidence |
 | Category routing rule in AGENTS / Handoff | PENDING | Link index at startup, keep one chronological journal |
-| Markdown navigation link check | **PASS — INDEX ONLY** | All 44 original docs linked; 60 index Markdown links checked, zero missing file targets |
-| Full reference/dependency + unique-provenance scan | PENDING | Required before deletion or physical moves; index links alone are not an inbound-reference audit |
-| Controlled archive/delete batch | NOT STARTED | No deletions without demonstrable non-dependency |
+| Markdown navigation link check | **PASS pre-prune** | Original 44 linked; one A3 target deliberately converted to immutable historical Git link; post-prune CI required |
+| Full repository reference scan | **PASS pre-prune — #1844** | 44 original docs, 351 text files, 31 docs with inbound references, 13 with zero external inbound, 0 broken relative links; evidence markers heuristic, not deletion approval |
+| Controlled archive/delete batch | **1 A3 DOCUMENT REMOVED** | SHA-checked deletion commit `fe730700`, original content retained by Git immutable link; post-prune CI to verify |
 | Current Oracle/app/APK release work | OPEN | Independent of documentation housekeeping |
 
