@@ -252,7 +252,7 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
         self.assertEqual(observed["SENSEX"]["mapping_status"], "unmapped")
         import json
         self.assertNotIn("hidden", json.dumps(observed))
-        self.assertEqual(len(a.PATHS), 9)
+        self.assertEqual(len(a.PATHS), 11)
         opener = Opener({"status": "mapping_only", "mapped": True})
         self.assertEqual(a.request_get(
             "/v2/option-underlying-status/NIFTY", None, opener=opener).http, 0)
@@ -260,6 +260,26 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
         self.assertEqual(a.request_get(
             "/v2/option-underlying-status/NIFTY", "test-key", opener=opener).http, 200)
         self.assertEqual(opener.requests[0].get_method(), "GET")
+
+    def test_hdfcbank_get_only_assessment_and_mapping_are_separate_from_indices(self):
+        a = module()
+        r = a.ProbeResult
+        self.assertIn("/v2/assessment/HDFCBANK", a.PATHS)
+        self.assertIn("/v2/option-underlying-status/HDFCBANK", a.PATHS)
+        self.assertEqual(a.request_get("/v2/assessment/HDFCBANK", None).http, 0)
+        view = a.summarize([
+            r("/v2/assessment/HDFCBANK", 200, {
+                "status": "incomplete", "signal_eligible": False,
+                "factors": {"options": {"status": "unavailable", "secret": "do-not-print"}},
+                "assessment_filters": [{"id": "pcr", "status": "unavailable"}]}),
+            r("/v2/option-underlying-status/HDFCBANK", 404, None),
+        ])
+        self.assertEqual(set(view["index_assessments"]), set(a.INDEX_SYMBOLS))
+        self.assertEqual(set(view["equity_assessments"]), {"HDFCBANK"})
+        self.assertEqual(view["equity_assessments"]["HDFCBANK"]["mapping_http"], 404)
+        self.assertFalse(view["equity_assessments"]["HDFCBANK"]["underlying_mapped"])
+        self.assertEqual(view["equity_assessments"]["HDFCBANK"]["filter_statuses"]["pcr"], "unavailable")
+        self.assertNotIn("do-not-print", str(view))
 
     def test_stale_and_403_do_not_pretend_success(self):
         a = module()
