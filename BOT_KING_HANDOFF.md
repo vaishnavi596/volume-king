@@ -1,3 +1,7 @@
+# CURRENT CROSS-CHAT RULES — 2026-11-17
+
+**READ FIRST:** [AGENTS.md](AGENTS.md) contains the permanent BOT KING working rules. **"OK" means continue to the next safe test/repair**, not merely report and stop. Before edits inspect last ten commits and CI runs; maintain a consolidated T01–T16 test matrix, batch coherent fixes, keep CI/tests moving when independent, journal evidence and block APK until final gates pass. This is a workflow rule, **not** a claim of autonomous background work after the chat ends. Current matrix: [docs/BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md](docs/BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md).
+
 ## 2026-11-16 — ORACLE-FILTER-AUDIT-01: no-network five-filter deployed source classifier
 - #1571 [43832625673](https://github.com/vaishnavi596/volume-king/actions/runs/43832625673) at `4b28e245` **932/932 PASS**; #1570 at `3fa20d64` **931/931 PASS**. Latest-eight CI inspected.
 - New `scripts/audit_oracle_five_filters_readonly.py` commit `2bba9280` uses AST parse/sha256 on deployed custom `/opt/bot-king-server/server.py`, classifies missing / recognized known `not_configured` five-filter placeholder / other source. It NEVER labels a nonplaceholder as functional; outputs `producer_proven_functional=false` and `deployed_runtime_route_verified=false`. No HTTP, env/key, Dhan requests, imports from custom server or writes. Offline tests `tests/test_oracle_five_filter_runtime_source_audit.py` commit `e6677c7f`; latest CI still pending at handoff creation.
