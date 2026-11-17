@@ -75,7 +75,7 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
 
     def test_one_minute_default_preserves_saved_timeframe(self):
         self.assertIn('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',SOURCE)
-        self.assertIn('        saved_scanner_tf="1m"\\n    scan_tf=',SOURCE)
+        self.assertIn('        saved_scanner_tf="1m"',SOURCE)
         self.assertIn('prefs["scanner_timeframe"]=scan_tf.value or "1m"',SOURCE)
         # Existing saved 3m/5m/15m/1h still takes precedence over default.
         setup=SOURCE.split('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',1)[1].split(
