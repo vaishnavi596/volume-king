@@ -61,3 +61,4 @@ jobs:
           fi
 # 2026-11-17 owner requested consolidated post-1736 no-APK five-scope regression gate.
 # 2026-11-17 full T04/T10 post-1741 five-scope no-APK regression gate.
+# 2026-11-17 post-1747 cold-boot first-request five-group no-APK regression gate.
