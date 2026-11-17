@@ -44,9 +44,13 @@ try:
 except ImportError:
     from dhan_option_metrics import calculate_option_metrics, listed_atm_window, OptionMetricsUnavailable
 try:
-    from .assessment_filter_adapter import option_filter_rows
+    from .assessment_filter_adapter import option_filter_rows, read_only_assessment
 except ImportError:
-    from assessment_filter_adapter import option_filter_rows
+    from assessment_filter_adapter import option_filter_rows, read_only_assessment
+try:
+    from .option_evidence_cache import OptionEvidenceCache
+except ImportError:
+    from option_evidence_cache import OptionEvidenceCache
 from pathlib import Path
 import hashlib
 try:
@@ -546,6 +550,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
         return {"source": "dhan", "symbol": body.symbol, "expiries": dates,
                 "live_orders_enabled": False}
 
+    # In-process handoff: bounded, TTL-expiring evidence, no extra Dhan requests.
+    option_evidence_cache = OptionEvidenceCache(ttl_seconds=120, max_entries=128)
+
     @app.post("/dhan/option-chain")
     def dhan_option_chain(body: DhanOptionChainRequest,
                           x_botking_key: Optional[str] = Header(default=None)):
@@ -585,6 +592,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(502, "Dhan option chain incomplete or unverified") from None
         except DhanFeedError:
             raise HTTPException(502, "Dhan option chain unavailable or not entitled") from None
+        option_evidence_cache.put(body.symbol, body.expiry.isoformat(), metrics)
         return {"source": "dhan", "symbol": body.symbol,
                 "expiry": body.expiry.isoformat(), **metrics,
                 "assessment_filters": option_filter_rows(metrics),
@@ -751,6 +759,9 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(403, "Server access denied")
         if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9&-]{1,40}", symbol)):
             raise HTTPException(422, "Invalid assessment symbol")
+        cached_metrics = option_evidence_cache.latest(symbol)
+        if cached_metrics is not None:
+            return read_only_assessment(symbol, cached_metrics)
         ids = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
         return {
             "protocol": 2,
