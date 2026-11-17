@@ -5877,6 +5877,80 @@ console.log('BOT KING Lightweight Charts ready');
             return False  # At most one selected equity per 5m scan cycle.
         return False
 
+    # Index 1m chart priority uses the existing 180s index history clock.
+    # It is called by the single serialized 5m history worker, not a new lane.
+    index_candle_last_attempt=[0.0]
+    index_candle_generation=[None]
+    async def warm_index_one_minute_early(generation):
+        if (current[0] not in (0,4,5) or not app_active[0]
+                or lifecycle_background[0] or prefs.get("source")!="Dhan"
+                or not dhan_feed.connected or generation!=provider_generation[0]
+                or not refresh_hours() or index_one_minute_busy[0]
+                or watch_three_minute_warm_busy[0]
+                or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+            return 0
+        now=time.monotonic()
+        if (index_candle_generation[0]==generation
+                and now-index_candle_last_attempt[0]<180):
+            return 0
+        # Early scan and periodic poll share a single index revision clock;
+        # no second 1m triplet is due immediately after the 5m equity tail.
+        index_candle_generation[0]=generation
+        index_candle_last_attempt[0]=now
+        index_one_minute_busy[0]=True
+        updated=0
+        try:
+            for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
+                if (generation!=provider_generation[0] or not app_active[0]
+                        or lifecycle_background[0] or not refresh_hours()
+                        or not dhan_feed.connected
+                        or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                    break
+                prior=shared_history(index_sym,"1m")
+                fetched=prior.get("candle_fetched_at")
+                if (valid_candle_history(prior.get("bars"))
+                        and type(fetched) in (int,float)
+                        and 0<=time.time()-fetched<180):
+                    continue
+                history_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                             "Dhan",index_sym,"1m","2d")
+                with market_registry_lock:
+                    saved=market_recent.get(history_key)
+                    cache_ready=bool(saved and time.monotonic()-saved[0]<87)
+                if not cache_ready:
+                    # Same 1.5s gap as the existing index 1m periodic worker.
+                    await asyncio.sleep(1.5)
+                if (generation!=provider_generation[0] or not app_active[0]
+                        or lifecycle_background[0] or not refresh_hours()
+                        or not dhan_feed.connected
+                        or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                    break
+                try:
+                    data=await asyncio.wait_for(asyncio.to_thread(
+                        get_market_data,index_sym,"1m","2d"),timeout=25)
+                    if (generation!=provider_generation[0]
+                            or prefs.get("source")!="Dhan" or data.get("source")!="Dhan"):
+                        break
+                    data=retain_candle_history(data,prior,provider="Dhan")
+                    if valid_candle_history(data.get("bars")):
+                        chart_snapshots[(index_sym,"1m",generation)]=dict(
+                            data,_scanner_timeframe="1m",historical=True,
+                            live_verified=False,freshness="historical_unverified")
+                        updated+=1
+                        if current[0] in (0,4,5):
+                            request_view_refresh(current[0])
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    log_error("early_index_1m_"+index_sym,exc)
+                    if generation==provider_generation[0]:
+                        remember_candle_failure(index_sym,"1m","early index",exc)
+                    if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                        break
+        finally:
+            index_one_minute_busy[0]=False
+        return updated
+
     async def refresh_market():
         nonlocal market_status
         initial=True
@@ -6153,6 +6227,9 @@ console.log('BOT KING Lightweight Charts ready');
                     # The 5m scanner stays serialized; no parallel Dhan fanout.
                     if prefs.get("source")=="Dhan":
                         await warm_selected_watch_three_minute_early(generation)
+                        # NIFTY/BANKNIFTY/SENSEX 1m bars before the equity tail;
+                        # use the existing 180s index clock, not another poller.
+                        await warm_index_one_minute_early(generation)
                     # Dhan history is a rate-limited upstream API: serialize
                     # calls and stop this cycle when its cooldown is triggered.
                     for sym in symbols[1:]:
@@ -6449,8 +6526,6 @@ console.log('BOT KING Lightweight Charts ready');
                 log_error("dhan_index_poll",exc)
             await asyncio.sleep(10)
     page.run_task(dhan_index_poll)
-    index_candle_last_attempt=[0.0]
-    index_candle_generation=[None]
     async def dhan_index_candle_poll():
         # Independent 180s Dhan 1m index history cadence. Avoid competing with the
         # 51-equity scan; Dhan HTTPS requests are serialized in server_feed.
