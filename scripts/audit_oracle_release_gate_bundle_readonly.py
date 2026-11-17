@@ -18,7 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.audit_oracle_app_routes_readonly import audit as routes_audit
 from scripts.audit_oracle_five_filters_readonly import audit as filters_audit
 from scripts.audit_oracle_watchlist_s18_readonly import audit as watchlist_audit
-from scripts.audit_oracle_collector_runtime_readonly import PATHS, request_get, summarize
+from scripts.audit_oracle_collector_runtime_readonly import ProbeResult, request_get, summarize
+
+# Keep this legacy release gate fixed at its documented three GETs.\n# The richer collector/index assessment audit has a separate path allowlist.\nRELEASE_GATE_PATHS = (\"/health\", \"/v2/server-readiness\", \"/v2/snapshot\")
 
 SERVER_PATH = Path("/opt/bot-king-server/server.py")
 WATCHLIST_PATH = Path("/opt/bot-king-server/watchlist_store.py")
@@ -37,7 +39,7 @@ def collect(*, pairing_key=None, server_path=SERVER_PATH,
     routes = _source_result(routes_audit, server_path)
     filters = _source_result(filters_audit, server_path)
     watchlist = _source_result(watchlist_audit, watchlist_path)
-    results = [http_get(path, pairing_key) for path in PATHS]
+    results = [http_get(path, pairing_key) for path in RELEASE_GATE_PATHS]
     runtime = summarize(results)
     return {
         "routes_source": routes,
