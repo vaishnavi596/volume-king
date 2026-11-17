@@ -46,6 +46,7 @@ jobs:
       - name: Run selected regressions
         env:
           PATTERNS: ${{ matrix.patterns }}
+          PYTHONPATH: src:tests:backend
         shell: bash
         run: |
           set -euo pipefail
