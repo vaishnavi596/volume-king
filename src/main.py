@@ -580,22 +580,23 @@ def app_main(page:ft.Page):
                 # Historical candles must not be presented as a verified live quote.
                 if bars[-1][0]>time.time()+300:raise FeedError("Dhan candle timestamp is in the future")
                 quote=None
-                if ticker!="NIFTY":
-                    with dhan_batch_lock:
-                        if (dhan_batch_cache["generation"]==generation
-                                and time.monotonic()-dhan_batch_cache["updated"]<90):
-                            quote=dhan_batch_cache["quotes"].get(ticker)
-                if quote is None and ticker=="NIFTY":
-                    # Reuse the independently polled index LTP before spending
-                    # another provider request during a historical chart fetch.
-                    saved_index=quotes.get("NIFTY")
+                if ticker in ("NIFTY","BANKNIFTY","SENSEX"):
+                    # All three indices use their independent Dhan LTP cache.
+                    # Historical candles never manufacture a quote or trigger
+                    # an extra provider LTP request.
+                    saved_index=quotes.get(ticker)
                     if (isinstance(saved_index,dict) and saved_index.get("source")=="Dhan"
                             and isinstance(saved_index.get("price"),(int,float))
                             and not isinstance(saved_index.get("price"),bool)
                             and math.isfinite(saved_index["price"]) and saved_index["price"]>0):
                         quote=saved_index
-                    # If no index LTP is cached, let the dedicated index poller
-                    # recover it; a chart history request must not fan out LTP.
+                else:
+                    with dhan_batch_lock:
+                        if (dhan_batch_cache["generation"]==generation
+                                and time.monotonic()-dhan_batch_cache["updated"]<90):
+                            quote=dhan_batch_cache["quotes"].get(ticker)
+                # If index LTP is missing, the independent index poller
+                # recovers it; chart/history never fans out LTP.
 
                 # Equity quotes come from the dedicated batch poller. Never
                 # turn a 51-symbol candle scan into 51 extra individual LTP
