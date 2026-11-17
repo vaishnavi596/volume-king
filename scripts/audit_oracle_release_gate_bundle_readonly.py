@@ -20,7 +20,9 @@ from scripts.audit_oracle_five_filters_readonly import audit as filters_audit
 from scripts.audit_oracle_watchlist_s18_readonly import audit as watchlist_audit
 from scripts.audit_oracle_collector_runtime_readonly import ProbeResult, request_get, summarize
 
-# Keep this legacy release gate fixed at its documented three GETs.\n# The richer collector/index assessment audit has a separate path allowlist.\nRELEASE_GATE_PATHS = (\"/health\", \"/v2/server-readiness\", \"/v2/snapshot\")
+# Keep this legacy release gate fixed at its documented three GETs.
+# The richer collector/index assessment audit has a separate path allowlist.
+RELEASE_GATE_PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot")
 
 SERVER_PATH = Path("/opt/bot-king-server/server.py")
 WATCHLIST_PATH = Path("/opt/bot-king-server/watchlist_store.py")
