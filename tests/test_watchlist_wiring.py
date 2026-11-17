@@ -109,6 +109,22 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('historical candles unavailable', self.source)
         self.assertIn('watchlist batch failed:', self.source)
 
+    def test_70_total_instruments_and_dynamic_scanner_roster(self):
+        """Exactly 3 index slots plus up to 67 unique NSE equity selections."""
+        self.assertIn("MAX_TOTAL_INSTRUMENTS=70", self.source)
+        self.assertIn("MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3", self.source)
+        self.assertIn("normalize_watchlists(saved_watch_groups, maximum=MAX_WATCHLIST_EQUITIES)", self.source)
+        self.assertIn("normalize_watchlists(watch_groups, maximum=MAX_WATCHLIST_EQUITIES)", self.source)
+        self.assertIn("len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES", self.source)
+        scanner = ast.get_source_segment(self.source, self.functions["configured_scan_symbols"])
+        self.assertIn('["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()', scanner)
+        self.assertNotIn("+watch_symbols)", scanner)
+        self.assertIn("dict.fromkeys", scanner)
+        self.assertIn("sym in group", ast.get_source_segment(
+            self.source, self.functions["watch_symbol_owner"]))
+        self.assertIn("verified_equity_symbol,sym", self.source)
+        self.assertIn("selected_equity_quotes,dynamic", self.source)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)

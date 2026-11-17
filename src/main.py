@@ -1565,7 +1565,8 @@ def app_main(page:ft.Page):
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
-    MAX_WATCHLIST_EQUITIES=70  # UI capacity; mapped Dhan data stays separately verified.
+    MAX_TOTAL_INSTRUMENTS=70  # 3 dedicated indices plus up to 67 distinct selected equities.
+    MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3
     saved_watch_groups=[prefs.get("watchlist_"+str(i),watch_symbols if i==1 else []) for i in range(1,6)]
     watch_groups=normalize_watchlists(saved_watch_groups, maximum=MAX_WATCHLIST_EQUITIES)
     watch_normalized=watch_groups!=saved_watch_groups
@@ -1601,8 +1602,7 @@ def app_main(page:ft.Page):
     def configured_scan_symbols():
         # Scanner coverage is independent of which symbols remain in a saved list.
         if prefs.get("source")=="Dhan":
-            return [sym for sym in dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)
-                    if sym in DHAN_VERIFIED_SYMBOLS]
+            return list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
         return list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
     def selection_symbols():
         return list(dict.fromkeys(["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols+all_watch_symbols()+list(prefs.get("custom_symbols",[]))))
@@ -1653,12 +1653,12 @@ def app_main(page:ft.Page):
                 page.update()
                 return
             if sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
-                feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
+                feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove an equity first."
                 page.update()
                 return
             if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
                 if active_watch[0]==target_list:
-                    feedback.value="List is full (70 symbols maximum). Remove a symbol first."
+                    feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove a symbol first."
                     page.update()
                 return
             watch_groups[target_list].append(sym)
@@ -1686,9 +1686,9 @@ def app_main(page:ft.Page):
         elif watch_symbol_owner(sym) is not None:
             feedback.value=sym+" already saved in List "+str(watch_symbol_owner(sym)+1)+". Remove it there before adding."
         elif sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
-            feedback.value="Watchlist total is full (70 distinct equities). Remove an equity first."
+            feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove an equity first."
         elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
-            feedback.value="List is full (70 symbols maximum). Remove a symbol first."
+            feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove a symbol first."
         else:
             feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
             page.run_task(validate_and_add,sym,target_list)
