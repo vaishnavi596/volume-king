@@ -56,6 +56,32 @@ class AssessmentTransport54Tests(TestCase):
              "SENSEX": ("BSE_I", 51)})
         self.assertEqual(set(mapping), DHAN_VERIFIED_SYMBOLS)
 
+    def test_index_lane_rejects_unverified_orders_and_extra_symbols(self):
+        feed = ServerDhanReadOnly()
+        valid = {
+            "source": "dhan", "live_orders_enabled": False,
+            "quotes": {
+                "NIFTY": {"symbol": "NIFTY", "source": "dhan", "ltp": 25000.0},
+                "BANKNIFTY": {"symbol": "BANKNIFTY", "source": "dhan", "ltp": 60000.0},
+                "SENSEX": {"symbol": "SENSEX", "source": "dhan", "ltp": 81000.0},
+            }, "unavailable": [],
+        }
+        with patch.object(feed, "_call", return_value=valid):
+            result = feed.index_batch_quotes()
+            self.assertEqual(set(result), DHAN_VERIFIED_INDEX_SYMBOLS)
+            self.assertTrue(all(row["freshness"] == "unverified" for row in result.values()))
+        for changed in (
+            dict(valid, live_orders_enabled=True),
+            dict(valid, live_orders_enabled=None),
+            dict(valid, quotes=dict(valid["quotes"], RELIANCE={
+                "symbol": "RELIANCE", "source": "dhan", "ltp": 1000.0})),
+            None,
+        ):
+            with self.subTest(changed=str(type(changed)) + str(bool(changed))):
+                with patch.object(feed, "_call", return_value=changed):
+                    with self.assertRaises(FeedError):
+                        feed.index_batch_quotes()
+
     def test_equity_snapshot_rejects_each_index_in_quotes_and_unavailable(self):
         feed = ServerDhanReadOnly()
         for index in sorted(DHAN_VERIFIED_INDEX_SYMBOLS):

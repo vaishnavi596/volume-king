@@ -414,7 +414,10 @@ class ServerDhanReadOnly:
         """Fetch three index prices with one serialized, authenticated request."""
         import math
         result = self._call("/dhan/index-ltp-batch", {})
-        if result.get("source") != "dhan" or not isinstance(result.get("quotes"), dict):
+        if (not isinstance(result, dict) or result.get("source") != "dhan"
+                or result.get("live_orders_enabled") is not False
+                or not isinstance(result.get("quotes"), dict)
+                or any(symbol not in DHAN_VERIFIED_INDEX_SYMBOLS for symbol in result["quotes"])):
             raise FeedError("Invalid Dhan index batch response")
         quotes = {}
         for symbol in ("NIFTY", "BANKNIFTY", "SENSEX"):
