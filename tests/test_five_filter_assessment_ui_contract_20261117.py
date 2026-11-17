@@ -20,6 +20,10 @@ class AssessmentFiveSlotTests(unittest.TestCase):
         for label in ("OI Support", "OI Resistance", "Max Pain", "PCR", "Candle"):
             self.assertTrue(any(line.startswith(label + ": WAIT") for line in lines), label)
         self.assertFalse(any("BULLISH %" in line or "BEARISH %" in line for line in lines))
+        # Sixth slot is visible but inert; backend still sends exactly five IDs.
+        self.assertEqual(lines.count("Filter 6: "), 1)
+        self.assertFalse(any("Filter 6: WAIT" in line or
+                             "Filter 6: 0" in line for line in lines))
         self.assertTrue(any("not a trade signal" in line for line in lines))
 
     def test_duplicate_filter_id_is_rejected(self):
