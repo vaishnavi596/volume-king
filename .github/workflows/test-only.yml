@@ -19,11 +19,9 @@ on:
       - '.github/workflows/test-only.yml'
   workflow_dispatch:
 
-# Multiple commits in one repair batch should produce one final evidence run.
-# Superseded in-progress runs on this branch are cancelled automatically.
-concurrency:
-  group: botking-offline-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# Run every triggered regression independently. No workflow-level concurrency
+# group: new pushes must not cancel or queue an earlier run on this branch.
+# GitHub runner capacity and repository-level limits may still affect scheduling.
 
 permissions:
   contents: read
