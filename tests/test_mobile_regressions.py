@@ -440,7 +440,7 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('scanner_intervals=(["1m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
         self.assertIn('if saved_scanner_tf not in scanner_intervals:', source)
-        self.assertIn('saved_scanner_tf="5m"', source)
+        self.assertIn('saved_scanner_tf="1m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
 
     def test_dhan_chart_comparison_omits_unmapped_indices(self):
@@ -652,7 +652,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertEqual(v["preference_writer"].revision,before)
 
     def test_candle_analysis_survives_news_failure(self):
-        _,v=start({"scanner_live":False,"source":"Yahoo Finance"})
+        _,v=start({"scanner_live":False,"source":"Yahoo Finance","scanner_timeframe":"5m"})
         end=int(time.time()//300)*300-300
         bars=[[end-(39-i)*300,100+i,103+i,99+i,102+i,100] for i in range(40)]
         async def respond(fn,*args,**kwargs):
