@@ -5,7 +5,7 @@ from pathlib import Path
 
 from scripts.audit_oracle_watchlist_s18_readonly import audit
 from scripts.oracle_s18_watchlist_patch import make_stage
-from tests.test_oracle_s18_watchlist_patch import FIXTURE
+from test_oracle_s18_watchlist_patch import FIXTURE
 
 
 class S18ReadOnlyAuditTests(unittest.TestCase):
