@@ -43,7 +43,7 @@ class DocsReferenceAuditTests(unittest.TestCase):
         import json
         root = Path(__file__).resolve().parents[1]
         result = audit(root)
-        self.assertGreaterEqual(result["document_count"], 44)
+        self.assertGreaterEqual(result["document_count"], 40)  # Pruned archived reports reduce the fixed count
         self.assertEqual(result["files_deleted"], 0)
         orphan = [
             {"name": name, "unique_marker": data["potential_unique_evidence"]}
