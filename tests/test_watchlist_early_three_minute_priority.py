@@ -119,6 +119,43 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertEqual(len(self.requests(calls)),1)
         self.assertEqual(len(s["watch_three_minute_upstream_times"]),1)
 
+    def test_cold_boot_monotonic_under_30s_allows_first_request_not_second(self):
+        s,calls,errors,window,rows,prior,now=self.fixture()
+        # GitHub's fast scoped runner reproduced an erroneous first-request
+        # throttle: 0 means NEVER attempted, not a real monotonic timestamp.
+        s["watch_groups"][0]=["TCS"]
+        s["time"]=SimpleNamespace(monotonic=lambda:10.0,time=time.time)
+        self.assertTrue(self.invoke(s))
+        self.assertEqual(len(self.requests(calls)),1)
+        self.assertEqual(s["watch_three_minute_warm_attempts"][(0,"TCS")],10.0)
+        self.assertEqual(s["watch_three_minute_warm_last_provider"][0],10.0)
+        self.assertFalse(self.invoke(s))
+        self.assertEqual(len(self.requests(calls)),1)
+        self.assertFalse(errors)
+
+    def test_real_recent_attempt_and_provider_gap_still_block_at_10s_boot(self):
+        for reason in ("symbol_attempt","global_provider_gap"):
+            with self.subTest(reason=reason):
+                s,calls,_,_,_,_,_=self.fixture()
+                s["watch_groups"][0]=["TCS"]
+                s["time"]=SimpleNamespace(monotonic=lambda:10.0,time=time.time)
+                if reason=="symbol_attempt":
+                    s["watch_three_minute_warm_attempts"][(0,"TCS")]=5.0
+                else:
+                    s["watch_three_minute_warm_last_provider"][0]=5.0
+                self.assertFalse(self.invoke(s))
+                self.assertFalse(self.requests(calls))
+
+    def test_periodic_and_early_warmups_both_handle_unset_clock_sentinels(self):
+        helper=method_source("warm_selected_watch_three_minute_early")
+        periodic=method_source("watch_three_minute_warmup")
+        for source in (helper,periodic):
+            self.assertIn("key in watch_three_minute_warm_attempts",source)
+            self.assertIn("now-watch_three_minute_warm_attempts[key]<180",source)
+            self.assertIn("watch_three_minute_warm_last_provider[0]>0",source)
+            self.assertIn("now-watch_three_minute_warm_last_provider[0]<30",source)
+            self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",source)
+
     def test_exact_rolling_budget_and_global_30_second_spacing(self):
         for budget in ("three_requests","recent_previous"):
             with self.subTest(budget=budget):
