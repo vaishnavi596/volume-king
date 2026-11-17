@@ -44,7 +44,8 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                "time":SimpleNamespace(monotonic=lambda:10.0),
                "watch_batch_status":[""],
                "request_view_refresh":lambda tab:called.append(("repaint",tab)),
-               "refresh_watch_batch":equity,"refresh_dhan_index_quotes":index}
+               "refresh_watch_batch":equity,"refresh_dhan_index_quotes":index,
+               "refresh_hours":lambda:True,"current":[4]}
         fn=compile_callback("refresh_all_dhan_quotes",scope)
         asyncio.run(fn())
         self.assertEqual(called,["equity",("index",True)])
@@ -68,6 +69,59 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertEqual(scope["manual_quote_last_attempt"][0],0.0)
         self.assertIn("cooling down",scope["watch_batch_status"][0])
         self.assertEqual(called,[("repaint",4)])
+
+    def test_after_hours_manual_quote_then_one_historical_refresh_no_51_fanout(self):
+        calls=[]
+        async def equity():
+            calls.append("equity")
+        async def index(force=False):
+            calls.append(("index",force))
+        async def one_history(gen,*,explicit_closed=False):
+            calls.append(("1m-history",gen,explicit_closed))
+            return True
+        scope={"prefs":{"source":"Dhan"},
+            "dhan_feed":SimpleNamespace(connected=True,cooldown_remaining=lambda _:0),
+            "watch_batch_busy":[False],"index_refresh_busy":[False],
+            "manual_quote_last_attempt":[0.0],
+            "time":SimpleNamespace(monotonic=lambda:10.0),
+            "watch_batch_status":["Dhan last known prices checked"],
+            "request_view_refresh":lambda tab:calls.append(("repaint",tab)),
+            "refresh_watch_batch":equity,"refresh_dhan_index_quotes":index,
+            "refresh_hours":lambda:False,"current":[4],
+            "dhan_history_scan_active":[False],"provider_generation":[3],
+            "warm_selected_watch_three_minute_early":one_history}
+        fn=compile_callback("refresh_all_dhan_quotes",scope)
+        asyncio.run(fn())
+        self.assertEqual(calls,["equity",("index",True),
+                                ("1m-history",3,True),("repaint",4)])
+        self.assertIn("HIST",scope["watch_batch_status"][0])
+        asyncio.run(fn())  # Existing 30-second manual floor blocks repeat.
+        self.assertEqual(calls[-1],("repaint",4))
+        self.assertEqual([c for c in calls if isinstance(c,tuple)
+                          and c[0]=="1m-history"],[("1m-history",3,True)])
+
+    def test_closed_manual_candle_skips_busy_main_scan_after_quote(self):
+        called=[]
+        async def equity():
+            called.append("equity")
+        async def index(force=False):
+            called.append("index")
+        async def invalid_history(*args,**kwargs):
+            raise AssertionError("must not run while 54-symbol 5m lane active")
+        scope={"prefs":{"source":"Dhan"},
+            "dhan_feed":SimpleNamespace(connected=True,cooldown_remaining=lambda _:0),
+            "watch_batch_busy":[False],"index_refresh_busy":[False],
+            "manual_quote_last_attempt":[0.0],
+            "time":SimpleNamespace(monotonic=lambda:10.0),
+            "watch_batch_status":["Quote pass"],
+            "request_view_refresh":lambda _:None,
+            "refresh_watch_batch":equity,"refresh_dhan_index_quotes":index,
+            "refresh_hours":lambda:False,"current":[4],
+            "dhan_history_scan_active":[True],"provider_generation":[3],
+            "warm_selected_watch_three_minute_early":invalid_history}
+        asyncio.run(compile_callback("refresh_all_dhan_quotes",scope)())
+        self.assertEqual(called,["equity","index"])
+        self.assertIn("main scan busy",scope["watch_batch_status"][0])
 
     def test_first_auto_option_refresh_allowed_at_monotonic_ten_seconds(self):
         called=[]
