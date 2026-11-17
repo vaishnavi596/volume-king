@@ -185,6 +185,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                                       CancelledError=asyncio.CancelledError),
             "request_view_refresh":lambda x:None,
             "log_error":lambda *args:None}
+        compile_callback("oracle_assessment_context",scope)
         fn=compile_callback("oracle_assessment_poll",scope)
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
@@ -201,6 +202,34 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(requested,expected)
+
+    def test_assessment_ui_hides_old_selection_after_timeframe_or_expiry_change(self):
+        selected_tf=SimpleNamespace(value="1m")
+        selected_expiry=SimpleNamespace(value="2026-11-26")
+        record={"fetched":10.0,"data":{"symbol":"NIFTY"},
+                "timeframe":"1m","expiry":"2026-11-26"}
+        context={"scan_symbol":SimpleNamespace(value="NIFTY"),
+                 "scan_tf":selected_tf,
+                 "chain_symbol":SimpleNamespace(value="NIFTY"),
+                 "expiry":selected_expiry,
+                 "date":__import__("datetime").date,
+                 "provider_generation":[0],
+                 "oracle_assessment_cache_generation":[0],
+                 "oracle_assessment_cache":{"NIFTY":record},
+                 "oracle_assessment_attempts":{},
+                 "prefs":{"source":"Dhan"},
+                 "dhan_feed":SimpleNamespace(connected=True),
+                 "assessment_lines":lambda symbol,cache:["MATCHED"]}
+        compile_callback("oracle_assessment_context",context)
+        notes=compile_callback("oracle_assessment_notes",context)
+        self.assertEqual(notes("NIFTY"),["MATCHED"])
+        selected_tf.value="3m"
+        self.assertIn("WAIT",notes("NIFTY")[0])
+        selected_tf.value="1m"
+        selected_expiry.value="2026-12-03"
+        self.assertIn("WAIT",notes("NIFTY")[0])
+        selected_expiry.value="2026-11-26"
+        self.assertEqual(notes("NIFTY"),["MATCHED"])
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
