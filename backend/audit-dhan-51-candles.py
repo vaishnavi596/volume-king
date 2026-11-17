@@ -21,25 +21,40 @@ import ast
 # which depends on optional app-only modules absent on the Oracle host.
 source = (ROOT / "src" / "server_feed.py").read_text(encoding="utf-8")
 tree = ast.parse(source, filename="server_feed.py")
-assignments = [node for node in tree.body if isinstance(node, ast.Assign)
-               and any(isinstance(target, ast.Name) and target.id == "DHAN_VERIFIED_SYMBOLS"
-                       for target in node.targets)]
-if len(assignments) != 1:
-    raise RuntimeError("Expected exactly one Dhan verified-symbol mapping")
-value = assignments[0].value
-if not (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
-        and value.func.id == "frozenset" and len(value.args) == 1
-        and not value.keywords):
-    raise RuntimeError("Unexpected Dhan symbol mapping expression")
-DHAN_VERIFIED_SYMBOLS = frozenset(ast.literal_eval(value.args[0]))
-if not DHAN_VERIFIED_SYMBOLS or not all(isinstance(x, str) and x for x in DHAN_VERIFIED_SYMBOLS):
-    raise RuntimeError("Invalid Dhan symbol mapping")
+assignments = {
+    target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
+    for target in node.targets if isinstance(target, ast.Name)
+}
+value = assignments.get("DHAN_VERIFIED_SYMBOLS")
+if not (isinstance(value, ast.BinOp) and isinstance(value.op, ast.BitOr)
+        and isinstance(value.left, ast.Name)
+        and value.left.id == "DHAN_VERIFIED_EQUITY_SYMBOLS"
+        and isinstance(value.right, ast.Name)
+        and value.right.id == "DHAN_VERIFIED_INDEX_SYMBOLS"):
+    raise RuntimeError("Unexpected Dhan 51+3 symbol union expression")
+
+def literal_roster(name):
+    expression = assignments.get(name)
+    if not (isinstance(expression, ast.Call) and isinstance(expression.func, ast.Name)
+            and expression.func.id == "frozenset" and len(expression.args) == 1
+            and not expression.keywords):
+        raise RuntimeError("Unexpected Dhan roster expression: " + name)
+    result = frozenset(ast.literal_eval(expression.args[0]))
+    if not result or not all(isinstance(x, str) and x for x in result):
+        raise RuntimeError("Invalid Dhan roster: " + name)
+    return result
+
+EQUITY_SYMBOLS = literal_roster("DHAN_VERIFIED_EQUITY_SYMBOLS")
+INDEX_SYMBOLS = literal_roster("DHAN_VERIFIED_INDEX_SYMBOLS")
+if len(EQUITY_SYMBOLS) != 51 or len(INDEX_SYMBOLS) != 3 or EQUITY_SYMBOLS & INDEX_SYMBOLS:
+    raise RuntimeError("Invalid Dhan disjoint 51+3 roster")
+DHAN_VERIFIED_SYMBOLS = EQUITY_SYMBOLS | INDEX_SYMBOLS
 
 spec = spec_from_file_location("dhan_live_check", pathlib.Path(__file__).with_name("check-dhan-live.py"))
 module = module_from_spec(spec)
 spec.loader.exec_module(module)
 
-INDEX_SYMBOLS = frozenset(("NIFTY", "BANKNIFTY", "SENSEX"))
+
 
 def audit_symbols(all_symbols=False):
     return sorted(DHAN_VERIFIED_SYMBOLS if all_symbols else DHAN_VERIFIED_SYMBOLS - INDEX_SYMBOLS)
