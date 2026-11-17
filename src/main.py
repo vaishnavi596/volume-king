@@ -4186,9 +4186,9 @@ def app_main(page:ft.Page):
     # Only expose intervals that the active Dhan gateway can actually fetch.
     scanner_intervals=(["1m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
                        else ["1m","3m","5m","15m","30m","1h","1d"])
-    saved_scanner_tf=prefs.get("scanner_timeframe","5m")
+    saved_scanner_tf=prefs.get("scanner_timeframe","1m")
     if saved_scanner_tf not in scanner_intervals:
-        saved_scanner_tf="5m"
+        saved_scanner_tf="1m"
     scan_tf=ft.Dropdown(label="Candle",value=saved_scanner_tf,options=[ft.dropdown.Option(v) for v in scanner_intervals])
     scan_expiry=ft.Dropdown(label="Days (simulation)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
@@ -4963,7 +4963,8 @@ console.log('BOT KING Lightweight Charts ready');
             if not app_active[0]:
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5);continue
-            if not initial and not refresh_hours():
+            if not refresh_hours():
+                # Even the first automatic scan must not poll after hours.
                 scan_next_refresh[0]=None
                 scan_status.value=session_caption()
                 refresh_scan_age()
@@ -5002,7 +5003,7 @@ console.log('BOT KING Lightweight Charts ready');
         selection_changed=context!=scan_selection_context[0]
         scan_selection_context[0]=context
         prefs["scanner_symbol"]=scan_symbol.value or "NIFTY"
-        prefs["scanner_timeframe"]=scan_tf.value or "5m"
+        prefs["scanner_timeframe"]=scan_tf.value or "1m"
         save()
         if selection_changed or (e is not None and e.control in (scan_symbol,scan_tf,scan_period)):
             scan_generation[0]+=1
