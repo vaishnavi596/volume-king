@@ -57,6 +57,36 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "Delegated .* registered"):
                         module.prepare(source)
 
+    def test_mapping_only_candidate_is_protected_and_not_an_option_entitlement(self):
+        source = (
+            b"from typing import Optional\\n"
+            b"DYNAMIC_INSTRUMENTS = {}\\n"
+            b"def create_app():\\n"
+            b"    register_assessment_routes(app, pairing_key)\\n"
+        )
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
+            candidate = module.prepare_mapping_only(source)
+        body = candidate.decode()
+        self.assertIn('"/v2/option-underlying-status/{symbol}"', body)
+        self.assertIn('hmac.compare_digest', body)
+        self.assertIn('"mapping_only"', body)
+        self.assertIn('"expiry_verified": False', body)
+        self.assertIn('"chain_verified": False', body)
+        self.assertIn('"pcr_verified": False', body)
+        self.assertIn('"broker_requests": 0', body)
+        self.assertNotIn('DhanFeed(', body)
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(candidate).hexdigest()):
+            with self.assertRaisesRegex(ValueError, "already declared"):
+                module.prepare_mapping_only(candidate)
+
+    def test_mapping_only_rejects_missing_registration_and_wrong_hash(self):
+        source = b"DYNAMIC_INSTRUMENTS = {}\\ndef create_app():\\n    pass\\n"
+        with self.assertRaisesRegex(ValueError, "SHA mismatch"):
+            module.prepare_mapping_only(source)
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
+            with self.assertRaisesRegex(ValueError, "registered assessment"):
+                module.prepare_mapping_only(source)
+
     def test_rejects_snapshot_route_outside_create_app(self):
         source = SOURCE.replace(b"def create_app():", b"def different_factory():")
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
