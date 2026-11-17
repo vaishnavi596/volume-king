@@ -107,6 +107,15 @@ These older files are **ARCHIVE CANDIDATES**, not proven safe deletions. They co
 
 **Deletion gate:** No permanent removal solely based on age or a subjective 60% usefulness estimate. For each candidate verify no inbound links/source references, preserve unique troubleshooting/CI/test/deployment/rollback provenance in the Work Log or category index, confirm no CI/build dependency, commit an audited deletion manifest and check final CI. Prefer Git history + archive index for superseded prose; remove only explicitly proven redundant text, not security/safety evidence.
 
+## First legacy-document content audit — important findings
+
+Reviewed seven proposed archive candidates individually (source contents, not only names): `audit-v1.8.0.md`, `audit-v1.9.0.md`, `audit-v2.0.1.md`, `PREBUILD_UI_AUDIT_2026_11_06.md`, `DHAN_ORACLE_YAHOO_PREBUILD_AUDIT_2026_11_06.md`, `BOT_KING_PREVIOUS_TWO_CHATS_STEP_BY_STEP_20261114_15.md`, and `B3_JOINT_BATCH_PLAN_20261115.md`.
+
+- **Do not use legacy architecture as current requirements:** 2026-11-06 Yahoo/Angel alternatives and legacy Flet version information are historical, superseded by the current Dhan-only read-only app policy. If kept for provenance, label them historical prominently.
+- **Retain unique past evidence:** v1.8/1.9/2.0.1 audits contain past safety and UI requirements; `PREVIOUS_TWO_CHATS...` has specific CI run URLs and original historical failure evidence. Deleting them before explicit provenance migration would lose searchable evidence.
+- **B3 older plan has stale pending statuses** for work later completed; consult current Work Log/Matrix instead. A stale PENDING does not mean run was never completed.
+- **Deletion verdict for these seven: HOLD.** Archive candidate for navigation only; unique evidence and cross-document links not fully reconciled. Remaining older docs still require content/reference review before a batch delete.
+
 ## Documentation housekeeping register
 
 | Stage | Status | Meaning |
