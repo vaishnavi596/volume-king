@@ -2048,7 +2048,9 @@ def app_main(page:ft.Page):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected or watch_batch_busy[0] or index_refresh_busy[0]:
             return
         now=time.monotonic()
-        remaining=max(0,30-(now-manual_quote_last_attempt[0]))
+        # 0.0 means never attempted; permit the first explicit manual refresh.
+        remaining=(max(0,30-(now-manual_quote_last_attempt[0]))
+                   if manual_quote_last_attempt[0]>0 else 0)
         if remaining>0:
             watch_batch_status[0]=f"Manual refresh available in {remaining:.0f}s • last valid prices retained"
             request_view_refresh(4)
@@ -2083,7 +2085,9 @@ def app_main(page:ft.Page):
                         and dhan_feed.connected)
                         or (app_active[0] and closing_bootstrap and prefs.get("source")=="Dhan"
                             and dhan_feed.connected)):
-                    poll_due=(time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
+                    # The initial auto quote must not wait for 60s of process uptime.
+                    poll_due=((max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0
+                               or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
                               and not watch_batch_busy[0])
                 else:
                     poll_due=False
@@ -2898,7 +2902,8 @@ def app_main(page:ft.Page):
             if (current[0] in (0,1,3) and refresh_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and chain_symbol.value in DHAN_VERIFIED_SYMBOLS and not option_feed_busy[0]
-                    and time.monotonic()-dhan_option_last_attempt[0]>=60
+                    and (dhan_option_last_attempt[0]<=0
+                         or time.monotonic()-dhan_option_last_attempt[0]>=60)
                     and time.monotonic()>=option_retry_until.get(
                         (provider_generation[0],chain_symbol.value,option_expiry_choice.value,
                          expiry.value if option_expiry_choice.value=="Manual" else ""),0.0)
@@ -5746,7 +5751,8 @@ console.log('BOT KING Lightweight Charts ready');
         # Navigation must not trigger a duplicate Oracle snapshot request.
         if (changed and i==4 and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
                 and not watch_batch_busy[0]
-                and time.monotonic()-watch_batch_last_attempt[0]>=60
+                and (watch_batch_last_attempt[0]<=0
+                     or time.monotonic()-watch_batch_last_attempt[0]>=60)
                 and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
             page.run_task(refresh_watch_batch)
         if changed and i==5 and not chart_load_busy[0]:
@@ -6706,7 +6712,9 @@ console.log('BOT KING Lightweight Charts ready');
                             break
                         now=time.monotonic()
                         key=(generation,sym)
-                        if now-oracle_assessment_attempts.get(key,0)<180:
+                        # Missing key means no assessment request yet this login.
+                        if (key in oracle_assessment_attempts
+                                and now-oracle_assessment_attempts[key]<180):
                             continue
                         oracle_assessment_attempts[key]=now
                         try:
@@ -6746,7 +6754,8 @@ console.log('BOT KING Lightweight Charts ready');
             if app_active[0] and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
                 if (app_active[0] and generation==provider_generation[0]
-                        and time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60
+                        and (max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0
+                             or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
                     # Reuse the same request clock as Watchlist and the poller.
                     if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
