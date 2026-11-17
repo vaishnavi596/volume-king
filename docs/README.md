@@ -116,6 +116,24 @@ Reviewed seven proposed archive candidates individually (source contents, not on
 - **B3 older plan has stale pending statuses** for work later completed; consult current Work Log/Matrix instead. A stale PENDING does not mean run was never completed.
 - **Deletion verdict for these seven: HOLD.** Archive candidate for navigation only; unique evidence and cross-document links not fully reconciled. Remaining older docs still require content/reference review before a batch delete.
 
+## Second historical audit batch — source-content verdict (2026-11-18)
+
+The remaining seven named archive candidates were inspected individually rather than judged from filenames. **Deletion verdict: HOLD** until inbound-reference and unique-evidence checks pass.
+
+| Candidate | Evidence still useful | Archive action |
+|---|---|---|
+| `B3_GITHUB_FULL_AUDIT_20261115.md` | v2.3.121 APK run and exact Dhan 422/provider-gap observations | Reference-only; keep CI provenance |
+| `B4_PAPER_ORDER_BOT_AUDIT_20261115.md` | no-live-orders / paper persistence and transaction ordering risks | Keep as paper-mode safety evidence |
+| `BOT_KING_JOINT_BATCH_GAP_AUDIT_20261116.md` | Watchlist 3m vs Dashboard 1m decision and verified source gaps | Keep corrected timeframe policy |
+| `BOT_KING_NEW_CHAT_HANDOFF_20261117.md` | previously deployed vs candidate hashes, old failures and safe operating rules | Historical handoff, not current source of truth |
+| `BOT_KING_PROJECT_AUDIT_AND_RELEASE_PLAN.md` | 2.3.76 original CI and release gate chronology | Historical CI/reference |
+| `T_UNIFIED_TRADING_JOINT_RELEASE_20261115.md` | explicit missing broker order/contract entitlement proof | Keep no-live-orders proof |
+| `BOT-KING-226-MASTER-ROADMAP.md` | planned server-owned data and PIN/Keystore security requirements | Deferred roadmap, not completed implementation |
+
+**Result:** all 14 named archive candidates have now received at least a content-level audit (7 first batch + 7 second batch). This does **not** mean all 44 originals have been proved safe to delete. These 14 contain specific facts that may not be reproduced in current docs. Keep them until any unique facts are migrated, inbound links repaired and Git-history recovery is documented.
+
+**Repository-wide reference analyzer:** `scripts/audit_docs_references_readonly.py` and `tests/test_docs_reference_audit.py` inspect incoming filenames across source/docs/tests and relative Markdown links. The analyzer is read-only and explicitly marks every candidate `deletion_safe=false` pending operator review, regardless of zero inbound references. CI of this new analyzer must be verified before using its inventory as evidence.
+
 ## Documentation housekeeping register
 
 | Stage | Status | Meaning |
@@ -123,7 +141,8 @@ Reviewed seven proposed archive candidates individually (source contents, not on
 | Inventory 44 original docs / 24 scripts | **DONE** | Original files inventoried; index adds 45th docs file |
 | Category navigation index | **DONE** | One entry point for new chat and category-specific evidence |
 | Category routing rule in AGENTS / Handoff | PENDING | Link index at startup, keep one chronological journal |
-| Markdown navigation link check | **PASS — INDEX ONLY** | All 44 original docs linked; 60 index Markdown links checked, zero missing file targets |\n| Full reference/dependency + unique-provenance scan | PENDING | Required before deletion or physical moves; index links alone are not an inbound-reference audit |
+| Markdown navigation link check | **PASS — INDEX ONLY** | All 44 original docs linked; 60 index Markdown links checked, zero missing file targets |
+| Full reference/dependency + unique-provenance scan | PENDING | Required before deletion or physical moves; index links alone are not an inbound-reference audit |
 | Controlled archive/delete batch | NOT STARTED | No deletions without demonstrable non-dependency |
 | Current Oracle/app/APK release work | OPEN | Independent of documentation housekeeping |
 
