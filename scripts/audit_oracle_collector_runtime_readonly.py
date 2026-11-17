@@ -2,8 +2,8 @@
 """One bounded, read-only Oracle collector/runtime contract probe.
 
 Run only on Oracle with BOTKING_AUDIT_PAIRING_KEY set by its operator.
-Only GET /health, /v2/server-readiness, /v2/snapshot and the three cached
-index assessments; never send Dhan
+Only GET /health, /v2/server-readiness, /v2/snapshot, three cached
+index assessments and three mapping-only index status routes; never send Dhan
 orders, batch quotes, historical requests, OAuth, or log credentials.
 
 Example:
@@ -23,6 +23,8 @@ ORIGIN = "http://127.0.0.1:8000"
 INDEX_SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
 PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot") + tuple(
     "/v2/assessment/" + symbol for symbol in INDEX_SYMBOLS
+) + tuple(
+    "/v2/option-underlying-status/" + symbol for symbol in INDEX_SYMBOLS
 )
 MAX_BYTES = 1_000_000
 
@@ -122,7 +124,17 @@ def summarize(results):
         factors = factors if isinstance(factors, dict) else {}
         filters = filters if isinstance(filters, list) else []
         allowed = {"available", "unavailable", "pending", "stale"}
+        mapping_probe = by_route.get("/v2/option-underlying-status/" + symbol)
+        mapping = (mapping_probe.body if mapping_probe and mapping_probe.http == 200
+                   and isinstance(mapping_probe.body, dict) else {})
         indices[symbol] = {
+            "mapping_http": mapping_probe.http if mapping_probe else 0,
+            "mapping_status": mapping.get("status") if mapping.get("status") in
+                              ("mapping_only", "unmapped", "invalid_symbol") else "unknown",
+            "underlying_mapped": mapping.get("mapped") is True,
+            "expiry_verified": mapping.get("expiry_verified") is True,
+            "chain_verified": mapping.get("chain_verified") is True,
+            "pcr_verified": mapping.get("pcr_verified") is True,
             "http": probe.http if probe else 0,
             "assessment_status": (body.get("status") if body.get("status") in
                                   ("complete", "incomplete", "unavailable") else "unknown"),
