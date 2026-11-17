@@ -60,7 +60,9 @@ class Unified54CoverageTests(unittest.TestCase):
     def test_shared_assessment_contract_not_index_only(self):
         source = (ROOT / "src/server_feed.py").read_text(encoding="utf-8")
         ui = (ROOT / "src/shared_assessment_ui.py").read_text(encoding="utf-8")
-        self.assertIn('def assessment(self, symbol):', source)
+        self.assertIn('def assessment(self, symbol, *, timeframe=None, expiry=None):', source)
+        self.assertIn('params["timeframe"] = timeframe', source)
+        self.assertIn('params["expiry"] = expiry', source)
         self.assertIn('def assessment_lines(symbol, cached,', ui)
         self.assertNotIn('if symbol in ("NIFTY", "BANKNIFTY", "SENSEX"):', ui)
 
