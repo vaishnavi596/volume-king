@@ -2734,3 +2734,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Inspected cancelled job 133785786520 logs: checkout/dependencies/Python syntax PASS; offline suite progressed through `test_dhan_feed.DhanFeedTests.test_missing_credentials ... ok` at 03:03:40Z, then no additional test completion output before job cancellation around 03:23Z; orphan Python process terminated. No traceback proving a new assessment failure; root cause of stall not established. Similar previous cancellation 43941469905 showed same point. This needs a separate CI stability investigation, not an invented code failure.
 - Pre-journal last ten branch commits checked: 2268f4416, 334d6a0c6, 510262542, a0077957f, 18ba50cb3, 4d0f8605a, 0144b9b87, 74ff5aa2e, 2df4e7690, 201d8fc1f.
 - Release gate: latest complete 44007365295 SUCCESS for offline suite; live Oracle deployment, authenticated data correctness, Super Five five-engine UI, first-bootstrap refresh and Android regression remain unverified. APK HOLD pending remaining scope and explicit final release checks.
+
+
+## 2026-11-17 — Expiry-date safety in shared assessment evidence cache
+- Pre-edit 10-backcheck verified via branch commits API: e8266b85b, 2268f4416, 334d6a0c6, 510262542, a0077957f, 18ba50cb3, 4d0f8605a, 0144b9b87, 74ff5aa2e, 2df4e7690. Prior latest full offline workflow 44007365295 SUCCESS; older wiring run 44007351233 CANCELLED after apparent test suite stall at test_missing_credentials, not proof of a code failure.
+- Found safety gap: TTL-only cache could expose an already-passed option expiry for up to 120 seconds across IST date rollover. Commit 0d1b1381d351fef9ed276627a6b9758dc8eb4f7a validates strict ISO expiry, rejects expired dates on put, and prunes expired evidence on read using IST date. Does not add provider calls.
+- Commit ac422fe5993ac8badee6b2b80c6d760a65f0cd4c adds deterministic injected-date regression for expiry rollover and invalid dates.
+- GitHub source/test writes confirmed; CI for latest commit PENDING. No Oracle deployment, mobile verification, APK build or live trading enablement.
