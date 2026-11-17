@@ -2870,3 +2870,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Reviewed last ten commits and last ten CI runs before editing. At check 44021906603 IN_PROGRESS (7e1274049), 44021896629 SUCCESS (0d968c673), 44018312569 SUCCESS (4c504aece); older cancelled/failed runs preserved. No claim of success for running test.
 - Updated root AGENTS.md in bc61b217fe9e61b2dc6d61a564ab92991c5776f7: separate pinned-SHA Test lane, read-only Analysis lane, single-writer Fix lane. Fix completed FAILs after root-cause evidence while independent tests run; 2–4 coherent fixes and retest new SHA; no release freeze until critical gates complete; no false background execution claims.
 - This batch is workflow-only. No source fix, broker call, APK or production deploy. Continue evidence intake and fixes on available results.
+
+
+## 2026-11-17 — In-progress 5–10 minute CI checkpoint and incremental fix rule
+- Checked last 10 commits/runs. Run 44021906603 remained IN_PROGRESS; job 133833107931: checkout, Python setup, dependency install, and Python syntax steps SUCCESS; the single long `Run offline regression suite (no APK build)` step remained IN_PROGRESS. No numeric completion percentage is provided by GitHub.
+- Attempt to read live job logs returned 404 BlobNotFound; therefore no intermediate test failures or test counts are verified. No speculative source fix made and no partial test PASS claimed.
+- Added precise 5–10 minute OK checkpoint rule to AGENTS.md commit 9f1d65796080ad622dd0ac6674b43b60fcffd507: inspect running job steps, use partial logs when available, fix proven failures on new SHA while original run continues, no fabricated 25/50/75 percentages, no automatic post-turn polling without automation.
+- Next OK: inspect job/step statuses and retry logs if available; if regression remains one opaque running step, audit independent coverage while it runs. Release remains gated.
