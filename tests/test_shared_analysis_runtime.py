@@ -9,7 +9,8 @@ from server_feed import DHAN_VERIFIED_SYMBOLS
 
 class SharedAnalysisRuntimeTests(unittest.TestCase):
     def setup_app(self):
-        page, v = start({"source": "Dhan", "scanner_symbol": "TCS", "scanner_live": True})
+        page, v = start({"source": "Dhan", "scanner_symbol": "TCS",
+                         "scanner_timeframe": "5m", "scanner_live": True})
         v["dhan_feed"]._origin = "https://example.invalid"
         v["dhan_feed"]._pairing_key = "test-only"
         end = int(time.time()) // 300 * 300 - 300
