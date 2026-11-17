@@ -539,8 +539,8 @@ class ServerDhanReadOnly:
                 or not isinstance(raw, dict) or not isinstance(unavailable, list)
                 or result.get("freshness") != "unverified"
                 or result.get("quote_timestamp") is not None
-                or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_SYMBOLS
-                       or symbol == "NIFTY" for symbol in unavailable)
+                or any(not isinstance(symbol, str) or symbol not in DHAN_VERIFIED_EQUITY_SYMBOLS
+                       for symbol in unavailable)
                 or len(unavailable) != len(set(unavailable))
                 or set(raw).intersection(unavailable)
                 or len(raw) + len(unavailable) > 51):
@@ -553,7 +553,7 @@ class ServerDhanReadOnly:
         # Missing symbols remain absent from returned quotes, never synthesized.
         quotes = {}
         for symbol, price in raw.items():
-            if (symbol not in DHAN_VERIFIED_SYMBOLS or symbol == "NIFTY"
+            if (symbol not in DHAN_VERIFIED_EQUITY_SYMBOLS
                     or isinstance(price, bool) or not isinstance(price, (int, float))
                     or not math.isfinite(price) or price <= 0):
                 raise FeedError("Invalid Oracle Dhan snapshot quote")
