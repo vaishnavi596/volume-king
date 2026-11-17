@@ -16,6 +16,12 @@
 
 **Priority:** next needed proof is selector-qualified *data availability* (not another selector HTTP-contract check), plus actual equity listed option entitlement, independent News/Futures source, then final release/mobile gate. Historical tracker entries below remain immutable as-of evidence. Current detailed record: [Work Log](https://github.com/vaishnavi596/volume-king/blob/fix/botking-joint-audit-70-15-20261115/docs/BOT_KING_WORK_LOG.md).
 
+### 2026-11-18 — T09 producer routing verified by Oracle AST (unresolved production repair)
+
+- **Confirmed source-level route difference:** Oracle server SHA `c9ee8a8d` `dhan_intraday` has no direct Assessment `publish()` call; `cached_candles` includes `_assessment_bars_completed()` and `publish("candle",timeframe=...)`. Android source `src/server_feed.py` SHA `202deaa44` uses `/dhan/intraday` for ordinary candle history, not `/v2/candles`. Hence Android history GET/POST activity does not itself establish corresponding Assessment candle cache population.
+- **Scope:** source route discrepancy evidenced, not a guarantee that every indirect background writer is absent; current NIFTY 1m and HDFCBANK 3m Assessment caches empty from earlier authenticated GET. State TTL 180s; reader forwards selectors. Option/Futures require their separate feeds. News remains unconfigured.
+- **Next:** inspect only the intraday return/cache branch details once, prepare scoped source candidate with completed-bar guard, then isolated offline tests and optional authorized backed-up Oracle deployment. Production unchanged, no broker new requests, #1834 1202 PASS and Assessment HTTP 13/13 remain closed.
+
 ## 1–6 joint work stages — current result
 
 | Stage | Work / owner | Work performed (exact evidence) | Source / CI result | Oracle / actual result | APK / phone result | Remaining error, repair and next action |
