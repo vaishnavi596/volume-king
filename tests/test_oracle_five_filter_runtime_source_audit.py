@@ -23,6 +23,38 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertFalse(data["deployed_runtime_route_verified"])
         self.assertEqual(data["dhan_requests_made"], 0)
 
+    def test_allowlisted_reason_placeholder_is_recognized_without_legacy_prose(self):
+        with TemporaryDirectory() as d:
+            path = Path(d) / "server.py"
+            path.write_text(
+                'def create_app():\n'
+                '    @app.get("/v2/assessment/{symbol}")\n'
+                '    def assessment(symbol):\n'
+                '        ids = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")\n'
+                '        factors = ("news", "futures", "options", "candle")\n'
+                '        return {"collection_status": "not_configured",\n'
+                '                "assessment_filters": [{"id": key, "status": "unavailable",\n'
+                '                                        "reason": "not_configured"} for key in ids],\n'
+                '                "factors": factors, "signal_eligible": False}\n',
+                encoding="utf-8",
+            )
+            data = audit_module.audit(path)
+        self.assertTrue(data["known_placeholder_detected"])
+        self.assertFalse(data["producer_proven_functional"])
+
+    def test_not_configured_without_unavailable_does_not_count_as_placeholder(self):
+        with TemporaryDirectory() as d:
+            path = Path(d) / "server.py"
+            path.write_text(
+                'def create_app():\n'
+                '    @app.get("/v2/assessment/{symbol}")\n'
+                '    def assessment(symbol):\n'
+                '        return {"status": "not_configured", "reason": "not_configured"}\n',
+                encoding="utf-8",
+            )
+            data = audit_module.audit(path)
+        self.assertFalse(data["known_placeholder_detected"])
+
     def test_missing_route_is_not_assumed_to_work(self):
         with TemporaryDirectory() as d:
             path = Path(d) / "server.py"
