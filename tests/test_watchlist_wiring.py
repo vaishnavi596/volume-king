@@ -102,7 +102,7 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertNotIn('provider_generation[0]+=1',login[begin:keep])
 
     def test_dhan_connect_fetches_watchlist_batch(self):
-        self.assertIn('batch=await asyncio.to_thread(dhan_feed.equity_quotes_with_bootstrap)', self.source)
+        self.assertIn('batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())', self.source)
         self.assertIn("log_error('dhan_batch_after_connect',exc)", self.source)
         self.assertIn('failed_symbols.clear()', self.source)
 

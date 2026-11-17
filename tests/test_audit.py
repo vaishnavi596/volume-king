@@ -570,7 +570,7 @@ class AuditTests(unittest.TestCase):
         feed=v['dhan_feed']
         feed._origin='https://example.invalid'
         feed._pairing_key='test-only'
-        with patch.object(feed,'batch_quotes',return_value={}):
+        with patch.object(feed,'equity_quotes_for_watchlist',return_value={}):
             asyncio.run(v['refresh_watch_batch']())
         self.assertEqual(v['dhan_batch_issue'][0],
                          'Dhan batch response missing or invalid')
@@ -586,7 +586,7 @@ class AuditTests(unittest.TestCase):
         v['connection_status'].value='Dhan connected; watchlist batch failed'
         complete={symbol:{'source':'Dhan','price':1234.5,'symbol':symbol}
                   for symbol in v['all_watch_symbols']()}
-        with patch.object(feed,'batch_quotes',return_value=complete):
+        with patch.object(feed,'equity_quotes_for_watchlist',return_value=complete):
             asyncio.run(v['refresh_watch_batch']())
         self.assertEqual(len(complete),51)
         self.assertIsNone(v['dhan_batch_issue'][0])
@@ -599,7 +599,7 @@ class AuditTests(unittest.TestCase):
         feed=v['dhan_feed']
         feed._origin='https://example.invalid'
         feed._pairing_key='test-only'
-        with patch.object(feed,'batch_quotes',return_value={
+        with patch.object(feed,'equity_quotes_for_watchlist',return_value={
                 'RELIANCE':{'source':'Dhan','price':1234.5,'symbol':'RELIANCE'}}):
             asyncio.run(v['refresh_watch_batch']())
         self.assertIn('Partial Dhan batch: 1/',v['dhan_batch_issue'][0])

@@ -1908,6 +1908,7 @@ def app_main(page:ft.Page):
             if received==total_symbols:
                 watch_batch_success_generation[0]=generation
         except Exception as exc:
+            selected_batch_issue[0]=safe_error(exc)[:120]
             # Android may suspend a network request when the app loses focus.
             # Do not report that lifecycle interruption as a provider failure.
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
@@ -3276,6 +3277,7 @@ def app_main(page:ft.Page):
                             watch_batch_last_success[0]=time.monotonic()
                         if current[0] in (0,4):request_view_refresh(current[0])
                     except Exception as exc:
+                        selected_batch_issue[0]=safe_error(exc)[:120]
                         log_error('dhan_batch_after_connect',exc)
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
