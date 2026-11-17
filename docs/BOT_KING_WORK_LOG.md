@@ -3776,3 +3776,10 @@ Latest ten CI runs checked: SUCCESS 44051968140, 44049623174, 44045916207, 44042
 - This instruction **supersedes all historical "last 10/15 files" requirements** wherever repeated in older journal/handoff/checklist entries; preserve the old entries as history.
 - **Current server-first shortlist:** (1) Oracle mapping-only HDFCBANK option-status HTTP404; (2) genuine Dhan option PCR/Max Pain and completed candle evidence → correct symbol/expiry Assessment cache; (3) News/Futures remain honest WAIT until actual sources exist. Current GitHub offline baseline #44100851715 at b67bdceb is SUCCESS 1181/1181. Oracle production unchanged; no new signed APK authorized until server and app gates checked.
 - This rule update is documentation-only; it is not a claim of any Oracle, app logic or live brokerage changes.
+
+
+### 2026-11-17 — SERVER-FIRST OPTION HANDOFF TARGETED REGRESSION
+- Per owner's newer three-relevant-changed-file precheck rule, inspected `backend/option_evidence_cache.py`, `backend/assessment_filter_adapter.py`, `tests/test_dhan_option_route.py` and prior exact-head CI 44100851715 (1181/1181 PASS). This is related-target inspection, not an Oracle source/deployment claim.
+- Added one regression within existing `tests/test_dhan_option_route.py` at commit `0e7d454e2099743fd328b3658ba132e1390ae357`: successful mocked NIFTY POST /dhan/option-chain followed by GET /v2/assessment/NIFTY must expose same PCR/Max Pain as **informational unverified** rows, never promote bullish/bearish scores or enable signals, isolate HDFCBANK and separate application caches, with only one mocked Dhan request. No changes to market source or HTTP endpoints.
+- **Production gap remains:** Oracle customized handler source and evidence producer not verified; mapping-only HDFCBANK HTTP404, candle producer and News/Futures unavailable in 19:56 IST Oracle report. Current test proves GitHub code contract only if CI passes, not Oracle deployment. Do not copy GitHub backend/server.py wholesale to Oracle.
+- CI for new exact SHA: **PENDING VERIFICATION** at this journal entry; do not call PASS prematurely. No Oracle changes, no live orders, no APK.
