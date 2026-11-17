@@ -41,6 +41,7 @@ def read_only_assessment(symbol, metrics=None):
         "protocol": 2,
         "symbol": symbol,
         "source": "dhan",
+        "expiry": metrics.get("expiry") if isinstance(metrics, dict) else None,
         "collection_status": "partial_unverified" if has_info else "not_configured",
         "freshness": "unverified",
         "assessment_filters": rows,

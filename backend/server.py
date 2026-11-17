@@ -748,7 +748,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 "quote_timestamp": None}
 
     @app.get("/v2/assessment/{symbol}")
-    def botking_read_only_assessment(symbol: str,
+    def botking_read_only_assessment(symbol: str, expiry: Optional[str] = None,
                                      x_botking_key: Optional[str] = Header(default=None)):
         """Fail-closed four-factor evidence until an actual Oracle producer exists.
 
@@ -759,7 +759,13 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(403, "Server access denied")
         if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9&-]{1,40}", symbol)):
             raise HTTPException(422, "Invalid assessment symbol")
-        cached_metrics = option_evidence_cache.latest(symbol)
+        if expiry is not None:
+            try:
+                if date.fromisoformat(expiry).isoformat() != expiry:
+                    raise ValueError("non-canonical expiry")
+            except ValueError:
+                raise HTTPException(422, "Invalid assessment expiry") from None
+        cached_metrics = option_evidence_cache.latest(symbol, expiry)
         if cached_metrics is not None:
             return read_only_assessment(symbol, cached_metrics)
         ids = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
@@ -769,6 +775,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             "source": "dhan",
             "collection_status": "not_configured",
             "freshness": "unverified",
+            "expiry": expiry,
             "assessment_filters": [
                 {"id": name, "status": "unavailable", "reason": "not_configured"}
                 for name in ids

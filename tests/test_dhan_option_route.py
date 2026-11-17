@@ -66,6 +66,19 @@ class DhanOptionRouteTests(unittest.TestCase):
             self.assertEqual(rows[name]["value"], posted.json()[name])
             self.assertEqual(rows[name]["verification"], "unverified")
         self.assertEqual(after.json()["freshness"], "unverified")
+        self.assertEqual(after.json()["expiry"], "2099-12-31")
+        exact = self.client.get("/v2/assessment/NIFTY?expiry=2099-12-31",
+                                headers=headers)
+        self.assertEqual(exact.status_code, 200)
+        self.assertEqual(exact.json()["collection_status"], "partial_unverified")
+        wrong_expiry = self.client.get("/v2/assessment/NIFTY?expiry=2099-12-24",
+                                       headers=headers)
+        self.assertEqual(wrong_expiry.status_code, 200)
+        self.assertEqual(wrong_expiry.json()["collection_status"], "not_configured")
+        self.assertTrue(all(x["status"] == "unavailable"
+                            for x in wrong_expiry.json()["assessment_filters"]))
+        self.assertEqual(self.client.get("/v2/assessment/NIFTY?expiry=bad",
+                             headers=headers).status_code, 422)
         self.assertFalse(after.json()["signal_eligible"])
         self.assertIsNone(after.json()["bullish_score"])
         self.assertIsNone(after.json()["bearish_score"])

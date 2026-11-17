@@ -38,16 +38,28 @@ class OptionEvidenceCache:
             if len(self._items) >= self._limit and key not in self._items:
                 oldest = min(self._items, key=lambda k: self._items[k][0])
                 del self._items[oldest]
-            self._items[key] = (now, deepcopy(metrics))
+            payload = deepcopy(metrics)
+            payload["expiry"] = expiry
+            self._items[key] = (now, payload)
         return True
 
-    def latest(self, symbol):
+    def latest(self, symbol, selected_expiry=None):
+        """Return exact requested expiry when provided; legacy latest otherwise."""
+        if selected_expiry is not None:
+            if not isinstance(selected_expiry, str):
+                return None
+            try:
+                if date.fromisoformat(selected_expiry).isoformat() != selected_expiry:
+                    return None
+            except ValueError:
+                return None
         now = self._clock()
         with self._lock:
             self._prune(now)
             candidates = [(ts, expiry, data) for (sym, expiry), (ts, data)
                           in self._items.items() if sym == symbol and
-                          date.fromisoformat(expiry) >= self._today()]
+                          date.fromisoformat(expiry) >= self._today()
+                          and (selected_expiry is None or expiry == selected_expiry)]
             if not candidates:
                 return None
             _, _, data = max(candidates, key=lambda item: (item[0], item[1]))
