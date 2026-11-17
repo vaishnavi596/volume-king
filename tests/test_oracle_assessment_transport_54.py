@@ -152,6 +152,46 @@ class AssessmentTransport54Tests(TestCase):
                     self.assertEqual(feed.assessment(symbol)["symbol"], symbol)
                     call.assert_called_once_with("/v2/assessment/" + symbol)
 
+    def test_assessment_selector_contract_for_indexes_equities_and_expiry(self):
+        feed = ServerDhanReadOnly()
+        examples = (
+            ("NIFTY", "1m", "2026-11-26",
+             "/v2/assessment/NIFTY?timeframe=1m&expiry=2026-11-26"),
+            ("RELIANCE", "3m", None,
+             "/v2/assessment/RELIANCE?timeframe=3m"),
+            ("BANKNIFTY", "5m", None,
+             "/v2/assessment/BANKNIFTY?timeframe=5m"),
+        )
+        for symbol, timeframe, expiry, path in examples:
+            with self.subTest(symbol=symbol, timeframe=timeframe, expiry=expiry):
+                with patch.object(feed, "_call", return_value=payload(symbol)) as call:
+                    result = feed.assessment(symbol, timeframe=timeframe, expiry=expiry)
+                    self.assertEqual(result["symbol"], symbol)
+                    call.assert_called_once_with(path)
+
+    def test_assessment_invalid_selectors_fail_before_transport(self):
+        feed = ServerDhanReadOnly()
+        for timeframe in ("2m", "1", "", "1M", 1, [], False):
+            with self.subTest(timeframe=timeframe):
+                with patch.object(feed, "_call") as call:
+                    with self.assertRaises(FeedError):
+                        feed.assessment("NIFTY", timeframe=timeframe)
+                    call.assert_not_called()
+        for expiry in ("bad-date", "2026-13-01", "2026-2-1", "", 20261126, []):
+            with self.subTest(expiry=expiry):
+                with patch.object(feed, "_call") as call:
+                    with self.assertRaises(FeedError):
+                        feed.assessment("NIFTY", expiry=expiry)
+                    call.assert_not_called()
+
+    def test_app_assessment_poll_uses_scope_aware_request_and_attempt_key(self):
+        # Source contract only; no Flet runtime, Android or network operations.
+        app_source = (ROOT / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('key=(generation,sym,tf,selected_expiry)', app_source)
+        self.assertIn('dhan_feed.assessment,sym,timeframe=tf,expiry=selected_expiry', app_source)
+        self.assertIn('"timeframe":tf,"expiry":selected_expiry', app_source)
+        self.assertIn('date.fromisoformat(', app_source)
+
     def test_nonobject_assessment_payload_fails_as_feederror_for_every_symbol(self):
         feed = ServerDhanReadOnly()
         for symbol in sorted(DHAN_VERIFIED_SYMBOLS):
