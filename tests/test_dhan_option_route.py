@@ -40,6 +40,46 @@ class DhanOptionRouteTests(unittest.TestCase):
         self.assertFalse(result["live_orders_enabled"])
         feed.assert_called_once_with("IDX_I", 13, "2099-12-31")
 
+    def test_option_chain_assessment_handoff_same_symbol_only(self):
+        """One successful read-only chain makes only unverified metrics visible."""
+        headers = {"X-BotKing-Key": self.key}
+        chain = {"status": "success", "data": {"oc": {
+            "100": {"ce": {"oi": 100}, "pe": {"oi": 50}},
+            "110": {"ce": {"oi": 50}, "pe": {"oi": 100}},
+            "120": {"ce": {"oi": 50}, "pe": {"oi": 50}},
+        }}}
+        before = self.client.get("/v2/assessment/NIFTY", headers=headers)
+        self.assertEqual(before.status_code, 200)
+        self.assertIsNone(before.json()["bullish_score"])
+        with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}):
+            with patch("pathlib.Path.read_text", return_value="test-token"):
+                with patch("backend.server.DhanFeed.option_chain", return_value=chain) as feed:
+                    posted = self.client.post("/dhan/option-chain",
+                        json={"symbol": "NIFTY", "expiry": "2099-12-31"},
+                        headers=headers)
+        self.assertEqual(posted.status_code, 200)
+        after = self.client.get("/v2/assessment/NIFTY", headers=headers)
+        self.assertEqual(after.status_code, 200)
+        rows = {row["id"]: row for row in after.json()["assessment_filters"]}
+        for name in ("pcr", "max_pain"):
+            self.assertEqual(rows[name]["status"], "available")
+            self.assertEqual(rows[name]["value"], posted.json()[name])
+            self.assertEqual(rows[name]["verification"], "unverified")
+        self.assertEqual(after.json()["freshness"], "unverified")
+        self.assertFalse(after.json()["signal_eligible"])
+        self.assertIsNone(after.json()["bullish_score"])
+        self.assertIsNone(after.json()["bearish_score"])
+        self.assertTrue(all(v["status"] == "unavailable"
+                            for v in after.json()["factors"].values()))
+        other = self.client.get("/v2/assessment/HDFCBANK", headers=headers)
+        self.assertEqual(other.status_code, 200)
+        self.assertTrue(all(v["status"] == "unavailable"
+                            for v in other.json()["assessment_filters"]))
+        separate = TestClient(create_app(pairing_key=self.key))
+        self.assertEqual(separate.get("/v2/assessment/NIFTY",
+            headers=headers).json()["collection_status"], "not_configured")
+        feed.assert_called_once()
+
     def test_provider_rate_limit_returns_retry_after_without_fallback(self):
         with patch.dict(os.environ, {"DHAN_CLIENT_ID": "test-client"}):
             with patch("pathlib.Path.read_text", return_value="test-token"):
