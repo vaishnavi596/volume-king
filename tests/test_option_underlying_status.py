@@ -50,6 +50,30 @@ class OptionUnderlyingDiagnosticsTest(TestCase):
         self.assertNotIn('dhan_market_token()', block)
         self.assertNotIn('/optionchain', block)
 
+    def test_hdfcbank_mapping_endpoint_http_auth_no_broker(self):
+        """Mapping-only GET is reachable without assuming F&O entitlement."""
+        from fastapi.testclient import TestClient
+        from backend.server import create_app
+        from unittest.mock import patch
+
+        key = "m" * 40
+        client = TestClient(create_app(pairing_key=key))
+        path = "/v2/option-underlying-status/HDFCBANK"
+        self.assertEqual(client.get(path).status_code, 403)
+        with patch("backend.server.DhanFeed") as broker:
+            response = client.get(path, headers={"X-BotKing-Key": key})
+            self.assertEqual(response.status_code, 200)
+            broker.assert_not_called()
+        body = response.json()
+        self.assertEqual(body["symbol"], "HDFCBANK")
+        self.assertEqual(body["status"], "mapping_only")
+        self.assertTrue(body["mapped"])
+        self.assertFalse(body["expiry_verified"])
+        self.assertFalse(body["chain_verified"])
+        self.assertFalse(body["pcr_verified"])
+        self.assertEqual(body["broker_requests"], 0)
+        self.assertFalse(body["live_orders_enabled"])
+
     def test_bounded_70_symbol_no_broker_scan(self):
         out = summarize_underlyings(["NIFTY", "RELIANCE", "CASHONLY", "UNMAPPED"],
                                     self.INSTRUMENTS)
