@@ -2,7 +2,8 @@
 """One bounded, read-only Oracle collector/runtime contract probe.
 
 Run only on Oracle with BOTKING_AUDIT_PAIRING_KEY set by its operator.
-Only GET /health, /v2/server-readiness and /v2/snapshot; never send Dhan
+Only GET /health, /v2/server-readiness, /v2/snapshot and the three cached
+index assessments; never send Dhan
 orders, batch quotes, historical requests, OAuth, or log credentials.
 
 Example:
@@ -19,7 +20,10 @@ import urllib.request
 from dataclasses import dataclass
 
 ORIGIN = "http://127.0.0.1:8000"
-PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot")
+INDEX_SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
+PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot") + tuple(
+    "/v2/assessment/" + symbol for symbol in INDEX_SYMBOLS
+)
 MAX_BYTES = 1_000_000
 
 
@@ -108,7 +112,38 @@ def summarize(results):
                    "recently_collected", "collection_overdue"}
     collection_status = data.get("collection_status")
     readiness_status = collector.get("status")
+    indices = {}
+    for symbol in INDEX_SYMBOLS:
+        probe = by_route.get("/v2/assessment/" + symbol)
+        body = (probe.body if probe and probe.http == 200
+                and isinstance(probe.body, dict) else {})
+        factors = body.get("factors")
+        filters = body.get("assessment_filters")
+        factors = factors if isinstance(factors, dict) else {}
+        filters = filters if isinstance(filters, list) else []
+        allowed = {"available", "unavailable", "pending", "stale"}
+        indices[symbol] = {
+            "http": probe.http if probe else 0,
+            "assessment_status": (body.get("status") if body.get("status") in
+                                  ("complete", "incomplete", "unavailable") else "unknown"),
+            "signal_eligible": body.get("signal_eligible") is True,
+            "factor_statuses": {
+                name: (factors[name].get("status") if isinstance(factors.get(name), dict)
+                       and factors[name].get("status") in allowed else "unknown")
+                for name in ("news", "futures", "options", "candle")
+            },
+            "filter_statuses": {
+                name: next((
+                    item.get("status") for item in filters
+                    if isinstance(item, dict) and item.get("id") == name
+                    and item.get("status") in allowed
+                ), "unknown")
+                for name in ("oi_support", "oi_resistance", "max_pain",
+                             "pcr", "candle_trend")
+            },
+        }
     return {
+        "index_assessments": indices,
         "health_http": health.http if health else 0,
         "health_ok": bool(health and health.http == 200
                           and isinstance(health.body, dict)
