@@ -6598,32 +6598,54 @@ console.log('BOT KING Lightweight Charts ready');
                 return
             if current[0]==1:await refresh_selected_options()
             else:
-                data=await asyncio.to_thread(get_market_data,sym,scan_tf.value or "5m",scan_period.value or "7d")
+                selected_tf=scan_tf.value or "1m"
+                data=await asyncio.to_thread(get_market_data,sym,selected_tf,scan_period.value or "7d")
                 if generation==provider_generation[0] and sym==scan_symbol.value:
-                    # Resume's historical chart fetch must not replace a newer
-                    # Dhan batch LTP with an older/unverified candle snapshot.
-                    previous=quotes.get(sym) or {}
-                    previous_dhan_price=(prefs.get("source")=="Dhan"
-                                         and previous.get("source")=="Dhan"
-                                         and isinstance(previous.get("price"),(int,float))
-                                         and not isinstance(previous.get("price"),bool)
-                                         and math.isfinite(previous["price"])
-                                         and previous["price"]>0)
-                    if previous_dhan_price:
-                        # Resume fetches candles, not an independently verified
-                        # live LTP. Preserve the last valid batch quote even when
-                        # the candle response has a newer fetched_at timestamp.
-                        verified_bars=(data.get("bars") if data.get("source")=="Dhan"
-                                       and isinstance(data.get("bars"),list) else None)
-                        quotes[sym]=dict(previous,bars=verified_bars if verified_bars is not None
-                                         else previous.get("bars",[]),freshness="unverified")
-                    else:
-                        quotes[sym]=data
+                    # Resume only updates the cache for the actual timeframe.
+                    # A 1m/3m history must NEVER enter the legacy 5m quote slot.
+                    if prefs.get("source")=="Dhan" and data.get("source")=="Dhan":
+                        last_good=shared_history(sym,selected_tf)
+                        protected=retain_candle_history(data,last_good,provider="Dhan")
+                        if valid_candle_history(protected.get("bars")):
+                            chart_snapshots[(sym,selected_tf,generation)]=dict(
+                                protected,_scanner_timeframe=selected_tf,
+                                historical=True,live_verified=False,
+                                freshness="historical_unverified")
+                    if selected_tf=="5m":
+                        # Preserve independently fetched Dhan LTP on 5m resumes.
+                        previous=quotes.get(sym) or {}
+                        previous_dhan_price=(prefs.get("source")=="Dhan"
+                                             and previous.get("source")=="Dhan"
+                                             and isinstance(previous.get("price"),(int,float))
+                                             and not isinstance(previous.get("price"),bool)
+                                             and math.isfinite(previous["price"])
+                                             and previous["price"]>0)
+                        if previous_dhan_price:
+                            # A partial response cannot replace the last valid
+                            # 5m series, and history cannot verify quote freshness.
+                            history=(protected if data.get("source")=="Dhan" and
+                                     prefs.get("source")=="Dhan" else data)
+                            verified_bars=(history.get("bars") if
+                                           history.get("source")=="Dhan" and
+                                           valid_candle_history(history.get("bars")) else None)
+                            quotes[sym]=dict(previous,bars=verified_bars if verified_bars is not None
+                                             else previous.get("bars",[]),freshness="unverified")
+                        else:
+                            quotes[sym]=dict(data,historical=True,live_verified=False,
+                                             freshness="historical_unverified")
                 if current[0]==5:
                     chart_sym=symbol.value
                     chart_tf=timeframe.value
                     chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
-                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
+                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:
+                        prior_chart=chart_snapshots.get((chart_sym,chart_tf,generation)) or {}
+                        if prefs.get("source")=="Dhan" and chart_data.get("source")=="Dhan":
+                            chart_data=retain_candle_history(chart_data,prior_chart,provider="Dhan")
+                            chart_data=dict(chart_data,_scanner_timeframe=chart_tf,
+                                            historical=True,live_verified=False,
+                                            freshness="historical_unverified")
+                        if valid_candle_history(chart_data.get("bars")):
+                            chart_snapshots[(chart_sym,chart_tf,generation)]=chart_data
             if generation==provider_generation[0] and app_active[0]:
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])
