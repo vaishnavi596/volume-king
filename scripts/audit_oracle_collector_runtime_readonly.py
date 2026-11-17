@@ -9,6 +9,8 @@ Example:
   BOTKING_AUDIT_PAIRING_KEY=<set securely in shell> python3 scripts/audit_oracle_collector_runtime_readonly.py
 Output reports aggregate status/age/count only, no symbol prices or tokens.
 """
+from __future__ import annotations
+
 import json
 import math
 import os
