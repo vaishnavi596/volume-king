@@ -87,6 +87,57 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "registered assessment"):
                 module.prepare_mapping_only(source)
 
+    def test_mapping_only_runtime_http_auth_and_broker_free(self):
+        """Execute only a synthetic candidate in an offline TestClient."""
+        from fastapi.testclient import TestClient
+        from fastapi import FastAPI
+        source = b'''import hmac
+from typing import Optional
+from fastapi import FastAPI, Header, HTTPException
+
+DYNAMIC_INSTRUMENTS = {
+    "HDFCBANK": ("NSE_EQ", 1333, "EQUITY"),
+    "NIFTY": ("IDX_I", 13, "INDEX"),
+    "BOGUS": ("NSE_EQ", True, "EQUITY"),
+}
+def register_assessment_routes(app, pairing_key):
+    pass
+
+def create_app():
+    app = FastAPI()
+    pairing_key = "k" * 40
+    register_assessment_routes(app, pairing_key)
+    return app
+'''
+        with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
+            candidate = module.prepare_mapping_only(source)
+        ns = {"__name__": "offline_mapping_candidate"}
+        exec(compile(candidate, "<offline-mapping-only>", "exec"), ns)
+        app = ns["create_app"]()
+        client = TestClient(app)
+        path = "/v2/option-underlying-status/HDFCBANK"
+        self.assertEqual(client.get(path).status_code, 403)
+        response = client.get(path, headers={"X-BotKing-Key": "k" * 40})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["symbol"], "HDFCBANK")
+        self.assertTrue(data["mapped"])
+        self.assertEqual(data["status"], "mapping_only")
+        self.assertFalse(data["expiry_verified"])
+        self.assertFalse(data["chain_verified"])
+        self.assertFalse(data["pcr_verified"])
+        self.assertEqual(data["broker_requests"], 0)
+        self.assertFalse(data["live_orders_enabled"])
+        assert client.get("/v2/option-underlying-status/NIFTY",
+                          headers={"X-BotKing-Key": "k" * 40}).json()["mapped"]
+        for symbol in ("UNKNOWN", "BOGUS"):
+            result = client.get("/v2/option-underlying-status/" + symbol,
+                                headers={"X-BotKing-Key": "k" * 40})
+            self.assertEqual(result.status_code, 200)
+            self.assertFalse(result.json()["mapped"])
+        self.assertEqual(client.get("/v2/option-underlying-status/bad%20symbol",
+                                    headers={"X-BotKing-Key": "k" * 40}).status_code, 422)
+
     def test_rejects_snapshot_route_outside_create_app(self):
         source = SOURCE.replace(b"def create_app():", b"def different_factory():")
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
