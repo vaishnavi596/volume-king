@@ -111,10 +111,10 @@ These older files are **ARCHIVE CANDIDATES**, not proven safe deletions. They co
 
 | Stage | Status | Meaning |
 |---|---|---|
-| Inventory 44 docs / 24 scripts | **DONE** | Name/size and current source baseline inspected |
+| Inventory 44 original docs / 24 scripts | **DONE** | Original files inventoried; index adds 45th docs file |
 | Category navigation index | **DONE** | One entry point for new chat and category-specific evidence |
 | Category routing rule in AGENTS / Handoff | PENDING | Link index at startup, keep one chronological journal |
-| Reference/dependency + unique-provenance scan | PENDING | Required before deletion or physical moves |
+| Markdown navigation link check | **PASS — INDEX ONLY** | All 44 original docs linked; 60 index Markdown links checked, zero missing file targets |\n| Full reference/dependency + unique-provenance scan | PENDING | Required before deletion or physical moves; index links alone are not an inbound-reference audit |
 | Controlled archive/delete batch | NOT STARTED | No deletions without demonstrable non-dependency |
 | Current Oracle/app/APK release work | OPEN | Independent of documentation housekeeping |
 
