@@ -677,12 +677,30 @@ class ServerDhanReadOnly:
             raise FeedError("Invalid Dhan candle response")
         return result
 
-    def assessment(self, symbol):
-        """Read the shared Oracle cache without new Dhan market requests."""
+    def assessment(self, symbol, *, timeframe=None, expiry=None):
+        """Read matching Oracle evidence; never fetch new Dhan market data."""
         if (not isinstance(symbol, str) or not symbol or len(symbol) > 40
                 or any(not (c.isascii() and (c.isalnum() or c in "-&")) for c in symbol)):
             raise FeedError("Invalid Dhan assessment symbol")
-        result = self._call("/v2/assessment/" + symbol)
+        if timeframe is not None and timeframe not in ("1m", "3m", "5m"):
+            raise FeedError("Unsupported Oracle assessment timeframe")
+        if expiry is not None:
+            from datetime import date
+            try:
+                if (not isinstance(expiry, str)
+                        or date.fromisoformat(expiry).isoformat() != expiry):
+                    raise ValueError("Invalid date")
+            except (ValueError, TypeError):
+                raise FeedError("Invalid Oracle assessment expiry") from None
+        params = {}
+        if timeframe is not None:
+            params["timeframe"] = timeframe
+        if expiry is not None:
+            params["expiry"] = expiry
+        path = "/v2/assessment/" + symbol
+        if params:
+            path += "?" + urllib.parse.urlencode(params)
+        result = self._call(path)
         if not isinstance(result, dict):
             raise FeedError("Invalid or unsafe Dhan assessment response")
         filters = result.get("assessment_filters")
