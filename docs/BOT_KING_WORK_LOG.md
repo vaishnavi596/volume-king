@@ -2835,3 +2835,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Current main.py confirms watch_three_minute_signal only consumes cached 3m or locally aggregated 1m; 51-equity scan fetches 5m; independent index poll fetches 1m for three indices. Selected scanner/chart and resume may fetch 1m but do not guarantee all watchlist equities have 1m. Therefore blanket 3m WAIT on equities without 1m is plausible. No broker requests added yet.
 - Bounded implementation must account for existing 1.5s history pacing, cooldown, 1m/3m cache identity, lifecycle pause, manual refresh rules, and incomplete 30-bar history. Need tests that a selected/visible 3m warmup neither fans out to all 51 nor overwrites valid 5m cache/quotes; avoid adding a second parallel history lane until shared provider limiter is confirmed. A safe no-network alternative is explicit per-row diagnostic of missing 3m input rather than presenting misleading 5m vote.
 - This entry records source audit only. No 3m warmup patch, new CI, Oracle deployment or APK claimed. Continue next with narrow testable design.
+
+
+## 2026-11-17 — Continuous repair batch: explicit Watchlist 3m WAIT diagnostic
+- Before edits, reviewed latest ten commits and ten branch CI runs. Latest successful test CI remains 44018312569; prior intermediate 44018292533 cancelled. No proof of Android/live Dhan yet.
+- Source fix 0d968c673de20a11eedb69bf0a05a40627156b11 updates compact_watch_signal() to state that matching 3m candles OR valid directional votes are unavailable, instead of incorrectly implying only completed candle history is absent. Existing timeframe guard and historical-not-live semantics unchanged.
+- Regression commit 7e1274049151ed7fc6c8f2094f9b9ec78168635e asserts explicit WAIT text and matching 3m guard. This is diagnostic-only, not 3m warmup implementation. No extra Dhan calls, orders, provider fallback or APK.
+- Next action: verify CI for test commit, then implement bounded 3m input warmup only with shared cooldown/cache and lifecycle safety. Avoid concurrent 51-equity 1m fanout. Continue to journal actual results.
