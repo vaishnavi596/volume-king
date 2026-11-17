@@ -39,7 +39,10 @@ class OptionEvidenceCacheTests(unittest.TestCase):
         self.assertTrue(cache.put("A", "2026-11-19", good))
         self.assertTrue(cache.put("B", "2026-11-19", good))
         self.assertIsNone(cache.latest("A"))
-        self.assertEqual(cache.latest("B"), good)
+        self.assertEqual(cache.latest("B"), {**good, "expiry": "2026-11-19"})
+        self.assertEqual(cache.latest("B", "2026-11-19")["expiry"], "2026-11-19")
+        self.assertIsNone(cache.latest("B", "2026-11-26"))
+        self.assertEqual(good, {"signal_eligible": False, "freshness": "unverified"})
 
 
 if __name__ == "__main__":
