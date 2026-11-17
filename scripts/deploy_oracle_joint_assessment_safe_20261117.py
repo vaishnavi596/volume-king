@@ -93,7 +93,7 @@ def main():
     srcs={name:read_safe(BUNDLE/name) for name in NAMES}
     for name,raw in srcs.items():ast.parse(raw.decode())
     g=read_safe(GENERATOR)
-    git_blob=hashlib.sha1(b"blob "+str(len(g)).encode()+b"\\0"+g).hexdigest()
+    git_blob=hashlib.sha1(b"blob "+str(len(g)).encode()+bytes([0])+g).hexdigest()
     if git_blob!=EXPECTED_GENERATOR_BLOB:raise RuntimeError("HOLD: fixed generator SHA mismatch")
     # Deterministically re-generate from exact producer and compare every candidate's hash.
     import runpy
