@@ -68,7 +68,8 @@ class WatchlistWiringTests(unittest.TestCase):
 
     def test_dhan_client_allows_only_verified_watchlist_symbols(self):
         feed = (SOURCE.parent / "server_feed.py").read_text(encoding="utf-8")
-        self.assertIn("DHAN_VERIFIED_SYMBOLS = frozenset(", feed)
+        self.assertIn("DHAN_VERIFIED_EQUITY_SYMBOLS = frozenset(", feed)
+        self.assertIn("DHAN_VERIFIED_SYMBOLS = DHAN_VERIFIED_EQUITY_SYMBOLS | DHAN_VERIFIED_INDEX_SYMBOLS", feed)
         self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS:", feed)
         self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in", feed)
         self.assertIn('quote_timestamp": None', feed)
