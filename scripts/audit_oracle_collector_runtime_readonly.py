@@ -3,7 +3,7 @@
 
 Run only on Oracle with BOTKING_AUDIT_PAIRING_KEY set by its operator.
 Only GET /health, /v2/server-readiness, /v2/snapshot, three cached
-index assessments and three mapping-only index status routes; never send Dhan
+index assessments plus HDFCBANK assessment/mapping status routes; never send Dhan
 orders, batch quotes, historical requests, OAuth, or log credentials.
 
 Example:
@@ -21,10 +21,12 @@ from dataclasses import dataclass
 
 ORIGIN = "http://127.0.0.1:8000"
 INDEX_SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
+EQUITY_SYMBOLS = ("HDFCBANK",)
+AUDIT_SYMBOLS = INDEX_SYMBOLS + EQUITY_SYMBOLS
 PATHS = ("/health", "/v2/server-readiness", "/v2/snapshot") + tuple(
-    "/v2/assessment/" + symbol for symbol in INDEX_SYMBOLS
+    "/v2/assessment/" + symbol for symbol in AUDIT_SYMBOLS
 ) + tuple(
-    "/v2/option-underlying-status/" + symbol for symbol in INDEX_SYMBOLS
+    "/v2/option-underlying-status/" + symbol for symbol in AUDIT_SYMBOLS
 )
 MAX_BYTES = 1_000_000
 
@@ -115,7 +117,8 @@ def summarize(results):
     collection_status = data.get("collection_status")
     readiness_status = collector.get("status")
     indices = {}
-    for symbol in INDEX_SYMBOLS:
+    equities = {}
+    for symbol in AUDIT_SYMBOLS:
         probe = by_route.get("/v2/assessment/" + symbol)
         body = (probe.body if probe and probe.http == 200
                 and isinstance(probe.body, dict) else {})
@@ -127,7 +130,8 @@ def summarize(results):
         mapping_probe = by_route.get("/v2/option-underlying-status/" + symbol)
         mapping = (mapping_probe.body if mapping_probe and mapping_probe.http == 200
                    and isinstance(mapping_probe.body, dict) else {})
-        indices[symbol] = {
+        target = indices if symbol in INDEX_SYMBOLS else equities
+        target[symbol] = {
             "mapping_http": mapping_probe.http if mapping_probe else 0,
             "mapping_status": mapping.get("status") if mapping.get("status") in
                               ("mapping_only", "unmapped", "invalid_symbol") else "unknown",
@@ -156,6 +160,7 @@ def summarize(results):
         }
     return {
         "index_assessments": indices,
+        "equity_assessments": equities,
         "health_http": health.http if health else 0,
         "health_ok": bool(health and health.http == 200
                           and isinstance(health.body, dict)
