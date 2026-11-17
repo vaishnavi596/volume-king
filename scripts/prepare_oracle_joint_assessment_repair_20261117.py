@@ -47,9 +47,21 @@ new='''if (
             ):'''
 if server.count(old)!=1:raise RuntimeError("HOLD: candle publish guard anchor changed")
 server=server.replace(old,new,1)
-# Inject a helper immediately inside create_app before cached_candles, no new imports.
+# Preserve FastAPI route registration: insert BEFORE its decorator, not after.
 marker='    def cached_candles('
 if server.count(marker)!=1:raise RuntimeError("HOLD: cached_candles anchor mismatch")
+cached_fn=get_function(ast.parse(server),"cached_candles")
+if len(cached_fn.decorator_list)!=1:
+    raise RuntimeError("HOLD: wrong candle decorator count")
+route_dec=cached_fn.decorator_list[0]
+if not (isinstance(route_dec,ast.Call) and isinstance(route_dec.func,ast.Attribute)
+        and isinstance(route_dec.func.value,ast.Name) and route_dec.func.value.id=="app"
+        and route_dec.func.attr=="get"):
+    raise RuntimeError("HOLD: missing existing FastAPI GET decorator")
+route_lineno=route_dec.lineno
+server_lines=server.splitlines(keepends=True)
+if not server_lines[route_lineno-1].strip().startswith("@app.get("):
+    raise RuntimeError("HOLD: unexpected route decorator anchor")
 helper='''    def _assessment_bars_completed(rows, minutes):
         # Assessment quality gate only. Never affects the last-good chart cache.
         if minutes not in (1, 3, 5) or len(rows) != 2:
@@ -76,7 +88,7 @@ helper='''    def _assessment_bars_completed(rows, minutes):
 '''
 if "import math" not in server:raise RuntimeError("HOLD: math import missing")
 if "from datetime import" not in server:raise RuntimeError("HOLD: datetime imports missing")
-server=server.replace(marker,helper+marker,1)
+server="".join(server_lines[:route_lineno-1])+helper+"".join(server_lines[route_lineno-1:])
 content["server.py"]=server
 # Old clients with no explicit selector must not get potentially wrong evidence.
 # Keep legacy cache read behavior intact for unrelated callers; filter at endpoint only.
@@ -107,8 +119,15 @@ if not any(isinstance(x,ast.Call) and isinstance(x.func,ast.Attribute) and x.fun
 cand=get_function(tr["server.py"],"cached_candles")
 if len(find_calls(cand,"publish"))!=1 or len(find_calls(get_function(tr["server.py"],"dhan_option_chain"),"publish"))!=1:
     raise RuntimeError("HOLD: publisher interface changed")
-if not get_function(tr["server.py"],"_assessment_bars_completed"):
-    raise RuntimeError("HOLD: completion guard missing")
+helper_ast=get_function(tr["server.py"],"_assessment_bars_completed")
+route_ast=get_function(tr["server.py"],"cached_candles")
+if helper_ast.decorator_list or len(route_ast.decorator_list)!=1:
+    raise RuntimeError("HOLD: route decorator shifted to helper")
+route_check=route_ast.decorator_list[0]
+if not (isinstance(route_check,ast.Call) and isinstance(route_check.func,ast.Attribute)
+        and isinstance(route_check.func.value,ast.Name) and route_check.func.value.id=="app"
+        and route_check.func.attr=="get"):
+    raise RuntimeError("HOLD: original candle route decorator missing")
 
 bundle=Path(tempfile.mkdtemp(prefix="bk_oracle_joint_repair_",dir="/tmp"))
 bundle.chmod(0o700)
