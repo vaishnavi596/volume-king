@@ -19,6 +19,39 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertLess(body.index('data=retain_candle_history(data,prior,provider="Dhan")'),
                         body.index('chart_snapshots[(sym,tf,generation)]=data'))
 
+    def test_watchlist_chart_timeframe_tag_survives_retention(self):
+        chart=self.source.split("    async def load_chart():",1)[1].split(
+            "    async def visible_chart_poll():",1)[0]
+        self.assertIn('data=dict(data,_scanner_timeframe=tf)',chart)
+        self.assertLess(chart.index('data=retain_candle_history(data,prior,provider="Dhan")'),
+                        chart.index('data=dict(data,_scanner_timeframe=tf)'))
+        self.assertLess(chart.index('data=dict(data,_scanner_timeframe=tf)'),
+                        chart.index('chart_snapshots[(sym,tf,generation)]=data'))
+
+    def test_watchlist_three_minute_warmup_is_bounded_and_foreground_only(self):
+        body=self.source.split("    async def watch_three_minute_warmup():",1)[1].split(
+            "    page.run_task(watch_three_minute_warmup)",1)[0]
+        for guard in ('current[0]!=4','lifecycle_background[0]',
+                      'not refresh_hours()','dhan_history_scan_active[0]',
+                      'index_one_minute_busy[0]',
+                      'dhan_feed.cooldown_remaining("/dhan/intraday")>0'):
+            self.assertIn(guard,body)
+        self.assertIn("watch_three_minute_warm_window[1]>=3",body)
+        self.assertIn("watch_three_minute_warm_last_provider[0]<30",body)
+        self.assertIn('get_market_data,sym,"1m","2d"',body)
+        self.assertIn('chart_snapshots[(sym,"1m",generation)]',body)
+        self.assertIn('data=retain_candle_history(data,prior,provider="Dhan")',body)
+        self.assertIn("break  # One attempted equity per scheduler tick, never fanout.",body)
+        self.assertNotIn('asyncio.gather(',body)
+        self.assertNotIn('get_market_data,sym,"3m"',body)
+
+    def test_index_one_minute_yields_to_bounded_watchlist_warmup(self):
+        body=self.source.split("    async def dhan_index_candle_poll():",1)[1].split(
+            "    page.run_task(dhan_index_candle_poll)",1)[0]
+        self.assertIn("not watch_three_minute_warm_busy[0]",body)
+        self.assertIn("index_one_minute_busy[0]=True",body)
+        self.assertIn("index_one_minute_busy[0]=False",body)
+
     def test_missing_three_minute_votes_are_not_labeled_live(self):
         body=self.source.split("    def compact_watch_signal(row, available, fresh):",1)[1].split(
             "    def compact_five_engine_watch(",1)[0]
