@@ -2748,3 +2748,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Inspected #1699 job 133735112970: offline regression suite step failed; exact traceback not yet verified. The associated c86e94f commit replaced the assessment unavailable reason with `not_configured` in backend/server.py. The following 21fb7e5 commit added allowlisted-placeholder regression coverage, and its #1700 CI succeeded. This is a likely compatibility/test area, not a proven root cause of #1699.
 - #1705 job was CANCELLED during the offline suite, not an established test assertion failure. Its changes were included in later successful #1706.
 - Latest ten commits checked: 49a1266, ac422fe, 0d1b138, e8266b8, 2268f44, 334d6a0, 5102625, a007795, 18ba50c, 4d0f860. No APK build, server deployment, or live trading activation. Next gate: inspect detailed #1699 logs when accessible, then consolidated Android/assessment/watchlist regression on final source SHA before build.
+
+
+## 2026-11-17 — Parallel joint regression gate added (no APK)
+- Pre-change check: latest ten commits and ten CI outcomes inspected; #1708 PASS, historical #1699 FAIL, #1705 CANCELLED. Existing test-only workflow runs complete offline suite; no Android/Oracle production verification implied.
+- Commit 6958d2c1d32e190818f4f70c5e024002aadd971c adds `.github/workflows/botking-joint-regression-gate.yml` with 5 parallel independent matrix scopes: complete offline suite; login/watchlist/index; candle/scanner/Super Five; option/five filters; Android/Oracle contract. Matrix fail-fast false; no APK build, no production deployment or trading calls.
+- GitHub workflow run conclusion must be checked separately. This gate verifies repository offline tests, not real device, Oracle production freshness, or Dhan market data. Follow up by grouping failed assertions into coherent patches, checking last ten edits and recording CI evidence before APK release.
