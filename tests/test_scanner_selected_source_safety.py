@@ -73,6 +73,23 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
         self.assertIn(("run",ctx["scan_market"]),actions)
         self.assertEqual(ctx["scan_shared"]["symbol"],"TCS")
 
+    def test_one_minute_default_preserves_saved_timeframe(self):
+        self.assertIn('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',SOURCE)
+        self.assertIn('        saved_scanner_tf="1m"\\n    scan_tf=',SOURCE)
+        self.assertIn('prefs["scanner_timeframe"]=scan_tf.value or "1m"',SOURCE)
+        # Existing saved 3m/5m/15m/1h still takes precedence over default.
+        setup=SOURCE.split('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',1)[1].split(
+            "    scan_expiry=",1)[0]
+        self.assertIn('if saved_scanner_tf not in scanner_intervals:',setup)
+
+    def test_initial_automatic_scan_respects_closed_exchange_window(self):
+        scanner=function_source("auto_scan_loop")
+        self.assertIn('if not refresh_hours():',scanner)
+        self.assertNotIn('if not initial and not refresh_hours():',scanner)
+        self.assertLess(scanner.index('if not refresh_hours():'),
+                        scanner.index('try:await scan_market()'))
+        self.assertIn('scan_next_refresh[0]=None',scanner)
+
     def test_partial_scanner_candles_are_retained_before_chart_publish(self):
         code=function_source("scan_market")
         self.assertIn('if prior.get("_scanner_timeframe")!=interval:',code)
