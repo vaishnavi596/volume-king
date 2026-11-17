@@ -1,5 +1,6 @@
 """Offline tests for bounded, copy-isolated option evidence handoff."""
 import unittest
+from datetime import date
 from backend.option_evidence_cache import OptionEvidenceCache
 
 
@@ -15,6 +16,17 @@ class OptionEvidenceCacheTests(unittest.TestCase):
         cache.latest("NIFTY")["pcr"] = 5
         self.assertEqual(cache.latest("NIFTY")["pcr"], 0.8)
         clock[0] += 10
+        self.assertIsNone(cache.latest("NIFTY"))
+
+    def test_expiry_date_rollover_invalidates_even_inside_ttl(self):
+        today = [date(2026, 11, 19)]
+        cache = OptionEvidenceCache(ttl_seconds=120, today=lambda: today[0])
+        good = {"signal_eligible": False, "freshness": "unverified", "pcr": 0.8}
+        self.assertFalse(cache.put("NIFTY", "2026-11-18", good))
+        self.assertFalse(cache.put("NIFTY", "invalid-date", good))
+        self.assertTrue(cache.put("NIFTY", "2026-11-19", good))
+        self.assertEqual(cache.latest("NIFTY")["pcr"], 0.8)
+        today[0] = date(2026, 11, 20)
         self.assertIsNone(cache.latest("NIFTY"))
 
     def test_reject_unverified_eligibility_and_bound_capacity(self):
