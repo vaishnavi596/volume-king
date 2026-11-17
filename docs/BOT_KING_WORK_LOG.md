@@ -2669,3 +2669,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - GitHub Actions run 43945269336 for commit e3d0730f4d826df423d4573582454749a21e9987: status COMPLETED, conclusion SUCCESS; job 133573149544 offline-tests SUCCESS; GitHub updated_at 2026-11-16T20:03:44Z. This validates the repository offline regression run for the partial-metrics guard tests.
 - Does NOT validate live Dhan freshness, Oracle production, working five-factor producer, Super Five on device, or Android APK. Earlier run 43941469905 remains CANCELLED and must not be relabeled PASS.
 - Next gate: inspect actual branch code and existing assessment producer before implementing safe, evidence-backed filter rows; perform ten-commit backcheck and journal all outcomes.
+
+
+## 2026-11-17 — Assessment WAIT reason contract correction
+- Exact working-branch 11-commit history inspected via GitHub commits API before source edit: a8c411df7, 418ff7254, c322e381f, e3d0730f4, 421a82eca, ffb4bfacc, bb39e59b5, 4a7d34102, 675d4864a, 3664b8402, b75f5f39d. This is an ancestry/changed-purpose check, not proof every commit passed CI. Relevant earlier run 43945269336 for e3d0730f4 SUCCESS; run 43941469905 remains CANCELLED; corrected AST run 43943467995 SUCCESS.
+- Commit c86e94f80378e1aeaab4ff2469d9e877cdf640ab updates `backend/server.py` /v2/assessment placeholder filter reason from free-text `Independent Oracle assessment not configured` to allowlisted `not_configured`, matching `src/shared_assessment_ui.py` reason rendering. No Dhan call, no live vote, no change to fail-closed WAIT.
+- GitHub write confirmed; CI for c86e94f PENDING verification. No Oracle deployment, mobile verification or APK. Next: check CI and add focused contract regression for five filter reason, then progress to actual data producer.
