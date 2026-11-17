@@ -6401,7 +6401,7 @@ console.log('BOT KING Lightweight Charts ready');
     # T04: A *bounded* 1m source warmup for the selected Watchlist, not 51 parallel requests.
     # completed_three_minute_bars() derives real 3m OHLCV locally from 3 consecutive 1m rows.
     watch_three_minute_warm_attempts={}
-    watch_three_minute_warm_window=[0.0,0]
+    watch_three_minute_upstream_times=[]
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
     async def watch_three_minute_warmup():
@@ -6416,8 +6416,9 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 generation=provider_generation[0]
                 now=time.monotonic()
-                if now-watch_three_minute_warm_window[0]>=180:
-                    watch_three_minute_warm_window[:]=[now,0]
+                # Rolling-window cap, not a fixed bucket that can burst at rollover.
+                watch_three_minute_upstream_times[:]=[
+                    t for t in watch_three_minute_upstream_times if now-t<180]
                 # Hard budget: at most 3 *uncached* upstream 1m histories in any
                 # 180s window, spaced >=30s. Cache hits use no extra Dhan call.
                 selected=[sym for sym in watch_groups[active_watch[0]]
@@ -6441,7 +6442,7 @@ console.log('BOT KING Lightweight Charts ready');
                         prior_cache=market_recent.get(history_key)
                         cache_ready=bool(prior_cache and now-prior_cache[0]<87)
                     if not cache_ready and (
-                            watch_three_minute_warm_window[1]>=3 or
+                            len(watch_three_minute_upstream_times)>=3 or
                             now-watch_three_minute_warm_last_provider[0]<30):
                         break
                     watch_three_minute_warm_busy[0]=True
@@ -6456,8 +6457,9 @@ console.log('BOT KING Lightweight Charts ready');
                             break
                         watch_three_minute_warm_attempts[key]=time.monotonic()
                         if not cache_ready:
-                            watch_three_minute_warm_window[1]+=1
-                            watch_three_minute_warm_last_provider[0]=time.monotonic()
+                            attempt_time=time.monotonic()
+                            watch_three_minute_upstream_times.append(attempt_time)
+                            watch_three_minute_warm_last_provider[0]=attempt_time
                         try:
                             data=await asyncio.wait_for(asyncio.to_thread(
                                 get_market_data,sym,"1m","2d"),timeout=25)
