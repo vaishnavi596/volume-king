@@ -1386,6 +1386,13 @@ def app_main(page:ft.Page):
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD),
                 border=ft.border.all(1,color),border_radius=8,padding=5,
                 bgcolor=PANEL2))
+        # Reserved sixth display slot: intentionally blank until a future
+        # Time-Based Movement & Reversal filter is reviewed and implemented.
+        # This is not a scoring engine, WAIT result, percentage or broker poll.
+        cards.append(ft.Container(
+            content=ft.Text("6  —",size=10,color=MUTED,weight=ft.FontWeight.BOLD),
+            border=ft.border.all(1,BORDER),border_radius=8,padding=5,
+            bgcolor=PANEL2))
         return ft.Row(cards,wrap=True,spacing=4,run_spacing=4)
 
     def super_five_card():
