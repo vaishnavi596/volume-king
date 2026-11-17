@@ -1717,7 +1717,7 @@ def app_main(page:ft.Page):
     def compact_watch_signal(row, available, fresh):
         # Watchlist 3m: never substitute Super Five 5m ranking votes.
         counts=signal_percentages(row) if available and row.get("timeframe")=="3m" else None
-        if not counts:return note("3m • WAIT • completed candle data unavailable")
+        if not counts:return note("3m • WAIT • matching 3m candles / valid votes unavailable")
         return vote_display(counts,False,timeframe="3m")
 
     def compact_five_engine_watch(symbol):
