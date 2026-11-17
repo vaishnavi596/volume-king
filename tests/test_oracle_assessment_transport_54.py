@@ -56,6 +56,34 @@ class AssessmentTransport54Tests(TestCase):
              "SENSEX": ("BSE_I", 51)})
         self.assertEqual(set(mapping), DHAN_VERIFIED_SYMBOLS)
 
+    def test_dynamic_candle_needs_registry_and_resets_on_disconnect(self):
+        feed = ServerDhanReadOnly()
+        response = {"source": "dhan", "symbol": "DYNAMICABC", "bars": []}
+        with patch.object(feed, "_call", return_value=response) as call:
+            # Registry lookup precedes the first historical request.
+            with self.assertRaises(FeedError):
+                feed.intraday("DYNAMICABC", 3, "2026-11-16", "2026-11-16")
+            call.assert_not_called()
+        registry = {"source": "dhan_registry", "symbols": ["DYNAMICABC"],
+                    "live_orders_enabled": False}
+        with patch.object(feed, "_call", side_effect=[registry, response, response]) as call:
+            feed.intraday("DYNAMICABC", 5, "2026-11-16", "2026-11-16")
+            feed.intraday("DYNAMICABC", 5, "2026-11-16", "2026-11-16")
+            self.assertEqual(call.call_count, 3)
+            self.assertTrue(call.call_args_list[0].args[0].startswith("/v2/instruments/search?"))
+            self.assertEqual(call.call_args_list[1].args[0], "/dhan/intraday")
+        feed.disconnect()
+        self.assertNotIn("DYNAMICABC", feed._verified_dynamic_equities)
+        with patch.object(feed, "_call", return_value={
+                "source": "dhan_registry", "symbols": []}) as call:
+            with self.assertRaises(FeedError):
+                feed.intraday("DYNAMICABC", 5, "2026-11-16", "2026-11-16")
+            call.assert_called_once()
+        with patch.object(feed, "_call") as call:
+            with self.assertRaises(FeedError):
+                feed.intraday("NOT VALID!", 5, "2026-11-16", "2026-11-16")
+            call.assert_not_called()
+
     def test_index_lane_rejects_unverified_orders_and_extra_symbols(self):
         feed = ServerDhanReadOnly()
         valid = {

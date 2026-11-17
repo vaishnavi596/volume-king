@@ -113,8 +113,8 @@ class WatchlistWiringTests(unittest.TestCase):
         """Exactly 3 index slots plus up to 67 unique NSE equity selections."""
         self.assertIn("MAX_TOTAL_INSTRUMENTS=70", self.source)
         self.assertIn("MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3", self.source)
-        self.assertIn("normalize_watchlists(saved_watch_groups, maximum=MAX_WATCHLIST_EQUITIES)", self.source)
-        self.assertIn("normalize_watchlists(watch_groups, maximum=MAX_WATCHLIST_EQUITIES)", self.source)
+        self.assertIn("normalize_watchlists(saved_watch_groups, maximum=70)", self.source)
+        self.assertIn("normalize_watchlists(watch_groups, maximum=70)", self.source)
         self.assertIn("len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES", self.source)
         scanner = ast.get_source_segment(self.source, self.functions["configured_scan_symbols"])
         self.assertIn('["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()', scanner)

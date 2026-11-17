@@ -213,6 +213,7 @@ class ServerDhanReadOnly:
         self._global_cooldown_until = 0.0
         self._invalid_option_until = {}
         self._direct_equity_last_attempt = 0.0
+        self._verified_dynamic_equities = set()  # Per-session registry evidence only
         # One Dhan HTTPS request at a time across quote polling, scanner,
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
@@ -235,6 +236,7 @@ class ServerDhanReadOnly:
         self._global_cooldown_until = 0.0
         self._invalid_option_until = {}
         self._direct_equity_last_attempt = 0.0
+        self._verified_dynamic_equities = set()  # Per-session registry evidence only
         # Do not reuse Oracle readiness across reconnects / pairing-key changes.
         self._lane_coordinator = LaneCoordinator(max_cached=8)
 
@@ -462,6 +464,7 @@ class ServerDhanReadOnly:
                 or not all(isinstance(x, str) for x in names)
                 or len(names) > 50 or symbol not in names):
             raise FeedError("NSE symbol not verified in Oracle Dhan registry")
+        self._verified_dynamic_equities.add(symbol)
         return True
 
     def selected_equity_quotes(self, symbols):
@@ -634,8 +637,12 @@ class ServerDhanReadOnly:
             return checked
 
     def intraday(self, symbol, interval, from_date, to_date):
-        if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in (1, 5, 15, 25, 60):
+        if interval not in (1, 5, 15, 25, 60):
             raise FeedError("Dhan candle instrument or interval not verified")
+        if symbol not in DHAN_VERIFIED_SYMBOLS and symbol not in self._verified_dynamic_equities:
+            # Allow selected registry-backed equities after exact-symbol evidence,
+            # once per active session; reject unknown symbols without Dhan history.
+            self.verified_equity_symbol(symbol)
         result = self._call("/dhan/intraday", {
             "symbol": symbol, "interval": interval,
             "from_date": str(from_date), "to_date": str(to_date)})

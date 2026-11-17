@@ -1568,7 +1568,7 @@ def app_main(page:ft.Page):
     MAX_TOTAL_INSTRUMENTS=70  # 3 dedicated indices plus up to 67 distinct selected equities.
     MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3
     saved_watch_groups=[prefs.get("watchlist_"+str(i),watch_symbols if i==1 else []) for i in range(1,6)]
-    watch_groups=normalize_watchlists(saved_watch_groups, maximum=MAX_WATCHLIST_EQUITIES)
+    watch_groups=normalize_watchlists(saved_watch_groups, maximum=70)  # Retain legacy saved equity lists without silent loss
     watch_normalized=watch_groups!=saved_watch_groups
     # Preserve existing user lists while migrating the old Tata Motors symbol.
     watch_migrated=False
@@ -1580,7 +1580,7 @@ def app_main(page:ft.Page):
             group[:]=list(dict.fromkeys(expanded))
             watch_migrated=True
     # Re-apply the global cap and unique-list ownership after migrations.
-    watch_groups=normalize_watchlists(watch_groups, maximum=MAX_WATCHLIST_EQUITIES)
+    watch_groups=normalize_watchlists(watch_groups, maximum=70)  # Preserve existing entries; cap new additions at 67
     if watch_migrated or watch_normalized:
         for i,group in enumerate(watch_groups,1):
             prefs["watchlist_"+str(i)]=list(group)
