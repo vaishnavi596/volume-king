@@ -248,6 +248,32 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertFalse(result["mapping_route_direct_in_server"])
         self.assertFalse(result["runtime_evidence_verified"])
 
+    def test_cache_mutation_method_sites_are_reported_without_calling_them(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def create_app():\\n"
+                "    assessment_cache.set('NIFTY', {'secret': 9})\\n"
+                "    snapshot_cache.update({'NIFTY': 1})\\n"
+                "    innocent.update({'not_a_cache': 1})\\n"
+                "    option_evidence_cache.put('NIFTY', 'expiry', {})\\n",
+                encoding="utf-8")
+            (root / "assessment_api.py").write_text(
+                "def register_assessment_routes(app, key):\\n"
+                "    assessment_cache.setdefault('x', {})\\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")
+        sites = result["evidence_wiring"]["server_cache_mutation_call_sites"]
+        self.assertEqual([(s["receiver"], s["method"]) for s in sites],
+                         [("assessment_cache", "set"),
+                          ("snapshot_cache", "update"),
+                          ("option_evidence_cache", "put")])
+        self.assertEqual(result["assessment_api_cache_mutation_call_sites"],
+                         [{"line": 2, "receiver": "assessment_cache",
+                           "method": "setdefault"}])
+        self.assertNotIn("secret", repr(result))
+        self.assertFalse(result["evidence_wiring"]["runtime_evidence_verified"])
+
     def test_symlink_is_never_followed(self):
         with TemporaryDirectory() as d:
             target = Path(d) / "source.py"
