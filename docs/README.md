@@ -66,7 +66,6 @@
 **ACTIVE / REFERENCE:**
 - [botking-mobile-audit-batches-20261115.md](botking-mobile-audit-batches-20261115.md)
 - [BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md](BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md) — historical version programme; do not infer current APK from filename.
-- [A2_CHART_FILTER_OPTIONS_REPORT_20261115.md](A2_CHART_FILTER_OPTIONS_REPORT_20261115.md)
 - [BOT-KING-226-ANDROID-KEYSTORE-INTEGRATION.md](BOT-KING-226-ANDROID-KEYSTORE-INTEGRATION.md)
 - [BOT-KING-226-DEVICE-ENROLLMENT.md](BOT-KING-226-DEVICE-ENROLLMENT.md)
 - [FLET_SECURE_STORAGE_COMPATIBILITY.md](FLET_SECURE_STORAGE_COMPATIBILITY.md)
@@ -152,6 +151,13 @@ These historical controls may already have modern equivalents. Their obsolete Ya
 - **Dependency gate:** #1844 full repository CI reported zero inbound references to this document outside `docs/README.md` across 351 scanned text files; no broken Markdown relative links before pruning. The index target link is removed in this commit, then the obsolete file may be deleted in a distinct SHA-checked Git commit. Git history preserves full original. Re-run link scanner CI after deletion.
 - **Scope:** only this one legacy A3 report; current Work Log, source/test files, Oracle configuration, security runbooks and APK untouched.
 
+## Pruning batch 2 — A2 v2.3.115–2.3.116 legacy chart/filter/options history
+
+- **Target audited source:** `docs/A2_CHART_FILTER_OPTIONS_REPORT_20261115.md`, immutable Git blob `37343748435d66d77ceb4d3b88c57d5b8a8c7edf`; full [original A2 report in prior Git revision](https://github.com/vaishnavi596/volume-king/blob/6aeedf54eddab253c878282fec1ba331577245e2/docs/A2_CHART_FILTER_OPTIONS_REPORT_20261115.md). #1845 repository scan (350 text files) showed **zero inbound references outside category index** to A2; no broken Markdown relative links.
+- **Historical user symptoms and safety retained here:** scanner Lightweight/WebView blank chart recovered by native OHLC display; old 10-slot filter editor callback blocked when attempting synchronous 51-symbol reanalysis (user confirmed remove/add/persistence behavior); option-chain manual and symbol/expiry refresh was NIFTY-only at that historical point; 2.3.115 screenshots showed NIFTY strikes unavailable and Angel One legacy option-chart sign-in incorrectly shown in Dhan-only mode; older 2.3.110 screenshots showed 51/51 prices/candles but exchange freshness unverified; old OI/News context remained WAIT/non-voting, not verified percentages. These were **historical APK observations**, not current phone acceptance.
+- **Historical code/test source anchors retained:** `a966a908` native candle fallback/options refresh/filter feedback; `dfa6b16b` and `0350b865` regressions; `47521e91` selected expiry switch; `d12b4548` nonblocking filter callback; `15af1e95` old Angel One prompt removal and `7ddbaaea` regression; `713706d2` and `70a9541a` News/OI contextual reader; `01346b15` ten-slot tests; `422b72c9` report; `b61674f9` 2.3.116 build trigger. **No signed 2.3.116 APK PASS** was claimed by original report. Old 10-slot selectable scanner feature must not be confused with today's five assessment slots plus a blank sixth.
+- **Decision:** preserve original in Git history and this compact historical provenance, remove only the redundant current-branch A2 Markdown document once its link is removed; DO NOT delete current scanner/filter code, tests or Oracle scripts. Subsequent post-prune CI and relative link scan remain mandatory.
+ 
 ## Documentation housekeeping register
 
 | Stage | Status | Meaning |
