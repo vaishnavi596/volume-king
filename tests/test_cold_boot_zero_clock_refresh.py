@@ -142,7 +142,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         source=function_source("dhan_quote_poll")
         self.assertIn('max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0',source)
         self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60',source)
-        nav=function_source("select")
+        nav=function_source("render_page")
         self.assertIn('watch_batch_last_attempt[0]<=0',nav)
         self.assertIn('time.monotonic()-watch_batch_last_attempt[0]>=60',nav)
         resume=function_source("refresh_after_resume")
