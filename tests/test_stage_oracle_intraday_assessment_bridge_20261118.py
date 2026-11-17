@@ -68,6 +68,46 @@ class OracleIntradayStageRegression(unittest.TestCase):
         self.assertNotIn("/dhan/", patched)
         self.assertIn("_assessment_bars_completed", patched)
 
+    def test_publish_failure_preserves_return_and_does_not_retry_dhan(self):
+        # An informational Assessment failure must not break a successful candle read.
+        source = FAKE.replace(
+            'published.append((account, symbol, kind, timeframe))',
+            'raise RuntimeError("assessment cache unavailable")',
+        )
+        configure_fake(source)
+        namespace = {}
+        exec(compile(stage.stage_source(source), "<synthetic-bridge>", "exec"),
+             namespace)
+        route, published = namespace["create_app"]()
+        for mode in range(4):
+            data = route(mode)
+            self.assertEqual(set(data), set(stage.EXPECTED_KEYS))
+            self.assertFalse(data["live_orders_enabled"])
+        self.assertEqual(published, [])
+
+    def test_source_and_freshness_must_match_exactly(self):
+        # Historical/cached evidence is never promoted from arbitrary providers.
+        source = FAKE.replace(
+            'if body == 1:\\n            return',
+            'if body == 1:\\n            return',
+        ).replace(
+            '"symbol":"HDFCBANK","source":"dhan"',
+            '"symbol":"HDFCBANK","source":"yahoo"',
+        ).replace(
+            '"symbol":"NIFTY","source":"dhan","interval":"5m","bars":[[1,2],[2,3]],"freshness":"historical_unverified"',
+            '"symbol":"NIFTY","source":"dhan","interval":"5m","bars":[[1,2],[2,3]],"freshness":"live_verified"',
+        )
+        configure_fake(source)
+        namespace = {}
+        exec(compile(stage.stage_source(source), "<synthetic-bridge>", "exec"),
+             namespace)
+        route, published = namespace["create_app"]()
+        for mode in range(4):
+            route(mode)
+        self.assertEqual(published, [
+            ("test-account", "NIFTY", "candle", "1m")
+        ])
+
     def test_sha_mismatch_fails_closed(self):
         configure_fake(FAKE)
         with self.assertRaisesRegex(ValueError, "SOURCE_SHA_MISMATCH"):
