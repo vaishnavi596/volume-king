@@ -2857,3 +2857,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - GitHub last-ten commits and twenty recent CI runs reviewed. At review 44021906603 and 44021896629 still IN_PROGRESS; 44018312569 SUCCESS; 44018292533 CANCELLED; older successes and failures retained. No cancellation/deletion executed; no new source fix or APK.
 - Created docs/BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md in commit d1c6651e0ee4b4fe05c0b87712ca8169ffbcac4b with T01–T16: bootstrap, equity/index quotes, Watchlist 3m, candle retention/UI, scanner, Super Five, five engines, index 1m, options, provider throttling, lifecycle, Oracle assessment, read-only safety, release gate. Statuses explicitly pending where proof is absent. Future 17-filter research excluded from release scope.
 - Next operational action: collect actual test failures/logs for the full matrix before applying grouped source repairs; final APK requires joint regression and integration evidence.
+
+
+## 2026-11-17 — Permanent cross-chat workflow rules (user-approved)
+- Reviewed latest ten commits and ten CI runs before documentation edits. At inspection, CI 44021896629 SUCCESS; 44021906603 still IN_PROGRESS. Earlier historical failures/cancellations retained; no false PASS.
+- Added repository-root `AGENTS.md` at commit 55d6ab22afdca9a1c32fa10ce8e4f48466a5cf61: OK means continue; pre-edit last-ten review; consolidated T01–T16 intake; independent audits/CI overlap while conflicting edits and broker lanes serialize; 2–4 coherent fixes; exact-SHA evidence ladder; journal and release gates; Dhan-only/read-only and 09:10–15:45 IST constraints; accuracy requires backtesting, no promised percentage; no invented autonomous work after turn ends.
+- Updated root `BOT_KING_HANDOFF.md` at commit 62c2e8ea3c24f04ab87ace30902212ebcc7a662b to prominently direct future chats to `AGENTS.md` and the consolidated matrix. No app source/Oracle production/APK change in this batch.
+- Next operational task: continue matrix T01–T16 evidence collection, retrieve CI results and exact failing steps, then grouped fixes. This journal entry records rules, not completion of remaining tests.
