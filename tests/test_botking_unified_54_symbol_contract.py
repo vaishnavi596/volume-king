@@ -23,15 +23,28 @@ def list_literal_assignment(filename, var):
 
 def feed_roster():
     tree = ast.parse((ROOT / "src/server_feed.py").read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == "DHAN_VERIFIED_SYMBOLS"
-            for t in node.targets
-        ):
-            call = node.value
-            if isinstance(call, ast.Call) and len(call.args) == 1:
-                return set(ast.literal_eval(call.args[0]))
-    raise AssertionError("Missing verified feed roster")
+    declarations = {
+        target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
+        for target in node.targets if isinstance(target, ast.Name)
+    }
+    combined = declarations["DHAN_VERIFIED_SYMBOLS"]
+    if not (isinstance(combined, ast.BinOp) and isinstance(combined.op, ast.BitOr)
+            and isinstance(combined.left, ast.Name)
+            and combined.left.id == "DHAN_VERIFIED_EQUITY_SYMBOLS"
+            and isinstance(combined.right, ast.Name)
+            and combined.right.id == "DHAN_VERIFIED_INDEX_SYMBOLS"):
+        raise AssertionError("Missing verified disjoint feed roster union")
+    def literal_roster(name):
+        value = declarations[name]
+        if not (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                and value.func.id == "frozenset" and len(value.args) == 1):
+            raise AssertionError("Missing literal " + name)
+        return set(ast.literal_eval(value.args[0]))
+    equities = literal_roster("DHAN_VERIFIED_EQUITY_SYMBOLS")
+    indices = literal_roster("DHAN_VERIFIED_INDEX_SYMBOLS")
+    if equities & indices:
+        raise AssertionError("Overlapping equity/index symbols")
+    return equities | indices
 
 
 class Unified54CoverageTests(unittest.TestCase):
