@@ -502,7 +502,9 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('quotes[sym]=dict(previous,bars=verified_bars', resume)
         self.assertIn('data.get("source")=="Dhan"', resume)
         self.assertIn('freshness="unverified"', resume)
-        self.assertIn('quotes[sym]=data', resume)
+        self.assertIn('if selected_tf=="5m":', resume)
+        self.assertIn('quotes[sym]=dict(data,historical=True,live_verified=False,', resume)
+        self.assertNotIn('quotes[sym]=data', resume)
 
     def test_dhan_history_scan_cycle_waits_five_minutes_but_resume_interrupts(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
