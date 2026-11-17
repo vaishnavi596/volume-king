@@ -5825,7 +5825,8 @@ console.log('BOT KING Lightweight Charts ready');
                     and 0<=time.time()-fetched<180):
                 continue
             key=(generation,sym)
-            if now-watch_three_minute_warm_attempts.get(key,0)<180:
+            if (key in watch_three_minute_warm_attempts
+                    and now-watch_three_minute_warm_attempts[key]<180):
                 continue
             history_key=(generation,angel_feed.epoch,dhan_feed.connected,
                          "Dhan",sym,"1m","2d")
@@ -6628,7 +6629,8 @@ console.log('BOT KING Lightweight Charts ready');
                             0<=time.time()-fetched<180):
                         continue
                     key=(generation,sym)
-                    if now-watch_three_minute_warm_attempts.get(key,0)<180:
+                    if (key in watch_three_minute_warm_attempts
+                            and now-watch_three_minute_warm_attempts[key]<180):
                         continue
                     history_key=(generation,angel_feed.epoch,dhan_feed.connected,
                                  "Dhan",sym,"1m","2d")
