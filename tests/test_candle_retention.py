@@ -52,6 +52,24 @@ class CandleRetentionTests(unittest.TestCase):
         self.assertEqual(result["bars"],[])
         self.assertNotIn("_candle_retained",result)
 
+    def test_malformed_incoming_votes_do_not_crash_retention(self):
+        from candle_retention import retain_last_filter_votes
+        prior={"source":"Dhan","timestamp":1234.0,
+               "votes":[{"name":"candle","vote":1}]}
+        incoming={"source":"Dhan","votes":{"malformed":"payload"}}
+        result=retain_last_filter_votes(incoming,prior,selected_filters=["candle"])
+        self.assertTrue(result["_last_votes_retained"])
+        self.assertEqual(result["bias"],"WAIT")
+        self.assertFalse(result["live_verified"])
+
+    def test_malformed_prior_votes_are_not_reused(self):
+        from candle_retention import retain_last_filter_votes
+        incoming={"source":"Dhan","votes":[]}
+        prior={"source":"Dhan","timestamp":1234.0,"votes":{"candle":1}}
+        result=retain_last_filter_votes(incoming,prior,selected_filters=["candle"])
+        self.assertNotIn("_last_votes_retained",result)
+        self.assertEqual(result["votes"],[])
+
     def test_ordered_candles_required(self):
         broken=dict(self.old,bars=candles()[:-1]+[candles()[-3]])
         self.assertFalse(retain_candle_history({"source":"Dhan","bars":[]},broken).get("_candle_retained"))
