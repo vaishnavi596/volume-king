@@ -4661,7 +4661,7 @@ console.log('BOT KING Lightweight Charts ready');
         if not completed:return pending
         identity=(provider_generation[0],tuple(filter_selected),
                   tuple(sorted(filter_modes.items())),prefs.get("confidence",75),
-                  completed[-1][0],len(completed),data.get("candle_fetched_at"))
+                  tuple(completed[-1]),len(completed),data.get("candle_fetched_at"))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
         try:
