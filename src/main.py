@@ -311,14 +311,38 @@ def app_main(page:ft.Page):
     oracle_assessment_attempts={}
     oracle_assessment_cache_generation=[provider_generation[0]]
 
+    def oracle_assessment_context(symbol):
+        """Single explicit selector contract shared by poll and UI."""
+        timeframe=(scan_tf.value if symbol==scan_symbol.value
+                   and scan_tf.value in ("1m","3m","5m")
+                   else "1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX")
+                   else "3m")
+        selected=(expiry.value if symbol==chain_symbol.value
+                  and isinstance(expiry.value,str) else None)
+        try:
+            selected=(selected if selected and
+                      date.fromisoformat(selected).isoformat()==selected else None)
+        except ValueError:
+            selected=None
+        return timeframe,selected
+
     def oracle_assessment_notes(symbol):
-        # One independent per-symbol cache for Scanner, Watchlist and Super Five.
+        # Do not display an earlier expiry or scanner timeframe under a new selection.
         if oracle_assessment_cache_generation[0]!=provider_generation[0]:
             oracle_assessment_cache.clear()
             oracle_assessment_attempts.clear()
             oracle_assessment_cache_generation[0]=provider_generation[0]
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             return ["Oracle assessment • WAIT • Dhan connection required"]
+        record=oracle_assessment_cache.get(symbol)
+        if isinstance(record,dict):
+            try:
+                tf,selected_expiry=oracle_assessment_context(symbol)
+            except (NameError,AttributeError):
+                return ["Oracle assessment • WAIT • selection not ready"]
+            if (record.get("timeframe")!=tf or
+                    record.get("expiry")!=selected_expiry):
+                return ["Oracle assessment • WAIT • selected timeframe/expiry changed"]
         return assessment_lines(symbol,oracle_assessment_cache)
 
     def log_error(area,exc):
@@ -6725,23 +6749,8 @@ console.log('BOT KING Lightweight Charts ready');
                     for sym in selected:
                         if generation!=provider_generation[0] or not app_active[0]:
                             break
-                        # Assessment cache must match the actual requested
-                        # candle timeframe and selected option-chain expiry.
-                        # Do not relabel 5m evidence as 1m/3m.
-                        tf=(scan_tf.value if sym==scan_symbol.value
-                            and scan_tf.value in ("1m","3m","5m")
-                            else "1m" if sym in ("NIFTY","BANKNIFTY","SENSEX")
-                            else "3m")
-                        selected_expiry=(expiry.value if sym==chain_symbol.value
-                                         and isinstance(expiry.value,str)
-                                         else None)
-                        try:
-                            selected_expiry=(selected_expiry
-                                             if selected_expiry and date.fromisoformat(
-                                                 selected_expiry).isoformat()==selected_expiry
-                                             else None)
-                        except ValueError:
-                            selected_expiry=None
+                        # One shared selector policy for request and display.
+                        tf,selected_expiry=oracle_assessment_context(sym)
                         now=time.monotonic()
                         key=(generation,sym,tf,selected_expiry)
                         # Selection changes must not reuse an unrelated 180s response.
