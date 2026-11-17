@@ -33,7 +33,7 @@ class ThreeOpenLaneTests(unittest.TestCase):
                                       "lane_C_collector_freshness", "notes"})
         self.assertEqual(result["lane_A_options_futures"]["NIFTY"]["options"],
                          "unavailable")
-        self.assertFalse(result["lane_B_news_scoring"]["SENSEX"]["score_present"])
+        self.assertFalse(result["lane_B_news_scoring"]["indices"]["SENSEX"]["score_present"])
         self.assertEqual(result["lane_C_collector_freshness"]["cached_equity_count"], 1)
         self.assertTrue(result["lane_C_collector_freshness"]["snapshot_orders_off"])
         self.assertEqual(result["notes"]["direct_dhan_calls"], 0)
@@ -42,8 +42,8 @@ class ThreeOpenLaneTests(unittest.TestCase):
         result = module.classify((0, {}), (0, {}), {})
         self.assertEqual(result["lane_C_collector_freshness"]["readiness_http"], 0)
         self.assertIsNone(result["lane_C_collector_freshness"]["cached_equity_count"])
-        self.assertFalse(result["lane_B_news_scoring"]["NIFTY"]["score_present"])
-        self.assertFalse(result["lane_B_news_scoring"]["NIFTY"]["signal_eligible"])
+        self.assertFalse(result["lane_B_news_scoring"]["indices"]["NIFTY"]["score_present"])
+        self.assertFalse(result["lane_B_news_scoring"]["indices"]["NIFTY"]["signal_eligible"])
         self.assertFalse(result["lane_C_collector_freshness"]["snapshot_orders_off"])
 
     def test_all_routes_allowlisted_and_redirect_blocked(self):
