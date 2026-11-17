@@ -1841,19 +1841,10 @@ def app_main(page:ft.Page):
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
         try:
-            batch=await asyncio.to_thread(dhan_feed.equity_quotes_with_bootstrap)
-            selected_batch_issue[0]=""
-            dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
-            if dynamic:
-                # One selected read-only batch; no per-symbol Dhan fanout.
-                # If the running Oracle has not deployed this route, preserve
-                # existing quotes and report a partial response instead.
-                try:
-                    selected=await asyncio.to_thread(dhan_feed.selected_equity_quotes,dynamic)
-                    batch.update(selected)
-                except Exception as selected_exc:
-                    log_error("dhan_selected_equity_batch",selected_exc)
-                    selected_batch_issue[0]=safe_error(selected_exc)[:120]
+            batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())
+            selected_batch_issue[0]=(
+                "Selected batch route unavailable; using legacy 51-equity snapshot"
+                if dhan_feed._selected_batch_missing else "")
             if not batch:
                 raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
@@ -3234,16 +3225,10 @@ def app_main(page:ft.Page):
                     # Share this real request attempt with page-entry and auto polling.
                     try:
                         watch_batch_last_attempt[0]=time.monotonic()
-                        batch=await asyncio.to_thread(dhan_feed.equity_quotes_with_bootstrap)
-                        selected_batch_issue[0]=""
-                        dynamic=[sym for sym in all_watch_symbols() if sym not in DHAN_VERIFIED_SYMBOLS]
-                        if dynamic:
-                            try:
-                                selected=await asyncio.to_thread(dhan_feed.selected_equity_quotes,dynamic)
-                                batch.update(selected)
-                            except Exception as selected_exc:
-                                log_error("dhan_selected_equity_after_connect",selected_exc)
-                                selected_batch_issue[0]=safe_error(selected_exc)[:120]
+                        batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())
+                        selected_batch_issue[0]=(
+                            "Selected batch route unavailable; using legacy 51-equity snapshot"
+                            if dhan_feed._selected_batch_missing else "")
                         if not batch:
                             raise FeedError("Empty Dhan batch response")
                         with dhan_batch_lock:

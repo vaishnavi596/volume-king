@@ -50,6 +50,44 @@ class OracleSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(rows["RELIANCE"]["freshness"], "unverified")
         self.assertEqual(rows["RELIANCE"]["quote_collection"], "oracle_snapshot")
 
+    def test_selected_list_uses_single_bounded_batch_not_all_51(self):
+        with patch.object(self.feed, "selected_equity_quotes", return_value={
+                "TCS": {"source": "Dhan", "price": 2200}}) as selected, \
+             patch.object(self.feed, "equity_quotes_with_bootstrap",
+                          side_effect=AssertionError("51 fallback forbidden")):
+            result = self.feed.equity_quotes_for_watchlist(["TCS"])
+        selected.assert_called_once_with(["TCS"])
+        self.assertEqual(set(result), {"TCS"})
+        with patch.object(self.feed, "selected_equity_quotes") as selected:
+            self.assertEqual(self.feed.equity_quotes_for_watchlist([]), {})
+            selected.assert_not_called()
+
+    def test_only_explicit_missing_route_uses_legacy_snapshot_once_per_session(self):
+        with patch.object(self.feed, "selected_equity_quotes",
+                          side_effect=FeedError("Dhan server HTTP 404")) as selected, \
+             patch.object(self.feed, "equity_quotes_with_bootstrap",
+                          return_value={"TCS": {"source": "Dhan", "price": 100},
+                                        "INFY": {"source": "Dhan", "price": 200}}):
+            self.assertEqual(set(self.feed.equity_quotes_for_watchlist(["TCS"])), {"TCS"})
+            self.assertEqual(set(self.feed.equity_quotes_for_watchlist(["INFY"])), {"INFY"})
+            selected.assert_called_once()
+        self.feed.disconnect()
+        self.assertFalse(self.feed._selected_batch_missing)
+
+    def test_rate_limit_and_invalid_selected_batch_never_fallback(self):
+        for message in ("Dhan /dhan/selected-ltp-batch HTTP 429; retry after 30s",
+                        "Inconsistent selected Dhan equity response",
+                        "Dhan server HTTP 503"):
+            self.feed._selected_batch_missing = False
+            with self.subTest(message=message), \
+                 patch.object(self.feed, "selected_equity_quotes",
+                              side_effect=FeedError(message)), \
+                 patch.object(self.feed, "equity_quotes_with_bootstrap",
+                              side_effect=AssertionError("unsafe fallback")):
+                with self.assertRaises(FeedError):
+                    self.feed.equity_quotes_for_watchlist(["TCS"])
+            self.assertFalse(self.feed._selected_batch_missing)
+
     def test_snapshot_cooldown_respects_global_and_route_backoff(self):
         import time
         now=time.monotonic()

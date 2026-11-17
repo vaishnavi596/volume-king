@@ -134,7 +134,7 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("sym in group", ast.get_source_segment(
             self.source, self.functions["watch_symbol_owner"]))
         self.assertIn("verified_equity_symbol,sym", self.source)
-        self.assertIn("selected_equity_quotes,dynamic", self.source)
+        self.assertIn("equity_quotes_for_watchlist,all_watch_symbols()", self.source)
 
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)

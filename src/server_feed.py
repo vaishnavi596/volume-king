@@ -214,6 +214,7 @@ class ServerDhanReadOnly:
         self._invalid_option_until = {}
         self._direct_equity_last_attempt = 0.0
         self._verified_dynamic_equities = set()  # Per-session registry evidence only
+        self._selected_batch_missing = False  # Cache only explicit route 404 for this session
         # One Dhan HTTPS request at a time across quote polling, scanner,
         # chart and manual refresh tasks; prevents overlapping gateway calls.
         import threading
@@ -237,6 +238,7 @@ class ServerDhanReadOnly:
         self._invalid_option_until = {}
         self._direct_equity_last_attempt = 0.0
         self._verified_dynamic_equities = set()  # Per-session registry evidence only
+        self._selected_batch_missing = False  # Cache only explicit route 404 for this session
         # Do not reuse Oracle readiness across reconnects / pairing-key changes.
         self._lane_coordinator = LaneCoordinator(max_cached=8)
 
@@ -568,6 +570,30 @@ class ServerDhanReadOnly:
                               "snapshot_age_seconds": age, "live_verified": False,
                               "quote_collection": "oracle_snapshot"}
         return quotes
+
+    def equity_quotes_for_watchlist(self, symbols):
+        """Quote only user-selected equities; safely recover if old Oracle lacks route.
+
+        The preexisting 51-equity snapshot fallback is used only after explicit
+        HTTP 404, never after a Dhan 429, invalid data, or other provider error.
+        """
+        if (not isinstance(symbols, (tuple, list)) or len(symbols) > 67
+                or len(symbols) != len(set(symbols))
+                or any(not isinstance(sym, str) or sym in DHAN_VERIFIED_INDEX_SYMBOLS
+                       for sym in symbols)):
+            raise FeedError("Invalid selected watchlist equity roster")
+        if not symbols:
+            return {}
+        if not self._selected_batch_missing:
+            try:
+                return self.selected_equity_quotes(symbols)
+            except FeedError as exc:
+                if "Dhan server HTTP 404" not in str(exc):
+                    raise
+                self._selected_batch_missing = True
+        cached = self.equity_quotes_with_bootstrap()
+        # Never return unselected equities or fabricate missing dynamic prices.
+        return {sym: cached[sym] for sym in symbols if sym in cached}
 
     def equity_quotes_with_bootstrap(self):
         """Use cached Oracle quotes first; bounded read-only recovery if no valid snapshot.
