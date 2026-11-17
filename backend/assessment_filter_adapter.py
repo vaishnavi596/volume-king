@@ -27,3 +27,27 @@ def option_filter_rows(metrics=None):
                          "value": value, "verification": "unverified",
                          "source": "dhan"}
     return [rows[key] for key in FILTER_IDS]
+
+
+def read_only_assessment(symbol, metrics=None):
+    """Assemble a fail-closed shared assessment from *already cached* metrics.
+
+    This is a pure response builder: the caller must validate the symbol and
+    obtain any evidence independently. No broker calls or directional scoring.
+    """
+    rows = option_filter_rows(metrics)
+    has_info = any(row["status"] == "available" for row in rows)
+    return {
+        "protocol": 2,
+        "symbol": symbol,
+        "source": "dhan",
+        "collection_status": "partial_unverified" if has_info else "not_configured",
+        "freshness": "unverified",
+        "assessment_filters": rows,
+        "factors": {name: {"status": "unavailable", "bullish": None, "bearish": None}
+                    for name in ("news", "futures", "options", "candle")},
+        "bullish_score": None,
+        "bearish_score": None,
+        "signal_eligible": False,
+        "live_orders_enabled": False,
+    }
