@@ -252,15 +252,15 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         with TemporaryDirectory() as d:
             root = Path(d)
             (root / "server.py").write_text(
-                "def create_app():\\n"
-                "    assessment_cache.set('NIFTY', {'secret': 9})\\n"
-                "    snapshot_cache.update({'NIFTY': 1})\\n"
-                "    innocent.update({'not_a_cache': 1})\\n"
-                "    option_evidence_cache.put('NIFTY', 'expiry', {})\\n",
+                "def create_app():\n"
+                "    assessment_cache.set('NIFTY', {'secret': 9})\n"
+                "    snapshot_cache.update({'NIFTY': 1})\n"
+                "    innocent.update({'not_a_cache': 1})\n"
+                "    option_evidence_cache.put('NIFTY', 'expiry', {})\n",
                 encoding="utf-8")
             (root / "assessment_api.py").write_text(
-                "def register_assessment_routes(app, key):\\n"
-                "    assessment_cache.setdefault('x', {})\\n",
+                "def register_assessment_routes(app, key):\n"
+                "    assessment_cache.setdefault('x', {})\n",
                 encoding="utf-8")
             result = audit_module.audit(root / "server.py")
         sites = result["evidence_wiring"]["server_cache_mutation_call_sites"]
