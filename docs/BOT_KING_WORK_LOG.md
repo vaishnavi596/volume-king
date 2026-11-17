@@ -2688,3 +2688,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Rechecked exact last 11 working-branch commits from GitHub commits API before test edit: 514e88eef, 0035a67c0, c76541cbd, c86e94f80, a8c411df7, 418ff7254, c322e381f, e3d0730f4, 421a82eca, ffb4bfacc, bb39e59b5. Earlier CI 43992125444 FAILED (one outdated audit assertion); source audit fix 0035a67c0 has no new workflow run in the latest branch-run list as of check.
 - Test commit 21fb7e5a7a623edfdbda4d28b1c11124befb0cf7 updates `tests/test_oracle_five_filter_runtime_source_audit.py` with positive regression for allowlisted `reason=not_configured` without legacy prose and negative regression for incomplete placeholder lacking `unavailable`.
 - GitHub write succeeded; CI for 21fb7e5 PENDING. No Oracle deploy, Dhan live proof, Android test or APK build. Next inspect new workflow logs/conclusion and fix any failures before dependent producer work.
+
+
+## 2026-11-17 — Audit placeholder regression PASS and producer gate
+- GitHub Actions run 43992660556 for test commit 21fb7e5a7a623edfdbda4d28b1c11124befb0cf7: status COMPLETED, conclusion SUCCESS (verified directly from branch-scoped GitHub Actions API). This includes the allowlisted `not_configured` placeholder regression introduced after 0035a67 audit correction.
+- Previous run 43992125444 on c86e94f remains FAILED; do not rewrite history. The newer successful full workflow validates current repository source/tests, not Oracle deployment or mobile behavior.
+- Pre-journal last ten branch commits checked: 9a3821a99, 21fb7e5a7, 514e88eef, 0035a67c0, c76541cbd, c86e94f80, a8c411df7, 418ff7254, c322e381f, e3d0730f4. Latest repository source still has /v2/assessment fail-closed placeholder; producer and Super Five Android wiring remain pending.
+- Next: implement a bounded read-only evidence producer only where independently validated data is available; preserve five filter IDs, four factor IDs, unavailable reasons, and no fabricated bullish/bearish percentages. Oracle deploy and APK HOLD.
