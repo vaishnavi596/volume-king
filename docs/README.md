@@ -134,6 +134,18 @@ The remaining seven named archive candidates were inspected individually rather 
 
 **Repository-wide reference analyzer:** `scripts/audit_docs_references_readonly.py` and `tests/test_docs_reference_audit.py` inspect incoming filenames across source/docs/tests and relative Markdown links. The analyzer is read-only and explicitly marks every candidate `deletion_safe=false` pending operator review, regardless of zero inbound references. CI of this new analyzer must be verified before using its inventory as evidence.
 
+## Legacy v1.8–2.0.1 evidence retained for future pruning
+
+The following is historical source/CI evidence, **not current Dhan-only release policy**. Exact old Git blob hashes identify reversible original copies:
+
+| Old audit | Unique retained evidence | Original Git blob |
+|---|---|---|
+| v1.8.0 | Flet 0.25.2, 52 offline tests and compile PASS; bilingual UI, validation of completed candle OHLC/duplicate/future timestamps, no Android/live broker proof | `2ad3c41f95713c214c452268c6a785159f2e8878` |
+| v1.9.0 | 73 offline tests and compile PASS; historic 1m/3m/5m stale gates 150/390/630s, last-good Super Five, resume/retry and secret redaction; no live broker/account proof | `11c6e8d1a7560f85a67692dc9e3c1d3017662d4c` |
+| v2.0.1 | Nov 4 PermissionError/storage and UI fixes; app-private storage, scanner schedule exception guards and paper-only behavior; tests described but no numerical CI count in source | `4fff15f86040fb59cf2a4abc8d5dd75ae45f8b02` |
+
+These historical controls may already have modern equivalents. Their obsolete Yahoo/Angel/Flet-era architecture and legacy live-order wishlists are **not** instructions for the current app. Any eventual deletion requires reference scan, preservation of unique claims and a committed deletion manifest. Git history contains full original text.
+
 ## Documentation housekeeping register
 
 | Stage | Status | Meaning |
