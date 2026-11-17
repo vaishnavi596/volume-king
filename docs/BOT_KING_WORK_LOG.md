@@ -2663,3 +2663,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Job 133559795625: setup, checkout, Python environment, dependency installation and Python syntax PASS; offline regression suite CANCELLED (not success / not confirmed code failure). Job logs show many early tests `ok`; last logged test was `test_missing_credentials` in test_dhan_feed, followed after ~19 minutes without additional test output by `The operation was canceled` at 19:58:52 UTC. A stalled/long-running test is possible, but logs do not prove the root cause of cancellation or who/what initiated it.
 - Related later run 43941496655 (adapter test commit 5ad92e9) SUCCESS; run 43943467995 (AST fix commit 4a7d341) SUCCESS. They do not retroactively convert 43941469905 into PASS. Latest partial-metric run 43945269336 for e3d0730 was IN_PROGRESS when checked; no final conclusion claimed.
 - Next: isolate/timeout the affected test if reproducible using a bounded offline test; review current CI logs before changing provider code. APK and Oracle deployment remain HOLD.
+
+
+## 2026-11-17 — Partial five-filter metrics CI completed successfully
+- GitHub Actions run 43945269336 for commit e3d0730f4d826df423d4573582454749a21e9987: status COMPLETED, conclusion SUCCESS; job 133573149544 offline-tests SUCCESS; GitHub updated_at 2026-11-16T20:03:44Z. This validates the repository offline regression run for the partial-metrics guard tests.
+- Does NOT validate live Dhan freshness, Oracle production, working five-factor producer, Super Five on device, or Android APK. Earlier run 43941469905 remains CANCELLED and must not be relabeled PASS.
+- Next gate: inspect actual branch code and existing assessment producer before implementing safe, evidence-backed filter rows; perform ten-commit backcheck and journal all outcomes.
