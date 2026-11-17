@@ -162,16 +162,19 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                 return
             self.assertEqual(seconds,15)
             raise FinishedOneTick()
-        async def to_thread(fn,symbol):
-            return fn(symbol)
+        async def to_thread(fn,symbol,**kwargs):
+            return fn(symbol,**kwargs)
         feed=SimpleNamespace(connected=True,
-           assessment=lambda sym:requested.append(sym) or
+           assessment=lambda sym,**selectors:requested.append((sym,selectors)) or
                {"symbol":sym,"source":"dhan","freshness":"unverified"})
         scope={"app_active":[True],"lifecycle_background":[False],
             "prefs":{"source":"Dhan"},"dhan_feed":feed,
             "provider_generation":[0],
             "scan_symbol":SimpleNamespace(value="TCS"),
+            "scan_tf":SimpleNamespace(value="3m"),
             "chain_symbol":SimpleNamespace(value="NIFTY"),
+            "expiry":SimpleNamespace(value="2026-11-26"),
+            "date":__import__("datetime").date,
             "bot_symbol":SimpleNamespace(value="TCS"),
             "DHAN_VERIFIED_SYMBOLS":{"NIFTY","TCS"},
             "oracle_assessment_attempts":attempts,
@@ -185,12 +188,19 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         fn=compile_callback("oracle_assessment_poll",scope)
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
-        self.assertEqual(requested,["TCS","NIFTY"])
+        expected=[
+            ("TCS",{"timeframe":"3m","expiry":None}),
+            ("NIFTY",{"timeframe":"1m","expiry":"2026-11-26"}),
+        ]
+        self.assertEqual(requested,expected)
         self.assertEqual(set(cache),{"TCS","NIFTY"})
-        self.assertEqual(set(attempts),{(0,"TCS"),(0,"NIFTY")})
+        self.assertEqual(set(attempts),{
+            (0,"TCS","3m",None),
+            (0,"NIFTY","1m","2026-11-26"),
+        })
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
-        self.assertEqual(requested,["TCS","NIFTY"])
+        self.assertEqual(requested,expected)
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
