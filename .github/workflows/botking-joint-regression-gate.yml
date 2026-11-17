@@ -62,3 +62,4 @@ jobs:
 # 2026-11-17 owner requested consolidated post-1736 no-APK five-scope regression gate.
 # 2026-11-17 full T04/T10 post-1741 five-scope no-APK regression gate.
 # 2026-11-17 post-1747 cold-boot first-request five-group no-APK regression gate.
+# 2026-11-17 controlled joint #6: T13 selected after-hours 3m HIST, five-scope no-APK gate; prior #1752 offline PASS.
