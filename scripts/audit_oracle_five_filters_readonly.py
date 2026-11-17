@@ -36,12 +36,16 @@ def _string_constants(node):
 
 
 def _delegated_assessment(tree, directory):
-    """Static evidence only: detect separately registered assessment_api module."""
-    registered = any(
+    """Strict source-only evidence of delegation within the active app factory."""
+    factories = [n for n in tree.body
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                 and n.name == "create_app"]
+    factory = factories[0] if len(factories) == 1 else None
+    registered = bool(factory) and any(
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
         and node.func.id == "register_assessment_routes"
-        for node in ast.walk(tree)
+        for node in ast.walk(factory)
     )
     module = directory / "assessment_api.py"
     result = {"register_call_present": registered,
@@ -53,7 +57,10 @@ def _delegated_assessment(tree, directory):
         return result
     data = module.read_bytes()
     module_tree = ast.parse(data.decode("utf-8"))
-    functions = list(route_functions(module_tree))
+    registrars = [n for n in module_tree.body
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                  and n.name == "register_assessment_routes"]
+    functions = list(route_functions(registrars[0])) if len(registrars) == 1 else []
     result.update({
         "module_syntax": "PASS",
         "module_sha256": hashlib.sha256(data).hexdigest(),
@@ -65,7 +72,6 @@ def _delegated_assessment(tree, directory):
         ),
     })
     return result
-
 
 
 def _evidence_wiring(tree, directory):
