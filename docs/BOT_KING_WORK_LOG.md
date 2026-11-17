@@ -2695,3 +2695,11 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Previous run 43992125444 on c86e94f remains FAILED; do not rewrite history. The newer successful full workflow validates current repository source/tests, not Oracle deployment or mobile behavior.
 - Pre-journal last ten branch commits checked: 9a3821a99, 21fb7e5a7, 514e88eef, 0035a67c0, c76541cbd, c86e94f80, a8c411df7, 418ff7254, c322e381f, e3d0730f4. Latest repository source still has /v2/assessment fail-closed placeholder; producer and Super Five Android wiring remain pending.
 - Next: implement a bounded read-only evidence producer only where independently validated data is available; preserve five filter IDs, four factor IDs, unavailable reasons, and no fabricated bullish/bearish percentages. Oracle deploy and APK HOLD.
+
+
+## 2026-11-17 — Shared five-filter read-only payload builder and offline tests
+- Pre-edit last ten working-branch commits checked via GitHub commits API: f41a76c72, 9a3821a99, 21fb7e5a7, 514e88eef, 0035a67c0, c76541cbd, c86e94f80, a8c411df7, 418ff7254, c322e381f. Latest relevant CI 43992660556 SUCCESS; previous 43992125444 FAILED, superseded by targeted correction and successful regression.
+- Commit 201d8fc1fd50ac6d8f00da0c5403d6dfe985691c adds pure `read_only_assessment(symbol, metrics=None)` in `backend/assessment_filter_adapter.py`: reuse existing option_filter_rows, permit informational PCR/Max Pain only from safe already-cached unverified metrics, retain four unavailable factors and null directional scores, `signal_eligible=false`, `live_orders_enabled=false`. No network, Dhan request or new API route.
+- Commit 2df4e7690d3f8e9e832d1d4aaad612a5f446f3a4 adds `tests/test_shared_assessment_builder_20261117.py` for partial unverified metrics and fail-closed missing/unsafe evidence.
+- GitHub writes confirmed; CI for new implementation/test commits PENDING verification. `/v2/assessment` remains placeholder; builder is not wired to production route, Oracle deployment not performed, Super Five and Android device unverified, APK HOLD.
+- Next: inspect new CI results, then design authenticated bounded cache handoff to shared assessment route without duplicate Dhan requests or fabricated live signals.
