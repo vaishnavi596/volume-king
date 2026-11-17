@@ -64,6 +64,15 @@ def prepare(raw):
     if any(("get", path) in present for path in
            ("/v2/server-readiness", "/v2/assessment/{symbol}")):
         raise ValueError("Target route already present; refuse duplicate")
+    # Oracle's customized server delegates both existing routes to modules.
+    # A decorator-only scan misses those registrations. Never insert
+    # competing placeholder routes on top of a working delegated handler.
+    registered = {n.func.id for n in ast.walk(ast.parse(source))
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                  and n.func.id in ("register_assessment_routes",
+                                    "register_readiness_routes")}
+    if registered:
+        raise ValueError("Delegated assessment/readiness route already registered; refuse duplicate")
     if source.count(ANCHOR) != 1:
         raise ValueError("Unique snapshot decorator anchor not found")
     # Ensure the insertion lands inside the active app factory, not another scope.

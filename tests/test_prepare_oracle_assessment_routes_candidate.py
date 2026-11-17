@@ -44,6 +44,19 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "already present"):
                 module.prepare(source)
 
+    def test_rejects_oracle_delegated_assessment_and_readiness_routes(self):
+        for registered in ("register_assessment_routes", "register_readiness_routes"):
+            source = SOURCE.replace(
+                b"    @app.get(\"/v2/snapshot\")",
+                ("    " + registered + "(app, pairing_key)\\n").encode()
+                .replace(b"\\n", b"\n")
+                + b"    @app.get(\"/v2/snapshot\")")
+            with self.subTest(registered=registered):
+                with patch.object(module, "EXPECTED_SHA",
+                                  hashlib.sha256(source).hexdigest()):
+                    with self.assertRaisesRegex(ValueError, "Delegated .* registered"):
+                        module.prepare(source)
+
     def test_rejects_snapshot_route_outside_create_app(self):
         source = SOURCE.replace(b"def create_app():", b"def different_factory():")
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
