@@ -115,6 +115,36 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertTrue(result["delegated_assessment"]["cache_read_wired"])
         self.assertFalse(result["deployed_runtime_route_verified"])
 
+    def test_assessment_api_missing_expiry_and_timeframe_is_not_reported_verified(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    register_assessment_routes(app, pairing_key)\n",
+                encoding="utf-8")
+            module = root / "assessment_api.py"
+            module.write_text(
+                "def register_assessment_routes(app, pairing_key):\n"
+                "    @app.get('/v2/assessment/{symbol}')\n"
+                "    def assessment(symbol):\n"
+                "        cached = read(scope, symbol)\n"
+                "        return cached.get('options', {})\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")["delegated_assessment"]
+            self.assertIs(result["expiry_check_present"], False)
+            self.assertIs(result["timeframe_requested"], False)
+            module.write_text(
+                "def register_assessment_routes(app, pairing_key):\n"
+                "    @app.get('/v2/assessment/{symbol}')\n"
+                "    def assessment(symbol, timeframe, expiry):\n"
+                "        cached = read(scope, symbol)\n"
+                "        if expiry == selected_expiry:\n"
+                "            return cached\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")["delegated_assessment"]
+            self.assertIs(result["expiry_check_present"], True)
+            self.assertIs(result["timeframe_requested"], True)
+
     def test_non_registered_or_symlink_module_is_not_accepted(self):
         with TemporaryDirectory() as d:
             root = Path(d)

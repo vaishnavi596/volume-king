@@ -52,7 +52,9 @@ def _delegated_assessment(tree, directory):
               "module_route_present": False,
               "module_syntax": "NOT_CHECKED",
               "module_sha256": None,
-              "cache_read_wired": False}
+              "cache_read_wired": False,
+              "expiry_check_present": None,
+              "timeframe_requested": None}
     if not registered or not module.is_file() or module.is_symlink():
         return result
     data = module.read_bytes()
@@ -61,6 +63,19 @@ def _delegated_assessment(tree, directory):
                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
                   and n.name == "register_assessment_routes"]
     functions = list(route_functions(registrars[0])) if len(registrars) == 1 else []
+    if len(functions) == 1:
+        route = functions[0]
+        # Source-only indicators, never proof of correct expiry or live data.
+        result["expiry_check_present"] = any(
+            isinstance(node, ast.Compare)
+            and any(isinstance(n, ast.Name) and "expiry" in n.id.lower()
+                    for n in ast.walk(node))
+            for node in ast.walk(route)
+        )
+        result["timeframe_requested"] = any(
+            a.arg in ("interval", "timeframe")
+            for a in route.args.args + route.args.kwonlyargs
+        )
     result.update({
         "module_syntax": "PASS",
         "module_sha256": hashlib.sha256(data).hexdigest(),
