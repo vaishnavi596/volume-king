@@ -23,6 +23,13 @@ def _number(x):
     return round(float(x), 2) if type(x) in (int, float) and math.isfinite(x) and x >= 0 else None
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward a protected key through an HTTP redirect."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def _get(path, key):
     if path not in ROUTES:
         raise ValueError("Route outside bounded allowlist")
@@ -34,7 +41,7 @@ def _get(path, key):
     )
     opener = urllib.request.build_opener(
         urllib.request.ProxyHandler({}),
-        urllib.request.HTTPRedirectHandler(),
+        NoRedirect(),
     )
     try:
         with opener.open(request, timeout=5) as response:
