@@ -2063,6 +2063,19 @@ def app_main(page:ft.Page):
         manual_quote_last_attempt[0]=now
         await refresh_watch_batch()
         await refresh_dhan_index_quotes(force=True)
+        # Only an explicit Watchlist button tap may request HIST candles after
+        # close. Preserve the normal quote refresh irrespective of market hours.
+        # Share the 3m scheduler's rolling broker budget; never fan out 51 histories.
+        if not refresh_hours() and current[0]==4:
+            if dhan_history_scan_active[0]:
+                candle_note="selected 3m history deferred: main scan busy"
+            elif await warm_selected_watch_three_minute_early(
+                    provider_generation[0],explicit_closed=True):
+                candle_note="selected 3m historical candles checked (NOT live)"
+            else:
+                candle_note="selected 3m history cached/deferred or unavailable"
+            watch_batch_status[0]=str(watch_batch_status[0])+" • "+candle_note
+            request_view_refresh(4)
 
     quote_auto_last_attempt=[0.0]
     closed_equity_bootstrap_generation=[None]
@@ -2239,7 +2252,7 @@ def app_main(page:ft.Page):
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
         watch_status_text.value="Quote check • "+watch_batch_status[0]
         refresh_btn=ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
-                    tooltip="Check Dhan equity and index quotes now, even when the market is closed; 30s manual cooldown",
+                    tooltip="Check Dhan quotes now (30s cooldown); after close, one selected 3m HIST candle check if broker budget allows",
                     on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                     disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)
         watch_refresh_button[0]=refresh_btn
@@ -5808,10 +5821,14 @@ console.log('BOT KING Lightweight Charts ready');
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
     index_one_minute_busy=[False]
-    async def warm_selected_watch_three_minute_early(generation):
+    async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False):
+        # A closed-session 1m history read is allowed only through the explicit
+        # Watchlist manual callback, never through either automatic scheduler.
         if (current[0]!=4 or not app_active[0] or lifecycle_background[0]
                 or prefs.get("source")!="Dhan" or not dhan_feed.connected
-                or generation!=provider_generation[0] or not refresh_hours()
+                or generation!=provider_generation[0]
+                or (not refresh_hours() and not explicit_closed)
+                or (explicit_closed and dhan_history_scan_active[0])
                 or watch_three_minute_warm_busy[0] or index_one_minute_busy[0]
                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
             return False
@@ -5851,7 +5868,9 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(1.5)
                 if (generation!=provider_generation[0] or current[0]!=4
                         or not app_active[0] or lifecycle_background[0]
-                        or not refresh_hours() or index_one_minute_busy[0]
+                        or (not refresh_hours() and not explicit_closed)
+                        or (explicit_closed and dhan_history_scan_active[0])
+                        or index_one_minute_busy[0]
                         or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                     return False
                 watch_three_minute_warm_attempts[key]=time.monotonic()
