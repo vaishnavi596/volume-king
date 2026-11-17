@@ -2703,3 +2703,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Commit 2df4e7690d3f8e9e832d1d4aaad612a5f446f3a4 adds `tests/test_shared_assessment_builder_20261117.py` for partial unverified metrics and fail-closed missing/unsafe evidence.
 - GitHub writes confirmed; CI for new implementation/test commits PENDING verification. `/v2/assessment` remains placeholder; builder is not wired to production route, Oracle deployment not performed, Super Five and Android device unverified, APK HOLD.
 - Next: inspect new CI results, then design authenticated bounded cache handoff to shared assessment route without duplicate Dhan requests or fabricated live signals.
+
+
+## 2026-11-17 — Shared builder CI PASS; assessment route cache integration audit
+- GitHub Actions branch run 44005891658 (201d8fc1f) COMPLETED SUCCESS and 44005909509 (2df4e7690) COMPLETED SUCCESS. Verified from GitHub Actions API. Both are offline tests, not server/mobile live verification.
+- Inspected last ten working-branch commits before further edit: 74ff5aa2e, 2df4e7690, 201d8fc1f, f41a76c72, 9a3821a99, 21fb7e5a7, 514e88eef, 0035a67c0, c76541cbd, c86e94f80.
+- Read `backend/server.py` current source: `/dhan/option-chain` computes option metrics and returns `assessment_filters: option_filter_rows(metrics)`; `/v2/assessment/{symbol}` still independent fail-closed `not_configured` placeholder. No `option_chain_cache` or `chain_cache` variable in this source. Therefore the new pure `read_only_assessment` builder is NOT wired into the route and the route cannot safely reuse option-chain data yet. Calling Dhan again inside assessment would create duplicate broker fanout and must not be done blindly.
+- No production deployment, no Dhan broker requests, no APK build. Next technical task: introduce a bounded, expiry/symbol-keyed read-only evidence handoff with lock and TTL, populate only after successful option-chain validation, clear/expire stale entries, then route integration and regression tests; preserve fail-closed signals and one Dhan request per chain fetch.
