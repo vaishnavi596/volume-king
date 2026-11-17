@@ -179,6 +179,59 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
                 self.assertNotIn("raw-secret-must-never-print", str(view))
                 self.assertFalse(view["quote_freshness_exchange_verified"])
 
+    def test_three_index_assessments_are_sanitized_and_fail_closed(self):
+        a = module()
+        r = a.ProbeResult
+        base = {
+            "status": "incomplete",
+            "signal_eligible": False,
+            "bullish_score": 98.5,
+            "factors": {
+                "news": {"status": "unavailable", "private_note": "secret-one"},
+                "futures": {"status": "available", "bullish": 99},
+                "options": {"status": "unavailable"},
+                "candle": {"status": "unavailable"},
+            },
+            "assessment_filters": [
+                {"id": "pcr", "status": "available", "value": 1.2},
+                {"id": "max_pain", "status": "unavailable"},
+            ],
+        }
+        view = a.summarize([
+            r("/v2/assessment/NIFTY", 200, base),
+            r("/v2/assessment/BANKNIFTY", 503, None),
+            r("/v2/assessment/SENSEX", 200, {
+                **base, "factors": "invalid", "assessment_filters": "invalid"
+            }),
+        ])
+        indices = view["index_assessments"]
+        self.assertEqual(set(indices), {"NIFTY", "BANKNIFTY", "SENSEX"})
+        self.assertEqual(indices["NIFTY"]["assessment_status"], "incomplete")
+        self.assertFalse(indices["NIFTY"]["signal_eligible"])
+        self.assertEqual(indices["NIFTY"]["factor_statuses"]["futures"], "available")
+        self.assertEqual(indices["NIFTY"]["filter_statuses"]["pcr"], "available")
+        self.assertEqual(indices["BANKNIFTY"]["assessment_status"], "unknown")
+        self.assertEqual(indices["SENSEX"]["factor_statuses"]["news"], "unknown")
+        self.assertEqual(indices["SENSEX"]["filter_statuses"]["pcr"], "unknown")
+        import json
+        output = json.dumps(view)
+        self.assertNotIn("secret-one", output)
+        self.assertNotIn("98.5", output)
+        self.assertNotIn('"bullish"', output)
+
+    def test_assessment_requires_pairing_and_is_local_get(self):
+        a = module()
+        opener = Opener({"status": "incomplete", "signal_eligible": False})
+        self.assertEqual(a.request_get("/v2/assessment/NIFTY", None, opener=opener).http, 0)
+        self.assertEqual(opener.requests, [])
+        result = a.request_get("/v2/assessment/NIFTY", "private-key", opener=opener)
+        self.assertEqual(result.http, 200)
+        self.assertEqual(opener.requests[0].get_method(), "GET")
+        self.assertEqual(opener.requests[0].full_url,
+                         "http://127.0.0.1:8000/v2/assessment/NIFTY")
+        with self.assertRaises(ValueError):
+            a.request_get("/v2/assessment/RELIANCE", "private-key", opener=opener)
+
     def test_stale_and_403_do_not_pretend_success(self):
         a = module()
         r = a.ProbeResult
