@@ -4733,7 +4733,7 @@ console.log('BOT KING Lightweight Charts ready');
                     row.update(historical=True,live_verified=False,freshness="unverified",bias="WAIT",score=0)
     def current_filter_coverage():
         audit_context()
-        return analysis_audit.coverage(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)
+        return analysis_audit.coverage(configured_scan_symbols())
     def clear_scan_failure(sym,tf,data):
         key=(provider_generation[0],sym,tf)
         failure=scan_fetch_failure.get(key)
@@ -6725,7 +6725,8 @@ console.log('BOT KING Lightweight Charts ready');
                     # Scanner, Options and the selected paper bot share one cached read-only assessment.
                     selected=list(dict.fromkeys(
                         sym for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value)
-                        if isinstance(sym,str) and sym in DHAN_VERIFIED_SYMBOLS))
+                        if isinstance(sym,str) and (sym in DHAN_VERIFIED_SYMBOLS
+                            or sym in all_watch_symbols())))
                     for sym in selected:
                         if generation!=provider_generation[0] or not app_active[0]:
                             break

@@ -31,6 +31,18 @@ class RemainingFilterBatchTests(unittest.TestCase):
         self.assertEqual(set(v["configured_scan_symbols"]()), indices | {"TCS", "HDFCBANK"})
         self.assertEqual(len(v["configured_scan_symbols"]()), 5)
 
+    def test_filter_coverage_tracks_selected_roster_not_all_default_51(self):
+        _, v, _ = self.setup_app()
+        for group in v["watch_groups"]: group.clear()
+        self.assertEqual(len(v["configured_scan_symbols"]()), 3)
+        self.assertEqual(sum(v["current_filter_coverage"]()[1].values()), 3)
+        v["watch_groups"][0].extend(["TCS", "HDFCBANK"])
+        self.assertEqual(len(v["configured_scan_symbols"]()), 5)
+        self.assertEqual(sum(v["current_filter_coverage"]()[1].values()), 5)
+        v["watch_groups"][1].append("CUSTOMNSE")
+        self.assertEqual(len(v["configured_scan_symbols"]()), 6)
+        self.assertEqual(sum(v["current_filter_coverage"]()[1].values()), 6)
+
     def test_selected_watchlists_support_5_30_and_67_without_duplicates(self):
         from watchlist_policy import normalize_watchlists
         for size in (5, 30, 67):

@@ -111,6 +111,15 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('historical candles unavailable', self.source)
         self.assertIn('watchlist batch failed:', self.source)
 
+    def test_oracle_assessment_poll_includes_selected_dynamic_equities(self):
+        polling = ast.get_source_segment(self.source, self.functions["oracle_assessment_poll"])
+        self.assertIn("sym in all_watch_symbols()", polling)
+        self.assertIn("sym in DHAN_VERIFIED_SYMBOLS", polling)
+        self.assertIn("dhan_feed.assessment,sym", polling)
+        self.assertIn("oracle_assessment_attempts[key]<180", polling)
+        coverage = ast.get_source_segment(self.source, self.functions["current_filter_coverage"])
+        self.assertIn("analysis_audit.coverage(configured_scan_symbols())", coverage)
+
     def test_70_total_instruments_and_dynamic_scanner_roster(self):
         """Exactly 3 index slots plus up to 67 unique NSE equity selections."""
         self.assertIn("MAX_TOTAL_INSTRUMENTS=70", self.source)
