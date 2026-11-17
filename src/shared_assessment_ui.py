@@ -76,5 +76,8 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         else:
             rendered = "WAIT"
         lines.append(labels[key] + ": " + rendered)
+    # The future sixth slot is intentionally blank: no WAIT, score or extra feed.
+    # It is not one of the five server-assessment filter IDs.
+    lines.append("Filter 6: ")
     lines.append("News/Futures/Options/Candle: no verified 0–100 scores; not a trade signal")
     return lines
