@@ -4987,6 +4987,15 @@ console.log('BOT KING Lightweight Charts ready');
     scan_live.on_change=auto_scan_changed
     scan_selection_context=[(scan_symbol.value,scan_tf.value,scan_period.value)]
     def trigger_scan(e=None):
+        # Simulation-only controls modify local assumptions, never candle history.
+        # The settings binder persists them; explicit Run Scan applies them later.
+        if e is not None and e.control in (scan_budget,scan_min,scan_max,scan_expiry,scan_auto):
+            if e.control is scan_budget:
+                scan_min.visible=scan_budget.value=="Custom"
+                scan_max.visible=scan_budget.value=="Custom"
+            scan_status.value="Simulation settings saved • next scan applies • no Dhan candle request"
+            if current[0]==3:page.update()
+            return
         if scan_tf.value in ("1m","3m"):
             scan_period.value="7d";prefs["scanner_period"]="7d"
         context=(scan_symbol.value,scan_tf.value,scan_period.value)
@@ -5343,6 +5352,12 @@ console.log('BOT KING Lightweight Charts ready');
             stage="candle validation"
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             clear_scan_failure(sym,interval,hist)
+            if prefs.get("source")=="Dhan":
+                prior=candles.get("scanner_chart_"+sym) or {}
+                if prior.get("_scanner_timeframe")!=interval:
+                    prior={}
+                # Partial non-empty histories must not erase the prior valid chart.
+                hist=retain_candle_history(hist,prior,provider="Dhan")
             bars=hist.get("bars") or []
             candles["scanner_chart_"+sym]=dict(hist,_scanner_timeframe=interval,
                                               _scanner_generation=generation)
