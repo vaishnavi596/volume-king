@@ -2,6 +2,20 @@
 
 **Owner decision: 2026-11-16.** This is the compact front page for the append-only `docs/BOT_KING_WORK_LOG.md`. The release gates are in `docs/BOT_KING_RELEASE_GATE_POLICY.md`. Update this table **together with each batch** so a new chat can distinguish planned work, source commits, CI proof, running Oracle proof, APK build result, phone result and follow-up fixes. The dates and statuses below are **as-of their exact check**, not forecasts.
 
+## Current evidence reconciliation — 2026-11-18 (supersedes old as-of statuses below)
+
+| Gate | Latest proven evidence | Status; avoid unnecessary repeat |
+|---|---|---|
+| Android cross-surface Assessment T07/T14 | [Offline CI #1834](https://github.com/vaishnavi596/volume-king/actions/runs/44151654736), SHA `44102b44`, **1202/1202 PASS**; Scanner/Dashboard/Options separate timeframe/expiry cache; sixth slot blank | **CLOSED — SOURCE/CI**. Earlier #1832/#1833 failures superseded on corrected SHA; phone still untested |
+| Deployed Oracle Assessment auth/selector | Owner's Nov 17 13/13 local HTTP PASS including authenticated 1m/3m, invalid selector 422, five filter/four factor shape and auth rejection; existing `scripts/audit_oracle_assessment_http_postdeploy_20261117.py` | **CLOSED — LIMITED contract**. Do not rerun just for the same HTTP result; no real option producer evidence |
+| Oracle 51-equity snapshot T12 | Owner's Nov 18 protected cache-only GET: HTTP200, 51 cached quotes, `recently_collected`, age 79.8s, orders OFF. Previously `upstream_error`/0 quotes occurred at a different checkpoint | **CLOSED — LIMITED one-shot recovery**. Sustained market-time freshness and collector metadata still OPEN; collector fields returned null |
+| Three-index no-selector Assessment T09 | NIFTY/BANKNIFTY/SENSEX HTTP200, `cache_status=empty`, partial filters, Futures/Options unavailable, News `feed_not_configured`, no scores, not signal eligible | **BLOCKED real feed evidence**. No-selector queries do not invalidate previously PASSed selector HTTP contract |
+| Equity Option Chain T11 | GitHub source admits mapped NSE_EQ and Dhan listed expiry; old screenshots/results include isolated index options context, but no current RELIANCE/HDFCBANK mapped listed expiry+chain entitlement proof | **OPEN external entitlement**. Avoid 51-equity probes; check one selected qualified underlying only when needed |
+| 70-global Oracle enforcement / shared quote gate | Older source/staged patches and offline tests; no demonstrated current Oracle production parity in latest operator results | **OPEN separate deployment verification**, not a reason to re-audit CLOSED app source |
+| APK T16 | `pyproject.toml` previously 2.3.130; workflow source signing/version checks, but no newly approved signed APK or one-phone acceptance | **BLOCKED**. Do not dispatch build |
+
+**Priority:** next needed proof is selector-qualified *data availability* (not another selector HTTP-contract check), plus actual equity listed option entitlement, independent News/Futures source, then final release/mobile gate. Historical tracker entries below remain immutable as-of evidence. Current detailed record: [Work Log](https://github.com/vaishnavi596/volume-king/blob/fix/botking-joint-audit-70-15-20261115/docs/BOT_KING_WORK_LOG.md).
+
 ## 1–6 joint work stages — current result
 
 | Stage | Work / owner | Work performed (exact evidence) | Source / CI result | Oracle / actual result | APK / phone result | Remaining error, repair and next action |
