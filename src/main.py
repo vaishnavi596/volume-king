@@ -5794,6 +5794,89 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(scanner_fast_signal_loop)
     page.run_task(protection_clock)
     dhan_history_scan_active=[False]
+    # The long 5m ranking queue should not hold the first visible Watchlist
+    # 3m input until all 51 equities finish. Share the scheduler's *same* 1m
+    # request budget; this is not a second uncontrolled polling lane.
+    watch_three_minute_warm_attempts={}
+    watch_three_minute_upstream_times=[]
+    watch_three_minute_warm_last_provider=[0.0]
+    watch_three_minute_warm_busy=[False]
+    index_one_minute_busy=[False]
+    async def warm_selected_watch_three_minute_early(generation):
+        if (current[0]!=4 or not app_active[0] or lifecycle_background[0]
+                or prefs.get("source")!="Dhan" or not dhan_feed.connected
+                or generation!=provider_generation[0] or not refresh_hours()
+                or watch_three_minute_warm_busy[0] or index_one_minute_busy[0]
+                or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+            return False
+        now=time.monotonic()
+        # Same rolling 180s / 3-uncached / 30s floors as periodic warmup.
+        watch_three_minute_upstream_times[:]=[
+            t for t in watch_three_minute_upstream_times if now-t<180]
+        selected=[sym for sym in watch_groups[active_watch[0]]
+                  if sym in DHAN_VERIFIED_SYMBOLS
+                  and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                  and (not search.value or search.value.upper() in sym)]
+        for sym in selected:
+            prior_three=shared_history(sym,"3m")
+            fetched=prior_three.get("candle_fetched_at")
+            if (valid_candle_history(prior_three.get("bars"))
+                    and type(fetched) in (int,float)
+                    and 0<=time.time()-fetched<180):
+                continue
+            key=(generation,sym)
+            if now-watch_three_minute_warm_attempts.get(key,0)<180:
+                continue
+            history_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                         "Dhan",sym,"1m","2d")
+            with market_registry_lock:
+                prior_cache=market_recent.get(history_key)
+                cache_ready=bool(prior_cache and now-prior_cache[0]<87)
+            if not cache_ready and (
+                    len(watch_three_minute_upstream_times)>=3 or
+                    now-watch_three_minute_warm_last_provider[0]<30):
+                continue
+            watch_three_minute_warm_busy[0]=True
+            try:
+                if not cache_ready:
+                    # Existing 5m scan uses the same 1.5s provider gap.
+                    await asyncio.sleep(1.5)
+                if (generation!=provider_generation[0] or current[0]!=4
+                        or not app_active[0] or lifecycle_background[0]
+                        or not refresh_hours() or index_one_minute_busy[0]
+                        or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                    return False
+                watch_three_minute_warm_attempts[key]=time.monotonic()
+                if not cache_ready:
+                    attempt_time=time.monotonic()
+                    watch_three_minute_upstream_times.append(attempt_time)
+                    watch_three_minute_warm_last_provider[0]=attempt_time
+                data=await asyncio.wait_for(asyncio.to_thread(
+                    get_market_data,sym,"1m","2d"),timeout=25)
+                if (generation!=provider_generation[0]
+                        or prefs.get("source")!="Dhan"
+                        or data.get("source")!="Dhan"):
+                    return False
+                prior=shared_history(sym,"1m")
+                data=retain_candle_history(data,prior,provider="Dhan")
+                if valid_candle_history(data.get("bars")):
+                    chart_snapshots[(sym,"1m",generation)]=dict(
+                        data,_scanner_timeframe="1m",historical=True,
+                        live_verified=False,freshness="historical_unverified")
+                    if current[0]==4:
+                        request_view_refresh(4)
+                    return True
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("watch_three_minute_early",exc)
+                if generation==provider_generation[0]:
+                    remember_candle_failure(sym,"1m","early Watchlist 3m input",exc)
+            finally:
+                watch_three_minute_warm_busy[0]=False
+            return False  # At most one selected equity per 5m scan cycle.
+        return False
+
     async def refresh_market():
         nonlocal market_status
         initial=True
@@ -6065,6 +6148,11 @@ console.log('BOT KING Lightweight Charts ready');
                                 scan_progress["state"]="Dhan index history cooling down • equity history pending • last LTP retained"
                                 last_scanned_generation=None
                                 break
+                    # Borrow exactly one eligible visible 1m Watchlist slot
+                    # from the existing 3m warmup budget before the 51-symbol tail.
+                    # The 5m scanner stays serialized; no parallel Dhan fanout.
+                    if prefs.get("source")=="Dhan":
+                        await warm_selected_watch_three_minute_early(generation)
                     # Dhan history is a rate-limited upstream API: serialize
                     # calls and stop this cycle when its cooldown is triggered.
                     for sym in symbols[1:]:
@@ -6363,7 +6451,6 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(dhan_index_poll)
     index_candle_last_attempt=[0.0]
     index_candle_generation=[None]
-    index_one_minute_busy=[False]
     async def dhan_index_candle_poll():
         # Independent 180s Dhan 1m index history cadence. Avoid competing with the
         # 51-equity scan; Dhan HTTPS requests are serialized in server_feed.
@@ -6435,10 +6522,6 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(10)
     # T04: A *bounded* 1m source warmup for the selected Watchlist, not 51 parallel requests.
     # completed_three_minute_bars() derives real 3m OHLCV locally from 3 consecutive 1m rows.
-    watch_three_minute_warm_attempts={}
-    watch_three_minute_upstream_times=[]
-    watch_three_minute_warm_last_provider=[0.0]
-    watch_three_minute_warm_busy=[False]
     async def watch_three_minute_warmup():
         while True:
             await asyncio.sleep(5)
