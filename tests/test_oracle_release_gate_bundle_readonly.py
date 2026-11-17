@@ -3,13 +3,21 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.audit_oracle_release_gate_bundle_readonly import collect
+from scripts.audit_oracle_release_gate_bundle_readonly import collect, RELEASE_GATE_PATHS
+from scripts.audit_oracle_collector_runtime_readonly import PATHS as COLLECTOR_PATHS
 from scripts.audit_oracle_collector_runtime_readonly import ProbeResult
 from test_oracle_s18_watchlist_patch import FIXTURE
 from scripts.oracle_s18_watchlist_patch import make_stage
 
 
 class OracleBundleTests(unittest.TestCase):
+    def test_release_gate_three_get_allowlist_is_independent_of_index_diagnostic(self):
+        self.assertEqual(RELEASE_GATE_PATHS, (
+            "/health", "/v2/server-readiness", "/v2/snapshot"))
+        self.assertEqual(len(RELEASE_GATE_PATHS), 3)
+        self.assertEqual(len(COLLECTOR_PATHS), 6)
+        self.assertTrue(all(path in COLLECTOR_PATHS for path in RELEASE_GATE_PATHS))
+
     def test_source_signatures_and_bounded_three_gets(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
