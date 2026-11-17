@@ -182,6 +182,29 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertFalse(result["runtime_evidence_verified"])
         self.assertFalse(result["production_changed"])
 
+    def test_assessment_state_kind_only_key_cannot_pass_timeframe_gate(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text("def create_app(): pass\\n", encoding="utf-8")
+            state = root / "assessment_state.py"
+            state.write_text(
+                "def publish(scope, symbol, kind, value):\n"
+                "    cache[(scope, symbol, kind)] = value\\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")["evidence_wiring"]
+            evidence = result["assessment_state_key_evidence"]
+            self.assertEqual(evidence["write_key_dimensions"], [["scope", "symbol", "kind"]])
+            self.assertIs(evidence["timeframe_separated"], False)
+            state.write_text(
+                "def publish(scope, symbol, kind, timeframe, value):\n"
+                "    cache[(scope, symbol, kind, timeframe)] = value\\n",
+                encoding="utf-8")
+            evidence = audit_module.audit(root / "server.py")["evidence_wiring"]["assessment_state_key_evidence"]
+            self.assertTrue(evidence["timeframe_separated"])
+            state.write_text("def publish(scope, symbol, kind, value): pass\\n", encoding="utf-8")
+            evidence = audit_module.audit(root / "server.py")["evidence_wiring"]["assessment_state_key_evidence"]
+            self.assertIsNone(evidence["timeframe_separated"])
+
     def test_missing_state_and_unconditional_publish_are_not_assumed_live(self):
         with TemporaryDirectory() as d:
             root = Path(d)

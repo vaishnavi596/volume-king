@@ -74,6 +74,36 @@ def _delegated_assessment(tree, directory):
     return result
 
 
+def _assessment_state_key_audit(state_tree):
+    """Static store-key dimensions only; no runtime cache or values are read."""
+    functions = [node for node in state_tree.body
+                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                 and node.name == "publish"]
+    if len(functions) != 1:
+        return {"write_key_dimensions": [], "timeframe_separated": None}
+    dimensions = []
+    for node in ast.walk(functions[0]):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            if not isinstance(target, ast.Subscript) or not isinstance(target.slice, ast.Tuple):
+                continue
+            parts = target.slice.elts
+            if not all(isinstance(p, ast.Name) for p in parts):
+                continue
+            fields = [p.id for p in parts]
+            if {"scope", "symbol", "kind"} <= set(fields):
+                dimensions.append(fields)
+    return {
+        "write_key_dimensions": dimensions,
+        "timeframe_separated": (
+            all(any(field in ("timeframe", "interval") for field in dimensions_row)
+                for dimensions_row in dimensions) if dimensions else None
+        ),
+    }
+
+
 def _evidence_wiring(tree, directory):
     """Inspect static Oracle evidence paths; do not import/execute app modules."""
     writes = []
@@ -102,10 +132,12 @@ def _evidence_wiring(tree, directory):
                                for a in c.args) for n in node.body for c in ast.walk(n)):
                     five_minute_guard_lines.append(node.lineno)
     ttl = None
+    state_key_evidence = {"write_key_dimensions": [], "timeframe_separated": None}
     state_file = directory / "assessment_state.py"
     state_present = state_file.is_file() and not state_file.is_symlink()
     if state_present:
         state_tree = ast.parse(state_file.read_text(encoding="utf-8"))
+        state_key_evidence = _assessment_state_key_audit(state_tree)
         for node in state_tree.body:
             if isinstance(node, ast.Assign):
                 if any(isinstance(target, ast.Name) and target.id == "_TTL"
@@ -119,6 +151,7 @@ def _evidence_wiring(tree, directory):
         "options_publish_lines": sorted(option_publish_lines),
         "assessment_state_source_present": state_present,
         "assessment_state_ttl_seconds": ttl,
+        "assessment_state_key_evidence": state_key_evidence,
         "mapping_route_direct_in_server": (
             ("get", "/v2/option-underlying-status/{symbol}") in {
                 (method, route) for method, route in _route_decorators(tree)
