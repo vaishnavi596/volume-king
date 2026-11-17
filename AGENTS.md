@@ -8,7 +8,7 @@
 - Stop for required authorization when credentials, destructive actions, production deployment/restart, live order execution, or user phone actions are involved. Do not promise impossible unattended work.
 
 ## Fast, consolidated audit → repair → test loop
-1. **Before each edit batch:** review latest **10 commits and 10 CI runs**, compare recent changes and errors, inspect target files and existing tests. Distinguish current failures from older historical failures and cancelled superseded runs.
+1. **Before each edit batch:** review the latest **3 relevant changed files** and their related commits/CI outcomes (rather than a fixed 10-file/10-run sweep), compare errors, and inspect target files and existing tests. Distinguish current failures from older historical failures and cancelled superseded runs.
 2. **Consolidated test intake:** collect outstanding test evidence in the T01–T16 matrix. Group root causes across bootstrap, LTP/index, Watchlist 3m/candle retention, scanner/Super Five, five evidence engines, option chain, Oracle/Dhan throttling, lifecycle and release. Identify missing coverage, unintended regressions and opportunities for improvement.
 3. **Work concurrently where independent:** allow CI jobs, read-only audits, and tests on disjoint components to overlap. **Never edit the same file concurrently** or run competing broker-history lanes; serialize shared-cache, provider, and production changes. Avoid uncontrolled CI run storms; monitor and reuse results rather than deleting history.
 4. **Batch coherent repairs:** aim for 2–4 closely related changes at a time with targeted tests, rather than dozens of speculative commits. Apply fixes only after diagnosing causes; if a test fails, inspect exact job/step/log, repair, rerun affected tests, then run final joint regression. Do not patch tests merely to hide real failures.
@@ -25,7 +25,7 @@
 - Oracle production edits require backup, preflight, safe restart, health/auth/API postflight and rollback. Phone tests and production deployment must not be claimed without actual access and outputs.
 
 ## Restart checklist for a new chat
-1. Read these rules and latest handoff/journal/matrix; get current GitHub branch, last 10 commits, last 10 runs.
+1. Read these rules and latest handoff/journal/matrix; get current GitHub branch, inspect the latest 3 relevant changed files and their linked CI outcomes.
 2. Continue the **next unblocked** test/repair from the matrix; if CI is running, perform independent safe audit rather than stopping.
 3. Work through grouped fixes, validate and journal. Say concisely what changed, links to commits/runs, and which gates remain.
 
@@ -56,3 +56,10 @@
 - **Reopen only for a concrete reason**: a new feature/addition, changed relevant code/dependency/provider contract/configuration, new failure or field symptom, expired time-sensitive data, a documented credible technical suspicion, or an explicitly required previously-unverified integration/release gate. Log `REOPENED`, the triggering evidence/hypothesis and exact newly required scope. No unexplained or speculative retesting.
 - **Keep task closure separate from global product release approval**. Closing a Watchlist source/CI task does not certify Oracle production, Dhan live market data, Android APK, phone or other untested integration; those remain separately named open/blocked tasks. Conversely an unrelated pending integration must not cause already verified source work to be marked perpetually unfinished.
 - **One-pass loop:** identify issue -> fix in a coherent batch -> test until acceptance passes -> log closure -> proceed. If a later justified change affects this scope, reopen minimally, validate only affected checks first and record new closure. Do not equate a document-only change with runtime behavior change.
+
+
+## Owner revision — 2026-11-17: three-file pre-edit audit (supersedes ten-file rule)
+- Before each new source/test/document change, inspect the **last 3 relevant changed files** (not 10), their commits and associated CI results for actual errors. If fewer than three files are relevant, examine only those available; do not add unrelated files to fill a quota.
+- Treat **three as the pre-edit lookback limit**, not a limit on how many files a justified fix may touch. Inspect additional files only when a concrete dependency or error requires it; record why. The actual target file and tests may be inspected as necessary for a safe change.
+- Resolve or document errors in those 3 files before proceeding. For a failed CI run on the exact current change, investigate the failure even when an older commit is outside the three-file window. Do not blindly declare full-suite PASS from a partial check.
+- Update the **existing** `docs/BOT_KING_WORK_LOG.md` in-place with the three inspected file names, related evidence/CI and next outcome; avoid duplicate journal or audit files. Prior records referencing a ten-file check remain historical evidence, but the active requirement is three.
