@@ -6,7 +6,7 @@ This file records owner decisions while current GitHub repair/testing continues.
 | ID | Future work | Gate before implementation |
 | --- | --- | --- |
 | P01 | Dhan-based Scalp Filter | Recover the exact earlier shortlisted rule; confirm Dhan data fields, entitlements, timestamp freshness, risk and six-month backtest. Read-only/paper analysis only. |
-| P02 | Time-Based Movement / Reversal Filter | Six months of genuine intraday Dhan bars, 5m/15m/30m time-of-day volatility and reversal tests, Europe-open daylight-saving adjustment, chronological out-of-sample validation. No invented probabilities. |
+| P02 | **Reserved sixth filter — Time-Based Movement & Reversal (future only)** | Do not add to or replace the current five assessment filters. Before later implementation, evaluate six months of genuine intraday Dhan bars, 5m/15m/30m time-of-day volatility and reversal tests, Europe-open daylight-saving adjustment, chronological out-of-sample validation and shared symbol-specific rules. No invented probabilities. |
 | P03 | BK-DATA-LAW-01 Dhan → Oracle → BOT KING compatibility contract | Audit official provider API rate caps/response fields and entitlements; measure actual Oracle CPU/RAM/disk/network and cache behavior; prove source->server->app mapping, two-mobile shared-cache budgets, cooldown, retention, and fail-closed missing-source indicators. Confirm all limits again at implementation time. |
 | P04 | Owner's third future filter idea | **Not yet specified**; add only after owner describes it. |
 
