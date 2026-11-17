@@ -14,7 +14,10 @@ class NiftyChartLtpIsolationTests(unittest.TestCase):
         start = MAIN.index("    def fetch_market_data_uncached(")
         end = MAIN.index("    def timeframe_spec(", start)
         block = MAIN[start:end]
-        self.assertIn('saved_index=quotes.get("NIFTY")', block)
+        self.assertIn('if ticker in ("NIFTY","BANKNIFTY","SENSEX"):', block)
+        self.assertIn("saved_index=quotes.get(ticker)", block)
+        self.assertIn("else:\\n                    with dhan_batch_lock:".replace("\\n", "\n"), block)
+        self.assertNotIn('saved_index=quotes.get("NIFTY")', block)
         self.assertIn('saved_index.get("source")=="Dhan"', block)
         self.assertIn('math.isfinite(saved_index["price"])', block)
         self.assertNotIn('dhan_feed.quote(ticker)', block)
