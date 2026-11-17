@@ -5834,7 +5834,8 @@ console.log('BOT KING Lightweight Charts ready');
                 cache_ready=bool(prior_cache and now-prior_cache[0]<87)
             if not cache_ready and (
                     len(watch_three_minute_upstream_times)>=3 or
-                    now-watch_three_minute_warm_last_provider[0]<30):
+                    (watch_three_minute_warm_last_provider[0]>0 and
+                     now-watch_three_minute_warm_last_provider[0]<30)):
                 continue
             watch_three_minute_warm_busy[0]=True
             try:
@@ -6636,7 +6637,8 @@ console.log('BOT KING Lightweight Charts ready');
                         cache_ready=bool(prior_cache and now-prior_cache[0]<87)
                     if not cache_ready and (
                             len(watch_three_minute_upstream_times)>=3 or
-                            now-watch_three_minute_warm_last_provider[0]<30):
+                            (watch_three_minute_warm_last_provider[0]>0 and
+                             now-watch_three_minute_warm_last_provider[0]<30)):
                         break
                     watch_three_minute_warm_busy[0]=True
                     try:
