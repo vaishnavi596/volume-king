@@ -2754,3 +2754,8 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Pre-change check: latest ten commits and ten CI outcomes inspected; #1708 PASS, historical #1699 FAIL, #1705 CANCELLED. Existing test-only workflow runs complete offline suite; no Android/Oracle production verification implied.
 - Commit 6958d2c1d32e190818f4f70c5e024002aadd971c adds `.github/workflows/botking-joint-regression-gate.yml` with 5 parallel independent matrix scopes: complete offline suite; login/watchlist/index; candle/scanner/Super Five; option/five filters; Android/Oracle contract. Matrix fail-fast false; no APK build, no production deployment or trading calls.
 - GitHub workflow run conclusion must be checked separately. This gate verifies repository offline tests, not real device, Oracle production freshness, or Dhan market data. Follow up by grouping failed assertions into coherent patches, checking last ten edits and recording CI evidence before APK release.
+
+
+## 2026-11-17 — Joint gate first result and shared import repair
+- Workflow 44011857387 finished 3 PASS (login/watchlist/index; full offline suite; Android/Oracle contracts), 2 FAIL (candles/scanner/Super Five and option/five filters). Failing job logs identify `ModuleNotFoundError: No module named 'shared_assessment_ui'` in isolated `unittest discover -s tests -p ...` runs; source module exists at `src/shared_assessment_ui.py`. This is an isolated test runner import path issue, not evidence of failed live market behavior.
+- Commit 941cbe34f7672941c061df13626769b373399dff adds `PYTHONPATH: src:tests:backend` to joint matrix test step only. No app logic changed; no APK or server deploy. Workflow rerun status must be checked, and any new assertions triaged before release.
