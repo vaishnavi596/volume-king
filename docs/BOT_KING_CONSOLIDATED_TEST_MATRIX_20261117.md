@@ -69,3 +69,10 @@ Deferred: 17 technical/option filter five-group research (not release blocker).
 - New independent failure mode in `watch_three_minute_signal()`: a temporary missing/partial series, unusable quality, empty fresh votes or exception discarded prior valid 3m historical directional votes, making colored Watchlist historical percentages disappear. Source repair `65ce21ac7` uses the existing fail-closed `retain_last_filter_votes()` only for same-generation/same-filter 3m cache, keeps `WAIT`, `score=0`, `historical=True`, `live_verified=False`; valid later 3m replaces it. It does not populate the five independently verified evidence engines.
 - Functional replay-style offline tests (actual extracted function, mocked input, no Dhan) at `63b9ddbd0` cover missing source, retention, config/provider mismatches, invalid OHLC quality and valid replacement. CI #1725 (source) and #1726 (functional test) were IN_PROGRESS at latest checkpoint. T06 mobile UI behavior is PENDING, and five-engine T09 remains separately BLOCKED by source verification where not configured.
 - Do not label this new behavior CI PASS until #1726 finishes; no Oracle deployment or signed APK, T16 release remains BLOCKED.
+
+ 
+## T07 Scanner source-side batch — 2026-11-17
+- T07 read-only audit identified extra Dhan fetch on simulation-only controls in `trigger_scan()`; `1fb114842` prevents budget/min/max/expiry/trend edits from scheduling candle history, while preserving explicit symbol/interval selection refresh. Simulation settings are saved for next selected scan.
+- Same patch retains prior good **same-timeframe** Dhan scanner-chart history before replacing it with shorter/partial non-empty candles, reusing tested `retain_candle_history`; no extra network or live-order calls.
+- Functional mock-UI/source + real retention helper tests added at `80404dd8f`. CI #1727 / #1728 are IN_PROGRESS at intake. T07 live phone first-chart-on-symbol-change is not established by tests; T05 last-good scanner chart device recovery is also pending.
+- Newest completed baseline #1724 (1103/1103 PASS on `843615d`) does not prove T06/T07 SHAs. T16 release remains BLOCKED.
