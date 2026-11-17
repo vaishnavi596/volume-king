@@ -759,7 +759,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             "collection_status": "not_configured",
             "freshness": "unverified",
             "assessment_filters": [
-                {"id": name, "status": "unavailable", "reason": "Independent Oracle assessment not configured"}
+                {"id": name, "status": "unavailable", "reason": "not_configured"}
                 for name in ids
             ],
             "factors": {name: {"status": "unavailable", "bullish": None, "bearish": None}
