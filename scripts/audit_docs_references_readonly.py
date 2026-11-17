@@ -70,7 +70,7 @@ def audit(root: Path):
                 })
     return {
         "audit": "BOT_KING_DOCS_REFERENCE_RETENTION",
-        "documents": len(candidates),
+        "document_count": len(candidates),
         "texts_scanned": len(texts),
         "link_targets_checked": checked_links,
         "broken_relative_links": broken_links[:100],
