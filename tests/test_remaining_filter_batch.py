@@ -1,4 +1,4 @@
-"""Full-universe coverage and background failure recovery without provider I/O."""
+"""Selected-universe coverage and background failure recovery without provider I/O."""
 import asyncio
 import time
 import unittest
@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import flet as ft
 import test_shared_analysis_runtime as shared_runtime
-from server_feed import DHAN_VERIFIED_SYMBOLS
 
 
 def text_values(root):
@@ -22,12 +21,30 @@ class RemainingFilterBatchTests(unittest.TestCase):
     def setup_app(self):
         return shared_runtime.SharedAnalysisRuntimeTests().setup_app()
 
-    def test_scanner_universe_does_not_shrink_with_watchlists(self):
+    def test_scanner_uses_only_selected_equities_plus_three_indices(self):
         _, v, _ = self.setup_app()
         for group in v["watch_groups"]: group.clear()
         self.assertFalse(v["all_watch_symbols"]())
-        self.assertEqual(set(v["configured_scan_symbols"]()), DHAN_VERIFIED_SYMBOLS)
-        self.assertEqual(len(v["configured_scan_symbols"]()), 54)
+        indices = {"NIFTY", "BANKNIFTY", "SENSEX"}
+        self.assertEqual(set(v["configured_scan_symbols"]()), indices)
+        v["watch_groups"][0].extend(["TCS", "HDFCBANK"])
+        self.assertEqual(set(v["configured_scan_symbols"]()), indices | {"TCS", "HDFCBANK"})
+        self.assertEqual(len(v["configured_scan_symbols"]()), 5)
+
+    def test_selected_watchlists_support_5_30_and_67_without_duplicates(self):
+        from watchlist_policy import normalize_watchlists
+        for size in (5, 30, 67):
+            symbols = [f"STOCK{i}" for i in range(size)]
+            groups = [symbols[::5], symbols[1::5], symbols[2::5],
+                      symbols[3::5], symbols[4::5]]
+            groups[4].append(symbols[0])  # Duplicate across lists rejected.
+            cleaned = normalize_watchlists(groups, maximum=67)
+            selected = [symbol for group in cleaned for symbol in group]
+            self.assertEqual(len(selected), size)
+            self.assertEqual(len(set(selected)), size)
+            self.assertEqual(len(selected) + 3, size + 3)
+        extra = [[f"STOCK{i}" for i in range(70)], [], [], [], []]
+        self.assertEqual(sum(map(len, normalize_watchlists(extra, maximum=67))), 67)
 
     def test_background_failure_remains_active_until_new_candle_response(self):
         _, v, _ = self.setup_app()
@@ -48,9 +65,10 @@ class RemainingFilterBatchTests(unittest.TestCase):
         self.assertEqual(v["current_filter_coverage"]()[1]["ERROR"], 0)
         self.assertNotIn("TCS", v["failed_symbols"])
 
-    def test_complete_scheduler_attempts_all_54_even_with_empty_watchlists(self):
+    def test_complete_scheduler_attempts_selected_symbols_only(self):
         _, v, bars = self.setup_app()
         for group in v["watch_groups"]: group.clear()
+        v["watch_groups"][0].extend(["TCS", "HDFCBANK"])
         v["dhan_batch_cache"].update(generation=v["provider_generation"][0],
             updated=time.monotonic(), quotes={sym: {"source": "Dhan", "price": 100}
                                             for sym in v["watch_symbols"]})
@@ -76,7 +94,7 @@ class RemainingFilterBatchTests(unittest.TestCase):
              patch.object(v["dhan_feed"], "_call", side_effect=AssertionError("HTTP forbidden")):
             with self.assertRaises(asyncio.CancelledError):
                 asyncio.run(v["refresh_market"]())
-        self.assertEqual(attempted, DHAN_VERIFIED_SYMBOLS)
-        self.assertEqual(v["current_filter_coverage"]()[1]["ANALYZED"], 54)
+        self.assertEqual(attempted, {"NIFTY", "BANKNIFTY", "SENSEX", "TCS", "HDFCBANK"})
+        self.assertEqual(v["current_filter_coverage"]()[1]["ANALYZED"], 5)
         self.assertEqual(v["watch_signal_cache"]["TCS"]["bias"], "BEARISH")
         self.assertTrue(all(row["symbol"] in v["watch_symbols"] for row in v["top5_candidates"]))
