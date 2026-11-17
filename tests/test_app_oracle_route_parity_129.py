@@ -73,7 +73,8 @@ class AppOracleRouteParity(unittest.TestCase):
 
     def test_assessment_is_protected_and_all_factors_fail_closed(self):
         self.assertIn('@app.get("/v2/assessment/{symbol}")', SERVER)
-        self.assertIn('def assessment(self, symbol):', CLIENT)
+        self.assertIn('def assessment(self, symbol, *, timeframe=None, expiry=None):', CLIENT)
+        self.assertIn('path += "?" + urllib.parse.urlencode(params)', CLIENT)
         a = SERVER.index("def botking_read_only_assessment(")
         b = SERVER.index('    @app.get("/v2/server-readiness")', a)
         section = SERVER[a:b]
