@@ -11,6 +11,14 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def setUpClass(cls):
         cls.source = SOURCE.read_text(encoding="utf-8")
 
+    def test_selected_chart_retains_last_good_dhan_history(self):
+        body=self.source.split("    async def load_chart():",1)[1].split(
+            "    async def visible_chart_poll():",1)[0]
+        self.assertIn('prior=chart_snapshots.get((sym,tf,generation)) or {}',body)
+        self.assertIn('data=retain_candle_history(data,prior,provider="Dhan")',body)
+        self.assertLess(body.index('data=retain_candle_history(data,prior,provider="Dhan")'),
+                        body.index('chart_snapshots[(sym,tf,generation)]=data'))
+
     def test_missing_three_minute_votes_are_not_labeled_live(self):
         body=self.source.split("    def compact_watch_signal(row, available, fresh):",1)[1].split(
             "    def compact_five_engine_watch(",1)[0]
