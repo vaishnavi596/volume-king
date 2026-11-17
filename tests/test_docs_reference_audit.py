@@ -38,6 +38,29 @@ class DocsReferenceAuditTests(unittest.TestCase):
             self.assertEqual(info["inbound_count"], 0)
             self.assertFalse(info["deletion_safe"])
 
+    def test_actual_repository_inventory_summary(self):
+        # Emit bounded evidence in standard GitHub CI logs, with no file writes.
+        import json
+        root = Path(__file__).resolve().parents[1]
+        result = audit(root)
+        self.assertGreaterEqual(result["document_count"], 44)
+        self.assertEqual(result["files_deleted"], 0)
+        orphan = [
+            {"name": name, "unique_marker": data["potential_unique_evidence"]}
+            for name, data in result["documents"].items()
+            if data["inbound_count"] == 0
+        ]
+        summary = {
+            "document_count": result["document_count"],
+            "texts_scanned": result["texts_scanned"],
+            "linked_docs": result["documents_with_inbound_references"],
+            "evidence_docs": result["documents_with_evidence_markers"],
+            "broken_relative_link_count": result["broken_relative_link_count"],
+            "broken_link_samples": result["broken_relative_links"][:10],
+            "no_external_inbound_candidates": orphan[:50],
+        }
+        print("BOT_KING_DOCS_AUDIT_SUMMARY=" + json.dumps(summary, sort_keys=True))
+
     def test_broken_link_identification(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
