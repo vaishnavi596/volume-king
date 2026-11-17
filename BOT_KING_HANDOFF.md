@@ -1,3 +1,9 @@
+## 2026-11-18 — DOCUMENTATION CATEGORY ROUTER (current)
+- Read [docs/README.md](docs/README.md) **before** opening scattered old audits. It categorizes all 44 `docs/` files into Core, AI/Market Memory, Filters/Market Evidence, Commands/Oracle, Android/UI, Release/Tests, and historical audit archive candidates.
+- `AGENTS.md` now requires new entries in the **single** `docs/BOT_KING_WORK_LOG.md` with topic tags `[AI]`, `[FILTER]`, `[COMMAND/ORACLE]`, `[ANDROID]`, `[CI/RELEASE]`, `[DOCS]`; category index links topic documents without copying whole logs.
+- Classification is not a deletion/archival result. Do not permanently delete historical evidence based on guessed 60% usefulness. First verify dependencies, unique CI & rollback/source hashes, and archive/rewrite links; no old failure is erased.
+- Current live work remains T09 Oracle Assessment candle publisher bridge (GitHub source+CI PASS only; customized Oracle deployment unverified), Smart Memory/research planner pure source/offline only, five filters runtime not proven and sixth visual slot blank. No new APK and no live orders.
+
 ## 2026-11-17 — ACTIVE CONTINUITY RULE (supersedes historical handoff snapshots)
 - `AGENTS.md` is authoritative: **OK means do the next safe task within this turn, not report and stop**. Read current GitHub evidence, fix or audit the next unblocked related item, and append accurate results to the canonical Work Log. Stop only at real access/approval/safety boundaries; no claim of background work after the turn.
 - **Pre-edit review: last 3 relevant changes + associated CI**, not an automatic 10/15-file sweep. Additional evidence only when a demonstrated dependency or failure requires it.
