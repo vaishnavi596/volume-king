@@ -2877,3 +2877,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Attempt to read live job logs returned 404 BlobNotFound; therefore no intermediate test failures or test counts are verified. No speculative source fix made and no partial test PASS claimed.
 - Added precise 5–10 minute OK checkpoint rule to AGENTS.md commit 9f1d65796080ad622dd0ac6674b43b60fcffd507: inspect running job steps, use partial logs when available, fix proven failures on new SHA while original run continues, no fabricated 25/50/75 percentages, no automatic post-turn polling without automation.
 - Next OK: inspect job/step statuses and retry logs if available; if regression remains one opaque running step, audit independent coverage while it runs. Release remains gated.
+
+
+## 2026-11-17 — T05 chart partial-response retention fix (pending CI)
+- Before patch: last ten commits and runs checked; run 44021906603 SUCCESS at 7e1274049 (offline suite), but no final-source proof for newer commits. Reviewed `src/main.py` shared_history, 5m scan, index 1m poll, chart refresh and resume. Confirmed 3m input gap remains: broad equity scan 5m, 3m signal reads matching 3m/derived cached 1m only.
+- Identified independent last-good retention gap in selected Chart: `load_chart` wrote every Dhan response directly to `chart_snapshots[(sym,tf,generation)]`, allowing empty/partial 1m/5m histories to overwrite good candles. Source fix 53b1262b079592e84dca151593e13d1c74202bc1 now calls existing `retain_candle_history(data,prior,provider="Dhan")` before storing, without extra Dhan requests, timeframe substitution, or UI redraw policy changes.
+- Added source regression guard in `tests/test_watchlist_refresh_regression.py` commit bedadb80f7dc3d182015f561a33aad37ba65bff6. **CI for this fix not yet verified**; do not claim runtime PASS. Resume/chart comparison other writes and bounded Watchlist 3m warmup remain separate audit targets. No Oracle deploy or APK.
