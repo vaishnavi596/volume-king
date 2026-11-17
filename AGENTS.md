@@ -28,3 +28,10 @@
 1. Read these rules and latest handoff/journal/matrix; get current GitHub branch, last 10 commits, last 10 runs.
 2. Continue the **next unblocked** test/repair from the matrix; if CI is running, perform independent safe audit rather than stopping.
 3. Work through grouped fixes, validate and journal. Say concisely what changed, links to commits/runs, and which gates remain.
+
+## Parallel test-and-fix pipeline (continuous integration)
+- A test run is immutable evidence for its own commit SHA. A completed PASS can be recorded immediately, while unrelated tests continue. A FAIL can enter the repair queue immediately after exact failed step/log/root-cause review; do not wait for all other tests to finish unless changes share code or caches.
+- Keep three logical lanes: **Test lane** (GitHub CI on pinned SHAs), **Analysis lane** (read-only failures, coverage, risk, history), and **Fix lane** (one controlled writer for the shared branch). Independent CI/audit can overlap; never let multiple writers race on the same file or launch uncontrolled broker requests.
+- Prioritize failures by blocker/security/data correctness, then missing coverage, then UI polish. Group failures with the same root cause into 2–4 related changes. Each fix requires a regression test and a new run on its resulting SHA. A previous PASS does not certify a later SHA.
+- Maintain a live queue in the consolidated test matrix with **test ID, source SHA, run ID, status, failing step, owner action, fix SHA, retest run, and final gate**. Mark old running results as superseded only after verifying, never delete evidence. Limit CI fanout; use workflow concurrency behavior and resource caps, and avoid changing the release SHA while final joint regression is running.
+- After all critical issues are repaired, freeze the release candidate SHA, run the full joint regression, verify integration gates and only then build a signed APK. Real-phone live-market verification remains separate. No autonomous post-turn work is implied unless an actual scheduled automation exists.
