@@ -9,7 +9,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from server_feed import ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS, FeedError
+from server_feed import (ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS,
+                         DHAN_VERIFIED_INDEX_SYMBOLS, DHAN_VERIFIED_EQUITY_SYMBOLS, FeedError)
 
 IDS = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
 
@@ -28,6 +29,33 @@ def payload(symbol, bad_id=None):
 
 
 class AssessmentTransport54Tests(TestCase):
+    def test_shared_roster_covers_exactly_51_equities_and_three_indexes(self):
+        self.assertEqual(len(DHAN_VERIFIED_EQUITY_SYMBOLS), 51)
+        self.assertEqual(DHAN_VERIFIED_INDEX_SYMBOLS,
+                         frozenset(("NIFTY", "BANKNIFTY", "SENSEX")))
+        self.assertFalse(DHAN_VERIFIED_EQUITY_SYMBOLS & DHAN_VERIFIED_INDEX_SYMBOLS)
+        self.assertEqual(DHAN_VERIFIED_SYMBOLS,
+                         DHAN_VERIFIED_EQUITY_SYMBOLS | DHAN_VERIFIED_INDEX_SYMBOLS)
+        self.assertEqual(len(DHAN_VERIFIED_SYMBOLS), 54)
+
+    def test_client_and_backend_index_ids_are_statically_declared(self):
+        import ast
+        server = (ROOT / "backend" / "server.py").read_text()
+        tree = ast.parse(server)
+        declarations = [
+            node for node in ast.walk(tree) if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name)
+                    and target.id == "DHAN_VERIFIED_INSTRUMENTS"
+                    for target in node.targets)
+        ]
+        self.assertEqual(len(declarations), 1)
+        mapping = ast.literal_eval(declarations[0].value)
+        self.assertEqual(
+            {name: mapping[name][:2] for name in DHAN_VERIFIED_INDEX_SYMBOLS},
+            {"NIFTY": ("IDX_I", 13), "BANKNIFTY": ("IDX_I", 25),
+             "SENSEX": ("BSE_I", 51)})
+        self.assertEqual(set(mapping), DHAN_VERIFIED_SYMBOLS)
+
     def test_54_roster_allows_same_complete_placeholder_contract(self):
         self.assertEqual(len(DHAN_VERIFIED_SYMBOLS), 54)
         feed = ServerDhanReadOnly()
