@@ -2741,3 +2741,10 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Found safety gap: TTL-only cache could expose an already-passed option expiry for up to 120 seconds across IST date rollover. Commit 0d1b1381d351fef9ed276627a6b9758dc8eb4f7a validates strict ISO expiry, rejects expired dates on put, and prunes expired evidence on read using IST date. Does not add provider calls.
 - Commit ac422fe5993ac8badee6b2b80c6d760a65f0cd4c adds deterministic injected-date regression for expiry rollover and invalid dates.
 - GitHub source/test writes confirmed; CI for latest commit PENDING. No Oracle deployment, mobile verification, APK build or live trading enablement.
+
+
+## 2026-11-17 — Ten-run gate follow-up and historical failure triage
+- Verified latest ten branch CI runs #1699–#1708: SUCCESS #1700–#1704 and #1706–#1708 (8); CANCELLED #1705 (1); FAILURE #1699 (1). Latest #1708 commit ac422fe5993ac8badee6b2b80c6d760a65f0cd4c SUCCESS. This is offline CI evidence only, not production or mobile proof.
+- Inspected #1699 job 133735112970: offline regression suite step failed; exact traceback not yet verified. The associated c86e94f commit replaced the assessment unavailable reason with `not_configured` in backend/server.py. The following 21fb7e5 commit added allowlisted-placeholder regression coverage, and its #1700 CI succeeded. This is a likely compatibility/test area, not a proven root cause of #1699.
+- #1705 job was CANCELLED during the offline suite, not an established test assertion failure. Its changes were included in later successful #1706.
+- Latest ten commits checked: 49a1266, ac422fe, 0d1b138, e8266b8, 2268f44, 334d6a0, 5102625, a007795, 18ba50c, 4d0f860. No APK build, server deployment, or live trading activation. Next gate: inspect detailed #1699 logs when accessible, then consolidated Android/assessment/watchlist regression on final source SHA before build.
