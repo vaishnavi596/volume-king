@@ -58,7 +58,9 @@ class Watchlist70PolicyTests(unittest.TestCase):
     def test_app_wires_policy_on_load_and_add_guards(self):
         source = (ROOT / "src/main.py").read_text(encoding="utf-8")
         self.assertIn("normalize_watchlists(saved_watch_groups", source)
-        self.assertIn("MAX_WATCHLIST_EQUITIES=70", source)
+        self.assertIn("MAX_TOTAL_INSTRUMENTS=70", source)
+        self.assertIn("MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3", source)
+        self.assertIn("normalize_watchlists(saved_watch_groups, maximum=70)", source)
         self.assertIn("def watch_symbol_owner(sym):", source)
         self.assertIn("owner=watch_symbol_owner(sym)", source)
         self.assertIn("len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES", source)

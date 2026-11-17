@@ -71,7 +71,9 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("DHAN_VERIFIED_EQUITY_SYMBOLS = frozenset(", feed)
         self.assertIn("DHAN_VERIFIED_SYMBOLS = DHAN_VERIFIED_EQUITY_SYMBOLS | DHAN_VERIFIED_INDEX_SYMBOLS", feed)
         self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS:", feed)
-        self.assertIn("if symbol not in DHAN_VERIFIED_SYMBOLS or interval not in", feed)
+        self.assertIn("if interval not in (1, 5, 15, 25, 60):", feed)
+        self.assertIn("symbol not in self._verified_dynamic_equities", feed)
+        self.assertIn("self.verified_equity_symbol(symbol)", feed)
         self.assertIn('quote_timestamp": None', feed)
         self.assertIn('"freshness": "unverified"', feed)
 
