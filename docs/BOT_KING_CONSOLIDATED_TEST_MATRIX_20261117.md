@@ -44,3 +44,8 @@ Latest 20 runs inspected: 44021906603 IN_PROGRESS and 44021896629 IN_PROGRESS at
 5. Oracle/Dhan authenticated checks only with access and rate caps; user phone/live market test after signed APK. Do not mark unavailable evidence PASS.
 
 Deferred: 17 technical/option filter five-group research (not release blocker).
+
+## Incremental checkpoint — 2026-11-17, run 44021906603
+- GitHub workflow still IN_PROGRESS at SHA 7e1274049; job 133833107931: checkout, Python setup, dependency install, syntax PASS; `Run offline regression suite (no APK build)` IN_PROGRESS. No test percentage or partial failure logs exposed.
+- Inspected `tests/test_watchlist_refresh_regression.py` new diagnostic assertion against `src/main.py` function `compact_watch_signal`: exact function boundary, WAIT text and `row.get("timeframe")=="3m"` guard present. **Static source alignment only, not execution PASS.** No speculative source patch.
+- Continue to collect actionable failures from finished steps; do not confuse a running job with a failed test or new SHA verification.
