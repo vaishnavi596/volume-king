@@ -2,6 +2,12 @@
 
 **Applies to:** BOT KING development on `vaishnavi596/volume-king`. On every new chat, read this file, `BOT_KING_HANDOFF.md`, `docs/BOT_KING_WORK_LOG.md`, `docs/BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md`, and the work-result tracker before new edits. Check the actual current branch/HEAD; historical snapshots may be stale.
 
+## Documentation categories — canonical index (2026-11-18)
+- Start at [docs/README.md](docs/README.md) to find the right existing category before creating any new report or operator script. Routes: AI/Market Memory & Research; Filters/Market Evidence; Commands/Oracle; Android/UI; Release/CI; Historical archives.
+- **One authoritative chronological journal stays `docs/BOT_KING_WORK_LOG.md`**; prepend one topic tag to each new dated entry: `[AI]`, `[FILTER]`, `[COMMAND/ORACLE]`, `[ANDROID]`, `[CI/RELEASE]`, or `[DOCS]`. Include code SHA/test result, impact, and next unblocked step. Link it from the category index rather than duplicating the same narrative into multiple large journals.
+- Classify existing docs as ACTIVE, REFERENCE or ARCHIVE CANDIDATE. A proposed deletion requires a verified dependency/reference scan and preservation of unique test, provenance, security/rollback evidence. **Never delete by age or a guessed usefulness percentage**, or erase old failures, source hashes or important command logs. Commit deletion manifest, check links/CI, and make removal reversible through Git history.
+- When a user's OK follows a task, move to next safe item and journal; categorization must not stall current app repairs. Keep docs-only CI separate from APK/Oracle proof.
+
 ## Meaning of "OK" and work continuity
 - User's **"OK", "ok", "ओके" means continue to the next safe work item**, not stop after giving a status report. Proceed with available GitHub tools and evidence; do not repeatedly ask permission for routine read-only audits, tests, and reversible source changes already authorized.
 - Report briefly what was actually completed and what is still blocked; continue into the next related job **within the active turn** when feasible. Never claim work continues after the turn or in the background without a real scheduled automation/CI job.
