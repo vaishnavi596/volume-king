@@ -56,6 +56,19 @@ class AssessmentTransport54Tests(TestCase):
              "SENSEX": ("BSE_I", 51)})
         self.assertEqual(set(mapping), DHAN_VERIFIED_SYMBOLS)
 
+    def test_selected_equity_cooldown_observes_route_and_global_backoff(self):
+        import time
+        feed = ServerDhanReadOnly()
+        route = "/dhan/selected-ltp-batch"
+        feed._cooldown_until[route] = time.monotonic() + 25
+        self.assertGreaterEqual(feed.cooldown_remaining(route), 24)
+        feed._cooldown_until[route] = 0
+        feed._global_cooldown_until = time.monotonic() + 30
+        self.assertGreaterEqual(feed.cooldown_remaining(route), 29)
+        feed.disconnect()
+        self.assertEqual(feed.cooldown_remaining(route), 0)
+        self.assertEqual(feed.cooldown_remaining("/unverified/provider"), 0)
+
     def test_dynamic_candle_needs_registry_and_resets_on_disconnect(self):
         feed = ServerDhanReadOnly()
         response = {"source": "dhan", "symbol": "DYNAMICABC", "bars": []}
