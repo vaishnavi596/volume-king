@@ -232,6 +232,35 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             a.request_get("/v2/assessment/RELIANCE", "private-key", opener=opener)
 
+    def test_three_index_mapping_diagnostics_never_assert_chain_entitlement(self):
+        a = module()
+        r = a.ProbeResult
+        observed = a.summarize([
+            r("/v2/option-underlying-status/NIFTY", 200, {
+                "status": "mapping_only", "mapped": True,
+                "expiry_verified": False, "chain_verified": False,
+                "pcr_verified": False, "account_secret": "hidden"}),
+            r("/v2/option-underlying-status/BANKNIFTY", 404, None),
+            r("/v2/option-underlying-status/SENSEX", 200, {
+                "status": "unmapped", "mapped": False})
+        ])["index_assessments"]
+        self.assertTrue(observed["NIFTY"]["underlying_mapped"])
+        self.assertFalse(observed["NIFTY"]["chain_verified"])
+        self.assertFalse(observed["NIFTY"]["pcr_verified"])
+        self.assertEqual(observed["BANKNIFTY"]["mapping_http"], 404)
+        self.assertFalse(observed["BANKNIFTY"]["underlying_mapped"])
+        self.assertEqual(observed["SENSEX"]["mapping_status"], "unmapped")
+        import json
+        self.assertNotIn("hidden", json.dumps(observed))
+        self.assertEqual(len(a.PATHS), 9)
+        opener = Opener({"status": "mapping_only", "mapped": True})
+        self.assertEqual(a.request_get(
+            "/v2/option-underlying-status/NIFTY", None, opener=opener).http, 0)
+        self.assertEqual(opener.requests, [])
+        self.assertEqual(a.request_get(
+            "/v2/option-underlying-status/NIFTY", "test-key", opener=opener).http, 200)
+        self.assertEqual(opener.requests[0].get_method(), "GET")
+
     def test_stale_and_403_do_not_pretend_success(self):
         a = module()
         r = a.ProbeResult
