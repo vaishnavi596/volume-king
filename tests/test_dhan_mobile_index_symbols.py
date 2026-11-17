@@ -12,12 +12,15 @@ class DhanMobileIndexSymbols(unittest.TestCase):
                         for target in node.targets if isinstance(target, ast.Name)}
         symbols = ast.literal_eval(declarations["DHAN_VERIFIED_INDEX_SYMBOLS"].args[0])
         self.assertEqual(set(symbols), {"NIFTY", "BANKNIFTY", "SENSEX"})
-        allowed = ast.literal_eval(declarations["DHAN_VERIFIED_SYMBOLS"].args[0])
+        equities = ast.literal_eval(declarations["DHAN_VERIFIED_EQUITY_SYMBOLS"].args[0])
+        allowed = set(equities) | set(symbols)
+        self.assertIsInstance(declarations["DHAN_VERIFIED_SYMBOLS"], ast.BinOp)
+        self.assertIsInstance(declarations["DHAN_VERIFIED_SYMBOLS"].op, ast.BitOr)
         self.assertTrue(set(symbols).issubset(allowed))
         # The equity snapshot parser explicitly rejects NIFTY and index symbols
         # because indexes must come from their separate mapped Dhan LTP path.
-        self.assertIn('or symbol == "NIFTY" for symbol in unavailable', source)
-        self.assertIn('or symbol == "NIFTY"', source)
+        self.assertIn("symbol not in DHAN_VERIFIED_EQUITY_SYMBOLS", source)
+        self.assertIn("DHAN_VERIFIED_EQUITY_SYMBOLS", source)
 
 
 if __name__ == "__main__":
