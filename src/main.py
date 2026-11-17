@@ -4654,35 +4654,54 @@ console.log('BOT KING Lightweight Charts ready');
         return max(verified_history or candidates,key=revision_order) if candidates else {}
     watch_three_minute_cache={}
     def watch_three_minute_signal(sym):
-        """Read only already-cached matching 3m Dhan candles. No network."""
+        """Use matching 3m Dhan history; retain prior HIST votes on transient gaps."""
         pending={"source":"Dhan","timeframe":"3m","historical":True,
                  "live_verified":False,"freshness":"unverified","bias":"WAIT"}
         if prefs.get("source")!="Dhan":return pending
+        context=(provider_generation[0],tuple(filter_selected),
+                 tuple(sorted(filter_modes.items())),prefs.get("confidence",75))
+        def historical_or_wait(reason):
+            # The previously analyzed 3m result is not the independent 5m ranking.
+            # Only reuse its votes with unchanged provider generation/filter policy.
+            saved=watch_three_minute_cache.get(sym)
+            if not saved or saved[0][:4]!=context:
+                return pending
+            selected=[name for name in filter_selected
+                      if filter_modes.get(name,"Analysis")!="Chart"]
+            retained=retain_last_filter_votes(
+                dict(pending,reason=reason),saved[1],
+                selected_filters=selected,provider="Dhan")
+            if retained.get("_last_votes_retained"):
+                return dict(retained,timeframe="3m",source="Dhan",
+                            historical=True,live_verified=False,freshness="unverified",
+                            bias="WAIT",score=0)
+            return pending
         data=shared_history(sym,"3m")
-        if data.get("source")!="Dhan" or not data.get("bars"):return pending
+        if data.get("source")!="Dhan" or not data.get("bars"):
+            return historical_or_wait("3m candles temporarily unavailable")
         now=time.time()
         completed=[bar for bar in data["bars"] if isinstance(bar,(tuple,list))
                    and len(bar)>=6 and type(bar[0]) in (int,float)
                    and math.isfinite(bar[0]) and bar[0]+180<=now]
-        if not completed:return pending
-        identity=(provider_generation[0],tuple(filter_selected),
-                  tuple(sorted(filter_modes.items())),prefs.get("confidence",75),
-                  tuple(completed[-1]),len(completed),data.get("candle_fetched_at"))
+        if not completed:return historical_or_wait("No completed 3m candles")
+        identity=context+(tuple(completed[-1]),len(completed),data.get("candle_fetched_at"))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
         try:
             quality=quality_check(completed,180,now=completed[-1][0]+180)
-            if not quality.get("usable"):return pending
+            if not quality.get("usable"):
+                return historical_or_wait("Latest 3m candle quality check unavailable")
             selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
             result=analyze(quality["bars"],selected,"3m")
             result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
                         historical=True,live_verified=False,freshness="unverified")
-            if not signal_percentages(result):return pending
+            if not signal_percentages(result):
+                return historical_or_wait("Latest 3m directional votes unavailable")
             watch_three_minute_cache[sym]=(identity,result)
             return result
         except Exception as exc:
             log_error("watch_three_minute_analysis",exc)
-            return pending
+            return historical_or_wait("3m analysis failed; last historical votes retained")
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__
         scan_fetch_failure[(provider_generation[0],sym,tf)]={"at":time.time(),"detail":detail}
