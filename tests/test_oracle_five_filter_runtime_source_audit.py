@@ -135,6 +135,31 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
             self.assertFalse(result["effective_route_source_found"])
             self.assertFalse(result["delegated_assessment"]["module_route_present"])
 
+    def test_unrelated_registration_and_unscoped_module_route_fail_closed(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def not_the_factory():\n"
+                "    register_assessment_routes(app, pairing_key)\n"
+                "def create_app():\n"
+                "    return app\n", encoding="utf-8")
+            (root / "assessment_api.py").write_text(
+                "def register_assessment_routes(app, pairing_key):\n"
+                "    return None\n"
+                "@app.get('/v2/assessment/{symbol}')\n"
+                "def unrelated(symbol):\n"
+                "    return read(scope, symbol)\n", encoding="utf-8")
+            result = audit_module.audit(root / "server.py")
+            self.assertFalse(result["delegated_assessment"]["register_call_present"])
+            self.assertFalse(result["effective_route_source_found"])
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    register_assessment_routes(app, pairing_key)\n", encoding="utf-8")
+            result = audit_module.audit(root / "server.py")
+            self.assertTrue(result["delegated_assessment"]["register_call_present"])
+            self.assertFalse(result["delegated_assessment"]["module_route_present"])
+            self.assertFalse(result["effective_route_source_found"])
+
     def test_evidence_writer_publish_and_ttl_static_audit(self):
         with TemporaryDirectory() as d:
             root = Path(d)
