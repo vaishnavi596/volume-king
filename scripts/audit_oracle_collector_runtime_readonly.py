@@ -67,6 +67,28 @@ def scalar_number(value):
     return round(float(value), 1)
 
 
+
+def classify_snapshot_error(value):
+    """Return only bounded diagnostic categories, never raw upstream text."""
+    if value in (None, "not_collected"):
+        return "NO_RECORDED_ERROR"
+    if not isinstance(value, str):
+        return "OTHER_ERROR"
+    if value == "ingest_unavailable":
+        return "INGEST_EXCEPTION"
+    if value == "upstream_http_429":
+        return "RATE_LIMIT_429"
+    if value in ("upstream_http_401", "upstream_http_403"):
+        return "UPSTREAM_ACCESS_DENIED"
+    if value in ("upstream_http_502", "upstream_http_503", "upstream_http_504"):
+        return "UPSTREAM_UNAVAILABLE"
+    if value.startswith("upstream_http_") and len(value) == len("upstream_http_") + 3:
+        suffix = value[-3:]
+        if suffix.isascii() and suffix.isdecimal():
+            return "UPSTREAM_HTTP_OTHER"
+    return "OTHER_ERROR"
+
+
 def summarize(results):
     by_route = {r.route: r for r in results}
     health = by_route.get("/health")
@@ -74,11 +96,10 @@ def summarize(results):
     snapshot = by_route.get("/v2/snapshot")
     readiness_body = (readiness.body if readiness and readiness.http == 200
                       and isinstance(readiness.body, dict) else {})
-    collector = readiness_body.get("collector", {})
+    collector_field = readiness_body.get("collector")
+    collector = collector_field if isinstance(collector_field, dict) else {}
     data = (snapshot.body if snapshot and snapshot.http == 200
             and isinstance(snapshot.body, dict) else {})
-    if not isinstance(collector, dict):
-        collector = {}
     if not isinstance(data, dict):
         data = {}
     quotes = data.get("quotes")
@@ -94,6 +115,8 @@ def summarize(results):
                           and health.body.get("status") == "ok"),
         "readiness_http": readiness.http if readiness else 0,
         "readiness_route_available": bool(readiness and readiness.http == 200),
+        "readiness_collector_schema": "object" if isinstance(collector_field, dict) else "missing_or_other",
+        "readiness_market_data_type": type(readiness_body.get("market_data")).__name__ if "market_data" in readiness_body else "missing",
         "collector_enabled": collector.get("configured_enabled")
                             if type(collector.get("configured_enabled")) is bool else None,
         "collector_status": readiness_status if readiness_status in safe_status else "unknown",
@@ -101,6 +124,7 @@ def summarize(results):
         "collector_last_success_age_seconds": scalar_number(collector.get("last_success_age_seconds")),
         "snapshot_http": snapshot.http if snapshot else 0,
         "snapshot_protocol": data.get("protocol") if data.get("protocol") == 2 else None,
+        "snapshot_error_class": classify_snapshot_error(data.get("error")),
         "snapshot_status": collection_status if collection_status in
                            safe_status | {"awaiting_next_collection"} else "unknown",
         "snapshot_age_seconds": scalar_number(data.get("age_seconds")),
