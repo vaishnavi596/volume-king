@@ -35,6 +35,38 @@ def _string_constants(node):
             if isinstance(n, ast.Constant) and isinstance(n.value, str)}
 
 
+def _delegated_assessment(tree, directory):
+    """Static evidence only: detect separately registered assessment_api module."""
+    registered = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "register_assessment_routes"
+        for node in ast.walk(tree)
+    )
+    module = directory / "assessment_api.py"
+    result = {"register_call_present": registered,
+              "module_route_present": False,
+              "module_syntax": "NOT_CHECKED",
+              "module_sha256": None,
+              "cache_read_wired": False}
+    if not registered or not module.is_file() or module.is_symlink():
+        return result
+    data = module.read_bytes()
+    module_tree = ast.parse(data.decode("utf-8"))
+    functions = list(route_functions(module_tree))
+    result.update({
+        "module_syntax": "PASS",
+        "module_sha256": hashlib.sha256(data).hexdigest(),
+        "module_route_present": len(functions) == 1,
+        "cache_read_wired": (
+            len(functions) == 1
+            and any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id == "read" for n in ast.walk(functions[0]))
+        ),
+    })
+    return result
+
+
 def audit(path):
     path = Path(path)
     if not path.is_file() or path.is_symlink():
@@ -44,6 +76,7 @@ def audit(path):
     routes = list(route_functions(tree))
     # AST expression strings are only source indicators, never running values.
     vals = _string_constants(routes[0]) if len(routes) == 1 else set()
+    delegated = _delegated_assessment(tree, path.parent)
     # Accept both legacy explanatory text and the allowlisted UI reason code.
     # Require the explicit fail-closed status; source inspection is not runtime proof.
     placeholder = (len(routes) == 1 and
@@ -54,6 +87,12 @@ def audit(path):
         "source_sha256": hashlib.sha256(raw).hexdigest(),
         "syntax": "PASS",
         "assessment_route_source_count": len(routes),
+        "delegated_assessment": delegated,
+        "effective_route_source_found": (
+            len(routes) == 1 or
+            (delegated["register_call_present"] and
+             delegated["module_route_present"])
+        ),
         "five_filter_ids_in_route_source": len(routes) == 1 and set(FILTER_IDS) <= vals,
         "four_factor_ids_in_route_source": len(routes) == 1 and set(FACTORS) <= vals,
         "known_placeholder_detected": placeholder,

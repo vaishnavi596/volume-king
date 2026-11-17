@@ -94,6 +94,47 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
         self.assertFalse(result["known_placeholder_detected"])
         self.assertFalse(result["producer_proven_functional"])
 
+    def test_oracle_delegated_assessment_module_is_detected_without_execution(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    register_assessment_routes(app, pairing_key)\n",
+                encoding="utf-8")
+            (root / "assessment_api.py").write_text(
+                "def register_assessment_routes(app, pairing_key):\n"
+                "    @app.get('/v2/assessment/{symbol}')\n"
+                "    def assessment(symbol):\n"
+                "        return read(scope, symbol)\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")
+        self.assertEqual(result["assessment_route_source_count"], 0)
+        self.assertTrue(result["effective_route_source_found"])
+        self.assertTrue(result["delegated_assessment"]["register_call_present"])
+        self.assertTrue(result["delegated_assessment"]["module_route_present"])
+        self.assertTrue(result["delegated_assessment"]["cache_read_wired"])
+        self.assertFalse(result["deployed_runtime_route_verified"])
+
+    def test_non_registered_or_symlink_module_is_not_accepted(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text("pass\n", encoding="utf-8")
+            (root / "assessment_api.py").write_text(
+                "@app.get('/v2/assessment/{symbol}')\n"
+                "def assessment(symbol):\n"
+                "    return read(scope, symbol)\n", encoding="utf-8")
+            result = audit_module.audit(root / "server.py")
+            self.assertFalse(result["effective_route_source_found"])
+            self.assertFalse(result["delegated_assessment"]["register_call_present"])
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    register_assessment_routes(app, pairing_key)\n", encoding="utf-8")
+            (root / "assessment_api.py").unlink()
+            (root / "assessment_api.py").symlink_to(root / "server.py")
+            result = audit_module.audit(root / "server.py")
+            self.assertFalse(result["effective_route_source_found"])
+            self.assertFalse(result["delegated_assessment"]["module_route_present"])
+
     def test_symlink_is_never_followed(self):
         with TemporaryDirectory() as d:
             target = Path(d) / "source.py"
