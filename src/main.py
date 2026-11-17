@@ -311,13 +311,12 @@ def app_main(page:ft.Page):
     oracle_assessment_attempts={}
     oracle_assessment_cache_generation=[provider_generation[0]]
 
-    def oracle_assessment_context(symbol):
-        """Single explicit selector contract shared by poll and UI."""
-        timeframe=(scan_tf.value if symbol==scan_symbol.value
-                   and scan_tf.value in ("1m","3m","5m")
-                   else "1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX")
-                   else "3m")
-        selected=(expiry.value if symbol==chain_symbol.value
+    def oracle_assessment_context(symbol,surface="overview"):
+        """Keep source context tied to the rendering surface, never a global scanner."""
+        timeframe=("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "3m")
+        if surface=="scanner" and symbol==scan_symbol.value:
+            timeframe=scan_tf.value if scan_tf.value in ("1m","3m","5m") else "1m"
+        selected=(expiry.value if surface=="options" and symbol==chain_symbol.value
                   and isinstance(expiry.value,str) else None)
         try:
             selected=(selected if selected and
@@ -326,24 +325,25 @@ def app_main(page:ft.Page):
             selected=None
         return timeframe,selected
 
-    def oracle_assessment_notes(symbol):
-        # Do not display an earlier expiry or scanner timeframe under a new selection.
+    def oracle_assessment_notes(symbol,surface="overview"):
+        # Exact generation/symbol/interval/expiry match; other screens never relabel.
         if oracle_assessment_cache_generation[0]!=provider_generation[0]:
             oracle_assessment_cache.clear()
             oracle_assessment_attempts.clear()
             oracle_assessment_cache_generation[0]=provider_generation[0]
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             return ["Oracle assessment • WAIT • Dhan connection required"]
-        record=oracle_assessment_cache.get(symbol)
-        if isinstance(record,dict):
-            try:
-                tf,selected_expiry=oracle_assessment_context(symbol)
-            except (NameError,AttributeError):
-                return ["Oracle assessment • WAIT • selection not ready"]
-            if (record.get("timeframe")!=tf or
-                    record.get("expiry")!=selected_expiry):
-                return ["Oracle assessment • WAIT • selected timeframe/expiry changed"]
-        return assessment_lines(symbol,oracle_assessment_cache)
+        try:
+            tf,selected_expiry=oracle_assessment_context(symbol,surface)
+        except (NameError,AttributeError):
+            return ["Oracle assessment • WAIT • selection not ready"]
+        key=(provider_generation[0],symbol,tf,selected_expiry)
+        record=oracle_assessment_cache.get(key)
+        if not isinstance(record,dict):
+            return ["Oracle assessment • WAIT • selected timeframe/expiry not loaded"]
+        if record.get("timeframe")!=tf or record.get("expiry")!=selected_expiry:
+            return ["Oracle assessment • WAIT • selected timeframe/expiry changed"]
+        return assessment_lines(symbol,{symbol:record})
 
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
@@ -1455,7 +1455,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),note(oracle_assessment_notes(row["symbol"])[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1822,7 +1822,7 @@ def app_main(page:ft.Page):
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
                             10,price_color(sym) if quote_source==expected_quote_source else MUTED)
             five_cell=ft.Container(content=five_engine_chips(sym))
-            assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym)[0]))
+            assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym,"watchlist")[0]))
             signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
             freshness_cell=ft.Text(("LTP cached • not live" if not quote_fresh else "LTP time unverified")+
                                    (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""),
@@ -2254,7 +2254,7 @@ def app_main(page:ft.Page):
                     # Replace child content inside persistent mounted containers,
                     # not the static symbol, containing Row or whole Watchlist page.
                     five.content=five_engine_chips(sym)
-                    assessment.content=note(oracle_assessment_notes(sym)[0])
+                    assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
                     signal.content=compact_watch_signal(row,available,fresh)
                     for cell in (five,assessment,signal):
                         if cell.page is not None:cell.update()
@@ -4034,7 +4034,7 @@ def app_main(page:ft.Page):
         instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
         context=[five_engine_chips(instrument),
                  dashboard_mini_candles(instrument,shared_history(instrument) or {}),
-                 note(oracle_assessment_notes(instrument)[0]),
+                 note(oracle_assessment_notes(instrument,"overview")[0]),
                  note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders.")]
         controls=[
             note("Paper and future Live controls share this screen, NEVER the execution gateway."),
@@ -5329,7 +5329,7 @@ console.log('BOT KING Lightweight Charts ready');
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
             safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY")),
             safe_scanner_widget("Options",scanner_option_context),
-            safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY")],spacing=3))),
+            safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -6741,18 +6741,29 @@ console.log('BOT KING Lightweight Charts ready');
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected):
                     generation=provider_generation[0]
-                    # Scanner, Options and the selected paper bot share one cached read-only assessment.
-                    selected=list(dict.fromkeys(
-                        sym for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value)
-                        if isinstance(sym,str) and (sym in DHAN_VERIFIED_SYMBOLS
-                            or sym in all_watch_symbols())))
-                    for sym in selected:
+                    # Only a handful of selected symbols; preserve per-view context
+                    # without fanout to every Watchlist equity or extra Dhan history.
+                    selected=[("scanner",scan_symbol.value),
+                              ("options",chain_symbol.value),
+                              ("overview",bot_symbol.value)]
+                    for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value):
+                        if isinstance(sym,str):
+                            selected.append(("overview",sym))
+                    contexts=[]
+                    seen=set()
+                    for surface,sym in selected:
+                        if not isinstance(sym,str) or not (
+                                sym in DHAN_VERIFIED_SYMBOLS or sym in all_watch_symbols()):
+                            continue
+                        tf,selected_expiry=oracle_assessment_context(sym,surface)
+                        key=(generation,sym,tf,selected_expiry)
+                        if key not in seen:
+                            seen.add(key)
+                            contexts.append((sym,tf,selected_expiry,key))
+                    for sym,tf,selected_expiry,key in contexts:
                         if generation!=provider_generation[0] or not app_active[0]:
                             break
-                        # One shared selector policy for request and display.
-                        tf,selected_expiry=oracle_assessment_context(sym)
                         now=time.monotonic()
-                        key=(generation,sym,tf,selected_expiry)
                         # Selection changes must not reuse an unrelated 180s response.
                         if (key in oracle_assessment_attempts
                                 and now-oracle_assessment_attempts[key]<180):
@@ -6765,7 +6776,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 if oracle_assessment_cache_generation[0]!=generation:
                                     oracle_assessment_cache.clear()
                                     oracle_assessment_cache_generation[0]=generation
-                                oracle_assessment_cache[sym]={
+                                oracle_assessment_cache[key]={
                                     "fetched":time.monotonic(),"data":data,
                                     "timeframe":tf,"expiry":selected_expiry}
                                 if len(oracle_assessment_cache)>16:
