@@ -67,7 +67,6 @@
 - [botking-mobile-audit-batches-20261115.md](botking-mobile-audit-batches-20261115.md)
 - [BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md](BOT_KING_2_3_127_JOINT_REPAIR_PROGRAMME_20261116.md) — historical version programme; do not infer current APK from filename.
 - [A2_CHART_FILTER_OPTIONS_REPORT_20261115.md](A2_CHART_FILTER_OPTIONS_REPORT_20261115.md)
-- [A3_DASHBOARD_NATIVE_15_SLOTS_DHAN_AUDIT_20261115.md](A3_DASHBOARD_NATIVE_15_SLOTS_DHAN_AUDIT_20261115.md)
 - [BOT-KING-226-ANDROID-KEYSTORE-INTEGRATION.md](BOT-KING-226-ANDROID-KEYSTORE-INTEGRATION.md)
 - [BOT-KING-226-DEVICE-ENROLLMENT.md](BOT-KING-226-DEVICE-ENROLLMENT.md)
 - [FLET_SECURE_STORAGE_COMPATIBILITY.md](FLET_SECURE_STORAGE_COMPATIBILITY.md)
@@ -145,6 +144,13 @@ The following is historical source/CI evidence, **not current Dhan-only release 
 | v2.0.1 | Nov 4 PermissionError/storage and UI fixes; app-private storage, scanner schedule exception guards and paper-only behavior; tests described but no numerical CI count in source | `4fff15f86040fb59cf2a4abc8d5dd75ae45f8b02` |
 
 These historical controls may already have modern equivalents. Their obsolete Yahoo/Angel/Flet-era architecture and legacy live-order wishlists are **not** instructions for the current app. Any eventual deletion requires reference scan, preservation of unique claims and a committed deletion manifest. Git history contains full original text.
+
+## Pruning batch 1 — A3 legacy Dashboard audit safely superseded
+
+- **Target:** `docs/A3_DASHBOARD_NATIVE_15_SLOTS_DHAN_AUDIT_20261115.md`, original Git blob `addd917c52469f1194e84301ece77668520d9e00`; preserved [immutable original file](https://github.com/vaishnavi596/volume-king/blob/a464b7f5383d3fbb069acccaf0dca32657a3f32f/docs/A3_DASHBOARD_NATIVE_15_SLOTS_DHAN_AUDIT_20261115.md).
+- **Historical useful findings retained:** v2.3.118-era removal of an unhelpful Dashboard `CANDLE + OPTIONS + NEWS • NIFTY • 5m` 0/3 WAIT fusion card while preserving Super Five, Candle Analysis and independent five engines; native red/green mini-candle path reused cached Dhan OHLC without new broker requests; Dhan-only visible UI; options PCR/Max Pain and seven-strike window were *unverified* and non-voting. Source commit `f1367f05`, offline guard `60c2feb3`; extension was **after** v2.3.118 build-trigger and therefore **not present in its APK**. Real Oracle/phone proof was pending. Historical 15 filter-selection slots were a separate old UI concept, not the current five assessment slots plus inert sixth.
+- **Dependency gate:** #1844 full repository CI reported zero inbound references to this document outside `docs/README.md` across 351 scanned text files; no broken Markdown relative links before pruning. The index target link is removed in this commit, then the obsolete file may be deleted in a distinct SHA-checked Git commit. Git history preserves full original. Re-run link scanner CI after deletion.
+- **Scope:** only this one legacy A3 report; current Work Log, source/test files, Oracle configuration, security runbooks and APK untouched.
 
 ## Documentation housekeeping register
 
