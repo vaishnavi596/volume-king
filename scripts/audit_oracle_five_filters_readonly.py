@@ -67,6 +67,75 @@ def _delegated_assessment(tree, directory):
     return result
 
 
+
+def _evidence_wiring(tree, directory):
+    """Inspect static Oracle evidence paths; do not import/execute app modules."""
+    writes = []
+    candle_publish_lines = []
+    five_minute_guard_lines = []
+    option_publish_lines = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
+                   and t.value.id == "candle_cache" for t in targets):
+                writes.append(node.lineno)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "publish":
+            kinds = {a.value for a in node.args if isinstance(a, ast.Constant)
+                     and isinstance(a.value, str)}
+            if "candle" in kinds:
+                candle_publish_lines.append(node.lineno)
+            if "options" in kinds:
+                option_publish_lines.append(node.lineno)
+        if isinstance(node, ast.If):
+            condition = ast.unparse(node.test)
+            if "interval" in condition and ("'5'" in condition or '"5"' in condition):
+                if any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                       and c.func.id == "publish"
+                       and any(isinstance(a, ast.Constant) and a.value == "candle"
+                               for a in c.args) for n in node.body for c in ast.walk(n)):
+                    five_minute_guard_lines.append(node.lineno)
+    ttl = None
+    state_file = directory / "assessment_state.py"
+    state_present = state_file.is_file() and not state_file.is_symlink()
+    if state_present:
+        state_tree = ast.parse(state_file.read_text(encoding="utf-8"))
+        for node in state_tree.body:
+            if isinstance(node, ast.Assign):
+                if any(isinstance(target, ast.Name) and target.id == "_TTL"
+                       for target in node.targets):
+                    if isinstance(node.value, ast.Constant) and type(node.value.value) is int:
+                        ttl = node.value.value
+    return {
+        "candle_cache_writer_lines": sorted(writes),
+        "candle_publish_lines": sorted(candle_publish_lines),
+        "five_minute_candle_publish_guard_lines": sorted(five_minute_guard_lines),
+        "options_publish_lines": sorted(option_publish_lines),
+        "assessment_state_source_present": state_present,
+        "assessment_state_ttl_seconds": ttl,
+        "mapping_route_direct_in_server": (
+            ("get", "/v2/option-underlying-status/{symbol}") in {
+                (method, route) for method, route in _route_decorators(tree)
+            }
+        ),
+        "runtime_evidence_verified": False,
+        "production_changed": False,
+    }
+
+
+def _route_decorators(tree):
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                    and isinstance(dec.func.value, ast.Name)
+                    and dec.func.value.id == "app" and dec.args
+                    and isinstance(dec.args[0], ast.Constant)
+                    and isinstance(dec.args[0].value, str)):
+                yield dec.func.attr.lower(), dec.args[0].value
+
+
 def audit(path):
     path = Path(path)
     if not path.is_file() or path.is_symlink():
@@ -77,6 +146,7 @@ def audit(path):
     # AST expression strings are only source indicators, never running values.
     vals = _string_constants(routes[0]) if len(routes) == 1 else set()
     delegated = _delegated_assessment(tree, path.parent)
+    evidence = _evidence_wiring(tree, path.parent)
     # Accept both legacy explanatory text and the allowlisted UI reason code.
     # Require the explicit fail-closed status; source inspection is not runtime proof.
     placeholder = (len(routes) == 1 and
@@ -88,6 +158,7 @@ def audit(path):
         "syntax": "PASS",
         "assessment_route_source_count": len(routes),
         "delegated_assessment": delegated,
+        "evidence_wiring": evidence,
         "effective_route_source_found": (
             len(routes) == 1 or
             (delegated["register_call_present"] and

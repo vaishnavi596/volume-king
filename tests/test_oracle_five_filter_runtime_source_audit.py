@@ -135,6 +135,41 @@ class FiveFilterOracleReadOnlyAuditTests(unittest.TestCase):
             self.assertFalse(result["effective_route_source_found"])
             self.assertFalse(result["delegated_assessment"]["module_route_present"])
 
+    def test_evidence_writer_publish_and_ttl_static_audit(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    candle_cache = {}\n"
+                "    candle_cache[(symbol, interval)] = {'bars': []}\n"
+                "    if interval == '5' and bars:\n"
+                "        publish(scope, symbol, 'candle', {'bars': bars})\n"
+                "    publish(scope, symbol, 'options', {'option_metrics': {}})\n",
+                encoding="utf-8")
+            (root / "assessment_state.py").write_text(
+                "_TTL = 180\n", encoding="utf-8")
+            result = audit_module.audit(root / "server.py")["evidence_wiring"]
+        self.assertEqual(len(result["candle_cache_writer_lines"]), 1)
+        self.assertEqual(len(result["candle_publish_lines"]), 1)
+        self.assertEqual(len(result["five_minute_candle_publish_guard_lines"]), 1)
+        self.assertEqual(len(result["options_publish_lines"]), 1)
+        self.assertEqual(result["assessment_state_ttl_seconds"], 180)
+        self.assertFalse(result["runtime_evidence_verified"])
+        self.assertFalse(result["production_changed"])
+
+    def test_missing_state_and_unconditional_publish_are_not_assumed_live(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "server.py").write_text(
+                "def create_app():\n"
+                "    publish(scope, symbol, 'candle', {'bars': bars})\n",
+                encoding="utf-8")
+            result = audit_module.audit(root / "server.py")["evidence_wiring"]
+        self.assertEqual(result["five_minute_candle_publish_guard_lines"], [])
+        self.assertIsNone(result["assessment_state_ttl_seconds"])
+        self.assertFalse(result["mapping_route_direct_in_server"])
+        self.assertFalse(result["runtime_evidence_verified"])
+
     def test_symlink_is_never_followed(self):
         with TemporaryDirectory() as d:
             target = Path(d) / "source.py"
