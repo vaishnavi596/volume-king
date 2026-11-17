@@ -68,10 +68,14 @@ def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan
     if new.get("source")!=provider or old.get("source")!=provider:
         return new
     votes=new.get("votes") or ()
+    if not isinstance(votes, (list, tuple)):
+        votes = ()
     if any(isinstance(row,dict) and type(row.get("vote")) is int
            and row["vote"] in (-1,1) for row in votes):
         return new
     prior_votes=old.get("votes") or ()
+    if not isinstance(prior_votes, (list, tuple)):
+        return new
     selected=set(selected_filters)
     prior_names={v.get("name") for v in prior_votes if isinstance(v,dict)}
     if not selected or prior_names!=selected:
