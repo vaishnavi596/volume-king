@@ -178,9 +178,9 @@ This completes *content triage* of all twelve zero-inbound files originally repo
 |---|---|---|
 | Inventory 44 original docs / 24 scripts | **DONE** | Original 44 inventoried; two legacy reports safely pruned, index remains, 43 docs currently |
 | Category navigation index | **DONE** | One entry point for new chat and category-specific evidence |
-| Category routing rule in AGENTS / Handoff | PENDING | Link index at startup, keep one chronological journal |
-| Markdown navigation link check | **PASS pre-prune** | Original 44 linked before pruning; A2/A3 entries replaced by immutable historical Git links; post-prune CI required |
-| Full repository reference scan | **PASS pre-prune — #1844** | 44 original docs, 351 text files, 31 docs with inbound references, 13 with zero external inbound, 0 broken relative links; evidence markers heuristic, not deletion approval |
-| Controlled archive/delete batch | **2 A2/A3 DOCUMENTS REMOVED** | SHA-checked deletion commits `fe730700` / `54761833`, original evidence retained by Git immutable links; final CI to verify |
+| Category routing rule in AGENTS / Handoff | **DONE** | `AGENTS.md` category tags and root Handoff index pointer in place |
+| Markdown navigation link check | **PASS post-prune #1846** | 0 broken relative links across 349 text files; A2/A3 originals linked by immutable historical Git URLs |
+| Full repository reference scan | **PASS post-prune — #1846** | 42 remaining original docs, 349 text files, 31 with external inbound references, 11 zero-inbound retained by content review; no broken relative links |
+| Controlled archive/delete batch | **CLOSED LIMITED: 2 files removed** | SHA-checked `fe730700` / `54761833`; original Git history retained; #1846 1220/1220 offline PASS |
 | Current Oracle/app/APK release work | OPEN | Independent of documentation housekeeping |
 
