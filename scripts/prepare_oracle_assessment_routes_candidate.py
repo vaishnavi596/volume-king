@@ -99,7 +99,7 @@ def prepare(raw):
 
 
 MAPPING_ROUTE = "/v2/option-underlying-status/{symbol}"
-MAPPING_ANCHOR = "    register_assessment_routes(app, pairing_key)\\n"
+MAPPING_ANCHOR = "    register_assessment_routes(app, pairing_key)\n"
 MAPPING_BLOCK = '''
     @app.get("/v2/option-underlying-status/{symbol}")
     def botking_option_underlying_mapping_only(

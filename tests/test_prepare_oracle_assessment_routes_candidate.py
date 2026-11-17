@@ -59,10 +59,10 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
 
     def test_mapping_only_candidate_is_protected_and_not_an_option_entitlement(self):
         source = (
-            b"from typing import Optional\\n"
-            b"DYNAMIC_INSTRUMENTS = {}\\n"
-            b"def create_app():\\n"
-            b"    register_assessment_routes(app, pairing_key)\\n"
+            b"from typing import Optional\n"
+            b"DYNAMIC_INSTRUMENTS = {}\n"
+            b"def create_app():\n"
+            b"    register_assessment_routes(app, pairing_key)\n"
         )
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
             candidate = module.prepare_mapping_only(source)
@@ -80,7 +80,7 @@ class OracleAssessmentCandidateTests(unittest.TestCase):
                 module.prepare_mapping_only(candidate)
 
     def test_mapping_only_rejects_missing_registration_and_wrong_hash(self):
-        source = b"DYNAMIC_INSTRUMENTS = {}\\ndef create_app():\\n    pass\\n"
+        source = b"DYNAMIC_INSTRUMENTS = {}\ndef create_app():\n    pass\n"
         with self.assertRaisesRegex(ValueError, "SHA mismatch"):
             module.prepare_mapping_only(source)
         with patch.object(module, "EXPECTED_SHA", hashlib.sha256(source).hexdigest()):
