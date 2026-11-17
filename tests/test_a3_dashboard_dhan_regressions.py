@@ -91,4 +91,6 @@ class A3RegressionTests(unittest.TestCase):
         _,views=start({"scanner_live":False,"source":"Dhan"})
         chips=views["five_engine_chips"]("NIFTY")
         labels=[c.content.value for c in chips.controls]
-        self.assertEqual(labels,["T WAIT","C WAIT","N WAIT","F WAIT","O WAIT"])
+        self.assertEqual(labels,["T WAIT","C WAIT","N WAIT","F WAIT","O WAIT","6  —"])
+        # Reserved sixth visual slot is inert; the five engine states stay unchanged.
+        self.assertEqual(len(labels[:5]),5)
