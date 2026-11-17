@@ -50,6 +50,17 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
                 or any(row.get("status") != "unavailable" for row in filters)):
             return ["Oracle 4 factors / 5 filters • WAIT • inconsistent server response"]
         return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
+    # Reject unknown or contradictory producer states rather than displaying
+    # numeric rows from an unsafe/malformed response.
+    if data.get("collection_status") != "partial_unverified" or data.get("freshness") != "unverified":
+        return ["Oracle 4 factors / 5 filters • WAIT • unverified producer state"]
+    if (any(row["status"] != "unavailable" or row.get("bullish") is not None
+            or row.get("bearish") is not None for row in factors.values())
+            or data.get("bullish_score") is not None
+            or data.get("bearish_score") is not None):
+        return ["Oracle 4 factors / 5 filters • WAIT • unsafe factor scores"]
+    if not any(row.get("status") == "available" for row in filters):
+        return ["Oracle 4 factors / 5 filters • WAIT • no informational evidence"]
     lines = ["Oracle 4 factors / 5 filters • informational only • live orders OFF"]
     labels = {"oi_support": "OI Support", "oi_resistance": "OI Resistance",
               "max_pain": "Max Pain", "pcr": "PCR", "candle_trend": "Candle"}
