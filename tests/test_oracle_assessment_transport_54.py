@@ -56,6 +56,26 @@ class AssessmentTransport54Tests(TestCase):
              "SENSEX": ("BSE_I", 51)})
         self.assertEqual(set(mapping), DHAN_VERIFIED_SYMBOLS)
 
+    def test_equity_snapshot_rejects_each_index_in_quotes_and_unavailable(self):
+        feed = ServerDhanReadOnly()
+        for index in sorted(DHAN_VERIFIED_INDEX_SYMBOLS):
+            for lane in ("quotes", "unavailable"):
+                response = {
+                    "protocol": 2, "source": "dhan", "live_orders_enabled": False,
+                    "error": None, "collection_status": "recently_collected",
+                    "live_verified": False, "age_seconds": 3,
+                    "freshness": "unverified", "quote_timestamp": None,
+                    "quotes": {"RELIANCE": 1200.0}, "unavailable": [],
+                }
+                if lane == "quotes":
+                    response["quotes"][index] = 24000.0
+                else:
+                    response["unavailable"].append(index)
+                with self.subTest(index=index, lane=lane):
+                    with patch.object(feed, "_call", return_value=response):
+                        with self.assertRaises(FeedError):
+                            feed.batch_quotes()
+
     def test_54_roster_allows_same_complete_placeholder_contract(self):
         self.assertEqual(len(DHAN_VERIFIED_SYMBOLS), 54)
         feed = ServerDhanReadOnly()
