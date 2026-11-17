@@ -205,7 +205,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
         self.assertIn('watch_three_minute_warm_last_provider[0]<30',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)
-        self.assertIn('if not refresh_hours()',helper)
+        self.assertIn('or not refresh_hours()',helper)
         self.assertNotIn('get_market_data,sym,"3m"',helper)
         regular=method_source("watch_three_minute_warmup")
         for token in ('watch_three_minute_upstream_times','watch_three_minute_warm_attempts',
