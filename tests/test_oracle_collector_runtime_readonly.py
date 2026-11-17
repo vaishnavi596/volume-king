@@ -143,6 +143,42 @@ class OracleCollectorRuntimeAuditTests(unittest.TestCase):
         self.assertIsNone(result["equity_quote_count"])
         self.assertIsNone(result["live_orders_enabled"])
 
+    def test_snapshot_error_classes_and_deployed_readiness_schema(self):
+        a = module()
+        r = a.ProbeResult
+        cases = (
+            ("upstream_http_429", "RATE_LIMIT_429"),
+            ("upstream_http_401", "UPSTREAM_ACCESS_DENIED"),
+            ("upstream_http_503", "UPSTREAM_UNAVAILABLE"),
+            ("upstream_http_418", "UPSTREAM_HTTP_OTHER"),
+            ("ingest_unavailable", "INGEST_EXCEPTION"),
+            ("raw-secret-must-never-print", "OTHER_ERROR"),
+            (None, "NO_RECORDED_ERROR"),
+            ({"unexpected": "value"}, "OTHER_ERROR"),
+        )
+        for error, category in cases:
+            with self.subTest(category=category):
+                results = [
+                    r("/v2/server-readiness", 200, {
+                        "market_data": "configured_separately",
+                        "scoring_status": "unverified",
+                    }),
+                    r("/v2/snapshot", 200, {
+                        "protocol": 2, "quotes": {},
+                        "collection_status": "upstream_error",
+                        "error": error, "age_seconds": None,
+                        "live_orders_enabled": False,
+                    }),
+                ]
+                view = a.summarize(results)
+                self.assertEqual(view["snapshot_error_class"], category)
+                self.assertEqual(view["readiness_collector_schema"], "missing_or_other")
+                self.assertEqual(view["readiness_market_data_type"], "str")
+                self.assertEqual(view["collector_status"], "unknown")
+                self.assertEqual(view["equity_quote_count"], 0)
+                self.assertNotIn("raw-secret-must-never-print", str(view))
+                self.assertFalse(view["quote_freshness_exchange_verified"])
+
     def test_stale_and_403_do_not_pretend_success(self):
         a = module()
         r = a.ProbeResult
