@@ -2071,7 +2071,7 @@ def app_main(page:ft.Page):
                 candle_note="selected 3m history deferred: main scan busy"
             elif await warm_selected_watch_three_minute_early(
                     provider_generation[0],explicit_closed=True):
-                candle_note="selected 3m historical candles checked (NOT live)"
+                candle_note="selected 3m HIST candles checked (NOT live)"
             else:
                 candle_note="selected 3m history cached/deferred or unavailable"
             watch_batch_status[0]=str(watch_batch_status[0])+" • "+candle_note
