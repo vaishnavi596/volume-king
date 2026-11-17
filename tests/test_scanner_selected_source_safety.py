@@ -1,0 +1,93 @@
+"""Scanner simulation-only controls may not spend extra Dhan candle requests.
+
+Exercise actual trigger_scan() with simple UI stubs; validate scanner chart's
+same-timeframe last-good history retention. Pure offline, no broker transport.
+"""
+import ast
+import sys
+import textwrap
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/"src"))
+from candle_retention import retain_candle_history
+
+SOURCE=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+TREE=ast.parse(SOURCE)
+
+def function_source(name):
+    fn=next(n for n in ast.walk(TREE) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))
+            and n.name==name)
+    return textwrap.dedent(ast.get_source_segment(SOURCE,fn))
+
+
+class ScannerSelectedSourceSafetyTests(unittest.TestCase):
+    @staticmethod
+    def create_context():
+        actions=[]
+        symbol=SimpleNamespace(value="RELIANCE")
+        timeframe=SimpleNamespace(value="1m")
+        period=SimpleNamespace(value="7d")
+        budget=SimpleNamespace(value="Custom")
+        minimum=SimpleNamespace(value="20",visible=False)
+        maximum=SimpleNamespace(value="200",visible=False)
+        expiry=SimpleNamespace(value="14")
+        auto=SimpleNamespace(value=True)
+        status=SimpleNamespace(value="")
+        page=SimpleNamespace(update=lambda:actions.append("update"),
+            run_task=lambda function:actions.append(("run",function)))
+        market=lambda:None
+        scope={"scan_symbol":symbol,"scan_tf":timeframe,"scan_period":period,
+               "scan_budget":budget,"scan_min":minimum,"scan_max":maximum,
+               "scan_expiry":expiry,"scan_auto":auto,"scan_status":status,
+               "page":page,"current":[3],"prefs":{"source":"Dhan"},
+               "scan_selection_context":[("RELIANCE","1m","7d")],
+               "scan_generation":[0],"scan_result":SimpleNamespace(controls=[]),
+               "scan_last_success":[2],"scan_last_candle":[5],
+               "selected_report_identity":["old"],"scan_filter_ready":[True],
+               "scan_shared":{},"scan_busy":[False],
+               "watch_signal_cache":{},"save":lambda:actions.append("save"),
+               "card":lambda obj:obj,"note":lambda msg:msg,
+               "select":lambda tab:actions.append(("select",tab)),
+               "scan_market":market}
+        exec(compile(function_source("trigger_scan"),str(ROOT/"src"/"main.py"),"exec"),scope)
+        return scope,actions
+
+    def test_simulation_fields_update_locally_without_a_market_task(self):
+        for field in ("scan_budget","scan_min","scan_max","scan_expiry","scan_auto"):
+            with self.subTest(field=field):
+                ctx,actions=self.create_context()
+                ctx["trigger_scan"](SimpleNamespace(control=ctx[field]))
+                self.assertFalse(any(isinstance(a,tuple) and a[0]=="run" for a in actions))
+                self.assertEqual(ctx["scan_generation"][0],0)
+                self.assertEqual(ctx["scan_min"].visible,field=="scan_budget")
+                self.assertIn("no Dhan candle request",ctx["scan_status"].value)
+
+    def test_real_symbol_change_still_queues_selected_candle_history(self):
+        ctx,actions=self.create_context()
+        ctx["scan_symbol"].value="TCS"
+        ctx["trigger_scan"](SimpleNamespace(control=ctx["scan_symbol"]))
+        self.assertEqual(ctx["scan_generation"][0],1)
+        self.assertIn(("run",ctx["scan_market"]),actions)
+        self.assertEqual(ctx["scan_shared"]["symbol"],"TCS")
+
+    def test_partial_scanner_candles_are_retained_before_chart_publish(self):
+        code=function_source("scan_market")
+        self.assertIn('if prior.get("_scanner_timeframe")!=interval:',code)
+        self.assertIn('hist=retain_candle_history(hist,prior,provider="Dhan")',code)
+        self.assertLess(code.index('hist=retain_candle_history(hist,prior,provider="Dhan")'),
+                        code.index('candles["scanner_chart_"+sym]=dict(hist'))
+        old=[[10000+i*60,100,102,99,101,200] for i in range(35)]
+        previous={"source":"Dhan","bars":old,"_scanner_timeframe":"1m"}
+        new={"source":"Dhan","bars":old[-3:],"live_verified":False}
+        shown=retain_candle_history(new,previous,provider="Dhan")
+        self.assertEqual(shown["bars"],old)
+        self.assertTrue(shown["historical"])
+        self.assertFalse(shown["live_verified"])
+        self.assertEqual(shown["freshness"],"historical_unverified")
+
+
+if __name__=="__main__":
+    unittest.main()
