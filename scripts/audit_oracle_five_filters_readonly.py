@@ -89,6 +89,28 @@ def _delegated_assessment(tree, directory):
     return result
 
 
+def _cache_mutation_call_sites(tree):
+    """List possible cache-method mutations by source line, never read values.
+
+    This intentionally reports candidates, not proven cache writes. Both local
+    method names and receiver names must match a conservative allowlist.
+    """
+    cache_names = {"assessment_cache", "snapshot_cache", "candle_cache",
+                   "option_evidence_cache", "cache", "_cache", "_items"}
+    mutators = {"set", "update", "put", "setdefault", "clear", "pop"}
+    sites = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and
+                isinstance(node.func, ast.Attribute) and
+                node.func.attr in mutators):
+            continue
+        receiver = node.func.value
+        if isinstance(receiver, ast.Name) and receiver.id in cache_names:
+            sites.append({"line": node.lineno, "receiver": receiver.id,
+                          "method": node.func.attr})
+    return sorted(sites, key=lambda row: (row["line"], row["receiver"], row["method"]))
+
+
 def _assessment_state_key_audit(state_tree):
     """Static store-key dimensions only; no runtime cache or values are read."""
     functions = [node for node in state_tree.body
@@ -164,6 +186,7 @@ def _evidence_wiring(tree, directory):
         "candle_publish_lines": sorted(candle_publish_lines),
         "five_minute_candle_publish_guard_lines": sorted(five_minute_guard_lines),
         "options_publish_lines": sorted(option_publish_lines),
+        "server_cache_mutation_call_sites": _cache_mutation_call_sites(tree),
         "assessment_state_source_present": state_present,
         "assessment_state_ttl_seconds": ttl,
         "assessment_state_key_evidence": state_key_evidence,
@@ -212,6 +235,11 @@ def audit(path):
         "syntax": "PASS",
         "assessment_route_source_count": len(routes),
         "delegated_assessment": delegated,
+        "assessment_api_cache_mutation_call_sites": (
+            _cache_mutation_call_sites(ast.parse((path.parent / "assessment_api.py").read_text(encoding="utf-8")))
+            if (path.parent / "assessment_api.py").is_file()
+            and not (path.parent / "assessment_api.py").is_symlink() else []
+        ),
         "evidence_wiring": evidence,
         "effective_route_source_found": (
             len(routes) == 1 or
