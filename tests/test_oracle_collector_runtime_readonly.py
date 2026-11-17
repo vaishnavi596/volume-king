@@ -44,6 +44,18 @@ class Opener:
 
 
 class OracleCollectorRuntimeAuditTests(unittest.TestCase):
+    def test_oracle_python39_import_compatible_annotation(self):
+        # An Oracle host running Python 3.9 cannot evaluate dict | None
+        # at import time; this decorator stores the annotation as text.
+        import ast
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        self.assertTrue(any(
+            isinstance(node, ast.ImportFrom) and node.module == "__future__"
+            and any(alias.name == "annotations" for alias in node.names)
+            for node in tree.body))
+        a = module()
+        self.assertEqual(a.ProbeResult.__annotations__["body"], "dict | None")
+
     def test_protected_audit_does_not_follow_redirect(self):
         a = module()
         handler = a.NoRedirect()
