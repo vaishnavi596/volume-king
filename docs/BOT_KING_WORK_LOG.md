@@ -2682,3 +2682,9 @@ The journal itself was updated repeatedly as evidence arrived. Relevant append-o
 - Root cause: `scripts/audit_oracle_five_filters_readonly.py` AST placeholder detector required the old literal `Independent Oracle assessment not configured`; c86e94f correctly replaced this with UI allowlisted `reason: not_configured`. This was a source-audit compatibility mismatch, not proof of an invalid market score.
 - Fix commit 0035a67c0d389c9e22aac0feab119b1f3b23b258: detector now accepts either old literal or explicit `reason` field while requiring `not_configured` and `unavailable` literals. No change to the five-filter assessment producer, Dhan calls or trading permissions.
 - Fix CI PENDING verification; do not call PASS before workflow conclusion. No Oracle deploy or APK build. Next: check fixed CI, add focused regression for old/new placeholders if needed, then proceed with real evidence producer.
+
+
+## 2026-11-17 — Audit WAIT placeholder regression tests added
+- Rechecked exact last 11 working-branch commits from GitHub commits API before test edit: 514e88eef, 0035a67c0, c76541cbd, c86e94f80, a8c411df7, 418ff7254, c322e381f, e3d0730f4, 421a82eca, ffb4bfacc, bb39e59b5. Earlier CI 43992125444 FAILED (one outdated audit assertion); source audit fix 0035a67c0 has no new workflow run in the latest branch-run list as of check.
+- Test commit 21fb7e5a7a623edfdbda4d28b1c11124befb0cf7 updates `tests/test_oracle_five_filter_runtime_source_audit.py` with positive regression for allowlisted `reason=not_configured` without legacy prose and negative regression for incomplete placeholder lacking `unavailable`.
+- GitHub write succeeded; CI for 21fb7e5 PENDING. No Oracle deploy, Dhan live proof, Android test or APK build. Next inspect new workflow logs/conclusion and fix any failures before dependent producer work.
