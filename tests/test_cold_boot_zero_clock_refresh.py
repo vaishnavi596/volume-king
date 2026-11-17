@@ -192,13 +192,15 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         expected=[
             ("TCS",{"timeframe":"3m","expiry":None}),
             ("NIFTY",{"timeframe":"1m","expiry":"2026-11-26"}),
+            ("NIFTY",{"timeframe":"1m","expiry":None}),
         ]
         self.assertEqual(requested,expected)
-        self.assertEqual(set(cache),{"TCS","NIFTY"})
-        self.assertEqual(set(attempts),{
+        self.assertEqual(set(cache),{
             (0,"TCS","3m",None),
             (0,"NIFTY","1m","2026-11-26"),
+            (0,"NIFTY","1m",None),
         })
+        self.assertEqual(set(attempts),set(cache))
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(requested,expected)
@@ -215,21 +217,105 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                  "date":__import__("datetime").date,
                  "provider_generation":[0],
                  "oracle_assessment_cache_generation":[0],
-                 "oracle_assessment_cache":{"NIFTY":record},
+                 "oracle_assessment_cache":{(0,"NIFTY","1m","2026-11-26"):record},
                  "oracle_assessment_attempts":{},
                  "prefs":{"source":"Dhan"},
                  "dhan_feed":SimpleNamespace(connected=True),
                  "assessment_lines":lambda symbol,cache:["MATCHED"]}
         compile_callback("oracle_assessment_context",context)
         notes=compile_callback("oracle_assessment_notes",context)
-        self.assertEqual(notes("NIFTY"),["MATCHED"])
+        self.assertEqual(notes("NIFTY","options"),["MATCHED"])
+        self.assertIn("WAIT",notes("NIFTY","scanner")[0])
         selected_tf.value="3m"
-        self.assertIn("WAIT",notes("NIFTY")[0])
+        self.assertIn("WAIT",notes("NIFTY","scanner")[0])
         selected_tf.value="1m"
         selected_expiry.value="2026-12-03"
-        self.assertIn("WAIT",notes("NIFTY")[0])
+        self.assertIn("WAIT",notes("NIFTY","options")[0])
         selected_expiry.value="2026-11-26"
-        self.assertEqual(notes("NIFTY"),["MATCHED"])
+        self.assertEqual(notes("NIFTY","options"),["MATCHED"])
+
+
+    def test_same_index_scanner_5m_and_dashboard_1m_never_cross_label(self):
+        selected_tf=SimpleNamespace(value="5m")
+        selected_expiry=SimpleNamespace(value="2026-11-26")
+        cache={}
+        def put(tf,expiry_value):
+            cache[(0,"NIFTY",tf,expiry_value)]={
+                "fetched":10.0,"data":{"symbol":"NIFTY","timeframe":tf},
+                "timeframe":tf,"expiry":expiry_value}
+        put("5m",None)
+        put("1m",None)
+        put("1m","2026-11-26")
+        scope={"scan_symbol":SimpleNamespace(value="NIFTY"),
+               "scan_tf":selected_tf,
+               "chain_symbol":SimpleNamespace(value="NIFTY"),
+               "expiry":selected_expiry,
+               "date":__import__("datetime").date,
+               "provider_generation":[0],
+               "oracle_assessment_cache_generation":[0],
+               "oracle_assessment_cache":cache,
+               "oracle_assessment_attempts":{},
+               "prefs":{"source":"Dhan"},
+               "dhan_feed":SimpleNamespace(connected=True),
+               "assessment_lines":lambda symbol,view: [
+                   view[symbol]["data"]["timeframe"]]}
+        compile_callback("oracle_assessment_context",scope)
+        notes=compile_callback("oracle_assessment_notes",scope)
+        self.assertEqual(notes("NIFTY","scanner"),["5m"])
+        self.assertEqual(notes("NIFTY","overview"),["1m"])
+        self.assertEqual(notes("NIFTY","options"),["1m"])
+        selected_tf.value="3m"
+        self.assertIn("WAIT",notes("NIFTY","scanner")[0])
+        self.assertEqual(notes("NIFTY","overview"),["1m"])
+        selected_expiry.value="2026-12-03"
+        self.assertIn("WAIT",notes("NIFTY","options")[0])
+        self.assertEqual(notes("NIFTY","overview"),["1m"])
+        scope["provider_generation"][0]=1
+        self.assertIn("WAIT",notes("NIFTY","overview")[0])
+        self.assertEqual(cache,{})
+
+    def test_poller_maintains_overlapping_same_symbol_contexts_with_one_key_each(self):
+        requested=[]
+        cache={}
+        attempts={}
+        async def tick(seconds):
+            if seconds!=4:
+                raise FinishedOneTick()
+        async def to_thread(fn,symbol,**kwargs):
+            return fn(symbol,**kwargs)
+        feed=SimpleNamespace(connected=True,assessment=lambda sym,**selectors:
+            requested.append((sym,selectors["timeframe"],selectors["expiry"])) or
+            {"symbol":sym,"live_orders_enabled":False,"signal_eligible":False})
+        scope={"app_active":[True],"lifecycle_background":[False],
+               "prefs":{"source":"Dhan"},"dhan_feed":feed,
+               "provider_generation":[0],
+               "scan_symbol":SimpleNamespace(value="NIFTY"),
+               "scan_tf":SimpleNamespace(value="5m"),
+               "chain_symbol":SimpleNamespace(value="NIFTY"),
+               "expiry":SimpleNamespace(value="2026-11-26"),
+               "date":__import__("datetime").date,
+               "bot_symbol":SimpleNamespace(value="NIFTY"),
+               "DHAN_VERIFIED_SYMBOLS":{"NIFTY"},
+               "oracle_assessment_attempts":attempts,
+               "oracle_assessment_cache_generation":[0],
+               "oracle_assessment_cache":cache,
+               "current":[0],"time":SimpleNamespace(monotonic=lambda:10.0),
+               "asyncio":SimpleNamespace(sleep=tick,to_thread=to_thread,
+                                         CancelledError=asyncio.CancelledError),
+               "request_view_refresh":lambda x:None,
+               "log_error":lambda *args:None}
+        compile_callback("oracle_assessment_context",scope)
+        fn=compile_callback("oracle_assessment_poll",scope)
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(requested,[
+            ("NIFTY","5m",None),
+            ("NIFTY","1m","2026-11-26"),
+            ("NIFTY","1m",None)])
+        self.assertEqual(set(cache),set(attempts))
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(len(requested),3)
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
