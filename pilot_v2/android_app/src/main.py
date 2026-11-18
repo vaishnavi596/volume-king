@@ -9,6 +9,7 @@ from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
+from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_chart_context import chart_points, historical_shortlist
 from candle_option_views import candle_geometry
@@ -81,6 +82,7 @@ def main(page: ft.Page):
     expiry_choices = evidence_inbox.expiries
     current = [0]
     group = [0]
+    watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
 
     def open_help(topic):
@@ -285,6 +287,15 @@ def main(page: ft.Page):
                 page.update()
             def switch_group(e):
                 group[0] = int(e.control.value)
+                watch_search[0] = ""
+                render()
+                page.update()
+            def apply_search(e):
+                query = e.control.value or ""
+                if len(query) > 64:
+                    status.value = "Search text too long (64 characters max)"
+                    return
+                watch_search[0] = query
                 render()
                 page.update()
             content.controls = [
@@ -300,6 +311,13 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
                 ft.Row([symbol, ft.ElevatedButton("Add", on_click=add)]),
+                ft.TextField(label="Search in selected list",
+                             hint_text="e.g. HDFCBANK",
+                             value=watch_search[0],
+                             dense=True, text_size=16,
+                             on_submit=apply_search),
+                ft.Text("Search locally · press Enter · no network request",
+                        color=MUTED, size=14),
                 *[v1_card(ft, [
                         ft.Row([
                             ft.Text(row["symbol"] + "  " + row["price"],
@@ -311,7 +329,8 @@ def main(page: ft.Page):
                         ft.Text(row["candle"], size=14, color=WHITE),
                         ft.Text(row["filter_text"], size=14, color=MUTED),
                     ]) for row in watchlist_rows(
-                    state.groups[group[0]], quote_view, evidence_inbox,
+                    filtered_watchlist_symbols(state.groups[group[0]], watch_search[0]),
+                    quote_view, evidence_inbox,
                     selected_equities=state.selected)],
             ]
         else:

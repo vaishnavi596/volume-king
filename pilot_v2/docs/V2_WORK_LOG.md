@@ -936,3 +936,10 @@
 - Exact [V2 Pilot Contract CI #82](https://github.com/vaishnavi596/volume-king/actions/runs/44364272154), run `44364272154`, code commit `cc70f97fa63b95161f0642d7fe49ffcd8815ca7a`: COMPLETED SUCCESS, pilot-contract job SUCCESS, Python offline suite **241/241 OK** in 1.833s, no failed job steps.
 - Confirms Scanner and Options local contextual Help UI source checks, honest HIST-only display labels and all prior offline contracts. CI tests are synthetic/source checks, not Flet Android visual runtime or live authenticated Dhan operation.
 - Next safe batch: inspect V1 design/feature parity for missing local UI controls and implement V2-only grouped app functions with no V1/server provider setting changes. V1/Oracle/APK/orders unchanged.
+
+
+## V2-FT2-V1-WATCHLIST-LOCAL-SEARCH-MIGRATION-20261118
+- **PRECHECK:** Exact CI #82 at `cc70f97fa63b95161f0642d7fe49ffcd8815ca7a`, run `44364272154`, **241/241 PASS**. Immediately previous V2 HEAD `109e025571cf0c58a6d76db6a8830f2be137d2ea` docs-only. Inspected current `main.py`, `watchlist_parity.py`, `app_state.py` and current tests.
+- **ACTUAL FEATURE MIGRATION:** Adds V1-style 'Search in selected list' to V2 Watchlist: pure `watchlist_search.py` filters only current 1-of-5 Watchlist equities, case-insensitive and order-preserving, rejects bad duplicate/index rosters, does not mutate selected group/cache or query server. Session-only query, Enter-submit event, resets when switching Watchlists; 70-global cap and three indices stay unchanged.
+- **TEST:** `test_watchlist_search.py` adds functional tests for case-insensitive partial matches, unchanged roster, zero result, bad input, and actual V2 UI callback/invocation; new exact-code-SHA CI must verify. No manufactured LIVE signal or quote.
+- **SAFETY:** App-only, no old server settings, legacy Angel/Yahoo, network, Oracle, Dhan requests, credentials, orders, APK or V1 edits. NEXT check exact CI, then continue grouped real V1 feature parity and Android validation later.
