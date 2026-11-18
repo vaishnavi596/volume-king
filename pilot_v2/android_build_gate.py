@@ -3,6 +3,7 @@
 This does NOT build or sign an APK. Verified output identity must additionally
 be checked from the actual APK binary during the future dedicated build.
 """
+import ast
 import json
 import pathlib
 import tomllib
@@ -29,6 +30,27 @@ def inspect(repo_root):
         failures.append("Pilot release gates must remain OFF")
     if not (root/"pilot_v2/android_app/src/main.py").is_file():
         failures.append("V2 app entry missing")
+    # Source-only check: never import/execute a Flet app in a CI metadata gate.
+    # Parse exact literal assignments; expressions and missing fields fail closed.
+    identity_path = root/"pilot_v2/android_app/src/app_identity.py"
+    try:
+        identities = {}
+        for node in ast.parse(identity_path.read_text()).body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1:
+                target = node.targets[0]
+                if isinstance(target, ast.Name) and target.id in (
+                        "APP_VERSION_NAME", "APP_VERSION_CODE", "APP_PACKAGE"):
+                    if target.id in identities:
+                        raise ValueError("Repeated app identity")
+                    identities[target.id] = ast.literal_eval(node.value)
+        if (type(identities.get("APP_VERSION_NAME")) is not str
+                or identities["APP_VERSION_NAME"] != metadata.get("version_name")
+                or type(identities.get("APP_VERSION_CODE")) is not int
+                or identities["APP_VERSION_CODE"] != metadata.get("version_code")
+                or identities.get("APP_PACKAGE") != metadata.get("android_package")):
+            failures.append("Displayed app version/package mismatches V2 identity")
+    except (OSError, SyntaxError, ValueError, TypeError, KeyError, RecursionError):
+        failures.append("Missing or invalid app version identity")
     # A static source check must NEVER authorize a signed release, even when
     # its own metadata assertions pass. Binary and device proof come later.
     blockers = (

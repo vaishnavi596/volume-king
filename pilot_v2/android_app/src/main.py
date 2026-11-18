@@ -1,5 +1,6 @@
 """BOT KING V2 Flet offline app; app owns settings, no live Dhan/Oracle calls."""
 import flet as ft
+from app_identity import APP_VERSION_NAME, APP_VERSION_CODE
 from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
@@ -211,6 +212,7 @@ def main(page: ft.Page):
             content.controls = [
                 ft.Text("Settings", size=19, weight=ft.FontWeight.BOLD),
                 ft.Text("Smart Data & Master Control — app-owned"),
+                ft.Text(f"Installed app label: BOT KING V2 v{APP_VERSION_NAME} (code {APP_VERSION_CODE})"),
                 ft.Switch(label="Automatic market refresh", value=smart[0].auto_refresh,
                           on_change=change_auto),
                 ft.Dropdown(label="Selected equity quote interval", width=240,
@@ -237,7 +239,7 @@ def main(page: ft.Page):
             ft.NavigationDestination(icon=ft.icons.LIST_ALT_OUTLINED, label="Watchlist"),
             ft.NavigationDestination(icon=ft.icons.SETTINGS_OUTLINED, label="Settings"),
         ])
-    page.add(ft.Text("BOT KING Version 2", size=20, weight=ft.FontWeight.BOLD),
+    page.add(ft.Text(f"BOT KING V2 · v{APP_VERSION_NAME}", size=18, weight=ft.FontWeight.BOLD),
              status, ft.Divider(), content)
     render()
     page.update()

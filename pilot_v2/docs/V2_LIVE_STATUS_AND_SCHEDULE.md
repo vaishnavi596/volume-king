@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT4-APP-DISPLAY-VERSION-METADATA-PARITY-20261118:** V2 Flet header + Settings show v2.0.100/code100 and AST-only static prebuild identity parity gate tests; new CI pending. This is NOT APK binary/version verification. Last #52 PASS; no server/APK/Dhan actions.
+
 > **LATEST V2-JOINT-FT3-CI52-FT4-STATIC-SOURCE-REVIEW-20261118:** FT3 expiry-switch safe factor retirement exact CI #52 `44328405428` SUCCESS on `b69e4da`. FT4 source-only review confirms release HOLD; intended V2 metadata is NOT actual APK/phone proof and offline CI does NOT run Flet. Next sequential offline audit repairs; no Oracle/Dhan/APK operations.
 
 > **CURRENT V2-JOINT-FT3-EXPIRY-CHANGE-OPTION-FACTOR-RETIREMENT-20261118:** FT3 option expiry switching retires four old option filter HIST values only; independent candle remains, wrong expiry cannot erase evidence. Same Flet branch, source/test CI pending; last #51 PASS. No Oracle/APK/Dhan token changes.

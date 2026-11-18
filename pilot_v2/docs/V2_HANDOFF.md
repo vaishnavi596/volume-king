@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT4-APP-DISPLAY-VERSION-METADATA-PARITY-20261118:** FT4 offline app-visible version/metadata parity fix+tests pending CI; release remains HOLD and no APK/Oracle operations.
+
 > **LATEST V2-JOINT-FT3-CI52-FT4-STATIC-SOURCE-REVIEW-20261118:** FT3 expiry-switch safe factor retirement exact CI #52 `44328405428` SUCCESS on `b69e4da`. FT4 source-only review confirms release HOLD; intended V2 metadata is NOT actual APK/phone proof and offline CI does NOT run Flet. Next sequential offline audit repairs; no Oracle/Dhan/APK operations.
 
 > **CURRENT V2-JOINT-FT3-EXPIRY-CHANGE-OPTION-FACTOR-RETIREMENT-20261118:** offline expiry→filter invalidation on choice/roster change, preserves candle. CI pending; real provider and phone still blocked.
