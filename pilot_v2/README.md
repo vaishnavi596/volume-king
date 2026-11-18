@@ -53,3 +53,6 @@ See [V2_FAST_TRACK_AUDIT.md](docs/V2_FAST_TRACK_AUDIT.md): four grouped work pac
 
 ## FT-1 atomic challenge-to-session login (offline)
 `atomic_verified_login.py` holds a single local SQLite writer transaction across nonce consumption, **current** P-256 key verification and creation of a revocable session. This closes the key-rotation window in the isolated prototype but is not an HTTP endpoint or a complete Android enrollment system.
+
+## FT-2 shared API / Android mock
+Pure `api_contract.py` and `mobile_contract_mock.py` define v1 read-only selected-share and index messages with explicit unverified data freshness. Not a deployed API or installable mobile app.

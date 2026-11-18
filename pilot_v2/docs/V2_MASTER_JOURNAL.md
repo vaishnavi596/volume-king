@@ -101,3 +101,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## FT-1-ATOMIC-LOGIN-CI19-TEST-CORRECTION
 - CI #19 on `57e8d18` FAILED one test out of 74; old master test session was legitimately invalidated by new login. Corrected test to use newest master bearer. New CI pending; never bypass token rotation just to make test pass.
+
+## FT-2-API-MOCK-MOBILE-20261118
+- Previous commit `ad5b84ef9e9551bbfe61ca2fd2a84aa6848a8c79` CI #20 PASS. New `api_contract.py` + `mobile_contract_mock.py` + tests implement one versioned, default-off read-only schema. Code/tests/docs single commit, CI pending; not a deployed server or built mobile.
