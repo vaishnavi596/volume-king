@@ -80,6 +80,22 @@ def stage_source(source):
     if "timeframe" not in {x.arg for x in call.keywords}:
         raise ValueError("CANONICAL_TIMEFRAME_MISSING")
     scope_expression = safe_publisher_scope(candle, call)
+    # The real Oracle canonical candle publisher carries a five-field
+    # Assessment payload. A wrapper that publishes only {"bars": rows}
+    # would silently lose observed_at, interval, freshness and eligibility.
+    # Never stage such a candidate until a source-compatible payload
+    # normalization is independently mapped and regression-tested.
+    canonical_payload = call.args[3]
+    if not isinstance(canonical_payload, ast.Dict):
+        raise ValueError("CANONICAL_PAYLOAD_SHAPE_UNSUPPORTED")
+    canonical_keys = tuple(
+        k.value if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        else None for k in canonical_payload.keys
+    )
+    if any(k is None for k in canonical_keys):
+        raise ValueError("CANONICAL_PAYLOAD_KEYS_DYNAMIC")
+    if tuple(canonical_keys) != ("bars",):
+        raise ValueError("CANONICAL_PAYLOAD_PARITY_UNIMPLEMENTED")
 
     # Wrap all four existing response dictionaries, preserving their keys and values.
     lines = source.splitlines(keepends=True)
