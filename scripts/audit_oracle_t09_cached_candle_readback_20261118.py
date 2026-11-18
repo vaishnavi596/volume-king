@@ -102,10 +102,11 @@ def evaluate(health, cached, assessment):
     if any(x is False for x in (result["health_200"], result["cached_http_200"],
                                   result["assessment_http_200"], result["assessment_signal_not_live"])):
         verdict = "HOLD_HTTP_OR_SAFETY"
+    elif not result["assessment_selector_5m"]:
+        verdict = "HOLD_CONTRACT"
     elif not result["cached_history_present"]:
         verdict = "NO_CACHED_HISTORY_NO_DHAN_REQUEST"
-    elif not (result["cached_source_dhan"] and result["cached_historical_unverified"]
-              and result["assessment_selector_5m"]):
+    elif not (result["cached_source_dhan"] and result["cached_historical_unverified"]):
         verdict = "HOLD_CONTRACT"
     else:
         verdict = "CACHE_AND_ASSESSMENT_HTTP_PASS_PUBLISH_CAUSALITY_UNPROVEN"
