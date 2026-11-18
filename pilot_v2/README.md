@@ -29,3 +29,6 @@
 
 ## V2-003D persistent quota scheduler prototype
 `durable_quote_gate.py` persists a single-host shared lease with SQLite transactions, for preventing duplicate quote work and preserving 429 cooldown across local worker restarts. It has no Dhan network calls and cannot replace the production OAuth, device session or broker endpoint safeguards. Do not deploy without approved local DB permissions and verified server setup.
+
+## V2-004A — persistent device authorization prototype
+`durable_device_sessions.py` stores device grants and token **hashes** on a shared single-host SQLite file, with atomic Master Admin disable/revoke and 3-phone limit. Cryptographic identity verification remains an external trusted input; this code is NOT yet an HTTP login endpoint. Never treat a claimed device ID as proof, expose bootstrap to phones or store OAuth tokens in this database.

@@ -16,6 +16,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-003D-SQLITE-SHARED-LEASE:** V2 CI #10 `44290170180` PASS at `fa408433`. New `durable_quote_gate.py` and tests implement SQLite single-host atomic quote work leases shared by multiple Python instances with persisted 429 cooldown, 60s per-symbol gap, 1s global gap and timeout recovery. New CI pending. **Prototype only**; no Dhan call, Oracle service change or APK. NEXT verify new CI then secure device auth durability and real Oracle Dhan readiness.
 
+> **LATEST V2-004A-DURABLE-DEVICE-SESSION:** V2 #11 `44290644644` at `126e18db6f` SUCCESS. Added isolated SQLite durable device grants/hashed opaque sessions for 1–3 phones with atomic disable/revoke, worker-shared expiry/permissions and tests; new CI pending. NOT real Android/Oracle login; actual verified-key provisioning, backend API and Dhan token evidence still required. NEXT check new CI, bind cryptographic proof to durable authenticated gateway behind OFF flag. Old app and production untouched.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.

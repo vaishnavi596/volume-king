@@ -73,3 +73,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-003D-SQLITE-SHARED-LEASE (2026-11-18)
 - V2 #10 full pilot contract CI SUCCESS on `fa408433`. Added SQLite transactional durable provider lease state that persists cooldown, pending work and attempt timestamps across two test instances/restarts, with six synthetic tests; no Oracle deployment/Dhan API request. CI for this commit pending. Remaining gates: secure per-device server session store, authenticated upstream collector and broker entitlement.
+
+## V2-004A-DURABLE-DEVICE-SESSION (2026-11-18)
+- Prior V2 CI #11 run `44290644644` SUCCESS at `126e18db6f`. New separate `pilot_v2/durable_device_sessions.py` single-host SQLite transaction-backed persistent device grants and hashed opaque sessions across worker instances, with synthetic master/revoke/expiry tests. New CI pending, NOT production login; user authorization and P-256 proof must be cryptographically bound before endpoints, and Dhan token gate remains unverified.
