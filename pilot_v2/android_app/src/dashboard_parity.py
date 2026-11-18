@@ -2,6 +2,8 @@
 
 This module never fetches Dhan, infers signals, or upgrades HIST to LIVE.
 """
+from shared_filter_context import shared_filter_context
+
 INDEXES = ("NIFTY", "BANKNIFTY", "SENSEX")
 
 
@@ -11,8 +13,8 @@ def index_card_model(symbol, quote_inbox, evidence_inbox, selected_equities=()):
     quote = quote_inbox.visible(symbol, selected_equities)
     candles = evidence_inbox.candles.view(
         symbol, "1m", selected_equities=selected_equities)
-    factors = evidence_inbox.filters.rows(
-        symbol, "1m", selected_equities=selected_equities)
+    factors = shared_filter_context(
+        evidence_inbox.filters, symbol, "1m", selected_equities=selected_equities)
     status = quote["status"]
     if status not in ("WAIT", "HIST"):
         raise ValueError("Unverified quote status cannot be LIVE")
@@ -22,7 +24,8 @@ def index_card_model(symbol, quote_inbox, evidence_inbox, selected_equities=()):
                         if status == "HIST" else "WAIT"),
         "candle_label": (f'{candles["count"]} completed 1m candles HIST'
                          if candles["status"] == "HIST" else "1m candles WAIT"),
-        "filters": tuple(factors[:5]), "sixth": ("", ""),
+        "filters": factors["rows"], "sixth": factors["sixth"],
+        "factor_coverage": factors["coverage_label"],
     }
 
 

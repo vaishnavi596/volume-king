@@ -16,6 +16,7 @@ from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
+from shared_filter_context import shared_filter_context
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -169,6 +170,7 @@ def main(page: ft.Page):
                         ft.Text(card["candle_label"], size=13),
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
+                        ft.Text(card["factor_coverage"], color=MUTED, size=14),
                     ]) for card in index_cards],
                 v1_card(ft, [
                     ft.Text("System Health", color=GOLD, weight=ft.FontWeight.BOLD),
@@ -242,6 +244,10 @@ def main(page: ft.Page):
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
                 ft.Text("Sixth filter: reserved / blank"),
+                ft.Text(shared_filter_context(
+                    filter_evidence, scanner[0].symbol, scanner[0].timeframe,
+                    selected_equities=state.selected)["coverage_label"],
+                    color=MUTED, size=14),
                 ft.Dropdown(
                     label="Option expiry (verified Dhan only)", width=260,
                     value=expiry_choices.selected(scanner[0].symbol,
@@ -303,6 +309,10 @@ def main(page: ft.Page):
                         color=MUTED, size=14),
                 *[v1_card(ft, [
                     ft.Text(item["label"], size=14, color=WHITE),
+                    ft.Text(shared_filter_context(
+                        filter_evidence, item["symbol"], "3m",
+                        selected_equities=state.selected)["coverage_label"],
+                        color=MUTED, size=14),
                     ft.TextButton("View historical 3m chart",
                                   on_click=lambda e, symbol=item["symbol"]:
                                   select_historical_candidate(symbol)),

@@ -3,6 +3,7 @@
 No network, live data, synthetic scoring or server-side preferences.
 """
 from app_state import INDEXES, MAX_EQUITIES
+from shared_filter_context import shared_filter_context
 
 
 def watchlist_row(symbol, quotes, evidence, *, selected_equities):
@@ -12,16 +13,15 @@ def watchlist_row(symbol, quotes, evidence, *, selected_equities):
         raise ValueError("Watchlist row must be a unique selected equity")
     quote = quotes.visible(symbol, selected)
     candle = evidence.candles.view(symbol, "3m", selected_equities=selected)
-    filters = evidence.filters.rows(symbol, "3m", selected_equities=selected)
+    filters = shared_filter_context(evidence.filters, symbol, "3m",
+                                    selected_equities=selected)
     return {
         "symbol": symbol,
         "price": (f'{quote["price"]:,.2f} HIST' if quote["status"] == "HIST" else "WAIT"),
         "candle": (f'{candle["count"]} completed 3m candles HIST'
                    if candle["status"] == "HIST" else "3m candles WAIT"),
-        "filter_text": " · ".join(
-            f"{name} {value}" for name, value in filters[:5] if value != "WAIT"
-        ) or "5 filters WAIT · no verified evidence",
-        "sixth": filters[5],
+        "filter_text": filters["compact"],
+        "sixth": filters["sixth"],
         "historical_only": True,
     }
 
