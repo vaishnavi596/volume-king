@@ -215,7 +215,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertEqual(requested,expected)
         self.assertEqual(repaints,[0])
 
-    def test_watchlist_poll_requests_only_first_visible_3m_context(self):
+    def test_watchlist_poll_rotates_one_visible_3m_context_per_cycle(self):
         requested=[]
         async def tick(seconds):
             if seconds!=4:
@@ -235,13 +235,14 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                "date":__import__("datetime").date,
                "bot_symbol":SimpleNamespace(value="NIFTY"),
                "DHAN_VERIFIED_SYMBOLS":{"NIFTY","BANKNIFTY","SENSEX",
-                                        "TCS","INFY"},
-               "watch_groups":[["TCS","INFY"]],
+                                        "TCS","INFY","SBIN"},
+               "watch_groups":[["TCS","INFY","SBIN"]],
                "active_watch":[0],
                "search":SimpleNamespace(value="INF"),
                "oracle_assessment_attempts":{},
                "oracle_assessment_cache_generation":[0],
                "oracle_assessment_closed_bootstrap_generation":[None],
+               "oracle_assessment_watch_cursor":[0],
                "refresh_hours":lambda:True,
                "oracle_assessment_cache":{},
                "current":[4],"time":SimpleNamespace(monotonic=lambda:10.0),
@@ -265,6 +266,12 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertIn(("TCS","3m",None),requested)
         self.assertEqual(sum(sym in ("TCS","INFY") for sym,tf,exp in requested),2)
         self.assertEqual(len(requested),6)
+        scope["search"].value=""
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertIn(("SBIN","3m",None),requested)
+        self.assertEqual(len(requested),7)
+        self.assertEqual(sum(sym in ("TCS","INFY","SBIN") for sym,tf,exp in requested),3)
 
     def test_assessment_ui_hides_old_selection_after_timeframe_or_expiry_change(self):
         selected_tf=SimpleNamespace(value="1m")
