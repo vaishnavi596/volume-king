@@ -1,3 +1,5 @@
+> **LATEST V2-S3-LOCAL-CANDLE-CI31-SUCCESS-20261118:** V2 #31 full offline CI PASS exact 774e44a, local 1m/3m/5m completed-candle retention. Continue S3 filter/UI, no Oracle/server changes.
+
 > **CURRENT V2-S3-APP-LOCAL-VALIDATED-CANDLE-RETENTION-20261118:** app-local normalized completed candle evidence validation, retention and WAIT/HIST summaries; CI pending. No live history adapter or actual chart yet.
 
 > **LATEST V2-S3-READONLY-QUOTE-CI30-PASS-20261118:** exact full pilot CI #30 SUCCESS at 3e00adf, device-local read-only quote view; no live transport. Continue current app-first S3 candle/filter scope.
