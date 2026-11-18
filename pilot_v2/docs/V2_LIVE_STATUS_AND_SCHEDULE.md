@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **FT1 CI38 FAILURE / FIX V2-FT1-FOUR-DEVICE-CI38-LEGACY-ASSERT-CORRECTION-20261118:** 4-device source batch #38 failed exactly one OLD 3-device rejection assertion in test_v2_pilot.py; 135 other tests passed. Corrected legacy expectation to fourth allowed, fifth denied; new exact CI pending. No Oracle/Dhan/APK. See work log.
+
+
 > **CURRENT V2-FT1-FOUR-DEVICES-CONSISTENT-CAP-OFFLINE-20261118:** FT1 owner 4-phone cap (Master+3) aligned across in-memory, SQLite session and P-256 enrollment with fifth-device-denial tests. Latest #37 PASS; new exact CI pending. Real Android login still blocked. No APK, Oracle, Dhan token actions. Work Log has specifics.
 
 

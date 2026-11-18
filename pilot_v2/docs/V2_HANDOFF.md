@@ -1,3 +1,5 @@
+> **CURRENT V2-FT1-FOUR-DEVICE-CI38-LEGACY-ASSERT-CORRECTION-20261118:** CI38 failed legacy 3-device assertion (135/136 passed); test corrected for 4-device policy; new CI pending. FT1 must pass before FT2.
+
 > **CURRENT V2-FT1-FOUR-DEVICES-CONSISTENT-CAP-OFFLINE-20261118:** FT1 consistent four-device cap correction + updated offline tests, CI pending; native Android login still not proven. No server/APK.
 
 > **JOINT AUDIT V2-JOINT-FT2-FT3-FT4-SOURCE-AUDIT-20261118:** FT1–FT4 source-only audit done, packet blockers itemized in Work Log/Master; no repair/deploy yet. Next owner-ordered FT1 scoped remediation; APK and Oracle host off limits.

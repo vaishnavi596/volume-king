@@ -1,4 +1,4 @@
-"""Offline, synthetic V2 pilot contract and three-device management tests."""
+"""Offline, synthetic V2 pilot contract and four-device management tests."""
 import unittest
 from pilot_v2.gateway_contract import (ContractError, BrokerState, RevisionCache,
                                        plan_demand, INDEXES)
@@ -9,6 +9,7 @@ MASTER="master_device_000001"
 SECOND="second_device_00001"
 THIRD="third_device_000001"
 FOURTH="fourth_device_000001"
+FIFTH="fifth_device_0000001"
 
 class PilotV2Tests(unittest.TestCase):
     def test_zero_five_fifty_one_seventy_and_indexes(self):
@@ -47,7 +48,7 @@ class PilotV2Tests(unittest.TestCase):
         self.assertFalse(BrokerState(True,"REAUTH_REQUIRED").data_ready)
         self.assertFalse(BrokerState(False,"CONNECTED").data_ready)
 
-    def test_master_controls_three_device_access(self):
+    def test_master_controls_four_device_access(self):
         reg=DeviceRegistry()
         with self.assertRaises(DevicePolicyError):
             reg.enroll_master(MASTER)
@@ -57,21 +58,23 @@ class PilotV2Tests(unittest.TestCase):
         self.assertTrue(reg.can_access(SECOND,"quotes"))
         self.assertFalse(reg.can_access(SECOND,"options"))
         self.assertTrue(reg.can_access(THIRD,"candles"))
+        reg.assign(MASTER,FOURTH,{"quotes"})
+        self.assertTrue(reg.can_access(FOURTH,"quotes"))
         with self.assertRaises(DevicePolicyError):
-            reg.assign(MASTER,FOURTH,{"quotes"})
+            reg.assign(MASTER,FIFTH,{"quotes"})
         with self.assertRaises(DevicePolicyError):
             reg.assign(SECOND,THIRD,{"options"})
         reg.assign(MASTER,SECOND,{"quotes"},enabled=False)
         self.assertFalse(reg.can_access(SECOND,"quotes"))
         reg.revoke(MASTER,THIRD)
         self.assertFalse(reg.can_access(THIRD,"candles"))
-        reg.assign(MASTER,FOURTH,{"quotes"})
         self.assertEqual(len(reg.grants),3)
         with self.assertRaises(DevicePolicyError):
             reg.revoke(SECOND,MASTER)
         with self.assertRaises(DevicePolicyError):
             reg.assign(MASTER,SECOND,{"credentials"})
         self.assertEqual(reg.grants[SECOND].feeds,frozenset({"quotes"}))
+        self.assertTrue(reg.can_access(FOURTH,"quotes"))
         self.assertEqual(reg.grants[MASTER].feeds,ALLOWED_FEEDS)
 
 if __name__=="__main__":
