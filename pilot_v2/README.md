@@ -68,3 +68,6 @@ See `docs/V2_ORACLE_PREFLIGHT_AND_BUILD_GATES.md`. These new scripts check read-
 
 ## S1 provider readiness contract
 `collector_readiness.py` is a pure fail-closed gate based on explicit operator-observed runtime capabilities and token state. It separates equity/index quote endpoints and does not contact Dhan, validate entitlements, or substitute for real Oracle audit evidence.
+
+## S1 staged scheduler
+`staged_collector_scheduler.py` is a synthetic orchestration bridge between the fail-closed provider readiness matrix and SQLite rate-budget leases, including separate equity/index lanes and 429 cooling. This does not contact Dhan, stage Oracle, or prove broker entitlements.

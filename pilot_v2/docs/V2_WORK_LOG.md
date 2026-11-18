@@ -170,3 +170,9 @@
 - Added `pilot_v2/collector_readiness.py` with explicit Oracle-observed/quote-equity/quote-index/broker-auth capability flags, token state gate and separate provider quote work lanes. No Dhan HTTP calls and no auto token renewal. Unverified Oracle blocks all work even if synthetic flags optimistic.
 - Tests `pilot_v2/tests/test_collector_readiness.py`: zero/5/51/70, index-only independent route, missing entitlement, expired/nonrenewable OAuth, invalid evidence flags and no false 'live' status. New exact CI pending.
 - SECURITY: 'ready to stage' means only contract planning, never permission to access production. Actual Oracle operator read-only preflight not received. No production changes/restarts, Dhan requests, orders or APK; NEXT inspect CI and seek real operator runtime inventory before trusted provider call implementation.
+
+## 2026-11-18 — S1-READINESS-DURABLE-LEASE-INTEGRATION — category 05, S1 readiness + shared rate lease
+- Previous `6154f460c5c3b8c9714537b7eaf4b190927d1197`, 7 touched files, CI #24 run `44304560985` SUCCESS. No default 10-commit review.
+- Added `pilot_v2/staged_collector_scheduler.py` to compose `plan_collector` capability checks with existing `DurableQuoteGate`: no lease without observed Oracle evidence + broker auth + relevant quote permissions, one lease shared across multiple SQLite instances, index/equity lanes separated and filtered by due symbols, no redundant refetch of cached symbols, explicit 429 cooldown finish. Synthetic-only no provider call.
+- Tests `pilot_v2/tests/test_staged_collector_scheduler.py` verify blocked/unverified route, 2-worker shared lease, new-equity work without repeat index, 429 90s cooldown, expired OAuth, disabled entitlement and independent index-only demand. Exact new source CI PENDING.
+- ORACLE_CHANGED=false, SERVICE_RESTARTED=false, DHAN_REQUESTS=0, LIVE_ORDERS=0, APK_BUILT=false. Actual Oracle preflight absent. Next exact CI and authorized read-only Oracle evidence.

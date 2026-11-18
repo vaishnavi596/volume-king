@@ -57,3 +57,6 @@ Updated 2026-11-18. **This is the canonical start page for the next chat.** Use 
 
 ## Latest S1 activity — S1-DHAN-CAPABILITY-FAIL-CLOSED-20261118
 - Prior source CI #23 PASS. A pure offline quote capability planner and tests now require actual Oracle observation + Dhan authentication and separate index/equity entitlements before provider work can even be planned. **Real Oracle evidence still NOT supplied; GitHub synthetic PASS cannot certify it.** New commit CI pending. Category 05 remains PARTIAL; next verify exact CI, then real read-only Oracle report.
+
+## Latest S1 integration — S1-READINESS-DURABLE-LEASE-INTEGRATION
+- CI #24 `44304560985` PASS for prior capability contract. Staged offline coordinator now joins the capabilities matrix to one shared persistent rate lease for index and equity mock work, with no real Dhan call. New exact CI pending. Actual Oracle server capability evidence remains absent; S1 is NOT complete. Next verify new source CI, then read-only operator preflight.

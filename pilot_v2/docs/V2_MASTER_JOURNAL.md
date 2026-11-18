@@ -116,3 +116,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## S1-DHAN-CAPABILITY-FAIL-CLOSED-20261118
 - Previous commit `98b099fb49274e3030d02734c05a192077a28f96` docs-only (five V2 files), no source CI expected; preceding source `d8fe238d95d9f9fbf51453005f7a82589d0c98ec` #23 `44302676179` PASS. Added pure readiness matrix for Dhan token, verified Oracle runtime, equity/index quote route separation and 0/5/51/70 demand. Synthetic evidence flags never imply actual broker capability; exact new CI pending. No Oracle/Dhan/Android changes.
+
+## S1-READINESS-DURABLE-LEASE-INTEGRATION
+- Previous source `6154f460c5c3b8c9714537b7eaf4b190927d1197` exact CI #24 run `44304560985` PASS. Added synthetic-only staged collector scheduler integrating explicit capability/token gate with one durable SQLite quote lease, independent equity and index lanes, shared 429 cooldown across mock workers. New source CI pending; no Oracle data, broker calls or signed APK. Actual operator Oracle preflight remains S1 external gate.
