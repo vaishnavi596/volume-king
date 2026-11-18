@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **FT2 V2-FT2-HTTP-FLET-DUAL-FEED-CI41-FOLLOWUP-20261118:** Flet independent index/equity clocks exact CI #41 SUCCESS (c3f92c6). New secured TestClient→Flet dual-lane integration regression committed, exact CI pending. No server, Dhan or APK. Next offline FT3 after gate.
+
+
 > **CURRENT V2-FT2-ISOLATED-INDEX-EQUITY-REVISION-INBOX-20261118:** FT2 Flet read-only quote/index feed inbox has independent revisions and strict feed roster; fixes cross-lane false stale risk, source+tests, new exact CI pending. FT1 #40 PASS. No Oracle/Dhan/APK or live auth changes. See Work Log.
 
 

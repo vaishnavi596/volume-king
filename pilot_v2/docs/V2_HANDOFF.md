@@ -1,3 +1,5 @@
+> **FT2 V2-FT2-HTTP-FLET-DUAL-FEED-CI41-FOLLOWUP-20261118:** CI #41 PASS for app-only quote/index revision separation; protected mock Gateway→Flet dual-feed parity test pending full CI. Real Android/Oracle not deployed.
+
 > **CURRENT V2-FT2-ISOLATED-INDEX-EQUITY-REVISION-INBOX-20261118:** FT2 two-lane equity/index revision isolation prepared in Flet with offline tests; CI pending, no real network. Owner restrictions remain.
 
 > **FT1 V2-FT1-FOUR-DEVICE-CI40-SUCCESS-20261118:** Historical CI #38 FAIL corrected #39 PASS; latest full #40 SUCCESS at 6cc7d6e. Four-device P256 SQLite synthetic gate passed; real mobile auth blocked. Next FT2 offline.
