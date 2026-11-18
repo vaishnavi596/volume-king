@@ -520,3 +520,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **LIMITED FIX:** Require strict semantic `2.0.N` (N >=100) with integer versionCode exactly N, disallow bool, invalid suffix, rollback below 100, mismatched version and malformed values. Existing Flet `app_identity.py` AST-only label/version/package parity, separate package ID, all off-by-default safety flags and release-HOLD remain mandatory. No release authorization for incremented values and no actual metadata bump yet. Current visible label stays 2.0.100/code100 pending future approved release.
 - **REGRESSION:** `test_preflight_gates.py` adds simulated fully coordinated codes 101/102/125 PASS for *source metadata* only and mismatched/downgraded/boolean versions FAIL, with `release_ready=false` and no APK. CI exact SHA pending.
 - **OWNER LIMITS:** NO APK build or signed artifact, Oracle host commands/backup/deployment, Dhan requests/OAuth token changes or orders. Next verify CI, journal result, continue combined FT regression.
+
+
+## V2-FT4-CI55-REGEX-ESCAPE-CORRECTION-20261118
+- **EXACT CI FAILURE:** FT4 code SHA `113e641c1b61d245474d3f30ad37bd2661064424`, run #55 `44332135404` **FAILED** 3 of 168 tests, confined to `test_preflight_gates`. Reviewed job `134899057376` log. Newly added raw regex used doubled escapes `r"2\\\\.0\\\\."` instead of literal-dot single backslashes, rejecting valid versions 2.0.100 and simulated 2.0.101; other isolated tests passed.
+- **TARGETED SAME-BATCH FIX:** In `pilot_v2/android_build_gate.py` only, correct regex to raw literal period `r"2\\.0\\.(0|[1-9][0-9]*)"`. Keep new source-only version pairing tests, visible app identity parity, no release approval. No version metadata or actual code number changed. New exact SHA CI PENDING.
+- **BOUNDARY:** No APK building, signing, Oracle host activity or token renewals/market calls. Wait for full CI before FT3 or new code work.

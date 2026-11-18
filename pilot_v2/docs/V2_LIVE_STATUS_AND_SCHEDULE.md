@@ -1,3 +1,5 @@
+> **CURRENT V2-FT4-CI55-REGEX-ESCAPE-CORRECTION-20261118:** #55 FT4 source gate failed 3 tests due overescaped regex literal; corrected one source expression, new CI PENDING. Prior #54 PASS; no Oracle, APK, Dhan or token activity.
+
 > **CURRENT V2-FT4-FUTURE-VERSION-INCREMENT-SOURCE-GATE-20261118:** FT4 static source version gate accepts future coordinated V2 2.0.101+ versionName/code only, never actual APK release; mismatches and rollback fail. Last FT3 #54 PASS. New CI pending, no server/APK/Dhan.
 
 > **LATEST V2-FT3-OPTIONS-OBSERVATION-REVISION-CI54-SUCCESS-20261118:** FT3 option observation-to-filter retirement CI #54 `44331493500` SUCCESS exact source `16e5d2b`. Prior FT4 #53 PASS. No actual Dhan, Android, APK, Oracle or token changes. NEXT static FT4 versionCode future increment audit, release HOLD.
