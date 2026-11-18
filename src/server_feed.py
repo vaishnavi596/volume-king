@@ -719,7 +719,8 @@ class ServerDhanReadOnly:
         # cannot establish its provenance: reject rather than mislabel it.
         evidence_present = (
             isinstance(factors, dict)
-            and any(isinstance(row, dict) and row.get("status") == "available"
+            and any(isinstance(row, dict) and row.get("status") in
+                    ("available", "direction_available")
                     for row in factors.values())
         ) or (
             isinstance(filters, list)
@@ -739,8 +740,10 @@ class ServerDhanReadOnly:
                 or not isinstance(factors, dict)
                 or set(factors) != {"news", "futures", "options", "candle"}
                 or any(not isinstance(row, dict)
-                       or row.get("status") not in ("available", "unavailable")
-                       for row in factors.values())
+                       or row.get("status") not in (
+                           ("available", "unavailable", "direction_available")
+                           if kind == "candle" else ("available", "unavailable"))
+                       for kind, row in factors.items())
                 or not isinstance(filters, list) or len(filters) != 5
                 or any(not isinstance(f, dict)
                        or not isinstance(f.get("id"), str)
