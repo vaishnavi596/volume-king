@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT3-OPTION-METRICS-REVISION-INVALIDATION-20261118:** FT3 app-only option-metrics revision wrapper now retires four derived filter directions only when selected expiry's material observation changes, preserves candle and last-good. Regression CI pending; previous #53 PASS. No server/Dhan/APK.
+
 > **FT4 VERIFIED V2-FT4-VISIBLE-IDENTITY-CI53-SUCCESS-20261118:** exact source d578abf CI #53 run 44329560100 SUCCESS. Visible V2 v2.0.100/code100 tied to source metadata preflight; signed APK/mobile remains BLOCKED. No Oracle/market/token actions.
 
 > **CURRENT V2-JOINT-FT4-APP-DISPLAY-VERSION-METADATA-PARITY-20261118:** V2 Flet header + Settings show v2.0.100/code100 and AST-only static prebuild identity parity gate tests; new CI pending. This is NOT APK binary/version verification. Last #52 PASS; no server/APK/Dhan actions.

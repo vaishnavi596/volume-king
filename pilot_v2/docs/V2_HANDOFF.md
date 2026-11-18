@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT3-OPTION-METRICS-REVISION-INVALIDATION-20261118:** FT3 app-only option-metrics revision wrapper now retires four derived filter directions only when selected expiry's material observation changes, preserves candle and last-good. Regression CI pending; previous #53 PASS. No server/Dhan/APK.
+
 > **LATEST V2-FT4-VISIBLE-IDENTITY-CI53-SUCCESS-20261118:** FT4 app-visible version parity CI #53 SUCCESS exact d578abf. Next offline scoped source audit; APK/Oracle not authorized.
 
 > **CURRENT V2-JOINT-FT4-APP-DISPLAY-VERSION-METADATA-PARITY-20261118:** FT4 offline app-visible version/metadata parity fix+tests pending CI; release remains HOLD and no APK/Oracle operations.

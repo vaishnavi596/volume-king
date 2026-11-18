@@ -68,3 +68,32 @@ def accept_expiry_roster(filters, expiries, symbol, revision, available, *,
     if updated and previous != expiries.selected(symbol, selected_equities=selected_equities):
         filters.invalidate_option_factors(symbol)
     return updated
+
+
+def accept_option_metrics(filters, options, expiries, payload, *,
+                          selected_equities=(), trusted_transport=False):
+    """Accept a normalized option observation; retire stale *directional* factors.
+
+    A new revision with identical metrics is harmless. A changed observation,
+    PCR, OI or max pain for the currently selected expiry invalidates all
+    option-derived factors, but not an independently validated candle trend.
+    Validation/revision rejection must happen before any invalidation.
+    """
+    if trusted_transport is not True or type(payload) is not dict:
+        raise OptionEvidenceError("Authenticated normalized option evidence required")
+    symbol = payload.get("symbol")
+    expiry = payload.get("expiry")
+    # Read previous validated evidence without trusting incoming symbol/expiry.
+    previous = options.visible(symbol, expiry, selected_equities=selected_equities)
+    selected = expiries.selected(symbol, selected_equities=selected_equities)
+    updated = options.accept(
+        payload, selected_equities=selected_equities, trusted_transport=True)
+    if not updated:
+        return False
+    current = options.visible(symbol, expiry, selected_equities=selected_equities)
+    fields = ("observed_at", "ce_oi", "pe_oi", "pcr", "max_pain")
+    if (selected == expiry and current.get("status") == "HIST"
+            and (previous.get("status") != "HIST"
+                 or any(previous.get(name) != current.get(name) for name in fields))):
+        filters.invalidate_option_factors(symbol)
+    return True
