@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST ARCHITECTURE DECISION BK-20261118-ARCH-CENTRAL-GATEWAY — WHY:** User asks for persistent Dhan→Oracle server pipeline with BOT KING controlling active symbols/timeframes, to minimize future server edits. **FINDING:** Current architecture has fragmented quote, index, candles and option polling/cache; a unified Oracle-owned broker collector with authenticated revision/delta delivery is a proposed next-generation design, NOT deployed. **TARGET:** Server owns WebSocket/REST broker limits, stable shared cache, freshness and dedup; Android owns 0/5/51/70 demand, screen rendering, local filter calculations, after-hours manual refresh. Five signals remain source-gated and sixth blank. **NEXT:** Read-only Oracle capabilities/entitlement/baseline first, isolated feature-flag prototype and offline 2-device/rate-limit tests, guarded rollout only after current CI/release gate. No live host or order changes. Detailed journal BK-20261118-ARCH-CENTRAL-GATEWAY.
+
+
 > **LATEST BK-20261118-CI1954-COOLDOWN-SELECTED** — #1954 `44276316586` full offline SUCCESS at `00fb0c9`. Release-readiness audit found selected LTP transport uses `/dhan/selected-ltp-batch` while two mobile scheduling guards only checked `/v2/snapshot`. Joint source+regression+Journal commit adds selected-route 429 cooldown to Watchlist page-entry and auto-poll while retaining legacy/global guard, independent index lane, quote pacing. Result: full CI for new SHA PENDING. NEXT exact CI, joint release blocker matrix, then APK gated. No Oracle production/Dhan/orders/APK. Detailed journal BK-20261118-CI1954-COOLDOWN-SELECTED.
 
 
