@@ -7,6 +7,7 @@ from feed_inbox import DeviceFeedInbox
 from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
 from option_evidence import LocalOptionEvidence, LocalExpiryChoices, OptionEvidenceError
+from option_filter_gate import select_option_expiry
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -99,8 +100,9 @@ def main(page: ft.Page):
                 page.update()
             def select_expiry(e):
                 try:
-                    expiry_choices.choose(scanner[0].symbol, e.control.value,
-                                          selected_equities=state.selected)
+                    select_option_expiry(filter_evidence, expiry_choices,
+                                         scanner[0].symbol, e.control.value,
+                                         selected_equities=state.selected)
                     status.value = "Selected existing verified expiry locally"
                 except OptionEvidenceError as exc:
                     status.value = str(exc)

@@ -43,3 +43,28 @@ def accept_option_factors(filters, options, expiries, symbol, timeframe,
     return filters.accept_available(
         symbol, timeframe, revision, factors,
         allowed_symbols=allowed, trusted_transport=True)
+
+
+
+def select_option_expiry(filters, expiries, symbol, expiry, *,
+                         selected_equities=()):
+    """App-owned expiry choice; invalidate option factors only after success."""
+    previous = expiries.selected(symbol, selected_equities=selected_equities)
+    # Choose first: an unverified expiry must not erase accepted last-good.
+    expiries.choose(symbol, expiry, selected_equities=selected_equities)
+    if previous != expiry:
+        filters.invalidate_option_factors(symbol)
+    return previous != expiry
+
+
+def accept_expiry_roster(filters, expiries, symbol, revision, available, *,
+                         allowed_symbols, selected_equities=(),
+                         trusted_transport=False):
+    """When a new trusted roster removes the selected expiry, retire its signals."""
+    previous = expiries.selected(symbol, selected_equities=selected_equities)
+    updated = expiries.accept(
+        symbol, revision, available, allowed_symbols=allowed_symbols,
+        trusted_transport=trusted_transport)
+    if updated and previous != expiries.selected(symbol, selected_equities=selected_equities):
+        filters.invalidate_option_factors(symbol)
+    return updated

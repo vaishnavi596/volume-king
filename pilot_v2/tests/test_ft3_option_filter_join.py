@@ -7,7 +7,7 @@ src = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(src))
 from option_evidence import LocalExpiryChoices, LocalOptionEvidence, OptionEvidenceError
 from filter_evidence import LocalFilterEvidence, FilterEvidenceError
-from option_filter_gate import accept_option_factors
+from option_filter_gate import accept_option_factors, select_option_expiry, accept_expiry_roster
 
 
 def metrics(symbol="NIFTY", revision=1, expiry="2026-11-26"):
@@ -67,6 +67,51 @@ class OptionFilterJoinTests(unittest.TestCase):
                 self.join(invalid,revision=2)
         self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"NEUTRAL HIST")
         self.assertEqual(self.flt.rows("NIFTY","1m")[2][1],"WAIT")
+
+    def test_expiry_change_clears_only_four_option_factors_not_candle(self):
+        self.exp.accept("NIFTY",1,["2026-11-26","2026-12-03"],
+                        allowed_symbols=("NIFTY",),trusted_transport=True)
+        select_option_expiry(self.flt,self.exp,"NIFTY","2026-11-26")
+        self.opt.accept(metrics(),trusted_transport=True)
+        self.join({"pcr":factor(),"oi_support":factor()})
+        self.flt.accept_available("NIFTY","1m",10,{"candle_trend":factor()},
+                                  allowed_symbols=("NIFTY",),trusted_transport=True)
+        self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"NEUTRAL HIST")
+        with self.assertRaises(OptionEvidenceError):
+            select_option_expiry(self.flt,self.exp,"NIFTY","2026-12-31")
+        self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"NEUTRAL HIST")
+        self.assertTrue(select_option_expiry(
+            self.flt,self.exp,"NIFTY","2026-12-03"))
+        self.assertEqual([v for _,v in self.flt.rows("NIFTY","1m")[:5]],
+                         ["WAIT","WAIT","WAIT","WAIT","NEUTRAL HIST"])
+        self.assertEqual(self.flt.rows("NIFTY","1m")[-1],("",""))
+        self.assertFalse(select_option_expiry(
+            self.flt,self.exp,"NIFTY","2026-12-03"))
+        with self.assertRaises(OptionEvidenceError):
+            self.join({"pcr":factor()},revision=2)
+        self.opt.accept(metrics(revision=2,expiry="2026-12-03"),trusted_transport=True)
+        self.assertTrue(self.join({"pcr":factor()},revision=1))
+        self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"NEUTRAL HIST")
+        self.assertEqual(self.flt.rows("NIFTY","1m")[4][1],"NEUTRAL HIST")
+
+    def test_new_roster_removing_expiry_retires_only_option_evidence(self):
+        self.exp.accept("NIFTY",1,["2026-11-26","2026-12-03"],
+                        allowed_symbols=("NIFTY",),trusted_transport=True)
+        select_option_expiry(self.flt,self.exp,"NIFTY","2026-11-26")
+        self.opt.accept(metrics(),trusted_transport=True)
+        self.join({"pcr":factor()})
+        self.flt.accept_available("NIFTY","1m",5,{"candle_trend":factor()},
+                                  allowed_symbols=("NIFTY",),trusted_transport=True)
+        with self.assertRaises(OptionEvidenceError):
+            accept_expiry_roster(self.flt,self.exp,"NIFTY",2,[],
+                allowed_symbols=("NIFTY",),trusted_transport=True)
+        self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"NEUTRAL HIST")
+        self.assertTrue(accept_expiry_roster(
+            self.flt,self.exp,"NIFTY",2,["2026-12-03"],
+            allowed_symbols=("NIFTY",),trusted_transport=True))
+        self.assertIsNone(self.exp.selected("NIFTY"))
+        self.assertEqual(self.flt.rows("NIFTY","1m")[3][1],"WAIT")
+        self.assertEqual(self.flt.rows("NIFTY","1m")[4][1],"NEUTRAL HIST")
 
     def test_equity_removal_must_not_leak_metric_or_filter(self):
         self.exp.accept("TCS",1,["2026-11-26"],allowed_symbols=("TCS",),

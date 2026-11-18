@@ -91,6 +91,32 @@ class LocalFilterEvidence:
             for key, label in zip(FILTER_KEYS, FILTER_LABELS)
         ) + (("", ""),)
 
+    def invalidate_option_factors(self, symbol):
+        """Expiry change invalidates four option results, never candle trend.
+
+        There is no safe way to reuse direction from a different expiry.
+        Clearing per-factor revisions permits new evidence for the new expiry
+        even if that source starts with a smaller independent revision.
+        """
+        if type(symbol) is not str:
+            raise FilterEvidenceError("Invalid option symbol")
+        for key, entry in list(self._values.items()):
+            if key[0] != symbol:
+                continue
+            rows = dict(entry["rows"])
+            versions = dict(entry["key_revisions"])
+            for factor in ("oi_support", "oi_resistance", "max_pain", "pcr"):
+                rows.pop(factor, None)
+                versions.pop(factor, None)
+            if versions:
+                self._values[key] = {
+                    "revision": max(versions.values()),
+                    "rows": rows,
+                    "key_revisions": versions,
+                }
+            else:
+                self._values.pop(key, None)
+
     def forget_removed(self, selected_equities):
         allowed = set(("NIFTY", "BANKNIFTY", "SENSEX")).union(selected_equities)
         self._values = {k: v for k, v in self._values.items() if k[0] in allowed}

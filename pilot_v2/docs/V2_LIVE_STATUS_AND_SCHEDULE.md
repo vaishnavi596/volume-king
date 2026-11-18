@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT3-EXPIRY-CHANGE-OPTION-FACTOR-RETIREMENT-20261118:** FT3 option expiry switching retires four old option filter HIST values only; independent candle remains, wrong expiry cannot erase evidence. Same Flet branch, source/test CI pending; last #51 PASS. No Oracle/APK/Dhan token changes.
+
 > **JOINT AUDIT VERIFIED #50/#51 SUCCESS:** FT1 revoke P256 trust+challenge cleanup CI #50 44326725753 exact c93cb50b. FT2 shared gateway→Flet mandatory schema_version fix CI #51 44327304001 exact ade224c. Both OFFLINE only. Next FT3, then FT4 audit. No Oracle, Dhan token or APK.
 
 > **CURRENT FT2 SCHEMA PARITY:** shared read-only gateway payload lacked mandatory Flet schema_version 1. Source-only fix + direct shared→Flet test committed, CI PENDING. FT1 #50 PASS. NO APK/Oracle/Dhan token changes.
