@@ -5,10 +5,8 @@ from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
 from feed_inbox import DeviceFeedInbox
-from candle_history import LocalCandleHistory
-from filter_evidence import LocalFilterEvidence
-from option_evidence import LocalOptionEvidence, LocalExpiryChoices, OptionEvidenceError
-from option_filter_gate import select_option_expiry
+from evidence_inbox import DeviceEvidenceInbox
+from option_evidence import OptionEvidenceError
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -69,10 +67,11 @@ def main(page: ft.Page):
             return False
 
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
-    candle_history = LocalCandleHistory()  # No fabricated candles; accepts validated local input only.
-    filter_evidence = LocalFilterEvidence()  # No source-gated evidence yet; all five WAIT.
-    option_evidence = LocalOptionEvidence()  # Actual Dhan option evidence unavailable.
-    expiry_choices = LocalExpiryChoices()  # No invented or default expiry.
+    evidence_inbox = DeviceEvidenceInbox()  # Offline, authenticated data client NOT connected.
+    candle_history = evidence_inbox.candles
+    filter_evidence = evidence_inbox.filters
+    option_evidence = evidence_inbox.options
+    expiry_choices = evidence_inbox.expiries
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -101,9 +100,9 @@ def main(page: ft.Page):
                 page.update()
             def select_expiry(e):
                 try:
-                    select_option_expiry(filter_evidence, expiry_choices,
-                                         scanner[0].symbol, e.control.value,
-                                         selected_equities=state.selected)
+                    evidence_inbox.select_expiry(
+                        scanner[0].symbol, e.control.value,
+                        selected_equities=state.selected)
                     status.value = "Selected existing verified expiry locally"
                 except OptionEvidenceError as exc:
                     status.value = str(exc)
@@ -167,10 +166,7 @@ def main(page: ft.Page):
             def remove(_, item):
                 state.remove(group[0], item)
                 quote_view.forget_removed(state.selected)
-                candle_history.forget_removed(state.selected)
-                filter_evidence.forget_removed(state.selected)
-                option_evidence.forget_removed(state.selected)
-                expiry_choices.forget_removed(state.selected)
+                evidence_inbox.forget_removed(state.selected)
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
