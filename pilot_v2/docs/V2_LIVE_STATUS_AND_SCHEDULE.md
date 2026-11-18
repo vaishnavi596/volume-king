@@ -1,3 +1,5 @@
+> **LATEST V2-FT3-OPTIONS-OBSERVATION-REVISION-CI54-SUCCESS-20261118:** FT3 option observation-to-filter retirement CI #54 `44331493500` SUCCESS exact source `16e5d2b`. Prior FT4 #53 PASS. No actual Dhan, Android, APK, Oracle or token changes. NEXT static FT4 versionCode future increment audit, release HOLD.
+
 > **CURRENT V2-JOINT-FT3-OPTION-METRICS-REVISION-INVALIDATION-20261118:** FT3 app-only option-metrics revision wrapper now retires four derived filter directions only when selected expiry's material observation changes, preserves candle and last-good. Regression CI pending; previous #53 PASS. No server/Dhan/APK.
 
 > **FT4 VERIFIED V2-FT4-VISIBLE-IDENTITY-CI53-SUCCESS-20261118:** exact source d578abf CI #53 run 44329560100 SUCCESS. Visible V2 v2.0.100/code100 tied to source metadata preflight; signed APK/mobile remains BLOCKED. No Oracle/market/token actions.
