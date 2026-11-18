@@ -8,6 +8,7 @@ from filter_evidence import LocalFilterEvidence
 from option_evidence import LocalOptionEvidence, LocalExpiryChoices
 from candle_filter_gate import accept_candle_trend
 from candle_option_views import LocalOptionStrikes
+from listed_atm_adapter import normalized_atm_window
 from option_filter_gate import (
     accept_option_factors, accept_option_metrics, accept_expiry_roster,
     select_option_expiry,
@@ -79,6 +80,28 @@ class DeviceEvidenceInbox:
         return self.strikes.accept(
             payload, self.expiries, selected_equities=selected_equities,
             trusted_transport=trusted_transport)
+
+    def apply_listed_option_window(self, *, symbol, expiry, revision, observed_at,
+                                   spot, listed_rows, selected_equities=(),
+                                   trusted_transport=False):
+        """Normalize a trusted full listed Dhan chain before publishing ATM±3.
+
+        Caller must have verified transport identity, same-source underlying spot,
+        expiry and listed strike observation. No network work occurs here.
+        """
+        self.allowed(selected_equities)
+        if trusted_transport is not True:
+            raise OptionEvidenceError("Authenticated Dhan option evidence required")
+        if self.expiries.selected(
+                symbol, selected_equities=selected_equities) != expiry:
+            raise OptionEvidenceError("Only the selected verified expiry is eligible")
+        payload = normalized_atm_window(
+            symbol=symbol, expiry=expiry, revision=revision,
+            observed_at=observed_at, spot=spot, listed_rows=listed_rows,
+            trusted_transport=True)
+        return self.apply_option_strikes(
+            payload, selected_equities=selected_equities,
+            trusted_transport=True)
 
     def apply_option_factors(self, symbol, timeframe, revision, evidence, *,
                              selected_equities=(), trusted_transport=False):
