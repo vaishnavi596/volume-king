@@ -185,6 +185,20 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",received,expected)',login)
         self.assertIn('if expected==0:',login)
 
+    def test_history_cache_reuse_must_cover_newly_selected_equities(self):
+        # A same-generation <45s cache is not complete when an equity was
+        # added after its collection. Never reuse it as a complete roster.
+        source = self.source
+        scan = source[source.index("    async def refresh_market():"):
+                      source.index("    async def supervised_market_refresh():")]
+        stage = scan[scan.index('scan_progress["state"]="Checking Dhan batch before historical scan"'):
+                     scan.index("# Connection is now ready: allow the first historical scan")]
+        self.assertIn("selected_equities=all_watch_symbols()",stage)
+        self.assertIn('set(selected_equities).issubset(dhan_batch_cache["quotes"])',stage)
+        self.assertLess(stage.index("selected_equities=all_watch_symbols()"),
+                        stage.index('cached_batch = (dict(dhan_batch_cache["quotes"])'))
+        self.assertIn("dhan_feed.equity_quotes_for_watchlist,selected_equities",stage)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)

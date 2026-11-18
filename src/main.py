@@ -6122,16 +6122,19 @@ console.log('BOT KING Lightweight Charts ready');
                         scan_progress["state"]="Checking Dhan batch before historical scan"
                         # Reuse the just-verified login/watchlist batch instead of immediately
                         # issuing another Dhan request when the historical scan starts.
+                        selected_equities=all_watch_symbols()
                         with dhan_batch_lock:
                             cached_batch = (dict(dhan_batch_cache["quotes"])
                                 if dhan_batch_cache["generation"] == generation
                                 and time.monotonic() - dhan_batch_cache["updated"] < 45
+                                # A saved-list addition invalidates a prior
+                                # still-young batch that lacks the new equity.
+                                and set(selected_equities).issubset(dhan_batch_cache["quotes"])
                                 else None)
                         # Smart Data: a missing short-lived cache must never
                         # trigger the fixed 51-equity snapshot for five saved
                         # shares. The selected route handles 0–70; its own 404
                         # compatibility fallback remains guarded in server_feed.
-                        selected_equities=all_watch_symbols()
                         batch = (cached_batch if cached_batch is not None else
                             await asyncio.wait_for(asyncio.to_thread(
                                 dhan_feed.equity_quotes_for_watchlist,selected_equities),timeout=20))

@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LAST MOVE BK-20261118-SDC-CI1952-CACHE-ROSTER — WHY:** #1952 run 44274999713 on a7cea2089 **completed SUCCESS**; new Watchlist share could be missing from a recent 45s quote cache. **ACTION:** One atomic source+test+Journal+Index batch requires selected roster symbols to be covered before historical-scan quote cache reuse; otherwise fallback to existing bounded selected equity batch. No new per-symbol fanout, index lane unchanged. **RESULT:** Exact commit/CI pending confirmation. **NEXT:** Verify terminal full CI, continue 0/5/51/70 call-path and Android readiness; Oracle/mobile/Dhan provider proof separately. Journal BK-20261118-SDC-CI1952-CACHE-ROSTER.
+
+
 > **LATEST MOVE BK-20261118-SDC-CI1951-LEGACY:** #1951 run 44274442573 FAILED (1306 tests; 2 failures from one stale test invalidating 0/0 equity SKIPPED). Source and new zero tests behaved as intended; exact legacy test matrix updated to accept empty selected equities while retaining invalid-count guards and independent index 0/0 rejection. One joint test+Work Log+Index commit; new full CI pending. NEXT verify exact CI before 0/5/51/70 integrated gate. No Oracle/API/orders/APK.
 
 
