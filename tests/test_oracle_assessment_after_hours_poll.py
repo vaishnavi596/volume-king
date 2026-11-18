@@ -57,6 +57,20 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
         self.assertNotIn('get_market_data(', self.block)
         self.assertNotIn('dhan_feed.intraday(', self.block)
 
+    def test_bounded_cache_retains_watchlist_roster_and_still_expires(self):
+        # Retention capacity must cover up to 70 selected instruments plus
+        # indexes/expiry contexts. It does not change the 180s UI freshness TTL.
+        self.assertIn("if len(oracle_assessment_cache)>80:", self.block)
+        self.assertIn(
+            "del oracle_assessment_cache[next(iter(oracle_assessment_cache))]",
+            self.block)
+        self.assertNotIn("len(oracle_assessment_cache)>16", self.block)
+        self.assertIn("now-oracle_assessment_attempts[key]<180", self.block)
+        ui=(Path(__file__).resolve().parents[1]/"src"/
+            "shared_assessment_ui.py").read_text(encoding="utf-8")
+        self.assertIn("def assessment_lines(symbol, cached, *, now=None, max_age=180)",ui)
+        self.assertIn("now - fetched > max_age",ui)
+
     def test_one_after_hours_attempt_does_not_clear_last_good_cache(self):
         # Skipping the repeated poll must preserve historical data for display.
         guard=next(node for node in ast.walk(self.poll)
