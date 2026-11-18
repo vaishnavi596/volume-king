@@ -1610,8 +1610,9 @@ def app_main(page:ft.Page):
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
     watch_symbols=["RELIANCE","HDFCBANK","ICICIBANK","TCS","INFY","BHARTIARTL","SBIN","ITC","LT","AXISBANK","KOTAKBANK","HINDUNILVR","BAJFINANCE","BAJAJFINSV","MARUTI","M&M","TITAN","SUNPHARMA","ULTRACEMCO","ASIANPAINT","NTPC","POWERGRID","TMPV","TMCV","TATASTEEL","JSWSTEEL","HCLTECH","WIPRO","TECHM","NESTLEIND","HINDALCO","ONGC","COALINDIA","ADANIENT","ADANIPORTS","BEL","TRENT","EICHERMOT","GRASIM","CIPLA","DRREDDY","APOLLOHOSP","DIVISLAB","SBILIFE","HDFCLIFE","BAJAJ-AUTO","HEROMOTOCO","BRITANNIA","INDUSINDBK","SHRIRAMFIN","BPCL"]
-    MAX_TOTAL_INSTRUMENTS=70  # 3 dedicated indices plus up to 67 distinct selected equities.
-    MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3
+    # Exactly 70 distinct equity holdings across ALL five Watchlists.
+    # The three Dashboard-only indices are separate and consume no equity slot.
+    MAX_WATCHLIST_EQUITIES=70
     saved_watch_groups=[prefs.get("watchlist_"+str(i),watch_symbols if i==1 else []) for i in range(1,6)]
     watch_groups=normalize_watchlists(saved_watch_groups, maximum=70)  # Retain legacy saved equity lists without silent loss
     watch_normalized=watch_groups!=saved_watch_groups
@@ -1625,7 +1626,7 @@ def app_main(page:ft.Page):
             group[:]=list(dict.fromkeys(expanded))
             watch_migrated=True
     # Re-apply the global cap and unique-list ownership after migrations.
-    watch_groups=normalize_watchlists(watch_groups, maximum=70)  # Preserve existing entries; cap new additions at 67
+    watch_groups=normalize_watchlists(watch_groups, maximum=70)  # 70 equities globally, never 70 per list
     if watch_migrated or watch_normalized:
         for i,group in enumerate(watch_groups,1):
             prefs["watchlist_"+str(i)]=list(group)
@@ -1698,12 +1699,12 @@ def app_main(page:ft.Page):
                 page.update()
                 return
             if sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
-                feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove an equity first."
+                feedback.value="70-share Watchlist limit reached across all lists. Remove an equity first."
                 page.update()
                 return
             if len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
                 if active_watch[0]==target_list:
-                    feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove a symbol first."
+                    feedback.value="70-share Watchlist limit reached across all lists. Remove a symbol first."
                     page.update()
                 return
             watch_groups[target_list].append(sym)
@@ -1731,9 +1732,9 @@ def app_main(page:ft.Page):
         elif watch_symbol_owner(sym) is not None:
             feedback.value=sym+" already saved in List "+str(watch_symbol_owner(sym)+1)+". Remove it there before adding."
         elif sym not in all_watch_symbols() and len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES:
-            feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove an equity first."
+            feedback.value="70-share Watchlist limit reached across all lists. Remove an equity first."
         elif len(watch_groups[target_list])>=MAX_WATCHLIST_EQUITIES:
-            feedback.value="70-instrument limit reached (3 indices + 67 equities). Remove a symbol first."
+            feedback.value="70-share Watchlist limit reached across all lists. Remove a symbol first."
         else:
             feedback.value="Saving known NSE symbol..." if sym in watch_symbols else "Checking market symbol..."
             page.run_task(validate_and_add,sym,target_list)
