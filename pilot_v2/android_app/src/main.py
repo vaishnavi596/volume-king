@@ -18,6 +18,7 @@ from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHI
 from local_help_doctor import diagnose, help_for
 from shared_filter_context import shared_filter_context
 from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
+from local_settings_backup import export_local_backup, parse_local_backup, LocalBackupError
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -107,6 +108,8 @@ def main(page: ft.Page):
     watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
     chart_window = [DEFAULT_WINDOW]  # Local history display only.
+    backup_text = [""]
+    backup_confirm = [False]  # Explicit consent for replacing local preferences.
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -514,6 +517,46 @@ def main(page: ft.Page):
                     status.value = "Invalid refresh interval"
                 render()
                 page.update()
+            def prepare_local_backup(e):
+                backup_text[0] = export_local_backup(
+                    state, scanner[0], smart[0], analysis_slots[0])
+                backup_confirm[0] = False
+                status.value = "Local preference backup prepared; copy it yourself"
+                render()
+                page.update()
+            def restore_local_backup(e):
+                if not backup_confirm[0]:
+                    status.value = "Confirm local-only restore before applying"
+                    page.update()
+                    return
+                if storage_error or smart_error or scanner_error or analysis_error:
+                    status.value = "Current local save is invalid; existing backup preserved"
+                    page.update()
+                    return
+                try:
+                    new_watchlists, new_scanner, new_smart, new_slots = (
+                        parse_local_backup(backup_text[0]))
+                except LocalBackupError:
+                    status.value = "Rejected malformed or nonlocal preference backup"
+                    page.update()
+                    return
+                # Every section is validated BEFORE any state replacement.
+                state.groups = new_watchlists.groups
+                scanner[0] = new_scanner
+                smart[0] = new_smart
+                analysis_slots[0] = new_slots
+                quote_view.forget_removed(state.selected)
+                evidence_inbox.forget_removed(state.selected)
+                watch_search[0] = ""
+                group[0] = 0
+                backup_confirm[0] = False
+                backup_text[0] = ""
+                saved = all((save_local(), save_scanner(),
+                             save_smart(), save_analysis()))
+                status.value = ("Local preferences restored on device" if saved
+                                else "Restored for session; some device saves failed")
+                render()
+                page.update()
             content.controls = [
                 ft.Text("Settings", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text("Smart Data & Master Control — app-owned", color=MUTED),
@@ -546,6 +589,23 @@ def main(page: ft.Page):
                             on_change=choose_help),
                 v1_card(ft, [ft.Text(help_topic[0], color=GOLD, weight=ft.FontWeight.BOLD),
                              ft.Text(help_for(help_topic[0]), color=WHITE)]),
+                ft.Text("Local preferences backup / restore", color=GOLD,
+                        weight=ft.FontWeight.BOLD),
+                ft.Text("Watchlists, Scanner, Smart Data, 3 analysis slots only. "
+                        "No broker credentials, orders or server settings.",
+                        color=MUTED, size=14),
+                ft.TextButton("Prepare local backup", on_click=prepare_local_backup),
+                ft.TextField(label="Local preference backup JSON",
+                             value=backup_text[0], multiline=True,
+                             min_lines=3, max_lines=5,
+                             on_change=lambda e: backup_text.__setitem__(
+                                 0, e.control.value or "")),
+                ft.Checkbox(label="Confirm local-only restore",
+                            value=backup_confirm[0],
+                            on_change=lambda e: backup_confirm.__setitem__(
+                                0, bool(e.control.value))),
+                ft.TextButton("Restore local preferences",
+                              on_click=restore_local_backup),
                 ft.Text("Live orders disabled"),
             ]
 
