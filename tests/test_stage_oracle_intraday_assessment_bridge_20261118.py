@@ -112,10 +112,10 @@ class OracleIntradayStageRegression(unittest.TestCase):
         # Mimic the live Oracle route: canonical publisher imports its own
         # dependencies; that import does not bind them in dhan_intraday.
         scoped = FAKE.replace(
-            '    def cached_candles(symbol, interval, key):\\n',
-            '    def cached_candles(symbol, interval, key):\\n'
-            '        from assessment_state import publish\\n'
-            '        from assessment_scope import current_scope\\n',
+            '    def cached_candles(symbol, interval, key):\n',
+            '    def cached_candles(symbol, interval, key):\n'
+            '        from assessment_state import publish\n'
+            '        from assessment_scope import current_scope\n',
         )
         self.assertNotEqual(scoped, FAKE)
         configure_fake(scoped)
