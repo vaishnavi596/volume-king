@@ -1,3 +1,5 @@
+> **JOINT AUDIT VERIFIED #50/#51 SUCCESS:** FT1 revoke P256 trust+challenge cleanup CI #50 44326725753 exact c93cb50b. FT2 shared gateway→Flet mandatory schema_version fix CI #51 44327304001 exact ade224c. Both OFFLINE only. Next FT3, then FT4 audit. No Oracle, Dhan token or APK.
+
 > **CURRENT FT2 SCHEMA PARITY:** shared read-only gateway payload lacked mandatory Flet schema_version 1. Source-only fix + direct shared→Flet test committed, CI PENDING. FT1 #50 PASS. NO APK/Oracle/Dhan token changes.
 
 > **CURRENT FT1 #50 PASS:** #49 failed one test fixture, corrected resolver, exact source c93cb50b #50 SUCCESS; next FT2 source review and scoped correction; Oracle/APK prohibited.
