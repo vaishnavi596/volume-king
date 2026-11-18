@@ -1,3 +1,5 @@
+> **JOINT AUDIT V2-JOINT-AUDIT-FT1-SECURITY-EVIDENCE-20261118:** FT1 source-only review PARTIAL; native login/bootstrap and 4-device mismatch queued. Next FT2 source audit, no server or APK. See Master/Work Log for evidence.
+
 > **CURRENT V2-FT1-FT4-OFFLINE-PACKET-PREFLIGHT-20261118:** FT2 #35 + FT3 #36/#37 all source CI PASS. FT4 offline identity/release-hold inventory recorded, APK/server strictly NOT attempted. Next FT1→FT4 combined audit, scoped repairs sequentially; latest journal entry in V2 Work Log.
 
 > **CURRENT V2-FT3-CANDLE-OPTIONS-FILTER-EVIDENCE-JOINT-OFFLINE-20261118:** FT3 candle/options/filter evidence dependency offline CI pending; FT1–FT4 preparation only, no APK/server/Dhan operations.
