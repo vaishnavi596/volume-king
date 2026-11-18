@@ -157,6 +157,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         requested=[]
         cache={}
         attempts={}
+        repaints=[]
         async def tick(seconds):
             if seconds==4:
                 return
@@ -185,7 +186,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
             "current":[0],"time":SimpleNamespace(monotonic=lambda:10.0),
             "asyncio":SimpleNamespace(sleep=tick,to_thread=to_thread,
                                       CancelledError=asyncio.CancelledError),
-            "request_view_refresh":lambda x:None,
+            "request_view_refresh":lambda x:repaints.append(x),
             "log_error":lambda *args:None}
         compile_callback("oracle_assessment_context",scope)
         fn=compile_callback("oracle_assessment_poll",scope)
@@ -199,6 +200,8 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
             ("NIFTY",{"timeframe":"1m","expiry":"2026-11-26"}),
         ]
         self.assertEqual(requested,expected)
+        # Five contexts return data but only one Dashboard repaint is scheduled.
+        self.assertEqual(repaints,[0])
         self.assertEqual(set(cache),{
             (0,"NIFTY","1m",None),
             (0,"BANKNIFTY","1m",None),
@@ -210,6 +213,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(requested,expected)
+        self.assertEqual(repaints,[0])
 
     def test_assessment_ui_hides_old_selection_after_timeframe_or_expiry_change(self):
         selected_tf=SimpleNamespace(value="1m")
