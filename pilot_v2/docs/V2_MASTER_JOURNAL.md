@@ -813,3 +813,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **NEW EXACT CI:** PENDING following this atomic code+test+V2 journal commit; do NOT call PASS until Actions run SHA and test log are verified.
 - **BOUNDARY:** V2 pilot-only, no old V1 source/journals, Oracle production, Dhan calls, secrets, orders or APK.
 - **NEXT:** Inspect exact new Actions run/job logs; if SUCCESS, resume only V2 app-first functional parity and source-gated migration.
+
+
+## V2-CI-78-FIX-VERIFIED-237-237-PASS-20261118
+- Exact [V2 Pilot CI #78](https://github.com/vaishnavi596/volume-king/actions/runs/44362040001), run `44362040001`, SHA `d1f0560c3e5c94ace7f6bd3179ed823f92fbc013`: COMPLETED **SUCCESS**, one `pilot-contract` job SUCCESS, Python unittest **237/237 OK**, 1.054s test runtime; no failed test steps.
+- Confirms shared #73–#77 `NameError` resolved by importing `OptionEvidenceError` in V2 `evidence_inbox.py` plus explicit regression for untrusted transport. Original five runs remain historical FAIL and are not overwritten. Other V2 offline contracts and visual/Help Doctor source tests remain green.
+- Limit: Python synthetic source CI only. No native Android, visual pixel parity, Oracle/Dhan live data or live orders verified. V1 untouched. NEXT resume V2 app-first migration of remaining functional UI/layout/help with Dhan-only read-only contract after reviewing this exact last code CI.
