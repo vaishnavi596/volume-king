@@ -10,7 +10,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from .device_policy import ALLOWED_FEEDS, valid_id
+from .device_policy import ALLOWED_FEEDS, MAX_DEVICES, valid_id
 from .device_sessions import VerifiedDevice, SessionDenied
 
 
@@ -142,8 +142,8 @@ class DurableDeviceSessions:
                                  (device_id,)).fetchone()
                 if old and old[0] == 1:
                     raise SessionDenied("Cannot modify master")
-                if old is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0] >= 3:
-                    raise SessionDenied("Maximum three devices")
+                if old is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0] >= MAX_DEVICES:
+                    raise SessionDenied("Maximum four devices")
                 db.execute("""INSERT INTO devices(device,master,enabled,feeds)
                     VALUES(?,?,?,?) ON CONFLICT(device) DO UPDATE SET
                     enabled=excluded.enabled,feeds=excluded.feeds""",

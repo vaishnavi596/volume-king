@@ -13,7 +13,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from .device_policy import valid_id
+from .device_policy import MAX_DEVICES, valid_id
 from .device_sessions import SessionDenied
 from .device_verifier import DeviceProof, P256ChallengeVerifier, decode_b64, encode_b64
 from .durable_device_sessions import DurableDeviceSessions
@@ -72,8 +72,8 @@ class DurableDeviceKeys:
                 existing=db.execute("SELECT master FROM devices WHERE device=?",(device_id,)).fetchone()
                 if existing and existing[0]==1:
                     raise SessionDenied("Cannot edit master key")
-                if existing is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0]>=3:
-                    raise SessionDenied("Maximum three devices")
+                if existing is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0]>=MAX_DEVICES:
+                    raise SessionDenied("Maximum four devices")
                 expires=self._sessions._now()+self._ttl
                 db.execute("""INSERT INTO pending_device_keys
                     (device,public_der,challenge_digest,expires) VALUES(?,?,?,?)
@@ -120,8 +120,8 @@ class DurableDeviceKeys:
                                (proof.device_id,)).fetchone()
                 if old and old[0]==1:
                     raise SessionDenied("Cannot rotate master")
-                if old is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0]>=3:
-                    raise SessionDenied("Maximum three devices")
+                if old is None and db.execute("SELECT COUNT(*) FROM devices").fetchone()[0]>=MAX_DEVICES:
+                    raise SessionDenied("Maximum four devices")
                 db.execute("""INSERT INTO devices(device,master,enabled,feeds)
                     VALUES(?,0,?,?) ON CONFLICT(device) DO UPDATE SET
                     enabled=excluded.enabled,feeds=excluded.feeds""",

@@ -11,6 +11,7 @@ MASTER="master_device_000001"
 SECOND="second_device_00001"
 THIRD="third_device_000001"
 FOURTH="fourth_device_000001"
+FIFTH="fifth_device_0000001"
 
 def public_der(key):
     return key.public_key().public_bytes(
@@ -69,12 +70,12 @@ class EnrollmentTests(unittest.TestCase):
         with self.assertRaises(SessionDenied):
             self.manager.complete(self.master,self.signed(SECOND,nonce,self.key))
 
-    def test_three_device_limit_and_bad_public_key_rejected(self):
-        for device in (SECOND,THIRD):
+    def test_four_device_limit_and_bad_public_key_rejected(self):
+        for device in (SECOND,THIRD,FOURTH):
             nonce,_=self.manager.request(self.master,device,public_der(self.key),["quotes"])
             self.manager.complete(self.master,self.signed(device,nonce,self.key))
         with self.assertRaises(SessionDenied):
-            self.manager.request(self.master,FOURTH,public_der(self.key),["quotes"])
+            self.manager.request(self.master,FIFTH,public_der(self.key),["quotes"])
         for key in (b"invalid",b""):
             with self.assertRaises(SessionDenied):
                 self.manager.request(self.master,SECOND,key,["quotes"])

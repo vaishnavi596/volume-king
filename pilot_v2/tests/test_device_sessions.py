@@ -7,6 +7,7 @@ MASTER = "master_device_000001"
 SECOND = "second_device_00001"
 THIRD = "third_device_000001"
 FOURTH = "fourth_device_000001"
+FIFTH = "fifth_device_0000001"
 
 class SessionGatewayTests(unittest.TestCase):
     def setUp(self):
@@ -29,7 +30,7 @@ class SessionGatewayTests(unittest.TestCase):
             with self.subTest(proof=repr(proof)), self.assertRaises(SessionDenied):
                 self.gateway.issue(proof)
 
-    def test_master_grants_limited_access_to_2_phones(self):
+    def test_master_grants_limited_access_to_3_phones(self):
         master = self.gateway.issue("master-proof")
         self.gateway.assign(master, SECOND, {"quotes", "indices"})
         self.gateway.assign(master, THIRD, {"candles"})
@@ -42,8 +43,11 @@ class SessionGatewayTests(unittest.TestCase):
                 self.gateway.check_feed(token, feed)
         with self.assertRaises(Exception):
             self.gateway.assign(second, FOURTH, {"quotes"})
+        self.gateway.assign(master, FOURTH, {"quotes"})
+        fourth = self.gateway.issue("fourth-proof")
+        self.assertEqual(self.gateway.check_feed(fourth, "quotes"), FOURTH)
         with self.assertRaises(Exception):
-            self.gateway.assign(master, FOURTH, {"quotes"})
+            self.gateway.assign(master, FIFTH, {"quotes"})
 
     def test_master_disable_immediately_revokes_old_secondary_session(self):
         master = self.gateway.issue("master-proof")

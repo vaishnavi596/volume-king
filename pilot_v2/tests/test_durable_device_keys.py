@@ -14,6 +14,7 @@ M="master_device_000001"
 D="second_device_00001"
 T="third_device_000001"
 F="fourth_device_000001"
+E="fifth_device_0000001"
 
 def der(key):
     return key.public_key().public_bytes(serialization.Encoding.DER,
@@ -93,8 +94,10 @@ class DurableKeysTests(unittest.TestCase):
     def test_capacity_and_master_key_protection(self):
         self.enroll(D,self.old)
         self.enroll(T,ec.generate_private_key(ec.SECP256R1()))
+        self.enroll(F,ec.generate_private_key(ec.SECP256R1()))
+        self.assertIsNotNone(self.keys2.public_key(F))
         with self.assertRaises(SessionDenied):
-            self.keys2.request(self.master,F,der(self.old))
+            self.keys2.request(self.master,E,der(self.old))
         with self.assertRaises(SessionDenied):
             self.keys2.request(self.master,M,der(self.old))
         with self.assertRaises(SessionDenied):

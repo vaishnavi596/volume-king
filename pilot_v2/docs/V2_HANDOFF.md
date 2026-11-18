@@ -1,3 +1,5 @@
+> **CURRENT V2-FT1-FOUR-DEVICES-CONSISTENT-CAP-OFFLINE-20261118:** FT1 consistent four-device cap correction + updated offline tests, CI pending; native Android login still not proven. No server/APK.
+
 > **JOINT AUDIT V2-JOINT-FT2-FT3-FT4-SOURCE-AUDIT-20261118:** FT1–FT4 source-only audit done, packet blockers itemized in Work Log/Master; no repair/deploy yet. Next owner-ordered FT1 scoped remediation; APK and Oracle host off limits.
 
 > **JOINT AUDIT V2-JOINT-AUDIT-FT1-SECURITY-EVIDENCE-20261118:** FT1 source-only review PARTIAL; native login/bootstrap and 4-device mismatch queued. Next FT2 source audit, no server or APK. See Master/Work Log for evidence.

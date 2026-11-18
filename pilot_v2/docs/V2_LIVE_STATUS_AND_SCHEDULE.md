@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-FT1-FOUR-DEVICES-CONSISTENT-CAP-OFFLINE-20261118:** FT1 owner 4-phone cap (Master+3) aligned across in-memory, SQLite session and P-256 enrollment with fifth-device-denial tests. Latest #37 PASS; new exact CI pending. Real Android login still blocked. No APK, Oracle, Dhan token actions. Work Log has specifics.
+
+
 > **JOINT AUDIT COMPLETE (SOURCE-ONLY) V2-JOINT-FT2-FT3-FT4-SOURCE-AUDIT-20261118:** FT1 PARTIAL/BLOCKED Android Master login + 4-phone target; FT2 OFFLINE PASS/BLOCKED true authenticated app↔transport & server-side selection boundary; FT3 OFFLINE PASS/BLOCKED real Dhan options/candles/filter source; FT4 STATIC PARTIAL/BLOCKED signed APK and Oracle execution. Latest synthetic CI #37 SUCCESS. NO APK, ORACLE WORK, DHAN or token changes. Next sequential FT1 repair with tests after audit, preserving owner restrictions.
 
 

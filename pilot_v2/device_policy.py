@@ -1,4 +1,4 @@
-"""Master-managed maximum-three-device authorization rules. No secrets or I/O.
+"""Master-managed maximum-four-device authorization rules. No secrets or I/O.
 
 The HTTP gateway MUST authenticate the master actor independently using a
 server-side revocable session; never trust a claimed role or device ID from a
@@ -6,7 +6,7 @@ mobile payload. These are domain rules, NOT a deployed authentication system.
 """
 from dataclasses import dataclass, field
 
-MAX_DEVICES = 3
+MAX_DEVICES = 4
 ALLOWED_FEEDS = frozenset(("quotes", "indices", "candles", "scanner",
                            "super_five", "options", "assessment"))
 
@@ -53,7 +53,7 @@ class DeviceRegistry:
             raise DevicePolicyError("Invalid permitted feeds")
         permission = frozenset(feeds)
         if device_id not in self.grants and len(self.grants) >= MAX_DEVICES:
-            raise DevicePolicyError("At most three enrolled devices")
+            raise DevicePolicyError("At most four enrolled devices")
         grant = DeviceGrant(device_id, permission, enabled=enabled)
         self.grants[device_id] = grant
 

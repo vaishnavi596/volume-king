@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from math import isfinite
 
-from .device_policy import ALLOWED_FEEDS, DeviceRegistry, valid_id
+from .device_policy import ALLOWED_FEEDS, MAX_DEVICES, DeviceRegistry, valid_id
 from .device_sessions import DeviceSessionGateway, SessionDenied
 from .device_verifier import DeviceProof, P256ChallengeVerifier
 
@@ -51,7 +51,7 @@ class EnrollmentManager:
         grants = frozenset(feeds)
         if not grants or not grants.issubset(ALLOWED_FEEDS):
             raise SessionDenied("Invalid device feed grant")
-        if len(self._registry.grants) >= 3:
+        if len(self._registry.grants) >= MAX_DEVICES:
             raise SessionDenied("Device capacity reached")
         # Registration validates strict P-256 DER public key before creating
         # the pending object; no raw key is considered trusted until proof.

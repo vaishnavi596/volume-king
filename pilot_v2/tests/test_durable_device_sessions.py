@@ -10,6 +10,7 @@ M="master_device_000001"
 A="second_device_00001"
 B="third_device_000001"
 C="fourth_device_000001"
+E="fifth_device_0000001"
 
 class DurableDeviceSessionTests(unittest.TestCase):
     def setUp(self):
@@ -33,8 +34,11 @@ class DurableDeviceSessionTests(unittest.TestCase):
             self.one.authorize(a,"indices")
         with self.assertRaises(SessionDenied):
             self.two.master_grant(a,C,["quotes"])
+        self.two.master_grant(self.master,C,["quotes"])
+        c=self.one.issue_verified(VerifiedDevice(C))
+        self.assertEqual(self.two.authorize(c,"quotes"),C)
         with self.assertRaises(SessionDenied):
-            self.two.master_grant(self.master,C,["quotes"])
+            self.two.master_grant(self.master,E,["quotes"])
 
     def test_disable_revoke_and_new_permissions_drop_old_tokens(self):
         self.one.master_grant(self.master,A,["quotes"])
