@@ -108,6 +108,22 @@ class OracleIntradayStageRegression(unittest.TestCase):
             ("test-account", "NIFTY", "candle", "1m")
         ])
 
+    def test_route_local_import_not_available_to_intraday_helper(self):
+        # Mimic the live Oracle route: canonical publisher imports its own
+        # dependencies; that import does not bind them in dhan_intraday.
+        scoped = FAKE.replace(
+            '    def cached_candles(symbol, interval, key):\\n',
+            '    def cached_candles(symbol, interval, key):\\n'
+            '        from assessment_state import publish\\n'
+            '        from assessment_scope import current_scope\\n',
+        )
+        self.assertNotEqual(scoped, FAKE)
+        configure_fake(scoped)
+        with self.assertRaisesRegex(
+            ValueError, "INTRADAY_PUBLISH_BINDINGS_UNAVAILABLE"
+        ):
+            stage.stage_source(scoped)
+
     def test_real_five_field_canonical_payload_blocks_unsafe_stage(self):
         canonical = FAKE.replace(
             '{"bars": []}, timeframe=interval)',
