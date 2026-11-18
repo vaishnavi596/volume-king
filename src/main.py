@@ -6460,7 +6460,12 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 # Fresh candle-only Top 5; scan across the watchlist and include indexes.
                 ranking_results={}
-                scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Ranking completed candles: 0 / "+str(len(watch_symbols))+" • "+str(history_failed[0])+" history fetch failures")
+                # Smart Data: rank only saved equities on Dhan, not the fixed
+                # 51-symbol catalog when the user has selected fewer shares.
+                # Reuse already scanned candles; this adds no provider requests.
+                ranking_symbols=(all_watch_symbols() if prefs.get("source")=="Dhan"
+                                 else watch_symbols)
+                scan_progress.update(checked=0,total=len(ranking_symbols),valid=0,failed=0,cached=0,state="Ranking completed candles: 0 / "+str(len(ranking_symbols))+" • "+str(history_failed[0])+" history fetch failures")
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
@@ -6514,7 +6519,7 @@ console.log('BOT KING Lightweight Charts ready');
                             publish_partial_ranking(ranking_results)
                             if current[0] in (0,4):request_view_refresh(current[0])
                         return sym,result
-                pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))
+                pairs=await asyncio.gather(*(rank_one(sym) for sym in ranking_symbols))
                 if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
                     await asyncio.sleep(.05)
                     continue
