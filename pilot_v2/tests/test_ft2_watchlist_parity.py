@@ -69,7 +69,9 @@ class WatchlistParityTests(unittest.TestCase):
     def test_flet_row_is_compact_and_uses_current_selected_roster(self):
         src = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("watchlist_rows(", src)
-        self.assertIn("state.groups[group[0]], quote_view, evidence_inbox,", src)
+        self.assertIn("filtered_watchlist_symbols(state.groups[group[0]], watch_search[0])", src)
+        self.assertIn("quote_view, evidence_inbox,", src)
+        self.assertIn("on_submit=apply_search", src)
         self.assertIn("selected_equities=state.selected", src)
         self.assertIn('ft.Text(row["candle"]', src)
         self.assertIn('ft.Text(row["filter_text"]', src)
