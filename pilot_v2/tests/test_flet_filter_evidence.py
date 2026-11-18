@@ -55,6 +55,48 @@ class FilterEvidenceTests(unittest.TestCase):
         self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],"WAIT")
         self.assertEqual(state.rows("TCS","3m")[-1],("",""))
 
+    def test_separate_filter_evidence_allows_one_valid_and_four_wait(self):
+        state=m.LocalFilterEvidence()
+        factor=sample()
+        with self.assertRaises(m.FilterEvidenceError):
+            state.accept_available("NIFTY","1m",4,{"pcr":factor["pcr"]},
+                                   allowed_symbols=("NIFTY",))
+        self.assertTrue(state.accept_available("NIFTY","1m",200,
+                        {"pcr":factor["pcr"]},allowed_symbols=("NIFTY",),
+                        trusted_transport=True))
+        result=state.rows("NIFTY","1m")
+        self.assertEqual([v for _,v in result[:5]],
+                         ["WAIT","WAIT","WAIT","BULLISH HIST","WAIT"])
+        self.assertEqual(result[-1],("",""))
+        self.assertTrue(state.accept_available("NIFTY","1m",1,
+                        {"candle_trend":factor["candle_trend"]},
+                        allowed_symbols=("NIFTY",),trusted_transport=True))
+        self.assertEqual(state.rows("NIFTY","1m")[4][1],"BULLISH HIST")
+        self.assertFalse(state.accept_available("NIFTY","1m",199,
+                        {"pcr":factor["pcr"]},allowed_symbols=("NIFTY",),
+                        trusted_transport=True))
+        self.assertEqual(state.rows("NIFTY","1m")[3][1],"BULLISH HIST")
+
+    def test_partial_invalid_is_atomic_and_removed_symbol_is_wait(self):
+        state=m.LocalFilterEvidence()
+        good=sample()
+        state.accept_available("TCS","3m",1,{"pcr":good["pcr"]},
+                               allowed_symbols=("TCS",),trusted_transport=True)
+        wrong=dict(good["candle_trend"],eligible=False)
+        for proposed in ({"candle_trend":wrong, "oi_support":good["oi_support"]},
+                         {"news":good["pcr"]}, {}):
+            with self.subTest(proposed=proposed),self.assertRaises(m.FilterEvidenceError):
+                state.accept_available("TCS","3m",2,proposed,
+                          allowed_symbols=("TCS",),trusted_transport=True)
+        self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[3][1],
+                         "BULLISH HIST")
+        self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],
+                         "WAIT")
+        self.assertNotIn("%",state.compact("TCS","3m",selected_equities=("TCS",)))
+        state.forget_removed(())
+        self.assertEqual([v for _,v in state.rows("TCS","3m",selected_equities=("TCS",))[:5]],
+                         ["WAIT"]*5)
+
     def test_same_five_filter_engine_renders_watchlist_compact(self):
         state=m.LocalFilterEvidence()
         self.assertEqual(state.compact("TCS","3m",selected_equities=("TCS",)),

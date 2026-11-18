@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-INDEPENDENT-FIVE-FACTOR-EVIDENCE-20261118:** FT3 independent five-filter partial-evidence test+code pending CI. Missing factors WAIT; no auto trading or real Dhan verified.
+
 > **FT3 VERIFIED CI #45 (44323382080):** source bd48d56 SUCCESS for per-symbol trusted expiry roster / strict calendar dates; offline only, no live Dhan, APK or Oracle. Next FT3 filter readiness.
 
 > **CURRENT V2-FT3-EXPIRY-SOURCE-GATED-CHOICE-20261118:** FT3 source-gated per-symbol option expiry choice, no auto-guessed expiry, full source CI pending. Native app/Oracle/Dhan untouched.

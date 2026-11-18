@@ -394,3 +394,10 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## V2-FT3-CI45-20261118
 - CI #45 run 44323382080 SUCCESS, exact source bd48d563a0328d8286b001f5508eddd0ce85a1dc. Source-gated expiry choices and normalized option dates tested offline only. No server, token, Dhan requests, trades or APK. Actual source integration remains blocked.
+
+
+## V2-FT3-INDEPENDENT-FIVE-FACTOR-EVIDENCE-20261118 — independent source-gated five-filter partial readiness
+- **PREVIOUS:** Exact FT3 option expiry source `bd48d563a0328d8286b001f5508eddd0ce85a1dc` CI #45 `44323382080` SUCCESS. Newest `5a31b1bae2fb188b6fed49ddfb27f9237380154f` docs-only. Existing full-snapshot path remains backward compatible and still rejects partial inputs.
+- **FIX:** `pilot_v2/android_app/src/filter_evidence.py` new explicit `accept_available` validates each supplied factor with strict Dhan attributed eligible fields and trusted transport asserted by caller. It updates ONLY present supported factors, per-factor revision, without clearing historical other factors; a high-frequency PCR revision does not mask a lower independent candle revision. Absent factors stay WAIT, all rendered values are HIST only; sixth slot remains empty, no unsupported scoring/bullish percentages. Malformed partial snapshots fail atomically. Only authenticated future transport may call this method; it does not verify the true source itself.
+- **TEST:** `pilot_v2/tests/test_flet_filter_evidence.py` adds PCR-only ready / four WAIT, independent candle revision, stale PCR reject, bad row/unknown source/empty rejection, removal and no fake percentage. Existing full contract tests remain in place. New exact CI PENDING.
+- **BOUNDARIES:** No server/Oracle code, production calls, app build, Dhan access or OAuth changes. Actual filter computation and source-specific provider evidence still open. Next exact CI and FT3 readiness with final grouped release audit.
