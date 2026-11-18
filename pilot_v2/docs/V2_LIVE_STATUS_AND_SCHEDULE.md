@@ -1,3 +1,5 @@
+> **FT4 VERIFIED V2-FT4-VISIBLE-IDENTITY-CI53-SUCCESS-20261118:** exact source d578abf CI #53 run 44329560100 SUCCESS. Visible V2 v2.0.100/code100 tied to source metadata preflight; signed APK/mobile remains BLOCKED. No Oracle/market/token actions.
+
 > **CURRENT V2-JOINT-FT4-APP-DISPLAY-VERSION-METADATA-PARITY-20261118:** V2 Flet header + Settings show v2.0.100/code100 and AST-only static prebuild identity parity gate tests; new CI pending. This is NOT APK binary/version verification. Last #52 PASS; no server/APK/Dhan actions.
 
 > **LATEST V2-JOINT-FT3-CI52-FT4-STATIC-SOURCE-REVIEW-20261118:** FT3 expiry-switch safe factor retirement exact CI #52 `44328405428` SUCCESS on `b69e4da`. FT4 source-only review confirms release HOLD; intended V2 metadata is NOT actual APK/phone proof and offline CI does NOT run Flet. Next sequential offline audit repairs; no Oracle/Dhan/APK operations.
