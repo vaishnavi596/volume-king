@@ -1,3 +1,5 @@
+> **CURRENT V2-FT2-PROTECTED-HTTP-FLET-JOINT-OFFLINE-20261118:** FT-2 protected HTTP and Flet end-to-end offline contract tests pending CI; no server or APK operations. Follow owner FT1→FT4 offline-first order.
+
 > **VERIFIED V2-FT2-GATEWAY-FLET-PARITY-CI34-SUCCESS-20261118:** FT2 frozen schema parity CI #34 PASS at f5191e9; owner forbids server activity/APK now. Continue remaining offline FT2 and FT3 contracts, then joint staged audit.
 
 > **CURRENT OWNER ORDER V2-OWNER-FT1-FT4-OFFLINE-FIRST-ROUND-BY-ROUND-20261118:** FT1→FT4 offline pattern first; NO server work, NO APK. Afterward joint audit and correct batch by batch. FT-2 frozen gateway/Flet parity test pending CI; see V2 Work Log.

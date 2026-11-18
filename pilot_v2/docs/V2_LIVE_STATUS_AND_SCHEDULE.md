@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-FT2-PROTECTED-HTTP-FLET-JOINT-OFFLINE-20261118:** FT-2 joint protected HTTP TestClient → actual Flet local quote consumer with synthetic delegated feed/expiry tests added; last CI #34 PASS; new CI pending. No Oracle, APK, Dhan changes. FT1–FT4 offline only, then audit turn by turn.
+
+
 > **VERIFIED V2-FT2-GATEWAY-FLET-PARITY-CI34-SUCCESS-20261118:** existing FT-2 Gateway/Flet read-only schema parity tests exact CI #34 run 44313278780 **SUCCESS** at f5191e9. Continue FT-1→FT-4 OFFLINE preparation; NO APK and NO Oracle/server operations until later joint audit and controlled batch repairs. Flet/phone/source live integration not verified.
 
 
