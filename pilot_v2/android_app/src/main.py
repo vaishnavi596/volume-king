@@ -81,6 +81,7 @@ def main(page: ft.Page):
     expiry_choices = evidence_inbox.expiries
     current = [0]
     group = [0]
+    help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -281,6 +282,14 @@ def main(page: ft.Page):
                     selected_equities=state.selected)],
             ]
         else:
+            def choose_help(e):
+                selected = e.control.value
+                if selected in ("Dashboard", "Watchlist", "Scanner", "Super Five",
+                                "Options", "Filters", "Settings"):
+                    help_topic[0] = selected
+                render()
+                page.update()
+
             def change_auto(e):
                 smart[0] = SmartDataSettings(bool(e.control.value), smart[0].equity_seconds)
                 status.value = ("Smart Data setting saved on device" if save_smart()
@@ -318,8 +327,15 @@ def main(page: ft.Page):
                 ft.Text("System Health / Error Doctor", color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text("OFFLINE / provider not connected", color=MUTED),
                 ft.Text("Error Doctor: " + " · ".join(diagnose(storage_error or smart_error or "unavailable")[:2]), color=MUTED),
-                ft.Text(help_for("Settings"), color=MUTED),
-                ft.Text("Help: " + help_for("Filters"), color=MUTED),
+                ft.Text("Next: " + diagnose(storage_error or smart_error or "unavailable")[2], color=MUTED),
+                ft.Text("Help Doctor — local guide", color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Dropdown(label="Help topic", width=250, value=help_topic[0],
+                            options=[ft.dropdown.Option(topic, topic) for topic in
+                                     ("Dashboard", "Watchlist", "Scanner", "Super Five",
+                                      "Options", "Filters", "Settings")],
+                            on_change=choose_help),
+                v1_card(ft, [ft.Text(help_topic[0], color=GOLD, weight=ft.FontWeight.BOLD),
+                             ft.Text(help_for(help_topic[0]), color=WHITE)]),
                 ft.Text("Live orders disabled"),
             ]
 

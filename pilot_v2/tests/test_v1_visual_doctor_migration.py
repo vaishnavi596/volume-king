@@ -46,6 +46,22 @@ class V1VisualDoctorMigration(unittest.TestCase):
         self.assertEqual(doctor.diagnose("no verified candles")[0], "BK-CANDLES")
         self.assertNotIn("Angel", doctor.help_for("Options"))
 
+    def test_local_help_topic_contract_is_non_network_and_non_secret(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        self.assertIn("def choose_help(e):", source)
+        self.assertIn('help_topic = ["Dashboard"]', source)
+        self.assertIn("on_change=choose_help", source)
+        self.assertIn("help_for(help_topic[0])", source)
+        self.assertIn("v1_card(ft, [ft.Text(help_topic[0]", source)
+        self.assertIn('diagnose(storage_error or smart_error or "unavailable")[2]', source)
+        self.assertIn("ft.NavigationDestination", source)
+        self.assertNotIn("page.run_task(fetch_help", source)
+        for topic in ("Dashboard", "Watchlist", "Scanner", "Super Five",
+                      "Options", "Filters", "Settings"):
+            self.assertTrue(doctor.help_for(topic))
+        self.assertNotIn("token=", doctor.help_for("Settings"))
+
     def test_flet_main_uses_safe_style_and_doctor_not_old_server(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
