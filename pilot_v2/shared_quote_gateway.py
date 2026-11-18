@@ -64,6 +64,7 @@ class SharedQuoteGateway:
                    if feed == "quotes" else Demand(()).indices)
         # Clone rows: consumers may mutate returned objects, never shared state.
         return {"protocol":"botking-v2-readonly",
+                "schema_version":1,
                 "revision":self._cache.revision,
                 "source":"dhan",
                 "freshness":"unverified",

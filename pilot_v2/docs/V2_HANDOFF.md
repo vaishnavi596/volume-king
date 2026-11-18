@@ -1,3 +1,5 @@
+> **CURRENT FT2 SCHEMA PARITY:** shared read-only gateway payload lacked mandatory Flet schema_version 1. Source-only fix + direct shared→Flet test committed, CI PENDING. FT1 #50 PASS. NO APK/Oracle/Dhan token changes.
+
 > **CURRENT FT1 #50 PASS:** #49 failed one test fixture, corrected resolver, exact source c93cb50b #50 SUCCESS; next FT2 source review and scoped correction; Oracle/APK prohibited.
 
 > **FT1 V2-FT1-REVOKE-CI49-TEST-SETUP-FIX-20261118:** #49 FAIL fixture-only delegated verifier missing current key resolver; correction committed pending CI. No Oracle/Dhan/APK.

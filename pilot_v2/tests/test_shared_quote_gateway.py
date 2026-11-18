@@ -1,5 +1,7 @@
 """Shared V2 read-only 1–3 phone fanout: OFFLINE no broker/socket requests."""
 import unittest
+import sys
+from pathlib import Path
 from pilot_v2.device_policy import DeviceRegistry
 from pilot_v2.device_sessions import DeviceSessionGateway, VerifiedDevice, SessionDenied
 from pilot_v2.gateway_contract import plan_demand, ContractError
@@ -113,6 +115,30 @@ class SharedQuoteGatewayTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             self.shared.publish_from_trusted_collector(snapshot(3,{"TCS":False}),plan)
         self.assertEqual(self.shared.read(self.master,"quotes")["revision"],2)
+
+    def test_shared_read_contract_is_accepted_by_actual_flet_inbox(self):
+        """The same quote/index read payload must pass the Android-side schema."""
+        src=Path(__file__).resolve().parents[1]/"android_app"/"src"
+        sys.path.insert(0,str(src))
+        from feed_inbox import DeviceFeedInbox
+        inbox=DeviceFeedInbox()
+        self.gateway.assign(self.master,SECOND,{"quotes","indices"})
+        delegated=self.gateway.issue(SECOND)
+        self.shared.select_equities(delegated,[["TCS"],[],[],[],[]])
+        self.shared.publish_from_trusted_collector(
+            snapshot(1,{"TCS":100,"NIFTY":25000}),
+            plan_demand([["TCS"],[],[],[],[]]))
+        quotes=self.shared.read(delegated,"quotes")
+        indexes=self.shared.read(delegated,"indices")
+        self.assertEqual(quotes["schema_version"],1)
+        self.assertEqual(indexes["schema_version"],1)
+        self.assertTrue(inbox.apply_feed("quotes",quotes,("TCS",)))
+        self.assertTrue(inbox.apply_feed("indices",indexes,("TCS",)))
+        self.assertEqual(inbox.visible("TCS",("TCS",))["price"],100.0)
+        self.assertEqual(inbox.visible("NIFTY",())["price"],25000.0)
+        self.assertEqual(inbox.visible("TCS",())["status"],"WAIT")
+        self.assertIn("HIST (unverified)",inbox.display("NIFTY",()))
+        self.assertFalse(inbox.apply_feed("quotes",quotes,("TCS",)))
 
     def test_zero_five_fifty_one_seventy_and_invalid_access(self):
         for n in (0,5,51,70):

@@ -512,3 +512,10 @@
 - **FIX + EXACT PASS:** commit `c93cb50b5e83db24f3fa8d461ce132cf157d6924` wires dynamic delegated-key resolver in same SQLite test; full V2 Pilot Contract Tests **#50 run `44326725753` SUCCESS**.
 - **RESULT:** FT1 offline revoke now atomically removes sessions, devices, enrolled current P256 key, pending key approval, outstanding login challenge, with optional-table compatibility; tests include revocation/re-enrollment, challenge/approval reuse denial. This is synthetic SQLite verification, not Android/production security clearance.
 - **NEXT:** FT2 source audit: inspect app-owned selection vs gateway shared cache/requests boundary and source auth before bounded FT2 remediation. No APK build, Oracle server operation, Dhan request/token change or order.
+
+
+## V2-JOINT-FT2-SHARED-GATEWAY-SCHEMA-PARITY-20261118
+- **PREVIOUS VERIFIED:** FT1 revoke fix CI #50 run `44326725753` SUCCESS exact `c93cb50b5e83db24f3fa8d461ce132cf157d6924`; last docs-only HEAD `1a6a2dafc0643f09ae10696443c402c3b1e8167f`. Examined `http_gateway.py`, `shared_quote_gateway.py`, `gateway_contract.py`, Flet `feed_inbox.py`, and prior shared-gateway tests.
+- **REAL CONTRACT DEFECT:** Offline `SharedQuoteGateway.read()` returned `protocol`, `revision`, `source`, `freshness`, `live_orders_enabled`, `quotes` but did NOT supply required `schema_version=1`; Flet `DeviceFeedInbox`/ `DeviceQuoteView` strictly rejects missing version. Existing shared-gateway-only tests did not exercise Flet consumer.
+- **TARGETED FT2 FIX:** Add fixed `schema_version:1` to legacy read-only shared-cache output; retain server-side transient selection/dedup semantics, source and non-live flags, permissions and last good. New joint regression `test_shared_quote_gateway.py` feeds actual shared read equity/index messages into real Flet `DeviceFeedInbox`, verifies typed schema, both lanes, selected privacy, HIST only, and duplicate revision suppression. This is source-only offline; no Oracle API endpoint or Dhan request.
+- **CURRENT GATE:** new exact CI pending. Do not edit FT3 unless this FT2 regression is green. No server host, deployment, token renewal, build, signing or APK.

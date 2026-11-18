@@ -1,3 +1,5 @@
+> **CURRENT FT2 SCHEMA PARITY:** shared read-only gateway payload lacked mandatory Flet schema_version 1. Source-only fix + direct shared→Flet test committed, CI PENDING. FT1 #50 PASS. NO APK/Oracle/Dhan token changes.
+
 > **VERIFIED V2 FT1–FT4 OFFLINE STATUS, 2026-11-18:** FT1 synthetic 4-device P256 #40 PASS; FT2 independent index/equity inbox + protected TestClient #41/#42 PASS; FT3 expiry/Smart Data/five filters/option metrics join #43–#47 PASS; FT4 no-APK release HOLD source gate #48 PASS exact 2300139a. ALL are offline code/CI only. **No APK build/sign, Oracle host action, Dhan call or token edit.** NEXT: one joint FT1→FT4 evidence/defect audit and correction per batch; actual Android Keystore login, HTTPS market-data producer, option source/filters and signed APK remain blocked.
 
 > **CURRENT V2-FT3-OPTION-FILTER-MATCHED-EXPIRY-SOURCE-GATE-20261118:** FT3 normalized selected option expiry/metrics + directional filter evidence matched by same observed timestamp; synthetic safety tests pending CI. Prior #45/#46 SUCCESS. No Dhan/Oracle/APK or token edits. Next FT3 offline then FT4 static gate.
