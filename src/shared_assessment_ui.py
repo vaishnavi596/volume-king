@@ -36,8 +36,10 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         return ["Oracle 4 factors / 5 filters • WAIT • malformed response"]
     if (set(factors) != {"news", "futures", "options", "candle"}
             or any(not isinstance(row, dict)
-                   or row.get("status") not in ("available", "unavailable")
-                   for row in factors.values())):
+                   or row.get("status") not in (
+                       ("available", "unavailable", "direction_available")
+                       if kind == "candle" else ("available", "unavailable"))
+                   for kind, row in factors.items())):
         return ["Oracle 4 factors / 5 filters • WAIT • incomplete factors"]
     # A malformed/unhashable id must show WAIT, never crash a 54-symbol view.
     if (len(filters) != len(FILTER_NAMES)
