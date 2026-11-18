@@ -1,3 +1,5 @@
+> **LATEST V2-FT2-ISOLATED-FEED-CI41-CI42-SUCCESS-20261118:** exact source #41 and #42 full offline CI PASS for independent app quote/index revision lanes + protected synthetic HTTP→Flet joint test. Next FT3 offline joint data, no Oracle/APK.
+
 > **FT2 V2-FT2-HTTP-FLET-DUAL-FEED-CI41-FOLLOWUP-20261118:** CI #41 PASS for app-only quote/index revision separation; protected mock Gateway→Flet dual-feed parity test pending full CI. Real Android/Oracle not deployed.
 
 > **CURRENT V2-FT2-ISOLATED-INDEX-EQUITY-REVISION-INBOX-20261118:** FT2 two-lane equity/index revision isolation prepared in Flet with offline tests; CI pending, no real network. Owner restrictions remain.

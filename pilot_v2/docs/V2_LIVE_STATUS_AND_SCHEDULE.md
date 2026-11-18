@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **VERIFIED V2-FT2-ISOLATED-FEED-CI41-CI42-SUCCESS-20261118:** FT2 app-only index/quotes independent revision fix #41 PASS at c3f92c6; protected offline TestClient→Flet parity #42 PASS at 1a24aa2. No real Android HTTP, Oracle, Dhan or APK. FT1 #40 previously PASS. NEXT offline FT3 source-gated integration; owner release holds still enforced.
+
+
 > **FT2 V2-FT2-HTTP-FLET-DUAL-FEED-CI41-FOLLOWUP-20261118:** Flet independent index/equity clocks exact CI #41 SUCCESS (c3f92c6). New secured TestClient→Flet dual-lane integration regression committed, exact CI pending. No server, Dhan or APK. Next offline FT3 after gate.
 
 
