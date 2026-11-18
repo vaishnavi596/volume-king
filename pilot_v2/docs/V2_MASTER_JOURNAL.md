@@ -1003,3 +1003,10 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - New `local_paper_slots.py` adds five isolated manual-paper **risk-plan** slots and strict local-state validation, explicit Settings UI controls for selection/preview save/clear, and `test_local_paper_slots.py` validates independence, bad storage/credentials/unknown fields, UI wiring and no provider/trade execution. This is NOT five simulated order bots or their fills/ledger.
 - **Open acceptance:** Full V1 five Paper Bot journal/automated simulation remains unported. Other pending screens/alerts, real verified five filters/Options/News/Futures, smart data schedules, Master+3 secure devices, signed V2 APK/Android acceptance and Oracle/Dhan live integration last. Only `pilot_v2/` written, no V1/server/provider/secret changes, real orders or APK.
 - Next: app-only alerts/diagnostic local display or safe manual Paper ledger audit, exact source regression first; no unrelated patch on failed CI.
+
+
+## V2-FT2-PAPER-PREVIEW-STALE-INPUT-GUARD-20261119
+- **Precheck:** Previous executable #94 run `44423433609`, source SHA `27039f8dfb496f8355ef56f17f9a53efb84bfc8a`, SUCCESS **270/270**. HEAD `57fe90eeeeaae8d07f5a0f5a5d04857060375d99` docs-only. During five local paper-planning slot review, identified risk: changing manual side/entry/quantity/stop/target/risk fields after calculation must not permit saving the old preview for new inputs.
+- **FIX:** V2 Flet Settings now invalidates `paper_last_preview` on both side and any numeric paper input change, and Save remains fail-closed unless a newly calculated preview exists. UI local calculation only: no broker, no order, no network or V1 server settings.
+- **TEST:** `test_local_paper_slots.py` now asserts stale-preview invalidation for both control callback categories and the save precondition. New exact CI PENDING; verify before claiming PASS.
+- **SAFETY:** Only V2 code/tests/docs. No Oracle, Dhan requests, OAuth, V1 changes, APK or live order.

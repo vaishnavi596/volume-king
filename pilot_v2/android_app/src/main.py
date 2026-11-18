@@ -673,13 +673,15 @@ def main(page: ft.Page):
                             width=160,
                             options=[ft.dropdown.Option("BUY", "BUY"),
                                      ft.dropdown.Option("SELL", "SELL")],
-                            on_change=lambda e: paper_inputs.__setitem__(
-                                "side", e.control.value)),
+                            on_change=lambda e: (paper_inputs.__setitem__(
+                                "side", e.control.value),
+                                paper_last_preview.__setitem__(0, None))),
                 ft.Row([
                     ft.TextField(label=label, value=paper_inputs[key],
                                  width=138, text_size=14,
-                                 on_change=lambda e, key=key:
-                                 paper_inputs.__setitem__(key, e.control.value or ""))
+                                 on_change=lambda e, key=key: (
+                                 paper_inputs.__setitem__(key, e.control.value or ""),
+                                 paper_last_preview.__setitem__(0, None)))
                     for key, label in (
                         ("entry", "Manual entry ₹"),
                         ("quantity", "Quantity"),

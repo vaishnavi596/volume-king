@@ -45,6 +45,19 @@ class PaperPlanSlotTests(unittest.TestCase):
         with self.assertRaises(PaperSlotError):
             obj.save_preview({"status": "LIVE", "orders_enabled": True, "live_verified": True})
 
+    def test_editing_paper_inputs_clears_old_preview_before_save(self):
+        source = (ROOT / "main.py").read_text()
+        self.assertIn('paper_last_preview[0] = result', source)
+        self.assertIn('paper_last_preview[0] = None', source)
+        self.assertEqual(source.count('paper_last_preview.__setitem__(0, None)'), 2)
+        self.assertIn('if paper_last_preview[0] is None:', source)
+        side = source.split('on_change=lambda e: (paper_inputs.__setitem__(', 1)[1]
+        side = side.split('ft.Row([', 1)[0]
+        self.assertIn('paper_last_preview.__setitem__(0, None)', side)
+        fields = source.split('on_change=lambda e, key=key: (', 1)[1]
+        fields = fields.split('], wrap=True', 1)[0]
+        self.assertIn('paper_last_preview.__setitem__(0, None)', fields)
+
     def test_real_flet_settings_controls_no_broker_calls(self):
         s = (ROOT / "main.py").read_text()
         ast.parse(s)
