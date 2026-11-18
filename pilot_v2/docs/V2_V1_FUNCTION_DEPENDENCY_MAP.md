@@ -1,0 +1,12 @@
+# BOT KING V2 — Full V1 Callable Feature Graph (read-only source audit)
+Batch V2-V1-FUNCTION-GRAPH-20261118. Source V1 src/main.py at V2 branch prior HEAD 8c498c5f; 7074 lines, roughly 649KB. This is STATIC SOURCE DEPENDENCY EVIDENCE, not a working migrated V2 application.
+Dashboard: dashboard() -> dashboard_market_indices(), dashboard_index_analysis(), super_five_card(), risk_overview(); index 1m candles and source-gated filters.
+Watchlist: watchlist(), watch_visible_tick(), watch_three_minute_signal(), refresh_watch_batch(), refresh_all_dhan_quotes(); 3m bars, selected equities, persistent rows, quote-only refresh.
+Scanner: scanner() -> scanner_content() -> scanner_controls(), scanner_compact_chart(); run_scan(), choose_timeframe(), five_engine_summary(); WebView LightweightCharts JS + native fallback require actual asset/dependency/Android audit.
+Super Five: super_five_card(), super_five_minute_refresh(), publish_partial_ranking(), five_engine_summary(); cached historical ranking, do not fabricate signals.
+Options: options(), option_chain_preview(), option_metrics(), refresh_selected_options(), option_dates(); CE/PE expiry and OI; old selected_option_rows() Angel-specific, quarantine.
+Analysis: combine_analysis(), load_combined(), fusion_card(), signal_percentages(), filter_coverage_panel(); distinguish historical V1 ten/15 technical scanner filters from V2 five selected evidence engines + blank sixth.
+Settings/Health: settings(), data_overview(), render_page(), select(), refresh_after_resume(); app-owned UI, do not copy old server-owned settings or old credentials.
+Paper: paper_trading_center(), paper_tick(), paper_bot_config_controls(); only non-executing paper features, no live order calls.
+MANDATORY QUARANTINE: V1 main imports market_feed and mixed server_feed, instantiates ServerAngelFeed and has get_yahoo/Angel/Yahoo/legacy provider paths. Never switch V2 main to this source unchanged. V1 project has flet-webview==0.1.0, V2 does not; old inline Licensed LightweightCharts JS and WebView are separate packaging/security/runtime acceptance gates.
+Full acceptance for EACH feature: visible UI, reachable engine, valid Dhan-only source/refresh/cache, working event callbacks, exact-SHA regression, then actual Android device checks. Only V2 paths may be written. Previous V2 source CI #66 209/209 PASS at 1912408e. New CI pending for graph gate. NEXT: one reviewed V2-only source adapter + full UI migration batch after excluding legacy providers and secrets; no Oracle until app built/tested.
