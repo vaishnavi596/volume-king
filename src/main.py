@@ -6863,7 +6863,11 @@ console.log('BOT KING Lightweight Charts ready');
                                 oracle_assessment_cache[key]={
                                     "fetched":time.monotonic(),"data":data,
                                     "timeframe":tf,"expiry":selected_expiry}
-                                if len(oracle_assessment_cache)>16:
+                                # Keep the 70-symbol selection universe plus index,
+                                # scanner and expiry contexts without premature LRU
+                                # eviction. Presentation TTL remains 180s and
+                                # unverified history never becomes a live signal.
+                                if len(oracle_assessment_cache)>80:
                                     del oracle_assessment_cache[next(iter(oracle_assessment_cache))]
                                 assessment_changed=True
                         except asyncio.CancelledError:
