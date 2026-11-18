@@ -4685,6 +4685,20 @@ console.log('BOT KING Lightweight Charts ready');
                 candidate=derived_three_minute_cache[sym][1]
                 if candidate.get("bars"):
                     candidates.append(candidate)
+            else:
+                # A transient 1m cache miss must not make the previously
+                # completed 3m Watchlist candles disappear one by one.
+                # Use only this provider-generation's already validated
+                # derived history, never pretend it was refreshed/live.
+                saved=derived_three_minute_cache.get(sym)
+                if (saved and saved[0][0]==provider_generation[0]
+                        and saved[1].get("source")=="Dhan"
+                        and saved[1].get("_scanner_timeframe")=="3m"
+                        and valid_candle_history(saved[1].get("bars"))):
+                    candidates.append(dict(
+                        saved[1],historical=True,live_verified=False,
+                        freshness="historical_unverified",cached=True,
+                        _candle_retained=True))
         def revision_order(item):
             bars=item.get("bars") or []
             last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
