@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **BK-20261118-SDC-1946-GREEN — WHY:** #1945 stale test fix needed full CI result. **ACTION/RESULT:** #1946 run `44271034591` exact `eda39e6d` **completed SUCCESS**, fixes historical #1944/#1945 one-error legacy source assertion; previous FAIL records kept. **OPEN:** historical refresh code still may call fixed-51 `batch_quotes()` if selected-batch cache aged 45s, potentially defeating 5-symbol Smart Data intent. **NEXT:** narrow selected 0/5/51/70 history quote-bootstrap pathway with no extra Dhan fanout or lost last-good data, then targeted+joint CI. Canonical journal move `BK-20261118-SDC-1946-GREEN`; Oracle/phone unverified.
+
+
 > **LATEST MOVE BK-20261118-SDC-CI1945-FIX — [ANDROID][CI/RELEASE] | WHY:** Source ranking changed from fixed 51 to selected Dhan equity list; #1944/#1945 failed. **ACTION:** Downloaded exact workflow job logs: both fail one stale mobile regression slicing anchor at line 404, #1945 **1302 tests / 1 error**, new selected-roster wiring test PASS. Committed focused old-anchor repair `eda39e6d` in `tests/test_mobile_regressions.py`, with original group-publish assertions intact; complete evidence in Journal `022d6124`. **RESULT:** Root cause identified and test-only fix committed, final post-fix CI not yet confirmed. **OPEN/NEXT:** Verify exact `eda39e6d` full CI terminal result; then return to 0/5/51/70 Smart Data integrated request/runtime gate. No Oracle/APK/orders.
 
 
