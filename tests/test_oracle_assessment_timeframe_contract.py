@@ -70,7 +70,7 @@ class OracleAssessmentTimeframeTests(unittest.TestCase):
         self.assertEqual(self.observations,[("NIFTY","2031-11-26")])
 
     def test_bad_timeframe_and_missing_auth_rejected_before_cache(self):
-        for bad in ("2m","1M","",None if False else [],1,True):
+        for bad in ("2m","1M","",[],1,True):
             with self.subTest(bad=repr(bad)):
                 with self.assertRaises(FakeHttpException) as cm:
                     self.handler("NIFTY",timeframe=bad,
