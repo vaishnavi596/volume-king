@@ -1,3 +1,5 @@
+> **LATEST V2-004D-DURABLE-KEY-LIFECYCLE:** Verified preceding docs-only commit `767f792` with V2 CI #15 SUCCESS. Introduced isolated atomic SQLite master-approved secondary P-256 public key enrollment/rotation with proof of possession, grants and session invalidation; new CI pending. **IMPORTANT OPEN SECURITY GATE:** Existing login verifier still takes static trusted key mapping; must wire `DurableDeviceKeys.public_key()` into login verification atomically before any HTTP exposure, or rotated old keys could authenticate. Master initial key/recovery and secure Android bridge remain separate. No production Oracle/Dhan/APK changes. Only previous commit files/CI rule applies.
+
 > **LATEST RULE OVERRIDE (2026-11-18):** Check ONLY the immediately preceding V2 commit and the files it actually changed, plus its exact applicable CI result. PASS → continue; FAIL → fix then recheck. **No automatic 10-commit or 10-file checks.** Historical journal statements requiring ten are superseded. Previous source commit `5b736217`, CI #14 `44296710626`: SUCCESS. V2-004D cryptographic key lifecycle remains NEXT, not yet committed.
 
 # BOT KING V2 — NEW CHAT HANDOFF (READ FIRST)
