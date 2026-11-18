@@ -577,7 +577,7 @@ class ServerDhanReadOnly:
         The preexisting 51-equity snapshot fallback is used only after explicit
         HTTP 404, never after a Dhan 429, invalid data, or other provider error.
         """
-        if (not isinstance(symbols, (tuple, list)) or len(symbols) > 67
+        if (not isinstance(symbols, (tuple, list)) or len(symbols) > 70
                 or len(symbols) != len(set(symbols))
                 or any(not isinstance(sym, str) or sym in DHAN_VERIFIED_INDEX_SYMBOLS
                        for sym in symbols)):
