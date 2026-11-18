@@ -16,6 +16,29 @@ class Sdc4BudgetTests(unittest.TestCase):
         self.assertEqual((after.watched_equities, after.total_instruments), (31, 34))
         self.assertEqual(after.unused_equity_slots, 39)
 
+    def test_smart_budget_scales_from_five_to_seventy_saved_equities(self):
+        # Requested workload follows the ACTUAL distinct saved equity roster,
+        # not a fixed 70-share scan nor 70 requests for five holdings.
+        five = [f"STOCK{i:03d}" for i in range(5)]
+        seventy = [f"STOCK{i:03d}" for i in range(70)]
+        small = plan_active_symbols([five[:2], five[2:], [], [], []])
+        large = plan_active_symbols([
+            seventy[:14], seventy[14:28], seventy[28:42],
+            seventy[42:56], seventy[56:]
+        ])
+        self.assertEqual((small.watched_equities, small.total_instruments,
+                          small.unused_equity_slots), (5, 8, 65))
+        self.assertEqual((large.watched_equities, large.total_instruments,
+                          large.unused_equity_slots), (70, 73, 0))
+        self.assertEqual(set(small.equities), set(five))
+        self.assertEqual(set(large.equities), set(seventy))
+        # The planner never assumes more than three expensive histories per
+        # tick; actual provider calls are separately throttled by coordinator.
+        self.assertLessEqual(len(plan_due_history_symbols(small, now=300)), 3)
+        self.assertLessEqual(len(plan_due_history_symbols(large, now=300)), 3)
+        self.assertFalse(hasattr(small, "saved_api_calls"))
+        self.assertFalse(hasattr(large, "saved_api_calls"))
+
     def test_removed_watchlist_symbol_stays_if_visible_scanner_or_dashboard(self):
         budget = plan_active_symbols([["RELIANCE"], [], [], [], []],
             scanner=["HDFCBANK"], dashboard=["TCS", "NIFTY"],
