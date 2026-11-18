@@ -1,6 +1,6 @@
 # BOT KING — Documentation & Journal Category Index
 
-**Canonical entry point:** This index groups BOT KING reports by purpose, not by date. As-of 2026-11-18. Use the newest evidence in the active journal over historical checkpoints. This index is a navigation/consolidation pass, **not permission to delete historical CI, rollback, auth or test evidence**.
+**First for new chats:** [BOT_KING_LIVE_WORK_INDEX.md](BOT_KING_LIVE_WORK_INDEX.md) — concise previous work, current task, next safe step and latest evidence. Keep one Live Index and one chronological Work Log, not duplicate full reports.\n\n**Canonical entry point:** This index groups BOT KING reports by purpose, not by date. As-of 2026-11-18. Use the newest evidence in the active journal over historical checkpoints. This index is a navigation/consolidation pass, **not permission to delete historical CI, rollback, auth or test evidence**.
 
 ## Workflow: where new evidence must go
 
@@ -16,6 +16,8 @@
 **Permanent rules:** [AGENTS.md](../AGENTS.md) and [handoff](../BOT_KING_HANDOFF.md). **Single canonical chronological ledger:** [BOT_KING_WORK_LOG.md](BOT_KING_WORK_LOG.md). **Current tasks/results:** [BOT_KING_WORK_RESULT_TRACKER.md](BOT_KING_WORK_RESULT_TRACKER.md). **T01–T16 tests:** [BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md](BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md). Don't create another general journal.
 
 ## Core — ACTIVE (keep)
+
+- [BOT_KING_LIVE_WORK_INDEX.md](BOT_KING_LIVE_WORK_INDEX.md) — live new-chat entry point (previous / current / next); update alongside dated Work Log after material milestones.
 
 - [BOT_KING_WORK_LOG.md](BOT_KING_WORK_LOG.md) — append-only dated evidence; historical failures retained.
 - [BOT_KING_WORK_RESULT_TRACKER.md](BOT_KING_WORK_RESULT_TRACKER.md) — work status / next step, separate source, Oracle, CI, APK, phone.
