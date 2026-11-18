@@ -35,6 +35,52 @@ class PreflightTests(unittest.TestCase):
         self.assertNotEqual(result["target_package"],"com.botking.bot_king")
         self.assertEqual(result["version"],"2.0.100")
         self.assertEqual(result["version_code"],100)
+    def test_future_coordinated_v2_version_increment_allowed_without_release(self):
+        original=pathlib.Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            copies=("pilot_v2/pilot_identity.json",
+                    "pilot_v2/android_app/pyproject.toml",
+                    "pilot_v2/android_app/src/main.py",
+                    "pilot_v2/android_app/src/app_identity.py",
+                    "pyproject.toml")
+            for relative in copies:
+                target=root/relative
+                target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes((original/relative).read_bytes())
+            metadata=root/"pilot_v2/pilot_identity.json"
+            app=root/"pilot_v2/android_app/src/app_identity.py"
+            pyproject=root/"pilot_v2/android_app/pyproject.toml"
+            record=json.loads(metadata.read_text())
+            for version in (101,102,125):
+                record["version_name"]=f"2.0.{version}"
+                record["version_code"]=version
+                metadata.write_text(json.dumps(record))
+                app.write_text((original/"pilot_v2/android_app/src/app_identity.py")
+                               .read_text().replace("2.0.100",f"2.0.{version}")
+                               .replace("APP_VERSION_CODE = 100",
+                                        f"APP_VERSION_CODE = {version}"))
+                pyproject.write_text((original/"pilot_v2/android_app/pyproject.toml")
+                                     .read_text().replace("2.0.100",f"2.0.{version}"))
+                result=inspect(root)
+                self.assertEqual(result["status"],"PASS", result["failures"])
+                self.assertFalse(result["release_ready"])
+                self.assertFalse(result["apk_generated"])
+                self.assertFalse(result["production_deployment_approved"])
+            # A mismatched or downgraded version is never accepted.
+            record["version_name"]="2.0.101"
+            record["version_code"]=100
+            metadata.write_text(json.dumps(record))
+            self.assertEqual(inspect(root)["status"],"FAIL")
+            record["version_name"]="2.0.099"
+            record["version_code"]=99
+            metadata.write_text(json.dumps(record))
+            self.assertEqual(inspect(root)["status"],"FAIL")
+            record["version_name"]="2.0.101"
+            record["version_code"]=True
+            metadata.write_text(json.dumps(record))
+            self.assertEqual(inspect(root)["status"],"FAIL")
+
     def test_displayed_app_version_mismatch_blocks_static_preflight(self):
         original=pathlib.Path(__file__).resolve().parents[2]
         with tempfile.TemporaryDirectory() as tmp:

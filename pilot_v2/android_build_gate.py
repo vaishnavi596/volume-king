@@ -6,6 +6,7 @@ be checked from the actual APK binary during the future dedicated build.
 import ast
 import json
 import pathlib
+import re
 import tomllib
 
 def inspect(repo_root):
@@ -16,8 +17,12 @@ def inspect(repo_root):
     failures=[]
     if metadata.get("version_name")!=v2["project"]["version"]:
         failures.append("V2 version mismatch")
-    if metadata.get("version_code")!=100:
-        failures.append("Expected initial pilot versionCode 100")
+    version = metadata.get("version_name")
+    code = metadata.get("version_code")
+    match = re.fullmatch(r"2\\.0\\.(0|[1-9][0-9]*)", version) if type(version) is str else None
+    if (not match or type(code) is not int or code < 100
+            or int(match.group(1)) != code):
+        failures.append("V2 versionName/versionCode must increase together from 2.0.100")
     if metadata.get("android_package")==metadata.get("legacy_package"):
         failures.append("V2 package collides with legacy")
     if metadata.get("android_package")!="com.botking.bot_king_v2":

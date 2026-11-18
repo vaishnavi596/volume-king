@@ -1,3 +1,5 @@
+> **CURRENT V2-FT4-FUTURE-VERSION-INCREMENT-SOURCE-GATE-20261118:** FT4 static source version gate accepts future coordinated V2 2.0.101+ versionName/code only, never actual APK release; mismatches and rollback fail. Last FT3 #54 PASS. New CI pending, no server/APK/Dhan.
+
 > **LATEST V2-FT3-OPTIONS-OBSERVATION-REVISION-CI54-SUCCESS-20261118:** FT3 option observation-to-filter retirement CI #54 `44331493500` SUCCESS exact source `16e5d2b`. Prior FT4 #53 PASS. No actual Dhan, Android, APK, Oracle or token changes. NEXT static FT4 versionCode future increment audit, release HOLD.
 
 > **CURRENT V2-JOINT-FT3-OPTION-METRICS-REVISION-INVALIDATION-20261118:** FT3 app-only option-metrics revision wrapper now retires four derived filter directions only when selected expiry's material observation changes, preserves candle and last-good. Regression CI pending; previous #53 PASS. No server/Dhan/APK.
