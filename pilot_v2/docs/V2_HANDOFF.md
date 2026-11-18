@@ -1,3 +1,5 @@
+> **CURRENT FT1 #50 PASS:** #49 failed one test fixture, corrected resolver, exact source c93cb50b #50 SUCCESS; next FT2 source review and scoped correction; Oracle/APK prohibited.
+
 > **FT1 V2-FT1-REVOKE-CI49-TEST-SETUP-FIX-20261118:** #49 FAIL fixture-only delegated verifier missing current key resolver; correction committed pending CI. No Oracle/Dhan/APK.
 
 > **CURRENT V2-JOINT-FT1-REVOKE-TRUST-STATE-CLEANUP-20261118:** FT1 first audit-repair: revoke removes optional device trust/approval/login-challenge rows in one SQLite transaction; CI pending, Android login still BLOCKED, no host/APK operations.

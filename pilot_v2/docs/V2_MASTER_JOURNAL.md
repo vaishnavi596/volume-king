@@ -448,3 +448,10 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 ## V2-FT1-REVOKE-CI49-TEST-SETUP-FIX-20261118
 - **FAILED CI #49:** run `44326298926` on `b2ec814b70c44dc2fa0fa25704de11f3f120fa85` failed exactly one **test fixture setup** error out of 161: a static master-only `DurableP256ChallengeVerifier` was asked to issue delegated D's challenge and correctly denied `Unknown device`. Its trusted delegated-key resolver had not been supplied to this new test; implementation's revoke code was not reached. GitHub job `134878363390` log checked, all other tests passed.
 - **TARGETED CORRECTION:** `test_durable_device_keys.py` creates a delegated-capable verifier with `trusted_key_resolver=self.keys1.public_key` using the existing same SQLite path, then tests revoke clearing key, pending grant, login challenge and old session. Existing source cleanup remains unchanged. CI for new source SHA PENDING at authoring, no Oracle/Dhan/APK work.
+
+
+## V2-FT1-REVOKE-CI49-FAIL-CI50-PASS-20261118
+- **CI #49 FAILED** run `44326298926`, SHA `b2ec814b70c44dc2fa0fa25704de11f3f120fa85`, 1/161: new test fixture used a static master-only challenge verifier for delegated device, yielding legitimate `Unknown device`. Other 160 tests passed; actual failure details retrieved from job `134878363390` log.
+- **FIX + EXACT PASS:** commit `c93cb50b5e83db24f3fa8d461ce132cf157d6924` wires dynamic delegated-key resolver in same SQLite test; full V2 Pilot Contract Tests **#50 run `44326725753` SUCCESS**.
+- **RESULT:** FT1 offline revoke now atomically removes sessions, devices, enrolled current P256 key, pending key approval, outstanding login challenge, with optional-table compatibility; tests include revocation/re-enrollment, challenge/approval reuse denial. This is synthetic SQLite verification, not Android/production security clearance.
+- **NEXT:** FT2 source audit: inspect app-owned selection vs gateway shared cache/requests boundary and source auth before bounded FT2 remediation. No APK build, Oracle server operation, Dhan request/token change or order.
