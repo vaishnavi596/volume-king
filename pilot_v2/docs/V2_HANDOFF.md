@@ -6,6 +6,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-002B-P256-TOKEN-STATUS (2026-11-18):** V2 CI #5 `44282742138` at `04c5c67` SUCCESS. Joint isolated P-256 challenge verifier + Dhan token status policy + real signature tests added (new exact CI PENDING); still no secure enrollment, multi-worker store, Android native Keystore integration or Oracle deploy. **NEXT:** verify new CI and continue V2-002 secure provisioning/auth readiness. No legacy, market orders or APK touched.
 
+> **LATEST V2-002C-MASTER-ENROLLMENT:** Exact V2 CI #6 `44283251098` at `fa79f41` completed SUCCESS. V2-002C isolated master-approved secondary P-256 public-key enrollment with one-time challenge, read-only per-feed grants and max 3 device capacity added; new commit CI pending. Still NO HTTP endpoint, shared durable store, real Oracle deployment, client APK or actual device pairing. Next check exact CI and build atomic session/enrollment store before real auth.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
