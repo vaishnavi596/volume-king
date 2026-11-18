@@ -176,7 +176,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
             "expiry":SimpleNamespace(value="2026-11-26"),
             "date":__import__("datetime").date,
             "bot_symbol":SimpleNamespace(value="TCS"),
-            "DHAN_VERIFIED_SYMBOLS":{"NIFTY","TCS"},
+            "DHAN_VERIFIED_SYMBOLS":{"NIFTY","BANKNIFTY","SENSEX","TCS"},
             "oracle_assessment_attempts":attempts,
             "oracle_assessment_cache_generation":[0],
             "oracle_assessment_closed_bootstrap_generation":[None],
@@ -192,15 +192,19 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         expected=[
+            ("NIFTY",{"timeframe":"1m","expiry":None}),
+            ("BANKNIFTY",{"timeframe":"1m","expiry":None}),
+            ("SENSEX",{"timeframe":"1m","expiry":None}),
             ("TCS",{"timeframe":"3m","expiry":None}),
             ("NIFTY",{"timeframe":"1m","expiry":"2026-11-26"}),
-            ("NIFTY",{"timeframe":"1m","expiry":None}),
         ]
         self.assertEqual(requested,expected)
         self.assertEqual(set(cache),{
+            (0,"NIFTY","1m",None),
+            (0,"BANKNIFTY","1m",None),
+            (0,"SENSEX","1m",None),
             (0,"TCS","3m",None),
             (0,"NIFTY","1m","2026-11-26"),
-            (0,"NIFTY","1m",None),
         })
         self.assertEqual(set(attempts),set(cache))
         with self.assertRaises(FinishedOneTick):
@@ -297,7 +301,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
                "expiry":SimpleNamespace(value="2026-11-26"),
                "date":__import__("datetime").date,
                "bot_symbol":SimpleNamespace(value="NIFTY"),
-               "DHAN_VERIFIED_SYMBOLS":{"NIFTY"},
+               "DHAN_VERIFIED_SYMBOLS":{"NIFTY","BANKNIFTY","SENSEX"},
                "oracle_assessment_attempts":attempts,
                "oracle_assessment_cache_generation":[0],
                "oracle_assessment_closed_bootstrap_generation":[None],
@@ -313,13 +317,15 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(requested,[
+            ("NIFTY","1m",None),
+            ("BANKNIFTY","1m",None),
+            ("SENSEX","1m",None),
             ("NIFTY","5m",None),
-            ("NIFTY","1m","2026-11-26"),
-            ("NIFTY","1m",None)])
+            ("NIFTY","1m","2026-11-26")])
         self.assertEqual(set(cache),set(attempts))
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
-        self.assertEqual(len(requested),3)
+        self.assertEqual(len(requested),5)
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
