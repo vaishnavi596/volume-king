@@ -10,6 +10,7 @@ from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
 from legacy_technical_bridge import historical_scanner_analysis
+from historical_chart_context import chart_points, historical_shortlist
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -149,6 +150,23 @@ def main(page: ft.Page):
                 ft.Text(historical_scanner_analysis(
                     candle_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["summary"], size=13),
+                *([ft.Container(
+                    content=ft.LineChart(
+                        data_series=[ft.LineChartData(
+                            data_points=[ft.LineChartDataPoint(i, price)
+                                         for i, price in enumerate(chart_points(
+                                             candle_history, scanner[0].symbol,
+                                             scanner[0].timeframe,
+                                             selected_equities=state.selected))],
+                            stroke_width=2, curved=False)],
+                        expand=True),
+                    height=150, padding=5,
+                )] if len(chart_points(
+                    candle_history, scanner[0].symbol, scanner[0].timeframe,
+                    selected_equities=state.selected)) >= 2 else
+                   [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
+                ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
+                        size=12),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
@@ -168,7 +186,11 @@ def main(page: ft.Page):
                     expiry_choices.selected(scanner[0].symbol,
                                             selected_equities=state.selected) or "",
                     selected_equities=state.selected)),
-                ft.Text("Super Five: no verified history / ranking data"),
+                ft.Text("Super Five — verified live ranking WAIT"),
+                ft.Text("Historical technical shortlist (not Super Five signals)",
+                        size=13, weight=ft.FontWeight.BOLD),
+                *[ft.Text(item["label"], size=12) for item in historical_shortlist(
+                    candle_history, state.selected, timeframe="3m")],
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
         elif current[0] == 1:
