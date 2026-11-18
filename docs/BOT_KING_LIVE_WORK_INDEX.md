@@ -12,6 +12,17 @@
 
 **Rule:** Verify GitHub branch HEAD and recent relevant CI every new session. This index is an as-of snapshot and is not proof of changes made after its date.
 
+## LIVE MOVE LEDGER — why → action → result → next (mandatory)
+
+**Rule:** Before starting any next dependent batch, document the just-completed move **here** and with detailed proof in [Work Log](BOT_KING_WORK_LOG.md). Record why each move was necessary and why the next move matters. Update this small ledger after every substantive move or checkpoint; never claim source-only proof is Oracle production verification.
+
+| Move ID / category | WHY — why needed | ACTION — what the move meant | Actual RESULT / evidence | OPEN / not proved | NEXT move — why and PASS gate |
+|---|---|---|---|---|---|
+| BK-MOVE-20261118-T09-OBS · [COMMAND/ORACLE] | Canonical publisher requires `observed_at`, but source history endpoint exposes no verified timestamp for the new candidate | Add SHA-pinned observation-provenance AST auditor and synthetic tests; only inspect where metadata is assigned/read, no runtime imports or Dhan requests | Script [`03592b5b`](https://github.com/vaishnavi596/volume-king/commit/03592b5b7e573891ea76d1236bf226afc874c196), tests [`6f31185b`](https://github.com/vaishnavi596/volume-king/commit/6f31185ba366f006cab8dd0f07568ded91f86188); CI [#1855](https://github.com/vaishnavi596/volume-king/actions/runs/44215277382) and [#1856](https://github.com/vaishnavi596/volume-king/actions/runs/44215313596) **SUCCESS (source/offline only)** | Real Oracle observation provenance and Assessment cache-key/runtime equivalence **UNVERIFIED**; old staged candidate **HOLD** | **NEXT:** obtain one SHA-verified, sanitized Oracle source-only observation audit output; WHY: no fabricated timestamp or eligibility. PASS gate: exact field-lineage evidence, no server edits/Dhan/orders. Then build a *new* candidate with canonical imports/five-field payload and tests. |
+| BK-MOVE-20261118-INDEX-RULE · [DOCS] | New chats must know not merely *what* was done, but *why*, meaning and justified next action; undocumented transitions cause repeated or unsafe work | Add permanent mandatory move-ledger rule in `AGENTS.md` and maintain this Live Index + canonical Work Log in lockstep | Rule commit [`a3541b32`](https://github.com/vaishnavi596/volume-king/commit/a3541b32b85ffb53b0c0271b7b6582f66a22e418); **docs-only**. Journal and index reconciliation belong to this batch; CI on docs-only commit is not runtime proof | Verify index/journal link consistency; future moves must follow rule | **NEXT:** close this rule batch with matching Journal entry, then return to T09 provenance audit; WHY: T09 is the actual app blocker. Gate: both records updated, latest CI verified. |
+
+**For all new moves:** `Move ID / when / category | WHY | ACTION / meaning | RESULT + exact evidence | OPEN / unknown | NEXT + WHY + acceptance gate`. Keep only recent/high-priority rows here; move older resolved details to the Work Log. Mark errors and HOLD explicitly. Do **not** move to a new dependent batch before writing both records.
+
 ## 1. Previous work / पिछले चैट में क्या हुआ
 
 | Date / topic | What actually happened | Evidence & boundary |
