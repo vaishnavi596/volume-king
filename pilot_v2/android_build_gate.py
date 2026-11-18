@@ -29,13 +29,24 @@ def inspect(repo_root):
         failures.append("Pilot release gates must remain OFF")
     if not (root/"pilot_v2/android_app/src/main.py").is_file():
         failures.append("V2 app entry missing")
+    # A static source check must NEVER authorize a signed release, even when
+    # its own metadata assertions pass. Binary and device proof come later.
+    blockers = (
+        "V2 APK binary package/version/certificate not inspected",
+        "Android Master Login and device security not verified on phone",
+        "Authenticated Oracle/Dhan read-only transport not accepted",
+        "Full end-to-end regression and authorized deployment not verified",
+    )
     return {"check":"V2_ANDROID_PREBUILD_IDENTITY",
             "status":"PASS" if not failures else "FAIL",
             "target_package":metadata.get("android_package"),
             "version":metadata.get("version_name"),
             "version_code":metadata.get("version_code"),
             "apk_generated":False,"apk_identity_verified":False,
-            "signing_verified":False,"failures":failures}
+            "signing_verified":False,
+            "release_ready":False,"release_blockers":list(blockers),
+            "production_deployment_approved":False,
+            "failures":failures}
 
 def main():
     import argparse

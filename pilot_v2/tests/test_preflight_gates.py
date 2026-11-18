@@ -27,6 +27,11 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(result["apk_generated"])
         self.assertFalse(result["apk_identity_verified"])
         self.assertFalse(result["signing_verified"])
+        self.assertFalse(result["release_ready"])
+        self.assertFalse(result["production_deployment_approved"])
+        self.assertGreaterEqual(len(result["release_blockers"]), 4)
+        self.assertTrue(any("APK" in item for item in result["release_blockers"]))
+        self.assertTrue(any("Login" in item for item in result["release_blockers"]))
         self.assertNotEqual(result["target_package"],"com.botking.bot_king")
     def test_mutated_metadata_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,6 +46,9 @@ class PreflightTests(unittest.TestCase):
             (root/"pilot_v2/android_app/pyproject.toml").write_text(
                 '[project]\nname="v2"\nversion="2.0.100"\n')
             (root/"pyproject.toml").write_text('[project]\nname="old"\n')
-            self.assertEqual(inspect(root)["status"],"FAIL")
+            failure = inspect(root)
+            self.assertEqual(failure["status"],"FAIL")
+            self.assertFalse(failure["release_ready"])
+            self.assertFalse(failure["production_deployment_approved"])
 if __name__=="__main__":
     unittest.main()
