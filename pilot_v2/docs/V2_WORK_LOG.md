@@ -773,3 +773,8 @@
 - Read-only scanned old V1 src/main.py (7074 lines), identified callable Dashboard→index/analysis/Super Five, Watchlist→3m/refresh, Scanner→chart/WebView/engine, Options CE/PE, AI, Settings/Health and Paper pathways. Old providers Angel One and Yahoo coupled with old main; excluded from V2 active runtime.
 - New V2-only docs/V2_V1_FUNCTION_DEPENDENCY_MAP.md and tests/test_v1_function_dependency_map.py assert actual AST functions and source quarantine. Not a bulk full working UI copy and not Android or live Dhan acceptance. No old branch/journal modifications, Oracle changes, APK, trading or broker requests.
 - New exact V2 CI PENDING. NEXT if green safe provider-boundary adapter followed by V2-only complete UI/functional copy in consolidated batch; no unchecked legacy main switch.
+
+## V2-V1-CALL-GRAPH-CI67-VERIFIED-20261118
+- GitHub V2 Pilot CI #67 run 44352573364 exact code commit d3254590da3f7391e98df3a0efbe3d04608a7bd3 **COMPLETED SUCCESS; 213/213 tests** (0.986s unittest execution); previous #66 209/209 SUCCESS.
+- Verified V2 static call dependency map at docs/V2_V1_FUNCTION_DEPENDENCY_MAP.md and tests/test_v1_function_dependency_map.py for V1 Dashboard, Watchlist, Scanner chart, Super Five, CE/PE, assessment, Master/health and paper function names; V1 main old provider/network still quarantined.
+- This PASS applies to *offline static mapping*, not live Android source feature parity. No old V1 edits, Oracle deployment, Dhan calls, APK or live orders. NEXT coherent V2-only safe provider and complete functional UI graph migration using existing secure V2 evidence inbox, followed by same-SHA full regression and actual Android acceptance gate. Keep general app-first/server-last rules.
