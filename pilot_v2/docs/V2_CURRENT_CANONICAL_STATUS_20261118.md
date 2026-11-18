@@ -44,7 +44,8 @@
 | [#83](https://github.com/vaishnavi596/volume-king/actions/runs/44364734475) | `51a8c574` | 243/244 FAIL | One stale Watchlist source-string assertion, code feature remains |
 | [#84](https://github.com/vaishnavi596/volume-king/actions/runs/44365018806) | `09bc354e` | 244/244 PASS | Corrected assertion / Watchlist search |
 | [#85](https://github.com/vaishnavi596/volume-king/actions/runs/44365732818) | `ad917cb5` | 245/245 PASS | Historical Super Five to chart |
-| [#86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) | `8739cb9a` | 246/246 PASS | Watchlist → Scanner 3m button |\n| [#87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631) | `51da2bef` | **249/249 PASS** | Local Scanner 15/35/70 bar history window |
+| [#86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) | `8739cb9a` | 246/246 PASS | Watchlist → Scanner 3m button |
+| [#87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631) | `51da2bef` | **249/249 PASS** | Local Scanner 15/35/70 bar history window |
 
 ## 4. OWNER rules (authoritative)
 - V2 equals V1 **real screens, behaviors, engines** but no old server settings, Angel One, Yahoo, legacy credentials/auth/order paths. Copy only audited UI and local functions to V2; **do not import V1 `src/main.py`** (mixed providers) or old server modules.
