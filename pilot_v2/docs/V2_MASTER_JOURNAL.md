@@ -845,3 +845,10 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - Exact [V2 Pilot CI #80](https://github.com/vaishnavi596/volume-king/actions/runs/44363192734), run `44363192734` at source commit `db9e36a6f084d575c03f8c1b2278ac933eab64c8`, **COMPLETED SUCCESS**, `pilot-contract` job SUCCESS and Python unittest **239/239 OK**, 1.227s. All 238 prior tests and newly added V1 Dashboard/Watchlist styling contract test pass. No failing steps.
 - Source migration connects V1 dark/gold styling to Dashboard health, Watchlist rows and Scanner/Master headings. Offline UI-source acceptance only, not native Android visual comparison or verified Dhan transport. No V1, Oracle, provider/credential, APK or order operations.
 - NEXT: continue V2-only feature/UX parity for missing V1 screens and safe local diagnostics, preserving 3 bottom tabs, source gating and zero legacy server setup.
+
+
+## V2-FT2-CONTEXTUAL-LOCAL-HELP-20261118
+- **PRECHECK:** Exact previous V2 CI #80 run `44363192734` SHA `db9e36a6f084d575c03f8c1b2278ac933eab64c8` SUCCESS **239/239**; docs-only previous HEAD `b97a1e1753212a07d3955b37b76c68bb648d0c97` confirmed.
+- **SOURCE:** Dashboard and Watchlist headings gain contextual V1-gold Help icon, calling app-owned `open_help(topic)` to open existing Settings/Help Doctor tab and select the correct topic immediately. Navigation bar selected index synchronized; exactly three bottom tabs remain. No server settings, data fetches, remote help API or provider/order paths.
+- **TEST:** Added offline AST/source regression for both icon actions, correct target topic, navigation bar index and no network/sidebar/tab proliferation. Exact code CI pending verification.
+- **BOUNDARY:** V2-only. No V1, Angel/Yahoo, old credentials, Oracle, Dhan, orders, APK or actual Android UI proof. NEXT verify exact run and continue full V1 functional-screen migration separately.

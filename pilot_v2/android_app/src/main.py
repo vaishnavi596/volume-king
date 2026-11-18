@@ -82,6 +82,15 @@ def main(page: ft.Page):
     current = [0]
     group = [0]
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
+
+    def open_help(topic):
+        """Jump to app-owned Settings Help, without a server request."""
+        help_topic[0] = topic
+        current[0] = 2
+        page.navigation_bar.selected_index = 2
+        render()
+        page.update()
+
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -120,7 +129,13 @@ def main(page: ft.Page):
                                             state.selected) for symbol in INDEXES]
             health = status_overview(state.selected, quote_view, evidence_inbox)
             content.controls = [
-                ft.Text("Dashboard", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text("Dashboard", size=19, color=GOLD,
+                            weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(icon=ft.Icons.HELP_OUTLINE, icon_color=GOLD,
+                                  tooltip="Dashboard Help",
+                                  on_click=lambda e: open_help("Dashboard")),
+                ]),
                 *[v1_card(ft, [
                         ft.Text(card["symbol"], color=GOLD, weight=ft.FontWeight.BOLD, size=16),
                         ft.Text(card["price_label"], size=15),
@@ -260,7 +275,13 @@ def main(page: ft.Page):
                 render()
                 page.update()
             content.controls = [
-                ft.Text("Watchlist", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text("Watchlist", size=19, color=GOLD,
+                            weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(icon=ft.Icons.HELP_OUTLINE, icon_color=GOLD,
+                                  tooltip="Watchlist Help",
+                                  on_click=lambda e: open_help("Watchlist")),
+                ]),
                 ft.Text(f"{selected_equity_plan(state)['equity_count']}/70 unique equities · 3 indexes separate"),
                 ft.Dropdown(label="Watchlist", width=190, value=str(group[0]),
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],

@@ -46,6 +46,19 @@ class V1VisualDoctorMigration(unittest.TestCase):
         self.assertEqual(doctor.diagnose("no verified candles")[0], "BK-CANDLES")
         self.assertNotIn("Angel", doctor.help_for("Options"))
 
+    def test_context_help_uses_settings_tab_and_no_network(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        self.assertIn("def open_help(topic):", source)
+        self.assertIn('help_topic[0] = topic', source)
+        self.assertIn('current[0] = 2', source)
+        self.assertIn('page.navigation_bar.selected_index = 2', source)
+        self.assertIn('open_help("Dashboard")', source)
+        self.assertIn('open_help("Watchlist")', source)
+        self.assertEqual(source.count('ft.NavigationDestination('), 3)
+        self.assertNotIn('page.run_task(open_help', source)
+        self.assertNotIn('from server_feed import', source)
+
     def test_dashboard_watchlist_reuse_v1_visual_shell_without_provider(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
