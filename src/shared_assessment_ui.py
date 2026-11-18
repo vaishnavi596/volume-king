@@ -23,6 +23,13 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
         return ["Oracle 4 factors / 5 filters • WAIT • mismatched symbol"]
     if data.get("live_orders_enabled") is not False or data.get("signal_eligible") is not False:
         return ["Oracle 4 factors / 5 filters • WAIT • unsafe response"]
+    # The UI is informational until a verified scoring producer exists.
+    # Explicit foreign/stale sources or invented percentages cannot be
+    # interpreted as evidence, even when signal_eligible is False.
+    if data.get("source", "dhan") != "dhan" or data.get("freshness", "unverified") != "unverified":
+        return ["Oracle 4 factors / 5 filters • WAIT • unsupported source or freshness"]
+    if data.get("bullish_score") is not None or data.get("bearish_score") is not None:
+        return ["Oracle 4 factors / 5 filters • WAIT • unverified percentages"]
     filters = data.get("assessment_filters")
     factors = data.get("factors")
     if not isinstance(filters, list) or not isinstance(factors, dict):
