@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST MOVE BK-20261118-SDC-CI1951-LEGACY:** #1951 run 44274442573 FAILED (1306 tests; 2 failures from one stale test invalidating 0/0 equity SKIPPED). Source and new zero tests behaved as intended; exact legacy test matrix updated to accept empty selected equities while retaining invalid-count guards and independent index 0/0 rejection. One joint test+Work Log+Index commit; new full CI pending. NEXT verify exact CI before 0/5/51/70 integrated gate. No Oracle/API/orders/APK.
+
+
 > LAST MOVE BK-20261118-SDC-CI1950-ZERO: WHY #1950 failed 1/1304 old fixed News assertion and empty saved Watchlist falsely failed quote bootstrap. ACTION one joint source/tests/Journal batch aligns selected-news test and makes 0/0 equities SKIPPED (indexes still 3 independent). RESULT combined SHA/CI pending verification, previous #1949 PASS, #1950 FAIL retained. NEXT exact full CI, then 0/5/51/70 Smart Data runtime and device proof. No Oracle, orders or APK.
 
 
