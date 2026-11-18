@@ -47,6 +47,16 @@ class T09CacheOnlyGateTests(unittest.TestCase):
         self.assertEqual(result["status"],"NO_CACHED_HISTORY_NO_DHAN_REQUEST")
         self.assertEqual(result["cached_bar_count"],0)
 
+    def test_missing_selector_with_empty_cache_fails_closed(self):
+        for supplied in ({}, {"timeframe":"3m"}, {"timeframe":None}):
+            payload = dict(supplied, signal_eligible=False)
+            result = probe.evaluate(
+                (200, {}), (200, {"source":"dhan","bars":[]}),
+                (200, payload))
+            self.assertEqual(result["status"], "HOLD_CONTRACT")
+            self.assertFalse(result["checks"]["assessment_selector_5m"])
+            self.assertFalse(result["actual_intraday_post_proven"])
+
     def test_false_live_eligibility_fails_closed(self):
         result = probe.evaluate(
             (200, {}),(200, {"source":"dhan","bars":[[1],[2]],"freshness":"historical_unverified"}),
