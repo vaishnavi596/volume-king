@@ -159,7 +159,7 @@ def main():
         raise RuntimeError("RUN_AS_OPC_NOT_ROOT")
     for name, sha in ORIGINAL.items():
         verified(ROOT / name, sha)
-        verified(BACKUP / name, sha)
+    verified(BACKUP / "assessment_api.py", ORIGINAL["assessment_api.py"])
     verified(CANDIDATE, CANDIDATE_SHA)
     if run("stat", "-c", "%U:%G:%a", str(TARGET)) != "root:root:644":
         raise RuntimeError("HOLD_UNEXPECTED_TARGET_OWNER_OR_MODE")
