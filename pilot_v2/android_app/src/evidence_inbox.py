@@ -5,7 +5,7 @@ Each lane retains independent source revisions and historical-only presentation.
 """
 from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
-from option_evidence import LocalOptionEvidence, LocalExpiryChoices
+from option_evidence import LocalOptionEvidence, LocalExpiryChoices, OptionEvidenceError
 from candle_filter_gate import accept_candle_trend
 from candle_option_views import LocalOptionStrikes
 from listed_atm_adapter import normalized_atm_window

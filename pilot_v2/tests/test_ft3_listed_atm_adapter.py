@@ -56,6 +56,18 @@ class ListedATMTests(unittest.TestCase):
             with self.subTest(data=str(bad)[:65]),self.assertRaises(OptionEvidenceError):
                 adapt(rows=bad)
 
+    def test_inbox_denies_untrusted_window_using_declared_exception(self):
+        # Regression: missing exception import made all V2 CI #73-77 fail.
+        from option_evidence import OptionEvidenceError as PublicError
+        from evidence_inbox import OptionEvidenceError as InboxError
+        self.assertIs(InboxError, PublicError)
+        app = DeviceEvidenceInbox()
+        with self.assertRaises(PublicError):
+            app.apply_listed_option_window(
+                symbol="NIFTY", expiry="2026-11-26", revision=1,
+                observed_at=1000, spot=25075, listed_rows=listed(),
+                trusted_transport=False)
+
     def test_app_inbox_normalizes_listed_rows_and_retains_last_good(self):
         app=DeviceEvidenceInbox()
         app.apply_expiries("NIFTY",1,["2026-11-26"],trusted_transport=True)
