@@ -216,6 +216,15 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('remaining=max(remaining,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))',poll)
         self.assertLess(poll.index('remaining=max(remaining'),poll.index("if remaining==0:"))
 
+    def test_login_resume_index_cooldown_is_not_ignored(self):
+        index=ast.get_source_segment(self.source,self.functions["refresh_dhan_index_quotes"])
+        resume=ast.get_source_segment(self.source,self.functions["refresh_after_resume"])
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")',index)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0',resume)
+        self.assertIn('await refresh_dhan_index_quotes()',resume)
+        self.assertLess(index.index('if index_cooldown>0:'),
+                        index.index('index_refresh_busy[0]=True'))
+
     def test_manual_refresh_respects_selected_equity_route_cooldown(self):
         # Manual and automatic demand share the same broker-safe 429 clock.
         manual=ast.get_source_segment(self.source,self.functions["refresh_all_dhan_quotes"])

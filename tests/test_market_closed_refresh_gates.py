@@ -49,6 +49,21 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertIn('if dhan_history_scan_active[0]:',manual)
         self.assertIn("max(0,30-",manual)
 
+    def test_resume_checks_selected_route_cooldown_and_indices_remain_independent(self):
+        resume=section("    async def refresh_after_resume():","    def lifecycle_changed(e):")
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0',resume)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0',resume)
+        self.assertLess(resume.index('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0'),
+                        resume.index("await refresh_watch_batch()"))
+        self.assertLess(resume.index("await refresh_watch_batch()"),
+                        resume.index("await refresh_dhan_index_quotes()"))
+        index=section("    async def refresh_dhan_index_quotes(force=False):","    manual_quote_last_attempt=")
+        self.assertIn('index_cooldown=dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")',index)
+        self.assertIn("if index_cooldown>0:",index)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"indices",0,3,error="cooldown")',index)
+        self.assertLess(index.index("if index_cooldown>0:"),
+                        index.index("snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)"))
+
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
         loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
         self.assertNotIn("not refresh_hours()",loop)

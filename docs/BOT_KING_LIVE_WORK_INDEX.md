@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **CURRENT FT-1 BK-20261118-V2-FT1-LOGIN-RESUME-429-GUARD (2026-11-18):** #1960 full offline (44336930349) SUCCESS at 9056c4cc, closing earlier Android Manual Refresh source/regression gate; mobile proof remains open. New FT-1 Login/Resume joint batch fixes missing selected-route 429 check on resume and independent index route/global 429 guard on index entry, reporting bootstrap COOLDOWN while preserving last-good quotes. Two existing targeted test files extended. NEW exact-SHA Full CI **PENDING** (not assumed PASS); no Oracle deployment, live Dhan call, orders, or APK. **NEXT:** inspect new full CI result and failure if any before next FT-1 correction. Canonical Work Log BK-20261118-V2-FT1-LOGIN-RESUME-429-GUARD.
+
+
 > **LATEST BATCH BK-20261118-1959-CLOSED-TEST-REPAIR (2026-11-18):** User-provided full Actions logs verified #1958 44335134140 c87-predecessor 87e73321 **1311 PASS / 1m54s**; #1959 44335267322 c887df28 **1311 run, 1 legacy assertion FAIL / 2m11s**: tests/test_market_closed_refresh_gates.py expected old after-hours string lacking equity cooldown. Pilot #58 44333928669 at 56d8103 **174 PASS / 26s** only pilot_v2/tests, not a replacement for main Android regression. Joint batch repairs obsolete assertion while retaining equity/independent-index/global-429 gates, reinforces existing wiring regression, and codifies mandatory pre-write CI review + grouped 5–10 related fixes in AGENTS.md. NEW EXACT-SHA FULL CI PENDING; NO APK/Oracle write/orders. **NEXT:** inspect exact new full offline run and fix only concrete failure, then app-first Login/Bootstrap. Work Log BK-20261118-1959-CLOSED-TEST-REPAIR.
 
 

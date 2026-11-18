@@ -2004,6 +2004,16 @@ def app_main(page:ft.Page):
             return
         if index_refresh_busy[0]:
             return
+        # Respect provider-global and route-specific 429 cooldown before
+        # dispatching the independent three-index batch.
+        index_cooldown=dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")
+        if index_cooldown>0:
+            if login_bootstrap.generation==provider_generation[0]:
+                login_bootstrap.finish(provider_generation[0],"indices",0,3,error="cooldown")
+            display_failures["dhan_index_ltp_batch"]=f"Cooling down {index_cooldown:.0f}s • last good indices retained"
+            if current[0] in (0,4,5):
+                request_view_refresh(current[0])
+            return
         generation=provider_generation[0]
         now=time.monotonic()
         if not force and not refresh_hours():
@@ -6953,9 +6963,11 @@ console.log('BOT KING Lightweight Charts ready');
                              or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
                     # Reuse the same request clock as Watchlist and the poller.
-                    if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
+                    if (dhan_feed.cooldown_remaining("/v2/snapshot")==0
+                            and dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0):
                         await refresh_watch_batch()
-                    # A cooling-down equity snapshot must not suppress index recovery.
+                    # Route-specific equity cooldown never suppresses index recovery;
+                    # the index handler itself also honors global/index cooldowns.
                     await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
