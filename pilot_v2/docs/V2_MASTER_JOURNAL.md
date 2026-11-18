@@ -52,3 +52,6 @@ Do not build V2 by bumping legacy `pyproject.toml` or overwrite the old app's pa
 
 ## CI correction V2-002A-CI3
 - V2 CI #3 at `7c2c437`: **FAILURE**, 10 tests / 1 ERROR on malformed dict fake master proof raising raw TypeError in the mocked verifier. Fix now in `device_sessions.py` and targeted defensive regression. New CI exact SHA pending, do not erase failure.
+
+### V2-OWNER-STANDING-WORKFLOW-20261118 — continuing instructions
+Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeated approvals; new-chat phrase “BOT KING V2 का काम जारी रखो” means fetch HEAD and resume earliest unclosed V2 gate. Approval does not cover privileged production, Dhan consent, paid subscriptions, other users' enrollment, live trades, or decommissioning legacy. No background work across chat closure. **Last V2 CI #4** run `44282538921`, `a020de855` SUCCESS; previous #3 failure retained in Work Log. Next V2-002B.

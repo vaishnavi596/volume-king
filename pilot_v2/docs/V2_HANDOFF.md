@@ -2,6 +2,8 @@
 Updated: 2026-11-18
 Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट किंग इंप्रूव वर्जन का जर्नल देखो"**.
 
+> **LATEST V2-OWNER-STANDING-WORKFLOW-20261118:** Owner authorizes routine V2 pilot-branch source/test/CI/journal continuation without repeated micro-approvals. New chat request "BOT KING V2 का काम जारी रखो" = verify HEAD+last 10 CI+this journal, then continue V2-002B. **CI #4** at `a020de855` SUCCESS, #3 failure corrected. Production/secret/Dhan consent/external device enrollment/orders/old app shutdown are NOT covered by blanket approval. No cross-chat background execution.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
