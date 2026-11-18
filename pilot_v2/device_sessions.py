@@ -52,7 +52,12 @@ class DeviceSessionGateway:
         return hashlib.sha256(token.encode("ascii", "strict")).hexdigest()
 
     def issue(self, proof):
-        identity = self._verify_proof(proof)
+        try:
+            identity = self._verify_proof(proof)
+        except (TypeError, ValueError):
+            # Malformed or unhashable proof payloads are authentication
+            # denials, not an unhandled server exception.
+            raise SessionDenied("Cryptographic device proof not verified") from None
         if not isinstance(identity, VerifiedDevice):
             raise SessionDenied("Cryptographic device proof not verified")
         grant = self._registry.grants.get(identity.device_id)

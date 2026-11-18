@@ -38,6 +38,9 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 - V2-002A now adds isolated offline opaque per-device session manager + simulated proof verifier with master role derived server-side, token expiration/rotation/revocation and restricted per-feed permissions. **This is not a deployable login, lacks real cryptographic proof and durable/shared server session storage.** CI for source batch to be checked at new SHA.
 - Continue at V2-002B after CI: cryptographic enrollment proof and token-life-cycle status; keep Oracle/old mobile untouched.
 
+## CI #3 V2-002A error and correction
+- Run #3 `44282334624` on `7c2c437` failed 1/10 due to raw mocked verifier TypeError on forged dictionary proof; 9 other tests passed. Correction intercepts malformed proof TypeError/ValueError as SessionDenied and adds test. Result for new commit pending until GitHub CI completion.
+
 ## 5. Exact next work / hard gates
 **V2-002 (NEXT):** Read-only existing Oracle capability audit design and secure gateway contract. Inspect exact production SHA/routes/capability/active token type/expiry/renewal support without credentials or Dhan quote calls, through established safe operator route; current chat cannot assume SSH. Implement V2 server-side policy authentication and session-expiry tests in isolated `pilot_v2/`, behind feature flag, without writing production. Test forged master actor, revoked/expired device session, replay challenge and 4th-device denial.
 **V2-003:** Shared upstream collector and per-device filtered revision cache, demand scaling 0/5/51/70+indexes, 429/422, stream disconnect, no double provider fanout across 2–3 phones. Underlying Dhan authorization may require real user consent.

@@ -76,6 +76,13 @@ class SessionGatewayTests(unittest.TestCase):
             with self.subTest(token=repr(token)[:24]), self.assertRaises(SessionDenied):
                 self.gateway.identity(token)
 
+    def test_malformed_verifier_input_fails_closed_without_traceback(self):
+        gateway = DeviceSessionGateway(
+            self.registry, lambda proof: { "x": MASTER }[proof],
+            clock=lambda: self.now[0])
+        with self.assertRaises(SessionDenied):
+            gateway.issue({"claimed_master": MASTER})
+
     def test_server_proof_provider_is_mandatory(self):
         with self.assertRaises(ValueError):
             DeviceSessionGateway(self.registry, None)

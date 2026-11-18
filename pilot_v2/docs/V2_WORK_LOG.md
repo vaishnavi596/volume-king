@@ -20,3 +20,8 @@
 - TEST: `pilot_v2/tests/test_device_sessions.py` covers forged master claim, 1/2/3 devices, fourth blocked, restricted feed scope, expired/rotated/logged-out session, disabled device immediate revocation and no proof verifier default. CI for current change PENDING exact SHA; no prod semantics claimed.
 - NEXT: 1) Confirm V2-002A CI. 2) Stage verified enrollment challenge and server session store behind default-off V2 feature flag, and independent token expiration/reauth-required state. 3) Read-only Oracle token/renewal support inventory before any service changes. 4) Secure native mobile client requires separately verified Android app, not yet built.
 - NO Oracle production edits, Dhan calls, token renewal, orders, APK or device changes.
+
+## 2026-11-18 — V2-002A-CI3: fail-closed malformed proof fix
+- Exact V2 CI #3 `44282334624` on `7c2c4376cf40dfeaee7f0bd41100ec7a2a960fe7` completed **FAILURE**: 10 tests, 1 ERROR. `test_no_claimed_device_or_role_can_log_in_without_verifier` supplied an unhashable dict forged master claim to a mocked string-key lookup. The mock raised raw `TypeError`, although the login boundary should safely deny malformed proof. The other 9 tests passed, no server/Android activity.
+- FIX: `DeviceSessionGateway.issue` converts verifier `TypeError` or `ValueError` into controlled `SessionDenied` (do not expose secrets). Add explicit regression for unhashable verifier payload. Existing test for forged claimed master remains intact. Full CI for new SHA pending.
+- NEXT: verify green CI; then isolated V2-002B challenge/nonce proof contract and broker token state, no deployed HTTP or automatic OAuth bypass. No Oracle production change, broker request, order, APK.
