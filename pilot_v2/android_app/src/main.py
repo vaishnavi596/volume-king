@@ -7,6 +7,7 @@ from scanner_state import ScannerSelection, ScannerError, selectable_symbols, ch
 from feed_inbox import DeviceFeedInbox
 from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
+from dashboard_parity import INDEXES, index_card_model, status_overview
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -108,13 +109,26 @@ def main(page: ft.Page):
                     status.value = str(exc)
                 render()
                 page.update()
+            index_cards = [index_card_model(symbol, quote_view, evidence_inbox,
+                                            state.selected) for symbol in INDEXES]
+            health = status_overview(state.selected, quote_view, evidence_inbox)
             content.controls = [
                 ft.Text("Dashboard", size=19, weight=ft.FontWeight.BOLD),
-                ft.Text(quote_view.display("NIFTY", state.selected)),
-                ft.Text(quote_view.display("BANKNIFTY", state.selected)),
-                ft.Text(quote_view.display("SENSEX", state.selected)),
-                *[ft.Text(candle_history.summary(s, "1m")) for s in ("NIFTY", "BANKNIFTY", "SENSEX")],
-                ft.Text("Index signals: 1m · source unavailable"),
+                *[ft.Container(
+                    content=ft.Column([
+                        ft.Text(card["symbol"], weight=ft.FontWeight.BOLD, size=16),
+                        ft.Text(card["price_label"], size=15),
+                        ft.Text(card["candle_label"], size=13),
+                        ft.Text("1m signals · " + " / ".join(
+                            value for _, value in card["filters"])),
+                    ], spacing=3),
+                    border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
+                    border_radius=8, padding=10,
+                ) for card in index_cards],
+                ft.Text("System Health · " +
+                        str(health["index_quote_coverage"]) + "/3 index histories available",
+                        size=13),
+                ft.Text(health["feed"], size=12),
                 ft.Divider(),
                 ft.Text("Five filters — source-gated, no fabricated percentage"),
                 *[ft.Text(f"{label}: {value}") for label, value in
@@ -220,7 +234,12 @@ def main(page: ft.Page):
                 ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
-                ft.Text("Device access/login not integrated; live orders disabled"),
+                ft.Text("Master Device Control", size=16, weight=ft.FontWeight.BOLD),
+                ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
+                ft.Text("Enable / Disable / Revoke require verified device login"),
+                ft.Text("Dhan token renewal only via authorized Master workflow"),
+                ft.Text("System Health / Error Doctor: no authenticated provider data"),
+                ft.Text("Live orders disabled"),
             ]
 
     def navigate(e):
