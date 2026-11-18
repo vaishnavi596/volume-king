@@ -2,6 +2,7 @@
 import flet as ft
 from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
+from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -42,6 +43,25 @@ def main(page: ft.Page):
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
 
+    scanner_key = "botking.v2.scanner.v1"
+    try:
+        saved_scan = page.client_storage.get(scanner_key)
+        scanner = [ScannerSelection.from_saved(saved_scan, state) if saved_scan is not None
+                   else ScannerSelection()]
+        scanner_error = ""
+    except (ScannerError, OSError, ValueError, TypeError, RuntimeError):
+        scanner = [ScannerSelection()]
+        scanner_error = "Saved Scanner selection unavailable; original save preserved"
+
+    def save_scanner():
+        if scanner_error:
+            return False
+        try:
+            page.client_storage.set(scanner_key, scanner[0].saved_state())
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -49,6 +69,25 @@ def main(page: ft.Page):
 
     def render():
         if current[0] == 0:
+            scanner[0] = for_visible_roster(scanner[0], state)
+            def select_scanner_symbol(e):
+                try:
+                    scanner[0] = choose(scanner[0], state, symbol=e.control.value)
+                    status.value = ("Scanner choice saved locally" if save_scanner()
+                                    else "Scanner choice changed for session only")
+                except ScannerError as exc:
+                    status.value = str(exc)
+                render()
+                page.update()
+            def select_scanner_timeframe(e):
+                try:
+                    scanner[0] = choose(scanner[0], state, timeframe=e.control.value)
+                    status.value = ("Scanner timeframe saved locally" if save_scanner()
+                                    else "Scanner timeframe changed for session only")
+                except ScannerError as exc:
+                    status.value = str(exc)
+                render()
+                page.update()
             content.controls = [
                 ft.Text("Dashboard", size=19, weight=ft.FontWeight.BOLD),
                 ft.Text("NIFTY  —  WAIT"),
@@ -58,7 +97,16 @@ def main(page: ft.Page):
                 ft.Divider(),
                 ft.Text("Five filters: WAIT (no verified evidence)"),
                 ft.Text("Sixth filter: reserved / blank"),
-                ft.Text("Scanner and Super Five: data not connected"),
+                ft.Text("Scanner", size=17, weight=ft.FontWeight.BOLD),
+                ft.Dropdown(label="Scanner symbol", width=240, value=scanner[0].symbol,
+                            options=[ft.dropdown.Option(s, s) for s in selectable_symbols(state)],
+                            on_change=select_scanner_symbol),
+                ft.Dropdown(label="Scanner timeframe", width=180, value=scanner[0].timeframe,
+                            options=[ft.dropdown.Option(tf, tf) for tf in ("1m", "3m", "5m")],
+                            on_change=select_scanner_timeframe),
+                ft.Text(f"{scanner[0].symbol} {scanner[0].timeframe}: chart and filters WAIT — no source data"),
+                ft.Text("Super Five: no verified history / ranking data"),
+                ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
         elif current[0] == 1:
             symbol = ft.TextField(label="NSE equity symbol", hint_text="TCS", expand=True)

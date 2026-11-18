@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-FLET-SCANNER-LOCAL-SELECTION-20261118:** V2 Flet Dashboard Scanner offers local valid symbol / 1m-3m-5m choice, preserves selected equities and 3 indexes, drops removed symbol, no source data hence WAIT. Prior CI #28 SUCCESS on 570470d; new exact CI PENDING. Dhan, renewal and Oracle untouched. See Work Log.
+
+
 > **CURRENT V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118:** Flet app-owned Smart Data auto-refresh toggle + 180/300/600s selection persisted locally, 09:10–15:45 IST confirmed-session policy and 0/5/51/70 demand tests. No timers, live fetch, token or Oracle settings edits; CI PENDING. Last verified CI #27 SUCCESS. Work Log entry V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118.
 
 

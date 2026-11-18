@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-FLET-SCANNER-LOCAL-SELECTION-20261118:** Flet app-local Scanner selectors + tests committed pending CI; no broker requests or invented signals. Previous V2 CI #28 SUCCESS.
+
 > **CURRENT V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118:** app-only local Smart Data policy/config + synthetic tests; no active network polling; CI pending. Existing Flet V2 branch, no server auth change.
 
 > **LATEST V2-S3-DEVICE-PERSISTENCE-CI27-SUCCESS-20261118:** V2 local Watchlist save source SHA 58ea34f CI #27 SUCCESS; Flet device run/Android install not yet tested. Next existing app batch.
