@@ -51,7 +51,7 @@ class LoginBootstrapBehaviorTests(unittest.TestCase):
         state = LoginBootstrapState()
         state.begin(7, authenticated=True)
         self.assertFalse(state.finish(7, "options", 1, 1))
-        for received, expected in ((-1, 51), (52, 51), (0, 0)):
+        for received, expected in ((-1, 51), (52, 51), (0, 0), (True, 1), (1, True), (False, 51), (0, False)):
             with self.subTest(received=received, expected=expected):
                 with self.assertRaises(ValueError):
                     state.finish(7, "equities", received, expected)
