@@ -714,6 +714,23 @@ class ServerDhanReadOnly:
         filters = result.get("assessment_filters")
         factors = result.get("factors")
         expected = {"oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend"}
+        # Legacy Oracle may omit selector echoes in an all-WAIT response.
+        # If any factor/filter carries context, missing requested selectors
+        # cannot establish its provenance: reject rather than mislabel it.
+        evidence_present = (
+            isinstance(factors, dict)
+            and any(isinstance(row, dict) and row.get("status") == "available"
+                    for row in factors.values())
+        ) or (
+            isinstance(filters, list)
+            and any(isinstance(row, dict) and row.get("status") == "available"
+                    for row in filters)
+        )
+        if evidence_present and (
+            (timeframe is not None and "timeframe" not in result)
+            or (expiry is not None and "expiry" not in result)
+        ):
+            raise FeedError("Unscoped Oracle assessment evidence")
         if (result.get("symbol") != symbol
                 or result.get("live_orders_enabled") is not False
                 or result.get("signal_eligible") is not False
