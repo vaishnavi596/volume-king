@@ -7,8 +7,8 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `1bbf63cd45e0ef64c9021ffdf2b41ec948f3af81` |
-| Last **verified executable** Actions | [V2 CI #90](https://github.com/vaishnavi596/volume-king/actions/runs/44371437426), run `44371437426`, **SUCCESS 259/259 Python offline tests**, no failing step |
+| Last **verified executable** SHA | `2e35e6a4b6182acdab589360e28981e05aa856ae` |
+| Last **verified executable** Actions | [V2 CI #92](https://github.com/vaishnavi596/volume-king/actions/runs/44372838093), run `44372838093`, **SUCCESS 263/263 Python offline tests**, no failing step |
 | Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
 | This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
@@ -110,3 +110,10 @@
 - **REAL FAIL:** [V2 CI #91](https://github.com/vaishnavi596/volume-king/actions/runs/44372461992) source SHA `74ea3c107118da66fdccd480796db935353dedcd`, 263 tests, **262 PASS, 1 FAIL** in `test_local_settings_backup.LocalSettingsBackupTests.test_real_settings_wiring_and_three_bottom_tabs`: test asserted a single-line string `export_local_backup(state, scanner[0], smart[0], analysis_slots[0])`, but actual correct source splits function and arguments across two lines. No failure of the strict local backup import/round-trip/credential rejection tests.
 - **FIX:** Update only the old brittle source-text assertion to independently verify function-call and exact argument sequence across line break; no change to app Backup/Restore semantics or security validation. All other source tests preserved; corrected source exact CI **PENDING** until Actions result verified. CI #91 remains historical FAILURE, do not claim PASS for it.
 - **Boundaries:** V2-only test/journal; no old V1, Oracle production, Dhan provider, tokens, live orders or APK. NEXT inspect exact corrective CI and continue only after green.
+
+
+## V2-FT2-LOCAL-PREFERENCE-RESTORE-CI92-VERIFIED-20261118
+- Exact [V2 Pilot CI #92](https://github.com/vaishnavi596/volume-king/actions/runs/44372838093), run `44372838093` at corrective source SHA `2e35e6a4b6182acdab589360e28981e05aa856ae`: COMPLETED SUCCESS, pilot-contract job SUCCESS, **263/263 offline tests OK**. The former CI #91 at `74ea3c10` remains historical FAIL 262/263 due to brittle single-line source-string assertion; corrected exact call/arguments check in #92; app behavior unchanged.
+- V2 Settings local-only backup/restore is now source+CI verified: strict Watchlists/Scanner/Smart Data/three Analysis Slots schema, no server/proxy/provider/token/trading settings, explicit confirmation before applying a completely parsed payload, stale removed cache pruning, clear save failure. This does NOT establish actual Android rendering or device persistence runtime.
+- V2 migration remains PARTIAL: real Dhan/Oracle authenticated read-only transport, Smart Data polling, full V1 fonts/click paths/alerts/nonexecuting Paper, current Master+3 delegated login and News/Futures/Option/AI source-gated five-filter Super Five scoring are not end-to-end; APK and Oracle rollout require separate gates.
+- Next source batch must inspect this exact CI #92 and last changed files before modification; preserve V1/read-only, no live orders and Oracle LAST.
