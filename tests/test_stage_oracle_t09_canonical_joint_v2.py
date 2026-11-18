@@ -82,7 +82,7 @@ class T09JointCandidateTests(unittest.TestCase):
         self.configure()
         patched = stage.stage_source(FAKE)
         ast.parse(patched)
-        namespace = {}
+        namespace = {"__name__": "__main__"}
         exec(compile(patched, "<t09-synthetic>", "exec"), namespace)
         records = []
         mod_state = types.ModuleType("assessment_state")
@@ -127,7 +127,7 @@ class T09JointCandidateTests(unittest.TestCase):
         )
         self.configure(source)
         patched = stage.stage_source(source)
-        namespace = {}
+        namespace = {"__name__": "__main__"}
         exec(compile(patched, "<t09-synthetic>", "exec"), namespace)
         records = []
         state = types.ModuleType("assessment_state")
