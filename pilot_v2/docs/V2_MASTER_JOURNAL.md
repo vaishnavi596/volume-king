@@ -826,3 +826,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **SOURCE:** V2 Flet Settings Help Doctor now has locally selectable topics for Dashboard/Watchlist/Scanner/Super Five/Options/Filters/Settings, renders immediately on selection in V1 dark-gold style, and shows sanitized Error Doctor next action. No calls, server preferences, tokens or provider configuration; Help topics and refresh policy remain app-owned.
 - **TESTS:** Added focused offline source/UI-contract regression to `test_v1_visual_doctor_migration.py` for actual help dropdown callback, seven meaningful topics, actionable diagnosis text and network/server isolation. Existing five-filter/sixth-reserved and offline HIST/WAIT paths remain unchanged. New exact-SHA V2 CI PENDING until verified; not Android visual acceptance.
 - **BOUNDARY:** Write only `pilot_v2/` in V2 pilot branch. No changes to V1, old journals, Oracle, Dhan, OAuth, orders or APK. NEXT verify new exact-SHA CI, then continue grouped V1 visual/navigation/Help parity.
+
+
+## V2-FT2-HELP-DOCTOR-UI-CI79-VERIFIED-20261118
+- Exact [V2 Pilot CI #79](https://github.com/vaishnavi596/volume-king/actions/runs/44362597344), run `44362597344`, executable commit SHA `431a93d015ef827fe4297308216e2e58df635c20`, completed SUCCESS. V2 pilot-contract job SUCCESS; **238/238 Python offline regression tests OK**, 1.063s test runtime, no failed job steps.
+- V2 Settings now has V1-dark/gold-app-only Help Doctor with seven selectable topics and safe sanitized Error Doctor action guidance, no network or source/provider/secret settings. New additional UI-contract test passes; V2 prior 237 tests remain green. No claim of actual Android phone rendering or live Dhan/Oracle data.
+- NEXT: inspect this exact latest tested code before grouped next V1 UI/chart/settings functional parity batch. Old V1, Oracle production, Dhan calls, orders and APK unchanged.
