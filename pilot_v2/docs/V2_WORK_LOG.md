@@ -904,3 +904,9 @@
 - **APP-ONLY SOURCE:** Shared V1 dark/gold `v1_card` now styles compact Dashboard System Health and Watchlist individual equity cards; gold symbol/price title, readable 14pt candle/filter labels, muted health messages. Scanner and Master Device headings use same V1 GOLD token. Keep index cards independently top of Dashboard; Watchlist remains equity-only and global selection 70, existing buttons/callbacks and five filter states unchanged. No full screen redraw/refresh workflow added.
 - **TEST:** Targeted regression in `test_v1_visual_doctor_migration.py` asserts Dashboard/Watchlist/Scanner/Master styling and 3 bottom navigation tabs, parsable Python source, no legacy `ServerAngelFeed` or Yahoo calls. New exact CI pending until verified.
 - **BOUNDARY:** No V1 source, old server settings, Angel/Yahoo/provider imports, Oracle, Dhan requests, secrets, trading orders or APK. This is incremental actual V2 visual wiring, not full V1 pixel parity or live data. NEXT verify exact CI then continue grouped screen/function parity.
+
+
+## V2-FT2-DASHBOARD-WATCHLIST-CI80-VERIFIED-20261118
+- Exact [V2 Pilot CI #80](https://github.com/vaishnavi596/volume-king/actions/runs/44363192734), run `44363192734` at source commit `db9e36a6f084d575c03f8c1b2278ac933eab64c8`, **COMPLETED SUCCESS**, `pilot-contract` job SUCCESS and Python unittest **239/239 OK**, 1.227s. All 238 prior tests and newly added V1 Dashboard/Watchlist styling contract test pass. No failing steps.
+- Source migration connects V1 dark/gold styling to Dashboard health, Watchlist rows and Scanner/Master headings. Offline UI-source acceptance only, not native Android visual comparison or verified Dhan transport. No V1, Oracle, provider/credential, APK or order operations.
+- NEXT: continue V2-only feature/UX parity for missing V1 screens and safe local diagnostics, preserving 3 bottom tabs, source gating and zero legacy server setup.
