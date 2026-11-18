@@ -38,3 +38,6 @@
 
 ## V2-004C: atomic shared login challenge
 `durable_challenges.py` stores SHA-256 nonce digests and consumes them atomically via SQLite before verification, allowing separate local workers to issue and redeem one P-256 challenge. It is **not** a deployed device login; real master-approved key registration, Android native bridge and protected HTTP routes remain pending.
+
+## Standing workflow rule — latest committed batch only (owner change, 2026-11-18)
+Before any NEW V2 code/test patch or commit, inspect **only the immediately preceding V2 commit**: its exact changed files, its exact SHA's relevant CI run(s), and any failure logs. If its CI is PASS, proceed; if FAIL, correct that same failure and verify the corrective CI before unrelated changes. If pending or absent, clearly say so and check only that batch's result. Check the files ACTUALLY changed in that commit (whether 1, 2, 3, or more), **never an automatic ten-commit/ten-file sweep**. If the head is docs-only, inspect that latest commit and the most recent applicable source CI; do not claim docs CI proves code. Allow broader history inspection only for a concrete dependency, regression, or safety reason, not as an automatic rule. Keep V2 source, targeted tests, Master Journal, Work Log and Handoff in one atomic commit where safe. No repeated approval for ordinary code/test work.

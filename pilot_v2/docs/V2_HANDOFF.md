@@ -1,8 +1,10 @@
+> **LATEST RULE OVERRIDE (2026-11-18):** Check ONLY the immediately preceding V2 commit and the files it actually changed, plus its exact applicable CI result. PASS → continue; FAIL → fix then recheck. **No automatic 10-commit or 10-file checks.** Historical journal statements requiring ten are superseded. Previous source commit `5b736217`, CI #14 `44296710626`: SUCCESS. V2-004D cryptographic key lifecycle remains NEXT, not yet committed.
+
 # BOT KING V2 — NEW CHAT HANDOFF (READ FIRST)
 Updated: 2026-11-18
 Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट किंग इंप्रूव वर्जन का जर्नल देखो"**.
 
-> **LATEST V2-OWNER-STANDING-WORKFLOW-20261118:** Owner authorizes routine V2 pilot-branch source/test/CI/journal continuation without repeated micro-approvals. New chat request "BOT KING V2 का काम जारी रखो" = verify HEAD+last 10 CI+this journal, then continue V2-002B. **CI #4** at `a020de855` SUCCESS, #3 failure corrected. Production/secret/Dhan consent/external device enrollment/orders/old app shutdown are NOT covered by blanket approval. No cross-chat background execution.
+> **LATEST V2-OWNER-STANDING-WORKFLOW-20261118:** Owner authorizes routine V2 pilot-branch source/test/CI/journal continuation without repeated micro-approvals. New chat request "BOT KING V2 का काम जारी रखो" = verify HEAD+immediately previous commit's CI+this journal, then continue V2-002B. **CI #4** at `a020de855` SUCCESS, #3 failure corrected. Production/secret/Dhan consent/external device enrollment/orders/old app shutdown are NOT covered by blanket approval. No cross-chat background execution.
 
 > **LATEST V2-002B-P256-TOKEN-STATUS (2026-11-18):** V2 CI #5 `44282742138` at `04c5c67` SUCCESS. Joint isolated P-256 challenge verifier + Dhan token status policy + real signature tests added (new exact CI PENDING); still no secure enrollment, multi-worker store, Android native Keystore integration or Oracle deploy. **NEXT:** verify new CI and continue V2-002 secure provisioning/auth readiness. No legacy, market orders or APK touched.
 
@@ -25,7 +27,7 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
-3. Fetch actual newest branch HEAD, last 10 relevant commits and CI results, and the exact failed job logs before modifying code. Do not treat the dates/status in these docs as newer than live GitHub evidence.
+3. Fetch newest branch HEAD and inspect **only immediately previous commit's changed files** and exact relevant CI result (plus any failed logs). Do not impose a ten-file/ten-commit sweep. If previous commit is docs-only, check the last applicable source CI separately. Journal status can be older than live GitHub.
 4. Work in groups of 2–4 related safe edits and one atomic commit containing code, targeted tests, Master Journal, Work Log and a current handoff. Run targeted tests and exact-SHA full offline CI. The user's **"ok" means continue working**, not stop after a status note.
 5. After each change, record WHY, WHAT, path/commit, tests/results and unresolved NEXT. Clearly distinguish offline code proof from Oracle deployed/Dhan live/device/APK.
 
@@ -69,7 +71,7 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 **V2-006:** Backup production, versioned feature-flag Oracle deployment, rollback simulation, health/auth smoke, V2 device acceptance, no legacy shutdown before PASS.
 
 ## 6. Safety and workflow
-- Before new edits inspect last ~10 commits and CI. Preserve one joint journal+test+source commit where possible to minimize GitHub runs.
+- Before new edits inspect just the immediately preceding commit's changed files and applicable CI, fixing FAILs first. Do not automatically inspect ten commits/files. Preserve one joint journal+test+source commit where possible.
 - Never change `/opt/bot-king-server` based only on GitHub's `backend/server.py`. Production has different deployed source and credentials.
 - Dhan OAuth renewal must honor provider rules; cannot automate an obligatory interactive consent by storing OTP or bypassing security.
 - Everything is read-only; `live_orders_enabled=false`; never add real-order API exposure.
