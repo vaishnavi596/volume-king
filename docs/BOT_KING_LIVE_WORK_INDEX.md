@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **FOLLOW-UP BK-20261118-V2-MANUAL-HIST-GUARD:** Corrected after-hours 3m HIST guard in same Android manual 429 segment: equity cooldown must be clear before HISTORY; independent index refresh still respects index/global cooldown. Regression assertion updated. Final exact-SHA CI **PENDING**. See canonical Work Log; no APK/Oracle change. NEXT exact full CI, then first-login P0.
+
+
 > **LATEST MOVE BK-20261118-V2-MANUAL-INDEPENDENT-INDEX (2026-11-18):** Android V2 manual equity 429 must not wrongly block independent 3-index lane. SOURCE source/test candidate gates /v2/snapshot + /dhan/selected-ltp-batch separately from /dhan/index-ltp-batch, with global cooldown still blocking all; 30s manual floor and last-good data retained. **CI at new exact SHA PENDING**; previous confirmed #1955 SUCCESS only. No server deployment/quotes/orders/APK. NEXT: inspect exact full CI job for candidate and repair only actual failures, then login/first bootstrap. Canonical Work Log BK-20261118-V2-MANUAL-INDEPENDENT-INDEX.
 
 

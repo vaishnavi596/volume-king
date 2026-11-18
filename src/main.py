@@ -2130,7 +2130,7 @@ def app_main(page:ft.Page):
         # Only an explicit Watchlist button tap may request HIST candles after
         # close. Preserve the normal quote refresh irrespective of market hours.
         # Share the 3m scheduler's rolling broker budget; never fan out 51 histories.
-        if not refresh_hours() and current[0]==4:
+        if cooldown==0 and not refresh_hours() and current[0]==4:
             if dhan_history_scan_active[0]:
                 candle_note="selected 3m history deferred: main scan busy"
             elif await warm_selected_watch_three_minute_early(

@@ -227,6 +227,7 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('if index_cooldown==0:',manual)
         self.assertLess(manual.index('if cooldown==0:'),manual.index('await refresh_watch_batch()'))
         self.assertLess(manual.index('if index_cooldown==0:'),manual.index('await refresh_dhan_index_quotes(force=True)'))
+        self.assertIn('if cooldown==0 and not refresh_hours() and current[0]==4:',manual)
         self.assertIn('manual_quote_last_attempt[0]=now',manual)
         self.assertLess(manual.index('if cooldown>0 and index_cooldown>0:'),manual.index('manual_quote_last_attempt[0]=now'))
 
