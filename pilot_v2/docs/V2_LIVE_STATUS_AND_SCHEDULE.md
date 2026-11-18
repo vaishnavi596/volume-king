@@ -1,4 +1,7 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
+
+> **OWNER LATEST (same Flet V2 branch, finish existing batch):** Current S1 synthetic CI #25 44304920157 PASS at 86b39da; no new branch or ad-hoc feature. App-first Flet V2 → joint CI → signed candidate APK → Oracle gateway; 4-device target deferred to combined existing multi-device batch (current code limits 3). See V2-OWNER-SAME-FLET-BRANCH-FINISH-ACTIVE-BATCH-20261118.
+
 Updated 2026-11-18. **This is the canonical start page for the next chat.** Use latest GitHub evidence if newer than this snapshot.
 
 ## Verified baseline
