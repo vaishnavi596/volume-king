@@ -852,3 +852,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **SOURCE:** Dashboard and Watchlist headings gain contextual V1-gold Help icon, calling app-owned `open_help(topic)` to open existing Settings/Help Doctor tab and select the correct topic immediately. Navigation bar selected index synchronized; exactly three bottom tabs remain. No server settings, data fetches, remote help API or provider/order paths.
 - **TEST:** Added offline AST/source regression for both icon actions, correct target topic, navigation bar index and no network/sidebar/tab proliferation. Exact code CI pending verification.
 - **BOUNDARY:** V2-only. No V1, Angel/Yahoo, old credentials, Oracle, Dhan, orders, APK or actual Android UI proof. NEXT verify exact run and continue full V1 functional-screen migration separately.
+
+
+## V2-FT2-CONTEXT-HELP-CI81-VERIFIED-20261118
+- Exact [V2 Pilot CI #81](https://github.com/vaishnavi596/volume-king/actions/runs/44363552011), source commit `eb83b3d5d7f03d2901874988e86aaff62bac3b6a`, run `44363552011`: COMPLETED SUCCESS, one pilot-contract job SUCCESS, Python unittest **240/240 OK**, 1.069s; no failed steps.
+- Contextual Dashboard/Watchlist gold Help icons now route to existing local Settings Help Doctor by topic. Three bottom navigation tabs remain. All prior offline regression tests green, no Dhan/Oracle/server/credential changes. This confirms code/CI, not Android device visual acceptance.
+- NEXT continue grouped V1 screen/functional migration after checking this exact CI; safe app-only no legacy server or Angel/Yahoo paths.
