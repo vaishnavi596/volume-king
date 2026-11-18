@@ -11,3 +11,6 @@
 - Shared Dhan market data and secure per-device revision delivery reduce repeated upstream requests. Five watchlists/70 unique equities plus independent three indexes; five evidence-gated filters, sixth blank.
 - No live trading orders. No copying pairing keys/OAuth credentials, access tokens or stale live labels from legacy app. Future allowlisted preference migration only.
 - **Next:** read-only Oracle capability inventory; build secure server-side session + collector behind flag; then create a separately signed V2 Flet Android build workflow with actual identity verification and device installation. Legacy service stays enabled until successful cutover and rollback proof.
+
+## New chat / handoff
+**Say:** **“बोट किंग इंप्रूव वर्जन का जर्नल देखो और काम आगे बढ़ाओ।”** Open [V2_HANDOFF.md](docs/V2_HANDOFF.md), then [V2_MASTER_JOURNAL.md](docs/V2_MASTER_JOURNAL.md) and [V2_WORK_LOG.md](docs/V2_WORK_LOG.md). Confirm the actual GitHub HEAD/last ten CI runs before changing anything.

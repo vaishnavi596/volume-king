@@ -1,0 +1,48 @@
+# BOT KING V2 — NEW CHAT HANDOFF (READ FIRST)
+Updated: 2026-11-18
+Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट किंग इंप्रूव वर्जन का जर्नल देखो"**.
+
+## 1. Start here, without requiring the owner to explain again
+1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
+2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
+3. Fetch actual newest branch HEAD, last 10 relevant commits and CI results, and the exact failed job logs before modifying code. Do not treat the dates/status in these docs as newer than live GitHub evidence.
+4. Work in groups of 2–4 related safe edits and one atomic commit containing code, targeted tests, Master Journal, Work Log and a current handoff. Run targeted tests and exact-SHA full offline CI. The user's **"ok" means continue working**, not stop after a status note.
+5. After each change, record WHY, WHAT, path/commit, tests/results and unresolved NEXT. Clearly distinguish offline code proof from Oracle deployed/Dhan live/device/APK.
+
+## 2. Branches / scope
+- **ACTIVE NEW WORK:** `pilot/botking-v2-smart-gateway-20261118` inside independent `pilot_v2/` folder, plus a dedicated V2 GitHub Actions test workflow.
+- **LEGACY FROZEN FOR NEW FEATURES:** `fix/botking-joint-audit-70-15-20261115` remains preserved at V2 fork base `ecab2c223d8d15459c442c51c04aeda8cde7f9fa`. Preserve legacy source `src/`, `backend/`, legacy `pyproject.toml`, production Oracle and already installed Android app. Do not modify or deactivate old production just because V2 is in development.
+- V2 **reserved** identity (not compiled, not installed): `com.botking.bot_king_v2` / version `2.0.100` / build code `100`, API prefix `/v2-pilot` **DISABLED**. Legacy app is `com.botking.bot_king`; current branch `pyproject.toml` version `2.3.130`; old build workflow builds legacy only.
+- No V2 APK build until an isolated build+signing workflow genuinely sets a separate package, verifies actual APK metadata/certificate, and tests are PASS. Do not simply modify old `pyproject.toml` to build V2.
+- Never copy auth secrets/tokens into GitHub or ordinary mobile preference stores.
+
+## 3. Owner-approved destination architecture
+- **Gateway 1 Dhan → Oracle:** Oracle safely owns Dhan OAuth/token lifecycle (only permitted renewal; existing oauth_consent previously reported `renewal_supported=false`, so owner browser reauth may be unavoidable), quote WebSocket and allowed REST fallback, 429 cooldown, stable shared collector/cache and revision timestamps. No promise of unlimited per-second data.
+- **Gateway 2 Oracle → BOT KING V2:** HTTPS, independently authenticated revocable device sessions, verified master controls up to **3 phones including master's**; delegated phones get per-feed read-only permissions and optional enable/disable/revoke. Client-supplied `master` or device ID is NEVER authentication.
+- **Master owner** has authorization to manage device enrollment and which data feeds each delegated device can see. No implicit remote phone control, unauthorized monitoring, order submission or exposure of main Dhan credentials to delegated phones.
+- BOT KING V2 client manages 5 saved Watchlists with **max 70 unique equities total** (no duplicates across lists), independently 3 indexes, UI/timeframe needs, data-only refresh, evidence-gated five signals and sixth slot intentionally blank; scanner/filters/super five/options reuse shared validated cache. Hist/WAIT when provider evidence is missing.
+- Android demand: Watchlist 3m candles, dashboard 1m index signals, selected scanner default 1m, Super Five 5m historical basis; trading hours auto data polling requested 09:10–15:45 IST (special NSE holidays need authoritative checking). Offline refresh manually when requested. At most read-only until separately authorized; live trading stays OFF.
+- Eventually permit two/three phones to share one backend collector, instead of multiplying Dhan requests; Dhan account/market-data redistribution policies and entitlements must be verified.
+
+## 4. What has ACTUALLY happened
+- Branch created from saved legacy source HEAD `ecab2c2`.
+- V2-001 commit **`577f07d9d9d45d50b3836bc12b5c3c334bd28375`** introduced ONLY isolated `pilot_v2/` domain contracts/tests/docs, `pilot_v2/pilot_identity.json` metadata and `.github/workflows/v2-pilot-contract.yml`; existing legacy code untouched.
+- First dedicated GitHub Actions `BOT KING V2 Pilot Contract Tests` run **#1, ID 44281428941: completed SUCCESS** on exact `577f07d` commit.
+- `pilot_v2/gateway_contract.py`: validated 0/5/51/70 distinct equity demand, 3 indexes, revision cache/last-good HIST/unverified, separate Dhan/app auth status; no HTTP.
+- `pilot_v2/device_policy.py`: pure policy max 3, one master, delegated feed grants/disable/revoke; NOT a secure server login implementation. **Important:** `verified_bootstrap=True` is only a test-domain assertion; future server endpoint must verify authorized user and device credentials independently.
+- `pilot_v2/tests/test_v2_pilot.py`: synthetic tests, **not production or device proof**.
+- No Oracle changes/restart, broker calls, data subscription, APK, actual client screen, app pairing, mobile installation, live orders or API token changes.
+
+## 5. Exact next work / hard gates
+**V2-002 (NEXT):** Read-only existing Oracle capability audit design and secure gateway contract. Inspect exact production SHA/routes/capability/active token type/expiry/renewal support without credentials or Dhan quote calls, through established safe operator route; current chat cannot assume SSH. Implement V2 server-side policy authentication and session-expiry tests in isolated `pilot_v2/`, behind feature flag, without writing production. Test forged master actor, revoked/expired device session, replay challenge and 4th-device denial.
+**V2-003:** Shared upstream collector and per-device filtered revision cache, demand scaling 0/5/51/70+indexes, 429/422, stream disconnect, no double provider fanout across 2–3 phones. Underlying Dhan authorization may require real user consent.
+**V2-004:** Data lanes candle/option/assessment with correct freshness, scanner/super five/five filters; six-slot UI with last blank.
+**V2-005:** Native secure Android enrollment or approved secure alternative, separated Flet V2 package and signed build; verify actual APK versionCode/name/cert and install alongside legacy.
+**V2-006:** Backup production, versioned feature-flag Oracle deployment, rollback simulation, health/auth smoke, V2 device acceptance, no legacy shutdown before PASS.
+
+## 6. Safety and workflow
+- Before new edits inspect last ~10 commits and CI. Preserve one joint journal+test+source commit where possible to minimize GitHub runs.
+- Never change `/opt/bot-king-server` based only on GitHub's `backend/server.py`. Production has different deployed source and credentials.
+- Dhan OAuth renewal must honor provider rules; cannot automate an obligatory interactive consent by storing OTP or bypassing security.
+- Everything is read-only; `live_orders_enabled=false`; never add real-order API exposure.
+- Next reply to owner should succinctly say exact current V2 commit/CI, next batch and blockers, and **continue work** instead of repeating planning.
