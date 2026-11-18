@@ -143,6 +143,23 @@ def main(page: ft.Page):
                     status.value = "Historical shortlist selection unavailable"
                 render()
                 page.update()
+            def open_index_chart(symbol):
+                """Use the existing independent 1m index view without a Dhan fetch."""
+                if symbol not in INDEXES:
+                    status.value = "Unsupported Dashboard index"
+                    render()
+                    page.update()
+                    return
+                try:
+                    scanner[0] = choose(scanner[0], state, symbol=symbol,
+                                        timeframe="1m")
+                    status.value = ("Index 1m chart selected locally"
+                                    if save_scanner() else
+                                    "Index 1m chart selected for session")
+                except ScannerError:
+                    status.value = "Index chart selection unavailable"
+                render()
+                page.update()
             def select_expiry(e):
                 try:
                     evidence_inbox.select_expiry(
@@ -171,6 +188,9 @@ def main(page: ft.Page):
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
                         ft.Text(card["factor_coverage"], color=MUTED, size=14),
+                        ft.TextButton("1m Chart",
+                                      on_click=lambda e, symbol=card["symbol"]:
+                                      open_index_chart(symbol)),
                     ]) for card in index_cards],
                 v1_card(ft, [
                     ft.Text("System Health", color=GOLD, weight=ft.FontWeight.BOLD),

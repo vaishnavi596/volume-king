@@ -997,3 +997,11 @@
 - Safeguards: strict window choice type/range; completed history, invalid new data retains last-good; five filter+blank sixth, symbol/timeframe, 70 equities and 3 indices unchanged.
 - Limit: source CI not Android Flet rendering or authenticated Dhan/Oracle provider integration. No V1, Oracle, Dhan API, orders, APK.
 - NEXT: V1→V2 functional parity inventory and grouped local app control wiring, then exact code SHA CI; Oracle production last.
+
+
+## V2-MIGRATION-SHARED-FIVE-CONTEXT-CI88-AND-INDEX-CHART-BATCH-20261118
+- **Verified CI #88:** Run `44370132223` at source SHA `c8d06b6af35bf8e5d8f335c7455b50c2a55f0b26`, completed SUCCESS: **253/253 Python offline tests OK**, job SUCCESS. The shared source-gated five-filter context now feeds Dashboard 1m, Watchlist 3m and Scanner/Super Five historical coverage independently per symbol/timeframe; sixth blank, no synthetic percentage or LIVE.
+- **New V2-only app batch:** Dashboard's three independent Index cards now have `1m Chart` buttons. `open_index_chart` accepts only NIFTY/BANKNIFTY/SENSEX and uses existing `scanner_state.choose` / local Scanner persistence; no server request, no legacy provider or auto refresh. Added `tests/test_index_chart_routing.py` for 1m selection, invalid symbol denial, actual UI callback and bottom navigation unchanged.
+- **New batch CI:** PENDING until exact source commit SHA / GitHub Actions job log is checked. Offline tests do not constitute Android visual runtime or Dhan live verification.
+- **Open migration blockers:** See `V2_REMAINING_FUNCTIONAL_GATES_20261118.md`; full V1 feature parity, actual five-source feed, Super Five scoring, News/Futures/Options, smart data manual/auto refresh, Master+3 delegated auth, nonexecuting Paper/alerts, Android build/phone tests and Oracle last remain open.
+- **Boundary:** Only `pilot_v2/` code/docs; no V1 branch/files, old server settings, Angel One/Yahoo, Oracle production, Dhan calls/OAuth, orders or APK.

@@ -25,3 +25,8 @@
 4. Run exact-code-SHA full regression and Android visual validation. Signed V2 APK only after gates; Oracle production backups/deploy/read-only Dhan integration LAST and separately approved.
 
 **At this checkpoint:** prior executable code `51da2bef55e6b59d5ab47dffba7d513ed32a6e96` was [CI #87 249/249 SUCCESS](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631). New shared-factor batch must pass its own exact-SHA CI. No Dhan requests, orders, V1 code or Oracle production changes.
+
+## LATEST CHECKPOINT — CI #88 & V2 Index Chart Navigation
+- Verified latest executable source CI **#88 253/253 PASS** at `c8d06b6af35bf8e5d8f335c7455b50c2a55f0b26`, run [44370132223](https://github.com/vaishnavi596/volume-king/actions/runs/44370132223). Shared five-factor WAIT/HIST coverage now connected across Dashboard, Watchlist, Scanner and historical Super Five; no artificial LIVE or sixth filter.
+- Next code batch adds local `1m Chart` buttons to NIFTY/BANKNIFTY/SENSEX Dashboard cards, selecting the validated index in existing Scanner. Source `android_app/src/main.py`; tests `tests/test_index_chart_routing.py`. **New exact CI PENDING** until verified.
+- Still NOT final complete V1 copy or live operation: remaining V1 UI controls, options/scoring, smart data, Master+3 delegated auth, alerts/Paper safe functions, signed V2 APK and Dhan/Oracle integration must pass separate gates. Old server/Angel/Yahoo/credentials/orders excluded.
