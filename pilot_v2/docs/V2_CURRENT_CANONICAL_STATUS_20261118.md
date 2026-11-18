@@ -7,8 +7,8 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `27039f8dfb496f8355ef56f17f9a53efb84bfc8a` |
-| Last **verified executable** Actions | [V2 CI #94](https://github.com/vaishnavi596/volume-king/actions/runs/44423433609), run `44423433609`, **SUCCESS 270/270 Python offline tests**, no failing step |
+| Last **verified executable** SHA | `b3679df967b84591d7cca06c9bfaed5031af8cf4` |
+| Last **verified executable** Actions | [V2 CI #95](https://github.com/vaishnavi596/volume-king/actions/runs/44424322447), run `44424322447`, **SUCCESS 271/271 Python offline tests**, no failing step |
 | Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
 | This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
@@ -154,3 +154,10 @@
 - **FIX:** V2 Flet Settings now invalidates `paper_last_preview` on both side and any numeric paper input change, and Save remains fail-closed unless a newly calculated preview exists. UI local calculation only: no broker, no order, no network or V1 server settings.
 - **TEST:** `test_local_paper_slots.py` now asserts stale-preview invalidation for both control callback categories and the save precondition. New exact CI PENDING; verify before claiming PASS.
 - **SAFETY:** Only V2 code/tests/docs. No Oracle, Dhan requests, OAuth, V1 changes, APK or live order.
+
+
+## VERIFIED CI #95 — PAPER PREVIEW STALE-INPUT GUARD — 2026-11-19
+- [BOT KING V2 Pilot CI #95](https://github.com/vaishnavi596/volume-king/actions/runs/44424322447), exact source `b3679df967b84591d7cca06c9bfaed5031af8cf4`, **COMPLETED SUCCESS 271/271 Python offline tests OK**, pilot-contract job SUCCESS (2.229s). Previous #94 at `27039f8dfb496f8355ef56f17f9a53efb84bfc8a` was 270/270 PASS.
+- V2 Settings side and any manual numeric paper planning input now invalidate `paper_last_preview` so an old calculation cannot be saved as a fresh five-slot planning record. `test_local_paper_slots.py` explicitly tests both callbacks and the save gate. No broker, server, provider or automatic-trading actions added.
+- The current V2 local PAPER feature is five independent manual **risk preview** records, NOT V1 full five-slot Paper Bot trading/ledger execution or alerts. Remaining gates: full V1 UI/interactive charts, nonexecuting paper ledger/alerts, authenticated Dhan-only five filters/Options/News/Futures/AI and Super Five, adaptive refresh, Master+3 delegates, V2 Android build/device acceptance and Oracle production LAST with separate approval.
+- Scope: only `pilot_v2/`. V1 code, old server settings, Angel One/Yahoo, credentials, Dhan API, Oracle, orders and APK unchanged. Docs-only follow-up is NOT a new executable CI.
