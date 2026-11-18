@@ -1,3 +1,5 @@
+> **FT1 V2-FT1-FOUR-DEVICE-CI40-SUCCESS-20261118:** Historical CI #38 FAIL corrected #39 PASS; latest full #40 SUCCESS at 6cc7d6e. Four-device P256 SQLite synthetic gate passed; real mobile auth blocked. Next FT2 offline.
+
 > **FT1 V2-FT1-FOUR-DEVICE-CRYPTO-CROSS-WORKER-20261118:** #38 legacy test FAIL corrected, #39 PASS. Added signed P256 4-device two-worker test pending new CI; do not claim real login. No APK/Oracle.
 
 > **CURRENT V2-FT1-FOUR-DEVICE-CI38-LEGACY-ASSERT-CORRECTION-20261118:** CI38 failed legacy 3-device assertion (135/136 passed); test corrected for 4-device policy; new CI pending. FT1 must pass before FT2.

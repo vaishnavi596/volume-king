@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **FT1 VERIFIED V2-FT1-FOUR-DEVICE-CI40-SUCCESS-20261118:** CI #38 FAILED legacy three-device assertion; corrected #39 SUCCESS, new cross-worker P256 Master+3 delegated/fifth denied full CI #40 SUCCESS exact 6cc7d6e. Native Android login & Master bootstrap/recovery NOT proven. Next FT2 offline batch, no Oracle/APK/Dhan token work. Full evidence in V2 Work Log.
+
+
 > **FT1 V2-FT1-FOUR-DEVICE-CRYPTO-CROSS-WORKER-20261118:** CI #38 FAIL (legacy expected fourth denied), targeted correction SHA 74b6c9f #39 SUCCESS. New two-worker P256 signed four-device acceptance + fifth denial test added, exact new CI pending. Native Android login still BLOCKED. NO APK/Oracle/Dhan changes.
 
 
