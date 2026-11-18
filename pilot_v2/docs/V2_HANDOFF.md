@@ -1,3 +1,5 @@
+> **CURRENT V2-FT1-FT4-OFFLINE-PACKET-PREFLIGHT-20261118:** FT2 #35 + FT3 #36/#37 all source CI PASS. FT4 offline identity/release-hold inventory recorded, APK/server strictly NOT attempted. Next FT1→FT4 combined audit, scoped repairs sequentially; latest journal entry in V2 Work Log.
+
 > **CURRENT V2-FT3-CANDLE-OPTIONS-FILTER-EVIDENCE-JOINT-OFFLINE-20261118:** FT3 candle/options/filter evidence dependency offline CI pending; FT1–FT4 preparation only, no APK/server/Dhan operations.
 
 > **CURRENT V2-FT3-APP-ROSTER-ONE-SHARED-QUOTE-LEASE-OFFLINE-20261118:** FT-3 owner-selected roster to shared synthetic SQLite quota lease integrated test pending CI. NO Oracle work or APK. Follow owner offline-then-joint-audit order.

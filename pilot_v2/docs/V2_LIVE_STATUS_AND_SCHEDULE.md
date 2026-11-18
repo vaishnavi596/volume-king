@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **OWNER FT1–FT4 OFFLINE PHASE V2-FT1-FT4-OFFLINE-PACKET-PREFLIGHT-20261118:** FT2 CI #35 SUCCESS, FT3 quote budget #36 SUCCESS, FT3 candle/options/filter evidence #37 SUCCESS; synthetic tests only. FT4 is release-preparation inventory ONLY: NO APK, signing, Oracle host, backup, deploy or Dhan token work. Next joint FT1→FT4 source audit, then turn-by-turn repair batches. See Work Log and Master Journal.
+
+
 > **CURRENT V2-FT3-CANDLE-OPTIONS-FILTER-EVIDENCE-JOINT-OFFLINE-20261118:** FT3 synthetic candle/options/filter dependency regression added. Last source #36 PASS, new CI PENDING. Missing options means five filters WAIT despite valid candles; no Oracle/Dhan/APK. Next FT4 dry-run checklist then joint owner audit.
 
 
