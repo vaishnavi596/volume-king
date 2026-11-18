@@ -1,6 +1,9 @@
 # BOT KING Version 2 — GENERAL / स्थायी Framework और नियम
 **OWNER FINAL DESIGN — V2-OWNER-FINAL-SAME-COPY-APP-FIRST-V2-ONLY-20261118**
 
+> **CURRENT READ ORDER (2026-11-18):** First read [V2_CURRENT_CANONICAL_STATUS_20261118.md](V2_CURRENT_CANONICAL_STATUS_20261118.md), then this standing General Framework, [V2_HANDOFF.md](V2_HANDOFF.md), [V2_LIVE_STATUS_AND_SCHEDULE.md](V2_LIVE_STATUS_AND_SCHEDULE.md), then actual branch HEAD/CI. Old examples and source SHA/CI values below remain archival; **last verified executable is CI #86, 246/246 at `8739cb9a`**. Repo Work Log/Master keep full historical record. This is docs-only and introduces no new executable/test/Oracle claim.
+
+
 ## 1. V1 का समान कॉपी, लेकिन स्वतंत्र V2
 BOT KING Version 2 को पुराने BOT KING Version 1 का **same app, same structure, same dashboard, same features** बनाना है—Watchlists, NIFTY/BANKNIFTY/SENSEX cards, Scanner/Chart, Super Five, Options Chain CE/PE/OI/PCR/Max Pain, AI/assessment, Candles, पांच filters (छठा blank), alerts/diagnostics, Settings और Master controls सहित। V2 के लिए नया या अलग design नहीं बनाना; V1 के actual source/screens की feature-by-feature सूची लेकर V2 में same layout/behavior replicate करना है। **यह requirement है, अभी implementation PASS नहीं:** V2 वर्तमान Flet source काफी हद तक offline shell और placeholders है।
 

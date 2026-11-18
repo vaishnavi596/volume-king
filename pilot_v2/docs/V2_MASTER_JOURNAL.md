@@ -3,7 +3,11 @@
 
 For current category status and next work order FIRST read [V2_LIVE_STATUS_AND_SCHEDULE.md](V2_LIVE_STATUS_AND_SCHEDULE.md). This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF.md` (short current orientation) and `V2_WORK_LOG.md` (append-only detailed commands/tests). Old BOT KING `docs/BOT_KING_WORK_LOG.md` is preserved and is not the current V2 work queue.
 
-## Current status — 2026-11-18
+
+## CURRENT AUTHORITATIVE CHECKPOINT — 2026-11-18
+**Latest executable CI:** #86, SHA `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`, 246/246 PASS; pre-consolidation docs-only HEAD `1cf6e0e15de12a5604ed10e80afb9586d9989c1a`. See [CURRENT CANONICAL STATUS](V2_CURRENT_CANONICAL_STATUS_20261118.md), [Current Handoff](V2_HANDOFF.md), and [Live Work Schedule](V2_LIVE_STATUS_AND_SCHEDULE.md). **Every below chronological “current”, “PENDING” and earlier device-count statement describes its own historical point; do not use it as the current state.** Recent five-failure #73–#77 fixed in CI #78; CI #83 fixed in #84; #85 and #86 also PASS. 1 Master+up to 3 delegated target supersedes older 3-total prototypes (still needs code correction/verification). No signed V2 APK, phone acceptance or Oracle/Dhan live integration yet.
+
+## Archived early status — 2026-11-18 (historical CI #23, NOT CURRENT)
 | Field | State / evidence |
 |---|---|
 | Working branch | `pilot/botking-v2-smart-gateway-20261118` |

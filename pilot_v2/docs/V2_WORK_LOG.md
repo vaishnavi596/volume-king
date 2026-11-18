@@ -982,3 +982,10 @@
 - Exact [V2 Pilot CI #86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) run `44366294149`, source commit `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`: COMPLETED SUCCESS, pilot-contract job SUCCESS, **246/246 Python offline unit tests OK**, 1.069s; no failed steps.
 - V2 selected Watchlist share Chart button chooses same symbol 3m in Scanner locally, with roster validation, navigation sync and local state save, no Dhan/Oracle requests. Existing 70 global equity cap and 3 independent indexes unchanged. Earlier historical CI #83 failure superseded by #84, #85 and now #86 PASS.
 - This is synthetic/offline source test, not tested Android device or live data. No V1, old server settings, Angel/Yahoo, Oracle, token, orders or APK changes. NEXT app-first V1 functional parity batches after exact #86 review.
+
+
+## V2-JOURNAL-CANONICAL-CONSOLIDATION-20261118 — documentation-only handoff cleanup
+- Request: ensure V2 journal data is correctly organized for the next chat and no historical PENDING, #23 status, or old max-3 device rule is misread as current.
+- Preflight exact source: `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`, V2 CI #86 run `44366294149` SUCCESS 246/246; prior HEAD `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` docs-only. #83 was FAIL 243/244, fixed by #84 244/244; #73–#77 failed for same NameError and were fixed in #78 237/237.
+- Action: add `V2_CURRENT_CANONICAL_STATUS_20261118.md` as stable checkpoint; rewrite short Handoff and Live Status to point to one source of current facts and next work; mark Master early #23 status archival, preserve every chronological original log entry/FAIL; add read-order pointer to General. No source/CI workflow/build/deployment changes; docs-only commit will not trigger current V2 source workflow by design.
+- Verified scope: `pilot_v2/docs/` only. V1 code/branch/old journal, Oracle production, Dhan requests/OAuth, orders, APK/mobile untouched. Last-source CI remains #86, not docs commit. Next safe work: full remaining V1 app-owned UI/control parity inventory and one grouped real source+test commit, inspect exact new CI and update journal accordingly.
