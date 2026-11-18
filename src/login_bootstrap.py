@@ -32,7 +32,7 @@ class LoginBootstrapState:
                *, error: str = "") -> bool:
         if generation != self.generation or stage not in STAGES:
             return False
-        if not isinstance(received, int) or not isinstance(expected, int) or not (0 <= received <= expected and expected > 0):
+        if type(received) is not int or type(expected) is not int or not (0 <= received <= expected and expected > 0):
             raise ValueError("Invalid bootstrap quote count")
         outcome = ("COOLDOWN" if "429" in error or "cooldown" in error.lower()
                    else "FAILED" if error or not received
