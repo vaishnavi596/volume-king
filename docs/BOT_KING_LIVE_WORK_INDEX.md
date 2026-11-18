@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **2026-11-18 T09 MOVE — OPERATOR-REPORTED PREFLIGHT HOLD (supersedes preceding install-next line):** Immutable guarded Assessment echo installer blob `eb82ac337296762ca30ec51b707ced6a0ef68708` verified; Oracle run `T09_GUARDED_ASSESSMENT_ECHO_DEPLOY` returned `HOLD_NO_PRODUCTION_WRITE`, `RuntimeError` at `PREFLIGHT`, **production_changed=false, server_restarted=false, dhan_requests=0, orders_sent=0**. Exact failing preflight predicate not in received console output; do not infer or rerun. **MODE:** one locked T09 segment → consolidate prior SHA/CI evidence → one targeted read-only fault isolation from next operator report → minimal safe fix/test → guarded release gate or BLOCKED; append every actual result to canonical Work Log and update this MOVE. Previous #1904 1282/1282 CI PASS is source-only; Oracle reader echo remains not deployed. **WHY** diagnosis of safe HOLD; **ACTION** record operator evidence; **RESULT** no prod write; **OPEN** exact RuntimeError cause; **NEXT** inspect sanitized read-only diagnostic and installer preflight conditions, avoid repeated deploy.
+
 **Updated (IST):** 2026-11-18 (T09 guarded assessment echo installer full #1904 CI 1282/1282 PASS; safe Oracle operator install next) · **Branch:** `fix/botking-joint-audit-70-15-20261115` · **Purpose:** 2-minute current/previous/next handoff.
 
 ## Read this first in every new chat
