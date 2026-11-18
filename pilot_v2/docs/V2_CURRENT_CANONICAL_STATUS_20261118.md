@@ -7,10 +7,10 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30` |
-| Last **verified executable** Actions | [V2 CI #86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149), run `44366294149`, **SUCCESS 246/246 Python offline tests**, no failing step |
-| Pre-consolidation branch HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
-| This documentation snapshot | Docs-only; does **not** establish a newer executable CI or Android device test |
+| Last **verified executable** SHA | `51da2bef55e6b59d5ab47dffba7d513ed32a6e96` |
+| Last **verified executable** Actions | [V2 CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, **SUCCESS 249/249 Python offline tests**, no failing step |
+| Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
+| This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
 
 **Evidence hierarchy:** SOURCE COMMITTED ≠ CI PASS ≠ Android runtime/visual PASS ≠ authenticated Dhan LIVE verified. Pending at an earlier SHA can have a later verified PASS; use the newest exact-SHA evidence, preserving historical failures.
@@ -21,7 +21,7 @@
 | V1 look-and-feel | Safe V1 dark/gold palette, compact index/Watchlist/health cards, header + bell/version, some readable typography, three bottom tabs | Exact V1 dashboard/screens, all fonts/padding, chart WebView and Android pixel/interaction acceptance |
 | Dashboard indexes | NIFTY / BANKNIFTY / SENSEX independent 1m model and historical/cache-only labels | Real fresh prices, correct 1m signals, continuous data refresh |
 | Watchlists | Five locally saved lists, globally ≤70 unique equities (indices separate), 3m row view, local group search, Chart button → 3m Scanner; invalid/removed roster guarded | Real authenticated quote/candle refresh, responsive full V1 controls/device check |
-| Scanner & chart | V1 Scanner + chart indicator engines copied to active V2, historic 1m/3m/5m analyses, LineChart, native OHLC geometry, selected symbol/timeframe state, Help | V1 full rich chart controls/WebView parity, device rendering, verified LIVE data |
+| Scanner & chart | V1 Scanner + chart indicator engines copied to active V2, historic 1m/3m/5m analyses, 15/35/70 local chart bar window, LineChart, native OHLC geometry, selected symbol/timeframe state, Help | V1 full rich chart controls/WebView parity, device rendering, verified LIVE data |
 | Super Five | Explicit WAIT for live ranking, historical-only shortlist, safe candidate → 3m chart and Help | Actual verified five-engine live ranking / partial-refresh behavior |
 | Options | Selected verified-expiry offline roster, CE/PE strict seven-strike cache, trusted listed spot→ATM±3 normalizer, invalid/replay last-good retention, Help | Actual authenticated Dhan chain, complete expiry/OI/PCR/max pain refresh, equity/options coverage, device check |
 | Filters/analysis | Five evidence-gated slots plus sixth blank, HIST/WAIT guards; technical historical indicator summary separately labeled | Full V1 signal panels, truly sourced News/Futures/Options/OI/Candle inputs, bullish/bearish percentages and AI parity |
@@ -44,7 +44,7 @@
 | [#83](https://github.com/vaishnavi596/volume-king/actions/runs/44364734475) | `51a8c574` | 243/244 FAIL | One stale Watchlist source-string assertion, code feature remains |
 | [#84](https://github.com/vaishnavi596/volume-king/actions/runs/44365018806) | `09bc354e` | 244/244 PASS | Corrected assertion / Watchlist search |
 | [#85](https://github.com/vaishnavi596/volume-king/actions/runs/44365732818) | `ad917cb5` | 245/245 PASS | Historical Super Five to chart |
-| [#86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) | `8739cb9a` | **246/246 PASS** | Watchlist → Scanner 3m button; latest verified source |
+| [#86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) | `8739cb9a` | 246/246 PASS | Watchlist → Scanner 3m button |\n| [#87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631) | `51da2bef` | **249/249 PASS** | Local Scanner 15/35/70 bar history window |
 
 ## 4. OWNER rules (authoritative)
 - V2 equals V1 **real screens, behaviors, engines** but no old server settings, Angel One, Yahoo, legacy credentials/auth/order paths. Copy only audited UI and local functions to V2; **do not import V1 `src/main.py`** (mixed providers) or old server modules.
@@ -64,3 +64,11 @@
 
 ## 6. New chat resume / source of truth
 **Read order:** (1) [this current status](V2_CURRENT_CANONICAL_STATUS_20261118.md), (2) [General Framework](V2_GENERAL_FRAMEWORK_RULES.md), (3) [Handoff](V2_HANDOFF.md), (4) [Live Status & Schedule](V2_LIVE_STATUS_AND_SCHEDULE.md), (5) latest actual branch HEAD/Actions, (6) Master Journal + Work Log only for needed history and failures. This snapshot is authoritative *as of the checkpoint above*, but must be checked against newer HEAD/CI each turn. Repo General records = these `pilot_v2/docs/` files; do not claim an actual GitHub Discussions → General post was created.
+
+
+## V2-FT2-SCANNER-CHART-WINDOW-CI87-VERIFIED-20261118
+- Exact [V2 Pilot CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, source SHA `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`: **SUCCESS 249/249 Python offline tests OK**, no failing step.
+- App source: `pilot_v2/android_app/src/main.py`, new `chart_window.py`; test `pilot_v2/tests/test_chart_window.py`. Scanner chart display selects 15/35/70 cached completed historical bars, 35 default; changing dropdown uses local window only, never refreshes quote/candle data, does not change timeframe or produce a LIVE claim.
+- Safeguards: strict window choice type/range; completed history, invalid new data retains last-good; five filter+blank sixth, symbol/timeframe, 70 equities and 3 indices unchanged.
+- Limit: source CI not Android Flet rendering or authenticated Dhan/Oracle provider integration. No V1, Oracle, Dhan API, orders, APK.
+- NEXT: V1→V2 functional parity inventory and grouped local app control wiring, then exact code SHA CI; Oracle production last.

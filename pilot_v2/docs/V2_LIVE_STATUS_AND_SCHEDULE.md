@@ -2,7 +2,7 @@
 **As-of 2026-11-18; no background task exists outside active turns.** Current authoritative details: [canonical snapshot](V2_CURRENT_CANONICAL_STATUS_20261118.md). Owner rules: [General](V2_GENERAL_FRAMEWORK_RULES.md). Historical evidence remains in [Master](V2_MASTER_JOURNAL.md) / [Work Log](V2_WORK_LOG.md).
 
 ## Verified state
-**Source:** `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`; **last CI #86** run `44366294149`, **246/246 SUCCESS**. Pre-docs HEAD `1cf6e0e1`. Current docs consolidation contains no executable code changes and therefore is not an additional source PASS.
+**Source:** `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`; **last CI #87** run `44368036631`, **249/249 SUCCESS**. Previous #86 was 246/246 PASS. Pre-docs HEAD `1cf6e0e1`. Current docs consolidation contains no executable code changes and therefore is not an additional source PASS.
 
 | Lane | State | Unclosed acceptance gate |
 |---|---|---|
@@ -21,3 +21,11 @@
 **Hard exclusions:** No V1 updates, no Angel One/Yahoo/old server settings or credentials, no unverified LIVE label, no order execution; Dhan OAuth and production require separate privileged review/approval. No automation/background monitoring implied.
 
 **Continue command:** “BOT KING V2 journal अनुसार आगे बढ़ो” or “ok”. Read current snapshot, check newest GitHub code+CI, then perform a real safe batch. Never repeat planning as if code is already complete.
+
+
+## V2-FT2-SCANNER-CHART-WINDOW-CI87-VERIFIED-20261118
+- Exact [V2 Pilot CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, source SHA `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`: **SUCCESS 249/249 Python offline tests OK**, no failing step.
+- App source: `pilot_v2/android_app/src/main.py`, new `chart_window.py`; test `pilot_v2/tests/test_chart_window.py`. Scanner chart display selects 15/35/70 cached completed historical bars, 35 default; changing dropdown uses local window only, never refreshes quote/candle data, does not change timeframe or produce a LIVE claim.
+- Safeguards: strict window choice type/range; completed history, invalid new data retains last-good; five filter+blank sixth, symbol/timeframe, 70 equities and 3 indices unchanged.
+- Limit: source CI not Android Flet rendering or authenticated Dhan/Oracle provider integration. No V1, Oracle, Dhan API, orders, APK.
+- NEXT: V1→V2 functional parity inventory and grouped local app control wiring, then exact code SHA CI; Oracle production last.

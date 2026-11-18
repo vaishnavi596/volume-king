@@ -989,3 +989,11 @@
 - Preflight exact source: `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`, V2 CI #86 run `44366294149` SUCCESS 246/246; prior HEAD `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` docs-only. #83 was FAIL 243/244, fixed by #84 244/244; #73–#77 failed for same NameError and were fixed in #78 237/237.
 - Action: add `V2_CURRENT_CANONICAL_STATUS_20261118.md` as stable checkpoint; rewrite short Handoff and Live Status to point to one source of current facts and next work; mark Master early #23 status archival, preserve every chronological original log entry/FAIL; add read-order pointer to General. No source/CI workflow/build/deployment changes; docs-only commit will not trigger current V2 source workflow by design.
 - Verified scope: `pilot_v2/docs/` only. V1 code/branch/old journal, Oracle production, Dhan requests/OAuth, orders, APK/mobile untouched. Last-source CI remains #86, not docs commit. Next safe work: full remaining V1 app-owned UI/control parity inventory and one grouped real source+test commit, inspect exact new CI and update journal accordingly.
+
+
+## V2-FT2-SCANNER-CHART-WINDOW-CI87-VERIFIED-20261118
+- Exact [V2 Pilot CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, source SHA `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`: **SUCCESS 249/249 Python offline tests OK**, no failing step.
+- App source: `pilot_v2/android_app/src/main.py`, new `chart_window.py`; test `pilot_v2/tests/test_chart_window.py`. Scanner chart display selects 15/35/70 cached completed historical bars, 35 default; changing dropdown uses local window only, never refreshes quote/candle data, does not change timeframe or produce a LIVE claim.
+- Safeguards: strict window choice type/range; completed history, invalid new data retains last-good; five filter+blank sixth, symbol/timeframe, 70 equities and 3 indices unchanged.
+- Limit: source CI not Android Flet rendering or authenticated Dhan/Oracle provider integration. No V1, Oracle, Dhan API, orders, APK.
+- NEXT: V1→V2 functional parity inventory and grouped local app control wiring, then exact code SHA CI; Oracle production last.

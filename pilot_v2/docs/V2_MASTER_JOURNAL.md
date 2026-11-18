@@ -5,7 +5,7 @@ For current category status and next work order FIRST read [V2_LIVE_STATUS_AND_S
 
 
 ## CURRENT AUTHORITATIVE CHECKPOINT — 2026-11-18
-**Latest executable CI:** #86, SHA `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`, 246/246 PASS; pre-consolidation docs-only HEAD `1cf6e0e15de12a5604ed10e80afb9586d9989c1a`. See [CURRENT CANONICAL STATUS](V2_CURRENT_CANONICAL_STATUS_20261118.md), [Current Handoff](V2_HANDOFF.md), and [Live Work Schedule](V2_LIVE_STATUS_AND_SCHEDULE.md). **Every below chronological “current”, “PENDING” and earlier device-count statement describes its own historical point; do not use it as the current state.** Recent five-failure #73–#77 fixed in CI #78; CI #83 fixed in #84; #85 and #86 also PASS. 1 Master+up to 3 delegated target supersedes older 3-total prototypes (still needs code correction/verification). No signed V2 APK, phone acceptance or Oracle/Dhan live integration yet.
+**Latest executable CI:** #87, SHA `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`, 249/249 PASS; pre-consolidation docs-only HEAD `1cf6e0e15de12a5604ed10e80afb9586d9989c1a`. See [CURRENT CANONICAL STATUS](V2_CURRENT_CANONICAL_STATUS_20261118.md), [Current Handoff](V2_HANDOFF.md), and [Live Work Schedule](V2_LIVE_STATUS_AND_SCHEDULE.md). **Every below chronological “current”, “PENDING” and earlier device-count statement describes its own historical point; do not use it as the current state.** Recent five-failure #73–#77 fixed in CI #78; CI #83 fixed in #84; #85 and #86 also PASS. 1 Master+up to 3 delegated target supersedes older 3-total prototypes (still needs code correction/verification). No signed V2 APK, phone acceptance or Oracle/Dhan live integration yet.
 
 ## Archived early status — 2026-11-18 (historical CI #23, NOT CURRENT)
 | Field | State / evidence |
@@ -921,3 +921,11 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - Exact [V2 Pilot CI #86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) run `44366294149`, source commit `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`: COMPLETED SUCCESS, pilot-contract job SUCCESS, **246/246 Python offline unit tests OK**, 1.069s; no failed steps.
 - V2 selected Watchlist share Chart button chooses same symbol 3m in Scanner locally, with roster validation, navigation sync and local state save, no Dhan/Oracle requests. Existing 70 global equity cap and 3 independent indexes unchanged. Earlier historical CI #83 failure superseded by #84, #85 and now #86 PASS.
 - This is synthetic/offline source test, not tested Android device or live data. No V1, old server settings, Angel/Yahoo, Oracle, token, orders or APK changes. NEXT app-first V1 functional parity batches after exact #86 review.
+
+
+## V2-FT2-SCANNER-CHART-WINDOW-CI87-VERIFIED-20261118
+- Exact [V2 Pilot CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, source SHA `51da2bef55e6b59d5ab47dffba7d513ed32a6e96`: **SUCCESS 249/249 Python offline tests OK**, no failing step.
+- App source: `pilot_v2/android_app/src/main.py`, new `chart_window.py`; test `pilot_v2/tests/test_chart_window.py`. Scanner chart display selects 15/35/70 cached completed historical bars, 35 default; changing dropdown uses local window only, never refreshes quote/candle data, does not change timeframe or produce a LIVE claim.
+- Safeguards: strict window choice type/range; completed history, invalid new data retains last-good; five filter+blank sixth, symbol/timeframe, 70 equities and 3 indices unchanged.
+- Limit: source CI not Android Flet rendering or authenticated Dhan/Oracle provider integration. No V1, Oracle, Dhan API, orders, APK.
+- NEXT: V1→V2 functional parity inventory and grouped local app control wiring, then exact code SHA CI; Oracle production last.
