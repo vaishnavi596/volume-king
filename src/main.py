@@ -310,6 +310,7 @@ def app_main(page:ft.Page):
     oracle_assessment_cache={}
     oracle_assessment_attempts={}
     oracle_assessment_cache_generation=[provider_generation[0]]
+    oracle_assessment_closed_bootstrap_generation=[None]
 
     def oracle_assessment_context(symbol,surface="overview"):
         """Keep source context tied to the rendering surface, never a global scanner."""
@@ -6788,6 +6789,14 @@ console.log('BOT KING Lightweight Charts ready');
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected):
                     generation=provider_generation[0]
+                    # One bounded read-only Assessment bootstrap after-hours per
+                    # login generation; no continuing 180s post-close polling.
+                    market_window=refresh_hours()
+                    if not market_window:
+                        if oracle_assessment_closed_bootstrap_generation[0]==generation:
+                            await asyncio.sleep(15)
+                            continue
+                        oracle_assessment_closed_bootstrap_generation[0]=generation
                     # Only a handful of selected symbols; preserve per-view context
                     # without fanout to every Watchlist equity or extra Dhan history.
                     selected=[("scanner",scan_symbol.value),
