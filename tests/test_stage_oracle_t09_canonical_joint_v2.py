@@ -108,6 +108,21 @@ class T09JointCandidateTests(unittest.TestCase):
             self.assertEqual(payload["observed_at"], "2026-11-18T10:00:00")
         self.assertEqual([x[-1] for x in records], ["3m", "5m"])
 
+    def test_missing_assessment_imports_do_not_break_dhan_response(self):
+        self.configure()
+        namespace = {"__name__": "__main__"}
+        exec(compile(stage.stage_source(FAKE), "<t09-synthetic>", "exec"),
+             namespace)
+        route, _, _ = namespace["create_app"]()
+        # Simulate Assessment being absent; intraday history must still succeed.
+        with patch.dict(sys.modules, {"assessment_state": None,
+                                      "assessment_scope": None}):
+            response = route(1)
+        self.assertEqual(response["symbol"], "NIFTY")
+        self.assertEqual(response["interval"], "3m")
+        self.assertEqual(response["freshness"], "historical_unverified")
+        self.assertEqual(tuple(response), stage.RETURN_KEYS)
+
     def test_source_drift_holds(self):
         self.configure()
         with self.assertRaisesRegex(ValueError, "SOURCE_SHA_MISMATCH"):
