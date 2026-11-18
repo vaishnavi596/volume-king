@@ -88,3 +88,23 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     lines.append("Filter 6: ")
     lines.append("News/Futures/Options/Candle: no verified 0–100 scores; not a trade signal")
     return lines
+
+
+def compact_assessment_summary(lines):
+    """One readable line for Watchlist/Dashboard, from the same validated five rows.
+
+    Scanner retains all original details. Never count the reserved sixth slot
+    or infer bullish/bearish percentages from informational metrics.
+    """
+    if not isinstance(lines, list) or not lines or not isinstance(lines[0], str):
+        return "Oracle 5 filters • WAIT • assessment unavailable"
+    if len(lines) == 1:
+        return lines[0]
+    # assessment_lines emits five labelled rows immediately after the header.
+    labels = ("OI Support: ", "OI Resistance: ", "Max Pain: ", "PCR: ", "Candle: ")
+    if len(lines) < 6 or any(not isinstance(line, str) or
+                              not line.startswith(label)
+                              for line, label in zip(lines[1:6], labels)):
+        return "Oracle 5 filters • WAIT • incomplete assessment"
+    waiting = sum(": WAIT" in line for line in lines[1:6])
+    return f"Oracle 5 filters • {5 - waiting} context / {waiting} WAIT • unverified"
