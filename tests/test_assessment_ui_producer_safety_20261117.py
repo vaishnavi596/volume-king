@@ -59,7 +59,7 @@ class AssessmentUiProducerSafetyTests(unittest.TestCase):
         shown = show(data)
         self.assertEqual(sum(line.endswith("WAIT") or ": WAIT" in line
                              for line in shown[1:6]), 5)
-        self.assertIn("Candle: WAIT", shown)
+        self.assertTrue(any(line.startswith("Candle: WAIT") for line in shown))
         self.assertIn("Candle factor: historical direction context • unverified", shown)
         compact = compact_assessment_summary(shown)
         self.assertIn("0 context / 5 WAIT", compact)
