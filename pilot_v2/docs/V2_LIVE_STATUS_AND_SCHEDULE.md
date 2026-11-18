@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **FT3 V2-FT3-EXPIRY-SOURCE-GATED-CHOICE-20261118:** Flet Scanner option-expiry choice is disabled until trusted nonempty Dhan roster; calendar date validation, per-symbol selection, retained last-good and removal tests added. Prior CI #44 PASS; exact new CI PENDING. No APK/Oracle/token/network. Full details V2 Work Log.
+
+
 > **VERIFIED V2-FT3-OPTION-AND-REFRESH-CI43-CI44-PASS-20261118:** FT3 normalized options evidence #43 (44321035093) SUCCESS exact 9ee326a; app-owned Smart Data refresh intent #44 (44321358419) SUCCESS exact c650152. Both source-only; NO broker, Oracle, automatic network polling, APK, or token changes. Continue FT3 scoped offline and grouped release gate review.
 
 

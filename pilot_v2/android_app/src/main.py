@@ -6,7 +6,7 @@ from scanner_state import ScannerSelection, ScannerError, selectable_symbols, ch
 from feed_inbox import DeviceFeedInbox
 from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
-from option_evidence import LocalOptionEvidence
+from option_evidence import LocalOptionEvidence, LocalExpiryChoices, OptionEvidenceError
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -70,6 +70,7 @@ def main(page: ft.Page):
     candle_history = LocalCandleHistory()  # No fabricated candles; accepts validated local input only.
     filter_evidence = LocalFilterEvidence()  # No source-gated evidence yet; all five WAIT.
     option_evidence = LocalOptionEvidence()  # Actual Dhan option evidence unavailable.
+    expiry_choices = LocalExpiryChoices()  # No invented or default expiry.
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -93,6 +94,15 @@ def main(page: ft.Page):
                     status.value = ("Scanner timeframe saved locally" if save_scanner()
                                     else "Scanner timeframe changed for session only")
                 except ScannerError as exc:
+                    status.value = str(exc)
+                render()
+                page.update()
+            def select_expiry(e):
+                try:
+                    expiry_choices.choose(scanner[0].symbol, e.control.value,
+                                          selected_equities=state.selected)
+                    status.value = "Selected existing verified expiry locally"
+                except OptionEvidenceError as exc:
                     status.value = str(exc)
                 render()
                 page.update()
@@ -122,7 +132,21 @@ def main(page: ft.Page):
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
                 ft.Text("Sixth filter: reserved / blank"),
-                ft.Text(option_evidence.summary(scanner[0].symbol, "", selected_equities=state.selected)),
+                ft.Dropdown(
+                    label="Option expiry (verified Dhan only)", width=260,
+                    value=expiry_choices.selected(scanner[0].symbol,
+                                                  selected_equities=state.selected),
+                    options=[ft.dropdown.Option(x, x) for x in
+                             expiry_choices.available(scanner[0].symbol,
+                                                      selected_equities=state.selected)],
+                    disabled=not bool(expiry_choices.available(
+                        scanner[0].symbol, selected_equities=state.selected)),
+                    on_change=select_expiry),
+                ft.Text(option_evidence.summary(
+                    scanner[0].symbol,
+                    expiry_choices.selected(scanner[0].symbol,
+                                            selected_equities=state.selected) or "",
+                    selected_equities=state.selected)),
                 ft.Text("Super Five: no verified history / ranking data"),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
@@ -143,6 +167,7 @@ def main(page: ft.Page):
                 candle_history.forget_removed(state.selected)
                 filter_evidence.forget_removed(state.selected)
                 option_evidence.forget_removed(state.selected)
+                expiry_choices.forget_removed(state.selected)
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()

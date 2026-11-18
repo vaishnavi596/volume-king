@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(ROOT))
-from option_evidence import LocalOptionEvidence, OptionEvidenceError  # noqa: E402
+from option_evidence import LocalOptionEvidence, LocalExpiryChoices, OptionEvidenceError, valid_expiry  # noqa: E402
 from candle_history import LocalCandleHistory  # noqa: E402
 from filter_evidence import LocalFilterEvidence  # noqa: E402
 
@@ -55,6 +55,54 @@ class OptionsCandleFilterIntegrationTests(unittest.TestCase):
         self.assertEqual(self.c.view("NIFTY","1m")["count"],2)
         self.assertFalse(self.o.accept(option(),trusted_transport=True))
         self.assertEqual(self.o.visible("NIFTY","2026-12-03")["status"],"WAIT")
+
+    def test_strict_calendar_expiry_validation_and_no_forged_dates(self):
+        for invalid in ("2026-02-30", "2026-13-01", "2026-11-31",
+                        "2026-1-26", "２０２６-11-26", "2026-00-01"):
+            with self.subTest(expiry=invalid):
+                self.assertFalse(valid_expiry(invalid))
+                with self.assertRaises(OptionEvidenceError):
+                    self.o.accept(option(expiry=invalid), trusted_transport=True)
+        self.assertTrue(valid_expiry("2028-02-29"))
+
+    def test_expiry_roster_selection_is_source_gated_by_symbol(self):
+        choices = LocalExpiryChoices()
+        with self.assertRaises(OptionEvidenceError):
+            choices.choose("NIFTY", "2026-11-26")
+        with self.assertRaises(OptionEvidenceError):
+            choices.accept("NIFTY", 1, ["2026-11-26"],
+                           allowed_symbols=("NIFTY",))
+        self.assertTrue(choices.accept("NIFTY", 1, ["2026-11-26", "2026-12-03"],
+                        allowed_symbols=("NIFTY",), trusted_transport=True))
+        choices.choose("NIFTY", "2026-12-03")
+        self.assertEqual(choices.selected("NIFTY"), "2026-12-03")
+        self.assertIsNone(choices.selected("BANKNIFTY"))
+        with self.assertRaises(OptionEvidenceError):
+            choices.choose("BANKNIFTY", "2026-12-03")
+        self.assertFalse(choices.accept("NIFTY", 1, ["2026-11-26"],
+                          allowed_symbols=("NIFTY",), trusted_transport=True))
+        for malformed in ([], ["2026-02-30"], ["2026-12-03", "2026-11-26"],
+                          ["2026-11-26", "2026-11-26"]):
+            with self.subTest(malformed=malformed), self.assertRaises(OptionEvidenceError):
+                choices.accept("NIFTY", 2, malformed,
+                               allowed_symbols=("NIFTY",), trusted_transport=True)
+        self.assertEqual(choices.selected("NIFTY"), "2026-12-03")
+        choices.accept("NIFTY", 2, ["2026-11-26"],
+                       allowed_symbols=("NIFTY",), trusted_transport=True)
+        self.assertIsNone(choices.selected("NIFTY"))
+        self.assertEqual(choices.available("NIFTY"), ("2026-11-26",))
+
+    def test_deleted_symbol_clears_expiry_choices_and_index_independent(self):
+        choices = LocalExpiryChoices()
+        choices.accept("TCS", 1, ["2026-11-26"], allowed_symbols=("TCS",),
+                       trusted_transport=True)
+        choices.choose("TCS", "2026-11-26", selected_equities=("TCS",))
+        choices.accept("SENSEX", 1, ["2026-11-26"], allowed_symbols=("SENSEX",),
+                       trusted_transport=True)
+        choices.forget_removed(())
+        self.assertEqual(choices.available("TCS", selected_equities=("TCS",)), ())
+        self.assertIsNone(choices.selected("TCS", selected_equities=("TCS",)))
+        self.assertEqual(choices.available("SENSEX"), ("2026-11-26",))
 
     def test_options_equity_restricted_and_removed_without_index_leak(self):
         with self.assertRaises(OptionEvidenceError):
