@@ -1,6 +1,11 @@
 # BOT KING — Permanent Working Rules (cross-chat)
 
-**Applies to:** BOT KING development on `vaishnavi596/volume-king`. On every new chat, read this file, `BOT_KING_HANDOFF.md`, `docs/BOT_KING_WORK_LOG.md`, `docs/BOT_KING_CONSOLIDATED_TEST_MATRIX_20261117.md`, and the work-result tracker before new edits. Check the actual current branch/HEAD; historical snapshots may be stale.
+**Applies to:** BOT KING development on `vaishnavi596/volume-king`. On every new chat, **FIRST** read `docs/BOT_KING_LIVE_WORK_INDEX.md` (previous/current/next), then this file, `BOT_KING_HANDOFF.md`, and the latest relevant CI. Consult `docs/README.md` for categories and the Work Log, Test Matrix and result tracker for details only as required. Check the actual current branch/HEAD; historical snapshots may be stale.
+
+## Cross-chat Live Work Index — mandatory update
+- [docs/BOT_KING_LIVE_WORK_INDEX.md](docs/BOT_KING_LIVE_WORK_INDEX.md) is the short, *current* previous/current/next handoff. Read it first, verify newest branch/CI and proceed to next P0 safe task (OK means continue).
+- After any material code/CI/operator audit/repair outcome, update the live index **and** append exact evidence to one canonical `docs/BOT_KING_WORK_LOG.md`. Use category routing [docs/README.md](docs/README.md); avoid another duplicate long journal.
+- The Live Index is a time-stamped status summary; stale evidence and old Handoff snapshots never override current SHA/CI/Oracle evidence. Do not convert GitHub source CI into production/APK proof.
 
 ## Documentation categories — canonical index (2026-11-18)
 - Start at [docs/README.md](docs/README.md) to find the right existing category before creating any new report or operator script. Routes: AI/Market Memory & Research; Filters/Market Evidence; Commands/Oracle; Android/UI; Release/CI; Historical archives.
