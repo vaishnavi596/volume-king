@@ -3147,6 +3147,9 @@ def app_main(page:ft.Page):
                 connection_status.value=str(exc)
                 connection_status.color=RED
                 page.update();return
+            # Dhan shares the login guard with Angel: reserve it before the
+            # first awaited network probe to prevent duplicate bootstrap lanes.
+            broker_connect_busy[0]=True
             try:
                 from server_feed import server_origin, direct_https_opener, checked_pairing_key
                 import urllib.request, urllib.error, json
@@ -3395,6 +3398,7 @@ def app_main(page:ft.Page):
                 connection_status.color=RED
             finally:
                 server_access.value=""
+                broker_connect_busy[0]=False
             page.update();return
         endpoint=(api_url.value or "").strip()
         if endpoint and not server_trust.value:
