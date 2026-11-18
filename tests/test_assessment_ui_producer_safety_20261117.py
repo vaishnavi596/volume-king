@@ -1,6 +1,6 @@
 """Assessment UI must reject unsafe producer states and invented scores."""
 import unittest
-from src.shared_assessment_ui import assessment_lines
+from src.shared_assessment_ui import assessment_lines, compact_assessment_summary
 
 IDS = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
 
@@ -48,6 +48,26 @@ class AssessmentUiProducerSafetyTests(unittest.TestCase):
         self.assertTrue(any("not a trade signal" in line for line in shown))
         self.assertFalse(any("BULLISH %" in line or "BEARISH %" in line for line in shown))
         self.assertEqual(shown.count("Filter 6: "), 1)
+
+    def test_historical_candle_context_is_separate_from_five_filter_votes(self):
+        data = payload()
+        data["factors"]["candle"] = {
+            "status": "direction_available", "direction": "bearish"}
+        # Even with source candle context, all five filter slots remain WAIT.
+        for item in data["assessment_filters"]:
+            item.update(status="unavailable", value=None)
+        shown = show(data)
+        self.assertEqual(sum(line.endswith("WAIT") or ": WAIT" in line
+                             for line in shown[1:6]), 5)
+        self.assertIn("Candle: WAIT", shown)
+        self.assertIn("Candle factor: historical direction context • unverified", shown)
+        compact = compact_assessment_summary(shown)
+        self.assertIn("0 context / 5 WAIT", compact)
+        self.assertIn("candle history context", compact)
+        self.assertNotIn("BEARISH", compact)
+        self.assertEqual(shown.count("Filter 6: "), 1)
+        self.assertEqual(compact_assessment_summary(show(payload())).count(
+            "candle history context"), 0)
 
     def test_direction_available_only_allowed_for_candle_factor(self):
         for factor in ("news", "futures", "options"):
