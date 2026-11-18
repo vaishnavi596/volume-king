@@ -46,6 +46,20 @@ class V1VisualDoctorMigration(unittest.TestCase):
         self.assertEqual(doctor.diagnose("no verified candles")[0], "BK-CANDLES")
         self.assertNotIn("Angel", doctor.help_for("Options"))
 
+    def test_scanner_option_help_and_historical_labels_preserve_source_gate(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        ast.parse(source)
+        self.assertIn('tooltip="Scanner Help"', source)
+        self.assertIn('on_click=lambda e: open_help("Scanner")', source)
+        self.assertIn('tooltip="Options Help"', source)
+        self.assertIn('on_click=lambda e: open_help("Options")', source)
+        self.assertIn('ft.Text("Trusted completed cache only", color=MUTED', source)
+        self.assertIn('ft.Text("Completed OHLC candles · historical / unverified",', source)
+        self.assertIn('ft.Text("Historical close-price chart · NOT live / not a verified trade signal",', source)
+        self.assertEqual(source.count('ft.NavigationDestination('), 3)
+        self.assertNotIn('ServerAngelFeed(', source)
+        self.assertNotIn('get_yahoo(', source)
+
     def test_context_help_uses_settings_tab_and_no_network(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         tree = ast.parse(source)

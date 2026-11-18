@@ -154,7 +154,13 @@ def main(page: ft.Page):
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows("NIFTY", "1m")[:5]],
                 ft.Text("Sixth filter: reserved / blank", color=MUTED),
-                ft.Text("Scanner", size=17, color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text("Scanner", size=17, color=GOLD,
+                            weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(icon=ft.Icons.HELP_OUTLINE, icon_color=GOLD,
+                                  tooltip="Scanner Help",
+                                  on_click=lambda e: open_help("Scanner")),
+                ]),
                 ft.Dropdown(label="Scanner symbol", width=240, value=scanner[0].symbol,
                             options=[ft.dropdown.Option(s, s) for s in selectable_symbols(state)],
                             on_change=select_scanner_symbol),
@@ -183,7 +189,7 @@ def main(page: ft.Page):
                     selected_equities=state.selected)) >= 2 else
                    [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
                 ft.Text("Completed OHLC candles · historical / unverified",
-                        size=12),
+                        size=14, color=MUTED),
                 ft.Row([
                     ft.Stack([
                         ft.Container(width=2, height=c["wick_height"],
@@ -197,7 +203,7 @@ def main(page: ft.Page):
                         selected_equities=state.selected)
                 ], scroll=ft.ScrollMode.AUTO, spacing=4),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
-                        size=12),
+                        size=14, color=MUTED),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
@@ -217,8 +223,15 @@ def main(page: ft.Page):
                     expiry_choices.selected(scanner[0].symbol,
                                             selected_equities=state.selected) or "",
                     selected_equities=state.selected)),
-                ft.Text("CE / PE option-chain strikes (trusted completed cache only)",
-                        size=13, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Text("CE / PE option-chain · historical only",
+                            color=GOLD, size=16,
+                            weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(icon=ft.Icons.HELP_OUTLINE, icon_color=GOLD,
+                                  tooltip="Options Help",
+                                  on_click=lambda e: open_help("Options")),
+                ]),
+                ft.Text("Trusted completed cache only", color=MUTED, size=14),
                 *([ft.Row([
                     ft.Text("CE OI", width=75),
                     ft.Text("CE ₹", width=75),

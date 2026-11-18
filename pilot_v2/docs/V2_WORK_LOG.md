@@ -923,3 +923,10 @@
 - Exact [V2 Pilot CI #81](https://github.com/vaishnavi596/volume-king/actions/runs/44363552011), source commit `eb83b3d5d7f03d2901874988e86aaff62bac3b6a`, run `44363552011`: COMPLETED SUCCESS, one pilot-contract job SUCCESS, Python unittest **240/240 OK**, 1.069s; no failed steps.
 - Contextual Dashboard/Watchlist gold Help icons now route to existing local Settings Help Doctor by topic. Three bottom navigation tabs remain. All prior offline regression tests green, no Dhan/Oracle/server/credential changes. This confirms code/CI, not Android device visual acceptance.
 - NEXT continue grouped V1 screen/functional migration after checking this exact CI; safe app-only no legacy server or Angel/Yahoo paths.
+
+
+## V2-FT2-SCANNER-OPTIONS-CONTEXT-HELP-VISUAL-20261118
+- **PRECHECK:** Last executable V2 CI #81 run `44363552011` at source SHA `eb83b3d5d7f03d2901874988e86aaff62bac3b6a` SUCCESS 240/240; last docs-only HEAD `549382ec15c1120835ab93141ebe1c941dc3cde8` inspected.
+- **ACTUAL V2 APP CHANGES:** Scanner and Options sections inside existing Dashboard have independent gold contextual Help icons targeting the corresponding local Settings Help Doctor topic, with correct selected navigation tab. Historical OHLC candles/price chart explicit unverified labels promoted to readable 14pt muted text; CE/PE section uses gold heading with HIST-only and trusted completed-cache label. Existing selected symbol/timeframe and expiry callbacks, cache/replay source checks, 5+blank filter slot, 3 bottom tabs preserved; no extra provider request.
+- **TEST:** Add focused AST/source regression for Scanner/Options help actions, honest historical labels, navigation count and forbidden legacy provider paths. Exact new V2 Actions CI must be checked; do not claim native Android visual parity.
+- **EXCLUSIONS:** No old V1 server preferences, Yahoo/Angel, credentials, Oracle, Dhan API, orders, APK or V1 writes. Next: verify exact SHA CI, continue grouped V1 UI/function parity only after PASS.
