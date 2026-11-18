@@ -221,9 +221,14 @@ class WatchlistWiringTests(unittest.TestCase):
         manual=ast.get_source_segment(self.source,self.functions["refresh_all_dhan_quotes"])
         self.assertIn('cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")',manual)
         self.assertIn('cooldown=max(cooldown,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))',manual)
-        self.assertLess(manual.index('cooldown=max(cooldown'),manual.index('if cooldown>0:'))
-        self.assertLess(manual.index('if cooldown>0:'),manual.index('await refresh_watch_batch()'))
-        self.assertLess(manual.index('if cooldown>0:'),manual.index('await refresh_dhan_index_quotes(force=True)'))
+        self.assertIn('index_cooldown=dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")',manual)
+        self.assertIn('if cooldown>0 and index_cooldown>0:',manual)
+        self.assertIn('if cooldown==0:',manual)
+        self.assertIn('if index_cooldown==0:',manual)
+        self.assertLess(manual.index('if cooldown==0:'),manual.index('await refresh_watch_batch()'))
+        self.assertLess(manual.index('if index_cooldown==0:'),manual.index('await refresh_dhan_index_quotes(force=True)'))
+        self.assertIn('manual_quote_last_attempt[0]=now',manual)
+        self.assertLess(manual.index('if cooldown>0 and index_cooldown>0:'),manual.index('manual_quote_last_attempt[0]=now'))
 
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)

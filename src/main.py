@@ -2109,15 +2109,24 @@ def app_main(page:ft.Page):
             request_view_refresh(4)
             return
         cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
-        # Explicit refresh must honor the selected-equity route backoff too.
+        # Selected equities and indices have separate route cooldowns.
+        # The feed adapter includes any provider-wide 429 cooldown in each.
         cooldown=max(cooldown,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))
-        if cooldown>0:
-            watch_batch_status[0]=f"Dhan snapshot cooling down • retry in {cooldown:.0f}s • last valid prices retained"
+        index_cooldown=dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")
+        if cooldown>0 and index_cooldown>0:
+            watch_batch_status[0]=f"Dhan data cooling down • retry in {min(cooldown,index_cooldown):.0f}s • last valid prices retained"
             request_view_refresh(4)
             return
         manual_quote_last_attempt[0]=now
-        await refresh_watch_batch()
-        await refresh_dhan_index_quotes(force=True)
+        if cooldown==0:
+            await refresh_watch_batch()
+        else:
+            watch_batch_status[0]=f"Dhan equity cooling down • retry in {cooldown:.0f}s • last valid prices retained"
+            request_view_refresh(4)
+        if index_cooldown==0:
+            await refresh_dhan_index_quotes(force=True)
+        # A route-specific equity 429 must not suppress an independent index
+        # request; a global broker cooldown blocks both via the adapter.
         # Only an explicit Watchlist button tap may request HIST candles after
         # close. Preserve the normal quote refresh irrespective of market hours.
         # Share the 3m scheduler's rolling broker budget; never fan out 51 histories.
