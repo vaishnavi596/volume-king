@@ -7,8 +7,8 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `ea4233d8c0d2c27a015fb0ba76515bbba45e0ac9` |
-| Last **verified executable** Actions | [V2 CI #89](https://github.com/vaishnavi596/volume-king/actions/runs/44370643743), run `44370643743`, **SUCCESS 255/255 Python offline tests**, no failing step |
+| Last **verified executable** SHA | `1bbf63cd45e0ef64c9021ffdf2b41ec948f3af81` |
+| Last **verified executable** Actions | [V2 CI #90](https://github.com/vaishnavi596/volume-king/actions/runs/44371437426), run `44371437426`, **SUCCESS 259/259 Python offline tests**, no failing step |
 | Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
 | This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
@@ -89,3 +89,10 @@
 - **Tests:** New `tests/test_dashboard_analysis_slots.py` exercises independent choices, local serialization, rejection of unauthorized/removed equities, fail-closed invalid save, stale selection reconciliation, 3 actual Flet slot controls and forbidden legacy provider paths. New exact-source CI **PENDING**, no Android UI/device evidence.
 - **Limit:** Fully ported V1 Dashboard fonts/chart/alerts/Paper and true verified five-source signals remain incomplete; trusted Dhan transport, Smart Data refresh, Master+3 delegated login, V2 APK and Oracle integration have NOT been performed.
 - **Write safety:** `pilot_v2/` only, no V1/Angel One/Yahoo/old server settings, no token/OAuth, live orders, Dhan calls, Oracle production or APK. After exact run verify CI and then move to next safe V1 functional parity dependency.
+
+
+## V2-FT2-THREE-DASHBOARD-ANALYSIS-CI90-VERIFIED-20261118
+- Exact [V2 Pilot CI #90](https://github.com/vaishnavi596/volume-king/actions/runs/44371437426), run `44371437426` at source commit `1bbf63cd45e0ef64c9021ffdf2b41ec948f3af81`: COMPLETED SUCCESS, `pilot-contract` job SUCCESS, **259/259 Python offline tests OK**, no failing step (1.315s). Previous CI #89 `ea4233d8` 255/255 PASS and #88 `c8d06b6a` 253/253 PASS.
+- V1 three independent `dashboard_index_analysis` slots migrated to isolated V2 `local_analysis_slots.py` + real Flet Dashboard dropdowns. Validate selected equity/index against current Watchlists/INDEXES, keep source-gated 1m quote/candle/five-filter context, local device-only save and removed-symbol recovery, selected analysis → existing 1m Scanner chart. No V1 mixed provider module, server settings or data fetch.
+- Unit tests `test_dashboard_analysis_slots.py` include independent selection, save fail-closed, removed symbol, illegal slot and Flet source UI control wiring. **Still NOT Android visual/interaction, exact V1 pixel/feature parity, real Dhan/Oracle transport or live trading proof.**
+- Remaining gates maintained in `V2_REMAINING_FUNCTIONAL_GATES_20261118.md`: full V1 remaining panels, safe nonexecuting Paper/alerts, News/Futures/Options/AI evidence, Smart Data refreshing, Master + 3 delegates, device/Android package and Oracle LAST. No real Dhan/Oracle requests, OAuth, orders, APK or V1 mutation.
