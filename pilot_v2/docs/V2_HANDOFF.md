@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-SHARED-FILTER-WATCHLIST-20261118:** Shared five-filter engine added to Watchlist 3m with offline tests; exact CI pending, no live source.
+
 > **CURRENT V2-S3-FIVE-EVIDENCE-FILTER-WAIT-20261118:** five evidence-gated filter slots + blank sixth; pure offline module/UI and tests, exact CI pending. No real source integration.
 
 > **LATEST V2-S3-LOCAL-CANDLE-CI31-SUCCESS-20261118:** V2 #31 full offline CI PASS exact 774e44a, local 1m/3m/5m completed-candle retention. Continue S3 filter/UI, no Oracle/server changes.

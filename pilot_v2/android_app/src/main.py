@@ -158,6 +158,8 @@ def main(page: ft.Page):
                   for s in state.groups[group[0]]],
                 *[ft.Text(candle_history.summary(s, "3m", selected_equities=state.selected))
                   for s in state.groups[group[0]]],
+                *[ft.Text(filter_evidence.compact(s, "3m", selected_equities=state.selected))
+                  for s in state.groups[group[0]]],
             ]
         else:
             def change_auto(e):

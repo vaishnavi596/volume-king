@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-SHARED-FILTER-WATCHLIST-20261118:** Reuses the same source-gated five-filter module for compact Watchlist 3m display; sixth inert, WAIT unless eligible data, no fabricated percentage. Previous exact #32 CI SUCCESS at 43c8b44; new CI PENDING. Oracle/Dhan untouched. V2 journal has details.
+
+
 > **CURRENT V2-S3-FIVE-EVIDENCE-FILTER-WAIT-20261118:** existing five Flet filter slots source-gated; unverified/partial evidence WAIT, sixth blank, no fictitious scores; Dashboard/Scanner display, isolated regressions. Previous #31 SUCCESS; exact new CI pending. No Dhan/Oracle/token changes. V2 Work Log records details.
 
 

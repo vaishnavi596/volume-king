@@ -55,5 +55,19 @@ class FilterEvidenceTests(unittest.TestCase):
         self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],"WAIT")
         self.assertEqual(state.rows("TCS","3m")[-1],("",""))
 
+    def test_same_five_filter_engine_renders_watchlist_compact(self):
+        state=m.LocalFilterEvidence()
+        self.assertEqual(state.compact("TCS","3m",selected_equities=("TCS",)),
+                         "TCS 3m filters: WAIT (5/5 no eligible evidence)")
+        state.accept("TCS","3m",4,sample(),allowed_symbols=("TCS",),trusted_transport=True)
+        text=state.compact("TCS","3m",selected_equities=("TCS",))
+        self.assertIn("OI Support BULLISH HIST",text)
+        self.assertIn("Candle Trend BULLISH HIST",text)
+        self.assertNotIn("sixth",text.lower())
+        self.assertNotIn("%",text)
+        self.assertIn("WAIT",state.compact("TCS","3m",selected_equities=()))
+        state.forget_removed(())
+        self.assertIn("WAIT",state.compact("TCS","3m",selected_equities=("TCS",)))
+
 if __name__=="__main__":
     unittest.main()

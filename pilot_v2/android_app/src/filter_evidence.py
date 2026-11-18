@@ -57,3 +57,11 @@ class LocalFilterEvidence:
     def forget_removed(self, selected_equities):
         allowed = set(("NIFTY", "BANKNIFTY", "SENSEX")).union(selected_equities)
         self._values = {k: v for k, v in self._values.items() if k[0] in allowed}
+
+    def compact(self, symbol, timeframe, *, selected_equities=()):
+        """One shared filter presentation for the Watchlist; no sixth score."""
+        five = self.rows(symbol, timeframe, selected_equities=selected_equities)[:5]
+        if all(value == "WAIT" for _, value in five):
+            return f"{symbol} {timeframe} filters: WAIT (5/5 no eligible evidence)"
+        return f"{symbol} {timeframe} filters: " + " · ".join(
+            f"{label} {value}" for label, value in five)
