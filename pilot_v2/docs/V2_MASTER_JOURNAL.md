@@ -786,3 +786,11 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **EVIDENCE:** SOURCE+TEST COMMITTED; exact resulting V2 Actions CI **PENDING/UNVERIFIED**. Unit test not executed locally in this move. Do not mislabel this as Android runtime or broker/provider acceptance. This method is a guarded entry contract; authenticated live transport must later attest same-source spot/chain.
 - **BOUNDARY:** All writes confined to V2 pilot branch `pilot_v2/`. V1 and old journal untouched; no Oracle production modifications or restart, Dhan requests, live orders, APK build or signed-device testing.
 - **NEXT:** Verify exact V2 Actions run at final executable SHA `d569cf2`; fix any concrete test failure before further unrelated code. Then bind expiry-change UI and data-only view/update behavior to the validated inbox with focused tests, while preserving independent last-good history and WAIT/HIST status. Continue app-first/server-last.
+
+
+## V2-V1-SIX-BLOB-UI-DHAN-PARITY-AUDIT-20261118
+- **OWNER REQUEST:** Match V1 and six migration-ready copies before enabling all V1 options, Dashboard, typography and Dhan-only data in V2; exclude Angel One/Yahoo.
+- **READ-ONLY RESULT:** All 6 V1→`pilot_v2/v1_clean_staging/` module Git blob SHAs match exactly; only Scanner and Chart indicator engines also exist in executable V2 `android_app/src/`. V1 main 7,074 lines vs V2 main 343 lines, and V1's dark/gold theme, custom fonts/spacing, full options/paper/AI/diagnostics and chart WebView do NOT have full UI/callback parity in current offline V2 main.
+- **DHAN BOUNDARY:** Six staged modules are safe source candidates, not live-enabled features. V2 app inbox accepts verified-source-shaped data offline but real authenticated Oracle/Dhan transport and live refresh are NOT connected. V1 main contains Angel/Yahoo/ServerAngelFeed; forbidden to activate wholesale.
+- **EVIDENCE:** Detailed file `pilot_v2/docs/V2_V1_SOURCE_PARITY_AUDIT_20261118.md` created at commit `776c74ce0c708d92abd36a547aeae615dd2993d3`. Last verified executable #71 231/231; latest inbox code/test exact CI remains UNVERIFIED. No production, Dhan, APK, order or V1 edits.
+- **NEXT:** Safe full feature/typography/assets migration mapping and vetted supporting modules, Dhan-only offline evidence-bound app activation, then exact-SHA combined security/parity CI before any APK.
