@@ -35,6 +35,26 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
                     "oracle_assessment_closed_bootstrap_generation":[last],
                     "generation":current}),should_skip)
 
+    def test_all_three_dashboard_indexes_use_same_bounded_assessment_lane(self):
+        # Exact three-index inventory, regardless of scanner/options/paper
+        # selection. This must reuse existing 180s local Assessment GET budget.
+        selected = [node for node in ast.walk(self.poll)
+                    if isinstance(node, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == "selected"
+                            for t in node.targets)]
+        self.assertEqual(len(selected), 1)
+        expr = selected[0].value
+        self.assertIsInstance(expr, ast.ListComp)
+        self.assertIn(
+            '("NIFTY", "BANKNIFTY", "SENSEX")',
+            ast.unparse(expr))
+        self.assertIn('selected.extend(', self.block)
+        self.assertIn('now-oracle_assessment_attempts[key]<180', self.block)
+        self.assertIn('dhan_feed.assessment,sym,timeframe=tf,expiry=selected_expiry',
+                      self.block)
+        self.assertNotIn('get_market_data(', self.block)
+        self.assertNotIn('dhan_feed.intraday(', self.block)
+
     def test_one_after_hours_attempt_does_not_clear_last_good_cache(self):
         # Skipping the repeated poll must preserve historical data for display.
         guard=next(node for node in ast.walk(self.poll)
