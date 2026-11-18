@@ -20,3 +20,6 @@
 
 ## V2-002B — device proof and Dhan token status
 - `device_verifier.py`: validates Android-compatible P-256 ECDSA signatures over one-use, time-bound server challenge for *already provisioned* device public keys. Production enrollment and shared atomic challenge store NOT implemented. `broker_token_status.py` reports expiry and whether reauthorization is required without storing secrets or attempting forbidden renewals. New offline tests use generated test keys, not Android Keystore hardware.
+
+## V2-003A — common read-only cache delivery
+- `shared_quote_gateway.py`: accepts only server-internal validated quote snapshots by contract; each verified mobile session can read its permitted equity selection/indices from the same cached revision. Device selection cannot issue Dhan calls. **All state is in-memory; real shared multi-worker persistence and an authenticated source producer still need implementation.**

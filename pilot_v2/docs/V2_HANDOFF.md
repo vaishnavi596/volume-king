@@ -8,6 +8,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-002C-MASTER-ENROLLMENT:** Exact V2 CI #6 `44283251098` at `fa79f41` completed SUCCESS. V2-002C isolated master-approved secondary P-256 public-key enrollment with one-time challenge, read-only per-feed grants and max 3 device capacity added; new commit CI pending. Still NO HTTP endpoint, shared durable store, real Oracle deployment, client APK or actual device pairing. Next check exact CI and build atomic session/enrollment store before real auth.
 
+> **LATEST V2-003A-SHARED-READ-ONLY-DELIVERY:** V2 CI #7 `44287980740` on `04e302485` SUCCESS. One mixed source+tests+Master Journal+Work Log commit adds offline `SharedQuoteGateway` for 1–3 devices and individually granted quotes/indices filtered through common last-good revision cache, with 0/5/51/70 display tests. New CI PENDING. Not a deployable server; no Dhan call, production write, V2 APK or old-app change. NEXT verify CI then V2-003B deduplicated demand and 429-safe collector and V2-002 production-safe auth.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
