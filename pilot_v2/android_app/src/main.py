@@ -11,6 +11,7 @@ from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_chart_context import chart_points, historical_shortlist
+from candle_option_views import candle_geometry
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -165,6 +166,20 @@ def main(page: ft.Page):
                     candle_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)) >= 2 else
                    [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
+                ft.Text("Completed OHLC candles · historical / unverified",
+                        size=12),
+                ft.Row([
+                    ft.Stack([
+                        ft.Container(width=2, height=c["wick_height"],
+                                     bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
+                                     top=c["wick_top"], left=5),
+                        ft.Container(width=12, height=c["body_height"],
+                                     bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
+                                     top=c["body_top"], left=0),
+                    ], width=12, height=116) for c in candle_geometry(
+                        candle_history, scanner[0].symbol, scanner[0].timeframe,
+                        selected_equities=state.selected)
+                ], scroll=ft.ScrollMode.AUTO, spacing=4),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=12),
                 *[ft.Text(f"{label}: {value}") for label, value in
@@ -186,6 +201,34 @@ def main(page: ft.Page):
                     expiry_choices.selected(scanner[0].symbol,
                                             selected_equities=state.selected) or "",
                     selected_equities=state.selected)),
+                ft.Text("CE / PE option-chain strikes (trusted completed cache only)",
+                        size=13, weight=ft.FontWeight.BOLD),
+                *([ft.Row([
+                    ft.Text("CE OI", width=75),
+                    ft.Text("CE ₹", width=75),
+                    ft.Text("STRIKE", width=90),
+                    ft.Text("PE ₹", width=75),
+                    ft.Text("PE OI", width=75),
+                ], spacing=2)] + [
+                    ft.Row([
+                        ft.Text(f'{r["ce_oi"]:,.0f}', width=75),
+                        ft.Text(f'{r["ce_price"]:,.2f}', width=75),
+                        ft.Text(f'{r["strike"]:,.0f}', width=90),
+                        ft.Text(f'{r["pe_price"]:,.2f}', width=75),
+                        ft.Text(f'{r["pe_oi"]:,.0f}', width=75),
+                    ], spacing=2) for r in evidence_inbox.strikes.visible(
+                        scanner[0].symbol,
+                        expiry_choices.selected(scanner[0].symbol,
+                                                selected_equities=state.selected),
+                        expiry_choices, selected_equities=state.selected)["rows"]
+                ] if evidence_inbox.strikes.visible(
+                    scanner[0].symbol,
+                    expiry_choices.selected(scanner[0].symbol,
+                                            selected_equities=state.selected),
+                    expiry_choices, selected_equities=state.selected)["status"] == "HIST"
+                  else [ft.Text("CE/PE strikes WAIT · no trusted selected expiry / rows")]),
+                ft.Text("Option-chain HIST only; OI/PCR is not a trading signal",
+                        size=12),
                 ft.Text("Super Five — verified live ranking WAIT"),
                 ft.Text("Historical technical shortlist (not Super Five signals)",
                         size=13, weight=ft.FontWeight.BOLD),

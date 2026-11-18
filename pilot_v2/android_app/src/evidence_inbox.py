@@ -7,6 +7,7 @@ from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
 from option_evidence import LocalOptionEvidence, LocalExpiryChoices
 from candle_filter_gate import accept_candle_trend
+from candle_option_views import LocalOptionStrikes
 from option_filter_gate import (
     accept_option_factors, accept_option_metrics, accept_expiry_roster,
     select_option_expiry,
@@ -23,6 +24,7 @@ class DeviceEvidenceInbox:
         self.filters = LocalFilterEvidence()
         self.options = LocalOptionEvidence()
         self.expiries = LocalExpiryChoices()
+        self.strikes = LocalOptionStrikes()  # Validated, never synthesized CE/PE.
 
     @staticmethod
     def allowed(selected_equities):
@@ -71,6 +73,13 @@ class DeviceEvidenceInbox:
             selected_equities=selected_equities,
             trusted_transport=trusted_transport)
 
+    def apply_option_strikes(self, payload, *, selected_equities=(),
+                             trusted_transport=False):
+        self.allowed(selected_equities)
+        return self.strikes.accept(
+            payload, self.expiries, selected_equities=selected_equities,
+            trusted_transport=trusted_transport)
+
     def apply_option_factors(self, symbol, timeframe, revision, evidence, *,
                              selected_equities=(), trusted_transport=False):
         self.allowed(selected_equities)
@@ -85,3 +94,4 @@ class DeviceEvidenceInbox:
         self.filters.forget_removed(selected_equities)
         self.options.forget_removed(selected_equities)
         self.expiries.forget_removed(selected_equities)
+        self.strikes.forget_removed(selected_equities)
