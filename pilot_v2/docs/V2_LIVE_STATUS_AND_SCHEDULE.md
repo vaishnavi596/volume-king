@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-OPTION-FILTER-MATCHED-EXPIRY-SOURCE-GATE-20261118:** FT3 normalized selected option expiry/metrics + directional filter evidence matched by same observed timestamp; synthetic safety tests pending CI. Prior #45/#46 SUCCESS. No Dhan/Oracle/APK or token edits. Next FT3 offline then FT4 static gate.
+
 > **FT3 VERIFIED CI #45 (44323382080):** source bd48d56 SUCCESS for per-symbol trusted expiry roster / strict calendar dates; offline only, no live Dhan, APK or Oracle. Next FT3 filter readiness.
 
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE

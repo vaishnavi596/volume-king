@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-OPTION-FILTER-MATCHED-EXPIRY-SOURCE-GATE-20261118:** FT3 option/filter source-join matched expiry/observation tests pending CI, no real broker request. See journal.
+
 > **LATEST FT3 #45/#46 SUCCESS:** Expiry source-gating and independent five-factor WAIT/HIST regression passed offline; actual Dhan, phone APK and Oracle not touched. Continue original FT1–FT4 owner schedule.
 
 > **CURRENT V2-FT3-INDEPENDENT-FIVE-FACTOR-EVIDENCE-20261118:** FT3 independent five-filter partial-evidence test+code pending CI. Missing factors WAIT; no auto trading or real Dhan verified.
