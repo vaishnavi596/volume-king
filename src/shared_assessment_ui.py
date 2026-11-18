@@ -88,6 +88,10 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
     # The future sixth slot is intentionally blank: no WAIT, score or extra feed.
     # It is not one of the five server-assessment filter IDs.
     lines.append("Filter 6: ")
+    # Factor evidence is distinct from the five filter results. A cached
+    # candle direction does not turn an unavailable candle_trend into a vote.
+    if factors["candle"].get("status") == "direction_available":
+        lines.append("Candle factor: historical direction context • unverified")
     lines.append("News/Futures/Options/Candle: no verified 0–100 scores; not a trade signal")
     return lines
 
@@ -109,4 +113,8 @@ def compact_assessment_summary(lines):
                               for line, label in zip(lines[1:6], labels)):
         return "Oracle 5 filters • WAIT • incomplete assessment"
     waiting = sum(": WAIT" in line for line in lines[1:6])
-    return f"Oracle 5 filters • {5 - waiting} context / {waiting} WAIT • unverified"
+    caption = f"Oracle 5 filters • {5 - waiting} context / {waiting} WAIT • unverified"
+    # This is an allowlisted annotation, never a sixth filter or extra vote.
+    if "Candle factor: historical direction context • unverified" in lines[6:]:
+        caption += " • candle history context"
+    return caption
