@@ -128,16 +128,18 @@ def main(page: ft.Page):
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
                     ]) for card in index_cards],
-                ft.Text("System Health · " +
-                        str(health["index_quote_coverage"]) + "/3 index histories available",
-                        size=13),
-                ft.Text(health["feed"], size=12),
+                v1_card(ft, [
+                    ft.Text("System Health", color=GOLD, weight=ft.FontWeight.BOLD),
+                    ft.Text(str(health["index_quote_coverage"]) +
+                            "/3 index histories available", color=WHITE, size=14),
+                    ft.Text(health["feed"], color=MUTED, size=14),
+                ]),
                 ft.Divider(),
-                ft.Text("Five filters — source-gated, no fabricated percentage"),
+                ft.Text("Five filters — source-gated, no fabricated percentage", color=MUTED),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows("NIFTY", "1m")[:5]],
-                ft.Text("Sixth filter: reserved / blank"),
-                ft.Text("Scanner", size=17, weight=ft.FontWeight.BOLD),
+                ft.Text("Sixth filter: reserved / blank", color=MUTED),
+                ft.Text("Scanner", size=17, color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Dropdown(label="Scanner symbol", width=240, value=scanner[0].symbol,
                             options=[ft.dropdown.Option(s, s) for s in selectable_symbols(state)],
                             on_change=select_scanner_symbol),
@@ -264,20 +266,17 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
                 ft.Row([symbol, ft.ElevatedButton("Add", on_click=add)]),
-                *[ft.Container(
-                    content=ft.Column([
+                *[v1_card(ft, [
                         ft.Row([
                             ft.Text(row["symbol"] + "  " + row["price"],
+                                    color=GOLD, size=16,
                                     weight=ft.FontWeight.BOLD, expand=True),
                             ft.TextButton("Remove",
                                           on_click=lambda e, item=row["symbol"]: remove(e, item)),
                         ], spacing=4),
-                        ft.Text(row["candle"], size=13),
-                        ft.Text(row["filter_text"], size=12),
-                    ], spacing=3),
-                    border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
-                    border_radius=8, padding=8,
-                ) for row in watchlist_rows(
+                        ft.Text(row["candle"], size=14, color=WHITE),
+                        ft.Text(row["filter_text"], size=14, color=MUTED),
+                    ]) for row in watchlist_rows(
                     state.groups[group[0]], quote_view, evidence_inbox,
                     selected_equities=state.selected)],
             ]
@@ -307,7 +306,7 @@ def main(page: ft.Page):
                 page.update()
             content.controls = [
                 ft.Text("Settings", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
-                ft.Text("Smart Data & Master Control — app-owned"),
+                ft.Text("Smart Data & Master Control — app-owned", color=MUTED),
                 ft.Text(f"Installed app label: BOT KING V2 v{APP_VERSION_NAME} (code {APP_VERSION_CODE})"),
                 ft.Switch(label="Automatic market refresh", value=smart[0].auto_refresh,
                           on_change=change_auto),
@@ -320,7 +319,8 @@ def main(page: ft.Page):
                 ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
-                ft.Text("Master Device Control", size=16, weight=ft.FontWeight.BOLD),
+                ft.Text("Master Device Control", size=16, color=GOLD,
+                        weight=ft.FontWeight.BOLD),
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
                 ft.Text("Enable / Disable / Revoke require verified device login"),
                 ft.Text("Dhan token renewal only via authorized Master workflow"),

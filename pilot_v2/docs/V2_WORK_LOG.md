@@ -897,3 +897,10 @@
 - Exact [V2 Pilot CI #79](https://github.com/vaishnavi596/volume-king/actions/runs/44362597344), run `44362597344`, executable commit SHA `431a93d015ef827fe4297308216e2e58df635c20`, completed SUCCESS. V2 pilot-contract job SUCCESS; **238/238 Python offline regression tests OK**, 1.063s test runtime, no failed job steps.
 - V2 Settings now has V1-dark/gold-app-only Help Doctor with seven selectable topics and safe sanitized Error Doctor action guidance, no network or source/provider/secret settings. New additional UI-contract test passes; V2 prior 237 tests remain green. No claim of actual Android phone rendering or live Dhan/Oracle data.
 - NEXT: inspect this exact latest tested code before grouped next V1 UI/chart/settings functional parity batch. Old V1, Oracle production, Dhan calls, orders and APK unchanged.
+
+
+## V2-FT2-DASHBOARD-WATCHLIST-DARK-GOLD-SHELL-20261118
+- **PRIOR EXACT PASS:** V2 Pilot #79 run `44362597344` source SHA `431a93d015ef827fe4297308216e2e58df635c20`, **238/238 SUCCESS**. Prior docs-only HEAD `d5f0ee682d67302d053ae828e8d1e0449e88b385` reviewed.
+- **APP-ONLY SOURCE:** Shared V1 dark/gold `v1_card` now styles compact Dashboard System Health and Watchlist individual equity cards; gold symbol/price title, readable 14pt candle/filter labels, muted health messages. Scanner and Master Device headings use same V1 GOLD token. Keep index cards independently top of Dashboard; Watchlist remains equity-only and global selection 70, existing buttons/callbacks and five filter states unchanged. No full screen redraw/refresh workflow added.
+- **TEST:** Targeted regression in `test_v1_visual_doctor_migration.py` asserts Dashboard/Watchlist/Scanner/Master styling and 3 bottom navigation tabs, parsable Python source, no legacy `ServerAngelFeed` or Yahoo calls. New exact CI pending until verified.
+- **BOUNDARY:** No V1 source, old server settings, Angel/Yahoo/provider imports, Oracle, Dhan requests, secrets, trading orders or APK. This is incremental actual V2 visual wiring, not full V1 pixel parity or live data. NEXT verify exact CI then continue grouped screen/function parity.

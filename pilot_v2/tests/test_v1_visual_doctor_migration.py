@@ -46,6 +46,20 @@ class V1VisualDoctorMigration(unittest.TestCase):
         self.assertEqual(doctor.diagnose("no verified candles")[0], "BK-CANDLES")
         self.assertNotIn("Angel", doctor.help_for("Options"))
 
+    def test_dashboard_watchlist_reuse_v1_visual_shell_without_provider(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        ast.parse(source)
+        self.assertIn('ft.Text("System Health", color=GOLD', source)
+        self.assertIn('ft.Text(row["symbol"] + "  " + row["price"],', source)
+        self.assertIn('ft.Text(row["candle"], size=14, color=WHITE)', source)
+        self.assertIn('ft.Text(row["filter_text"], size=14, color=MUTED)', source)
+        self.assertIn('ft.Text("Scanner", size=17, color=GOLD', source)
+        self.assertIn('ft.Text("Master Device Control", size=16, color=GOLD', source)
+        self.assertIn('v1_card(ft, [', source)
+        self.assertEqual(source.count('ft.NavigationDestination('), 3)
+        self.assertNotIn("ServerAngelFeed(", source)
+        self.assertNotIn("get_yahoo(", source)
+
     def test_local_help_topic_contract_is_non_network_and_non_secret(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
