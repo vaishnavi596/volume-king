@@ -401,7 +401,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_dhan_super_five_ranking_publishes_in_five_symbol_groups_and_at_end(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         scan = source[source.index("    async def refresh_market():"):source.index("    async def supervised_market_refresh():")]
-        rank = scan[scan.index("async def rank_one(sym):"):scan.index("pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))")]
+        rank = scan[scan.index("async def rank_one(sym):"):scan.index("pairs=await asyncio.gather(*(rank_one(sym) for sym in ranking_symbols))")]
         # Ranking updates use existing candle analyses. They do not issue extra
         # Dhan history requests and may refresh the UI after each five results.
         self.assertIn('if prefs.get("source")!="Dhan" or scan_progress["checked"]%5==0:', rank)
