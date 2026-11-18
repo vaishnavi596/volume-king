@@ -2109,6 +2109,8 @@ def app_main(page:ft.Page):
             request_view_refresh(4)
             return
         cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")
+        # Explicit refresh must honor the selected-equity route backoff too.
+        cooldown=max(cooldown,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))
         if cooldown>0:
             watch_batch_status[0]=f"Dhan snapshot cooling down • retry in {cooldown:.0f}s • last valid prices retained"
             request_view_refresh(4)
