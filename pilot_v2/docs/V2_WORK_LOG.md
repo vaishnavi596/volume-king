@@ -480,3 +480,15 @@
 - **SCOPED SAFETY CHANGE:** `pilot_v2/android_build_gate.py` keeps existing OFF-by-default identity tests, but *always* explicitly emits `release_ready=false`, `production_deployment_approved=false` and four named physical release blockers. A source metadata PASS is explicitly NOT signed binary/phone or deployment authorization; no fake approvals or generated certificates. `pilot_v2/tests/test_preflight_gates.py` now asserts release HOLD even on source PASS and malformed metadata FAIL. CI of exact new source PENDING at author time.
 - **OWNER ORDER:** FT1 security, FT2 offline Gateway/Flet, FT3 Smart Data/options/candles/filters and FT4 release preparation are tracked. This change is preparatory only. Next joint FT1→FT4 evidence audit and sequential scoped repairs; actual Oracle backup/restore, signing and APK BUILD remain prohibited until future owner instruction. No Dhan calls/token work/orders.
 - **SIDE EFFECTS:** source/docs/tests only; Oracle contacted=false; server changed=false; APK generated=false; market requests=0; production order calls=0.
+
+
+## V2-JOINT-FT1-FT4-SOURCE-CI-RECONCILIATION-20261118
+| Packet | Exact successful synthetic CI evidence | Remaining release gate |
+| --- | --- | --- |
+| FT1 | #40 `44316203468`, SHA `6cc7d6e` SUCCESS | Android Keystore/master bootstrap/recovery not verified on phone; 4 phones simulated, not physical |
+| FT2 | #41 `44320017393` SHA `c3f92c6`; #42 `44320318297` SHA `1a24aa2`, SUCCESS | Live device HTTPS/verified login to Oracle not integrated; correct typed feed contracts tested only |
+| FT3 | #43 `44321035093` `9ee326a`, #44 `44321358419` `c650152`, #45 `44323382080` `bd48d56`, #46 `44324091944` `fc14fe2`, #47 `44324984812` SHA `3c1dc1c`, all SUCCESS | Dhan real options/expiry, candles, collector quota, five factors, Flet widget and source freshness remain unverified; no direction invented |
+| FT4 | #48 `44325415347`, exact source SHA `2300139aaf45667e5b9734aa79c3910f264d4d60` SUCCESS | Gate explicitly release_ready=false and production_deployment_approved=false despite static metadata PASS; no APK binary/cert/Oracle backup/deploy performed |
+- **Historical regression:** FT1 CI #38 failed stale 3-device expectation, corrected #39 and reinforced #40; do not mask history.
+- **Action boundary:** All source tests are offline. None proves live OAuth, Dhan entitlements, real Android, production Oracle, APK or trading. Owner explicitly prohibits build and server operations at this stage. No new branch or gateway architecture.
+- **Next turn:** start detailed cross-file joint FT1→FT4 blocker audit using this evidence, record PASS/PARTIAL/BLOCKED by packet, and then apply one tightly tested correction batch at a time. Do not authorize FT4 release without owner clearance and verified Android/Oracle gates.

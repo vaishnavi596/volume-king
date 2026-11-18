@@ -1,3 +1,5 @@
+> **VERIFIED V2 FT1–FT4 OFFLINE STATUS, 2026-11-18:** FT1 synthetic 4-device P256 #40 PASS; FT2 independent index/equity inbox + protected TestClient #41/#42 PASS; FT3 expiry/Smart Data/five filters/option metrics join #43–#47 PASS; FT4 no-APK release HOLD source gate #48 PASS exact 2300139a. ALL are offline code/CI only. **No APK build/sign, Oracle host action, Dhan call or token edit.** NEXT: one joint FT1→FT4 evidence/defect audit and correction per batch; actual Android Keystore login, HTTPS market-data producer, option source/filters and signed APK remain blocked.
+
 > **CURRENT V2-FT4-RELEASE-HOLD-STATIC-SOURCE-GATE-20261118:** FT4 source-only prebuild gate explicitly release HOLD; no APK signed, server or Dhan changes. Source CI pending, next joint FT1–FT4 audit.
 
 > **CURRENT V2-FT3-OPTION-FILTER-MATCHED-EXPIRY-SOURCE-GATE-20261118:** FT3 option/filter source-join matched expiry/observation tests pending CI, no real broker request. See journal.
