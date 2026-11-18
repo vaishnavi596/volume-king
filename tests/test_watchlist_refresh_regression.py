@@ -101,6 +101,19 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertIn("if target==4 and current[0]==4 and watch_list.page is not None:", self.source)
         self.assertIn("watch_row_cells[sym]=", self.source)
 
+    def test_oracle_three_minute_cache_revision_wakes_mounted_watch_row(self):
+        tick=self.source.split("    async def watch_visible_tick():",1)[1].split(
+            "    def watchlist():",1)[0]
+        # An Assessment GET can change while price/votes do not. Both
+        # signature gates must observe the same generation-scoped 3m key.
+        token='(provider_generation[0],sym,"3m",None)'
+        self.assertEqual(tick.count(token),2)
+        self.assertIn('oracle_assessment_cache.get(',tick)
+        self.assertIn('assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])',tick)
+        # This is a local 2s observation and must not introduce broker fanout.
+        self.assertNotIn('dhan_feed.assessment(',tick)
+        self.assertNotIn('get_market_data(',tick)
+
     def test_price_and_filter_cells_have_mounted_identity(self):
         body=self.source.split("    def fill_watch(_=None):",1)[1].split("    search.on_change=fill_watch",1)[0]
         for name in ("price_cell","change_cell","five_cell","assessment_cell",
