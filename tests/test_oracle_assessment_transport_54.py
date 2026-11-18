@@ -192,6 +192,33 @@ class AssessmentTransport54Tests(TestCase):
             self.assertTrue(all(row["status"] == "unavailable"
                                 for row in response["assessment_filters"]))
 
+    def test_unscoped_available_assessment_never_borrows_selected_context(self):
+        feed = ServerDhanReadOnly()
+        expiry = "2026-11-26"
+        for kind in ("filter", "factor"):
+            with self.subTest(kind=kind):
+                data = payload("NIFTY")
+                if kind == "filter":
+                    data["assessment_filters"][3] = {
+                        "id": "pcr", "status": "available", "value": 0.81}
+                else:
+                    data["factors"]["candle"] = {"status": "available"}
+                for selectors in ({}, {"timeframe": "3m"},
+                                  {"expiry": expiry}):
+                    with patch.object(feed, "_call", return_value={
+                            **data, **selectors}):
+                        with self.assertRaisesRegex(
+                                FeedError, "Unscoped Oracle assessment evidence"):
+                            feed.assessment("NIFTY", timeframe="3m", expiry=expiry)
+                with patch.object(feed, "_call", return_value={
+                        **data, "timeframe": "3m", "expiry": expiry}):
+                    self.assertEqual(feed.assessment(
+                        "NIFTY", timeframe="3m", expiry=expiry)["symbol"], "NIFTY")
+        # Older server's all-WAIT response is safe and remains compatible.
+        with patch.object(feed, "_call", return_value=payload("NIFTY")):
+            self.assertEqual(feed.assessment(
+                "NIFTY", timeframe="3m", expiry=expiry)["symbol"], "NIFTY")
+
     def test_assessment_invalid_selectors_fail_before_transport(self):
         feed = ServerDhanReadOnly()
         for timeframe in ("2m", "1", "", "1M", 1, [], False):
