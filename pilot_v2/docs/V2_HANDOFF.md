@@ -12,6 +12,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-003B-GLOBAL-UNION-DEDUPE:** V2 CI #8 `44288336050` on `2b2c866` SUCCESS. New mixed source/tests/journals batch adds globally bounded (70 unique) deduplicated active demand across up to three enrolled mobile sessions, independent 3 indexes, removes disabled/revoked demand. Exact new CI pending. NOT deployed, no upstream collector, production auth or APK. NEXT verify CI and V2-003C broker-budget-safe coordinator and Oracle auth readiness.
 
+> **LATEST V2-003C-QUOTE-BUDGET-429:** V2 CI #9 `44288636298` at `9aa16e1` SUCCESS. Added `quote_batch_coordinator.py` / tests: one active in-process read-only quote lease, >=1s global spacing, 60s per-symbol attempt spacing, cooldown_429, 70 equities + three index planning cap. CI for new SHA pending. Not integrated into an Oracle producer, and quote/index APIs are not assumed identical. NEXT exact CI then production-safe shared lease/store and V2 device authentication gates. No legacy/Oracle/Dhan/APK change.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.

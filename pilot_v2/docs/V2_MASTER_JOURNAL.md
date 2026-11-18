@@ -67,3 +67,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-003B-GLOBAL-UNION-DEDUPE (2026-11-18)
 - Confirmed V2 #8 `44288336050` successful. Added pure combined active-equity union across three devices, global 70 limit, index separation and removal of disabled-device subscription demand. Offline tests plus code and journals in one atomic batch, new exact SHA CI pending. Next V2-003C bounded collector, durable multi-worker auth and Oracle read-only inventory.
+
+## V2-003C-QUOTE-BUDGET-429 — 2026-11-18
+- Previous V2 CI #9 `44288636298` exact `9aa16e1` SUCCESS. Added isolated lease-based quote request planning with single active request, 1s global floor, per-symbol 60s attempt gap, explicit 429 cooldown and <=70+3 work envelope. **Offline contract only**, not actual Dhan API or multi-worker persisted state. New CI pending. Next close provider-safe persistent orchestration and auth/Oracle capability gates. See V2 Work Log for exact path and tests.

@@ -23,3 +23,6 @@
 
 ## V2-003A — common read-only cache delivery
 - `shared_quote_gateway.py`: accepts only server-internal validated quote snapshots by contract; each verified mobile session can read its permitted equity selection/indices from the same cached revision. Device selection cannot issue Dhan calls. **All state is in-memory; real shared multi-worker persistence and an authenticated source producer still need implementation.**
+
+## V2-003C: quote request planning
+`quote_batch_coordinator.py` creates only offline provider work leases (one at a time), with per-symbol attempt spacing and a safe 429 backoff. No HTTP request, WebSocket, durable lock, authentication or server deployment is implemented. Actual collector must split instrument-specific APIs and use multi-process atomic state; pilot code is not yet ready for live Dhan calls.
