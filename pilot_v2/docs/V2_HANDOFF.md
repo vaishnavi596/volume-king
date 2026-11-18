@@ -1,3 +1,5 @@
+> **VERIFIED V2-FT3-OPTION-AND-REFRESH-CI43-CI44-PASS-20261118:** V2 FT3 source #43/#44 full CI PASS on exact 9ee326a/c650152; options metrics guarded, Smart Data local intent 0/5/51/70. No authenticated live source or APK. Next FT3 offline.
+
 > **CURRENT V2-FT3-APP-REFRESH-INTENT-20261118:** FT3 options evidence CI #43 SUCCESS; Flet local no-network refresh intent code/test pending CI. Next verify, continue offline FT3, never server/APK yet.
 
 > **CURRENT V2-FT3-OPTION-METRICS-CANDLE-FILTER-OFFLINE-20261118:** FT3 offline option-evidence normalization joined to candle/filter display without inventing signals; exact CI pending, no real Dhan/Oracle/APK.

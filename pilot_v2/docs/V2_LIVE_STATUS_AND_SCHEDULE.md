@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **VERIFIED V2-FT3-OPTION-AND-REFRESH-CI43-CI44-PASS-20261118:** FT3 normalized options evidence #43 (44321035093) SUCCESS exact 9ee326a; app-owned Smart Data refresh intent #44 (44321358419) SUCCESS exact c650152. Both source-only; NO broker, Oracle, automatic network polling, APK, or token changes. Continue FT3 scoped offline and grouped release gate review.
+
+
 > **FT3 V2-FT3-APP-REFRESH-INTENT-20261118:** Options evidence source SHA 9ee326a exact CI #43 SUCCESS. App-owned Smart Data refresh INTENT (0/5/51/70, 3 indexes, IST market gate, manual after close, 1m/3m) with synthetic tests committed; new CI PENDING. NO Dhan/Oracle/APK.
 
 
