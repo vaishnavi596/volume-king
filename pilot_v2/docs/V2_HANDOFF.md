@@ -1,3 +1,5 @@
+> **VERIFIED V2-FT3-OBSERVATION-CI57-VERIFIED-20261118:** FT3 option/five-filter observation rollback guard exact SHA `7a862c8` CI #57 `44333231344` SUCCESS; per-factor last-good, no false LIVE. FT1–FT4 real phone/Oracle/Dhan/APK gates still BLOCKED. Next offline batch only.
+
 > **CURRENT V2-FT3-OBSERVATION-MONOTONIC-REPLAY-GUARD-20261118:** New FT3 source-time rollback protections for options and each of five filters; revision alone cannot overwrite later observation. Full/partial HIST retention tests committed; CI PENDING. Prior exact #56 PASS. No APK/Oracle/Dhan/token changes.
 
 > **VERIFIED V2-FT3-CI54-FT4-CI55-FAIL-CI56-PASS-20261118:** FT3 #54 `44331493500` PASS; FT4 #55 `44332135404` FAILED static regex, corrected exact SHA `17719e68` #56 `44332468618` SUCCESS. Future coordinated V2 version bumps source-only permitted, actual APK release HOLD. No Oracle/Dhan/token/APK operations.
