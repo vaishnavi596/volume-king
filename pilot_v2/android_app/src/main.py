@@ -12,6 +12,7 @@ from watchlist_parity import watchlist_rows
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
+from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
@@ -84,6 +85,7 @@ def main(page: ft.Page):
     group = [0]
     watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
+    chart_window = [DEFAULT_WINDOW]  # Local history display only.
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -106,6 +108,14 @@ def main(page: ft.Page):
                                     else "Scanner choice changed for session only")
                 except ScannerError as exc:
                     status.value = str(exc)
+                render()
+                page.update()
+            def change_chart_window(e):
+                try:
+                    chart_window[0] = window_from_dropdown(e.control.value)
+                    status.value = "Historical chart window updated locally"
+                except ValueError:
+                    status.value = "Unsupported chart history window"
                 render()
                 page.update()
             def select_scanner_timeframe(e):
@@ -184,6 +194,11 @@ def main(page: ft.Page):
                 ft.Dropdown(label="Scanner timeframe", width=180, value=scanner[0].timeframe,
                             options=[ft.dropdown.Option(tf, tf) for tf in ("1m", "3m", "5m")],
                             on_change=select_scanner_timeframe),
+                ft.Dropdown(label="Chart history bars", width=190,
+                            value=str(chart_window[0]),
+                            options=[ft.dropdown.Option(str(n), str(n) + " bars")
+                                     for n in WINDOWS],
+                            on_change=change_chart_window),
                 ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
                 ft.Text(candle_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
@@ -197,13 +212,15 @@ def main(page: ft.Page):
                                          for i, price in enumerate(chart_points(
                                              candle_history, scanner[0].symbol,
                                              scanner[0].timeframe,
-                                             selected_equities=state.selected))],
+                                             selected_equities=state.selected,
+                                             limit=chart_window[0]))],
                             stroke_width=2, curved=False)],
                         expand=True),
                     height=150, padding=5,
                 )] if len(chart_points(
                     candle_history, scanner[0].symbol, scanner[0].timeframe,
-                    selected_equities=state.selected)) >= 2 else
+                    selected_equities=state.selected,
+                    limit=chart_window[0])) >= 2 else
                    [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
                 ft.Text("Completed OHLC candles · historical / unverified",
                         size=14, color=MUTED),
