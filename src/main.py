@@ -6799,9 +6799,14 @@ console.log('BOT KING Lightweight Charts ready');
                         oracle_assessment_closed_bootstrap_generation[0]=generation
                     # Only a handful of selected symbols; preserve per-view context
                     # without fanout to every Watchlist equity or extra Dhan history.
-                    selected=[("scanner",scan_symbol.value),
-                              ("options",chain_symbol.value),
-                              ("overview",bot_symbol.value)]
+                    # Dashboard indexes need their own 1m Assessment context,
+                    # independent of Scanner/Options/Paper selections. These are
+                    # local read-only Assessment GETs, not extra Dhan history.
+                    selected=[("overview",index_symbol)
+                              for index_symbol in ("NIFTY","BANKNIFTY","SENSEX")]
+                    selected.extend([("scanner",scan_symbol.value),
+                                     ("options",chain_symbol.value),
+                                     ("overview",bot_symbol.value)])
                     for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value):
                         if isinstance(sym,str):
                             selected.append(("overview",sym))
