@@ -128,14 +128,16 @@ def stage_source(source):
                 return response
             import logging
             try:
-                from .assessment_state import publish
-            except ImportError:
-                from assessment_state import publish
-            try:
-                from .assessment_scope import current_scope
-            except ImportError:
-                from assessment_scope import current_scope
-            try:
+                # Keep optional Assessment imports inside the safety boundary:
+                # missing modules must not break a successful Dhan response.
+                try:
+                    from .assessment_state import publish
+                except ImportError:
+                    from assessment_state import publish
+                try:
+                    from .assessment_scope import current_scope
+                except ImportError:
+                    from assessment_scope import current_scope
                 if (response.get("source") != "dhan"
                         or response.get("freshness") != "historical_unverified"):
                     return response
