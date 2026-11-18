@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **VERIFIED V2-FAST-CI28-CI29-SUCCESS-20261118:** V2 app-owned Smart Data batch 570470d #28 (44309115013) SUCCESS; Scanner selection batch ed29dfd #29 (44309425851) SUCCESS. Both offline source/CI only. No real Flet phone, Oracle, Dhan market data or APK. Same branch and one-pipe app-owned settings; next S3 validated data consumer without server redesign. Exact details V2 Work Log.
+
+
 > **CURRENT V2-S3-FLET-SCANNER-LOCAL-SELECTION-20261118:** V2 Flet Dashboard Scanner offers local valid symbol / 1m-3m-5m choice, preserves selected equities and 3 indexes, drops removed symbol, no source data hence WAIT. Prior CI #28 SUCCESS on 570470d; new exact CI PENDING. Dhan, renewal and Oracle untouched. See Work Log.
 
 

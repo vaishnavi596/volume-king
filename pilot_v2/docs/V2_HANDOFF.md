@@ -1,3 +1,5 @@
+> **LATEST V2-FAST-CI28-CI29-SUCCESS-20261118:** exact V2 source #28 and #29 PASS. Current branch app-local Smart Data + Scanner controls implemented; offline CI only, next S3 validated data consumer. No Dhan/Oracle changes.
+
 > **CURRENT V2-S3-FLET-SCANNER-LOCAL-SELECTION-20261118:** Flet app-local Scanner selectors + tests committed pending CI; no broker requests or invented signals. Previous V2 CI #28 SUCCESS.
 
 > **CURRENT V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118:** app-only local Smart Data policy/config + synthetic tests; no active network polling; CI pending. Existing Flet V2 branch, no server auth change.
