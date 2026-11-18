@@ -21,7 +21,7 @@ This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF
 | Item | Scope | Status | Gate to close |
 |---|---|---|---|
 | V2-001 | Separate branch/folder, reserved identity, demand/cache + master control pure domain contract | **CODE + CI PASS** | 577f07d / CI #1 |
-| V2-002 | Verified 2-gateway auth: Dhan token-type/expiry/renewal support; independent revocable Android sessions; master proof | **PARTIAL — V2-002A opaque session prototype; CI pending** | Verified Android cryptographic proof + production session store + read-only Oracle token evidence still missing |
+| V2-002 | Verified 2-gateway auth: Dhan token-type/expiry/renewal support; independent revocable Android sessions; master proof | **PARTIAL — V2-002A CI #4 PASS, V2-002B P-256 proof + token status CI pending** | Trusted device enrollment, shared durable sessions, Android Keystore + Oracle OAuth evidence missing |
 | V2-003 | Shared broker quote collector, safe WebSocket/REST, up to 3 devices, 0/5/51/70 demand, 3 indexes | **PENDING** | Synthetic 429/disconnect/fairness, no duplicate upstream |
 | V2-004 | Shared candles/option-chain/assessment feeds, five evidence-gated engines, blank sixth | **PENDING** | Rate limits, expiry/422, historical cache, no synthetic live |
 | V2-005 | V2 actual Android app, separate package + secure native login and signed APK workflow | **PENDING** | Full CI, APK metadata/signing and alongside-legacy install |
@@ -55,3 +55,6 @@ Do not build V2 by bumping legacy `pyproject.toml` or overwrite the old app's pa
 
 ### V2-OWNER-STANDING-WORKFLOW-20261118 — continuing instructions
 Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeated approvals; new-chat phrase “BOT KING V2 का काम जारी रखो” means fetch HEAD and resume earliest unclosed V2 gate. Approval does not cover privileged production, Dhan consent, paid subscriptions, other users' enrollment, live trades, or decommissioning legacy. No background work across chat closure. **Last V2 CI #4** run `44282538921`, `a020de855` SUCCESS; previous #3 failure retained in Work Log. Next V2-002B.
+
+## Latest V2-002B-P256-TOKEN-STATUS (2026-11-18)
+- New isolated real P-256 server-side verifier, 256-bit single-use challenge, replay/expiry and source-gated Dhan token status. A registered public key from trusted enrollment is a prerequisite. No HTTP/auth endpoint or production rollout; test with pinned cryptography and mocked device private keys. New V2 CI pending. Next verified provisioning/shared-store/token readiness gate.

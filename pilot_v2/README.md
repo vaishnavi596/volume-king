@@ -17,3 +17,6 @@
 
 ## V2-002A: isolated device-session prototype
 `pilot_v2/device_sessions.py` adds short-lived opaque bearer sessions, hashed in-memory identifiers and server-verified master action authorization. **No real server HTTP endpoint or Android cryptographic verifier is connected**. Test `pilot_v2/tests/test_device_sessions.py`; revoke/disable is immediate in this single-process mock only. Persistent/revocable multi-worker store and external verified identity are mandatory before deployment.
+
+## V2-002B — device proof and Dhan token status
+- `device_verifier.py`: validates Android-compatible P-256 ECDSA signatures over one-use, time-bound server challenge for *already provisioned* device public keys. Production enrollment and shared atomic challenge store NOT implemented. `broker_token_status.py` reports expiry and whether reauthorization is required without storing secrets or attempting forbidden renewals. New offline tests use generated test keys, not Android Keystore hardware.

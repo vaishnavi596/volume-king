@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install pinned P-256 verification dependency
+        run: python -m pip install cryptography==44.0.3
       - name: Compile and run isolated pilot tests
         run: |
           python -m compileall -q pilot_v2

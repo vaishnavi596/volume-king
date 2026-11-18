@@ -4,6 +4,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-OWNER-STANDING-WORKFLOW-20261118:** Owner authorizes routine V2 pilot-branch source/test/CI/journal continuation without repeated micro-approvals. New chat request "BOT KING V2 का काम जारी रखो" = verify HEAD+last 10 CI+this journal, then continue V2-002B. **CI #4** at `a020de855` SUCCESS, #3 failure corrected. Production/secret/Dhan consent/external device enrollment/orders/old app shutdown are NOT covered by blanket approval. No cross-chat background execution.
 
+> **LATEST V2-002B-P256-TOKEN-STATUS (2026-11-18):** V2 CI #5 `44282742138` at `04c5c67` SUCCESS. Joint isolated P-256 challenge verifier + Dhan token status policy + real signature tests added (new exact CI PENDING); still no secure enrollment, multi-worker store, Android native Keystore integration or Oracle deploy. **NEXT:** verify new CI and continue V2-002 secure provisioning/auth readiness. No legacy, market orders or APK touched.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
