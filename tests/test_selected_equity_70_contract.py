@@ -28,6 +28,25 @@ class SelectedEquity70ContractTests(unittest.TestCase):
             call.assert_called_once_with("/dhan/selected-ltp-batch",
                                          {"symbols": symbols})
 
+    def test_watchlist_quote_wrapper_accepts_seventy_unique_equities(self):
+        symbols = [f"EQ{i:03d}" for i in range(70)]
+        self.feed._selected_batch_missing = False
+        with patch.object(self.feed, "selected_equity_quotes",
+                          return_value={s: {"price": 100} for s in symbols}) as selected:
+            rows = self.feed.equity_quotes_for_watchlist(symbols)
+            self.assertEqual(len(rows), 70)
+            selected.assert_called_once_with(symbols)
+
+    def test_watchlist_quote_wrapper_rejects_overcap_and_duplicate_before_http(self):
+        symbols = [f"EQ{i:03d}" for i in range(70)]
+        for invalid in (symbols + ["EQ070"], ["TCS", "TCS"],
+                        ["NIFTY"], ["BANKNIFTY"], ["SENSEX"]):
+            with self.subTest(size=len(invalid)):
+                with patch.object(self.feed, "selected_equity_quotes") as selected:
+                    with self.assertRaises(FeedError):
+                        self.feed.equity_quotes_for_watchlist(invalid)
+                    selected.assert_not_called()
+
     def test_input_rejects_71_duplicates_and_unhashable_without_request(self):
         symbols = [f"EQ{i:03d}" for i in range(70)]
         for bad in (symbols + ["EQ070"], ["HDFCBANK", "HDFCBANK"],
