@@ -59,3 +59,6 @@ Pure `api_contract.py` and `mobile_contract_mock.py` define v1 read-only selecte
 
 ## FT-2 — feature-flagged HTTP shell and Flet V2 source
 Separate V2 FastAPI GET quote/index shell is OFF by default; requires trusted durable sessions and backend snapshot provider when enabled. V2 Android Flet 2.0.100 shell is offline only. Neither is production deployed nor a signed APK.
+
+## Oracle operator audit and APK identity preflight
+See `docs/V2_ORACLE_PREFLIGHT_AND_BUILD_GATES.md`. These new scripts check read-only local Oracle source/service metadata and V2 metadata prebuild consistency. They do **not** deploy a server, renew a Dhan token, build an APK or prove the Android signing certificate.

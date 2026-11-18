@@ -151,3 +151,9 @@
 - ANDROID: separate `pilot_v2/android_app/pyproject.toml` version 2.0.100 and `src/main.py` offline shell; no mobile APK compiled or market data displayed as live. Package signing and distinct installed Android ID MUST be verified before shipping.
 - TEST: V2-only `test_http_gateway.py` and `test_android_identity.py`, workflow pinned FastAPI/HTTPX for regression. Exact CI result PENDING; upstream Dhan/OAuth, registered Keystore identity, real Oracle deployment and APK all untouched.
 - NEXT: inspect new CI, correct as needed; then server capability preflight and separate V2 Android build pipeline + data integration.
+
+## 2026-11-18 — FT2-ORACLE-PREFLIGHT-APK-GATE-20261118: mixed Oracle operator preflight + Android release identity prep
+- CHECKED only prior `33c45eef682963f7f4c2d0992c23bea0851a408b` changed files and exact V2 #22 `44302157577` SUCCESS, per latest-only rule.
+- CODE: `pilot_v2/oracle_preflight.py` single read-only SHA-256 audit of fixed server modules and carefully selected systemd show properties, deliberately never reads env/keys, calls broker endpoints, changes files or restarts service. No Oracle access from GitHub; operator must execute reviewed script separately and provide output.
+- CODE: `pilot_v2/android_build_gate.py` static version/name/package collision check against legacy root and V2 identity flag OFF, declares apk_generated/identity_verified/signing_verified all FALSE. It is not the actual APK build. `pilot_v2/tests/test_preflight_gates.py` synthetic fake server/env and metadata collision checks. `pilot_v2/docs/V2_ORACLE_PREFLIGHT_AND_BUILD_GATES.md` instructions.
+- CI for new SHA pending. No credentials, production writes, Dhan requests, orders or new mobile install. NEXT verify CI then actual Oracle read-only report (authorized operator) and release pipeline design with separate V2 identity validation.

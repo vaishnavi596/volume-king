@@ -107,3 +107,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## FT-2-HTTP-OFF-V2-FLET-SHELL (2026-11-18)
 - Previous source `b705ff0` CI #21 PASS. New `http_gateway.py` exposes only authorized GET quotes/indices when explicitly enabled with durable session and server-only provider; default is no routes. New independent `pilot_v2/android_app` 2.0.100 offline Flet shell and tests. Full new CI pending. No Oracle production, Dhan requests, live orders or APK.
+
+## FT2-ORACLE-PREFLIGHT-APK-GATE-20261118
+- Previous V2 #22 run `44302157577` exact `33c45eef` SUCCESS. New `oracle_preflight.py` emits read-only source SHA/systemd limited metadata (never credentials or provider request), `android_build_gate.py` validates distinct V2 package metadata and blocks misleading build assumptions, plus offline tests and operator guide. This is not a production Oracle audit result, only tooling; new CI pending. Next operator-produced preflight evidence and signed V2 workflow once secure app/data paths are ready.
