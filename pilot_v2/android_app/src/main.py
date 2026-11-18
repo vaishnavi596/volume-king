@@ -8,6 +8,7 @@ from feed_inbox import DeviceFeedInbox
 from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
+from watchlist_parity import watchlist_rows
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -195,13 +196,22 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
                 ft.Row([symbol, ft.ElevatedButton("Add", on_click=add)]),
-                *[ft.Row([ft.Text(quote_view.display(s, state.selected), expand=True),
-                          ft.TextButton("Remove", on_click=lambda e, item=s: remove(e,item))])
-                  for s in state.groups[group[0]]],
-                *[ft.Text(candle_history.summary(s, "3m", selected_equities=state.selected))
-                  for s in state.groups[group[0]]],
-                *[ft.Text(filter_evidence.compact(s, "3m", selected_equities=state.selected))
-                  for s in state.groups[group[0]]],
+                *[ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text(row["symbol"] + "  " + row["price"],
+                                    weight=ft.FontWeight.BOLD, expand=True),
+                            ft.TextButton("Remove",
+                                          on_click=lambda e, item=row["symbol"]: remove(e, item)),
+                        ], spacing=4),
+                        ft.Text(row["candle"], size=13),
+                        ft.Text(row["filter_text"], size=12),
+                    ], spacing=3),
+                    border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
+                    border_radius=8, padding=8,
+                ) for row in watchlist_rows(
+                    state.groups[group[0]], quote_view, evidence_inbox,
+                    selected_equities=state.selected)],
             ]
         else:
             def change_auto(e):
