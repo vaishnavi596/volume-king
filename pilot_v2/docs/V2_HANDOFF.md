@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-READONLY-DEVICE-QUOTE-CONSUMER-20261118:** Flet local schema-validated quote view + synthetic regression, CI pending; no actual quote transport. Continue app-first without changing server/token.
+
 > **LATEST V2-FAST-CI28-CI29-SUCCESS-20261118:** exact V2 source #28 and #29 PASS. Current branch app-local Smart Data + Scanner controls implemented; offline CI only, next S3 validated data consumer. No Dhan/Oracle changes.
 
 > **CURRENT V2-S3-FLET-SCANNER-LOCAL-SELECTION-20261118:** Flet app-local Scanner selectors + tests committed pending CI; no broker requests or invented signals. Previous V2 CI #28 SUCCESS.

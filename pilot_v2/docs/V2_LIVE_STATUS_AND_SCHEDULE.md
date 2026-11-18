@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-READONLY-DEVICE-QUOTE-CONSUMER-20261118:** app-local Flet quote consumer validates exact Dhan-only snapshot schema, rejects invalid/foreign/unselected quotes and retains last-good HIST; Dashboard/Watchlist/Scanner render WAIT/HIST safely. Offline source+tests committed, new CI PENDING; no network, candles, token, Oracle or APK. Last verified #29 PASS. See V2 Work Log.
+
+
 > **VERIFIED V2-FAST-CI28-CI29-SUCCESS-20261118:** V2 app-owned Smart Data batch 570470d #28 (44309115013) SUCCESS; Scanner selection batch ed29dfd #29 (44309425851) SUCCESS. Both offline source/CI only. No real Flet phone, Oracle, Dhan market data or APK. Same branch and one-pipe app-owned settings; next S3 validated data consumer without server redesign. Exact details V2 Work Log.
 
 

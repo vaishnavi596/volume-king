@@ -3,6 +3,7 @@ import flet as ft
 from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
+from quote_view import DeviceQuoteView
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -62,6 +63,7 @@ def main(page: ft.Page):
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
 
+    quote_view = DeviceQuoteView()  # No live network producer until authenticated V2 integration.
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -90,9 +92,9 @@ def main(page: ft.Page):
                 page.update()
             content.controls = [
                 ft.Text("Dashboard", size=19, weight=ft.FontWeight.BOLD),
-                ft.Text("NIFTY  —  WAIT"),
-                ft.Text("BANKNIFTY  —  WAIT"),
-                ft.Text("SENSEX  —  WAIT"),
+                ft.Text(quote_view.display("NIFTY", state.selected)),
+                ft.Text(quote_view.display("BANKNIFTY", state.selected)),
+                ft.Text(quote_view.display("SENSEX", state.selected)),
                 ft.Text("Index signals: 1m · source unavailable"),
                 ft.Divider(),
                 ft.Text("Five filters: WAIT (no verified evidence)"),
@@ -104,7 +106,8 @@ def main(page: ft.Page):
                 ft.Dropdown(label="Scanner timeframe", width=180, value=scanner[0].timeframe,
                             options=[ft.dropdown.Option(tf, tf) for tf in ("1m", "3m", "5m")],
                             on_change=select_scanner_timeframe),
-                ft.Text(f"{scanner[0].symbol} {scanner[0].timeframe}: chart and filters WAIT — no source data"),
+                ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
+                ft.Text(f"{scanner[0].timeframe} chart and filters: WAIT — no verified candles"),
                 ft.Text("Super Five: no verified history / ranking data"),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
@@ -121,6 +124,7 @@ def main(page: ft.Page):
                 page.update()
             def remove(_, item):
                 state.remove(group[0], item)
+                quote_view.forget_removed(state.selected)
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
@@ -135,7 +139,7 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
                 ft.Row([symbol, ft.ElevatedButton("Add", on_click=add)]),
-                *[ft.Row([ft.Text(s, expand=True), ft.Text("WAIT"),
+                *[ft.Row([ft.Text(quote_view.display(s, state.selected), expand=True),
                           ft.TextButton("Remove", on_click=lambda e, item=s: remove(e,item))])
                   for s in state.groups[group[0]]],
                 ft.Text("3m candles unavailable · no fabricated prices"),
