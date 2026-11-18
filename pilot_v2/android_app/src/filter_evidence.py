@@ -42,6 +42,12 @@ class LocalFilterEvidence:
         previous = self._values.get(slot)
         if previous and revision <= previous["revision"]:
             return False
+        if previous and any(
+                key in previous["rows"]
+                and rows[key]["observed_at"] < previous["rows"][key]["observed_at"]
+                for key in FILTER_KEYS):
+            # Never partially replace a full snapshot with older evidence.
+            return False
         self._values[slot] = {"revision": revision, "rows": rows,
                               "key_revisions": {key: revision for key in FILTER_KEYS}}
         return True
@@ -68,7 +74,9 @@ class LocalFilterEvidence:
         prior_revisions = dict(prior["key_revisions"]) if prior else {}
         changed = False
         for key, row in accepted.items():
-            if revision > prior_revisions.get(key, -1):
+            if (revision > prior_revisions.get(key, -1)
+                    and (key not in previous_rows
+                         or row["observed_at"] >= previous_rows[key]["observed_at"])):
                 previous_rows[key] = row
                 prior_revisions[key] = revision
                 changed = True

@@ -63,7 +63,10 @@ class LocalOptionEvidence:
         normalized = validate_option_metrics(payload, allowed)
         key = (normalized["symbol"], normalized["expiry"])
         old = self._rows.get(key)
-        if old and normalized["revision"] <= old["revision"]:
+        if old and (normalized["revision"] <= old["revision"]
+                    or normalized["observed_at"] < old["observed_at"]):
+            # Provider revision numbers may advance during an old-history
+            # replay; never overwrite a later source observation with it.
             return False
         self._rows[key] = normalized
         return True
