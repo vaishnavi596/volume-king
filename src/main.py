@@ -311,6 +311,7 @@ def app_main(page:ft.Page):
     oracle_assessment_attempts={}
     oracle_assessment_cache_generation=[provider_generation[0]]
     oracle_assessment_closed_bootstrap_generation=[None]
+    oracle_assessment_watch_cursor=[0]  # One selected equity per poll cycle.
 
     def oracle_assessment_context(symbol,surface="overview"):
         """Keep source context tied to the rendering surface, never a global scanner."""
@@ -6815,15 +6816,17 @@ console.log('BOT KING Lightweight Charts ready');
                     selected.extend([("scanner",scan_symbol.value),
                                      ("options",chain_symbol.value),
                                      ("overview",bot_symbol.value)])
-                    # Only the first visible Watchlist equity gets a scoped 3m
-                    # Assessment in this pass. Never fan out to all 51/70 rows.
+                    # Round-robin one visible equity per cycle, not all 51/70.
+                    # A selection change uses the new matching roster immediately.
                     if current[0]==4:
                         matching_watch=[sym for sym in watch_groups[active_watch[0]]
                                         if isinstance(sym,str) and
                                         (not isinstance(search.value,str) or
                                          not search.value or search.value.upper() in sym)]
                         if matching_watch:
-                            selected.append(("watchlist",matching_watch[0]))
+                            watch_index=oracle_assessment_watch_cursor[0]%len(matching_watch)
+                            oracle_assessment_watch_cursor[0]+=1
+                            selected.append(("watchlist",matching_watch[watch_index]))
                     for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value):
                         if isinstance(sym,str):
                             selected.append(("overview",sym))
