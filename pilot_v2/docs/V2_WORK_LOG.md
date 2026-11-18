@@ -950,3 +950,9 @@
 - **FIX:** Update ONLY that old static test to assert search-filtered currently selected group, same downstream quote/evidence inbox and submit callback, keeping selected-equity/global cap/source gates. Functional `test_watchlist_search.py` remains unchanged and verifies search never mutates original group. No weakening of real source, auth, or selection guards.
 - **STATUS:** Corrected exact CI PENDING until verified; source-only test correction, no app implementation change. Do not mark CI #83 green.
 - **SAFETY:** No legacy provider/server settings or V1, Oracle, Dhan calls, APK, orders. NEXT verify actual corrective CI, then continue the next app-first V1 feature parity batch.
+
+
+## V2-CI84-WATCHLIST-LOCAL-SEARCH-RECOVERY-VERIFIED-20261118
+- Exact [V2 Pilot CI #84](https://github.com/vaishnavi596/volume-king/actions/runs/44365018806) at corrective source SHA `09bc354e7a0f640d5ab8c15d778718b7f1533967`: completed SUCCESS, pilot-contract job SUCCESS, **244/244 Python offline tests OK**, 0 failures, 0.900s. Corrects CI #83's stale source-text Watchlist assertion; #83 remains historical FAIL.
+- V2 Watchlist local search original code SHA `51a8c5745a1f7a443f02d5807fb466427d0a70b4` remains in place; selected roster, 70 global cap, 3 indexes and 3m evidence unchanged. New functional search tests and old row parity both pass on exact corrected commit.
+- This is an offline source/functional test, not verified Flet mobile search interaction or actual Dhan/Oracle live evidence. V1, Oracle, tokens, orders and APK untouched. NEXT continue grouped V1 UI and feature migration after verifying this exact CI.
