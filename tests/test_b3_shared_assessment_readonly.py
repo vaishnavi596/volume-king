@@ -21,6 +21,34 @@ class AssessmentReadOnlyTests(unittest.TestCase):
             self.assertEqual(len(self.client.assessment("NIFTY")["assessment_filters"]), 5)
             request.assert_called_once_with("/v2/assessment/NIFTY")
 
+    def test_candle_direction_available_requires_matching_selection(self):
+        valid = sample()
+        valid["factors"]["candle"] = {"status": "direction_available",
+                                      "direction": "bullish"}
+        valid["timeframe"] = "5m"
+        with patch.object(self.client, "_call", return_value=valid) as request:
+            result = self.client.assessment("NIFTY", timeframe="5m")
+            self.assertEqual(result["factors"]["candle"]["status"],
+                             "direction_available")
+            request.assert_called_once_with("/v2/assessment/NIFTY?timeframe=5m")
+        for changed in (
+            {key: value for key, value in valid.items() if key != "timeframe"},
+            dict(valid, timeframe="3m"),
+        ):
+            with self.subTest(changed=changed.get("timeframe")), \
+                    patch.object(self.client, "_call", return_value=changed):
+                with self.assertRaises(FeedError):
+                    self.client.assessment("NIFTY", timeframe="5m")
+
+    def test_direction_available_is_not_accepted_for_other_factors(self):
+        for kind in ("news", "futures", "options"):
+            data = sample()
+            data["factors"][kind] = {"status": "direction_available"}
+            with self.subTest(kind=kind), \
+                    patch.object(self.client, "_call", return_value=data):
+                with self.assertRaises(FeedError):
+                    self.client.assessment("NIFTY")
+
     def test_invalid_or_unsafe_response(self):
         changes = ({"symbol": "RELIANCE"}, {"signal_eligible": True},
                    {"bullish_score": 75}, {"live_orders_enabled": True},
