@@ -1,3 +1,5 @@
+> **FT1 V2-FT1-FOUR-DEVICE-CRYPTO-CROSS-WORKER-20261118:** #38 legacy test FAIL corrected, #39 PASS. Added signed P256 4-device two-worker test pending new CI; do not claim real login. No APK/Oracle.
+
 > **CURRENT V2-FT1-FOUR-DEVICE-CI38-LEGACY-ASSERT-CORRECTION-20261118:** CI38 failed legacy 3-device assertion (135/136 passed); test corrected for 4-device policy; new CI pending. FT1 must pass before FT2.
 
 > **CURRENT V2-FT1-FOUR-DEVICES-CONSISTENT-CAP-OFFLINE-20261118:** FT1 consistent four-device cap correction + updated offline tests, CI pending; native Android login still not proven. No server/APK.

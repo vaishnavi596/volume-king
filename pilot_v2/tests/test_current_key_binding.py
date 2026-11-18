@@ -16,6 +16,9 @@ from pilot_v2.verified_login_gateway import VerifiedLoginGateway
 
 MASTER="master_device_000001"
 SECOND="second_device_00001"
+THIRD="third_device_000001"
+FOURTH="fourth_device_000001"
+FIFTH="fifth_device_0000001"
 
 def der(private):
     return private.public_key().public_bytes(
@@ -86,6 +89,29 @@ class CurrentKeyGateTests(unittest.TestCase):
             self.g2.challenge(SECOND)
         with self.assertRaises(SessionDenied):
             self.g2.login(proof(SECOND,challenge,self.old_key))
+
+    def test_four_device_current_p256_enrollment_login_and_fifth_denial(self):
+        """Master plus three delegated signing identities, one SQLite trust root."""
+        keys={}
+        tokens={}
+        for device in (SECOND,THIRD,FOURTH):
+            private=ec.generate_private_key(ec.SECP256R1())
+            pending=self.keys.request(self.master,device,der(private))
+            self.keys2.complete(self.master,proof(device,pending.challenge,private),["quotes"])
+            challenge=self.g1.challenge(device)
+            bearer=self.g2.login(proof(device,challenge,private))
+            self.assertEqual(self.g1.read_feed(bearer,"quotes"),device)
+            keys[device]=private
+            tokens[device]=bearer
+        with self.assertRaises(SessionDenied):
+            self.keys.request(self.master,FIFTH,der(ec.generate_private_key(ec.SECP256R1())))
+        self.sessions.master_grant(self.master,FOURTH,["quotes"],enabled=False)
+        with self.assertRaises(SessionDenied):
+            self.g1.read_feed(tokens[FOURTH],"quotes")
+        with self.assertRaises(SessionDenied):
+            self.g2.challenge(FOURTH)
+        self.assertEqual(self.g2.read_feed(tokens[SECOND],"quotes"),SECOND)
+        self.assertEqual(self.g1.read_feed(tokens[THIRD],"quotes"),THIRD)
 
     def test_no_dynamic_resolver_rejects_unknown_secondary(self):
         limited=DurableP256ChallengeVerifier(
