@@ -50,3 +50,6 @@ See [V2_FAST_TRACK_AUDIT.md](docs/V2_FAST_TRACK_AUDIT.md): four grouped work pac
 
 ## Implemented FT-1 speed improvements
 - V2-only workflow now skips full regressions on docs-only pushes, while code/tests and mixed code+docs still run the complete test suite. The durable challenge verifier supports trusted per-device public-key resolver for the current delegated key; master static key still requires a trusted bootstrap. Android and Oracle integration remain pending, with the verify-to-session concurrency race a release blocker.
+
+## FT-1 atomic challenge-to-session login (offline)
+`atomic_verified_login.py` holds a single local SQLite writer transaction across nonce consumption, **current** P-256 key verification and creation of a revocable session. This closes the key-rotation window in the isolated prototype but is not an HTTP endpoint or a complete Android enrollment system.
