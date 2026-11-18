@@ -56,6 +56,38 @@ class ListedATMTests(unittest.TestCase):
             with self.subTest(data=str(bad)[:65]),self.assertRaises(OptionEvidenceError):
                 adapt(rows=bad)
 
+    def test_app_inbox_normalizes_listed_rows_and_retains_last_good(self):
+        app=DeviceEvidenceInbox()
+        app.apply_expiries("NIFTY",1,["2026-11-26"],trusted_transport=True)
+        app.select_expiry("NIFTY","2026-11-26")
+        kwargs=dict(symbol="NIFTY",expiry="2026-11-26",revision=1,
+                    observed_at=1000,spot=25075,listed_rows=listed())
+        with self.assertRaises(OptionEvidenceError):
+            app.apply_listed_option_window(**kwargs)
+        self.assertTrue(app.apply_listed_option_window(
+            **kwargs,trusted_transport=True))
+        prior=app.strikes.visible("NIFTY","2026-11-26",app.expiries)
+        self.assertEqual(prior["rows"][3]["strike"],25050)
+        self.assertFalse(app.apply_listed_option_window(
+            **kwargs,trusted_transport=True))
+        with self.assertRaises(OptionEvidenceError):
+            app.apply_listed_option_window(
+                **dict(kwargs,revision=2,observed_at=1001,spot=24800),
+                trusted_transport=True)
+        with self.assertRaises(OptionEvidenceError):
+            app.apply_listed_option_window(
+                **dict(kwargs,revision=2,observed_at=1001,expiry="2026-12-03"),
+                trusted_transport=True)
+        with self.assertRaises(OptionEvidenceError):
+            app.apply_listed_option_window(
+                **dict(kwargs,revision=2,observed_at=1001,
+                       listed_rows=list(reversed(listed()))),
+                trusted_transport=True)
+        self.assertEqual(app.strikes.visible(
+            "NIFTY","2026-11-26",app.expiries),prior)
+        self.assertEqual([v for _,v in app.filters.rows("NIFTY","1m")[:5]],
+                         ["WAIT"]*5)
+
     def test_window_passes_existing_app_strike_cache_only_for_selected_expiry(self):
         app=DeviceEvidenceInbox()
         app.apply_expiries("NIFTY",1,["2026-11-26"],trusted_transport=True)
