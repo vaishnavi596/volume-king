@@ -9,6 +9,7 @@ from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
+from legacy_technical_bridge import historical_scanner_analysis
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -145,6 +146,9 @@ def main(page: ft.Page):
                 ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
                 ft.Text(candle_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
+                ft.Text(historical_scanner_analysis(
+                    candle_history, scanner[0].symbol, scanner[0].timeframe,
+                    selected_equities=state.selected)["summary"], size=13),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
