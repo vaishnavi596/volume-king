@@ -44,6 +44,44 @@ class SharedQuoteGatewayTests(unittest.TestCase):
         self.assertFalse(hasattr(self.shared,"dhan_feed"))
         self.assertFalse(hasattr(self.shared,"http_client"))
 
+    def test_global_union_deduplicates_three_phones_and_three_indexes(self):
+        self.gateway.assign(self.master,SECOND,{"quotes"})
+        self.gateway.assign(self.master,THIRD,{"quotes"})
+        s2=self.gateway.issue(SECOND)
+        s3=self.gateway.issue(THIRD)
+        self.shared.select_equities(self.master,[["RELIANCE","TCS"],[],[],[],[]])
+        self.shared.select_equities(s2,[["TCS"],[],[],[],[]])
+        self.shared.select_equities(s3,[["RELIANCE"],[],[],[],[]])
+        plan=self.shared.union_demand()
+        self.assertEqual(plan.equities,("RELIANCE","TCS"))
+        self.assertEqual(plan.indices,("NIFTY","BANKNIFTY","SENSEX"))
+        self.assertEqual(len(plan.equities),2)
+
+    def test_combined_seventy_cap_is_atomic_and_disabling_removes_demand(self):
+        self.gateway.assign(self.master,SECOND,{"quotes"})
+        s2=self.gateway.issue(SECOND)
+        sixty=[f"EQ{i:03d}" for i in range(60)]
+        fifteen=[f"EQ{i:03d}" for i in range(60,75)]
+        self.shared.select_equities(self.master,[sixty,[],[],[],[]])
+        with self.assertRaises(ContractError):
+            self.shared.select_equities(s2,[fifteen,[],[],[],[]])
+        self.assertEqual(len(self.shared.union_demand().equities),60)
+        # Ten overlapping or new symbols fit the owner's one shared cap.
+        self.shared.select_equities(s2,[fifteen[:10],[],[],[],[]])
+        self.assertEqual(len(self.shared.union_demand().equities),70)
+        self.gateway.assign(self.master,SECOND,{"quotes"},enabled=False)
+        self.assertEqual(len(self.shared.union_demand().equities),60)
+        self.gateway.assign(self.master,SECOND,{"quotes"},enabled=True)
+        self.assertEqual(len(self.shared.union_demand().equities),60)
+        s2new=self.gateway.issue(SECOND)
+        self.shared.select_equities(s2new,[["EQ070"],[],[],[],[]])
+        self.assertEqual(len(self.shared.union_demand().equities),61)
+
+    def test_zero_selection_yields_zero_equity_work_plus_three_indices(self):
+        self.shared.select_equities(self.master,[[],[],[],[],[]])
+        self.assertEqual(self.shared.union_demand().equities,())
+        self.assertEqual(len(self.shared.union_demand().indices),3)
+
     def test_selection_changes_do_not_leak_or_drop_shared_price(self):
         self.shared.select_equities(self.master,[["RELIANCE","TCS"],[],[],[],[]])
         plan=plan_demand([["RELIANCE","TCS"],[],[],[],[]])

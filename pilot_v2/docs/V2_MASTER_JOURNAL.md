@@ -64,3 +64,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-003A-SHARED-READ-ONLY-DELIVERY (2026-11-18)
 - V2-002C CI #7 `44287980740` verified SUCCESS. New isolated shared read-only quote delivery prototype reuses one RevisionCache across up to three authenticated sessions and returns only each device's requested equity symbols or permitted indexes. No HTTP/WS/provider fanout or production integration; exact new CI pending. Next V2-003B union dedup and rate-safe collector, while real server-side durable auth remains open.
+
+## V2-003B-GLOBAL-UNION-DEDUPE (2026-11-18)
+- Confirmed V2 #8 `44288336050` successful. Added pure combined active-equity union across three devices, global 70 limit, index separation and removal of disabled-device subscription demand. Offline tests plus code and journals in one atomic batch, new exact SHA CI pending. Next V2-003C bounded collector, durable multi-worker auth and Oracle read-only inventory.

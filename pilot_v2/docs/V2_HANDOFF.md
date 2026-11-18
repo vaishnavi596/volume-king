@@ -10,6 +10,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-003A-SHARED-READ-ONLY-DELIVERY:** V2 CI #7 `44287980740` on `04e302485` SUCCESS. One mixed source+tests+Master Journal+Work Log commit adds offline `SharedQuoteGateway` for 1–3 devices and individually granted quotes/indices filtered through common last-good revision cache, with 0/5/51/70 display tests. New CI PENDING. Not a deployable server; no Dhan call, production write, V2 APK or old-app change. NEXT verify CI then V2-003B deduplicated demand and 429-safe collector and V2-002 production-safe auth.
 
+> **LATEST V2-003B-GLOBAL-UNION-DEDUPE:** V2 CI #8 `44288336050` on `2b2c866` SUCCESS. New mixed source/tests/journals batch adds globally bounded (70 unique) deduplicated active demand across up to three enrolled mobile sessions, independent 3 indexes, removes disabled/revoked demand. Exact new CI pending. NOT deployed, no upstream collector, production auth or APK. NEXT verify CI and V2-003C broker-budget-safe coordinator and Oracle auth readiness.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.
