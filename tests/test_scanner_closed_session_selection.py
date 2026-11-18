@@ -80,6 +80,22 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertEqual(result["freshness"],"historical_unverified")
         self.assertEqual(calls,[])
         env["candles"].clear()
+        # App restart: the in-memory selected chart is gone, but the
+        # persisted same-provider/symbol/interval candle history remains.
+        saved=dict(selected)
+        lookups=[]
+        def read_saved(*args):
+            lookups.append(args)
+            return saved
+        env["market_store"]=SimpleNamespace(get=read_saved)
+        # Rebind the function's global so this is the real second fallback.
+        result=asyncio.run(env["select_history"](False))
+        self.assertEqual(result["bars"],rows)
+        self.assertTrue(result["cached"])
+        self.assertEqual(lookups,[("market","Dhan","RELIANCE","3m","7d")])
+        self.assertEqual(calls,[])
+        # A persisted history that is too short must fail closed as well.
+        saved["bars"]=rows[:2]
         with self.assertRaisesRegex(ValueError,"No saved Dhan candles"):
             asyncio.run(env["select_history"](False))
         self.assertEqual(calls,[])
