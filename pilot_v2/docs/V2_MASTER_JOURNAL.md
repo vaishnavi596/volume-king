@@ -70,3 +70,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-003C-QUOTE-BUDGET-429 — 2026-11-18
 - Previous V2 CI #9 `44288636298` exact `9aa16e1` SUCCESS. Added isolated lease-based quote request planning with single active request, 1s global floor, per-symbol 60s attempt gap, explicit 429 cooldown and <=70+3 work envelope. **Offline contract only**, not actual Dhan API or multi-worker persisted state. New CI pending. Next close provider-safe persistent orchestration and auth/Oracle capability gates. See V2 Work Log for exact path and tests.
+
+## V2-003D-SQLITE-SHARED-LEASE (2026-11-18)
+- V2 #10 full pilot contract CI SUCCESS on `fa408433`. Added SQLite transactional durable provider lease state that persists cooldown, pending work and attempt timestamps across two test instances/restarts, with six synthetic tests; no Oracle deployment/Dhan API request. CI for this commit pending. Remaining gates: secure per-device server session store, authenticated upstream collector and broker entitlement.

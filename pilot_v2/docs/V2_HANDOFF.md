@@ -14,6 +14,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-003C-QUOTE-BUDGET-429:** V2 CI #9 `44288636298` at `9aa16e1` SUCCESS. Added `quote_batch_coordinator.py` / tests: one active in-process read-only quote lease, >=1s global spacing, 60s per-symbol attempt spacing, cooldown_429, 70 equities + three index planning cap. CI for new SHA pending. Not integrated into an Oracle producer, and quote/index APIs are not assumed identical. NEXT exact CI then production-safe shared lease/store and V2 device authentication gates. No legacy/Oracle/Dhan/APK change.
 
+> **LATEST V2-003D-SQLITE-SHARED-LEASE:** V2 CI #10 `44290170180` PASS at `fa408433`. New `durable_quote_gate.py` and tests implement SQLite single-host atomic quote work leases shared by multiple Python instances with persisted 429 cooldown, 60s per-symbol gap, 1s global gap and timeout recovery. New CI pending. **Prototype only**; no Dhan call, Oracle service change or APK. NEXT verify new CI then secure device auth durability and real Oracle Dhan readiness.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.

@@ -26,3 +26,6 @@
 
 ## V2-003C: quote request planning
 `quote_batch_coordinator.py` creates only offline provider work leases (one at a time), with per-symbol attempt spacing and a safe 429 backoff. No HTTP request, WebSocket, durable lock, authentication or server deployment is implemented. Actual collector must split instrument-specific APIs and use multi-process atomic state; pilot code is not yet ready for live Dhan calls.
+
+## V2-003D persistent quota scheduler prototype
+`durable_quote_gate.py` persists a single-host shared lease with SQLite transactions, for preventing duplicate quote work and preserving 429 cooldown across local worker restarts. It has no Dhan network calls and cannot replace the production OAuth, device session or broker endpoint safeguards. Do not deploy without approved local DB permissions and verified server setup.
