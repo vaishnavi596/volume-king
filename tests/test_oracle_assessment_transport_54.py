@@ -169,6 +169,29 @@ class AssessmentTransport54Tests(TestCase):
                     self.assertEqual(result["symbol"], symbol)
                     call.assert_called_once_with(path)
 
+    def test_assessment_rejects_echoed_selection_mismatch(self):
+        feed = ServerDhanReadOnly()
+        selected_expiry = "2026-11-26"
+        good = dict(payload("NIFTY"), timeframe="3m", expiry=selected_expiry)
+        with patch.object(feed, "_call", return_value=good):
+            self.assertEqual(feed.assessment(
+                "NIFTY", timeframe="3m", expiry=selected_expiry)["timeframe"], "3m")
+        for mismatch in ({"timeframe": "1m"}, {"timeframe": "5m"},
+                         {"timeframe": None}, {"expiry": "2026-12-03"},
+                         {"expiry": None}):
+            with self.subTest(mismatch=mismatch):
+                with patch.object(feed, "_call", return_value={**good, **mismatch}):
+                    with self.assertRaises(FeedError):
+                        feed.assessment("NIFTY", timeframe="3m",
+                                        expiry=selected_expiry)
+        # A legacy read-only WAIT response may omit echoed selectors until
+        # the Oracle route is deployed; don't manufacture a verified signal.
+        with patch.object(feed, "_call", return_value=payload("NIFTY")):
+            response = feed.assessment("NIFTY", timeframe="3m",
+                                       expiry=selected_expiry)
+            self.assertTrue(all(row["status"] == "unavailable"
+                                for row in response["assessment_filters"]))
+
     def test_assessment_invalid_selectors_fail_before_transport(self):
         feed = ServerDhanReadOnly()
         for timeframe in ("2m", "1", "", "1M", 1, [], False):
