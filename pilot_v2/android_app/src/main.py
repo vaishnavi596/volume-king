@@ -11,7 +11,7 @@ from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
-from historical_chart_context import chart_points, historical_shortlist
+from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
@@ -115,6 +115,21 @@ def main(page: ft.Page):
                                     else "Scanner timeframe changed for session only")
                 except ScannerError as exc:
                     status.value = str(exc)
+                render()
+                page.update()
+            def select_historical_candidate(symbol):
+                """Open the selected historical equity in Scanner, without fetching."""
+                try:
+                    selected = choose_historical_shortlist_symbol(
+                        candle_history, state.selected, symbol,
+                        timeframe="3m")
+                    scanner[0] = choose(scanner[0], state, symbol=selected,
+                                        timeframe="3m")
+                    status.value = ("Historical shortlist selection saved locally"
+                                    if save_scanner() else
+                                    "Historical shortlist choice changed for session only")
+                except (ScannerError, ValueError):
+                    status.value = "Historical shortlist selection unavailable"
                 render()
                 page.update()
             def select_expiry(e):
@@ -260,11 +275,27 @@ def main(page: ft.Page):
                   else [ft.Text("CE/PE strikes WAIT · no trusted selected expiry / rows")]),
                 ft.Text("Option-chain HIST only; OI/PCR is not a trading signal",
                         size=12),
-                ft.Text("Super Five — verified live ranking WAIT"),
-                ft.Text("Historical technical shortlist (not Super Five signals)",
-                        size=13, weight=ft.FontWeight.BOLD),
-                *[ft.Text(item["label"], size=12) for item in historical_shortlist(
+                ft.Row([
+                    ft.Text("Super Five · verified signals WAIT", color=GOLD,
+                            size=16, weight=ft.FontWeight.BOLD, expand=True),
+                    ft.IconButton(icon=ft.Icons.HELP_OUTLINE, icon_color=GOLD,
+                                  tooltip="Super Five Help",
+                                  on_click=lambda e: open_help("Super Five")),
+                ]),
+                ft.Text("Historical technical shortlist · not Super Five signals",
+                        color=MUTED, size=14),
+                *[v1_card(ft, [
+                    ft.Text(item["label"], size=14, color=WHITE),
+                    ft.TextButton("View historical 3m chart",
+                                  on_click=lambda e, symbol=item["symbol"]:
+                                  select_historical_candidate(symbol)),
+                ]) for item in historical_shortlist(
                     candle_history, state.selected, timeframe="3m")],
+                ft.Text("Shortlist unavailable · no validated historical votes",
+                        color=MUTED, size=14) if not historical_shortlist(
+                    candle_history, state.selected, timeframe="3m") else
+                ft.Text("Historical selection only · not a live trade signal",
+                        color=MUTED, size=14),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
         elif current[0] == 1:

@@ -41,3 +41,19 @@ def historical_shortlist(candles, selected_equities, *, timeframe="3m", limit=5)
                                "indicator agreement (NOT verified Super Five)"})
     items.sort(key=lambda row: (-row["score"], row["symbol"]))
     return tuple(items[:limit])
+
+
+def choose_historical_shortlist_symbol(candles, selected_equities, symbol, *,
+                                       timeframe="3m"):
+    """Validate a shortlist click against current historical evidence.
+
+    A stale UI click, removed equity, non-shortlisted row, or missing candle
+    evidence fails closed. Never computes a live rank or requests new data.
+    """
+    if type(symbol) is not str or timeframe != "3m":
+        raise ValueError("Invalid historical shortlist selection")
+    candidates = historical_shortlist(candles, selected_equities,
+                                      timeframe=timeframe)
+    if not any(item["symbol"] == symbol for item in candidates):
+        raise ValueError("Selected equity lacks current historical shortlist evidence")
+    return symbol

@@ -6,7 +6,7 @@ from pathlib import Path
 SRC=Path(__file__).resolve().parents[1]/"android_app"/"src"
 sys.path.insert(0,str(SRC))
 from evidence_inbox import DeviceEvidenceInbox
-from historical_chart_context import chart_points, historical_shortlist
+from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 
 
 def bars(start=None, n=36):
@@ -48,6 +48,26 @@ class ChartContextTests(unittest.TestCase):
                          selected_equities=("TCS","INFY"))[4][1],"WAIT")
         self.assertEqual(historical_shortlist(self.e.candles,("INFY",)),())
 
+    def test_historical_shortlist_click_fails_closed_for_removed_or_missing(self):
+        selected = ("TCS", "INFY")
+        self.e.apply_candles("TCS", "3m", 1, bars(),
+                             selected_equities=selected, trusted_transport=True)
+        shortlist = historical_shortlist(self.e.candles, selected)
+        if shortlist:
+            pick = shortlist[0]["symbol"]
+            self.assertEqual(choose_historical_shortlist_symbol(
+                self.e.candles, selected, pick), pick)
+        for bad in ("INFY", "NIFTY", "UNKNOWN", None):
+            with self.subTest(symbol=bad), self.assertRaises(ValueError):
+                choose_historical_shortlist_symbol(
+                    self.e.candles, selected, bad, timeframe="3m")
+        with self.assertRaises(ValueError):
+            choose_historical_shortlist_symbol(
+                self.e.candles, ("INFY",), "TCS")
+        with self.assertRaises(ValueError):
+            choose_historical_shortlist_symbol(
+                self.e.candles, selected, "TCS", timeframe="1m")
+
     def test_replay_and_incomplete_data_do_not_erase_last_chart(self):
         self.e.apply_candles("NIFTY","1m",1,bars(),trusted_transport=True)
         before=chart_points(self.e.candles,"NIFTY","1m")
@@ -64,7 +84,9 @@ class ChartContextTests(unittest.TestCase):
         self.assertIn("ft.LineChartDataPoint(",source)
         self.assertIn("chart_points(",source)
         self.assertIn("historical_shortlist(",source)
-        self.assertIn("Super Five — verified live ranking WAIT",source)
+        self.assertIn("Super Five · verified signals WAIT",source)
+        self.assertIn("select_historical_candidate(symbol)",source)
+        self.assertIn('tooltip="Super Five Help"',source)
         self.assertNotIn("from server_feed import",source)
 
 if __name__=="__main__":unittest.main()
