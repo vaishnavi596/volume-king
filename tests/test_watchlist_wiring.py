@@ -136,6 +136,16 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("verified_equity_symbol,sym", self.source)
         self.assertIn("equity_quotes_for_watchlist,all_watch_symbols()", self.source)
 
+    def test_dhan_super_five_ranking_uses_actual_saved_roster(self):
+        # With five saved shares the Dhan ranking must not process the
+        # other 46 fixed catalog equities; with seventy it must retain all.
+        # This checks local rank selection, not Dhan request count or timing.
+        self.assertIn('ranking_symbols=(all_watch_symbols() if prefs.get("source")=="Dhan"', self.source)
+        self.assertIn('pairs=await asyncio.gather(*(rank_one(sym) for sym in ranking_symbols))', self.source)
+        self.assertIn('total=len(ranking_symbols)', self.source)
+        self.assertNotIn('pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))', self.source)
+        self.assertIn('symbols=configured_scan_symbols()', self.source)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
