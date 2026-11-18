@@ -31,6 +31,10 @@ class OptionEvidenceCache:
             return False
         if metrics.get("freshness") != "unverified":
             return False
+        # Legacy internal Dhan metrics may omit source; explicit foreign or
+        # spoofed providers must never enter the Dhan-only assessment cache.
+        if metrics.get("source", "dhan") != "dhan":
+            return False
         now = self._clock()
         with self._lock:
             self._prune(now)
