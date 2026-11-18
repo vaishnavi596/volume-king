@@ -10,6 +10,17 @@ probe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe)
 
 class T09CacheOnlyGateTests(unittest.TestCase):
+    def test_source_pins_match_deployed_reader_and_protect_other_modules(self):
+        self.assertEqual(
+            probe.SOURCE_SHA["assessment_api.py"],
+            "33caaba5f8c20d366685cf4a72f5d64dfc38adf87f06671b87ce6152863b00bc")
+        self.assertEqual(
+            probe.SOURCE_SHA["server.py"],
+            "9327e33a204e06affad383bd8af80ae0ed5f90bc79ee2b1410cadcb7fc5e12b5")
+        self.assertEqual(
+            probe.SOURCE_SHA["assessment_state.py"],
+            "ea2db1787be5cddc1ff2235db6592c7858519fc97b18d8c65c011ef9c7a3e3d2")
+
     def test_allowlist_never_contains_provider_path(self):
         self.assertEqual(probe.ALLOWED_PATHS, {
             "/health", "/v2/candles/NIFTY/5", "/v2/assessment/NIFTY?timeframe=5m"})
