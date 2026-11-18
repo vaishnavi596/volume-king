@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-FLET-DEVICE-LOCAL-WATCHLIST-PERSISTENCE-20261118:** Local V2 Flet Watchlist saved-state roundtrip and fail-closed restore code/test committed pending CI. No server-side app settings. See V2 Work Log.
+
 > **CURRENT V2-S3-FLET-LOCAL-SCREENS-WATCHLIST-20261118:** App-first offline Flet Dashboard/Watchlist/Settings and local 70-symbol selection code with synthetic tests; source CI pending. No live gateway or phone proof.
 
 > **CURRENT SMART CI RULE V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118:** Existing V2 CI ~15–18s; apply one-change-batch/one-commit/one-full-gate, avoid redundant fetches/docs CI, preserve final APK safety test. Exact proof in V2 Master/Work Log.

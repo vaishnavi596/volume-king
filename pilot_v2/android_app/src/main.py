@@ -5,10 +5,27 @@ from app_state import LocalWatchlists, SelectionError
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
     page.padding = 12
-    state = LocalWatchlists()
+    storage_key = "botking.v2.watchlists.v1"
+    try:
+        saved = page.client_storage.get(storage_key)
+        state = LocalWatchlists.from_saved(saved) if saved is not None else LocalWatchlists()
+        storage_error = ""
+    except (SelectionError, OSError, ValueError, TypeError, RuntimeError) as exc:
+        state = LocalWatchlists()
+        storage_error = "Saved watchlists could not be loaded; previous save not overwritten"
+
+    def save_local():
+        if storage_error:
+            return False
+        try:
+            page.client_storage.set(storage_key, state.saved_state())
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
     current = [0]
     group = [0]
-    status = ft.Text("Offline pilot — no verified market data", size=13)
+    status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
     def render():
@@ -29,7 +46,7 @@ def main(page: ft.Page):
             def add(_):
                 try:
                     state.add(group[0], (symbol.value or "").strip().upper())
-                    status.value = "Saved for this session; server not contacted"
+                    status.value = ("Saved on this device; server not contacted" if save_local() else "Selection changed for this session; local save unavailable")
                     symbol.value = ""
                 except SelectionError as exc:
                     status.value = str(exc)
@@ -37,7 +54,7 @@ def main(page: ft.Page):
                 page.update()
             def remove(_, item):
                 state.remove(group[0], item)
-                status.value = "Removed locally"
+                status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
             def switch_group(e):

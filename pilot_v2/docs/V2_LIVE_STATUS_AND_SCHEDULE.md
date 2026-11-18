@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-FLET-DEVICE-LOCAL-WATCHLIST-PERSISTENCE-20261118:** V2 offline Flet Watchlist now saves/restores selected 5-list/70-symbol state using *device-local* client_storage (no Oracle settings), with strict schema validation and new isolated regression tests. Last applicable CI #26 PASS on 302ed996; new exact CI PENDING. No Dhan/auth/Oracle/APK changes. Full entry in V2 Work Log.
+
+
 > **CURRENT V2-S3-FLET-LOCAL-SCREENS-WATCHLIST-20261118:** Existing Flet V2 mobile shell upgraded to offline 3-screen navigation and app-owned 5-list/70-unique-equity local selection; 3 index WAIT, 5 evidence WAIT and sixth reserved. No network/Oracle/token changes. New CI at exact source SHA PENDING; do not claim live UI/APK. See V2 Work Log.
 
 

@@ -52,3 +52,16 @@ class LocalWatchlists:
 
     def selection_payload(self):
         return {"watchlists": [list(group) for group in self.groups]}
+
+    def saved_state(self):
+        """Primitive-only data for local device storage, never broker/server settings."""
+        return {"schema_version": 1, "watchlists": [list(g) for g in self.groups]}
+
+    @classmethod
+    def from_saved(cls, saved):
+        """Fail closed on malformed or duplicate saved data; never repair silently."""
+        if (type(saved) is not dict or set(saved) != {"schema_version", "watchlists"}
+                or type(saved["schema_version"]) is not int
+                or saved["schema_version"] != 1):
+            raise SelectionError("Invalid local watchlist save format")
+        return cls(saved["watchlists"])

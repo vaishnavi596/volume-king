@@ -46,5 +46,31 @@ class AppOwnedWatchlistTests(unittest.TestCase):
         with self.assertRaises(module.SelectionError):
             module.LocalWatchlists([["NIFTY"], [], [], [], []])
 
+    def test_local_save_roundtrip_and_device_owned_snapshot(self):
+        x = module.LocalWatchlists()
+        x.add(0, "TCS")
+        x.add(3, "INFY")
+        stored = x.saved_state()
+        self.assertEqual(set(stored), {"schema_version", "watchlists"})
+        y = module.LocalWatchlists.from_saved(stored)
+        self.assertEqual(y.groups, x.groups)
+        y.add(1, "SBIN")
+        self.assertNotIn("SBIN", x.selected)
+        self.assertEqual(len(x.selected), 2)
+
+    def test_corrupt_local_save_is_rejected_without_auto_repair(self):
+        x = module.LocalWatchlists()
+        x.add(0, "TCS")
+        good = x.saved_state()
+        malformed = [None, [], {}, {"schema_version": True, "watchlists": good["watchlists"]},
+                     {"schema_version": 2, "watchlists": good["watchlists"]},
+                     {"schema_version": 1, "watchlists": [["TCS"], ["TCS"], [], [], []]},
+                     {"schema_version": 1, "watchlists": [[1], [], [], [], []]},
+                     dict(good, token="forbidden")]
+        for sample in malformed:
+            with self.subTest(sample=repr(sample)), self.assertRaises(module.SelectionError):
+                module.LocalWatchlists.from_saved(sample)
+        self.assertEqual(module.LocalWatchlists.from_saved(good).selected, ("TCS",))
+
 if __name__ == "__main__":
     unittest.main()
