@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **OWNER ARCHITECTURE LOCK BK-20261118-V2-APP-OWNED-CONTROL (2026-11-18; supersedes conflicting older proposals):** Dhan API → ONE logical shared acquisition pipe → **Oracle is ONLY authenticated Dhan token/renewal-when-supported, broker-safe transmission/technical shared-cache/dedup bridge** → ONE logical secure delivery pipe → **BOT KING V2 owns ALL app policy** (Watchlists up to 70 globally unique equities; 3 independent indexes; actual-demand Smart Data; refresh settings, timeframes/candles, 5 evidence-gated filters + blank 6th, Scanner, Super Five, Master Settings and 1–4 device controls). Oracle must NOT own watchlist/filter/scheduling business decisions; essential provider quotas/transport security remain on Oracle. One pipe is logical coordination, not an already-proven TCP architecture. **DESIGN/LOG ONLY**, not live gateway or automatic OAuth renewal proof. Latest Android manual candidate c887df28 still requires exact-SHA full CI; NEXT this CI then Login/Bootstrap. Full evidence/decision in canonical Work Log BK-20261118-V2-APP-OWNED-CONTROL.
+
+
 > **FOLLOW-UP BK-20261118-V2-MANUAL-HIST-GUARD:** Corrected after-hours 3m HIST guard in same Android manual 429 segment: equity cooldown must be clear before HISTORY; independent index refresh still respects index/global cooldown. Regression assertion updated. Final exact-SHA CI **PENDING**. See canonical Work Log; no APK/Oracle change. NEXT exact full CI, then first-login P0.
 
 
