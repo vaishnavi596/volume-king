@@ -20,6 +20,7 @@ from shared_filter_context import shared_filter_context
 from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
 from local_settings_backup import export_local_backup, parse_local_backup, LocalBackupError
 from paper_preview import preview_manual_paper_risk
+from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -98,6 +99,25 @@ def main(page: ft.Page):
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
 
+    paper_slots_key = "botking.v2.paper_plans.v1"
+    try:
+        saved_paper = page.client_storage.get(paper_slots_key)
+        paper_slots = [LocalPaperPlanSlots.from_saved(saved_paper)
+                       if saved_paper is not None else LocalPaperPlanSlots()]
+        paper_slots_error = ""
+    except (PaperSlotError, OSError, TypeError, ValueError, RuntimeError):
+        paper_slots = [LocalPaperPlanSlots()]
+        paper_slots_error = "Paper plan save invalid; previous stored data preserved"
+
+    def save_paper_plans():
+        if paper_slots_error:
+            return False
+        try:
+            page.client_storage.set(paper_slots_key, paper_slots[0].saved_state())
+            return True
+        except (OSError, TypeError, ValueError, RuntimeError):
+            return False
+
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     evidence_inbox = DeviceEvidenceInbox()  # Offline, authenticated data client NOT connected.
     candle_history = evidence_inbox.candles
@@ -115,6 +135,7 @@ def main(page: ft.Page):
                     "stop_pct": "2", "target_pct": "4",
                     "capital": "10000", "max_risk": "1000", "risk_pct": "5"}
     paper_result = ["Manual paper-only calculation; no orders or market data"]
+    paper_last_preview = [None]  # Only manual preview; no paper position or order.
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -529,13 +550,46 @@ def main(page: ft.Page):
                         paper_inputs["quantity"], paper_inputs["stop_pct"],
                         paper_inputs["target_pct"], paper_inputs["capital"],
                         paper_inputs["max_risk"], paper_inputs["risk_pct"])
+                    paper_last_preview[0] = result
                     paper_result[0] = (
                         "PAPER ONLY · Stop ₹" + f'{result["stop"]:,.2f}' +
                         " · Target ₹" + f'{result["target"]:,.2f}' +
                         " · Planned risk ₹" + f'{result["planned_risk"]:,.2f}' +
                         " · No orders")
                 except (ValueError, TypeError, OverflowError):
+                    paper_last_preview[0] = None
                     paper_result[0] = "Invalid paper inputs / risk exceeds limit; no orders"
+                render()
+                page.update()
+            def choose_paper_slot(e):
+                try:
+                    paper_slots[0].choose(e.control.value)
+                    status.value = ("Paper planning slot saved locally"
+                                    if save_paper_plans() else
+                                    "Paper slot changed for session only")
+                except PaperSlotError:
+                    status.value = "Invalid paper planning slot"
+                paper_last_preview[0] = None
+                render()
+                page.update()
+            def save_paper_slot(e):
+                try:
+                    if paper_last_preview[0] is None:
+                        raise PaperSlotError("Calculate a fresh manual preview first")
+                    paper_slots[0].save_preview(paper_last_preview[0])
+                    status.value = ("Manual PAPER preview saved on device"
+                                    if save_paper_plans() else
+                                    "Paper preview saved for session only")
+                except PaperSlotError:
+                    status.value = "No eligible manual PAPER preview to save"
+                render()
+                page.update()
+            def clear_paper_slot(e):
+                paper_slots[0].clear()
+                paper_last_preview[0] = None
+                status.value = ("Paper preview cleared locally"
+                                if save_paper_plans() else
+                                "Paper preview cleared for session only")
                 render()
                 page.update()
             def prepare_local_backup(e):
@@ -598,6 +652,21 @@ def main(page: ft.Page):
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
                 ft.Text("Enable / Disable / Revoke require verified device login"),
                 ft.Text("Dhan token renewal only via authorized Master workflow"),
+                ft.Text("Five independent PAPER planning slots",
+                        color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Dropdown(label="Paper planning slot", width=220,
+                            value=paper_slots[0].selected_slot,
+                            options=[ft.dropdown.Option(slot, slot) for slot in SLOTS],
+                            on_change=choose_paper_slot),
+                *[ft.Text(slot + " · " + (
+                    "FLAT / no preview" if preview is None else
+                    preview["side"] + " · entry ₹" +
+                    f'{preview["entry"]:,.2f}' + " · planned risk ₹" +
+                    f'{preview["planned_risk"]:,.2f}' + " · PAPER ONLY"),
+                    size=14, color=MUTED)
+                  for slot, preview in paper_slots[0].rows()],
+                ft.Text(paper_slots_error or "Local manual risk plans only · no positions or fills",
+                        color=MUTED, size=14),
                 ft.Text("Manual PAPER risk preview · no execution", color=GOLD,
                         weight=ft.FontWeight.BOLD),
                 ft.Dropdown(label="Paper side", value=paper_inputs["side"],
@@ -624,6 +693,12 @@ def main(page: ft.Page):
                 ft.TextButton("Calculate paper risk (no orders)",
                               on_click=calculate_paper_preview),
                 ft.Text(paper_result[0], size=14, color=MUTED),
+                ft.Row([
+                    ft.TextButton("Save PAPER preview to slot",
+                                  on_click=save_paper_slot),
+                    ft.TextButton("Clear selected PAPER preview",
+                                  on_click=clear_paper_slot),
+                ], wrap=True),
                 ft.Text("No BUY/SELL/EXIT, no broker, no automatic paper bot",
                         size=14, color=MUTED),
                 ft.Text("System Health / Error Doctor", color=GOLD, weight=ft.FontWeight.BOLD),
