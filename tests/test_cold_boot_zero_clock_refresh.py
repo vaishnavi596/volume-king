@@ -420,6 +420,27 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(len(requested),5)
+        # Scanner timeframe selection changes must fetch the new scoped key
+        # without overwriting the previous 5m cache or refetching index 1m.
+        scope["scan_tf"].value="3m"
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(requested[-1],("NIFTY","3m",None))
+        self.assertEqual(len(requested),6)
+        self.assertIn((0,"NIFTY","5m",None),cache)
+        self.assertIn((0,"NIFTY","3m",None),cache)
+        self.assertIn((0,"NIFTY","1m",None),cache)
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(len(requested),6)
+        # A genuinely different scanner symbol likewise gets its own 3m
+        # context, without needing any new candle history/provider call.
+        scope["scan_symbol"].value="RELIANCE"
+        scope["DHAN_VERIFIED_SYMBOLS"].add("RELIANCE")
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(requested[-2:], [("NIFTY","3m",None),("RELIANCE","3m",None)])
+        self.assertIn((0,"RELIANCE","3m",None),cache)
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
