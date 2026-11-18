@@ -234,3 +234,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **IMPLEMENTATION:** `pilot_v2/android_app/src/filter_evidence.py` adds one compact view of its existing five evidence-gated slots, no sixth result/percentage. `pilot_v2/android_app/src/main.py` uses it for each locally selected Watchlist equity at 3m, alongside existing quote and completed-candle last-good summaries; Dashboard remains 1m for indexes, Scanner uses selected timeframe. `pilot_v2/tests/test_flet_filter_evidence.py` verifies shared engine render, WAIT when missing/revoked, HIST only with explicit trusted synthetic evidence, sixth inert and no fabricated percentages.
 - **CI / SCOPE:** New exact full V2 offline CI PENDING at source commit creation. No live feed or calendar polling, no Dhan token/login edits, Oracle server settings/mutation, broker requests, trades or APK. Flet runtime/actual filter sources remain final combined audit blockers.
 - **NEXT:** Verify exact CI, then continue existing app-finish and consolidated prebuild audit; do not split into new branch or surprise features.
+
+
+## V2-S3-FILTER-WATCHLIST-CI33-SUCCESS-20261118
+- **EXACT CI:** run #33 `44312318605` completed SUCCESS on code SHA `cf4ecf18eb3049dccdfea860a3c6d72a51ed7149`; full isolated compile/test job SUCCESS. https://github.com/vaishnavi596/volume-king/actions/runs/44312318605
+- **SCOPE:** Five source-gated slots now reuse one local display engine on Dashboard/Scanner/Watchlist (3m), with independent index 1m; sixth empty; unproven factors WAIT and no synthetic bullish/bearish percentages. This is an offline source/UI-wiring test only, NOT real Flet runtime, Dhan/filter market-data, app build or phone proof.
+- **NEXT:** Continue agreed app-first work, then one joint pre-APK defect audit/fix/test, preserve same branch and existing token renewal/Oracle only-transport concept. Oracle changed=false, broker requests=0, orders=0, APK built=false.

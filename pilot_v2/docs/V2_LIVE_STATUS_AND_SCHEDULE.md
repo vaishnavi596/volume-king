@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **VERIFIED V2-S3-FILTER-WATCHLIST-CI33-SUCCESS-20261118:** Five-filter Watchlist reuse code cf4ecf1 exact V2 CI #33 run 44312318605 SUCCESS. Dashboard, Scanner, Watchlist share source-gated five results and empty sixth. Offline code only; real feed, Flet phone and APK pending. Continue app-first, no Oracle/token change.
+
+
 > **CURRENT V2-S3-SHARED-FILTER-WATCHLIST-20261118:** Reuses the same source-gated five-filter module for compact Watchlist 3m display; sixth inert, WAIT unless eligible data, no fabricated percentage. Previous exact #32 CI SUCCESS at 43c8b44; new CI PENDING. Oracle/Dhan untouched. V2 journal has details.
 
 
