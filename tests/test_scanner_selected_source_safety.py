@@ -37,7 +37,7 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
         auto=SimpleNamespace(value=True)
         status=SimpleNamespace(value="")
         page=SimpleNamespace(update=lambda:actions.append("update"),
-            run_task=lambda function:actions.append(("run",function)))
+            run_task=lambda function,*args:actions.append(("run",function,*args)))
         market=lambda:None
         scope={"scan_symbol":symbol,"scan_tf":timeframe,"scan_period":period,
                "scan_budget":budget,"scan_min":minimum,"scan_max":maximum,
@@ -51,7 +51,7 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
                "watch_signal_cache":{},"save":lambda:actions.append("save"),
                "card":lambda obj:obj,"note":lambda msg:msg,
                "select":lambda tab:actions.append(("select",tab)),
-               "scan_market":market}
+               "scan_market":market,"refresh_hours":lambda:True}
         exec(compile(function_source("trigger_scan"),str(ROOT/"src"/"main.py"),"exec"),scope)
         return scope,actions
 
@@ -70,7 +70,16 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
         ctx["scan_symbol"].value="TCS"
         ctx["trigger_scan"](SimpleNamespace(control=ctx["scan_symbol"]))
         self.assertEqual(ctx["scan_generation"][0],1)
-        self.assertIn(("run",ctx["scan_market"]),actions)
+        self.assertIn(("run",ctx["scan_market"],True),actions)
+        self.assertEqual(ctx["scan_shared"]["symbol"],"TCS")
+
+    def test_closed_session_selection_is_cache_only_without_broker_fetch(self):
+        ctx,actions=self.create_context()
+        ctx["refresh_hours"]=lambda:False
+        ctx["scan_symbol"].value="TCS"
+        ctx["trigger_scan"](SimpleNamespace(control=ctx["scan_symbol"]))
+        self.assertEqual(ctx["scan_generation"][0],1)
+        self.assertIn(("run",ctx["scan_market"],False),actions)
         self.assertEqual(ctx["scan_shared"]["symbol"],"TCS")
 
     def test_one_minute_default_preserves_saved_timeframe(self):
