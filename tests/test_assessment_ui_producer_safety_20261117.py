@@ -36,6 +36,29 @@ class AssessmentUiProducerSafetyTests(unittest.TestCase):
         lines = show(data)
         self.assertTrue(any("not a trade signal" in line for line in lines))
 
+    def test_candle_direction_available_is_informational_not_score(self):
+        data = payload()
+        data["factors"]["candle"] = {
+            "status": "direction_available", "direction": "bullish",
+            "bullish": None, "bearish": None
+        }
+        shown = show(data)
+        self.assertGreater(len(shown), 1)
+        self.assertTrue(any("PCR: 0.800" in line for line in shown))
+        self.assertTrue(any("not a trade signal" in line for line in shown))
+        self.assertFalse(any("BULLISH %" in line or "BEARISH %" in line for line in shown))
+        self.assertEqual(shown.count("Filter 6: "), 1)
+
+    def test_direction_available_only_allowed_for_candle_factor(self):
+        for factor in ("news", "futures", "options"):
+            with self.subTest(factor=factor):
+                data = payload()
+                data["factors"][factor]["status"] = "direction_available"
+                self.assertIn("incomplete factors", show(data)[0])
+        data = payload()
+        data["factors"]["candle"]["status"] = "live_verified"
+        self.assertIn("incomplete factors", show(data)[0])
+
     def test_foreign_source_and_mislabeled_freshness_wait(self):
         for field, value in (("source", "yahoo"),
                              ("source", "angel"),
