@@ -76,3 +76,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-004A-DURABLE-DEVICE-SESSION (2026-11-18)
 - Prior V2 CI #11 run `44290644644` SUCCESS at `126e18db6f`. New separate `pilot_v2/durable_device_sessions.py` single-host SQLite transaction-backed persistent device grants and hashed opaque sessions across worker instances, with synthetic master/revoke/expiry tests. New CI pending, NOT production login; user authorization and P-256 proof must be cryptographically bound before endpoints, and Dhan token gate remains unverified.
+
+## V2-004B-CRYPTO-DURABLE-LOGIN-COMPOSITION — 2026-11-18
+- Confirmed V2 #12 run `44295202170` SUCCESS at `e81e0f4`. Added real cryptographic proof -> SQLite durable session composition with synthetic P-256 signing, master revocation and per-feed denial tests. CI pending. No HTTP or production auth. Important open gate: shared atomic nonce across workers and trusted enrolled-key lifecycle. Read-only Oracle token readiness not yet inspected.

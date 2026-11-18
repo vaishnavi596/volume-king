@@ -18,6 +18,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-004A-DURABLE-DEVICE-SESSION:** V2 #11 `44290644644` at `126e18db6f` SUCCESS. Added isolated SQLite durable device grants/hashed opaque sessions for 1–3 phones with atomic disable/revoke, worker-shared expiry/permissions and tests; new CI pending. NOT real Android/Oracle login; actual verified-key provisioning, backend API and Dhan token evidence still required. NEXT check new CI, bind cryptographic proof to durable authenticated gateway behind OFF flag. Old app and production untouched.
 
+> **LATEST V2-004B-CRYPTO-DURABLE-LOGIN-COMPOSITION:** V2 CI #12 `44295202170` on `e81e0f4` SUCCESS. New `verified_login_gateway.py` composes real synthetic P-256 proof verification with SQLite durable per-device session auth, denies fake master and replay, cross-worker permission revocation; new CI pending. IMPORTANT: P-256 challenge store remains process-local; production needs atomic shared nonce and secure enrolled key lifecycle before any HTTP gateway. No Oracle/Dhan/APK changes. NEXT CI and atomic nonce store.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.

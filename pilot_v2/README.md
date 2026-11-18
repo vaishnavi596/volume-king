@@ -32,3 +32,6 @@
 
 ## V2-004A — persistent device authorization prototype
 `durable_device_sessions.py` stores device grants and token **hashes** on a shared single-host SQLite file, with atomic Master Admin disable/revoke and 3-phone limit. Cryptographic identity verification remains an external trusted input; this code is NOT yet an HTTP login endpoint. Never treat a claimed device ID as proof, expose bootstrap to phones or store OAuth tokens in this database.
+
+## V2-004B — Verified Login Composition
+`verified_login_gateway.py` joins P-256 signature verification to server-side durable device sessions with per-feed permissions. All proofs are synthetic test keys, not Android Keystore. **No HTTP/login deployment**: nonce store and trusted key provisioning must become durable/atomic across workers before exposing a gateway.
