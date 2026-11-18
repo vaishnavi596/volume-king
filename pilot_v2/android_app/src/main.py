@@ -12,10 +12,12 @@ from watchlist_parity import watchlist_rows
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_chart_context import chart_points, historical_shortlist
 from candle_option_views import candle_geometry
+from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
+from local_help_doctor import diagnose, help_for
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
-    page.padding = 12
+    apply_v1_theme(page, ft)
     storage_key = "botking.v2.watchlists.v1"
     try:
         saved = page.client_storage.get(storage_key)
@@ -79,7 +81,7 @@ def main(page: ft.Page):
     expiry_choices = evidence_inbox.expiries
     current = [0]
     group = [0]
-    status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
+    status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
     def render():
@@ -117,18 +119,14 @@ def main(page: ft.Page):
                                             state.selected) for symbol in INDEXES]
             health = status_overview(state.selected, quote_view, evidence_inbox)
             content.controls = [
-                ft.Text("Dashboard", size=19, weight=ft.FontWeight.BOLD),
-                *[ft.Container(
-                    content=ft.Column([
-                        ft.Text(card["symbol"], weight=ft.FontWeight.BOLD, size=16),
+                ft.Text("Dashboard", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
+                *[v1_card(ft, [
+                        ft.Text(card["symbol"], color=GOLD, weight=ft.FontWeight.BOLD, size=16),
                         ft.Text(card["price_label"], size=15),
                         ft.Text(card["candle_label"], size=13),
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
-                    ], spacing=3),
-                    border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
-                    border_radius=8, padding=10,
-                ) for card in index_cards],
+                    ]) for card in index_cards],
                 ft.Text("System Health · " +
                         str(health["index_quote_coverage"]) + "/3 index histories available",
                         size=13),
@@ -259,7 +257,7 @@ def main(page: ft.Page):
                 render()
                 page.update()
             content.controls = [
-                ft.Text("Watchlist", size=19, weight=ft.FontWeight.BOLD),
+                ft.Text("Watchlist", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text(f"{selected_equity_plan(state)['equity_count']}/70 unique equities · 3 indexes separate"),
                 ft.Dropdown(label="Watchlist", width=190, value=str(group[0]),
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
@@ -299,7 +297,7 @@ def main(page: ft.Page):
                 render()
                 page.update()
             content.controls = [
-                ft.Text("Settings", size=19, weight=ft.FontWeight.BOLD),
+                ft.Text("Settings", size=19, color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text("Smart Data & Master Control — app-owned"),
                 ft.Text(f"Installed app label: BOT KING V2 v{APP_VERSION_NAME} (code {APP_VERSION_CODE})"),
                 ft.Switch(label="Automatic market refresh", value=smart[0].auto_refresh,
@@ -317,7 +315,11 @@ def main(page: ft.Page):
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
                 ft.Text("Enable / Disable / Revoke require verified device login"),
                 ft.Text("Dhan token renewal only via authorized Master workflow"),
-                ft.Text("System Health / Error Doctor: no authenticated provider data"),
+                ft.Text("System Health / Error Doctor", color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Text("OFFLINE / provider not connected", color=MUTED),
+                ft.Text("Error Doctor: " + " · ".join(diagnose(storage_error or smart_error or "unavailable")[:2]), color=MUTED),
+                ft.Text(help_for("Settings"), color=MUTED),
+                ft.Text("Help: " + help_for("Filters"), color=MUTED),
                 ft.Text("Live orders disabled"),
             ]
 
@@ -333,8 +335,7 @@ def main(page: ft.Page):
             ft.NavigationDestination(icon=ft.icons.LIST_ALT_OUTLINED, label="Watchlist"),
             ft.NavigationDestination(icon=ft.icons.SETTINGS_OUTLINED, label="Settings"),
         ])
-    page.add(ft.Text(f"BOT KING V2 · v{APP_VERSION_NAME}", size=18, weight=ft.FontWeight.BOLD),
-             status, ft.Divider(), content)
+    page.add(v1_header(ft, APP_VERSION_NAME), status, ft.Divider(), content)
     render()
     page.update()
 
