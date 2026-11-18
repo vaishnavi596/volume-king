@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-APP-LOCAL-VALIDATED-CANDLE-RETENTION-20261118:** App-local completed OHLCV history validator/retention and per-index 1m, Watchlist 3m, Scanner selected timeframe WAIT/HIST summaries added; no fake bars, source quotes or network. Prior #30 CI SUCCESS, new CI pending. No Oracle/token changes.
+
+
 > **VERIFIED V2-S3-READONLY-QUOTE-CI30-PASS-20261118:** Flet quote consumer commit 3e00adf exact CI #30 run 44309995541 SUCCESS, including full isolated compile/tests. Only offline safe WAIT/HIST/last-good consumer; real Dhan transport, mobile, candle, signed APK and Oracle pending. Next existing S3 candles/filter readiness, same branch/owner app settings.
 
 

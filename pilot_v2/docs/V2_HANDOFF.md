@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-APP-LOCAL-VALIDATED-CANDLE-RETENTION-20261118:** app-local normalized completed candle evidence validation, retention and WAIT/HIST summaries; CI pending. No live history adapter or actual chart yet.
+
 > **LATEST V2-S3-READONLY-QUOTE-CI30-PASS-20261118:** exact full pilot CI #30 SUCCESS at 3e00adf, device-local read-only quote view; no live transport. Continue current app-first S3 candle/filter scope.
 
 > **CURRENT V2-S3-READONLY-DEVICE-QUOTE-CONSUMER-20261118:** Flet local schema-validated quote view + synthetic regression, CI pending; no actual quote transport. Continue app-first without changing server/token.
