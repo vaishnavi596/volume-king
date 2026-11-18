@@ -159,6 +159,22 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertNotIn("asyncio.to_thread(dhan_feed.batch_quotes)", quote_stage)
         self.assertIn('cached_batch if cached_batch is not None else', quote_stage)
 
+    def test_dhan_super_five_saved_context_and_news_follow_active_equities(self):
+        # Removed shares must not re-enter the five cards via saved ranking,
+        # a default legacy placeholder, or a one-time news bootstrap.
+        rank = ast.get_source_segment(self.source, self.functions["publish_partial_ranking"])
+        news = ast.get_source_segment(self.source, self.functions["refresh_superfive_news"])
+        card = ast.get_source_segment(self.source, self.functions["super_five_card"])
+        self.assertIn("selected_equities=set(all_watch_symbols())", rank)
+        self.assertIn('row["symbol"] in selected_equities', rank)
+        self.assertIn('row.get("symbol") not in selected_equities', rank)
+        self.assertIn("selected_news_symbols=all_watch_symbols()", news)
+        self.assertIn("for sym in selected_news_symbols:", news)
+        self.assertIn('row.get("symbol") in selected_news_symbols', news)
+        self.assertIn('if prefs.get("source")=="Dhan" else watch_symbols', card)
+        self.assertIn('if prefs.get("source")=="Dhan" else top5_candidates[:]', card)
+        self.assertIn('row.get("symbol") in set(all_watch_symbols())', card)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)

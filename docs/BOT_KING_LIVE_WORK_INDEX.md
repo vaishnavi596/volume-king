@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LAST MOVE BK-20261118-SDC-1949-SAVED-FIVE — WHY:** #1949 `44272781163` at `55a7c8b` SUCCESS; Dhan Super Five still admitted removed equities from saved ranking/legacy 51 News and cards. **ACTION:** One atomic joint source+AST test+Journal+Index batch: filter Dhan ranking and saved context, news candidates and display fallback to currently selected equity roster; no Dhan provider fanout, no changes to six-slot five-filter scoring. **RESULT:** Commit and full CI pending exact-SHA verification; previous #1949 is PASS. **OPEN/NEXT:** Verify combined batch CI and then 0/5/51/70 runtime integration, avoid APK until release gates. Detailed Work Log move BK-20261118-SDC-1949-SAVED-FIVE.
+
+
 > **LAST MOVE BK-20261118-SDC-1949-FAST-GATE — WHY:** Owner asks whether safe fundamental GitHub/Oracle improvements can accelerate BOT KING development; first eliminate current red Smart Data CI. **ACTION:** Examined existing test-only/joint CI workflows and Oracle evidence runbook; full #1947/#1948 logs show sole obsolete mobile assertion expecting fixed-51 `dhan_feed.batch_quotes`. Test-only fix `55a7c8b` preserves selected 0–70 API and 20s wait; #1949 `44272781163` started IN_PROGRESS. Canonical journal `dbc97bb7`. **RESULT:** Root test drift addressed; no source/server/hosting change. **OPEN/NEXT:** #1949 terminal result first, then 0/5/51/70 Smart Data runtime/active set. Future separate measured CI optimization: batch commits/fast focused tests/one full exact-SHA CI, pip caching, safe concurrency; Oracle read-only resource inventory only after current segment, with production backups/rollback before any measured tuning. Do not increase Dhan fanout, skip release checks or claim Oracle SSH access.
 
 

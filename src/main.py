@@ -1189,8 +1189,11 @@ def app_main(page:ft.Page):
                    if res and res.get("timestamp") and res.get("source")==expected_source]
         available.sort(key=lambda r:(not r.get("historical"),r["bias"] in ("BULLISH","BEARISH"),r.get("score",0),r.get("timestamp",0)),reverse=True)
         if prefs.get("source")=="Dhan":
+            # A removed equity must not return via old saved ranking evidence.
+            selected_equities=set(all_watch_symbols())
+            available=[row for row in available if row["symbol"] in selected_equities]
             # Do not surface unverified historical bullish/bearish calls as live picks.
-            previous=[row for row in top5_candidates if row.get("source")=="Dhan"]
+            previous=[row for row in top5_candidates if row.get("source")=="Dhan" and row.get("symbol") in selected_equities]
             # One live ranking policy for Scanner and Dashboard: only verified
             # directional candidates may enter the actionable Top Five.
             verified=rank_candidates(
@@ -1209,7 +1212,7 @@ def app_main(page:ft.Page):
             used={row.get("symbol") for row in chosen}
             for row in previous+saved_ranking.get("rows",[]):
                 if len(chosen)>=5:break
-                if row.get("source")!="Dhan" or not row.get("symbol") or row["symbol"] in used:continue
+                if row.get("source")!="Dhan" or row.get("symbol") not in selected_equities or row["symbol"] in used:continue
                 chosen.append(dict(row,bias="WAIT",score=0,historical=True,
                                    reason="Last saved Dhan ranking • Historical/unverified; no live signal"))
                 used.add(row["symbol"])
@@ -1235,13 +1238,14 @@ def app_main(page:ft.Page):
                 or prefs.get("source")!="Dhan" or not dhan_feed.connected):
             return
         news_bootstrap_generation[0]=generation
+        selected_news_symbols=all_watch_symbols()
         candidates=list(dict.fromkeys(row.get("symbol") for row in top5_candidates
-            if isinstance(row,dict) and row.get("symbol") in watch_symbols))[:5]
+            if isinstance(row,dict) and row.get("symbol") in selected_news_symbols))[:5]
         # A first install or cleared cache has no saved Top Five. Prime a
         # bounded set of watchlist news contexts rather than silently sending
         # zero requests for the whole login generation. These are NOT scored
         # or promoted to trading signals.
-        for sym in watch_symbols:
+        for sym in selected_news_symbols:
             if len(candidates)>=5:
                 break
             if sym not in candidates:
@@ -1441,9 +1445,11 @@ def app_main(page:ft.Page):
                 note("Saved historical rankings are hidden while disconnected; no live signal is available."),
                 note("Historical analysis unavailable • Dhan reconnect required")
             ],spacing=7))
-        rows=top5_candidates[:]
+        rows=(
+            [row for row in top5_candidates if row.get("symbol") in set(all_watch_symbols())]
+            if prefs.get("source")=="Dhan" else top5_candidates[:])
         if not rows:
-            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in watch_symbols[:5]]
+            rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in (all_watch_symbols() if prefs.get("source")=="Dhan" else watch_symbols)[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Historical analysis: "+str(scan_progress["state"])+" • separate from watchlist quote refresh")]
         # Keep Super Five focused on five candidates, not a scrolling wall
