@@ -911,3 +911,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **APP SOURCE:** Watchlist equity row gains a Chart button that uses validated current selected-equity roster via `scanner_state.choose`, selects 3m in existing Dashboard Scanner, synchronizes bottom navigation, and persists only local scanner choice. Missing/deleted symbols fail closed. No market-data request, new server settings or live proof.
 - **TEST:** New `test_ft2_watchlist_parity.py` regression guards actual Chart click, 3m timeframe, navigation and legacy-provider exclusion. Exact corrective CI PENDING/UNVERIFIED; no Android runtime claim.
 - **BOUNDARY:** V2 pilot-only. No V1 code/settings, Angel One/Yahoo, Oracle production, Dhan requests/tokens, live orders or APK. NEXT inspect exact new CI; on PASS continue grouped screen feature migration.
+
+
+## V2-FT2-WATCHLIST-3M-CHART-CI86-VERIFIED-20261118
+- Exact [V2 Pilot CI #86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) run `44366294149`, source commit `8739cb9ab4d342f96c58027a5c2ee6fd32b12c30`: COMPLETED SUCCESS, pilot-contract job SUCCESS, **246/246 Python offline unit tests OK**, 1.069s; no failed steps.
+- V2 selected Watchlist share Chart button chooses same symbol 3m in Scanner locally, with roster validation, navigation sync and local state save, no Dhan/Oracle requests. Existing 70 global equity cap and 3 independent indexes unchanged. Earlier historical CI #83 failure superseded by #84, #85 and now #86 PASS.
+- This is synthetic/offline source test, not tested Android device or live data. No V1, old server settings, Angel/Yahoo, Oracle, token, orders or APK changes. NEXT app-first V1 functional parity batches after exact #86 review.
