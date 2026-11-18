@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LAST MOVE BK-20261118-SDC-SELECTED-HISTORY — WHY:** #1946 terminal SUCCESS cleared prior ranking gate; history scan on 45s quote-cache miss still called fixed-51 `dhan_feed.batch_quotes()` regardless saved Watchlist equity count. **ACTION:** Source `7ef5b7807` makes history bootstrap reuse selected 0–70 roster via existing `equity_quotes_for_watchlist(all_watch_symbols())` on cache miss; test `f6624894b` guards no old fixed-51 direct path. Warm cache, read-only 404 fallback, 3 separate indices, 429 guards, last-good cache unchanged. Journal `96281ef5`. **RESULT:** GitHub commits; #1947 `44271610955` and #1948 `44271653115` initially IN_PROGRESS. This is code-path correction, not measured upstream Dhan API savings. **OPEN / NEXT:** Exact #1948 full offline CI status/failure log, then joint 0/5/51/70 runtime-active-only proof + Scanner/Options exceptions, 1m/3m, after-close and persisted ownership gate. No Oracle writes, restart, market requests, APK or orders.
+
+
 > **BK-20261118-SDC-1946-GREEN — WHY:** #1945 stale test fix needed full CI result. **ACTION/RESULT:** #1946 run `44271034591` exact `eda39e6d` **completed SUCCESS**, fixes historical #1944/#1945 one-error legacy source assertion; previous FAIL records kept. **OPEN:** historical refresh code still may call fixed-51 `batch_quotes()` if selected-batch cache aged 45s, potentially defeating 5-symbol Smart Data intent. **NEXT:** narrow selected 0/5/51/70 history quote-bootstrap pathway with no extra Dhan fanout or lost last-good data, then targeted+joint CI. Canonical journal move `BK-20261118-SDC-1946-GREEN`; Oracle/phone unverified.
 
 
