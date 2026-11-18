@@ -7,8 +7,8 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `29fd2645d3cc5783175fdf5bac33d81a51e24131` |
-| Last **verified executable** Actions | [V2 CI #93](https://github.com/vaishnavi596/volume-king/actions/runs/44373958095), run `44373958095`, **SUCCESS 267/267 Python offline tests**, no failing step |
+| Last **verified executable** SHA | `27039f8dfb496f8355ef56f17f9a53efb84bfc8a` |
+| Last **verified executable** Actions | [V2 CI #94](https://github.com/vaishnavi596/volume-king/actions/runs/44423433609), run `44423433609`, **SUCCESS 270/270 Python offline tests**, no failing step |
 | Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
 | This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
@@ -140,3 +140,10 @@
 - **New source:** V2-only `local_paper_slots.py` implements FIVE independent `Bot 1..Bot 5` user-owned manual risk-plan slots, schema-validated and rejecting trade/order/credential/unknown fields. Stored data is purely `paper_preview.py` calculation of manual stop/target/planned risk, not paper positions or trade fills. V2 Settings has selected slot dropdown, 5 summaries, Save risk preview and Clear preview buttons; all local app storage, no server/broker access.
 - **New test:** `test_local_paper_slots.py` checks independent slot isolation/roundtrip, invalid slot and foreign settings rejection, no broker calls, actual UI button callbacks, three bottom tabs; new exact-source CI PENDING until observed.
 - **Safety/limitations:** NO V1 files or old server settings, Angel/Yahoo, Oracle/Dhan calls, token/OAuth, real/paper-order execution or APK. Five V1 full Paper Bot ledger/automation and alerts remain NOT MIGRATED; Android visual/runtime untested. Next exact GitHub Actions review and update canonical journals only on observed result.
+
+
+## V2-FT2-FIVE-LOCAL-PAPER-PLANS-CI94-VERIFIED-20261119
+- Exact [V2 Pilot CI #94](https://github.com/vaishnavi596/volume-king/actions/runs/44423433609), run `44423433609`, source SHA `27039f8dfb496f8355ef56f17f9a53efb84bfc8a`, **COMPLETED SUCCESS, 270/270 Python offline tests OK** (2.203s), job SUCCESS. Previous #93 267/267 PASS remains established.
+- New `local_paper_slots.py` adds five isolated manual-paper **risk-plan** slots and strict local-state validation, explicit Settings UI controls for selection/preview save/clear, and `test_local_paper_slots.py` validates independence, bad storage/credentials/unknown fields, UI wiring and no provider/trade execution. This is NOT five simulated order bots or their fills/ledger.
+- **Open acceptance:** Full V1 five Paper Bot journal/automated simulation remains unported. Other pending screens/alerts, real verified five filters/Options/News/Futures, smart data schedules, Master+3 secure devices, signed V2 APK/Android acceptance and Oracle/Dhan live integration last. Only `pilot_v2/` written, no V1/server/provider/secret changes, real orders or APK.
+- Next: app-only alerts/diagnostic local display or safe manual Paper ledger audit, exact source regression first; no unrelated patch on failed CI.
