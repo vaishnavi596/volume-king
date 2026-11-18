@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST BK-20261118-SDC-CI1953-SELECTED-WRAPPER — WHY:** #1953 `44275761822` at `ef7cc5f` full offline **SUCCESS**, then selected batch wrapper audit identified unhashable malformed saved roster could throw TypeError before validation. **ACTION:** One joint adapter+regression+Journal+Index batch validates equity members before hashing and adds offline mocked 0/5/51/70 zero/one selected-call plus bad-roster no-network checks. Existing 404-only fallback, 429, separate indices unchanged. **RESULT:** New exact SHA/CI PENDING. **NEXT:** Full CI then remaining Smart Data/Android release gates. No Oracle/API/orders/APK. See journal BK-20261118-SDC-CI1953-SELECTED-WRAPPER.
+
+
 > **LAST MOVE BK-20261118-SDC-CI1952-CACHE-ROSTER — WHY:** #1952 run 44274999713 on a7cea2089 **completed SUCCESS**; new Watchlist share could be missing from a recent 45s quote cache. **ACTION:** One atomic source+test+Journal+Index batch requires selected roster symbols to be covered before historical-scan quote cache reuse; otherwise fallback to existing bounded selected equity batch. No new per-symbol fanout, index lane unchanged. **RESULT:** Exact commit/CI pending confirmation. **NEXT:** Verify terminal full CI, continue 0/5/51/70 call-path and Android readiness; Oracle/mobile/Dhan provider proof separately. Journal BK-20261118-SDC-CI1952-CACHE-ROSTER.
 
 

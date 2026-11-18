@@ -577,10 +577,15 @@ class ServerDhanReadOnly:
         The preexisting 51-equity snapshot fallback is used only after explicit
         HTTP 404, never after a Dhan 429, invalid data, or other provider error.
         """
+        # Validate each member before hashing/deduplication: malformed
+        # saved data must raise a controlled FeedError, not TypeError.
+        import re
         if (not isinstance(symbols, (tuple, list)) or len(symbols) > 70
-                or len(symbols) != len(set(symbols))
-                or any(not isinstance(sym, str) or sym in DHAN_VERIFIED_INDEX_SYMBOLS
-                       for sym in symbols)):
+                or any(not isinstance(sym, str)
+                       or sym in DHAN_VERIFIED_INDEX_SYMBOLS
+                       or not re.fullmatch(r"[A-Z0-9&_-]{1,32}", sym)
+                       for sym in symbols)
+                or len(symbols) != len(set(symbols))):
             raise FeedError("Invalid selected watchlist equity roster")
         if not symbols:
             return {}

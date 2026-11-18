@@ -58,6 +58,38 @@ class SelectedEquity70ContractTests(unittest.TestCase):
                         self.feed.selected_equity_quotes(bad)
                     call.assert_not_called()
 
+    def test_zero_five_fifty_one_seventy_rosters_use_zero_or_one_selected_call(self):
+        # Behavioral request budget, never rely on synthetic quote freshness
+        # to imply provider-liveness or an Android integration proof.
+        for count in (0, 5, 51, 70):
+            with self.subTest(count=count):
+                symbols = [f"EQ{i:03d}" for i in range(count)]
+                expected = {s: {"price": 100+i, "source": "Dhan",
+                                "freshness": "unverified", "live_verified": False}
+                            for i, s in enumerate(symbols)}
+                with patch.object(self.feed, "selected_equity_quotes",
+                                  return_value=expected) as selected, patch.object(
+                                      self.feed, "equity_quotes_with_bootstrap") as fallback:
+                    result = self.feed.equity_quotes_for_watchlist(symbols)
+                    self.assertEqual(set(result), set(symbols))
+                    self.assertEqual(selected.call_count, 0 if count == 0 else 1)
+                    fallback.assert_not_called()
+                    if count:
+                        selected.assert_called_once_with(symbols)
+
+    def test_wrapper_malformed_rosters_fail_as_feederror_before_network(self):
+        invalid = ([["TCS"]], ["TCS", []], ["TCS", {"oops": 1}],
+                   [None], [123], ["NIFTY"], ["lowercase"],
+                   ["BAD SYMBOL"], ["TCS", "TCS"], ["TCS. NS"])
+        for symbols in invalid:
+            with self.subTest(symbols=repr(symbols)[:50]):
+                with patch.object(self.feed, "selected_equity_quotes") as selected, patch.object(
+                        self.feed, "equity_quotes_with_bootstrap") as fallback:
+                    with self.assertRaises(FeedError):
+                        self.feed.equity_quotes_for_watchlist(symbols)
+                    selected.assert_not_called()
+                    fallback.assert_not_called()
+
     def test_registry_response_must_be_valid_object_before_save(self):
         for invalid in (None, [], "error", 200):
             with self.subTest(invalid=type(invalid).__name__):
