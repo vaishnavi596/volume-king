@@ -36,6 +36,30 @@ class AssessmentUiProducerSafetyTests(unittest.TestCase):
         lines = show(data)
         self.assertTrue(any("not a trade signal" in line for line in lines))
 
+    def test_foreign_source_and_mislabeled_freshness_wait(self):
+        for field, value in (("source", "yahoo"),
+                             ("source", "angel"),
+                             ("freshness", "live_verified"),
+                             ("freshness", "stale")):
+            with self.subTest(field=field, value=value):
+                data = payload()
+                data[field] = value
+                shown = show(data)
+                self.assertEqual(len(shown), 1)
+                self.assertIn("WAIT", shown[0])
+        data = payload()
+        data["source"] = "dhan"
+        self.assertTrue(any("PCR: 0.800" in line for line in show(data)))
+
+    def test_unverified_percentages_never_advertised_as_scores(self):
+        for field in ("bullish_score", "bearish_score"):
+            with self.subTest(field=field):
+                data = payload()
+                data[field] = 95
+                shown = show(data)
+                self.assertEqual(len(shown), 1)
+                self.assertIn("WAIT", shown[0])
+
     def test_missing_live_orders_flag_fails_closed(self):
         data = payload()
         data.pop("live_orders_enabled")
