@@ -706,8 +706,10 @@ class ServerDhanReadOnly:
         # An echoed selection must match the request: never silently relabel
         # another candle timeframe or option expiry as the selected context.
         # Older Oracle WAIT responses may omit these fields until deployment.
-        if (("timeframe" in result and result["timeframe"] != timeframe)
-                or ("expiry" in result and result["expiry"] != expiry)):
+        if ((timeframe is not None and "timeframe" in result
+                 and result["timeframe"] != timeframe)
+                or (expiry is not None and "expiry" in result
+                    and result["expiry"] != expiry)):
             raise FeedError("Oracle assessment selection mismatch")
         filters = result.get("assessment_filters")
         factors = result.get("factors")
