@@ -1884,6 +1884,15 @@ def app_main(page:ft.Page):
             watch_batch_status[0]="Dhan reconnect required in Settings"
             request_view_refresh(4)
             return
+        if not all_watch_symbols():
+            # Empty Watchlist: zero equity requests; index lane is separate.
+            selected_batch_issue[0]=""
+            dhan_batch_issue[0]=None
+            watch_batch_status[0]="No Watchlist equities selected • Dhan equity fetch skipped"
+            login_bootstrap.finish(provider_generation[0],"equities",0,0)
+            watch_batch_success_generation[0]=provider_generation[0]
+            request_view_refresh(4)
+            return
         watch_batch_busy[0]=True
         watch_batch_last_attempt[0]=time.monotonic()
         if login_bootstrap.generation==provider_generation[0]:
@@ -1954,7 +1963,7 @@ def app_main(page:ft.Page):
             if selected_batch_issue[0]:
                 watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
             market_status=watch_batch_status[0]
-            login_bootstrap.finish(generation,"equities",received,max(1,total_symbols))
+            login_bootstrap.finish(generation,"equities",received,total_symbols)
             watch_batch_last_success[0]=time.monotonic()
             if received==total_symbols:
                 watch_batch_success_generation[0]=generation
@@ -3288,7 +3297,7 @@ def app_main(page:ft.Page):
                         selected_batch_issue[0]=(
                             "Selected batch route unavailable; using legacy 51-equity snapshot"
                             if dhan_feed._selected_batch_missing else "")
-                        if not batch:
+                        if not batch and all_watch_symbols():
                             raise FeedError("Empty Dhan batch response")
                         with dhan_batch_lock:
                             dhan_batch_cache.update(generation=provider_generation[0],
@@ -3330,7 +3339,10 @@ def app_main(page:ft.Page):
                             " • last-known Dhan prices; exchange time unverified")
                         if selected_batch_issue[0]:
                             watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
-                        login_bootstrap.finish(provider_generation[0],"equities",received,max(1,expected))
+                        if expected==0:
+                            watch_batch_status[0]="Login equities SKIPPED • no Watchlist shares selected"
+                            market_status=watch_batch_status[0]
+                        login_bootstrap.finish(provider_generation[0],"equities",received,expected)
                         if not dhan_batch_issue[0]:
                             watch_batch_last_success[0]=time.monotonic()
                         if current[0] in (0,4):request_view_refresh(current[0])

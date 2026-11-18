@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> LAST MOVE BK-20261118-SDC-CI1950-ZERO: WHY #1950 failed 1/1304 old fixed News assertion and empty saved Watchlist falsely failed quote bootstrap. ACTION one joint source/tests/Journal batch aligns selected-news test and makes 0/0 equities SKIPPED (indexes still 3 independent). RESULT combined SHA/CI pending verification, previous #1949 PASS, #1950 FAIL retained. NEXT exact full CI, then 0/5/51/70 Smart Data runtime and device proof. No Oracle, orders or APK.
+
+
 > **LAST MOVE BK-20261118-SDC-1949-SAVED-FIVE — WHY:** #1949 `44272781163` at `55a7c8b` SUCCESS; Dhan Super Five still admitted removed equities from saved ranking/legacy 51 News and cards. **ACTION:** One atomic joint source+AST test+Journal+Index batch: filter Dhan ranking and saved context, news candidates and display fallback to currently selected equity roster; no Dhan provider fanout, no changes to six-slot five-filter scoring. **RESULT:** Commit and full CI pending exact-SHA verification; previous #1949 is PASS. **OPEN/NEXT:** Verify combined batch CI and then 0/5/51/70 runtime integration, avoid APK until release gates. Detailed Work Log move BK-20261118-SDC-1949-SAVED-FIVE.
 
 

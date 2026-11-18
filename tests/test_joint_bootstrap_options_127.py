@@ -42,7 +42,8 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn("news_bootstrap_generation[0]=generation",news)
         self.assertIn("[:5]",news)
         # Without saved Top Five, prime no more than five equity RSS contexts.
-        self.assertIn("for sym in watch_symbols:",news)
+        self.assertIn("selected_news_symbols=all_watch_symbols()",news)
+        self.assertIn("for sym in selected_news_symbols:",news)
         self.assertIn("if len(candidates)>=5:",news)
         self.assertIn("if sym not in candidates:",news)
         self.assertIn("candidates.append(sym)",news)

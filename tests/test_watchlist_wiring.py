@@ -175,6 +175,16 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('if prefs.get("source")=="Dhan" else top5_candidates[:]', card)
         self.assertIn('row.get("symbol") in set(all_watch_symbols())', card)
 
+    def test_empty_saved_watchlist_skips_equity_fetch(self):
+        refresh=ast.get_source_segment(self.source,self.functions["refresh_watch_batch"])
+        self.assertIn("if not all_watch_symbols():",refresh)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",0,0)',refresh)
+        self.assertIn('Dhan equity fetch skipped',refresh)
+        login=self.source.split("    async def connect_angel():",1)[1].split("    def clear_broker_credentials(",1)[0]
+        self.assertIn('if not batch and all_watch_symbols():',login)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",received,expected)',login)
+        self.assertIn('if expected==0:',login)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)

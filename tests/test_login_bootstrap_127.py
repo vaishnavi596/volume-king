@@ -45,6 +45,19 @@ class LoginBootstrapTests(unittest.TestCase):
         self.assertIn("40/51", state.label("equities"))
         self.assertIn("unverified", state.label("equities"))
 
+    def test_zero_selected_equities_are_skipped_not_failed(self):
+        state = LoginBootstrapState()
+        state.begin(10, authenticated=True)
+        self.assertTrue(state.finish(10, "equities", 0, 0))
+        self.assertEqual(state.stages["equities"], "SKIPPED")
+        self.assertEqual(state.counts["equities"], (0, 0))
+        self.assertIn("0/0", state.label("equities"))
+        self.assertEqual(state.stages["indices"], "LOADING")
+        with self.assertRaises(ValueError):
+            state.finish(10, "indices", 0, 0)
+        state.finish(10, "equities", 0, 1)
+        self.assertEqual(state.stages["equities"], "FAILED")
+
     def test_failure_cooldown_and_no_auth(self):
         state = LoginBootstrapState()
         self.assertFalse(state.begin(1, authenticated=False))

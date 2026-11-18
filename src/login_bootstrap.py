@@ -6,7 +6,7 @@ A last-saved quote never marks a new authenticated generation LOADED.
 from dataclasses import dataclass, field
 
 STAGES = ("equities", "indices")
-TERMINAL = frozenset(("LOADED", "PARTIAL", "FAILED", "COOLDOWN", "NO AUTH"))
+TERMINAL = frozenset(("LOADED", "PARTIAL", "FAILED", "COOLDOWN", "NO AUTH", "SKIPPED"))
 
 @dataclass
 class LoginBootstrapState:
@@ -32,9 +32,11 @@ class LoginBootstrapState:
                *, error: str = "") -> bool:
         if generation != self.generation or stage not in STAGES:
             return False
-        if type(received) is not int or type(expected) is not int or not (0 <= received <= expected and expected > 0):
+        if (type(received) is not int or type(expected) is not int
+                or not (0 <= received <= expected) or (expected == 0 and stage != "equities")):
             raise ValueError("Invalid bootstrap quote count")
-        outcome = ("COOLDOWN" if "429" in error or "cooldown" in error.lower()
+        outcome = ("SKIPPED" if expected == 0 and not error
+                   else "COOLDOWN" if "429" in error or "cooldown" in error.lower()
                    else "FAILED" if error or not received
                    else "LOADED" if received == expected else "PARTIAL")
         self.stages[stage] = outcome
