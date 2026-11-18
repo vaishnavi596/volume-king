@@ -1,3 +1,5 @@
+> **CURRENT V2-JOINT-FT3-CANDLE-LAST-TIMESTAMP-REPLAY-GATE-20261118:** New offline per-symbol/timeframe last completed candle timestamp replay protection + regression tests committed, CI PENDING. Previous source #57 PASS. No Oracle/Dhan/APK operation.
+
 > **VERIFIED V2-FT3-OBSERVATION-CI57-VERIFIED-20261118:** FT3 option/five-filter observation rollback guard exact SHA `7a862c8` CI #57 `44333231344` SUCCESS; per-factor last-good, no false LIVE. FT1–FT4 real phone/Oracle/Dhan/APK gates still BLOCKED. Next offline batch only.
 
 > **CURRENT V2-FT3-OBSERVATION-MONOTONIC-REPLAY-GUARD-20261118:** New FT3 source-time rollback protections for options and each of five filters; revision alone cannot overwrite later observation. Full/partial HIST retention tests committed; CI PENDING. Prior exact #56 PASS. No APK/Oracle/Dhan/token changes.

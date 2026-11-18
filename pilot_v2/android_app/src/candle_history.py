@@ -46,7 +46,10 @@ class LocalCandleHistory:
         validated = validate_completed_bars(bars)
         key = (symbol, timeframe)
         previous = self._entries.get(key)
-        if previous and revision <= previous["revision"]:
+        if previous and (revision <= previous["revision"]
+                         or validated[-1]["timestamp"] < previous["bars"][-1]["timestamp"]):
+            # A higher transport revision is not evidence of a newer candle.
+            # Protect last-good history from a replay/short historical window.
             return False
         self._entries[key] = {"revision": revision, "bars": validated}
         return True

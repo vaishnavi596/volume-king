@@ -45,6 +45,43 @@ class LocalCandleHistoryTests(unittest.TestCase):
         with self.assertRaises(module.CandleEvidenceError):
             c.accept("TCS","3m",11,bars(),allowed_symbols=("TCS",),source="yahoo")
 
+    def test_higher_revision_with_older_last_bar_does_not_erase_history(self):
+        c=module.LocalCandleHistory()
+        good=bars()+[{"timestamp":300,"open":103,"high":107,"low":102,
+                       "close":105,"volume":4,"completed":True}]
+        self.assertTrue(c.accept("NIFTY","1m",5,good,allowed_symbols=("NIFTY",)))
+        self.assertFalse(c.accept("NIFTY","1m",99,bars(),
+                                  allowed_symbols=("NIFTY",)))
+        self.assertEqual(c.view("NIFTY","1m")["count"],3)
+        self.assertEqual(c.view("NIFTY","1m")["bars"][-1]["timestamp"],300)
+        # The rejected replay must not advance the revision gate.
+        self.assertTrue(c.accept("NIFTY","1m",6,good,
+                                 allowed_symbols=("NIFTY",)))
+        self.assertFalse(c.accept("NIFTY","1m",6,good,
+                                  allowed_symbols=("NIFTY",)))
+        later=good[1:]+[{"timestamp":400,"open":105,"high":108,"low":104,
+                        "close":106,"volume":5,"completed":True}]
+        self.assertTrue(c.accept("NIFTY","1m",7,later,
+                                 allowed_symbols=("NIFTY",)))
+        self.assertEqual(c.view("NIFTY","1m")["bars"][-1]["timestamp"],400)
+
+    def test_independent_index_and_equity_timeframes_unchanged_by_replay(self):
+        c=module.LocalCandleHistory()
+        extended=bars()+[{"timestamp":300,"open":103,"high":107,"low":102,
+                          "close":105,"volume":4,"completed":True}]
+        c.accept("NIFTY","1m",50,extended,allowed_symbols=("NIFTY",))
+        self.assertTrue(c.accept("NIFTY","3m",1,bars(),
+                                 allowed_symbols=("NIFTY",)))
+        self.assertTrue(c.accept("TCS","3m",1,bars(),
+                                 allowed_symbols=("TCS",)))
+        self.assertFalse(c.accept("NIFTY","1m",51,bars(),
+                                  allowed_symbols=("NIFTY",)))
+        self.assertEqual(c.view("NIFTY","1m")["count"],3)
+        self.assertEqual(c.view("NIFTY","3m")["count"],2)
+        self.assertEqual(c.view("TCS","3m",selected_equities=("TCS",))["count"],2)
+        self.assertEqual(c.view("TCS","3m")["status"],"WAIT")
+        self.assertEqual(c.view("BANKNIFTY","1m")["status"],"WAIT")
+
     def test_removed_equity_not_exposed_and_indices_remain(self):
         c=module.LocalCandleHistory()
         c.accept("TCS","3m",1,bars(),allowed_symbols=("TCS",))
