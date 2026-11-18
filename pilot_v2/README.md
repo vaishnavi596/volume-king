@@ -44,3 +44,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## V2-004D — Master-approved durable device key lifecycle
 `durable_device_keys.py` is an isolated SQLite prototype for registering/rotating delegated P-256 public keys only after Master session and candidate private-key possession proof. **Not a deployed pairing endpoint:** current login verifier still uses a static trusted-key mapping and needs dynamic generation checks before it can safely enforce rotation, and master initial key enrollment/recovery is not implemented.
+
+## Fast-track audit / current direction
+See [V2_FAST_TRACK_AUDIT.md](docs/V2_FAST_TRACK_AUDIT.md): four grouped work packets for secure current-key login, versioned server+Android contract, provider-safe data lanes and signed V2 pilot build/deploy. Source, tests, journals and release evidence must remain distinct; this audit itself is docs-only.

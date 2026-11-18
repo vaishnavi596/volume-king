@@ -8,11 +8,11 @@ This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF
 |---|---|
 | Working branch | `pilot/botking-v2-smart-gateway-20261118` |
 | New independent source root | `pilot_v2/` |
-| Last verified V2 source commit | `577f07d9d9d45d50b3836bc12b5c3c334bd28375` (V2-001) |
-| Last V2 CI | **#1 SUCCESS**, run `44281428941`, exact source commit `577f07d` |
+| Last verified V2 source commit | `b45731646a295e0084b95fac3b30e36d8079d488` (V2-004D) |
+| Last V2 CI | **#16 SUCCESS**, run `44298167518`, exact source commit `b457316` |
 | New V2 application version/package | Planned **2.0.100** / `com.botking.bot_king_v2`, metadata ONLY |
 | V2 gateway | API prefix `/v2-pilot`, **feature flag OFF**, NOT served on Oracle |
-| Master device feature | Pure offline rules implemented, no authenticated network implementation |
+| Master device feature | Offline durable sessions + P-256 key enrollment/rotation prototypes; dynamic current-key login binding NOT DONE |
 | Current legacy / installed app | Preserve existing working app and server; no V2 cutover |
 | Server / Dhan API / orders | **No production edits, market-data calls or trades** |
 | APK / mobile | **No V2 APK, no device PASS** |
@@ -21,8 +21,8 @@ This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF
 | Item | Scope | Status | Gate to close |
 |---|---|---|---|
 | V2-001 | Separate branch/folder, reserved identity, demand/cache + master control pure domain contract | **CODE + CI PASS** | 577f07d / CI #1 |
-| V2-002 | Verified 2-gateway auth: Dhan token-type/expiry/renewal support; independent revocable Android sessions; master proof | **PARTIAL — V2-002A CI #4 PASS, V2-002B P-256 proof + token status CI pending** | Trusted device enrollment, shared durable sessions, Android Keystore + Oracle OAuth evidence missing |
-| V2-003 | Shared broker quote collector, safe WebSocket/REST, up to 3 devices, 0/5/51/70 demand, 3 indexes | **PENDING** | Synthetic 429/disconnect/fairness, no duplicate upstream |
+| V2-002 | Verified 2-gateway auth: Dhan token lifecycle and revocable Android sessions; master proof | **PARTIAL — offline durable sessions/key rotation CI #16 PASS** | Dynamic current-key binding, native Keystore, secure owner bootstrap/recovery, Oracle OAuth evidence missing |
+| V2-003 | Shared broker quote collector, WebSocket/REST, 1–3 devices, 0/5/51/70 demand, 3 indexes | **PARTIAL — offline shared cache and SQLite rate gate CI PASS** | Real authenticated broker collector, entitlement/transport, revision/API integration pending |
 | V2-004 | Shared candles/option-chain/assessment feeds, five evidence-gated engines, blank sixth | **PENDING** | Rate limits, expiry/422, historical cache, no synthetic live |
 | V2-005 | V2 actual Android app, separate package + secure native login and signed APK workflow | **PENDING** | Full CI, APK metadata/signing and alongside-legacy install |
 | V2-006 | Staged Oracle rollout, backup and restore, exact deployed SHA, live read-only + device acceptance | **PENDING** | Rollback and no legacy interruption |
@@ -89,3 +89,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## V2-004D-DURABLE-KEY-LIFECYCLE (2026-11-18)
 - Previous docs-only `767f792` CI #15 SUCCESS (latest applicable source CI #14 PASS). New isolated `durable_device_keys.py` and tests add Master session-validated P-256 key registration and rotation, proof of possession before grant, single-host atomic key/grant/session update and old session revocation. Exact new CI pending. Not production-ready: login verifier static trusted key map must be switched to server-side dynamic key lookup and validated against current generation. Owner-controlled initial master enrollment needs trusted ceremony, not public API. Proceed to wire dynamic key registry before HTTP. No Oracle calls, APK, old app changes.
+
+## V2-FAST-TRACK-JOINT-EXECUTION-AUDIT-20261118
+- Audit document `pilot_v2/docs/V2_FAST_TRACK_AUDIT.md` defines four combined packets, bottlenecks, test/commit cadence, server preflight/stage/build guardrails, and security reasons not to skip auth/release checks. Pre-audit V2 code SHA `b457316`, CI #16 `44298167518` PASS. This entry updates documentation/current status only and does NOT implement optimized workflow filtering or new server/app code. Next implement FT-1 in one tested source batch.
