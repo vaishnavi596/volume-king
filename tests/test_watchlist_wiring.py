@@ -146,6 +146,19 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertNotIn('pairs=await asyncio.gather(*(rank_one(sym) for sym in watch_symbols))', self.source)
         self.assertIn('symbols=configured_scan_symbols()', self.source)
 
+    def test_dhan_history_cache_miss_requests_only_selected_equities(self):
+        # A missing 45s quote cache must not request the fixed 51 snapshot
+        # when only five shares are saved. The index quote lane is separate.
+        source = self.source
+        scan = source[source.index("    async def refresh_market():"):
+                      source.index("    async def supervised_market_refresh():")]
+        quote_stage = scan[scan.index('scan_progress["state"]="Checking Dhan batch before historical scan"'):
+                           scan.index("# Connection is now ready: allow the first historical scan")]
+        self.assertIn("selected_equities=all_watch_symbols()", quote_stage)
+        self.assertIn("dhan_feed.equity_quotes_for_watchlist,selected_equities", quote_stage)
+        self.assertNotIn("asyncio.to_thread(dhan_feed.batch_quotes)", quote_stage)
+        self.assertIn('cached_batch if cached_batch is not None else', quote_stage)
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
