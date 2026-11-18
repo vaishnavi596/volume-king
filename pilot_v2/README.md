@@ -14,3 +14,6 @@
 
 ## New chat / handoff
 **Say:** **“बोट किंग इंप्रूव वर्जन का जर्नल देखो और काम आगे बढ़ाओ।”** Open [V2_HANDOFF.md](docs/V2_HANDOFF.md), then [V2_MASTER_JOURNAL.md](docs/V2_MASTER_JOURNAL.md) and [V2_WORK_LOG.md](docs/V2_WORK_LOG.md). Confirm the actual GitHub HEAD/last ten CI runs before changing anything.
+
+## V2-002A: isolated device-session prototype
+`pilot_v2/device_sessions.py` adds short-lived opaque bearer sessions, hashed in-memory identifiers and server-verified master action authorization. **No real server HTTP endpoint or Android cryptographic verifier is connected**. Test `pilot_v2/tests/test_device_sessions.py`; revoke/disable is immediate in this single-process mock only. Persistent/revocable multi-worker store and external verified identity are mandatory before deployment.

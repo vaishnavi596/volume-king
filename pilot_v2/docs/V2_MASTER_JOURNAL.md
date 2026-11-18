@@ -21,7 +21,7 @@ This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF
 | Item | Scope | Status | Gate to close |
 |---|---|---|---|
 | V2-001 | Separate branch/folder, reserved identity, demand/cache + master control pure domain contract | **CODE + CI PASS** | 577f07d / CI #1 |
-| V2-002 | Verified 2-gateway auth: Dhan token-type/expiry/renewal support; independent revocable Android sessions; master proof | **NEXT / NOT IMPLEMENTED** | Secure offline tests, Oracle read-only evidence, no trust of claimed role |
+| V2-002 | Verified 2-gateway auth: Dhan token-type/expiry/renewal support; independent revocable Android sessions; master proof | **PARTIAL — V2-002A opaque session prototype; CI pending** | Verified Android cryptographic proof + production session store + read-only Oracle token evidence still missing |
 | V2-003 | Shared broker quote collector, safe WebSocket/REST, up to 3 devices, 0/5/51/70 demand, 3 indexes | **PENDING** | Synthetic 429/disconnect/fairness, no duplicate upstream |
 | V2-004 | Shared candles/option-chain/assessment feeds, five evidence-gated engines, blank sixth | **PENDING** | Rate limits, expiry/422, historical cache, no synthetic live |
 | V2-005 | V2 actual Android app, separate package + secure native login and signed APK workflow | **PENDING** | Full CI, APK metadata/signing and alongside-legacy install |
@@ -45,3 +45,7 @@ Read `V2_HANDOFF.md` → this Journal → `V2_WORK_LOG.md` → current GitHub HE
 
 ## Non-negotiable
 Do not build V2 by bumping legacy `pyproject.toml` or overwrite the old app's package/signing. Do not shut down old server when V2 work starts. Never print tokens, bypass Dhan consent, run unauthorized orders, or call an unverified quote LIVE. Owner authentication/revocation and protected per-feed entitlement are part of V2, not a UI-only toggle.
+
+## Latest batch V2-002A — 2026-11-18
+- Scope: `pilot_v2/device_sessions.py` and `pilot_v2/tests/test_device_sessions.py`, pure server-side opaque session interface with mock verification, expiry, per-feed access and immediate secondary revocation. No deployed HTTP endpoint, keystore bridge or token persistence. CI needs exact commit verification.
+- Next: CI then V2-002B provider-backed cryptographic proof and Dhan reauth status; preserve three-device limit and old app.

@@ -33,6 +33,11 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 - `pilot_v2/tests/test_v2_pilot.py`: synthetic tests, **not production or device proof**.
 - No Oracle changes/restart, broker calls, data subscription, APK, actual client screen, app pairing, mobile installation, live orders or API token changes.
 
+## Most recent addendum (2026-11-18)
+- V2 branch docs commit `bdb82cf821bfd5535c7f047ad98bd653d91d92b3` triggered separate V2 CI **#2 SUCCESS**, run `44281734585`; V2 code CI #1 also SUCCESS.
+- V2-002A now adds isolated offline opaque per-device session manager + simulated proof verifier with master role derived server-side, token expiration/rotation/revocation and restricted per-feed permissions. **This is not a deployable login, lacks real cryptographic proof and durable/shared server session storage.** CI for source batch to be checked at new SHA.
+- Continue at V2-002B after CI: cryptographic enrollment proof and token-life-cycle status; keep Oracle/old mobile untouched.
+
 ## 5. Exact next work / hard gates
 **V2-002 (NEXT):** Read-only existing Oracle capability audit design and secure gateway contract. Inspect exact production SHA/routes/capability/active token type/expiry/renewal support without credentials or Dhan quote calls, through established safe operator route; current chat cannot assume SSH. Implement V2 server-side policy authentication and session-expiry tests in isolated `pilot_v2/`, behind feature flag, without writing production. Test forged master actor, revoked/expired device session, replay challenge and 4th-device denial.
 **V2-003:** Shared upstream collector and per-device filtered revision cache, demand scaling 0/5/51/70+indexes, 429/422, stream disconnect, no double provider fanout across 2–3 phones. Underlying Dhan authorization may require real user consent.
