@@ -2,6 +2,12 @@
 import ast
 import pathlib
 import unittest
+import asyncio
+import sys
+from types import SimpleNamespace
+
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/"src"))
+from candle_retention import valid_candle_history
 
 source=(pathlib.Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
 tree=ast.parse(source)
@@ -39,6 +45,44 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('prefs.get("source")=="Dhan" and not refresh_hours()',fn)
         scan=ast.get_source_segment(source,functions["scan_market"])
         self.assertIn("page.run_task(restart_latest_scan,allow_network)",scan)
+
+    def test_real_cache_only_branch_never_calls_provider(self):
+        # Execute the actual source's isolated history-selection branch, not
+        # merely its spelling. No UI runtime or broker credentials involved.
+        scan=functions["scan_market"]
+        guarded=next(n for n in ast.walk(scan) if isinstance(n,ast.If)
+                     and ast.unparse(n.test)==
+                     "not allow_network and prefs.get('source') == 'Dhan'")
+        method=ast.AsyncFunctionDef(
+            name="select_history",args=ast.arguments(posonlyargs=[],args=[
+                ast.arg(arg="allow_network")],vararg=None,kwonlyargs=[],
+                kw_defaults=[],kwarg=None,defaults=[]),
+            body=[guarded,ast.Return(value=ast.Name(id="hist",ctx=ast.Load()))],
+            decorator_list=[])
+        module=ast.fix_missing_locations(ast.Module(body=[method],type_ignores=[]))
+        rows=[[1795000000+i*180,100+i,101+i,99+i,100+i,1200]
+              for i in range(36)]
+        selected={"source":"Dhan","bars":rows,"_scanner_timeframe":"3m"}
+        calls=[]
+        def deny_fetch(*args):
+            calls.append(args)
+            raise AssertionError("Unexpected provider fetch")
+        env={"prefs":{"source":"Dhan"},"sym":"RELIANCE","interval":"3m",
+             "period":"7d","candles":{"scanner_chart_RELIANCE":selected},
+             "market_store":SimpleNamespace(get=lambda *args:{}),
+             "valid_candle_history":valid_candle_history,
+             "get_market_data":deny_fetch,"asyncio":asyncio}
+        exec(compile(module,"<scanner-history-branch>","exec"),env)
+        result=asyncio.run(env["select_history"](False))
+        self.assertEqual(result["bars"],rows)
+        self.assertTrue(result["cached"])
+        self.assertFalse(result["live_verified"])
+        self.assertEqual(result["freshness"],"historical_unverified")
+        self.assertEqual(calls,[])
+        env["candles"].clear()
+        with self.assertRaisesRegex(ValueError,"No saved Dhan candles"):
+            asyncio.run(env["select_history"](False))
+        self.assertEqual(calls,[])
 
     def test_manual_run_scan_keeps_explicit_network_option(self):
         manual=ast.get_source_segment(source,functions["run_scan"])
