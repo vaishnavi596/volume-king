@@ -1,3 +1,5 @@
+> **CURRENT OWNER ORDER V2-OWNER-FT1-FT4-OFFLINE-FIRST-ROUND-BY-ROUND-20261118:** FT1→FT4 offline pattern first; NO server work, NO APK. Afterward joint audit and correct batch by batch. FT-2 frozen gateway/Flet parity test pending CI; see V2 Work Log.
+
 > **LATEST V2-S3-FILTER-WATCHLIST-CI33-SUCCESS-20261118:** full V2 offline CI #33 PASS at cf4ecf1; five filters shared for three app surfaces, blank sixth. Live/mobile not verified.
 
 > **CURRENT V2-S3-SHARED-FILTER-WATCHLIST-20261118:** Shared five-filter engine added to Watchlist 3m with offline tests; exact CI pending, no live source.

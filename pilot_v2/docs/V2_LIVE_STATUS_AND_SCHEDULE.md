@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **OWNER ORDER V2-OWNER-FT1-FT4-OFFLINE-FIRST-ROUND-BY-ROUND-20261118:** Finish existing FT-1→FT-4 *offline preparation* first; NO APK BUILD, NO ORACLE SERVER/BACKUP/DEPLOY and NO DHAN RENEWAL changes now. Then one joint FT packet audit and turn-by-turn scoped repairs+tests. FT-2 gateway/Flet schema parity offline regression added, CI pending. Last verified source #33 PASS. Same branch and app-owned settings. See Work Log.
+
+
 > **VERIFIED V2-S3-FILTER-WATCHLIST-CI33-SUCCESS-20261118:** Five-filter Watchlist reuse code cf4ecf1 exact V2 CI #33 run 44312318605 SUCCESS. Dashboard, Scanner, Watchlist share source-gated five results and empty sixth. Offline code only; real feed, Flet phone and APK pending. Continue app-first, no Oracle/token change.
 
 
