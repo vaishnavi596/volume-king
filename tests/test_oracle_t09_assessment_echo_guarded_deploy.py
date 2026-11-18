@@ -107,6 +107,23 @@ class T09AssessmentEchoDeployTests(unittest.TestCase):
         self.assertEqual(state["mv"],0)
         self.assertEqual(state["restarts"],0)
 
+    def test_preflight_error_code_is_reported_without_writes(self):
+        (self.root/"server.py").write_text("changed")
+        state, command, sudo = self.fake_io()
+        with patch.object(mod,"run",side_effect=command),patch.object(mod,"sudo",side_effect=sudo),patch.object(mod.os,"geteuid",return_value=1000):
+            self.assertEqual(mod.execute(),2)
+        self.assertEqual(mod.REPORT["error_code"], "HOLD_SHA_DRIFT_server.py")
+        self.assertEqual(mod.REPORT["error_stage"], "PREFLIGHT")
+        self.assertEqual(state["mv"],0)
+
+    def test_arbitrary_exception_text_is_not_disclosed(self):
+        state, command, sudo = self.fake_io()
+        with patch.object(mod.os,"geteuid",return_value=1000),patch.object(mod,"verified",side_effect=RuntimeError("private-token-do-not-log")):
+            self.assertEqual(mod.execute(),2)
+        self.assertEqual(mod.REPORT["error_type"], "RuntimeError")
+        self.assertNotIn("error_code",mod.REPORT)
+        self.assertEqual(mod.REPORT["status"],"HOLD_NO_PRODUCTION_WRITE")
+
     def test_success_replaces_only_server_and_checks_health(self):
         state, command, sudo = self.fake_io()
         def http(path):
