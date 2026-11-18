@@ -12,8 +12,11 @@
 - No live trading orders. No copying pairing keys/OAuth credentials, access tokens or stale live labels from legacy app. Future allowlisted preference migration only.
 - **Next:** read-only Oracle capability inventory; build secure server-side session + collector behind flag; then create a separately signed V2 Flet Android build workflow with actual identity verification and device installation. Legacy service stays enabled until successful cutover and rollback proof.
 
+## Current V2 master category-wise continuity register
+Read [V2_LIVE_STATUS_AND_SCHEDULE.md](docs/V2_LIVE_STATUS_AND_SCHEDULE.md) first. It lists verified last source CI #23, 12 work categories, prior failures and fixes, S1–S5 stages, owner workflow rules and exact future test-report record fields. Work Log is append-only and actual GitHub evidence wins over stale notes.
+
 ## New chat / handoff
-**Say:** **“बोट किंग इंप्रूव वर्जन का जर्नल देखो और काम आगे बढ़ाओ।”** Open [V2_HANDOFF.md](docs/V2_HANDOFF.md), then [V2_MASTER_JOURNAL.md](docs/V2_MASTER_JOURNAL.md) and [V2_WORK_LOG.md](docs/V2_WORK_LOG.md). Confirm the actual GitHub HEAD/last ten CI runs before changing anything.
+**Say:** **“बोट किंग इंप्रूव वर्जन का जर्नल देखो और काम आगे बढ़ाओ।”** Open [V2_HANDOFF.md](docs/V2_HANDOFF.md), then [V2_MASTER_JOURNAL.md](docs/V2_MASTER_JOURNAL.md) and [V2_WORK_LOG.md](docs/V2_WORK_LOG.md). Confirm the actual GitHub HEAD and ONLY the immediate previous commit's changed files and relevant CI before changing anything.
 
 ## V2-002A: isolated device-session prototype
 `pilot_v2/device_sessions.py` adds short-lived opaque bearer sessions, hashed in-memory identifiers and server-verified master action authorization. **No real server HTTP endpoint or Android cryptographic verifier is connected**. Test `pilot_v2/tests/test_device_sessions.py`; revoke/disable is immediate in this single-process mock only. Persistent/revocable multi-worker store and external verified identity are mandatory before deployment.

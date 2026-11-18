@@ -1,15 +1,15 @@
 # BOT KING V2 — CANONICAL MASTER JOURNAL
 **Owner lookup:** "बोट किंग इंप्रूव वर्जन का जर्नल देखो", "BOT KING IMPROVED V2 JOURNAL".
 
-This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF.md` (short current orientation) and `V2_WORK_LOG.md` (append-only detailed commands/tests). Old BOT KING `docs/BOT_KING_WORK_LOG.md` is preserved and is not the current V2 work queue.
+For current category status and next work order FIRST read [V2_LIVE_STATUS_AND_SCHEDULE.md](V2_LIVE_STATUS_AND_SCHEDULE.md). This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF.md` (short current orientation) and `V2_WORK_LOG.md` (append-only detailed commands/tests). Old BOT KING `docs/BOT_KING_WORK_LOG.md` is preserved and is not the current V2 work queue.
 
 ## Current status — 2026-11-18
 | Field | State / evidence |
 |---|---|
 | Working branch | `pilot/botking-v2-smart-gateway-20261118` |
 | New independent source root | `pilot_v2/` |
-| Last verified V2 source commit | `b45731646a295e0084b95fac3b30e36d8079d488` (V2-004D; FT-1 source CI pending) |
-| Last V2 CI | **#16 SUCCESS**, run `44298167518`, exact source commit `b457316` |
+| Last verified V2 source commit | `d8fe238d95d9f9fbf51453005f7a82589d0c98ec` (last source CI #23) |
+| Last V2 CI | **#23 SUCCESS**, run `44302676179`, exact SHA `d8fe238` |
 | New V2 application version/package | Planned **2.0.100** / `com.botking.bot_king_v2`, metadata ONLY |
 | V2 gateway | API prefix `/v2-pilot`, **feature flag OFF**, NOT served on Oracle |
 | Master device feature | Offline durable sessions + P-256 key enrollment/rotation prototypes; dynamic current-key login binding NOT DONE |
@@ -110,3 +110,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## FT2-ORACLE-PREFLIGHT-APK-GATE-20261118
 - Previous V2 #22 run `44302157577` exact `33c45eef` SUCCESS. New `oracle_preflight.py` emits read-only source SHA/systemd limited metadata (never credentials or provider request), `android_build_gate.py` validates distinct V2 package metadata and blocks misleading build assumptions, plus offline tests and operator guide. This is not a production Oracle audit result, only tooling; new CI pending. Next operator-produced preflight evidence and signed V2 workflow once secure app/data paths are ready.
+
+## V2-CATEGORY-CONTINUITY-20261118: canonical live category register
+- Previous latest V2 source commit `d8fe238d95d9f9fbf51453005f7a82589d0c98ec` and its 8 changed files reviewed; exact source CI #23 `44302676179` SUCCESS. Created 12-category live status table, complete stage summaries, S1–S5 next work schedule, latest-only CI check rule and test evidence logging format in `V2_LIVE_STATUS_AND_SCHEDULE.md`. Refreshed old header from stale #1 to verified #23. DOCS ONLY: no Oracle server changed, Dhan request, signed APK or Android install. Follow this register in new chats.
