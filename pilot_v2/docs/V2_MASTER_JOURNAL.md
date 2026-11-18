@@ -865,3 +865,9 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 - **ACTUAL V2 APP CHANGES:** Scanner and Options sections inside existing Dashboard have independent gold contextual Help icons targeting the corresponding local Settings Help Doctor topic, with correct selected navigation tab. Historical OHLC candles/price chart explicit unverified labels promoted to readable 14pt muted text; CE/PE section uses gold heading with HIST-only and trusted completed-cache label. Existing selected symbol/timeframe and expiry callbacks, cache/replay source checks, 5+blank filter slot, 3 bottom tabs preserved; no extra provider request.
 - **TEST:** Add focused AST/source regression for Scanner/Options help actions, honest historical labels, navigation count and forbidden legacy provider paths. Exact new V2 Actions CI must be checked; do not claim native Android visual parity.
 - **EXCLUSIONS:** No old V1 server preferences, Yahoo/Angel, credentials, Oracle, Dhan API, orders, APK or V1 writes. Next: verify exact SHA CI, continue grouped V1 UI/function parity only after PASS.
+
+
+## V2-FT2-SCANNER-OPTIONS-CI82-VERIFIED-20261118
+- Exact [V2 Pilot Contract CI #82](https://github.com/vaishnavi596/volume-king/actions/runs/44364272154), run `44364272154`, code commit `cc70f97fa63b95161f0642d7fe49ffcd8815ca7a`: COMPLETED SUCCESS, pilot-contract job SUCCESS, Python offline suite **241/241 OK** in 1.833s, no failed job steps.
+- Confirms Scanner and Options local contextual Help UI source checks, honest HIST-only display labels and all prior offline contracts. CI tests are synthetic/source checks, not Flet Android visual runtime or live authenticated Dhan operation.
+- Next safe batch: inspect V1 design/feature parity for missing local UI controls and implement V2-only grouped app functions with no V1/server provider setting changes. V1/Oracle/APK/orders unchanged.
