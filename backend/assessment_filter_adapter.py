@@ -17,7 +17,10 @@ def option_filter_rows(metrics=None):
     """
     rows = {key: {"id": key, "status": "unavailable",
                   "reason": "not_configured"} for key in FILTER_IDS}
-    if not isinstance(metrics, dict) or metrics.get("signal_eligible") is not False:
+    # Calculated Dhan metrics may omit source internally; an explicitly
+    # different provider must never be relabeled as Dhan context evidence.
+    if (not isinstance(metrics, dict) or metrics.get("signal_eligible") is not False
+            or metrics.get("source", "dhan") != "dhan"):
         return [rows[key] for key in FILTER_IDS]
     for key in ("max_pain", "pcr"):
         value = metrics.get(key)
