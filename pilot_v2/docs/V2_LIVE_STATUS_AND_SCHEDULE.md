@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-FT3-CANDLE-OPTIONS-FILTER-EVIDENCE-JOINT-OFFLINE-20261118:** FT3 synthetic candle/options/filter dependency regression added. Last source #36 PASS, new CI PENDING. Missing options means five filters WAIT despite valid candles; no Oracle/Dhan/APK. Next FT4 dry-run checklist then joint owner audit.
+
+
 > **CURRENT V2-FT3-APP-ROSTER-ONE-SHARED-QUOTE-LEASE-OFFLINE-20261118:** FT-3 offline Flet-selected 0/5/51/70 equities → one shared budgeted quote work lease + independent indexes, 429 and token-expiry guards. Previous FT-2 CI #35 SUCCESS, new CI PENDING; tests only, no Oracle/Dhan/API call, APK or server work. Four FT packets offline first, then joint audit.
 
 

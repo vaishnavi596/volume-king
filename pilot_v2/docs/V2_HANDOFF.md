@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-CANDLE-OPTIONS-FILTER-EVIDENCE-JOINT-OFFLINE-20261118:** FT3 candle/options/filter evidence dependency offline CI pending; FT1–FT4 preparation only, no APK/server/Dhan operations.
+
 > **CURRENT V2-FT3-APP-ROSTER-ONE-SHARED-QUOTE-LEASE-OFFLINE-20261118:** FT-3 owner-selected roster to shared synthetic SQLite quota lease integrated test pending CI. NO Oracle work or APK. Follow owner offline-then-joint-audit order.
 
 > **CURRENT V2-FT2-PROTECTED-HTTP-FLET-JOINT-OFFLINE-20261118:** FT-2 protected HTTP and Flet end-to-end offline contract tests pending CI; no server or APK operations. Follow owner FT1→FT4 offline-first order.
