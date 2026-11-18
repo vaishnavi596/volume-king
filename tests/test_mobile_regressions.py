@@ -337,7 +337,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('cached_batch = (dict(dhan_batch_cache["quotes"])', source)
         self.assertIn('dhan_batch_cache["generation"] == generation', source)
         self.assertIn('time.monotonic() - dhan_batch_cache["updated"] < 45', source)
-        self.assertIn('await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20)', source)
+        self.assertIn('selected_equities=all_watch_symbols()', source)
+        self.assertIn('dhan_feed.equity_quotes_for_watchlist,selected_equities),timeout=20)', source)
 
     def test_dhan_cached_quote_poll_is_foreground_only_and_rechecks(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
