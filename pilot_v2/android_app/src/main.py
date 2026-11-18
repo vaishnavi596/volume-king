@@ -316,6 +316,20 @@ def main(page: ft.Page):
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
+            def open_watchlist_chart(symbol):
+                """Select an approved equity in Scanner without a data fetch."""
+                try:
+                    scanner[0] = choose(scanner[0], state, symbol=symbol,
+                                        timeframe="3m")
+                    status.value = ("Watchlist 3m chart selected locally"
+                                    if save_scanner() else
+                                    "Watchlist 3m chart selected for session")
+                    current[0] = 0
+                    page.navigation_bar.selected_index = 0
+                except ScannerError:
+                    status.value = "Share no longer selected for chart"
+                render()
+                page.update()
             def switch_group(e):
                 group[0] = int(e.control.value)
                 watch_search[0] = ""
@@ -354,6 +368,9 @@ def main(page: ft.Page):
                             ft.Text(row["symbol"] + "  " + row["price"],
                                     color=GOLD, size=16,
                                     weight=ft.FontWeight.BOLD, expand=True),
+                            ft.TextButton("Chart",
+                                          on_click=lambda e, item=row["symbol"]:
+                                          open_watchlist_chart(item)),
                             ft.TextButton("Remove",
                                           on_click=lambda e, item=row["symbol"]: remove(e, item)),
                         ], spacing=4),

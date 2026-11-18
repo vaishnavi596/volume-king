@@ -66,6 +66,18 @@ class WatchlistParityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             watchlist_row("TCS", self.q, self.e, selected_equities=("TCS", "TCS"))
 
+    def test_watchlist_chart_button_routes_selected_equity_to_3m_scanner(self):
+        src = (SRC / "main.py").read_text(encoding="utf-8")
+        self.assertIn("def open_watchlist_chart(symbol):", src)
+        self.assertIn("scanner[0] = choose(scanner[0], state, symbol=symbol,", src)
+        self.assertIn('timeframe="3m"', src)
+        self.assertIn('ft.TextButton("Chart",', src)
+        self.assertIn("open_watchlist_chart(item)", src)
+        self.assertIn("page.navigation_bar.selected_index = 0", src)
+        self.assertIn("except ScannerError:", src)
+        self.assertNotIn("ServerAngelFeed(", src)
+        self.assertNotIn("get_yahoo(", src)
+
     def test_flet_row_is_compact_and_uses_current_selected_roster(self):
         src = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("watchlist_rows(", src)

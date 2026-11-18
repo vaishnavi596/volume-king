@@ -969,3 +969,10 @@
 - Exact [V2 Pilot Contract CI #85](https://github.com/vaishnavi596/volume-king/actions/runs/44365732818) at source SHA `ad917cb530b0badd1ca33721398453665b35f43b`, run `44365732818`: completed SUCCESS, pilot-contract job SUCCESS, **245/245 Python offline tests OK**, 1.152s.
 - Confirms V2 historical-only Super Five companion cards, local contextual Help, guarded candidate-to-3m Scanner action, no historic-to-live signal promotion. New functional shortlist test and all prior offline tests passed. No real Dhan or Android visual acceptance.
 - All code, tests and previous V2 journal edits in commit `ad917cb5`; this verified evidence is a docs-only follow-up. NEXT preserve V1 layout/function parity and implement next app-only feature batch after reviewing exact #85; V1/Oracle/APK/orders unchanged.
+
+
+## V2-FT2-WATCHLIST-TO-SCANNER-3M-CHART-20261118
+- **OWNER INTERRUPTION/CHECK:** Reported CI #83 run 44364734475 was a real failure (one stale source assertion), already fixed at exact run #84 44365018806 / SHA 09bc354e 244/244 PASS; later run #85 44365732818 / SHA ad917cb5 245/245 PASS. Previous V2 HEAD 8e0f2207 docs-only checked. Do not conflate historical fail with current branch.
+- **APP SOURCE:** Watchlist equity row gains a Chart button that uses validated current selected-equity roster via `scanner_state.choose`, selects 3m in existing Dashboard Scanner, synchronizes bottom navigation, and persists only local scanner choice. Missing/deleted symbols fail closed. No market-data request, new server settings or live proof.
+- **TEST:** New `test_ft2_watchlist_parity.py` regression guards actual Chart click, 3m timeframe, navigation and legacy-provider exclusion. Exact corrective CI PENDING/UNVERIFIED; no Android runtime claim.
+- **BOUNDARY:** V2 pilot-only. No V1 code/settings, Angel One/Yahoo, Oracle production, Dhan requests/tokens, live orders or APK. NEXT inspect exact new CI; on PASS continue grouped screen feature migration.
