@@ -1,3 +1,5 @@
+> **VERIFIED V2-FT2-GATEWAY-FLET-PARITY-CI34-SUCCESS-20261118:** FT2 frozen schema parity CI #34 PASS at f5191e9; owner forbids server activity/APK now. Continue remaining offline FT2 and FT3 contracts, then joint staged audit.
+
 > **CURRENT OWNER ORDER V2-OWNER-FT1-FT4-OFFLINE-FIRST-ROUND-BY-ROUND-20261118:** FT1→FT4 offline pattern first; NO server work, NO APK. Afterward joint audit and correct batch by batch. FT-2 frozen gateway/Flet parity test pending CI; see V2 Work Log.
 
 > **LATEST V2-S3-FILTER-WATCHLIST-CI33-SUCCESS-20261118:** full V2 offline CI #33 PASS at cf4ecf1; five filters shared for three app surfaces, blank sixth. Live/mobile not verified.
