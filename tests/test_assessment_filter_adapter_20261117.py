@@ -23,6 +23,24 @@ class AssessmentAdapterTests(unittest.TestCase):
                 self.assertTrue(all(row["status"] == "unavailable"
                                     for row in option_filter_rows(payload)))
 
+    def test_explicit_foreign_provider_never_becomes_dhan_context(self):
+        for source in ("yahoo", "angel", "Angel One", "", None):
+            with self.subTest(source=source):
+                payload = {"pcr": 0.85, "max_pain": 25100,
+                           "freshness": "unverified", "signal_eligible": False,
+                           "source": source}
+                self.assertTrue(all(row["status"] == "unavailable"
+                                    for row in option_filter_rows(payload)))
+        # Source omitted in this trusted internal calculator stays compatible;
+        # explicitly Dhan-labeled calculations must also remain informational.
+        allowed = {"pcr": 0.85, "max_pain": 25100,
+                   "freshness": "unverified", "signal_eligible": False,
+                   "source": "dhan"}
+        rows = option_filter_rows(allowed)
+        self.assertEqual([row["id"] for row in rows
+                          if row["status"] == "available"], ["max_pain", "pcr"])
+        self.assertFalse(any("bullish" in row or "score" in row for row in rows))
+
     def test_invalid_numbers_never_render(self):
         rows = option_filter_rows({"pcr": float("nan"), "max_pain": -5,
                                    "freshness": "unverified", "signal_eligible": False})
