@@ -1,3 +1,5 @@
+> **VERIFIED V2-FT3-CANDLE-REPLAY-CI58-VERIFIED-20261118:** FT3 last completed candle rollback protection source `56d8103` CI #58 `44333928669` SUCCESS. Real Dhan/Android not tested; release HOLD. Next offline FT3 source-contract audit. No Oracle/APK/token actions.
+
 > **CURRENT V2-JOINT-FT3-CANDLE-LAST-TIMESTAMP-REPLAY-GATE-20261118:** New offline per-symbol/timeframe last completed candle timestamp replay protection + regression tests committed, CI PENDING. Previous source #57 PASS. No Oracle/Dhan/APK operation.
 
 > **VERIFIED V2-FT3-OBSERVATION-CI57-VERIFIED-20261118:** FT3 option/five-filter observation rollback guard exact SHA `7a862c8` CI #57 `44333231344` SUCCESS; per-factor last-good, no false LIVE. FT1–FT4 real phone/Oracle/Dhan/APK gates still BLOCKED. Next offline batch only.
