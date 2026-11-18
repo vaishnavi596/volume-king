@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **FT3 V2-FT3-APP-REFRESH-INTENT-20261118:** Options evidence source SHA 9ee326a exact CI #43 SUCCESS. App-owned Smart Data refresh INTENT (0/5/51/70, 3 indexes, IST market gate, manual after close, 1m/3m) with synthetic tests committed; new CI PENDING. NO Dhan/Oracle/APK.
+
+
 > **CURRENT V2-FT3-OPTION-METRICS-CANDLE-FILTER-OFFLINE-20261118:** FT3 Flet normalized option-chain metrics CE/PE OI, PCR, max pain source validation + last-good and preserved five WAIT filters, offline cross-module tests pending CI. Previous #42 PASS. No Oracle, APK, Dhan or token changes; original FT1→FT4 batch policy stays.
 
 

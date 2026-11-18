@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-APP-REFRESH-INTENT-20261118:** FT3 options evidence CI #43 SUCCESS; Flet local no-network refresh intent code/test pending CI. Next verify, continue offline FT3, never server/APK yet.
+
 > **CURRENT V2-FT3-OPTION-METRICS-CANDLE-FILTER-OFFLINE-20261118:** FT3 offline option-evidence normalization joined to candle/filter display without inventing signals; exact CI pending, no real Dhan/Oracle/APK.
 
 > **LATEST V2-FT2-ISOLATED-FEED-CI41-CI42-SUCCESS-20261118:** exact source #41 and #42 full offline CI PASS for independent app quote/index revision lanes + protected synthetic HTTP→Flet joint test. Next FT3 offline joint data, no Oracle/APK.
