@@ -19,6 +19,7 @@ from local_help_doctor import diagnose, help_for
 from shared_filter_context import shared_filter_context
 from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
 from local_settings_backup import export_local_backup, parse_local_backup, LocalBackupError
+from paper_preview import preview_manual_paper_risk
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -110,6 +111,10 @@ def main(page: ft.Page):
     chart_window = [DEFAULT_WINDOW]  # Local history display only.
     backup_text = [""]
     backup_confirm = [False]  # Explicit consent for replacing local preferences.
+    paper_inputs = {"side": "BUY", "entry": "100", "quantity": "1",
+                    "stop_pct": "2", "target_pct": "4",
+                    "capital": "10000", "max_risk": "1000", "risk_pct": "5"}
+    paper_result = ["Manual paper-only calculation; no orders or market data"]
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -517,6 +522,22 @@ def main(page: ft.Page):
                     status.value = "Invalid refresh interval"
                 render()
                 page.update()
+            def calculate_paper_preview(e):
+                try:
+                    result = preview_manual_paper_risk(
+                        paper_inputs["side"], paper_inputs["entry"],
+                        paper_inputs["quantity"], paper_inputs["stop_pct"],
+                        paper_inputs["target_pct"], paper_inputs["capital"],
+                        paper_inputs["max_risk"], paper_inputs["risk_pct"])
+                    paper_result[0] = (
+                        "PAPER ONLY · Stop ₹" + f'{result["stop"]:,.2f}' +
+                        " · Target ₹" + f'{result["target"]:,.2f}' +
+                        " · Planned risk ₹" + f'{result["planned_risk"]:,.2f}' +
+                        " · No orders")
+                except (ValueError, TypeError, OverflowError):
+                    paper_result[0] = "Invalid paper inputs / risk exceeds limit; no orders"
+                render()
+                page.update()
             def prepare_local_backup(e):
                 backup_text[0] = export_local_backup(
                     state, scanner[0], smart[0], analysis_slots[0])
@@ -577,6 +598,34 @@ def main(page: ft.Page):
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
                 ft.Text("Enable / Disable / Revoke require verified device login"),
                 ft.Text("Dhan token renewal only via authorized Master workflow"),
+                ft.Text("Manual PAPER risk preview · no execution", color=GOLD,
+                        weight=ft.FontWeight.BOLD),
+                ft.Dropdown(label="Paper side", value=paper_inputs["side"],
+                            width=160,
+                            options=[ft.dropdown.Option("BUY", "BUY"),
+                                     ft.dropdown.Option("SELL", "SELL")],
+                            on_change=lambda e: paper_inputs.__setitem__(
+                                "side", e.control.value)),
+                ft.Row([
+                    ft.TextField(label=label, value=paper_inputs[key],
+                                 width=138, text_size=14,
+                                 on_change=lambda e, key=key:
+                                 paper_inputs.__setitem__(key, e.control.value or ""))
+                    for key, label in (
+                        ("entry", "Manual entry ₹"),
+                        ("quantity", "Quantity"),
+                        ("stop_pct", "Stop %"),
+                        ("target_pct", "Target %"),
+                        ("capital", "Paper capital ₹"),
+                        ("max_risk", "Max planned risk ₹"),
+                        ("risk_pct", "Max risk %"),
+                    )
+                ], wrap=True, spacing=5),
+                ft.TextButton("Calculate paper risk (no orders)",
+                              on_click=calculate_paper_preview),
+                ft.Text(paper_result[0], size=14, color=MUTED),
+                ft.Text("No BUY/SELL/EXIT, no broker, no automatic paper bot",
+                        size=14, color=MUTED),
                 ft.Text("System Health / Error Doctor", color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text("OFFLINE / provider not connected", color=MUTED),
                 ft.Text("Error Doctor: " + " · ".join(diagnose(storage_error or smart_error or "unavailable")[:2]), color=MUTED),
