@@ -216,6 +216,15 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('remaining=max(remaining,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))',poll)
         self.assertLess(poll.index('remaining=max(remaining'),poll.index("if remaining==0:"))
 
+    def test_manual_refresh_respects_selected_equity_route_cooldown(self):
+        # Manual and automatic demand share the same broker-safe 429 clock.
+        manual=ast.get_source_segment(self.source,self.functions["refresh_all_dhan_quotes"])
+        self.assertIn('cooldown=dhan_feed.cooldown_remaining("/v2/snapshot")',manual)
+        self.assertIn('cooldown=max(cooldown,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))',manual)
+        self.assertLess(manual.index('cooldown=max(cooldown'),manual.index('if cooldown>0:'))
+        self.assertLess(manual.index('if cooldown>0:'),manual.index('await refresh_watch_batch()'))
+        self.assertLess(manual.index('if cooldown>0:'),manual.index('await refresh_dhan_index_quotes(force=True)'))
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)
