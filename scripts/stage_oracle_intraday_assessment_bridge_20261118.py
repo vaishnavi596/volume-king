@@ -80,6 +80,20 @@ def stage_source(source):
     if "timeframe" not in {x.arg for x in call.keywords}:
         raise ValueError("CANONICAL_TIMEFRAME_MISSING")
     scope_expression = safe_publisher_scope(candle, call)
+    # A local import in cached_candles is not visible to dhan_intraday.
+    # Reject the old helper's implicit global-name assumption. Do not use
+    # broad exception suppression as evidence that the cache write works.
+    def local_imported(fn, name):
+        return any(
+            isinstance(n, (ast.ImportFrom, ast.Import))
+            and any((a.asname or a.name.split(".")[0]) == name
+                    for a in n.names)
+            for n in ast.walk(fn)
+        )
+    if (any(local_imported(candle, name) for name in ("publish", "current_scope"))
+            and not all(local_imported(route, name)
+                        for name in ("publish", "current_scope"))):
+        raise ValueError("INTRADAY_PUBLISH_BINDINGS_UNAVAILABLE")
     # The real Oracle canonical candle publisher carries a five-field
     # Assessment payload. A wrapper that publishes only {"bars": rows}
     # would silently lose observed_at, interval, freshness and eligibility.
