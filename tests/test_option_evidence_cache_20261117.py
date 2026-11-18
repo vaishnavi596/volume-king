@@ -29,6 +29,19 @@ class OptionEvidenceCacheTests(unittest.TestCase):
         today[0] = date(2026, 11, 20)
         self.assertIsNone(cache.latest("NIFTY"))
 
+    def test_explicit_foreign_source_never_enters_dhan_cache(self):
+        cache = OptionEvidenceCache(today=lambda: date(2026, 11, 18))
+        base = {"pcr": 0.91, "freshness": "unverified",
+                "signal_eligible": False}
+        for foreign in ("yahoo", "angel", "", None, True):
+            with self.subTest(source=foreign):
+                self.assertFalse(cache.put(
+                    "NIFTY", "2026-11-19", {**base, "source": foreign}))
+                self.assertIsNone(cache.latest("NIFTY"))
+        self.assertTrue(cache.put(
+            "NIFTY", "2026-11-19", {**base, "source": "dhan"}))
+        self.assertEqual(cache.latest("NIFTY")["source"], "dhan")
+
     def test_reject_unverified_eligibility_and_bound_capacity(self):
         cache = OptionEvidenceCache(max_entries=1)
         self.assertFalse(cache.put("A", "2026-11-19", {"signal_eligible": True,
