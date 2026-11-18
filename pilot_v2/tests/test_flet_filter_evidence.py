@@ -1,0 +1,59 @@
+"""Offline source-gated filter display with inert sixth slot."""
+import importlib.util
+import sys
+from pathlib import Path
+import unittest
+
+p = Path(__file__).resolve().parents[1] / "android_app" / "src" / "filter_evidence.py"
+spec = importlib.util.spec_from_file_location("v2_filter_evidence_test",p)
+m = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = m
+spec.loader.exec_module(m)
+
+def sample():
+    return {key: {"direction":"bullish","source":"dhan","observed_at":1730000000,
+                  "eligible":True} for key in m.FILTER_KEYS}
+
+class FilterEvidenceTests(unittest.TestCase):
+    def test_default_five_wait_sixth_blank_and_no_percentages(self):
+        state=m.LocalFilterEvidence()
+        rows=state.rows("NIFTY","1m")
+        self.assertEqual(len(rows),6)
+        self.assertEqual([s for _,s in rows[:5]],["WAIT"]*5)
+        self.assertEqual(rows[5],("",""))
+        self.assertFalse(any("%" in val for _, val in rows))
+
+    def test_untrusted_partial_or_invalid_payload_never_activates(self):
+        state=m.LocalFilterEvidence()
+        v=sample()
+        with self.assertRaises(m.FilterEvidenceError):
+            state.accept("NIFTY","1m",1,v,allowed_symbols=("NIFTY",))
+        with self.assertRaises(m.FilterEvidenceError):
+            state.accept("NIFTY","1m",1,{"pcr":v["pcr"]},allowed_symbols=("NIFTY",),trusted_transport=True)
+        invalid=sample()
+        invalid["news"]={"direction":"bullish","source":"dhan","observed_at":1,"eligible":True}
+        with self.assertRaises(m.FilterEvidenceError):
+            state.accept("NIFTY","1m",1,invalid,allowed_symbols=("NIFTY",),trusted_transport=True)
+        for change in ({"eligible":False},{"source":"rss"},{"observed_at":0},{"direction":"WAIT"}):
+            bad=sample()
+            bad["pcr"].update(change)
+            with self.subTest(change=change),self.assertRaises(m.FilterEvidenceError):
+                state.accept("NIFTY","1m",1,bad,allowed_symbols=("NIFTY",),trusted_transport=True)
+        self.assertEqual(state.rows("NIFTY","1m")[0][1],"WAIT")
+
+    def test_complete_trusted_snapshot_is_history_only_last_good(self):
+        state=m.LocalFilterEvidence()
+        self.assertTrue(state.accept("TCS","3m",2,sample(),allowed_symbols=("TCS",),trusted_transport=True))
+        self.assertFalse(state.accept("TCS","3m",1,sample(),allowed_symbols=("TCS",),trusted_transport=True))
+        self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],"BULLISH HIST")
+        self.assertEqual(state.rows("TCS","1m",selected_equities=("TCS",))[0][1],"WAIT")
+        self.assertEqual(state.rows("TCS","3m")[0][1],"WAIT")
+        with self.assertRaises(m.FilterEvidenceError):
+            state.accept("TCS","3m",3,{"pcr":sample()["pcr"]},allowed_symbols=("TCS",),trusted_transport=True)
+        self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],"BULLISH HIST")
+        state.forget_removed(())
+        self.assertEqual(state.rows("TCS","3m",selected_equities=("TCS",))[0][1],"WAIT")
+        self.assertEqual(state.rows("TCS","3m")[-1],("",""))
+
+if __name__=="__main__":
+    unittest.main()

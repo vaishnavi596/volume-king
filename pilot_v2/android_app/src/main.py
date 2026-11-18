@@ -5,6 +5,7 @@ from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
 from quote_view import DeviceQuoteView
 from candle_history import LocalCandleHistory
+from filter_evidence import LocalFilterEvidence
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -66,6 +67,7 @@ def main(page: ft.Page):
 
     quote_view = DeviceQuoteView()  # No live network producer until authenticated V2 integration.
     candle_history = LocalCandleHistory()  # No fabricated candles; accepts validated local input only.
+    filter_evidence = LocalFilterEvidence()  # No source-gated evidence yet; all five WAIT.
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -100,7 +102,9 @@ def main(page: ft.Page):
                 *[ft.Text(candle_history.summary(s, "1m")) for s in ("NIFTY", "BANKNIFTY", "SENSEX")],
                 ft.Text("Index signals: 1m · source unavailable"),
                 ft.Divider(),
-                ft.Text("Five filters: WAIT (no verified evidence)"),
+                ft.Text("Five filters — source-gated, no fabricated percentage"),
+                *[ft.Text(f"{label}: {value}") for label, value in
+                  filter_evidence.rows("NIFTY", "1m")[:5]],
                 ft.Text("Sixth filter: reserved / blank"),
                 ft.Text("Scanner", size=17, weight=ft.FontWeight.BOLD),
                 ft.Dropdown(label="Scanner symbol", width=240, value=scanner[0].symbol,
@@ -112,7 +116,10 @@ def main(page: ft.Page):
                 ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
                 ft.Text(candle_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
-                ft.Text("Scanner filter signals: WAIT — verified factors absent"),
+                *[ft.Text(f"{label}: {value}") for label, value in
+                  filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
+                                       selected_equities=state.selected)[:5]],
+                ft.Text("Sixth filter: reserved / blank"),
                 ft.Text("Super Five: no verified history / ranking data"),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
@@ -131,6 +138,7 @@ def main(page: ft.Page):
                 state.remove(group[0], item)
                 quote_view.forget_removed(state.selected)
                 candle_history.forget_removed(state.selected)
+                filter_evidence.forget_removed(state.selected)
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
