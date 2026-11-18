@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST BK-20261118-CI1954-COOLDOWN-SELECTED** — #1954 `44276316586` full offline SUCCESS at `00fb0c9`. Release-readiness audit found selected LTP transport uses `/dhan/selected-ltp-batch` while two mobile scheduling guards only checked `/v2/snapshot`. Joint source+regression+Journal commit adds selected-route 429 cooldown to Watchlist page-entry and auto-poll while retaining legacy/global guard, independent index lane, quote pacing. Result: full CI for new SHA PENDING. NEXT exact CI, joint release blocker matrix, then APK gated. No Oracle production/Dhan/orders/APK. Detailed journal BK-20261118-CI1954-COOLDOWN-SELECTED.
+
+
 > **LATEST BK-20261118-SDC-CI1953-SELECTED-WRAPPER — WHY:** #1953 `44275761822` at `ef7cc5f` full offline **SUCCESS**, then selected batch wrapper audit identified unhashable malformed saved roster could throw TypeError before validation. **ACTION:** One joint adapter+regression+Journal+Index batch validates equity members before hashing and adds offline mocked 0/5/51/70 zero/one selected-call plus bad-roster no-network checks. Existing 404-only fallback, 429, separate indices unchanged. **RESULT:** New exact SHA/CI PENDING. **NEXT:** Full CI then remaining Smart Data/Android release gates. No Oracle/API/orders/APK. See journal BK-20261118-SDC-CI1953-SELECTED-WRAPPER.
 
 

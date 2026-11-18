@@ -199,6 +199,23 @@ class WatchlistWiringTests(unittest.TestCase):
                         stage.index('cached_batch = (dict(dhan_batch_cache["quotes"])'))
         self.assertIn("dhan_feed.equity_quotes_for_watchlist,selected_equities",stage)
 
+    def test_selected_quote_route_cooldown_gates_navigation_and_auto_poll(self):
+        # No new network fanout: use both existing read-only endpoint cooldowns.
+        navigation=self.source.split("    def render_page(i):",1)[1].split(
+            "    def remember_scroll",1)[0] if False else self.source.split(
+                "    def render_page(i):",1)[1].split("    def select(",1)[0]
+        # render_page is followed by other functions; inspect just its own
+        # launch guard rather than relying on unrelated cooldown code.
+        begin=self.source.index("    def render_page(i):")
+        end=self.source.index("    def remember_scroll",begin) if "    def remember_scroll" in self.source[begin:] else begin+4000
+        launch=self.source[begin:begin+4500]
+        self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0',launch)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0',launch)
+        poll=ast.get_source_segment(self.source,self.functions["dhan_quote_poll"])
+        self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")',poll)
+        self.assertIn('remaining=max(remaining,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))',poll)
+        self.assertLess(poll.index('remaining=max(remaining'),poll.index("if remaining==0:"))
+
     def test_known_symbols_are_unique(self):
         assign = next(node for node in ast.walk(self.tree)
                       if isinstance(node, ast.Assign)

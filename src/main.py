@@ -2159,6 +2159,9 @@ def app_main(page:ft.Page):
                     poll_due=False
                 if (poll_due and not watch_batch_busy[0]):
                     remaining=dhan_feed.cooldown_remaining("/v2/snapshot")
+                    # The actual selected-equity request has its own cooldown;
+                    # respect it in addition to the legacy Oracle snapshot.
+                    remaining=max(remaining,dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch"))
                     if remaining==0:
                         if closing_bootstrap:
                             closed_equity_bootstrap_generation[0]=provider_generation[0]
@@ -5861,7 +5864,8 @@ console.log('BOT KING Lightweight Charts ready');
                 and not watch_batch_busy[0]
                 and (watch_batch_last_attempt[0]<=0
                      or time.monotonic()-watch_batch_last_attempt[0]>=60)
-                and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
+                and dhan_feed.cooldown_remaining("/v2/snapshot")==0
+                and dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0):
             page.run_task(refresh_watch_batch)
         if changed and i==5 and not chart_load_busy[0]:
             # A watchlist quote may carry 5m bars, but it is not necessarily
