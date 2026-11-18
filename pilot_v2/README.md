@@ -65,3 +65,6 @@ Separate V2 FastAPI GET quote/index shell is OFF by default; requires trusted du
 
 ## Oracle operator audit and APK identity preflight
 See `docs/V2_ORACLE_PREFLIGHT_AND_BUILD_GATES.md`. These new scripts check read-only local Oracle source/service metadata and V2 metadata prebuild consistency. They do **not** deploy a server, renew a Dhan token, build an APK or prove the Android signing certificate.
+
+## S1 provider readiness contract
+`collector_readiness.py` is a pure fail-closed gate based on explicit operator-observed runtime capabilities and token state. It separates equity/index quote endpoints and does not contact Dhan, validate entitlements, or substitute for real Oracle audit evidence.

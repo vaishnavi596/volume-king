@@ -164,3 +164,9 @@
 - FILES: created `pilot_v2/docs/V2_LIVE_STATUS_AND_SCHEDULE.md`; updated this append-only log, Master Journal current CI header, Handoff and README. S1 Oracle read-only evidence is NEXT; incomplete broker readiness source was not committed or falsely reported as passed.
 - TEST EVIDENCE RULE: Each future result logged by category with SHA, CI run, error/correction, source PASS versus real Oracle/device pass and NEXT. These entries are written during active work only, not automatically in the background.
 - ORACLE_CHANGED=false, SERVICE_RESTARTED=false, DHAN_REQUESTS=0, LIVE_ORDERS=0, APK_BUILT=false. This docs-only update should not launch the V2 source CI because docs paths were excluded; verify actual branch HEAD to confirm GitHub save.
+
+## 2026-11-18 — S1-DHAN-CAPABILITY-FAIL-CLOSED-20261118 — category 05/S1 read-only Dhan readiness planning
+- Latest-only check: previous `98b099fb49274e3030d02734c05a192077a28f96` changed 5 journal/docs files; no workflow run by docs-only path exclusion. Last source `d8fe238d95d9f9fbf51453005f7a82589d0c98ec`, CI #23 `44302676179` SUCCESS.
+- Added `pilot_v2/collector_readiness.py` with explicit Oracle-observed/quote-equity/quote-index/broker-auth capability flags, token state gate and separate provider quote work lanes. No Dhan HTTP calls and no auto token renewal. Unverified Oracle blocks all work even if synthetic flags optimistic.
+- Tests `pilot_v2/tests/test_collector_readiness.py`: zero/5/51/70, index-only independent route, missing entitlement, expired/nonrenewable OAuth, invalid evidence flags and no false 'live' status. New exact CI pending.
+- SECURITY: 'ready to stage' means only contract planning, never permission to access production. Actual Oracle operator read-only preflight not received. No production changes/restarts, Dhan requests, orders or APK; NEXT inspect CI and seek real operator runtime inventory before trusted provider call implementation.

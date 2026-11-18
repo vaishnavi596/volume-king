@@ -113,3 +113,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## V2-CATEGORY-CONTINUITY-20261118: canonical live category register
 - Previous latest V2 source commit `d8fe238d95d9f9fbf51453005f7a82589d0c98ec` and its 8 changed files reviewed; exact source CI #23 `44302676179` SUCCESS. Created 12-category live status table, complete stage summaries, S1–S5 next work schedule, latest-only CI check rule and test evidence logging format in `V2_LIVE_STATUS_AND_SCHEDULE.md`. Refreshed old header from stale #1 to verified #23. DOCS ONLY: no Oracle server changed, Dhan request, signed APK or Android install. Follow this register in new chats.
+
+## S1-DHAN-CAPABILITY-FAIL-CLOSED-20261118
+- Previous commit `98b099fb49274e3030d02734c05a192077a28f96` docs-only (five V2 files), no source CI expected; preceding source `d8fe238d95d9f9fbf51453005f7a82589d0c98ec` #23 `44302676179` PASS. Added pure readiness matrix for Dhan token, verified Oracle runtime, equity/index quote route separation and 0/5/51/70 demand. Synthetic evidence flags never imply actual broker capability; exact new CI pending. No Oracle/Dhan/Android changes.

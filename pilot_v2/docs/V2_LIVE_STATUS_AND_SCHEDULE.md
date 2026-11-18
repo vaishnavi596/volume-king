@@ -40,7 +40,7 @@ Updated 2026-11-18. **This is the canonical start page for the next chat.** Use 
 - Above stage descriptions are OFFLINE evidence; no online market-data or installed APK proof. Each exact commit/run and failure detail remains in `V2_WORK_LOG.md`.
 
 ## Next schedule — stages, not calendar promises
-**S1 — NEXT:** Get actual **read-only** Oracle inventory from an authorized operator if access exists; otherwise continue offline Dhan capability/status/mapping and trusted collector contracts. Distinguish real Oracle evidence from synthetic assumptions.
+**S1 — IN PROGRESS (offline collector capability gate added; actual Oracle report still pending):** Get actual **read-only** Oracle inventory from an authorized operator if access exists; otherwise continue offline Dhan capability/status/mapping and trusted collector contracts. Distinguish real Oracle evidence from synthetic assumptions.
 **S2 — Shared Gateway + Dhan:** One authenticated, rate-limited data source for 1–3 phones; global 70+3 demand; 429 cooldown; revision/freshness/cache and per-device permissions, protected feature-flag OFF staging tests.
 **S3 — Candles/5 filters + Android:** Develop candles/options/assessment evidence and Android UI *in parallel against one frozen API contract*. Preserve last good with honest stale labels, WAIT if evidence absent; sixth blank.
 **S4 — V2 APK:** Separate build pipeline, signed package/version/certificate verification, first-phone functional smoke. No old-app replacement.
@@ -54,3 +54,6 @@ Updated 2026-11-18. **This is the canonical start page for the next chat.** Use 
 5. Production writes/restarts, Dhan OAuth consent, real external device enrolment, order access, signing secrets and old-app shutdown require their own secure authorization. Ordinary isolated GitHub V2 code/test/journal work may proceed without repeated micro-approval.
 
 **New chat prompt:** "BOT KING V2 का Journal पढ़कर पिछला अधूरा काम आगे बढ़ाओ". Fetch branch HEAD + previous commit CI, read this register/Work Log, then continue from the earliest incomplete safe gate instead of asking for the project again.
+
+## Latest S1 activity — S1-DHAN-CAPABILITY-FAIL-CLOSED-20261118
+- Prior source CI #23 PASS. A pure offline quote capability planner and tests now require actual Oracle observation + Dhan authentication and separate index/equity entitlements before provider work can even be planned. **Real Oracle evidence still NOT supplied; GitHub synthetic PASS cannot certify it.** New commit CI pending. Category 05 remains PARTIAL; next verify exact CI, then real read-only Oracle report.
