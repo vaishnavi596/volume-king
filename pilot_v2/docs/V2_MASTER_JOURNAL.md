@@ -104,3 +104,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## FT-2-API-MOCK-MOBILE-20261118
 - Previous commit `ad5b84ef9e9551bbfe61ca2fd2a84aa6848a8c79` CI #20 PASS. New `api_contract.py` + `mobile_contract_mock.py` + tests implement one versioned, default-off read-only schema. Code/tests/docs single commit, CI pending; not a deployed server or built mobile.
+
+## FT-2-HTTP-OFF-V2-FLET-SHELL (2026-11-18)
+- Previous source `b705ff0` CI #21 PASS. New `http_gateway.py` exposes only authorized GET quotes/indices when explicitly enabled with durable session and server-only provider; default is no routes. New independent `pilot_v2/android_app` 2.0.100 offline Flet shell and tests. Full new CI pending. No Oracle production, Dhan requests, live orders or APK.

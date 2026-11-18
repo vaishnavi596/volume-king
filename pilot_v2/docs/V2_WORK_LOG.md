@@ -144,3 +144,10 @@
 - Latest-only preflight: previous commit `ad5b84ef9e9551bbfe61ca2fd2a84aa6848a8c79`, four actual changed files, exact CI #20 `44300533594` PASS. #19 historical failure and correction retained.
 - Code `pilot_v2/api_contract.py`: typed strict v1 `/v2-pilot` read-only snapshot contract default disabled, valid Dhan source, unverified freshness, never live-orders, selected 5 watchlists global max70 and separate three indices. `pilot_v2/mobile_contract_mock.py`: offline Android fixture selection and revision last-good quote cache. `pilot_v2/tests/test_api_mobile_contract.py` checks 0/5/51/70, partial, stale, fake-live, unexpected token fields and unauthorized extra symbols.
 - All synthetic/offline, no HTTP endpoint, no Android signed APK, no Oracle production deploy, Dhan request or orders. CI for this new SHA pending. NEXT FT-2 actual default-off authenticated HTTP route + Android source identity workflow after Oracle read-only readiness.
+
+## 2026-11-18 — FT-2-HTTP-OFF-V2-FLET-SHELL: mixed HTTP gateway + Flet app shell
+- PRECHECK: last commit `b705ff0494c3a6d35747d1635024e8538cc3cb2d`, its seven changed files and V2 #21 `44301143072` SUCCESS. No automatic ten-commit scan.
+- SOURCE: V2-only default-OFF FastAPI module `http_gateway.py` creates only GET /v2-pilot/quotes and /v2-pilot/indices when enabled with independent durable device sessions and trusted server-only callback. Every read checks bearer and per-feed scope, and validates strict read-only schema; no public admin/order/login/publish routes.
+- ANDROID: separate `pilot_v2/android_app/pyproject.toml` version 2.0.100 and `src/main.py` offline shell; no mobile APK compiled or market data displayed as live. Package signing and distinct installed Android ID MUST be verified before shipping.
+- TEST: V2-only `test_http_gateway.py` and `test_android_identity.py`, workflow pinned FastAPI/HTTPX for regression. Exact CI result PENDING; upstream Dhan/OAuth, registered Keystore identity, real Oracle deployment and APK all untouched.
+- NEXT: inspect new CI, correct as needed; then server capability preflight and separate V2 Android build pipeline + data integration.

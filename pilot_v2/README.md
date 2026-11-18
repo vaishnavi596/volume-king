@@ -56,3 +56,6 @@ See [V2_FAST_TRACK_AUDIT.md](docs/V2_FAST_TRACK_AUDIT.md): four grouped work pac
 
 ## FT-2 shared API / Android mock
 Pure `api_contract.py` and `mobile_contract_mock.py` define v1 read-only selected-share and index messages with explicit unverified data freshness. Not a deployed API or installable mobile app.
+
+## FT-2 — feature-flagged HTTP shell and Flet V2 source
+Separate V2 FastAPI GET quote/index shell is OFF by default; requires trusted durable sessions and backend snapshot provider when enabled. V2 Android Flet 2.0.100 shell is offline only. Neither is production deployed nor a signed APK.
