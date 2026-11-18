@@ -187,6 +187,16 @@ def execute():
         main()
     except BaseException as exc:
         REPORT["error_type"] = type(exc).__name__
+        # Report only fixed internal guard codes; never echo arbitrary exceptions,
+        # HTTP bodies, secrets, subprocess stderr or authentication material.
+        reason = str(exc) if isinstance(exc, RuntimeError) else ""
+        allowed = ("HOLD_", "COMMAND_FAILED_", "SERVICE_INACTIVE",
+                   "HEALTH_NOT_200", "UNAUTH_ASSESSMENT_NOT_403",
+                   "LOCAL_HTTP_UNAVAILABLE", "PAIRING_KEY_UNAVAILABLE",
+                   "AUTH_ASSESSMENT_", "ASSESSMENT_",
+                   "POSTFLIGHT_HEALTH_AUTH_FAILED_", "RUN_AS_OPC_NOT_ROOT")
+        if reason.startswith(allowed) and len(reason) <= 128:
+            REPORT["error_code"] = reason
         REPORT["error_stage"] = "AFTER_FIRST_WRITE" if mutated else "PREFLIGHT"
         if mutated:
             try:
