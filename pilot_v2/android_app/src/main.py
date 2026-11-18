@@ -3,7 +3,7 @@ import flet as ft
 from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
-from quote_view import DeviceQuoteView
+from feed_inbox import DeviceFeedInbox
 from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
 
@@ -65,7 +65,7 @@ def main(page: ft.Page):
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
 
-    quote_view = DeviceQuoteView()  # No live network producer until authenticated V2 integration.
+    quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     candle_history = LocalCandleHistory()  # No fabricated candles; accepts validated local input only.
     filter_evidence = LocalFilterEvidence()  # No source-gated evidence yet; all five WAIT.
     current = [0]
