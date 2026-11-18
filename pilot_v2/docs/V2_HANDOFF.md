@@ -1,3 +1,5 @@
+> **LATEST V2-S3-DEVICE-PERSISTENCE-CI27-SUCCESS-20261118:** V2 local Watchlist save source SHA 58ea34f CI #27 SUCCESS; Flet device run/Android install not yet tested. Next existing app batch.
+
 > **CURRENT V2-S3-FLET-DEVICE-LOCAL-WATCHLIST-PERSISTENCE-20261118:** Local V2 Flet Watchlist saved-state roundtrip and fail-closed restore code/test committed pending CI. No server-side app settings. See V2 Work Log.
 
 > **CURRENT V2-S3-FLET-LOCAL-SCREENS-WATCHLIST-20261118:** App-first offline Flet Dashboard/Watchlist/Settings and local 70-symbol selection code with synthetic tests; source CI pending. No live gateway or phone proof.
