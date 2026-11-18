@@ -215,6 +215,57 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertEqual(requested,expected)
         self.assertEqual(repaints,[0])
 
+    def test_watchlist_poll_requests_only_first_visible_3m_context(self):
+        requested=[]
+        async def tick(seconds):
+            if seconds!=4:
+                raise FinishedOneTick()
+        async def to_thread(fn,sym,**kwargs):
+            return fn(sym,**kwargs)
+        feed=SimpleNamespace(connected=True,assessment=lambda sym,**selectors:
+            requested.append((sym,selectors["timeframe"],selectors["expiry"])) or
+            {"symbol":sym,"signal_eligible":False,"live_orders_enabled":False})
+        scope={"app_active":[True],"lifecycle_background":[False],
+               "prefs":{"source":"Dhan"},"dhan_feed":feed,
+               "provider_generation":[0],
+               "scan_symbol":SimpleNamespace(value="NIFTY"),
+               "scan_tf":SimpleNamespace(value="1m"),
+               "chain_symbol":SimpleNamespace(value="NIFTY"),
+               "expiry":SimpleNamespace(value="2026-11-26"),
+               "date":__import__("datetime").date,
+               "bot_symbol":SimpleNamespace(value="NIFTY"),
+               "DHAN_VERIFIED_SYMBOLS":{"NIFTY","BANKNIFTY","SENSEX",
+                                        "TCS","INFY"},
+               "watch_groups":[["TCS","INFY"]],
+               "active_watch":[0],
+               "search":SimpleNamespace(value="INF"),
+               "oracle_assessment_attempts":{},
+               "oracle_assessment_cache_generation":[0],
+               "oracle_assessment_closed_bootstrap_generation":[None],
+               "refresh_hours":lambda:True,
+               "oracle_assessment_cache":{},
+               "current":[4],"time":SimpleNamespace(monotonic=lambda:10.0),
+               "asyncio":SimpleNamespace(sleep=tick,to_thread=to_thread,
+                                         CancelledError=asyncio.CancelledError),
+               "request_view_refresh":lambda tab:None,
+               "log_error":lambda *args:None}
+        compile_callback("oracle_assessment_context",scope)
+        fn=compile_callback("oracle_assessment_poll",scope)
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertIn(("INFY","3m",None),requested)
+        self.assertNotIn(("TCS","3m",None),requested)
+        self.assertEqual(sum(sym in ("TCS","INFY") for sym,tf,exp in requested),1)
+        self.assertIn((0,"INFY","3m",None),scope["oracle_assessment_cache"])
+        # A changed Watchlist search selects another key even inside 180s;
+        # unchanged index contexts must remain on the existing attempt budget.
+        scope["search"].value="TCS"
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertIn(("TCS","3m",None),requested)
+        self.assertEqual(sum(sym in ("TCS","INFY") for sym,tf,exp in requested),2)
+        self.assertEqual(len(requested),6)
+
     def test_assessment_ui_hides_old_selection_after_timeframe_or_expiry_change(self):
         selected_tf=SimpleNamespace(value="1m")
         selected_expiry=SimpleNamespace(value="2026-11-26")
