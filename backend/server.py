@@ -749,6 +749,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
 
     @app.get("/v2/assessment/{symbol}")
     def botking_read_only_assessment(symbol: str, expiry: Optional[str] = None,
+                                     timeframe: Optional[str] = None,
                                      x_botking_key: Optional[str] = Header(default=None)):
         """Fail-closed four-factor evidence until an actual Oracle producer exists.
 
@@ -759,6 +760,10 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             raise HTTPException(403, "Server access denied")
         if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9&-]{1,40}", symbol)):
             raise HTTPException(422, "Invalid assessment symbol")
+        # Android supplies its selected candle interval as a query parameter.
+        # Do not imply interval-specific candle evidence has been verified.
+        if timeframe is not None and timeframe not in ("1m", "3m", "5m"):
+            raise HTTPException(422, "Invalid assessment timeframe")
         if expiry is not None:
             try:
                 if date.fromisoformat(expiry).isoformat() != expiry:
@@ -767,7 +772,8 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
                 raise HTTPException(422, "Invalid assessment expiry") from None
         cached_metrics = option_evidence_cache.latest(symbol, expiry)
         if cached_metrics is not None:
-            return read_only_assessment(symbol, cached_metrics)
+            return {**read_only_assessment(symbol, cached_metrics),
+                    "timeframe": timeframe}
         ids = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
         return {
             "protocol": 2,
@@ -776,6 +782,7 @@ def create_app(pairing_key=None, feed=None, clock=time.monotonic):
             "collection_status": "not_configured",
             "freshness": "unverified",
             "expiry": expiry,
+            "timeframe": timeframe,
             "assessment_filters": [
                 {"id": name, "status": "unavailable", "reason": "not_configured"}
                 for name in ids
