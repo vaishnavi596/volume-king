@@ -1,3 +1,5 @@
+> **LATEST FT3 #45/#46 SUCCESS:** Expiry source-gating and independent five-factor WAIT/HIST regression passed offline; actual Dhan, phone APK and Oracle not touched. Continue original FT1–FT4 owner schedule.
+
 > **CURRENT V2-FT3-INDEPENDENT-FIVE-FACTOR-EVIDENCE-20261118:** FT3 independent five-filter partial-evidence test+code pending CI. Missing factors WAIT; no auto trading or real Dhan verified.
 
 > **FT3 VERIFIED CI #45 (44323382080):** source bd48d56 SUCCESS for per-symbol trusted expiry roster / strict calendar dates; offline only, no live Dhan, APK or Oracle. Next FT3 filter readiness.
