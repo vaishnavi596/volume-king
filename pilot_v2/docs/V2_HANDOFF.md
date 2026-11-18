@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-APP-ROSTER-ONE-SHARED-QUOTE-LEASE-OFFLINE-20261118:** FT-3 owner-selected roster to shared synthetic SQLite quota lease integrated test pending CI. NO Oracle work or APK. Follow owner offline-then-joint-audit order.
+
 > **CURRENT V2-FT2-PROTECTED-HTTP-FLET-JOINT-OFFLINE-20261118:** FT-2 protected HTTP and Flet end-to-end offline contract tests pending CI; no server or APK operations. Follow owner FT1→FT4 offline-first order.
 
 > **VERIFIED V2-FT2-GATEWAY-FLET-PARITY-CI34-SUCCESS-20261118:** FT2 frozen schema parity CI #34 PASS at f5191e9; owner forbids server activity/APK now. Continue remaining offline FT2 and FT3 contracts, then joint staged audit.
