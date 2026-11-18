@@ -136,19 +136,24 @@ def main():
     REPORT["postflight"] = "HEALTH_200_UNAUTH_403"
     REPORT["status"] = "DEPLOY_HEALTH_AUTH_PASS_RUNTIME_PUBLISH_READ_PENDING"
 
-try:
-    main()
-except BaseException as exc:
-    REPORT["error_type"] = type(exc).__name__
-    REPORT["error_stage"] = "AFTER_FIRST_WRITE" if mutated else "PREFLIGHT"
-    if mutated:
-        try:
-            rollback()
-            REPORT["status"] = "ROLLED_BACK_SAFE"
-        except BaseException as rollback_exc:
-            REPORT["rollback"] = "FAILED_" + type(rollback_exc).__name__
-            REPORT["status"] = "EMERGENCY_HOLD_REQUIRES_OPERATOR"
-    else:
-        REPORT["status"] = "HOLD_NO_PRODUCTION_WRITE"
-print(json.dumps(REPORT, indent=2, sort_keys=True))
-sys.exit(0 if REPORT["status"] == "DEPLOY_HEALTH_AUTH_PASS_RUNTIME_PUBLISH_READ_PENDING" else 2)
+def execute():
+    global mutated
+    try:
+        main()
+    except BaseException as exc:
+        REPORT["error_type"] = type(exc).__name__
+        REPORT["error_stage"] = "AFTER_FIRST_WRITE" if mutated else "PREFLIGHT"
+        if mutated:
+            try:
+                rollback()
+                REPORT["status"] = "ROLLED_BACK_SAFE"
+            except BaseException as rollback_exc:
+                REPORT["rollback"] = "FAILED_" + type(rollback_exc).__name__
+                REPORT["status"] = "EMERGENCY_HOLD_REQUIRES_OPERATOR"
+        else:
+            REPORT["status"] = "HOLD_NO_PRODUCTION_WRITE"
+    print(json.dumps(REPORT, indent=2, sort_keys=True))
+    return 0 if REPORT["status"] == "DEPLOY_HEALTH_AUTH_PASS_RUNTIME_PUBLISH_READ_PENDING" else 2
+
+if __name__ == "__main__":
+    sys.exit(execute())
