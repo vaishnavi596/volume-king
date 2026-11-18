@@ -94,7 +94,10 @@ class DurableKeysTests(unittest.TestCase):
     def test_revoke_erases_current_key_pending_and_challenge_across_workers(self):
         self.enroll(D,self.old)
         token=self.s2.issue_verified(VerifiedDevice(D))
-        stale=self.v.challenge(D)
+        verifier=DurableP256ChallengeVerifier(
+            self.s1._path,{M:der(self.masterkey)},
+            trusted_key_resolver=self.keys1.public_key,clock=lambda:self.now[0])
+        stale=verifier.challenge(D)
         newkey=ec.generate_private_key(ec.SECP256R1())
         pending=self.keys1.request(self.master,D,der(newkey))
         self.s2.revoke(self.master,D)
@@ -102,7 +105,7 @@ class DurableKeysTests(unittest.TestCase):
         with self.assertRaises(SessionDenied):
             self.s1.authorize(token,"quotes")
         with self.assertRaises(SessionDenied):
-            self.v.verify(self.signed(D,stale,self.old))
+            verifier.verify(self.signed(D,stale,self.old))
         with self.assertRaises(SessionDenied):
             self.keys2.complete(self.master,self.signed(D,pending.challenge,newkey),["quotes"])
         # A fresh, fully signed approval is mandatory after revoke.
