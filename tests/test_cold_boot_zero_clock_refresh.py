@@ -245,6 +245,38 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertEqual(notes("NIFTY","options"),["MATCHED"])
 
 
+    def test_unsupported_scanner_interval_never_borrows_index_1m_evidence(self):
+        tf=SimpleNamespace(value="15m")
+        scope={"scan_symbol":SimpleNamespace(value="NIFTY"),
+               "scan_tf":tf,
+               "chain_symbol":SimpleNamespace(value="NIFTY"),
+               "expiry":SimpleNamespace(value="2026-11-26"),
+               "date":__import__("datetime").date,
+               "provider_generation":[0],
+               "oracle_assessment_cache_generation":[0],
+               "oracle_assessment_cache":{
+                   (0,"NIFTY","1m",None):{
+                       "fetched":100,"timeframe":"1m","expiry":None,
+                       "data":{"symbol":"NIFTY"}}},
+               "oracle_assessment_attempts":{},
+               "prefs":{"source":"Dhan"},
+               "dhan_feed":SimpleNamespace(connected=True),
+               "assessment_lines":lambda symbol,cached:["WRONG 1M BORROW"]}
+        compile_callback("oracle_assessment_context",scope)
+        notes=compile_callback("oracle_assessment_notes",scope)
+        for interval in ("15m","30m","1h","1d"):
+            with self.subTest(interval=interval):
+                tf.value=interval
+                self.assertEqual(scope["oracle_assessment_context"]("NIFTY","scanner")[0],
+                                 None)
+                result=notes("NIFTY","scanner")
+                self.assertIn("WAIT",result[0])
+                self.assertNotIn("WRONG 1M BORROW",result)
+        self.assertEqual(notes("NIFTY","overview"),["WRONG 1M BORROW"])
+        tf.value="5m"
+        self.assertEqual(scope["oracle_assessment_context"]("NIFTY","scanner")[0],
+                         "5m")
+
     def test_same_index_scanner_5m_and_dashboard_1m_never_cross_label(self):
         selected_tf=SimpleNamespace(value="5m")
         selected_expiry=SimpleNamespace(value="2026-11-26")
