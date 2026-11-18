@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **SMART FAST-TRACK RULE V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118:** Real V2 workflow #23/#24/#25 completed SUCCESS in 17s/15s/18s respectively; this measures CI, NOT total editing/assistant time. Reuse existing fast GitHub system: previous changed commit+CI only, batch 2–4 related source/test changes in ONE atomic commit with V2 journals, ONE targeted+full exact-SHA gate; docs-only pushes skip full CI; only inspect failures and avoid repeated large audits. Freeze existing Flet app scope, log future defects for one final combined pre-build batch; no new branch/workflow/Oracle app settings/renewal changes. See V2 Work Log/Master V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118.
+
+
 > **LATEST OWNER RULE V2-OWNER-AUTH-FREEZE-FINAL-JOINT-AUDIT-20261118:** Freeze existing Dhan login/token renewal; no speculative auth edits. Continue current Flet V2 implementation; log discovered mistakes in the existing deferred defect register; at final pre-APK gate do one holistic audit, one coordinated fixes+tests batch, one full exact-SHA CI; only then signed APK and necessary Oracle transport phase. Four-phone and app-owned-settings differences are REGISTERED, not ad-hoc patches. No extra branch. See Master Journal / Work Log.
 
 
