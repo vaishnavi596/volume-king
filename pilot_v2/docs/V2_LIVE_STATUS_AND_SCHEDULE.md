@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-FLET-LOCAL-SCREENS-WATCHLIST-20261118:** Existing Flet V2 mobile shell upgraded to offline 3-screen navigation and app-owned 5-list/70-unique-equity local selection; 3 index WAIT, 5 evidence WAIT and sixth reserved. No network/Oracle/token changes. New CI at exact source SHA PENDING; do not claim live UI/APK. See V2 Work Log.
+
+
 > **SMART FAST-TRACK RULE V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118:** Real V2 workflow #23/#24/#25 completed SUCCESS in 17s/15s/18s respectively; this measures CI, NOT total editing/assistant time. Reuse existing fast GitHub system: previous changed commit+CI only, batch 2–4 related source/test changes in ONE atomic commit with V2 journals, ONE targeted+full exact-SHA gate; docs-only pushes skip full CI; only inspect failures and avoid repeated large audits. Freeze existing Flet app scope, log future defects for one final combined pre-build batch; no new branch/workflow/Oracle app settings/renewal changes. See V2 Work Log/Master V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118.
 
 

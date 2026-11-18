@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-FLET-LOCAL-SCREENS-WATCHLIST-20261118:** App-first offline Flet Dashboard/Watchlist/Settings and local 70-symbol selection code with synthetic tests; source CI pending. No live gateway or phone proof.
+
 > **CURRENT SMART CI RULE V2-SMART-FAST-TRACK-CI-EFFICIENCY-RULE-20261118:** Existing V2 CI ~15–18s; apply one-change-batch/one-commit/one-full-gate, avoid redundant fetches/docs CI, preserve final APK safety test. Exact proof in V2 Master/Work Log.
 
 > **LATEST V2-OWNER-AUTH-FREEZE-FINAL-JOINT-AUDIT-20261118:** Existing Dhan login/token renewal FROZEN; app work continues. Log defects without piecemeal edits; one final combined pre-build audit/fix/test batch, then APK. Details in V2 current status/Master/Work Log.
