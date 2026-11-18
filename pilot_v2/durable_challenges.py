@@ -1,6 +1,6 @@
 """Offline single-host atomic SQLite P-256 login challenge prototype.
 
-Keys must be independently master-approved and pre-provisioned. Does not
+Master is statically provisioned; delegated keys may come from current durable\nkey resolver after master-approved enrollment. Does not
 expose HTTP, provision keys, accept arbitrary client keys, or call Dhan.
 Production demands local protected SQLite storage, rate limits and audited
 key enrollment. Uses wall clock for restart-safe challenge expiration.
@@ -21,11 +21,15 @@ from .device_sessions import SessionDenied, VerifiedDevice
 from .device_verifier import DeviceProof, P256ChallengeVerifier, encode_b64, decode_b64
 
 class DurableP256ChallengeVerifier:
-    def __init__(self, db_path, trusted_public_keys, *, clock=None, ttl_seconds=60):
+    def __init__(self, db_path, trusted_public_keys, *, clock=None, ttl_seconds=60,
+                 trusted_key_resolver=None):
         if (not isinstance(db_path, (str,Path)) or not str(db_path)
                 or type(trusted_public_keys) is not dict
                 or type(ttl_seconds) is not int or not 10 <= ttl_seconds <= 120):
             raise ValueError("Invalid verifier configuration")
+        if trusted_key_resolver is not None and not callable(trusted_key_resolver):
+            raise ValueError("Trusted key resolver must be callable")
+        self._resolver=trusted_key_resolver
         self._path=str(db_path)
         self._keys={}
         self._clock=clock or time.time
@@ -57,9 +61,32 @@ class DurableP256ChallengeVerifier:
             raise SessionDenied("Invalid login clock")
         return float(v)
 
-    def challenge(self, device_id):
-        if type(device_id) is not str or device_id not in self._keys:
+    def _current_key(self, device_id):
+        if not valid_id(device_id):
             raise SessionDenied("Unknown device")
+        # Static allowlist is for trusted, separately provisioned master only.
+        # Delegated devices are resolved from the current durable enrollment,
+        # not from an old startup snapshot.
+        if device_id in self._keys:
+            return self._keys[device_id]
+        if self._resolver is None:
+            raise SessionDenied("Unknown device")
+        der=self._resolver(device_id)
+        if der is None:
+            raise SessionDenied("Unknown or disabled device")
+        if type(der) is not bytes or len(der)>512:
+            raise SessionDenied("Invalid current public key")
+        try:
+            key=serialization.load_der_public_key(der)
+        except (ValueError,TypeError):
+            raise SessionDenied("Invalid current public key") from None
+        if not isinstance(key,ec.EllipticCurvePublicKey) or not isinstance(
+                key.curve,ec.SECP256R1):
+            raise SessionDenied("Invalid current P-256 key")
+        return key
+
+    def challenge(self, device_id):
+        self._current_key(device_id)
         nonce=encode_b64(secrets.token_bytes(32))
         now=self._now()
         digest=hashlib.sha256(nonce.encode("ascii")).hexdigest()
@@ -99,9 +126,9 @@ class DurableP256ChallengeVerifier:
         raw=decode_b64(proof.challenge,limit=48)
         if len(raw)!=32 or hashlib.sha256(proof.challenge.encode("ascii")).hexdigest()!=row[0]:
             raise SessionDenied("Challenge mismatch")
-        key=self._keys.get(proof.device_id)
-        if key is None:
-            raise SessionDenied("Unknown device")
+        # Resolve the current key again: successful enrollment/rotation
+        # invalidates a previously cached delegated signing key.
+        key=self._current_key(proof.device_id)
         signature=decode_b64(proof.signature,limit=400)
         try:
             key.verify(signature,P256ChallengeVerifier.signed_message(

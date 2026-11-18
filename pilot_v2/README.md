@@ -47,3 +47,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## Fast-track audit / current direction
 See [V2_FAST_TRACK_AUDIT.md](docs/V2_FAST_TRACK_AUDIT.md): four grouped work packets for secure current-key login, versioned server+Android contract, provider-safe data lanes and signed V2 pilot build/deploy. Source, tests, journals and release evidence must remain distinct; this audit itself is docs-only.
+
+## Implemented FT-1 speed improvements
+- V2-only workflow now skips full regressions on docs-only pushes, while code/tests and mixed code+docs still run the complete test suite. The durable challenge verifier supports trusted per-device public-key resolver for the current delegated key; master static key still requires a trusted bootstrap. Android and Oracle integration remain pending, with the verify-to-session concurrency race a release blocker.

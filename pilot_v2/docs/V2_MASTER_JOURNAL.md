@@ -8,7 +8,7 @@ This is the **single authoritative V2 continuity ledger**, alongside `V2_HANDOFF
 |---|---|
 | Working branch | `pilot/botking-v2-smart-gateway-20261118` |
 | New independent source root | `pilot_v2/` |
-| Last verified V2 source commit | `b45731646a295e0084b95fac3b30e36d8079d488` (V2-004D) |
+| Last verified V2 source commit | `b45731646a295e0084b95fac3b30e36d8079d488` (V2-004D; FT-1 source CI pending) |
 | Last V2 CI | **#16 SUCCESS**, run `44298167518`, exact source commit `b457316` |
 | New V2 application version/package | Planned **2.0.100** / `com.botking.bot_king_v2`, metadata ONLY |
 | V2 gateway | API prefix `/v2-pilot`, **feature flag OFF**, NOT served on Oracle |
@@ -92,3 +92,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## V2-FAST-TRACK-JOINT-EXECUTION-AUDIT-20261118
 - Audit document `pilot_v2/docs/V2_FAST_TRACK_AUDIT.md` defines four combined packets, bottlenecks, test/commit cadence, server preflight/stage/build guardrails, and security reasons not to skip auth/release checks. Pre-audit V2 code SHA `b457316`, CI #16 `44298167518` PASS. This entry updates documentation/current status only and does NOT implement optimized workflow filtering or new server/app code. Next implement FT-1 in one tested source batch.
+
+## FT-1-FASTER-CI-CURRENT-KEY-20261118
+- Immediately preceding audit commit `24c3183ff864cc4e03ae57208b3398d5870f2df6` changed five V2 docs; exact CI #17 `44298940057` SUCCESS. Implemented two FT-1 improvements in a single source/test/docs/workflow commit: (1) V2 workflow excludes docs-only changes from full regression, while combined source+docs still triggers; (2) `DurableP256ChallengeVerifier` accepts trusted key resolver to read current delegated P-256 public key, instead of static cached delegated keys. Added synthetic cross-worker rotation/login tests. CI exact source SHA pending; **not** production ready because verification→session issuance race, bootstrap, multi-host and native Android proof still need security hardening. Next FT-1 race closure and API mock integration.
