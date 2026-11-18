@@ -24,7 +24,9 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('freshness="historical_unverified"',scan)
         # The only direct provider fetch belongs in the explicit network branch.
         matches=[n for n in ast.walk(functions["scan_market"]) if isinstance(n,ast.Call)
-                 and isinstance(n.func,ast.Name) and n.func.id=="get_market_data"]
+                 and isinstance(n.func,ast.Attribute) and n.func.attr=="to_thread"
+                 and n.args and isinstance(n.args[0],ast.Name)
+                 and n.args[0].id=="get_market_data"]
         self.assertEqual(len(matches),1)
         self.assertTrue(any(isinstance(n,ast.If) and
             any(m is matches[0] for m in ast.walk(n)) and
