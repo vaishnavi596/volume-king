@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **LATEST OWNER RULE V2-OWNER-AUTH-FREEZE-FINAL-JOINT-AUDIT-20261118:** Freeze existing Dhan login/token renewal; no speculative auth edits. Continue current Flet V2 implementation; log discovered mistakes in the existing deferred defect register; at final pre-APK gate do one holistic audit, one coordinated fixes+tests batch, one full exact-SHA CI; only then signed APK and necessary Oracle transport phase. Four-phone and app-owned-settings differences are REGISTERED, not ad-hoc patches. No extra branch. See Master Journal / Work Log.
+
+
 > **OWNER FINAL ARCHITECTURE V2-OWNER-APP-CONTROL-ORACLE-TRANSPORT-ONLY-20261118:** BOT KING V2 **Flet app owns every product setting** (watchlists, 70-symbol Smart Data, refresh, timeframes, filters, Master Smart Control). Oracle is ONLY Dhan connection/token renewal (as genuinely supported) and minimal secure shared read-only data pipe; do NOT copy V1 server-owned app settings or redesign the existing V2 concept. One Dhan→Oracle and one Oracle→V2 logical pipe, target 1–4 phones; current 3-device code is not four-phone proof. **FINISH EXISTING FLET APP → CONSOLIDATED TEST → SIGNED APK → THEN ORACLE TRANSPORT ADAPTATION.** No new branch or extra scattered fixes. Review V2-OWNER-APP-CONTROL-ORACLE-TRANSPORT-ONLY-20261118 in V2 Master Journal/Work Log. Existing S1 CI #25 PASS is offline-only.\n\n
 > **OWNER LATEST (same Flet V2 branch, finish existing batch):** Current S1 synthetic CI #25 44304920157 PASS at 86b39da; no new branch or ad-hoc feature. App-first Flet V2 → joint CI → signed candidate APK → Oracle gateway; 4-device target deferred to combined existing multi-device batch (current code limits 3). See V2-OWNER-SAME-FLET-BRANCH-FINISH-ACTIVE-BATCH-20261118.
 
@@ -64,3 +67,12 @@ Updated 2026-11-18. **This is the canonical start page for the next chat.** Use 
 
 ## Latest S1 integration — S1-READINESS-DURABLE-LEASE-INTEGRATION
 - CI #24 `44304560985` PASS for prior capability contract. Staged offline coordinator now joins the capabilities matrix to one shared persistent rate lease for index and equity mock work, with no real Dhan call. New exact CI pending. Actual Oracle server capability evidence remains absent; S1 is NOT complete. Next verify new source CI, then read-only operator preflight.
+
+### Deferred pre-build defect register — V2-OWNER-AUTH-FREEZE-FINAL-JOINT-AUDIT-20261118
+**Open items (evidence must be verified at final joint audit; no changes now):**
+| ID | Candidate discrepancy / scope | Evidence grade | Final audit action |
+| --- | --- | --- | --- |
+| V2-PREBUILD-01 | Owner target 1–4 phones vs existing isolated max-3 device grant code | SOURCE-CONFIRMED mismatch; not yet deployed | Test user-master plus up to three authorized phones, permissions/revocation/one shared data pipe; handle in combined batch only |
+| V2-PREBUILD-02 | Some prototype gateway selection/union cache state exists server-side; owner requires all product settings/Smart Data in Flet V2 | SOURCE-CONFIRMED ownership boundary to inspect; not necessarily a behavior bug | Ensure only transient protected transport/dedup state stays server-side and no persistent product settings are moved there |
+| V2-PREBUILD-03 | Flet V2 UI is still an offline shell, not a functional signed APK | SOURCE-CONFIRMED incomplete implementation | Finish agreed UI/login/controls, inspect screen/data contracts, compile/build and inspect actual signed package only after joint gate |
+| V2-PREBUILD-04 | Existing Dhan token renewal location and actual supported automatic renewal are not established for V2 | HISTORICAL-ONLY; NOT a proven error | Read-only compatibility audit at final gate; preserve working login/renewal; do not modify without demonstrated defect and broker-policy proof |
