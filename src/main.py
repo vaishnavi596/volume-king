@@ -5089,7 +5089,9 @@ console.log('BOT KING Lightweight Charts ready');
             page.update()
         if not scan_busy[0]:
             scan_busy[0]=True
-            page.run_task(scan_market)
+            # Changing a selection after market hours is navigation, not a
+            # manual Refresh. Recompute from last saved Dhan candles only.
+            page.run_task(scan_market, not (prefs.get("source")=="Dhan" and not refresh_hours()))
     for c in [scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto]:
         c.on_change=trigger_scan
     scan_result=ft.Column(spacing=12)
@@ -5367,11 +5369,14 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[card(txt("Checking selected market data…",16,GOLD,True))]
         page.update()
         page.run_task(scan_market)
-    async def restart_latest_scan():
+    async def restart_latest_scan(allow_network=True):
         await asyncio.sleep(.05)
         if not scan_busy[0]:
             scan_busy[0]=True
-            await scan_market()
+            # A queued after-hours selection must not regain network access
+            # merely because a prior selected-symbol scan was superseded.
+            await scan_market(allow_network and not
+                (prefs.get("source")=="Dhan" and not refresh_hours()))
     async def selected_combined(sym,interval,advanced,generation):
         # Optional news must not keep a newly selected symbol waiting for the
         # previous symbol's 20-second timeout. Cancelling does not stop a worker
@@ -5387,7 +5392,7 @@ console.log('BOT KING Lightweight Charts ready');
             if not task.done():
                 task.cancel()
                 await asyncio.gather(task,return_exceptions=True)
-    async def scan_market():
+    async def scan_market(allow_network=True):
         nonlocal market_status
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
             scan_status.value="Dhan login required • scan paused"
@@ -5411,7 +5416,24 @@ console.log('BOT KING Lightweight Charts ready');
             if interval in ("5m","15m","30m") and period=="3mo":
                 raise ValueError("Broker intraday history may be limited. Choose 7d or 1mo.")
             stage="candle fetch"
-            hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
+            if not allow_network and prefs.get("source")=="Dhan":
+                # Explicit after-hours selection reuses cached same-symbol and
+                # same-timeframe candles. The separate Run Scan remains manual.
+                selected=candles.get("scanner_chart_"+sym) or {}
+                if (selected.get("source")=="Dhan" and
+                        selected.get("_scanner_timeframe")==interval and
+                        valid_candle_history(selected.get("bars"))):
+                    hist=dict(selected,cached=True,live_verified=False,
+                              freshness="historical_unverified")
+                else:
+                    saved=market_store.get("market","Dhan",sym,interval,period) or {}
+                    if (saved.get("source")=="Dhan" and valid_candle_history(saved.get("bars"))):
+                        hist=dict(saved,cached=True,live_verified=False,
+                                  freshness="historical_unverified")
+                    else:
+                        raise ValueError("No saved Dhan candles for this selection • use Run Scan to fetch manually")
+            else:
+                hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             stage="candle validation"
             if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
             clear_scan_failure(sym,interval,hist)
@@ -5646,7 +5668,7 @@ console.log('BOT KING Lightweight Charts ready');
                 refresh_shared_analysis(scan_symbol.value or "NIFTY")
             refresh_scan_age()
             if generation!=scan_generation[0]:
-                page.run_task(restart_latest_scan)
+                page.run_task(restart_latest_scan,allow_network)
             if current[0]==3 and chart_provider[0]=="TradingView Lightweight":
                 # Preserve the native chart and deliver new same-context history.
                 page.update()
