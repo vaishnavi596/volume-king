@@ -1,0 +1,32 @@
+# BOT KING Version 2 — GENERAL / स्थायी Framework और नियम
+**OWNER FINAL DESIGN — V2-OWNER-FINAL-SAME-COPY-APP-FIRST-V2-ONLY-20261118**
+
+## 1. V1 का समान कॉपी, लेकिन स्वतंत्र V2
+BOT KING Version 2 को पुराने BOT KING Version 1 का **same app, same structure, same dashboard, same features** बनाना है—Watchlists, NIFTY/BANKNIFTY/SENSEX cards, Scanner/Chart, Super Five, Options Chain CE/PE/OI/PCR/Max Pain, AI/assessment, Candles, पांच filters (छठा blank), alerts/diagnostics, Settings और Master controls सहित। V2 के लिए नया या अलग design नहीं बनाना; V1 के actual source/screens की feature-by-feature सूची लेकर V2 में same layout/behavior replicate करना है। **यह requirement है, अभी implementation PASS नहीं:** V2 वर्तमान Flet source काफी हद तक offline shell और placeholders है।
+
+V2 की अलग Android identity/package, versionName/versionCode, signing और installation होगी; V1 चलता रहे। **अब V1/पुराने BOT KING की branch, पुराने journal, code, APK या production में कोई काम, commit, patch या update नहीं होगा।** पुराने source को ONLY read-only parity reference के लिए देखें। GitHub पर सभी आगे के writes ONLY branch `pilot/botking-v2-smart-gateway-20261118` के `pilot_v2/` में।
+
+## 2. Independent ऐप और एक सुरक्षित Server Data Pipeline
+`Dhan API → Oracle technical secure shared pipeline → BOT KING V2 authorised Android phones`.
+- V2 app owns and executes **all product/UI/settings/Smart Refresh/timeframe/AI/filter/scanner/option-selection/Master business decisions**. Oracle does NOT remotely set V2 UI/business rules. Server only handles broker-side token/auth lifecycle, technical rate limits and 429 cooldown, shared quote/candle/options transport cache and dedup, protected read-only data delivery and device session authorization.
+- **LIVE DATA IS A TARGET** after final provider/Oracle/device checks; offline tests and synthetic source do not establish live quotes. Freeze last-good values on incomplete feeds, display HIST or WAIT instead of fabricated LIVE.
+- Globally max 70 unique chosen equities; only selected 5 if 5 are selected, not 70. Three independent indices. Market auto refresh only confirmed 09:10–15:45 IST, after close data freeze except manual data-only refresh. No whole-page 60s reload. Watchlist candles 3m, dashboard index signals 1m, scanner default 1m; configurable options as owner approves.
+- Preserve five evidence-gated filter engines; sixth UI slot blank and excluded from bullish/bearish scoring. Do not fabricate unavailable news/futures/option evidence or unsupported market-data fallbacks.
+
+## 3. Master/Admin और बाकी Phones
+- Master/Admin का अपना V2 phone controls device enrollment, enable/disable/revoke, feed permissions, and UI settings. **Target 1–4 authorised phones total** (1 Master + up to 3 delegated). Secondary phones have no Dhan master token or admin rights. Only a real independently verified session with restricted feed permissions grants access; server access key alone is NOT identity proof. Never share a permanent Master secret among phones.
+- Dhan API/OAuth token stays only on Oracle. Owner intends to visit official Dhan site and regenerate/reauthorise a token when necessary (often approximately daily); **actual token expiration, renewal_supported and Dhan policy must be checked**, never assume exactly 24h or automatic renewal. Only Master initiates/approves renewal; delegated devices do not generate tokens. No stored OTP, no bypass of Dhan consent.
+- Technical dedup/cache server-side can be shared between multiple phones, but watchlist selections/filter logic remain app-owned. Live order APIs OFF; no real trades.
+
+## 4. APP FIRST — fast, smart, low-click, combined batches
+- **Batch 1 (FT1):** read-only V1→V2 feature/structure parity inventory; fix V2 Dashboard/Watchlist/Settings and Master/login screen gaps in a consolidated app batch. Existing isolated P256/login prototypes are NOT native Android login or deployed server endpoints.
+- **Batch 2 (FT2):** V2 UI same V1 Dashboard/charts/scanner/Super Five/watchlist and all feature navigation; simplify clicks and avoid redundant steps, without losing accessibility. Preserve all V2 app-owned user settings and adaptive data budget.
+- **Batch 3 (FT3):** V2 candle/options/filters/AI evidence and refresh data contracts, last-good retention, symbol/timeframe independence and smart shared request planning; mock-source tests before real Dhan. Do not insert unverified signals.
+- **Batch 4 (FT4):** Joint review of all V1→V2 parity, security, CI and mobile source; prepare ONE separately signed V2 APK candidate after app feature gates and user-approved build scope, verify actual certificate/package/version/installed functionality. V2 app-first and APP BUILD/INSTALL TEST before final Oracle adaptation, while recognizing that actual live server data is unavailable until secured Oracle integration.
+- **SERVER LAST:** Only after V2 app build/feature review, inspect V2 demand and add minimum Oracle secure data endpoints, token status, server access and provider budget control; deploy with backup, feature flags and rollback. Then connect devices and verify actual read-only live data.
+- Work SMART: check immediately preceding V2 commit and its actual CI, inspect failed jobs before changes, group ~2–4 related code files or 5–10 related checks in **one atomic source+tests+V2 journal commit**. Run fast relevant tests first and one exact-SHA V2 CI, skip unneeded duplicate full runs and doc-only CI. Favor one-click actions and compact reliable workflow. Never sacrifice auth/test gates for speed. When owner says 'OK', continue the next safe batch rather than stopping at a status report.
+
+## 5. GENERAL, जर्नल और नए Chat का नियम
+Always record each actual V2 batch in `V2_MASTER_JOURNAL.md` and `V2_WORK_LOG.md` (why, files, prior SHA/CI, new SHA/run, PASS/FAIL/PENDING, remaining blockers, next). Keep `V2_LIVE_STATUS_AND_SCHEDULE.md` and `V2_HANDOFF.md` topped with the current state. **On a new chat read THIS General first**, then Live Status, Handoff, latest real GitHub SHA/CI and only necessary prior V2 history. Do not write to old BOT KING journal. GitHub Discussions → General posting cannot be claimed unless actually posted; these are the canonical V2 GitHub repository General records.
+
+**Verified baseline at rule creation:** V2 source `dcf1db007ad35d3b51ac1e00cd44680ab1666d16`, isolated CI #63 (run 44343869624) SUCCESS 197/197; preceding V2 docs-only HEAD `3fe6ec6d962e6477abae58f93d0130406711c94a`. No signed V2 APK, live Android, Oracle V2 deployment or live market/provider acceptance verified yet.

@@ -1,5 +1,7 @@
 # BOT KING V2 — Parallel Pilot
 
+**LATEST OWNER FRAMEWORK:** [V2 GENERAL — Same V1 Copy, Independent V2 App, Oracle Pipeline, App-First, NO V1 Writes](docs/V2_GENERAL_FRAMEWORK_RULES.md). This overrides outdated three-phone/server-first descriptions below as design rules; source/runtime pass evidence must still be verified. Start here for every new chat.
+
 **STATUS: isolated source prototype; not an installed APK and not Oracle deployed.**
 
 - Code resides only in `pilot_v2/` on independent branch `pilot/botking-v2-smart-gateway-20261118`; legacy source, installed APK, service and old branch remain untouched.
