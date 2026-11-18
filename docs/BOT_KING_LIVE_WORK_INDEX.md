@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST MOVE BK-20261118-SDC-CI1945-FIX — [ANDROID][CI/RELEASE] | WHY:** Source ranking changed from fixed 51 to selected Dhan equity list; #1944/#1945 failed. **ACTION:** Downloaded exact workflow job logs: both fail one stale mobile regression slicing anchor at line 404, #1945 **1302 tests / 1 error**, new selected-roster wiring test PASS. Committed focused old-anchor repair `eda39e6d` in `tests/test_mobile_regressions.py`, with original group-publish assertions intact; complete evidence in Journal `022d6124`. **RESULT:** Root cause identified and test-only fix committed, final post-fix CI not yet confirmed. **OPEN/NEXT:** Verify exact `eda39e6d` full CI terminal result; then return to 0/5/51/70 Smart Data integrated request/runtime gate. No Oracle/APK/orders.
+
+
 > **CI UPDATE BK-20261118-SDC-CI1944 — WHY:** New Smart Data source SHA needs exact regression gate. **ACTION/RESULT:** #1944 `44270450497` (`0fbd0a1`) completed **FAILURE** at `offline-tests / Run offline regression suite`; #1945 `44270502817` (`f1b2a44`) still **IN_PROGRESS**. Direct job traceback not available in this tool path; **UNKNOWN cause**. Canonical Work Log appended in `d9010204`. **NEXT:** obtain #1945 terminal status and exact failure before modifying source; test PASS required before next Smart Data dependency or APK. Oracle/Dhan/mobile untouched.
 
 
