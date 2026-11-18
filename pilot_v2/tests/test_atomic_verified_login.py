@@ -54,6 +54,9 @@ class AtomicLoginTests(unittest.TestCase):
     def test_master_and_delegated_across_two_workers(self):
         owner=self.b.login(signed(M,self.a.challenge(M),self.masterkey))
         self.assertEqual(self.a.read_feed(owner,"quotes"),M)
+        # Login rotates the existing master token by design. Use the newly
+        # authenticated master session for all subsequent delegated changes.
+        self.owner=owner
         self.enroll(self.oldkey)
         second=self.a.login(signed(D,self.b.challenge(D),self.oldkey))
         self.assertEqual(self.b.read_feed(second,"quotes"),D)

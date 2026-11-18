@@ -98,3 +98,6 @@ Before any NEW V2 code/test patch or commit, inspect **only the immediately prec
 
 ## FT-1-ATOMIC-LOGIN-ROTATION-20261118
 - Previous source commit `19746fb2ed35649e1f9b831e742110f55ec748e6` exact pilot CI #18 `44299581660` SUCCESS. Added `atomic_verified_login.py` and tests: single SQLite writer transaction verifies current trusted master/delegated P-256 key, consumes nonce and creates hashed session; key rotation/disable uses the same transaction lock, closing the verify-to-issue race on supported local single-host DB. Source+tests+docs in one mixed commit, CI pending. Real endpoints/native app/provider validation remain separate gates.
+
+## FT-1-ATOMIC-LOGIN-CI19-TEST-CORRECTION
+- CI #19 on `57e8d18` FAILED one test out of 74; old master test session was legitimately invalidated by new login. Corrected test to use newest master bearer. New CI pending; never bypass token rotation just to make test pass.
