@@ -1,0 +1,11 @@
+{
+  "product": "BOT KING V2 PILOT",
+  "version_name": "2.0.100",
+  "version_code": 100,
+  "android_package": "com.botking.bot_king_v2",
+  "legacy_package": "com.botking.bot_king",
+  "api_prefix": "/v2-pilot",
+  "gateway_enabled": false,
+  "apk_build_enabled": false,
+  "live_orders_enabled": false
+}

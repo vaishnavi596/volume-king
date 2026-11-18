@@ -1,0 +1,24 @@
+name: BOT KING V2 Pilot Contract Tests
+on:
+  push:
+    branches:
+      - pilot/botking-v2-smart-gateway-20261118
+    paths:
+      - 'pilot_v2/**'
+      - '.github/workflows/v2-pilot-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot-contract:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run isolated pilot tests
+        run: |
+          python -m compileall -q pilot_v2
+          python -m unittest discover -s pilot_v2/tests -p 'test_*.py' -v

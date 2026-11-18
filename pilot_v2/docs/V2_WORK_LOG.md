@@ -1,0 +1,9 @@
+# BOT KING V2 — Pilot Work Log
+
+## 2026-11-18 — V2-001: New isolated branch and folder, first source contract
+- Owner directs all **new development** to V2; pause feature changes on legacy. The legacy branch `fix/botking-joint-audit-70-15-20261115` at `ecab2c223d8d15459c442c51c04aeda8cde7f9fa` is untouched and serves as snapshot/rollback reference. Active production server must **not** be stopped when development starts.
+- Owner adds three requirements: operate on 1–3 mobile devices; master controls enrollment, per-device read-only data access, disable/revoke; GitHub code in new isolated folder. None grants remote phone control or Dhan master credentials to delegated phones.
+- V2 source code lives in `pilot_v2/` only; no old `src/`, `backend/` or `pyproject.toml` modified. Reserved V2 identity `com.botking.bot_king_v2`, pilot version 2.0.100, disabled API prefix `/v2-pilot` are **metadata only**. Legacy build workflow remains unchanged; no APK launched.
+- Read-only pure offline modules added: `gateway_contract.py` for selected 0/5/51/70 unique equity roster+3 indexes, revision-aware last-good quote retention and app/broker session separation; `device_policy.py` for max-three server-side master policy and per-device feed controls. Backend **must** authenticate before applying policy; it is not yet a deployed login gateway.
+- Offline pilot test suite exercises 0/5/51/70, invalid/duplicate/71, stale/partial revision, 3-device capacity and secondary privilege denial, master disable/revoke, broker reauth status. One V2-only workflow will test pilot code. Legacy CI #1955 completed SUCCESS before branching. GitHub workflow and exact results must be verified after commit.
+- No Oracle production mutation, restart, Dhan requests, secret extraction, orders, APK, or Android device changes. Next: current pilot CI and read-only Oracle baseline before secure endpoint implementation.
