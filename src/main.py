@@ -6109,8 +6109,14 @@ console.log('BOT KING Lightweight Charts ready');
                                 if dhan_batch_cache["generation"] == generation
                                 and time.monotonic() - dhan_batch_cache["updated"] < 45
                                 else None)
+                        # Smart Data: a missing short-lived cache must never
+                        # trigger the fixed 51-equity snapshot for five saved
+                        # shares. The selected route handles 0–70; its own 404
+                        # compatibility fallback remains guarded in server_feed.
+                        selected_equities=all_watch_symbols()
                         batch = (cached_batch if cached_batch is not None else
-                            await asyncio.wait_for(asyncio.to_thread(dhan_feed.batch_quotes), timeout=20))
+                            await asyncio.wait_for(asyncio.to_thread(
+                                dhan_feed.equity_quotes_for_watchlist,selected_equities),timeout=20))
                         if generation==provider_generation[0] and prefs.get("source")=="Dhan":
                             with dhan_batch_lock:
                                 dhan_batch_cache.update(generation=generation,
