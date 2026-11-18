@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **LATEST BATCH BK-20261118-1959-CLOSED-TEST-REPAIR (2026-11-18):** User-provided full Actions logs verified #1958 44335134140 c87-predecessor 87e73321 **1311 PASS / 1m54s**; #1959 44335267322 c887df28 **1311 run, 1 legacy assertion FAIL / 2m11s**: tests/test_market_closed_refresh_gates.py expected old after-hours string lacking equity cooldown. Pilot #58 44333928669 at 56d8103 **174 PASS / 26s** only pilot_v2/tests, not a replacement for main Android regression. Joint batch repairs obsolete assertion while retaining equity/independent-index/global-429 gates, reinforces existing wiring regression, and codifies mandatory pre-write CI review + grouped 5–10 related fixes in AGENTS.md. NEW EXACT-SHA FULL CI PENDING; NO APK/Oracle write/orders. **NEXT:** inspect exact new full offline run and fix only concrete failure, then app-first Login/Bootstrap. Work Log BK-20261118-1959-CLOSED-TEST-REPAIR.
+
+
 > **CURRENT GATE BK-20261118-V2-MANUAL-CI-VISIBILITY-GATE — 2026-11-18:** Manual/index independent 429 source at c887df28 passed 7 bounded static code-contract inspections. GitHub commit-associated connector endpoint checks only PR-triggered workflow runs; no match/combined statuses does NOT prove full Actions failed or succeeded. Prior offline #1955 (44277286252) was SUCCESS on older SHA. **FULL EXACT-SHA CI UNKNOWN → segment BLOCKED on one missing workflow result**, not feature-complete. No new source edits/Oracle deploy/APK. **NEXT:** retrieve push-triggered full offline Actions run/job for c887df28, fix if red; then Login/First Bootstrap. Work Log BK-20261118-V2-MANUAL-CI-VISIBILITY-GATE. Owner's app-owned Smart Control / Oracle transport-only architecture remains locked.
 
 

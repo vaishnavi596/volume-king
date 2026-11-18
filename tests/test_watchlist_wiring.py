@@ -229,6 +229,13 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertLess(manual.index('if index_cooldown==0:'),manual.index('await refresh_dhan_index_quotes(force=True)'))
         self.assertIn('if cooldown==0 and not refresh_hours() and current[0]==4:',manual)
         self.assertIn('manual_quote_last_attempt[0]=now',manual)
+        # The global cooldown is included by the transport, but an equity-only
+        # backoff cannot suppress the independent three-index batch.
+        feed=(SOURCE.parent / "server_feed.py").read_text(encoding="utf-8")
+        self.assertIn('self._global_cooldown_until',feed)
+        self.assertIn('"/dhan/index-ltp-batch"',feed)
+        self.assertLess(manual.index('if cooldown>0 and index_cooldown>0:'),
+                        manual.index('if index_cooldown==0:'))
         self.assertLess(manual.index('if cooldown>0 and index_cooldown>0:'),manual.index('manual_quote_last_attempt[0]=now'))
 
     def test_known_symbols_are_unique(self):

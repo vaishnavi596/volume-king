@@ -29,11 +29,21 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertIn("await refresh_dhan_index_quotes(force=True)",manual)
         # The market-hours condition applies only to the extra explicit HIST
         # request, NEVER to the manual equity/index quote refresh itself.
-        self.assertIn('if not refresh_hours() and current[0]==4:',manual)
+        # The after-hours history branch is additionally blocked by the
+        # selected-equity 429 cooldown, while quotes remain manually available.
+        hist_gate='if cooldown==0 and not refresh_hours() and current[0]==4:'
+        self.assertIn(hist_gate,manual)
+        self.assertIn('if cooldown==0:',manual)
+        self.assertIn('if index_cooldown==0:',manual)
+        self.assertIn('if cooldown>0 and index_cooldown>0:',manual)
+        self.assertLess(manual.index('if cooldown==0:'),
+                        manual.index('await refresh_watch_batch()'))
+        self.assertLess(manual.index('if index_cooldown==0:'),
+                        manual.index('await refresh_dhan_index_quotes(force=True)'))
         self.assertLess(manual.index('await refresh_watch_batch()'),
                         manual.index('await refresh_dhan_index_quotes(force=True)'))
         self.assertLess(manual.index('await refresh_dhan_index_quotes(force=True)'),
-                        manual.index('if not refresh_hours() and current[0]==4:'))
+                        manual.index(hist_gate))
         self.assertIn('warm_selected_watch_three_minute_early(',manual)
         self.assertIn('explicit_closed=True',manual)
         self.assertIn('if dhan_history_scan_active[0]:',manual)

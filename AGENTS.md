@@ -2,6 +2,14 @@
 
 **Applies to:** BOT KING development on `vaishnavi596/volume-king`. On every new chat, **FIRST** read `docs/BOT_KING_LIVE_WORK_INDEX.md` (previous/current/next), then this file, `BOT_KING_HANDOFF.md`, and the latest relevant CI. Consult `docs/README.md` for categories and the Work Log, Test Matrix and result tracker for details only as required. Check the actual current branch/HEAD; historical snapshots may be stale.
 
+
+## Mandatory batched GitHub work and CI result precheck (owner update, 2026-11-18)
+- Before EVERY new GitHub write (source/test/workflow/journal), inspect the branch's actual HEAD, the relevant preceding changes/files and their latest Actions results; include previous known red runs, not just one happy run. For push-triggered workflows, read Actions run IDs/jobs/logs directly: the commit-workflow helper may omit push runs. Record run ID, exact SHA, terminal state, failed assertion, and changed-file/dependency context.
+- Keep ONE active functional segment and ONE controlled writer. Aggregate normally 5–10 related proposed checks/fixes (or fewer if the genuine segment is smaller) into one reviewed batch, one atomic source+test+journal+index commit, followed by focused test and ONE full release-gate CI on the exact SHA. Do not create one commit or workflow run for every microscopic fix. An urgent proven failing regression can be repaired inside the currently locked batch without unrelated enhancements.
+- Prefer the quick 20–30 second isolated pilot V2 contract suite while developing pilot_v2 code, but never describe its 174 selective tests as equivalent to the full Android suite of ~1311 tests. Use the full offline Android tests for final Android changes; do not skip safeguards to win a stopwatch race. Compare actual tests and dependencies, not run duration alone.
+- If a CI run FAILS, inspect the specific failed job/log/assertion before any next source work; fix root cause or obsolete assertion without loosening the safety contract, then recheck. Document FAIL and PASS independently, always pinned to their own SHA.
+- Keep Oracle as Dhan authentication and secure shared transport/rate-limit bridge, app-owned Smart Controls unchanged, live orders OFF, and no APK until the release gate.
+
 ## Cross-chat Live Work Index — mandatory update
 - [docs/BOT_KING_LIVE_WORK_INDEX.md](docs/BOT_KING_LIVE_WORK_INDEX.md) is the short, *current* previous/current/next handoff. Read it first, verify newest branch/CI and proceed to next P0 safe task (OK means continue).
 - After any material code/CI/operator audit/repair outcome, update the live index **and** append exact evidence to one canonical `docs/BOT_KING_WORK_LOG.md`. Use category routing [docs/README.md](docs/README.md); avoid another duplicate long journal.
