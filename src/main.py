@@ -25,7 +25,7 @@ from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
 from paper_bot_slots import SLOTS as PAPER_BOT_SLOTS, bootstrap as bootstrap_paper_slots, save_slot as save_paper_slot, load_slot as load_paper_slot, record as record_paper_event, positions_summary as paper_positions_summary
 from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, analyze, rank_candidates
-from shared_assessment_ui import assessment_lines, compact_assessment_summary
+from shared_assessment_ui import assessment_lines
 from datetime import datetime, date, timedelta, timezone
 from importlib.metadata import version as package_version, PackageNotFoundError
 
@@ -344,7 +344,13 @@ def app_main(page:ft.Page):
         if record.get("timeframe")!=tf or record.get("expiry")!=selected_expiry:
             return ["Oracle assessment • WAIT • selected timeframe/expiry changed"]
         lines=assessment_lines(symbol,{symbol:record})
-        return lines if surface=="scanner" else [compact_assessment_summary(lines)]
+        # Only the compact surfaces need the one-line summary. Options and
+        # Scanner keep the full evidence; standalone selection tests can
+        # execute this callback without unrelated global helper bindings.
+        if surface in ("overview","watchlist"):
+            from shared_assessment_ui import compact_assessment_summary
+            return [compact_assessment_summary(lines)]
+        return lines
 
     def log_error(area,exc):
         # Store only exception types; never endpoint URLs, credentials or response bodies.
