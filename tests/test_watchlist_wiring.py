@@ -121,9 +121,9 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("analysis_audit.coverage(configured_scan_symbols())", coverage)
 
     def test_70_total_instruments_and_dynamic_scanner_roster(self):
-        """Exactly 3 index slots plus up to 67 unique NSE equity selections."""
-        self.assertIn("MAX_TOTAL_INSTRUMENTS=70", self.source)
-        self.assertIn("MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3", self.source)
+        """70 unique NSE equities across lists, with 3 separate Dashboard indexes."""
+        self.assertIn("MAX_WATCHLIST_EQUITIES=70", self.source)
+        self.assertNotIn("MAX_WATCHLIST_EQUITIES=MAX_TOTAL_INSTRUMENTS-3", self.source)
         self.assertIn("normalize_watchlists(saved_watch_groups, maximum=70)", self.source)
         self.assertIn("normalize_watchlists(watch_groups, maximum=70)", self.source)
         self.assertIn("len(all_watch_symbols())>=MAX_WATCHLIST_EQUITIES", self.source)
