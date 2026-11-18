@@ -448,3 +448,6 @@
 - **FLET WIRING:** Existing `main.py` Dashboard Scanner gains disabled-by-default Option Expiry selector, sources list only from `LocalExpiryChoices`, and passes selected expiry (or blank) to existing `LocalOptionEvidence.summary`; preserves WAIT without real upstream. Existing fifth-filter WAIT, sixth blank, app-only watchlists/Smart Data, no network.
 - **REGRESSION:** Extended `pilot_v2/tests/test_ft3_option_candle_filter_app.py` tests valid/invalid calendar dates, trusted roster, older revision, duplicate/unsorted/empty evidence, per-symbol selection, removal, no leaks, no fake expiry/option signal. Full CI exact SHA PENDING at commit creation. Native Flet widget and real Dhan option expiries still UNVERIFIED; no Oracle host, Dhan requests, token changes, signing, APK, trades.
 - **NEXT:** Observe exact CI, fix failing test on its own batch if needed, continue FT3 offline option/filter contract readiness within owner's constraints; FT4 remains static release prep only.
+
+## V2-FT3-CI45-20261118
+- CI #45 run 44323382080 SUCCESS, exact source bd48d563a0328d8286b001f5508eddd0ce85a1dc. Source-gated expiry choices and normalized option dates tested offline only. No server, token, Dhan requests, trades or APK. Actual source integration remains blocked.

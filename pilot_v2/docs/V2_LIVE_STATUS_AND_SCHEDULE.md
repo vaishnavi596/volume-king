@@ -1,3 +1,5 @@
+> **FT3 VERIFIED CI #45 (44323382080):** source bd48d56 SUCCESS for per-symbol trusted expiry roster / strict calendar dates; offline only, no live Dhan, APK or Oracle. Next FT3 filter readiness.
+
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
 > **FT3 V2-FT3-EXPIRY-SOURCE-GATED-CHOICE-20261118:** Flet Scanner option-expiry choice is disabled until trusted nonempty Dhan roster; calendar date validation, per-symbol selection, retained last-good and removal tests added. Prior CI #44 PASS; exact new CI PENDING. No APK/Oracle/token/network. Full details V2 Work Log.

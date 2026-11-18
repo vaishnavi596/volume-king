@@ -1,3 +1,5 @@
+> **FT3 VERIFIED CI #45 (44323382080):** source bd48d56 SUCCESS for per-symbol trusted expiry roster / strict calendar dates; offline only, no live Dhan, APK or Oracle. Next FT3 filter readiness.
+
 > **CURRENT V2-FT3-EXPIRY-SOURCE-GATED-CHOICE-20261118:** FT3 source-gated per-symbol option expiry choice, no auto-guessed expiry, full source CI pending. Native app/Oracle/Dhan untouched.
 
 > **VERIFIED V2-FT3-OPTION-AND-REFRESH-CI43-CI44-PASS-20261118:** V2 FT3 source #43/#44 full CI PASS on exact 9ee326a/c650152; options metrics guarded, Smart Data local intent 0/5/51/70. No authenticated live source or APK. Next FT3 offline.
