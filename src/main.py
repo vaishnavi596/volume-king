@@ -2201,6 +2201,8 @@ def app_main(page:ft.Page):
                            watch_three_minute_signal(sym).get("timestamp"),
                            repr(watch_three_minute_signal(sym).get("votes")),
                            id(five_engine_snapshots.get(sym)),
+                           (oracle_assessment_cache.get(
+                               (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
                            watch_cell_age_flags(sym)) for sym in visible))
                 button=watch_refresh_button[0]
                 if button is not None:
@@ -2234,6 +2236,8 @@ def app_main(page:ft.Page):
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
                                       signal_row.get("live_verified"),signal_row.get("freshness"),
                                       id(five_engine_snapshots.get(sym)),
+                                      (oracle_assessment_cache.get(
+                                          (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
                                       watch_cell_age_flags(sym),watch_batch_status[0])
                     if last_cell_signatures.get(sym)==symbol_signature:
                         continue
