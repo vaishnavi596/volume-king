@@ -316,7 +316,9 @@ def app_main(page:ft.Page):
         """Keep source context tied to the rendering surface, never a global scanner."""
         timeframe=("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "3m")
         if surface=="scanner" and symbol==scan_symbol.value:
-            timeframe=scan_tf.value if scan_tf.value in ("1m","3m","5m") else "1m"
+            # Oracle Assessment supports only 1m/3m/5m; never relabel
+            # a selected 15m/30m/1h chart as 1m assessment evidence.
+            timeframe=scan_tf.value if scan_tf.value in ("1m","3m","5m") else None
         selected=(expiry.value if surface=="options" and symbol==chain_symbol.value
                   and isinstance(expiry.value,str) else None)
         try:
@@ -338,6 +340,8 @@ def app_main(page:ft.Page):
             tf,selected_expiry=oracle_assessment_context(symbol,surface)
         except (NameError,AttributeError):
             return ["Oracle assessment • WAIT • selection not ready"]
+        if tf is None:
+            return ["Oracle assessment • WAIT • selected timeframe not supported"]
         key=(provider_generation[0],symbol,tf,selected_expiry)
         record=oracle_assessment_cache.get(key)
         if not isinstance(record,dict):
@@ -6821,6 +6825,8 @@ console.log('BOT KING Lightweight Charts ready');
                                 sym in DHAN_VERIFIED_SYMBOLS or sym in all_watch_symbols()):
                             continue
                         tf,selected_expiry=oracle_assessment_context(sym,surface)
+                        if tf is None:
+                            continue  # Unsupported selected chart interval has no Assessment route.
                         key=(generation,sym,tf,selected_expiry)
                         if key not in seen:
                             seen.add(key)
