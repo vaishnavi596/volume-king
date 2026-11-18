@@ -6815,6 +6815,15 @@ console.log('BOT KING Lightweight Charts ready');
                     selected.extend([("scanner",scan_symbol.value),
                                      ("options",chain_symbol.value),
                                      ("overview",bot_symbol.value)])
+                    # Only the first visible Watchlist equity gets a scoped 3m
+                    # Assessment in this pass. Never fan out to all 51/70 rows.
+                    if current[0]==4:
+                        matching_watch=[sym for sym in watch_groups[active_watch[0]]
+                                        if isinstance(sym,str) and
+                                        (not isinstance(search.value,str) or
+                                         not search.value or search.value.upper() in sym)]
+                        if matching_watch:
+                            selected.append(("watchlist",matching_watch[0]))
                     for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value):
                         if isinstance(sym,str):
                             selected.append(("overview",sym))
