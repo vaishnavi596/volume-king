@@ -79,3 +79,6 @@ Owner wants ordinary V2 GitHub code+test+journal work to proceed without repeate
 
 ## V2-004B-CRYPTO-DURABLE-LOGIN-COMPOSITION — 2026-11-18
 - Confirmed V2 #12 run `44295202170` SUCCESS at `e81e0f4`. Added real cryptographic proof -> SQLite durable session composition with synthetic P-256 signing, master revocation and per-feed denial tests. CI pending. No HTTP or production auth. Important open gate: shared atomic nonce across workers and trusted enrolled-key lifecycle. Read-only Oracle token readiness not yet inspected.
+
+## V2-004C-ATOMIC-CHALLENGE — 2026-11-18
+- Confirmed V2 CI #13 at `97f0ee2` SUCCESS. Added SQLite transactional single-use hashed P-256 challenge persistence and verified login composition across independent worker instances; source/tests/journals one commit, new CI pending. Real HTTP, trusted key registration and actual Oracle Dhan entitlement/renewal status are NOT verified.

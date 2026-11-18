@@ -35,3 +35,6 @@
 
 ## V2-004B — Verified Login Composition
 `verified_login_gateway.py` joins P-256 signature verification to server-side durable device sessions with per-feed permissions. All proofs are synthetic test keys, not Android Keystore. **No HTTP/login deployment**: nonce store and trusted key provisioning must become durable/atomic across workers before exposing a gateway.
+
+## V2-004C: atomic shared login challenge
+`durable_challenges.py` stores SHA-256 nonce digests and consumes them atomically via SQLite before verification, allowing separate local workers to issue and redeem one P-256 challenge. It is **not** a deployed device login; real master-approved key registration, Android native bridge and protected HTTP routes remain pending.

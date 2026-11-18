@@ -20,6 +20,8 @@ Project identification phrase: **"BOT KING IMPROVED V2 JOURNAL"** / **"बोट
 
 > **LATEST V2-004B-CRYPTO-DURABLE-LOGIN-COMPOSITION:** V2 CI #12 `44295202170` on `e81e0f4` SUCCESS. New `verified_login_gateway.py` composes real synthetic P-256 proof verification with SQLite durable per-device session auth, denies fake master and replay, cross-worker permission revocation; new CI pending. IMPORTANT: P-256 challenge store remains process-local; production needs atomic shared nonce and secure enrolled key lifecycle before any HTTP gateway. No Oracle/Dhan/APK changes. NEXT CI and atomic nonce store.
 
+> **LATEST V2-004C-ATOMIC-CHALLENGE:** CI #13 `44295436072` PASS on `97f0ee2`. V2-004C adds `durable_challenges.py`, `test_durable_challenges.py` and login-gateway support for atomic SQLite one-time P-256 challenge consumption across workers. New CI PENDING. NO production Oracle, real mobile, Dhan login or APK. NEXT verify CI and implement secure owner-approved key enrollment/rotation + read-only Oracle auth inventory.
+
 ## 1. Start here, without requiring the owner to explain again
 1. Read **`pilot_v2/docs/V2_HANDOFF.md`** (this file).
 2. Read **`pilot_v2/docs/V2_MASTER_JOURNAL.md`**, then **`pilot_v2/docs/V2_WORK_LOG.md`** and `pilot_v2/README.md`.

@@ -2,15 +2,16 @@
 
 No HTTP endpoints and no remote enrollment. The verifier must be populated
 only with keys approved by the real owner, not from a mobile login payload.
-For production use atomic shared nonce consumption across all workers.
+P256ChallengeVerifier is in-memory test-only; DurableP256ChallengeVerifier\nuses single-host SQLite atomic nonce consumption. Neither offers HTTP routes.
 """
 from .device_sessions import SessionDenied
 from .device_verifier import P256ChallengeVerifier, DeviceProof
+from .durable_challenges import DurableP256ChallengeVerifier
 from .durable_device_sessions import DurableDeviceSessions
 
 class VerifiedLoginGateway:
     def __init__(self, verifier, sessions):
-        if not isinstance(verifier, P256ChallengeVerifier) or not isinstance(
+        if not isinstance(verifier, (P256ChallengeVerifier, DurableP256ChallengeVerifier)) or not isinstance(
                 sessions, DurableDeviceSessions):
             raise ValueError("Trusted P-256 proof verifier and durable sessions required")
         self._verifier = verifier
