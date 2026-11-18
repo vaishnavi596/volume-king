@@ -7,8 +7,8 @@
 | Repository | `vaishnavi596/volume-king` |
 | Active branch | `pilot/botking-v2-smart-gateway-20261118` |
 | Scope of allowed writes | `pilot_v2/` only. V1 read-only |
-| Last **verified executable** SHA | `51da2bef55e6b59d5ab47dffba7d513ed32a6e96` |
-| Last **verified executable** Actions | [V2 CI #87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631), run `44368036631`, **SUCCESS 249/249 Python offline tests**, no failing step |
+| Last **verified executable** SHA | `ea4233d8c0d2c27a015fb0ba76515bbba45e0ac9` |
+| Last **verified executable** Actions | [V2 CI #89](https://github.com/vaishnavi596/volume-king/actions/runs/44370643743), run `44370643743`, **SUCCESS 255/255 Python offline tests**, no failing step |
 | Pre-consolidation docs HEAD | `1cf6e0e15de12a5604ed10e80afb9586d9989c1a` (**docs-only**, after CI #86) |
 | This documentation snapshot | Docs-only; the latest executable proof is #87, not this journal commit |
 | Deployment/device/trading | **V2 not deployed; no V2 APK built/installed or phone acceptance; no real Dhan live data, Oracle production changes, token renewal or live orders** |
@@ -45,7 +45,7 @@
 | [#84](https://github.com/vaishnavi596/volume-king/actions/runs/44365018806) | `09bc354e` | 244/244 PASS | Corrected assertion / Watchlist search |
 | [#85](https://github.com/vaishnavi596/volume-king/actions/runs/44365732818) | `ad917cb5` | 245/245 PASS | Historical Super Five to chart |
 | [#86](https://github.com/vaishnavi596/volume-king/actions/runs/44366294149) | `8739cb9a` | 246/246 PASS | Watchlist → Scanner 3m button |
-| [#87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631) | `51da2bef` | **249/249 PASS** | Local Scanner 15/35/70 bar history window |
+| [#87](https://github.com/vaishnavi596/volume-king/actions/runs/44368036631) | `51da2bef` | 249/249 PASS | Local Scanner 15/35/70 bar history window |\n| [#88](https://github.com/vaishnavi596/volume-king/actions/runs/44370132223) | `c8d06b6a` | 253/253 PASS | Shared five-factor screen context |\n| [#89](https://github.com/vaishnavi596/volume-king/actions/runs/44370643743) | `ea4233d8` | **255/255 PASS** | Dashboard independent index → 1m Scanner |
 
 ## 4. OWNER rules (authoritative)
 - V2 equals V1 **real screens, behaviors, engines** but no old server settings, Angel One, Yahoo, legacy credentials/auth/order paths. Copy only audited UI and local functions to V2; **do not import V1 `src/main.py`** (mixed providers) or old server modules.
@@ -81,3 +81,11 @@
 - **New batch CI:** PENDING until exact source commit SHA / GitHub Actions job log is checked. Offline tests do not constitute Android visual runtime or Dhan live verification.
 - **Open migration blockers:** See `V2_REMAINING_FUNCTIONAL_GATES_20261118.md`; full V1 feature parity, actual five-source feed, Super Five scoring, News/Futures/Options, smart data manual/auto refresh, Master+3 delegated auth, nonexecuting Paper/alerts, Android build/phone tests and Oracle last remain open.
 - **Boundary:** Only `pilot_v2/` code/docs; no V1 branch/files, old server settings, Angel One/Yahoo, Oracle production, Dhan calls/OAuth, orders or APK.
+
+
+## V2-FT2-THREE-DASHBOARD-ANALYSIS-SLOTS-20261118
+- **PRECHECK:** CI #88 run `44370132223` at source `c8d06b6af35bf8e5d8f335c7455b50c2a55f0b26` **253/253 SUCCESS** after shared five-factor source-view migration. CI #89 run `44370643743` at source `ea4233d8c0d2c27a015fb0ba76515bbba45e0ac9` **255/255 SUCCESS**, validating NIFTY/BANKNIFTY/SENSEX Dashboard 1m chart buttons. Last code SHA reviewed before patch.
+- **Actual V1 parity:** Original V1 `src/main.py` `dashboard_index_analysis()` has three independent dropdown analysis slots. V2 now has isolated `android_app/src/local_analysis_slots.py` plus three visible Dashboard slots. Picks are independently validated against three indexes and up-to-70 currently selected equities, persist only to V2 client local storage, and show current shared quote/1m candle/five-factor WAIT/HIST context. Selected row can open existing 1m Scanner chart without new data calls.
+- **Tests:** New `tests/test_dashboard_analysis_slots.py` exercises independent choices, local serialization, rejection of unauthorized/removed equities, fail-closed invalid save, stale selection reconciliation, 3 actual Flet slot controls and forbidden legacy provider paths. New exact-source CI **PENDING**, no Android UI/device evidence.
+- **Limit:** Fully ported V1 Dashboard fonts/chart/alerts/Paper and true verified five-source signals remain incomplete; trusted Dhan transport, Smart Data refresh, Master+3 delegated login, V2 APK and Oracle integration have NOT been performed.
+- **Write safety:** `pilot_v2/` only, no V1/Angel One/Yahoo/old server settings, no token/OAuth, live orders, Dhan calls, Oracle production or APK. After exact run verify CI and then move to next safe V1 functional parity dependency.

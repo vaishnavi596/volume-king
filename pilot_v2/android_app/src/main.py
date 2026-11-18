@@ -17,6 +17,7 @@ from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
 from shared_filter_context import shared_filter_context
+from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -76,6 +77,25 @@ def main(page: ft.Page):
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
 
+    analysis_key = "botking.v2.analysis_slots.v1"
+    try:
+        saved_analysis = page.client_storage.get(analysis_key)
+        analysis_slots = [LocalAnalysisSlots.from_saved(saved_analysis, state)
+                          if saved_analysis is not None else LocalAnalysisSlots()]
+        analysis_error = ""
+    except (AnalysisSlotError, OSError, ValueError, TypeError, RuntimeError):
+        analysis_slots = [LocalAnalysisSlots()]
+        analysis_error = "Saved analysis selection invalid; original save preserved"
+
+    def save_analysis():
+        if analysis_error:
+            return False
+        try:
+            page.client_storage.set(analysis_key, analysis_slots[0].saved_state())
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     evidence_inbox = DeviceEvidenceInbox()  # Offline, authenticated data client NOT connected.
     candle_history = evidence_inbox.candles
@@ -100,6 +120,8 @@ def main(page: ft.Page):
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
     def render():
+        if analysis_slots[0].reconcile(state):
+            save_analysis()
         if current[0] == 0:
             scanner[0] = for_visible_roster(scanner[0], state)
             def select_scanner_symbol(e):
@@ -160,6 +182,27 @@ def main(page: ft.Page):
                     status.value = "Index chart selection unavailable"
                 render()
                 page.update()
+            def select_analysis_slot(e, slot):
+                try:
+                    analysis_slots[0].select(slot, e.control.value, state)
+                    status.value = ("Dashboard analysis choice saved locally"
+                                    if save_analysis() else
+                                    "Dashboard analysis choice kept for session")
+                except AnalysisSlotError:
+                    status.value = "Invalid Dashboard analysis selection"
+                render()
+                page.update()
+            def open_analysis_chart(symbol):
+                try:
+                    scanner[0] = choose(scanner[0], state, symbol=symbol,
+                                        timeframe="1m")
+                    status.value = ("Analysis 1m chart selected locally"
+                                    if save_scanner() else
+                                    "Analysis 1m chart selected for session")
+                except ScannerError:
+                    status.value = "Analysis symbol is no longer selected"
+                render()
+                page.update()
             def select_expiry(e):
                 try:
                     evidence_inbox.select_expiry(
@@ -192,6 +235,25 @@ def main(page: ft.Page):
                                       on_click=lambda e, symbol=card["symbol"]:
                                       open_index_chart(symbol)),
                     ]) for card in index_cards],
+                ft.Text("Three analysis panels · saved locally · historical only",
+                        color=GOLD, size=16, weight=ft.FontWeight.BOLD),
+                *[v1_card(ft, [
+                    ft.Dropdown(label=f"Analysis {slot+1} · index/equity",
+                                width=290, value=analysis_slots[0].slots[slot],
+                                options=[ft.dropdown.Option(item, item)
+                                         for item in selectable_symbols(state)],
+                                on_change=lambda e, slot=slot: select_analysis_slot(e, slot)),
+                    ft.Text(quote_view.display(symbol, state.selected), color=WHITE),
+                    ft.Text(candle_history.summary(
+                        symbol, "1m", selected_equities=state.selected),
+                        color=MUTED, size=14),
+                    ft.Text(shared_filter_context(filter_evidence, symbol, "1m",
+                            selected_equities=state.selected)["coverage_label"],
+                            color=MUTED, size=14),
+                    ft.TextButton("1m Chart",
+                                  on_click=lambda e, symbol=symbol:
+                                  open_analysis_chart(symbol)),
+                ]) for slot, symbol in enumerate(analysis_slots[0].slots)],
                 v1_card(ft, [
                     ft.Text("System Health", color=GOLD, weight=ft.FontWeight.BOLD),
                     ft.Text(str(health["index_quote_coverage"]) +
