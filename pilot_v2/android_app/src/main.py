@@ -6,6 +6,7 @@ from scanner_state import ScannerSelection, ScannerError, selectable_symbols, ch
 from feed_inbox import DeviceFeedInbox
 from candle_history import LocalCandleHistory
 from filter_evidence import LocalFilterEvidence
+from option_evidence import LocalOptionEvidence
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -68,6 +69,7 @@ def main(page: ft.Page):
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     candle_history = LocalCandleHistory()  # No fabricated candles; accepts validated local input only.
     filter_evidence = LocalFilterEvidence()  # No source-gated evidence yet; all five WAIT.
+    option_evidence = LocalOptionEvidence()  # Actual Dhan option evidence unavailable.
     current = [0]
     group = [0]
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=13)
@@ -120,6 +122,7 @@ def main(page: ft.Page):
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
                 ft.Text("Sixth filter: reserved / blank"),
+                ft.Text(option_evidence.summary(scanner[0].symbol, "", selected_equities=state.selected)),
                 ft.Text("Super Five: no verified history / ranking data"),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
             ]
@@ -139,6 +142,7 @@ def main(page: ft.Page):
                 quote_view.forget_removed(state.selected)
                 candle_history.forget_removed(state.selected)
                 filter_evidence.forget_removed(state.selected)
+                option_evidence.forget_removed(state.selected)
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()

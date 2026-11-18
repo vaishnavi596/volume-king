@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-FT3-OPTION-METRICS-CANDLE-FILTER-OFFLINE-20261118:** FT3 Flet normalized option-chain metrics CE/PE OI, PCR, max pain source validation + last-good and preserved five WAIT filters, offline cross-module tests pending CI. Previous #42 PASS. No Oracle, APK, Dhan or token changes; original FT1→FT4 batch policy stays.
+
+
 > **VERIFIED V2-FT2-ISOLATED-FEED-CI41-CI42-SUCCESS-20261118:** FT2 app-only index/quotes independent revision fix #41 PASS at c3f92c6; protected offline TestClient→Flet parity #42 PASS at 1a24aa2. No real Android HTTP, Oracle, Dhan or APK. FT1 #40 previously PASS. NEXT offline FT3 source-gated integration; owner release holds still enforced.
 
 

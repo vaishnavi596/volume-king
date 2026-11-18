@@ -1,3 +1,5 @@
+> **CURRENT V2-FT3-OPTION-METRICS-CANDLE-FILTER-OFFLINE-20261118:** FT3 offline option-evidence normalization joined to candle/filter display without inventing signals; exact CI pending, no real Dhan/Oracle/APK.
+
 > **LATEST V2-FT2-ISOLATED-FEED-CI41-CI42-SUCCESS-20261118:** exact source #41 and #42 full offline CI PASS for independent app quote/index revision lanes + protected synthetic HTTP→Flet joint test. Next FT3 offline joint data, no Oracle/APK.
 
 > **FT2 V2-FT2-HTTP-FLET-DUAL-FEED-CI41-FOLLOWUP-20261118:** CI #41 PASS for app-only quote/index revision separation; protected mock Gateway→Flet dual-feed parity test pending full CI. Real Android/Oracle not deployed.
