@@ -108,6 +108,32 @@ class OracleIntradayStageRegression(unittest.TestCase):
             ("test-account", "NIFTY", "candle", "1m")
         ])
 
+    def test_real_five_field_canonical_payload_blocks_unsafe_stage(self):
+        canonical = FAKE.replace(
+            '{"bars": []}, timeframe=interval)',
+            '{"bars": [], "observed_at": None, "interval": interval, '
+            '"freshness": "historical_unverified", "signal_eligible": False}, '
+            'timeframe=interval)',
+        )
+        self.assertNotEqual(canonical, FAKE)
+        configure_fake(canonical)
+        with self.assertRaisesRegex(
+            ValueError, "CANONICAL_PAYLOAD_PARITY_UNIMPLEMENTED"
+        ):
+            stage.stage_source(canonical)
+
+    def test_dynamic_canonical_payload_is_not_assumed_compatible(self):
+        canonical = FAKE.replace(
+            '{"bars": []}, timeframe=interval)',
+            'dict(bars=[]), timeframe=interval)',
+        )
+        self.assertNotEqual(canonical, FAKE)
+        configure_fake(canonical)
+        with self.assertRaisesRegex(
+            ValueError, "CANONICAL_PAYLOAD_SHAPE_UNSUPPORTED"
+        ):
+            stage.stage_source(canonical)
+
     def test_sha_mismatch_fails_closed(self):
         configure_fake(FAKE)
         with self.assertRaisesRegex(ValueError, "SOURCE_SHA_MISMATCH"):
