@@ -6821,6 +6821,7 @@ console.log('BOT KING Lightweight Charts ready');
                         if key not in seen:
                             seen.add(key)
                             contexts.append((sym,tf,selected_expiry,key))
+                    assessment_changed=False
                     for sym,tf,selected_expiry,key in contexts:
                         if generation!=provider_generation[0] or not app_active[0]:
                             break
@@ -6842,12 +6843,16 @@ console.log('BOT KING Lightweight Charts ready');
                                     "timeframe":tf,"expiry":selected_expiry}
                                 if len(oracle_assessment_cache)>16:
                                     del oracle_assessment_cache[next(iter(oracle_assessment_cache))]
-                                if current[0] in (0,3,4):
-                                    request_view_refresh(current[0])
+                                assessment_changed=True
                         except asyncio.CancelledError:
                             raise
                         except Exception as exc:
                             log_error("oracle_assessment",exc)
+                    # Coalesce selected-symbol results into one visual update;
+                    # avoid rebuilding Dashboard/Scanner repeatedly per response.
+                    # Mounted Watchlist rows still update in-place via watch_visible_tick.
+                    if assessment_changed and current[0] in (0,3,4):
+                        request_view_refresh(current[0])
                     if len(oracle_assessment_attempts)>64:
                         oracle_assessment_attempts.clear()
                 else:
