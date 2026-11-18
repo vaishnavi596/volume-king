@@ -91,6 +91,38 @@ class DurableKeysTests(unittest.TestCase):
         with self.assertRaises(SessionDenied):
             self.keys2.complete(self.master,self.signed(D,new.challenge,self.old),["quotes"])
 
+    def test_revoke_erases_current_key_pending_and_challenge_across_workers(self):
+        self.enroll(D,self.old)
+        token=self.s2.issue_verified(VerifiedDevice(D))
+        stale=self.v.challenge(D)
+        newkey=ec.generate_private_key(ec.SECP256R1())
+        pending=self.keys1.request(self.master,D,der(newkey))
+        self.s2.revoke(self.master,D)
+        self.assertIsNone(self.keys2.public_key(D))
+        with self.assertRaises(SessionDenied):
+            self.s1.authorize(token,"quotes")
+        with self.assertRaises(SessionDenied):
+            self.v.verify(self.signed(D,stale,self.old))
+        with self.assertRaises(SessionDenied):
+            self.keys2.complete(self.master,self.signed(D,pending.challenge,newkey),["quotes"])
+        # A fresh, fully signed approval is mandatory after revoke.
+        self.enroll(D,newkey)
+        self.assertEqual(self.keys1.public_key(D),der(newkey))
+        self.assertNotEqual(self.keys1.public_key(D),der(self.old))
+
+    def test_revoke_without_auxiliary_key_tables_keeps_basic_session_compatible(self):
+        # A session-only SQLite installation must not fail because the key
+        # enrollment and challenge optional tables have never been created.
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"basic.sqlite"
+            store=DurableDeviceSessions(path)
+            store.bootstrap(M,authorize_bootstrap=lambda d:d==M)
+            master=store.issue_verified(VerifiedDevice(M))
+            store.master_grant(master,D,["quotes"])
+            store.revoke(master,D)
+            with self.assertRaises(SessionDenied):
+                store.issue_verified(VerifiedDevice(D))
+
     def test_capacity_and_master_key_protection(self):
         self.enroll(D,self.old)
         self.enroll(T,ec.generate_private_key(ec.SECP256R1()))

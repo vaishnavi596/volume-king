@@ -165,6 +165,16 @@ class DurableDeviceSessions:
                 db.execute("DELETE FROM sessions WHERE device=?", (device_id,))
                 db.execute("DELETE FROM devices WHERE device=? AND master=0",
                            (device_id,))
+                # Revocation must erase the trust root and pending enrollment,
+                # not just a bearer. These auxiliary tables are optional when
+                # the basic session-store prototype is used without key modules.
+                for table in ("device_keys", "pending_device_keys", "login_challenge"):
+                    exists = db.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                        (table,)).fetchone()
+                    if exists:
+                        db.execute("DELETE FROM " + table + " WHERE device=?",
+                                   (device_id,))
                 db.execute("COMMIT")
             except BaseException:
                 db.execute("ROLLBACK")
