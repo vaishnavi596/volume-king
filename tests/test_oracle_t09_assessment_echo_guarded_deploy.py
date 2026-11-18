@@ -86,6 +86,27 @@ class T09AssessmentEchoDeployTests(unittest.TestCase):
         self.assertEqual(state["mv"],0)
         self.assertEqual(state["restarts"],0)
 
+    def test_stale_non_target_backups_are_permitted(self):
+        (self.backup/"server.py").write_text("historical backup\n")
+        (self.backup/"assessment_state.py").write_text("historical backup\n")
+        state, command, sudo = self.fake_io()
+        def http(path):
+            return 200 if path=="/health" else 403
+        with patch.object(mod,"run",side_effect=command),patch.object(mod,"sudo",side_effect=sudo),patch.object(mod,"http_status",side_effect=http),patch.object(mod,"authenticated_echo_check"),patch.object(mod.os,"geteuid",return_value=1000):
+            self.assertEqual(mod.execute(),0)
+        self.assertEqual((self.root/"server.py").read_bytes(),self.raw["server.py"])
+        self.assertEqual((self.root/"assessment_state.py").read_bytes(),self.raw["assessment_state.py"])
+        self.assertEqual(state["mv"],1)
+
+    def test_target_backup_drift_holds_before_write(self):
+        (self.backup/"assessment_api.py").write_text("stale")
+        state, command, sudo = self.fake_io()
+        with patch.object(mod,"run",side_effect=command),patch.object(mod,"sudo",side_effect=sudo),patch.object(mod.os,"geteuid",return_value=1000):
+            self.assertEqual(mod.execute(),2)
+        self.assertEqual(mod.REPORT["status"],"HOLD_NO_PRODUCTION_WRITE")
+        self.assertEqual(state["mv"],0)
+        self.assertEqual(state["restarts"],0)
+
     def test_success_replaces_only_server_and_checks_health(self):
         state, command, sudo = self.fake_io()
         def http(path):
