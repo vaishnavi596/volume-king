@@ -1,5 +1,8 @@
 # BOT KING V2 — CURRENT STATUS, CATEGORY-WISE JOURNAL & NEXT CHAT SCHEDULE
 
+> **CURRENT V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118:** Flet app-owned Smart Data auto-refresh toggle + 180/300/600s selection persisted locally, 09:10–15:45 IST confirmed-session policy and 0/5/51/70 demand tests. No timers, live fetch, token or Oracle settings edits; CI PENDING. Last verified CI #27 SUCCESS. Work Log entry V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118.
+
+
 > **VERIFIED V2-S3-DEVICE-PERSISTENCE-CI27-SUCCESS-20261118:** Device-local Watchlist persistence batch 58ea34f exact CI #27 (44308423480) SUCCESS; prior offline screens #26 also PASS. Code-only proof; actual Flet runtime/mobile/Oracle/APK still pending. Continue existing Flet app-first batch; same branch, same owner architecture.
 
 

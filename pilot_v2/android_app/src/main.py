@@ -1,6 +1,7 @@
 """BOT KING V2 Flet offline app; app owns settings, no live Dhan/Oracle calls."""
 import flet as ft
 from app_state import LocalWatchlists, SelectionError
+from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -19,6 +20,24 @@ def main(page: ft.Page):
             return False
         try:
             page.client_storage.set(storage_key, state.saved_state())
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
+    smart_key = "botking.v2.smartdata.v1"
+    try:
+        saved_smart = page.client_storage.get(smart_key)
+        smart = [SmartDataSettings.from_saved(saved_smart) if saved_smart is not None else SmartDataSettings()]
+        smart_error = ""
+    except (SmartDataError, OSError, ValueError, TypeError, RuntimeError):
+        smart = [SmartDataSettings()]
+        smart_error = "Smart Data save could not be loaded; previous settings not overwritten"
+
+    def save_smart():
+        if smart_error:
+            return False
+        try:
+            page.client_storage.set(smart_key, smart[0].saved_state())
             return True
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
@@ -63,7 +82,7 @@ def main(page: ft.Page):
                 page.update()
             content.controls = [
                 ft.Text("Watchlist", size=19, weight=ft.FontWeight.BOLD),
-                ft.Text(f"{len(state.selected)}/70 unique equities · 3 indexes separate"),
+                ft.Text(f"{selected_equity_plan(state)['equity_count']}/70 unique equities · 3 indexes separate"),
                 ft.Dropdown(label="Watchlist", width=190, value=str(group[0]),
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
@@ -74,14 +93,36 @@ def main(page: ft.Page):
                 ft.Text("3m candles unavailable · no fabricated prices"),
             ]
         else:
+            def change_auto(e):
+                smart[0] = SmartDataSettings(bool(e.control.value), smart[0].equity_seconds)
+                status.value = ("Smart Data setting saved on device" if save_smart()
+                                else "Changed for session only; local save unavailable")
+                render()
+                page.update()
+            def change_interval(e):
+                try:
+                    smart[0] = SmartDataSettings(smart[0].auto_refresh, int(e.control.value))
+                    status.value = ("Smart Data interval saved on device" if save_smart()
+                                    else "Changed for session only; local save unavailable")
+                except (SmartDataError, TypeError, ValueError):
+                    status.value = "Invalid refresh interval"
+                render()
+                page.update()
             content.controls = [
                 ft.Text("Settings", size=19, weight=ft.FontWeight.BOLD),
-                ft.Text("Smart Data and Master Control belong in this app"),
-                ft.Text("Market polling window: 09:10–15:45 IST"),
+                ft.Text("Smart Data & Master Control — app-owned"),
+                ft.Switch(label="Automatic market refresh", value=smart[0].auto_refresh,
+                          on_change=change_auto),
+                ft.Dropdown(label="Selected equity quote interval", width=240,
+                            value=str(smart[0].equity_seconds),
+                            options=[ft.dropdown.Option(str(n), f"{n} seconds") for n in (180, 300, 600)],
+                            on_change=change_interval),
+                ft.Text("09:10–15:45 IST; auto requires confirmed market session"),
                 ft.Text("Outside hours: manual data refresh only"),
-                ft.Text("Five watchlists · 70 unique equities total"),
-                ft.Text("Device access, login and Dhan connection: not yet integrated"),
-                ft.Text("No automatic server changes or trading orders"),
+                ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
+                ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
+                ft.Text("Data connection and manual fetch not yet enabled"),
+                ft.Text("Device access/login not integrated; live orders disabled"),
             ]
 
     def navigate(e):

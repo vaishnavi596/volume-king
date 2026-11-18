@@ -1,3 +1,5 @@
+> **CURRENT V2-S3-APP-OWNED-SMART-DATA-SETTINGS-20261118:** app-only local Smart Data policy/config + synthetic tests; no active network polling; CI pending. Existing Flet V2 branch, no server auth change.
+
 > **LATEST V2-S3-DEVICE-PERSISTENCE-CI27-SUCCESS-20261118:** V2 local Watchlist save source SHA 58ea34f CI #27 SUCCESS; Flet device run/Android install not yet tested. Next existing app batch.
 
 > **CURRENT V2-S3-FLET-DEVICE-LOCAL-WATCHLIST-PERSISTENCE-20261118:** Local V2 Flet Watchlist saved-state roundtrip and fail-closed restore code/test committed pending CI. No server-side app settings. See V2 Work Log.
