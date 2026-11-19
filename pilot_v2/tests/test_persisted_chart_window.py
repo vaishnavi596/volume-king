@@ -64,7 +64,7 @@ class PersistentHistoryWindow(unittest.TestCase):
             'chart_window_key = "botking.v2.chart_window.v1"',
             "def save_chart_window():",
             "page.client_storage.set(chart_window_key, chart_window[0])",
-            "new_chart_window = restored[5] if len(restored) == 6 else None",
+            "new_chart_window = restored[5] if len(restored) >= 6 else None",
             "chart_window[0] = new_chart_window",
             "chart_window=chart_window[0]",
             "save_chart_window()",
