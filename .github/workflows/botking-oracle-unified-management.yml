@@ -258,10 +258,12 @@ jobs:
           test "$(systemctl is-active bot-king.service)" = active
           test "$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8000/health)" = 200
           test "$(id -un)" = opc
-          test -f "$PRIVATE"
-          test ! -L "$PRIVATE"
-          test "$(stat -c %a "$PRIVATE")" = 600
-          test "$(stat -c %a /home/opc/botking-v2-private)" = 700
+          if [ ! -f "$PRIVATE" ] || [ -L "$PRIVATE" ]; then
+            echo "V2_ACTIVATION=BLOCKED_PRIVATE_ENV_MISSING_OR_LINKED"; exit 1
+          fi
+          if [ "$(stat -c %a "$PRIVATE")" != 600 ] || [ "$(stat -c %a /home/opc/botking-v2-private)" != 700 ]; then
+            echo "V2_ACTIVATION=BLOCKED_PRIVATE_ENV_PERMISSIONS"; exit 1
+          fi
           cd "$ROOT"
           "$ROOT/.venv/bin/python" -m pilot_v2.tools.v2_activation_gate --private-env-file "$PRIVATE"
           echo "V2_REAL_MASTER_AND_PAIRING=APPROVED_BY_LOCAL_GATE"
@@ -332,6 +334,14 @@ jobs:
           trap - ERR
           echo "V2_GATEWAY_TRANSPORT=ACTIVE; V1=HEALTHY; LIVE_DHAN_QUOTES=NOT_VERIFIED; PHONE_SIGNED_LOGIN=NOT_VERIFIED"
           ACTIVATE
+            echo "V2_ONE_CLICK_ACTIVATION=COMPLETE; SIGNED_PHONE_AND_LIVE_DHAN_ACCEPTANCE=PENDING"
+            {
+              echo "## BOT KING V2 — Oracle activation"
+              echo "- Oracle authenticated gateway started on isolated localhost port 8001."
+              echo "- V2 HTTPS negative-auth checks passed; V1 remained healthy."
+              echo "- Real signed phone login and Dhan market quote **not yet verified**."
+              echo "- Trading orders remain disabled."
+            } >> "$GITHUB_STEP_SUMMARY"
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
               echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
