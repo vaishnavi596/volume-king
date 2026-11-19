@@ -1,0 +1,97 @@
+name: BOT KING Oracle Unified Remote Management
+run-name: Oracle ${{ inputs.operation }} (owner-controlled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "One gateway: audit or owner-approved maintenance"
+        required: true
+        type: choice
+        options:
+          - audit
+          - maintenance
+        default: audit
+      command:
+        description: "For maintenance only: reviewed Linux command, NO passwords/keys"
+        required: false
+        type: string
+        default: ""
+      approval:
+        description: "For maintenance enter exactly APPROVE_ORACLE_CHANGE"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: botking-oracle-remote-management
+  cancel-in-progress: false
+
+jobs:
+  oracle:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 15
+    steps:
+      - name: Connect securely with existing owner-authorized key
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          OPERATION: ${{ inputs.operation }}
+          OWNER_COMMAND: ${{ inputs.command }}
+          APPROVAL: ${{ inputs.approval }}
+        run: |
+          set -euo pipefail
+          test -n "$ORACLE_HOST" && test -n "$ORACLE_SSH_KEY"
+          case "$ORACLE_HOST" in *[!a-zA-Z0-9.:-]*|"") echo "INVALID_ORACLE_HOST"; exit 1;; esac
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$ORACLE_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/botking_oracle"
+          # Owner verified the actual host's public key from its trusted console.
+          printf '%s ssh-ed25519 %s\n' "$ORACLE_HOST" \
+            'AAAAC3NzaC1lZDI1NTE5AAAAIPZcGGcUv+XxxpyAgGcwlAusDv5RvrIB8HaOnKYkbFFu' \
+            > "$HOME/.ssh/known_hosts"
+          trap 'rm -f "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"' EXIT
+          chmod 600 "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -P '' -f "$HOME/.ssh/botking_oracle" >/dev/null 2>&1
+          SSH=(ssh -T -i "$HOME/.ssh/botking_oracle" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10)
+          if [ "$OPERATION" = "audit" ]; then
+            test -z "$OWNER_COMMAND"
+            "${SSH[@]}" "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          echo "SSH_STATUS=CONNECTED"
+          echo "REMOTE_USER=$(id -un)"
+          echo "V1_SERVICE=$(systemctl is-active bot-king.service || true)"
+          echo "V2_SERVICE=$(systemctl is-active bot-king-v2.service || true)"
+          echo "V1_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8000/health)"
+          if ss -lnt '( sport = :8001 )' | grep -q LISTEN; then echo V2_PORT=LISTEN; else echo V2_PORT=ABSENT; fi
+          if sudo -n true >/dev/null 2>&1; then
+            echo "PASSWORDLESS_SUDO=AVAILABLE"
+          else
+            echo "PASSWORDLESS_SUDO=NOT_VERIFIED"
+          fi
+          test -r /home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80/manifest.json && echo "V2_STAGE=PRESENT" || echo "V2_STAGE=ABSENT"
+          REMOTE
+          elif [ "$OPERATION" = "maintenance" ]; then
+            if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
+              echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
+            fi
+            if [ -z "$OWNER_COMMAND" ] || [ "${#OWNER_COMMAND}" -gt 2000 ]; then
+              echo "INVALID_OWNER_COMMAND"; exit 1
+            fi
+            # Never send secret contents or SSH identity to remote command.
+            # The command is executed only after deliberate owner dispatch
+            # and the protected GitHub environment has granted access.
+            echo "MAINTENANCE_MODE=OWNER_APPROVED"
+            printf '%s\n' "$OWNER_COMMAND" | "${SSH[@]}" "opc@$ORACLE_HOST" 'bash -se'
+            echo "MAINTENANCE_EXIT=SUCCESS"
+          else
+            echo "INVALID_OPERATION"; exit 1
+          fi
