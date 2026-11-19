@@ -11,7 +11,7 @@ from math import isfinite
 from threading import RLock
 
 from .evidence_contract import validate_evidence_envelope
-from .internal_dhan_read_port import DhanRateLimited
+from .internal_dhan_read_port import DhanRateLimited, DhanReadUnavailable
 from .shared_read_budget import SharedReadBudget, BudgetDenied
 from .unified_data_pipeline import PipelineUnavailable
 
@@ -79,8 +79,8 @@ class OracleDhanEvidenceLane:
             except DhanRateLimited:
                 self._budget.throttle()
                 raise PipelineUnavailable("Dhan evidence provider cooldown") from None
-            except (BudgetDenied, ValueError, TypeError, OSError, TimeoutError,
-                    LookupError):
+            except (BudgetDenied, DhanReadUnavailable, ValueError, TypeError, OSError,
+                    TimeoutError, LookupError):
                 # Do not overwrite last-good cache, fabricate events or retry
                 # on a missing/unverified source.
                 raise PipelineUnavailable("Dhan evidence not verified") from None
