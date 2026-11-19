@@ -1,3 +1,11 @@
+## 2026-11-19 — V2 PRIVATE BACKUP PARENT DIRECTORY HARDENING
+- Read current V2 General and actual vault/test source before edits; previous complete Unified CI #272 https://github.com/vaishnavi596/volume-king/actions/runs/44511295287 at `3fb10bcf3e10e72a59d69aadc06a903f21a7e42c` SUCCESS after #271 missing-import failure was repaired. Docs-only HEAD before this segment `af6b137ebca3244cb1218682028d4eff066ac53a`.
+- **Code commit** `68ac5376a2378cdb6b7cfc17b541ccf9d0a5c955`: backup database must live beneath a real non-symlink parent directory without group/world write permission; verify its device/inode identity and safe mode on every vault access. This adds a useful fail-closed path check, not complete protection against filesystem race/compromised privileged operator. Production still needs a private service-owned directory and controlled proxy.
+- **Regression commit** `266c5629a72d331f081e0c255758449efd767794`: creation under group/world-writable parent denied; existing vault denies access when parent becomes writable or is replaced by directory symlink and resumes only after original parent restored. CI #273 code-only and #274 combined source+test were in progress/pending at first observation, not yet declared PASS.
+- No V1 edit, Oracle SSH, deployment, APK, Dhan provider call, secrets or live order. NEXT: exact final CI, then server-only deployment evidence gate and Android Keystore runtime acceptance remain blocked independently.
+
+---
+
 ## 2026-11-19 — V2 PRIVATE BACKUP DATABASE PATH HARDENING / CI #271 FIX
 - **Precheck:** read General, actual current source, existing tests and branch HEAD `42d22d2484f8810afb21170eb641f14838189646`, latest complete CI #269 success at `2c472c22`. User instructed continue to next code segment without report-and-stop.
 - **Code:** commit `060d6ac9b9f5497b5916e1903cd0256acee3c2a0` rejects backup SQLite file that is non-regular, world/group accessible, hard-linked, symlinked, or replaced since vault initialization; adds VaultStorageDenied and fail-closed 503 on routed storage errors. This is a bounded best-effort path-identity guard, NOT a substitute for a private owner-controlled directory and no race-proof OS-level descriptor binding. Exact code-only CI #270 `44511145723` SUCCESS.
