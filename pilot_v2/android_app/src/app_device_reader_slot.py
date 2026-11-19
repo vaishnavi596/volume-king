@@ -56,15 +56,19 @@ class DeviceReaderSlot:
         reader = login_client.login()
         if type(reader) is not V2ReadonlyHTTPSReader or not reader.session_active:
             raise FeedError("Active read-only device session required")
-        # The signed session must remain bound to exactly the HTTPS origin
-        # requested by the approved login client, not a different endpoint.
-        if reader._origin != login_client._origin:
-            reader.invalidate()
-            raise FeedError("Signed device session origin mismatch")
+        # Keep the acceptance, alias and cancellation checks together.
+        # A buggy login provider may return the SAME reader already retained
+        # by this slot; never scrub that good reader as a rejected "new" one.
         with self._lock:
+            if reader is self._reader:
+                raise FeedError("New signed device session required")
             if attempt != self._generation:
                 reader.invalidate()
                 raise FeedError("Device sign-in was cancelled")
+            # Refuse a reader from a different origin before handover.
+            if reader._origin != login_client._origin:
+                reader.invalidate()
+                raise FeedError("Signed device session origin mismatch")
             if not reader.session_active:
                 raise FeedError("Active read-only device session required")
             previous, self._reader = self._reader, reader
