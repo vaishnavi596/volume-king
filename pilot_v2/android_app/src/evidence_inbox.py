@@ -30,9 +30,10 @@ class DeviceEvidenceInbox:
     @staticmethod
     def allowed(selected_equities):
         equities = tuple(selected_equities)
-        if (len(equities) > 70 or len(equities) != len(set(equities))
+        if (len(equities) > 70
                 or any(type(symbol) is not str or not symbol
-                       or symbol in INDEXES for symbol in equities)):
+                       or symbol in INDEXES for symbol in equities)
+                or len(equities) != len(set(equities))):
             raise ValueError("Invalid app-owned equity roster")
         return INDEXES + equities
 
