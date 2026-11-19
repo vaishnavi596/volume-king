@@ -99,7 +99,7 @@ class NativeKeystoreContractTests(unittest.TestCase):
         self.assertEqual(len(FakeKeyStore.keys), 1)
         binding = adapter.binding()
         self.assertEqual(binding.public_spki_for_owner_enrollment(), public)
-        msg = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\\x00" + bytes(range(32))
+        msg = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\x00" + bytes(range(32))
         signature = binding.sign_login_challenge(msg)
         FakeKeyStore.keys[adapter.alias].public_key().verify(
             signature, msg, ec.ECDSA(hashes.SHA256()))
@@ -118,14 +118,14 @@ class NativeKeystoreContractTests(unittest.TestCase):
             adapter.sign_login_message(b"no-key")
         with self.assertRaises(FeedError):
             _safe_byte_string([0] * 1025)
-        self.assertEqual(_safe_byte_string([-1, -128, 0, 127]), b"\\xff\\x80\\x00\\x7f")
+        self.assertEqual(_safe_byte_string([-1, -128, 0, 127]), b"\xff\x80\x00\x7f")
 
     def test_key_replacement_denied_by_existing_binding(self):
         adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
         adapter.ensure_public_spki()
         binding = adapter.binding()
         FakeKeyStore.keys[adapter.alias] = ec.generate_private_key(ec.SECP256R1())
-        msg = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\\x00" + bytes(32)
+        msg = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\x00" + bytes(32)
         with self.assertRaises(FeedError):
             binding.sign_login_challenge(msg)
 
