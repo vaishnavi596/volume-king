@@ -287,6 +287,24 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertFalse(previous.session_active)
         self.assertTrue(incoming.session_active)
 
+    def test_cross_origin_signed_reader_rejected_and_scrubbed(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        wrong_origin = V2ReadonlyHTTPSReader(
+            "https://unapproved.example.test", "B" * 32, opener=Mock())
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login",
+                          return_value=wrong_origin):
+            with self.assertRaises(FeedError) as error:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertIn("origin mismatch", str(error.exception))
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+        self.assertFalse(wrong_origin.session_active)
+        self.assertEqual(self.calls, [])
+
     def test_inactive_new_signed_reader_cannot_replace_previous_session(self):
         binding = self.bind()
         slot = DeviceReaderSlot()
