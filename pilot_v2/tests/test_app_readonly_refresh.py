@@ -2,6 +2,7 @@
 import io
 import json
 import sys
+from urllib.error import HTTPError
 import unittest
 from email.message import Message
 from pathlib import Path
@@ -143,6 +144,28 @@ class ApprovedQuoteRefreshTests(unittest.TestCase):
         self.assertEqual(result["quotes"], "WAIT")
         self.assertEqual(inbox.visible(w.selected[0], w.selected), before)
         self.assertEqual(opener2.calls, ["indices", "quotes"])
+
+    def test_revoked_index_session_does_not_issue_second_equity_request(self):
+        w, intent = intent_for(5)
+        reader, opener = self.make_reader(5)
+        inbox = DeviceFeedInbox()
+        class RejectIndexOpener(FakeOpener):
+            def open(self, request, timeout):
+                if request.full_url.endswith("/indices"):
+                    self.calls.append("indices")
+                    raise HTTPError(request.full_url, 403, "forbidden", {}, None)
+                return super().open(request, timeout)
+        rejected = RejectIndexOpener(opener.payloads)
+        reader = V2ReadonlyHTTPSReader(
+            "https://example.test", "x" * 32, opener=rejected)
+        result = apply_approved_quote_intent(intent, reader, inbox, w.selected)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["indexes"], "WAIT")
+        self.assertEqual(result["quotes"], "SKIPPED")
+        self.assertEqual(result["requests"], 1)
+        self.assertEqual(rejected.calls, ["indices"])
+        self.assertFalse(reader.session_active)
+        self.assertEqual(inbox.revision_for("quotes"), -1)
 
     def test_untrusted_or_stale_request_does_not_fetch(self):
         w, intent = intent_for(5)

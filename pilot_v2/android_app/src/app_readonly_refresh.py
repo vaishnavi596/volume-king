@@ -54,6 +54,11 @@ def apply_approved_quote_intent(intent, reader, inbox, selected_equities):
     results = {"status": "COMPLETED", "indexes": "SKIPPED",
                "quotes": "SKIPPED", "requests": 0}
     for feed, roster in lanes:
+        # A rejected or locally expired session cannot initiate another lane.
+        if not reader.session_active:
+            results["status"] = "PARTIAL"
+            results["indexes" if feed == "indices" else "quotes"] = "SKIPPED"
+            break
         # The HTTPS reader independently verifies status, media type, redirect,
         # request size, bearer-bound endpoint and exact Dhan-only payload.
         results["requests"] += 1
@@ -65,4 +70,8 @@ def apply_approved_quote_intent(intent, reader, inbox, selected_equities):
             # Do not disclose upstream URLs, auth headers, token, or bodies.
             results["indexes" if feed == "indices" else "quotes"] = "WAIT"
             results["status"] = "PARTIAL"
+            if not reader.session_active:
+                # 401/403 invalidated the signed bearer. Do NOT count or
+                # attempt the second HTTP lane; retained quotes stay untouched.
+                break
     return results
