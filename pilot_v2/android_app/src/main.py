@@ -1,8 +1,11 @@
 """BOT KING V2 Flet offline app; app owns settings, no live Dhan/Oracle calls."""
 import flet as ft
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from app_identity import APP_VERSION_NAME, APP_VERSION_CODE
 from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
+from refresh_intent import make_refresh_intent
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
 from feed_inbox import DeviceFeedInbox
 from evidence_inbox import DeviceEvidenceInbox
@@ -130,6 +133,7 @@ def main(page: ft.Page):
     watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
     chart_window = [DEFAULT_WINDOW]  # Local history display only.
+    manual_refresh_plan = ["No data request planned; gateway is not connected"]
     backup_text = [""]
     backup_confirm = [False]  # Explicit consent for replacing local preferences.
     paper_inputs = {"side": "BUY", "entry": "100", "quantity": "1",
@@ -547,6 +551,22 @@ def main(page: ft.Page):
                     status.value = "Invalid refresh interval"
                 render()
                 page.update()
+            def preview_manual_refresh(e):
+                """Prepare request intent only; NEVER fetch or redraw remotely."""
+                try:
+                    intent = make_refresh_intent(
+                        state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
+                        manual=True, confirmed_session=False)
+                    manual_refresh_plan[0] = (
+                        f"Manual plan · {len(intent.equities)} selected equities"
+                        f" · {len(intent.indexes)} indexes · Dhan gateway NOT connected"
+                        " · zero network requests sent")
+                    status.value = "Manual data request PLAN only; no refresh performed"
+                except (SmartDataError, ValueError, TypeError):
+                    manual_refresh_plan[0] = "Manual refresh plan unavailable"
+                    status.value = "Unable to plan manual data request"
+                render()
+                page.update()
             def calculate_paper_preview(e):
                 try:
                     result = preview_manual_paper_risk(
@@ -654,6 +674,9 @@ def main(page: ft.Page):
                 ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
+                ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
+                                  on_click=preview_manual_refresh),
+                ft.Text(manual_refresh_plan[0], color=MUTED),
                 ft.Text("Master Device Control", size=16, color=GOLD,
                         weight=ft.FontWeight.BOLD),
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
