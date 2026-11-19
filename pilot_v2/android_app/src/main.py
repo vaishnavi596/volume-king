@@ -27,6 +27,7 @@ from paper_preview import preview_manual_paper_risk
 from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
 from local_paper_ledger import ManualPaperLedger, PaperLedgerError
 from local_notices import LocalNoticeCenter
+from app_data_readiness import joint_data_readiness, data_readiness_label
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -178,6 +179,10 @@ def main(page: ft.Page):
         page.update()
 
     def render():
+        scanner[0] = for_visible_roster(scanner[0], state)
+        readiness = joint_data_readiness(
+            state, scanner[0], smart[0], quote_view, evidence_inbox,
+            scanner_history)
         if analysis_slots[0].reconcile(state):
             save_analysis()
         if current[0] == 0:
@@ -319,6 +324,8 @@ def main(page: ft.Page):
                     ft.Text(health["feed"], color=MUTED, size=14),
                 ]),
                 ft.Divider(),
+                ft.Text("Verified data: WAIT · Oracle not connected", color=MUTED),
+                ft.Text(data_readiness_label(readiness), color=MUTED, size=14),
                 ft.Text("Five filters — source-gated, no fabricated percentage", color=MUTED),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows("NIFTY", "1m")[:5]],
@@ -707,6 +714,7 @@ def main(page: ft.Page):
                 ft.Text("09:10–15:45 IST; auto requires confirmed market session"),
                 ft.Text("Outside hours: manual data refresh only"),
                 ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
+                ft.Text(data_readiness_label(readiness), color=MUTED, size=14),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
