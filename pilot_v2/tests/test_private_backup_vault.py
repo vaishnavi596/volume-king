@@ -4,11 +4,13 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pilot_v2.durable_device_sessions import DurableDeviceSessions
 from pilot_v2.device_sessions import VerifiedDevice
 from pilot_v2.private_backup_vault import (
     PrivateBackupDenied, ServerBackupVault, inspect_envelope,
-    seal_local_preferences, unseal_local_preferences,
+    seal_local_preferences, unseal_local_preferences, create_private_backup_router,
 )
 
 BACKUP = json.dumps({"kind": "botking-v2-local-preferences",
@@ -106,6 +108,44 @@ class PrivateBackupVaultTests(unittest.TestCase):
         item["salt"] = "!!!not valid!!!"
         with self.assertRaises(PrivateBackupDenied):
             inspect_envelope(json.dumps(item))
+
+    def test_opt_in_http_routes_authorize_master_and_reject_plaintext(self):
+        with tempfile.TemporaryDirectory() as d:
+            sessions = DurableDeviceSessions(
+                Path(d) / "sessions.sqlite", clock=lambda: 1000., ttl=60)
+            master_id, delegate_id = ("master_private_0001", "delegate_private_0001")
+            sessions.bootstrap(master_id, authorize_bootstrap=lambda _: True)
+            master = sessions.issue_verified(VerifiedDevice(master_id))
+            sessions.master_grant(master, delegate_id, ["quotes"])
+            delegate = sessions.issue_verified(VerifiedDevice(delegate_id))
+            vault = ServerBackupVault.from_durable_sessions(
+                Path(d) / "private.sqlite", sessions)
+            app = FastAPI()
+            app.include_router(create_private_backup_router(vault))
+            client = TestClient(app)
+            url = "/v2-pilot/private-backup"
+            auth = {"Authorization": "Bearer " + master}
+            bad = {"Authorization": "Bearer " + delegate}
+            self.assertEqual(client.get(url).status_code, 401)
+            self.assertEqual(client.get(url, headers=bad).status_code, 403)
+            self.assertEqual(client.get(url, headers=auth).json(),
+                             {"revision": 0, "encrypted_envelope": None})
+            encrypted = seal_local_preferences(BACKUP, PASSWORD)
+            post = client.post(url, headers=auth, json={
+                "encrypted_envelope": encrypted, "expected_revision": 0})
+            self.assertEqual(post.status_code, 200)
+            self.assertEqual(post.json()["revision"], 1)
+            self.assertEqual(post.headers["cache-control"], "no-store")
+            self.assertEqual(client.get(url, headers=auth).json(),
+                             {"revision": 1, "encrypted_envelope": encrypted})
+            self.assertEqual(client.post(url, headers=bad, json={
+                "encrypted_envelope": encrypted, "expected_revision": 1}).status_code, 403)
+            self.assertEqual(client.post(url, headers=auth, json={
+                "encrypted_envelope": encrypted, "expected_revision": 0}).status_code, 409)
+            self.assertEqual(client.post(url, headers=auth, json={
+                "plaintext": BACKUP, "password": PASSWORD}).status_code, 400)
+            sessions.logout(master)
+            self.assertEqual(client.get(url, headers=auth).status_code, 403)
 
     def test_auth_denial_precedes_envelope_storage(self):
         with tempfile.TemporaryDirectory() as d:

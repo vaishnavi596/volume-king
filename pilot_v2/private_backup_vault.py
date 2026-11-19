@@ -193,3 +193,66 @@ class ServerBackupVault:
                 revision=excluded.revision,encrypted_envelope=excluded.encrypted_envelope""",
                 (owner, revision, envelope))
             return revision
+
+
+def create_private_backup_router(vault):
+    """Opt-in V2-only read/write routes; never mounted without verified Master."""
+    from fastapi import APIRouter, HTTPException, Request
+    from fastapi.responses import JSONResponse
+    if not isinstance(vault, ServerBackupVault):
+        raise ValueError("Explicit authenticated private vault required")
+    router = APIRouter()
+
+    def bearer(request):
+        header = request.headers.get("authorization", "")
+        if (not header.startswith("Bearer ") or header.count(" ") != 1
+                or not 40 <= len(header[7:]) <= 160):
+            raise HTTPException(401, "Verified Master bearer required")
+        return header[7:]
+
+    @router.get("/v2-pilot/private-backup")
+    def get_private_backup(request: Request):
+        try:
+            revision, encrypted = vault.read(bearer(request))
+        except PrivateBackupDenied:
+            raise HTTPException(403, "Master access denied") from None
+        return JSONResponse({"revision": revision, "encrypted_envelope": encrypted},
+                            headers={"Cache-Control": "no-store"})
+
+    @router.post("/v2-pilot/private-backup")
+    async def put_private_backup(request: Request):
+        token = bearer(request)
+        # Authorize before parsing an untrusted/possibly large payload.
+        try:
+            vault._owner(token)
+        except PrivateBackupDenied:
+            raise HTTPException(403, "Master access denied") from None
+        if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+            raise HTTPException(415, "JSON required")
+        if request.headers.get("content-length"):
+            try:
+                size = int(request.headers["content-length"])
+            except ValueError:
+                raise HTTPException(400, "Invalid content length") from None
+            if size < 0 or size > MAX_ENVELOPE + 1000:
+                raise HTTPException(413, "Private backup payload too large")
+        raw = await request.body()
+        if not raw or len(raw) > MAX_ENVELOPE + 1000:
+            raise HTTPException(413, "Private backup payload too large")
+        try:
+            data = json.loads(raw)
+            if (type(data) is not dict or set(data) !=
+                    {"encrypted_envelope", "expected_revision"}):
+                raise ValueError
+        except (ValueError, UnicodeError, RecursionError):
+            raise HTTPException(400, "Invalid private backup request") from None
+        try:
+            revision = vault.replace(token, data["encrypted_envelope"],
+                                     expected_revision=data["expected_revision"])
+        except PrivateBackupDenied as exc:
+            if str(exc) == "Backup changed; restore or reconcile first":
+                raise HTTPException(409, "Backup revision conflict") from None
+            raise HTTPException(400, "Invalid private backup request") from None
+        return JSONResponse({"revision": revision}, headers={"Cache-Control": "no-store"})
+
+    return router
