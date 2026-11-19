@@ -285,6 +285,22 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertFalse(previous.session_active)
         self.assertTrue(incoming.session_active)
 
+    def test_inactive_new_signed_reader_cannot_replace_previous_session(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        inactive = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "B" * 32, opener=Mock())
+        inactive.invalidate()
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login", return_value=inactive):
+            with self.assertRaises(FeedError):
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+        self.assertFalse(inactive.session_active)
+
     def test_clear_during_relogin_scrubs_previous_and_rejects_late_reader(self):
         binding = self.bind()
         slot = DeviceReaderSlot()
