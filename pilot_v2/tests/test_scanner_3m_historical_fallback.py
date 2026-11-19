@@ -60,7 +60,8 @@ class ThreeMinuteFallbackTests(unittest.TestCase):
         self.assertIn("historical_scanner_analysis(\n                    scanner_history", source)
         self.assertIn("return [_native_bar_stack(c) for c in candle_geometry(", source)
         self.assertIn("refresh_visible_native_chart(symbol, timeframe)", source)
-        self.assertIn('filter_evidence.rows(scanner[0].symbol', source)
+        self.assertIn('for i, (label, value) in enumerate(filter_evidence.rows(', source)
+        self.assertIn('f"scanner_{i}"', source)
 
 if __name__ == "__main__":
     unittest.main()
