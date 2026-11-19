@@ -80,6 +80,40 @@ class SecureEntrypointTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build()
 
+    def test_private_selected_equities_applied_and_index_independent(self):
+        self.provision()
+        roster = self.root / "selected-equities.json"
+        roster.write_text('["RELIANCE","TCS"]', encoding="utf-8")
+        roster.chmod(0o600)
+        app = from_private_config(device_id=self.device_id,
+            master_der_path=str(self.der), pairing_path=str(self.key),
+            db_path=str(self.db), selected_equities_path=str(roster))
+        self.assertEqual(app.title, "BOT KING V2 Trusted Adapter")
+        self.assertEqual(TestClient(app).get("/v2-pilot/health").status_code, 200)
+        # Negative-auth cannot be bypassed by a real selected roster.
+        self.assertEqual(TestClient(app).get("/v2-pilot/quotes").status_code, 401)
+
+    def test_private_roster_symlink_duplicate_and_world_readable_denied(self):
+        self.provision()
+        roster = self.root / "selected-equities.json"
+        roster.write_text('["RELIANCE","RELIANCE"]')
+        roster.chmod(0o600)
+        config = dict(device_id=self.device_id, master_der_path=str(self.der),
+                      pairing_path=str(self.key), db_path=str(self.db),
+                      selected_equities_path=str(roster))
+        with self.assertRaises(ValueError):
+            from_private_config(**config)
+        roster.write_text('["RELIANCE"]')
+        roster.chmod(0o644)
+        with self.assertRaises(ValueError):
+            from_private_config(**config)
+        roster.chmod(0o600)
+        link = self.root / "alias-roster.json"
+        link.symlink_to(roster)
+        config["selected_equities_path"] = str(link)
+        with self.assertRaises(ValueError):
+            from_private_config(**config)
+
     def test_non_p256_public_key_refused(self):
         self.provision()
         self.der.write_bytes(b"not-a-valid-public-key")
