@@ -175,6 +175,34 @@ class PrivateBackupVaultTests(unittest.TestCase):
                 count = db.execute("SELECT COUNT(*) FROM private_backups").fetchone()[0]
             self.assertEqual(count, 0)
 
+    def test_db_replacement_symlink_and_exposed_permissions_fail_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            db_path = Path(d) / "vault.sqlite"
+            owner = lambda _: "master-authorized-0001"
+            vault = ServerBackupVault(db_path, master_owner=owner)
+            sealed = seal_local_preferences(BACKUP, PASSWORD)
+            self.assertEqual(vault.replace("master", sealed, expected_revision=0), 1)
+            db_path.chmod(0o644)
+            with self.assertRaises(VaultStorageDenied):
+                vault.read("master")
+            db_path.chmod(0o600)
+            self.assertEqual(vault.read("master")[0], 1)
+            original = Path(d) / "original.sqlite"
+            db_path.rename(original)
+            db_path.symlink_to(original)
+            with self.assertRaises(VaultStorageDenied):
+                vault.read("master")
+            db_path.unlink()
+            original.rename(db_path)
+            self.assertEqual(vault.read("master")[0], 1)
+            other = Path(d) / "other.sqlite"
+            db_path.rename(other)
+            other_bytes = other.read_bytes()
+            db_path.write_bytes(other_bytes)
+            db_path.chmod(0o600)
+            with self.assertRaises(VaultStorageDenied):
+                vault.replace("master", sealed, expected_revision=1)
+
     def test_auth_denial_precedes_envelope_storage(self):
         with tempfile.TemporaryDirectory() as d:
             db = Path(d) / "private.sqlite"
