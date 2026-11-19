@@ -163,6 +163,33 @@ class HTTPSReaderTests(unittest.TestCase):
             self.inbox, "quotes", selected_equities=("TCS",)))
         self.assertEqual(len(self.opener.calls), 2)
 
+    def test_logout_during_http_read_discards_late_snapshot(self):
+        self.offer("quotes", 1, "TCS", 100)
+        owner = self.reader
+        upstream = self.opener
+
+        class LogoutInFlight:
+            def __init__(self):
+                self.calls = 0
+
+            def open(self, request, timeout):
+                self.calls += 1
+                owner.invalidate()  # Revoke locally before response is delivered.
+                return upstream.next_response
+
+        wrapped = LogoutInFlight()
+        owner._opener = wrapped  # Dependency-injected fake transport only.
+        with self.assertRaisesRegex(FeedError, "session ended"):
+            owner.refresh(self.inbox, "quotes",
+                          selected_equities=("TCS",))
+        self.assertEqual(wrapped.calls, 1)
+        self.assertFalse(owner.session_active)
+        self.assertEqual(self.inbox.revision_for("quotes"), -1)
+        self.assertEqual(self.inbox.visible("TCS", ("TCS",))["status"], "WAIT")
+        with self.assertRaises(FeedError):
+            owner.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+        self.assertEqual(wrapped.calls, 1)
+
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
                        "https://v2.example.test/secret", "https://v2.example.test/?q=1",

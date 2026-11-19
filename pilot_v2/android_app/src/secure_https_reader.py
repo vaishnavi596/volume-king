@@ -120,6 +120,11 @@ class V2ReadonlyHTTPSReader:
             # Never include upstream exception text: it can contain the URL,
             # bearer, response body or an untrusted server message.
             raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None
+        # Logout, revocation or sign-in rotation may have invalidated this
+        # reader while its HTTPS request was in flight. Never ingest a late
+        # response after its local bearer has been scrubbed.
+        if not self.session_active:
+            raise FeedError("V2 device session ended; cached data retained")
         # Only a successful HTTPS response from the configured origin and
         # protected endpoint can enter the independent app-owned lane.
         accepted = deliver_readonly_response(
