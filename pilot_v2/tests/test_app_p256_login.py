@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(SRC))
 from app_p256_login import V2P256LoginHTTPSClient
+from app_keystore_login_binding import AndroidKeystoreLoginBinding
 from app_device_reader_slot import DeviceReaderSlot
 from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
 from pilot_v2.auth_http import create_pilot_auth_app
@@ -90,6 +91,43 @@ class P256AndroidLoginContractTests(unittest.TestCase):
             self.key.sign(message, ec.ECDSA(hashes.SHA256())))
         return V2P256LoginHTTPSClient(
             ORIGIN, DEVICE, callback, opener=self.bridge)
+
+    def test_public_only_keystore_binding_runs_signed_login_to_reader_slot(self):
+        public = self.key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        native_calls = []
+        def native_sign(message):
+            native_calls.append(message)
+            return self.key.sign(message, ec.ECDSA(hashes.SHA256()))
+        bound = AndroidKeystoreLoginBinding(
+            DEVICE, lambda: public, native_sign)
+        self.assertEqual(bound.public_spki_for_owner_enrollment(), public)
+        self.assertEqual(self.bridge.calls, [])
+        slot = DeviceReaderSlot()
+        self.assertTrue(slot.sign_in(
+            bound.login_client(ORIGIN, opener=self.bridge)))
+        self.assertEqual(len(native_calls), 1)
+        self.assertEqual(len(self.bridge.calls), 2)
+        self.assertTrue(slot.active_reader().session_active)
+        reader = slot.reader
+        slot.clear()
+        self.assertFalse(reader.session_active)
+        self.assertIsNone(slot.reader)
+
+    def test_wrong_enrolled_keystore_key_never_produces_active_reader(self):
+        unapproved = ec.generate_private_key(ec.SECP256R1())
+        public = unapproved.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        bound = AndroidKeystoreLoginBinding(
+            DEVICE, lambda: public,
+            lambda message: unapproved.sign(message, ec.ECDSA(hashes.SHA256())))
+        slot = DeviceReaderSlot()
+        with self.assertRaises(FeedError):
+            slot.sign_in(bound.login_client(ORIGIN, opener=self.bridge))
+        self.assertIsNone(slot.reader)
+        self.assertEqual(len(self.bridge.calls), 2)
 
     def test_real_signed_challenge_contract_returns_readonly_reader(self):
         reader = self.make_login().login()
