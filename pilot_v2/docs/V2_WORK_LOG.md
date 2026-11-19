@@ -1,3 +1,8 @@
+## 2026-11-19 — [V2][CI REPAIR] Remote staging archive filename validator
+- Exact source CI #44522353038 at `a121af35ed153e045998210f1b9a1f3ad15993fb` FAILED after 549 tests with one error `test_remote_stage_archive.StageTests.test_valid`: valid Python filenames were rejected due to doubled backslash in raw regex. Failed source was not deployed.
+- Repaired archive filename regex in `pilot_v2/tools/remote_stage_archive.py` commit `17fbf16e0c0afb3ea804a12c06b31a4aa5c4ec01`; new CI run #44522539406 triggered, outcome pending at entry time. Source-staging and SSH audit Actions remain unexecuted (owner environment/SSH secrets not configured), V1 unchanged, V2 production service absent, no orders.
+- Continue next only after actual exact-run PASS; reject premature Oracle deployment or signed APK claims.
+
 ## 2026-11-19 — [V2][GITHUB-ORACLE] Source-only remote staging workflow ready; not connected
 - Existing remote audit workflow e93494e (read-only) plus new V2-only source stage workflow commit 51fe04a, corrected package glob at 5f01e28159d49a9a69371e3dc563bafb0124fbb8. Stage is an owner-approval environment workflow with pinned known-host SSH and mandatory pre-activation V1 health; does NOT create service, route, secrets, real login or Dhan LIVE. No actual workflow dispatch observed. GitHub environment SSH secrets and registration remain operator prerequisites.
 - Android target remains V2 2.0.100 source-only; native device Keystore, real Dhan feed through V2 and signed APK acceptance pending. Do not build premature APK. No V1 Oracle edits, trading or destructive cleanup.
