@@ -41,6 +41,18 @@ def _checked_origin(value):
     return "https://" + parsed.netloc.rstrip("/")
 
 
+def _bounded_retry_after(headers):
+    """Only accept decimal HTTP Retry-After seconds; never trust arbitrary text.
+
+    Minimum 30 seconds, maximum 300 to avoid unbounded client starvation.
+    HTTP-date/invalid values use the conservative local default.
+    """
+    header = headers.get("Retry-After") if headers is not None else None
+    if type(header) is not str or not 1 <= len(header) <= 4 or not header.isascii() or not header.isdecimal():
+        return 30
+    return max(30, min(300, int(header)))
+
+
 class V2ReadonlyHTTPSReader:
     """Get only the two protected, versioned feeds using TLS-verifying opener.
 
@@ -116,7 +128,8 @@ class V2ReadonlyHTTPSReader:
                 if response.status == 429:
                     with self._session_lock:
                         self._cooldown_until = max(
-                            self._cooldown_until, monotonic() + 30)
+                            self._cooldown_until,
+                            monotonic() + _bounded_retry_after(response.headers))
                     raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained")
                 if response.status != 200:
                     raise FeedError("Untrusted HTTP redirect or response")
@@ -139,7 +152,8 @@ class V2ReadonlyHTTPSReader:
             if exc.code == 429:
                 with self._session_lock:
                     self._cooldown_until = max(
-                        self._cooldown_until, monotonic() + 30)
+                        self._cooldown_until,
+                        monotonic() + _bounded_retry_after(exc.headers))
                 raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained") from None
             raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None
         except (URLError, OSError, UnicodeError, ValueError,

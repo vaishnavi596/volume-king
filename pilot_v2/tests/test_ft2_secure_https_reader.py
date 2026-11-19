@@ -275,6 +275,36 @@ class HTTPSReaderTests(unittest.TestCase):
             self.assertEqual(self.inbox.revision_for("indices"), -1)
             self.assertTrue(self.reader.session_active)
 
+    def test_retry_after_seconds_bounded_and_session_retained(self):
+        clock = [1000.]
+        from secure_https_reader import _bounded_retry_after
+        from email.message import Message
+        for value, expected in (("5", 30), ("90", 90), ("300", 300),
+                                ("9999", 300), ("-5", 30),
+                                ("not-valid", 30), ("", 30)):
+            headers = Message()
+            headers["Retry-After"] = value
+            self.assertEqual(_bounded_retry_after(headers), expected)
+        self.assertEqual(_bounded_retry_after(None), 30)
+        headers = Message()
+        headers["Retry-After"] = "90"
+        self.opener.fail = HTTPError(
+            ORIGIN + "/v2-pilot/quotes", 429, "ignore-this-secret", headers, None)
+        with patch("secure_https_reader.monotonic", lambda: clock[0]):
+            with self.assertRaisesRegex(FeedError, "rate-limit cooldown"):
+                self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+            self.assertTrue(self.reader.session_active)
+            self.opener.fail = None
+            self.offer("indices", 1, "NIFTY", 25000)
+            clock[0] = 1089.
+            with self.assertRaisesRegex(FeedError, "rate-limit cooldown"):
+                self.reader.refresh(self.inbox, "indices")
+            self.assertEqual(len(self.opener.calls), 1)
+            clock[0] = 1090.
+            self.assertTrue(self.reader.refresh(self.inbox, "indices"))
+            self.assertEqual(len(self.opener.calls), 2)
+            self.assertEqual(self.inbox.visible("NIFTY", ())["price"], 25000)
+
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
                        "https://v2.example.test/secret", "https://v2.example.test/?q=1",
