@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from pilot_v2.device_policy import valid_id
 from pilot_v2.durable_device_sessions import DurableDeviceSessions
+from pilot_v2.durable_device_keys import DurableDeviceKeys
 
 
 def _private_directory(directory):
@@ -69,6 +70,10 @@ def enroll_master(*, directory, device_id, public_path, approved_fingerprint):
         sessions = DurableDeviceSessions(db)
         db.chmod(0o600)
         sessions.bootstrap(device_id, authorize_bootstrap=lambda candidate: candidate == device_id)
+        DurableDeviceKeys(sessions)
+        with sessions._db() as connection:
+            connection.execute("INSERT INTO device_keys(device, public_der, generation) VALUES(?,?,1)",
+                               (device_id, data))
     finally:
         os.umask(old_umask)
     return {"master_enrolled": True, "public_fingerprint_sha256": digest,
