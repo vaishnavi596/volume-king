@@ -12,6 +12,7 @@ from .atomic_verified_login import AtomicVerifiedLogin
 from .device_verifier import DeviceProof
 from .device_sessions import SessionDenied
 from .unified_data_pipeline import PipelineUnavailable
+from .internal_dhan_read_port import InternalDhanReadPort
 
 MAX_BODY = 1024
 MAX_TOKEN = 160
@@ -135,10 +136,12 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
         if type(parsed) is not dict or set(parsed) != {"symbols"} or type(parsed["symbols"]) is not list:
             raise HTTPException(status_code=422, detail="Invalid roster request")
         try:
-            count = master_roster_updater(parsed["symbols"])
+            selected = InternalDhanReadPort._validated_equities(parsed["symbols"])
         except (ValueError, TypeError):
             raise HTTPException(status_code=422, detail="Invalid selected equities") from None
-        except (PipelineUnavailable, OSError):
+        try:
+            count = master_roster_updater(selected)
+        except (ValueError, TypeError, PipelineUnavailable, OSError):
             raise HTTPException(status_code=503, detail="Private roster update unavailable") from None
         return JSONResponse({"selected_equities": count},
                             headers={"Cache-Control": "no-store"})
