@@ -32,9 +32,9 @@ class OracleRuntimeTests(unittest.TestCase):
     def producer(self, feed, symbols):
         self.calls.append((feed, symbols))
         return DhanReadBatch("dhan", symbols, {
-            s: {"price": 100.0, "observed_at": 1800000000.0}
+            s: {"price": 100.0, "observed_at": 1795069800.0}
             for s in symbols
-        }, len(self.calls), 1800000000.0)
+        }, len(self.calls), 1795069800.0)
 
     def build(self):
         return create_oracle_v2_runtime(
