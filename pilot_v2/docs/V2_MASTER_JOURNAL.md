@@ -1,3 +1,11 @@
+## V2 CONTINUOUS NEXT-WORK: LOCAL UI MIGRATION REGRESSION GATE — 2026-11-19
+- Followed current branch head after prior #106 syntax failure: that failure is historical, fixed in current main.py; do not replay or overwrite. #125 documented 343/343 PASS; later source control-parity audit commit 2b49f800 already exists with 5 local UI controls wired and 3 live/WebView capabilities explicitly pending.
+- NEXT IMPLEMENTED, V2-only: `35b55bb3a0624b0718c441ffd37a33cab67222a9` strengthens the existing one-run migration gate so a missing V1 source baseline or a regression in any of the five already-migrated, local UI controls is a CI failure. It intentionally does NOT fail solely because rich WebView, live visible chart sync or automatic market refresh are still pending. `fa344f23bbd1f70e8e8c4f21c3ef79cbace02ab2` adds positive and injected-negative regression tests for that distinction.
+- Exact latest CI for these two commits: NOT YET VERIFIED at journal update time. Never claim pass based on commit alone. These two commits are the same coherent app-only test-gate batch; avoid duplicate workflows/rerunning old historical SHAs.
+- NEXT: check latest exact-source CI once, repair if failed, then continue app-only true data-only UI refresh/cache semantics and remaining V1 callback parity with Dhan/Oracle and device acceptance clearly pending. Do not change old V1 files/journals, Oracle production, APK, orders, credentials, or introduce Yahoo/Angel fallback.
+
+---
+
 ## VERIFIED CI #124→#125, NEXT V1 CHART CONTROL PARITY GATE — 2026-11-19
 - Owner requirement: explain failures, fix immediately, continue next actual task; do not report-and-stop.
 - Scanner chart show/hide controls + V2 device-local boolean persistence + strict Backup schema 4 (schema 1/2/3 remain backward-compatible) applied at `03d300903edf066c39f73e9c210a3bb766ea8310`. [CI #124](https://github.com/vaishnavi596/volume-king/actions/runs/44444105930) FAILED **342/343** only due to stale test source-string expecting `len(restored) == 6`, while compatible newer schema properly uses `>= 6`. Corrected test expectation at `3bc03c331d13c29cf18f2de8c61083989dc09774`, [CI #125](https://github.com/vaishnavi596/volume-king/actions/runs/44444220010) **PASS 343/343**, compile and migration report PASS. Previous failures remain historical; do not rerun their original SHAs.
