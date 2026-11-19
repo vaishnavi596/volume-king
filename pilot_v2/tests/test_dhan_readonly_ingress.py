@@ -41,7 +41,7 @@ class IngressTests(unittest.TestCase):
 
     def test_unhashable_symbol_denied(self):
         with self.assertRaises(IngressRejected):
-            self.call(selected=(["RELIANCE"],))
+            self.call(selected=(["RELIANCE"],), rows_arg={})
 
     def test_missing_and_extra_rows_fail_closed(self):
         with self.assertRaises(IngressRejected):
