@@ -33,6 +33,8 @@ def normalize_dhan_readonly(*, feed, selected, rows, revision, observed_at,
     if type(selected) not in (tuple, list):
         raise IngressRejected("Invalid selected roster")
     chosen = tuple(selected)
+    if any(type(s) is not str or not symbol_ok(s) for s in chosen):
+        raise IngressRejected("Invalid symbols")
     if len(chosen) != len(set(chosen)):
         raise IngressRejected("Duplicate symbols")
     if feed == "indices":
