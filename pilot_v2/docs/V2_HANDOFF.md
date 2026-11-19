@@ -1,4 +1,12 @@
 
+## VERIFIED — JOINT HTTPS QUOTE REFRESH BRIDGE, CI #110 (2026-11-19)
+- Exact tested code `f4d91e0c35d45d693add39599e7da200174a464c`: [BOT KING V2 Pilot Contract Tests #110](https://github.com/vaishnavi596/volume-king/actions/runs/44437755242) **SUCCESS, 305/305 offline regression tests**, compile, gap-report and uploaded artifact successful.
+- Previous #109 at `dce24bb18e41b169d8e6c522995ddbf0cab455b0` FAILED 8 tests owing to test-import/module-identity clash after a legacy test reloads `smart_data`; correction moves test imports into runtime `setUpModule()` rather than weakening `SmartDataSettings` validation. The earlier owner-reported #106 was separately fixed and #107 PASS. **Do not rerun #106/#109.**
+- Accepted app-only integration: `app_readonly_refresh.apply_approved_quote_intent()` requires approved `RefreshIntent`, exact 0/5/70 selected-only roster and a configured `V2ReadonlyHTTPSReader`; isolated index/quote reads, failure retains last-good. Verified with injected mock, NOT a production Oracle call. Flet main stays disconnected until verified Master device authentication is approved and wired; source displays WAIT/HIST, no false LIVE. Production server, broker calls/orders and APK unchanged.
+- NEXT V2 app-side whole segment: trusted-transport session bridge for all evidence feeds (candles/options/five factors) and UI/event parity, followed by consolidated regression. Keep current owner guard: no Oracle production edits and no APK build until app-side contract is ready.
+
+---
+
 ## APP-OWNED HTTPS QUOTE REFRESH BRIDGE — 2026-11-19
 - Owner requested continuous migration progress and no repetitive stopping. Latest exact source `cabda45234a8b0b5a9e82085fa764bfd08a0ef50` CI #108 PASS, 301/301 offline tests, following earlier #106 FAIL resolved in #107. No V1/default branch/Oracle production/APK writes.
 - Prepared `android_app/src/app_readonly_refresh.py`: one bounded app-side coordinator accepts a previously authorized `RefreshIntent`, exact current 0-70 distinct selected equities and an instantiated `V2ReadonlyHTTPSReader` (verified-origin HTTPS/bearer client). Runs independent three-index and selected-equity-only protected read-only quote lanes; skips equity fetch for zero selected equities; honors stale selection rejection, offline/not-permitted intent, separate lane failures, sanitized error outcomes and previous-good quote retention.
