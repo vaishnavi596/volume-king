@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from threading import RLock
 import os
 import stat
 import time
@@ -18,13 +19,14 @@ from .durable_device_keys import DurableDeviceKeys
 from .internal_dhan_read_port import InternalDhanReadPort
 from .oracle_dhan_read_transport import OracleDhanReadTransport
 from .shared_read_budget import SharedReadBudget
-from .unified_data_pipeline import V2UnifiedReadPipeline
+from .unified_data_pipeline import V2UnifiedReadPipeline, PipelineUnavailable
 from .unified_gateway_app import create_v2_unified_app
 
 
 def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
                              pairing_key, selected_equities=(),
-                             transport=None, clock=None, monotonic=None):
+                             transport=None, clock=None, monotonic=None,
+                             roster_persistor=None):
     """Build only from operator-supplied, independently enrolled secrets.
 
     A missing/unapproved master never triggers bootstrap. The SQLite parent
@@ -62,6 +64,8 @@ def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
         pairing_key=pairing_key)
     if transport is not None and not callable(transport):
         raise ValueError("Approved test transport required")
+    if roster_persistor is not None and not callable(roster_persistor):
+        raise ValueError("Protected roster persistor required")
     port = InternalDhanReadPort(transport=provider, selected_equities=selected_equities)
     pipe = V2UnifiedReadPipeline(
         read_port=port,
@@ -69,4 +73,23 @@ def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
         monotonic=mono,
         read_budget=SharedReadBudget(monotonic=mono),
     )
-    return create_v2_unified_app(verified_login=login, data_pipeline=pipe)
+    change_lock = RLock()
+    def trusted_master_roster_update(symbols):
+        if roster_persistor is None:
+            raise PipelineUnavailable("Private roster persistor unavailable")
+        try:
+            selected = InternalDhanReadPort._validated_equities(symbols)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid selected equity roster") from None
+        with change_lock:
+            try:
+                roster_persistor(selected)
+            except (OSError, ValueError, TypeError):
+                raise PipelineUnavailable("Private roster persistence unavailable") from None
+            pipe.replace_selected_equities(selected)
+        return len(selected)
+
+    return create_v2_unified_app(
+        verified_login=login, data_pipeline=pipe,
+        master_roster_updater=(trusted_master_roster_update
+                              if roster_persistor is not None else None))

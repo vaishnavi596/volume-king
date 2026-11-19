@@ -17,11 +17,14 @@ MAX_BODY = 1024
 MAX_TOKEN = 160
 
 
-def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=None):
+def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=None,
+                       master_roster_updater=None):
     if not isinstance(login, AtomicVerifiedLogin) or not callable(snapshot_provider):
         raise ValueError("Atomic trusted login and internal provider required")
     if manual_snapshot_provider is not None and not callable(manual_snapshot_provider):
         raise ValueError("Verified manual read provider required")
+    if master_roster_updater is not None and not callable(master_roster_updater):
+        raise ValueError("Trusted Master roster updater required")
     app = FastAPI(title="BOT KING V2 Trusted Adapter", docs_url=None,
                   redoc_url=None, openapi_url=None)
 
@@ -111,5 +114,33 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
         if feed not in ("indices", "quotes"):
             raise HTTPException(status_code=404, detail="Unsupported manual feed")
         return read_feed(request, feed, manual=True)
+
+    @app.post("/v2-pilot/master/roster")
+    async def master_update_roster(request: Request):
+        token = bearer_from_request(request)
+        try:
+            login._sessions.authorize_master(token)
+        except SessionDenied:
+            raise HTTPException(status_code=403, detail="Master authorization required") from None
+        if master_roster_updater is None:
+            raise HTTPException(status_code=503, detail="Private roster control unavailable")
+        raw = await request.body()
+        if not raw or len(raw) > 4096:
+            raise HTTPException(status_code=413, detail="Invalid roster size")
+        import json
+        try:
+            parsed = json.loads(raw)
+        except (UnicodeError, ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid roster JSON") from None
+        if type(parsed) is not dict or set(parsed) != {"symbols"} or type(parsed["symbols"]) is not list:
+            raise HTTPException(status_code=422, detail="Invalid roster request")
+        try:
+            count = master_roster_updater(parsed["symbols"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="Invalid selected equities") from None
+        except (PipelineUnavailable, OSError):
+            raise HTTPException(status_code=503, detail="Private roster update unavailable") from None
+        return JSONResponse({"selected_equities": count},
+                            headers={"Cache-Control": "no-store"})
 
     return app

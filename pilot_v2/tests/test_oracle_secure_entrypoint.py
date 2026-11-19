@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
 from pilot_v2.tools.provision_oracle_master import enroll_master
-from pilot_v2.oracle_secure_entrypoint import create_app, from_private_config
+from pilot_v2.oracle_secure_entrypoint import create_app, from_private_config, _persist_selected_equities
 
 
 class SecureEntrypointTests(unittest.TestCase):
@@ -113,6 +113,22 @@ class SecureEntrypointTests(unittest.TestCase):
         config["selected_equities_path"] = str(link)
         with self.assertRaises(ValueError):
             from_private_config(**config)
+
+    def test_roster_atomic_private_file_persistence_is_fail_closed(self):
+        roster = self.root / "selected-equities.json"
+        roster.write_text('["RELIANCE"]')
+        roster.chmod(0o600)
+        _persist_selected_equities(str(roster), ("TCS", "INFY"))
+        self.assertEqual(roster.read_text(), '["TCS","INFY"]')
+        self.assertEqual(roster.stat().st_mode & 0o777, 0o600)
+        roster.chmod(0o644)
+        with self.assertRaises(ValueError):
+            _persist_selected_equities(str(roster), ("TCS",))
+        self.assertEqual(roster.read_text(), '["TCS","INFY"]')
+        alias = self.root / "alias.json"
+        alias.symlink_to(roster)
+        with self.assertRaises(ValueError):
+            _persist_selected_equities(str(alias), ("TCS",))
 
     def test_non_p256_public_key_refused(self):
         self.provision()

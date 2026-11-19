@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import hmac
 import sqlite3
+import tempfile
 import json
 from pathlib import Path
 import stat
@@ -54,6 +55,25 @@ def _server_selected_equities(path):
         raise ValueError("Invalid private V2 equity roster") from None
 
 
+def _persist_selected_equities(path, selected):
+    """Atomic protected roster replace. Private bytes never enter GitHub/logs."""
+    _private_file(path, max_bytes=8192)
+    target = Path(path)
+    payload = json.dumps(list(selected), separators=(",", ":")).encode("utf-8")
+    if len(payload) > 8192:
+        raise ValueError("Equity roster too large")
+    fd, temp_name = tempfile.mkstemp(prefix=".v2-roster-", dir=str(target.parent))
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "wb") as out:
+            out.write(payload)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(temp_name, target)
+    finally:
+        Path(temp_name).unlink(missing_ok=True)
+
+
 def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
                         selected_equities_path=None):
     """Construct the real authenticated app, never the disabled demo shell."""
@@ -96,7 +116,9 @@ def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
     return create_oracle_v2_runtime(
         db_path=db_path, master_device_id=device_id,
         master_public_der=public, pairing_key=pairing,
-        selected_equities=selected_equities)
+        selected_equities=selected_equities,
+        roster_persistor=(lambda selected: _persist_selected_equities(
+            selected_equities_path, selected)) if selected_equities_path else None)
 
 
 def create_app():

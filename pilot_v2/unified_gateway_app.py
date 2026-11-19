@@ -13,7 +13,8 @@ from .private_backup_vault import ServerBackupVault, create_private_backup_route
 from .durable_device_sessions import DurableDeviceSessions
 
 
-def create_v2_unified_app(*, verified_login, data_pipeline, private_backup_vault=None):
+def create_v2_unified_app(*, verified_login, data_pipeline,
+                          private_backup_vault=None, master_roster_updater=None):
     if not isinstance(verified_login, AtomicVerifiedLogin):
         raise ValueError("Verified durable P256 login required")
     if not isinstance(data_pipeline, V2UnifiedReadPipeline):
@@ -32,6 +33,7 @@ def create_v2_unified_app(*, verified_login, data_pipeline, private_backup_vault
         login=verified_login,
         snapshot_provider=lambda device, feed: data_pipeline.dispatch(device, feed),
         manual_snapshot_provider=lambda device, feed: data_pipeline.dispatch(device, feed, manual=True),
+        master_roster_updater=master_roster_updater,
     )
     if private_backup_vault is not None:
         # Disabled by default; mount only a vault bound to THIS signed login.

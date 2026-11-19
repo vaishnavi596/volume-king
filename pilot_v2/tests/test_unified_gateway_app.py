@@ -157,6 +157,39 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
         self.assertEqual(self.client.get("/v2-pilot/quotes", headers=headers).status_code, 403)
         self.assertEqual(self.calls, [])
 
+    def test_master_only_roster_updates_selected_quotes_atomically(self):
+        from pilot_v2.unified_gateway_app import create_v2_unified_app
+        def update(symbols):
+            changed = self.pipeline.replace_selected_equities(symbols)
+            return len(symbols)
+        client = TestClient(create_v2_unified_app(
+            verified_login=self.login, data_pipeline=self.pipeline,
+            master_roster_updater=update))
+        self.assertEqual(client.post("/v2-pilot/master/roster",
+                         json={"symbols": ["TCS"]}).status_code, 401)
+        self.assertEqual(client.post("/v2-pilot/master/roster",
+                         json={"symbols": ["TCS"]},
+                         headers={"Authorization": "Bearer " + "a" * 48}).status_code, 403)
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        self.assertEqual(client.post("/v2-pilot/master/roster",
+                         json={"symbols": ["TCS", "INFY"]},
+                         headers=headers).json()["selected_equities"], 2)
+        result = client.get("/v2-pilot/quotes", headers=headers)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(set(result.json()["quotes"]), {"TCS", "INFY"})
+        self.assertEqual(client.post("/v2-pilot/master/roster",
+                         json={"symbols": ["TCS", "TCS"]},
+                         headers=headers).status_code, 422)
+        self.assertEqual(set(client.get("/v2-pilot/quotes",
+                         headers=headers).json()["quotes"]), {"TCS", "INFY"})
+
+    def test_roster_update_unavailable_when_no_private_persistor(self):
+        bearer = self.signed_bearer()
+        self.assertEqual(self.client.post("/v2-pilot/master/roster",
+                          json={"symbols": ["TCS"]},
+                          headers={"Authorization": "Bearer " + bearer}).status_code, 503)
+
     def test_factory_fail_closed(self):
         with self.assertRaises(ValueError):
             create_v2_unified_app(verified_login=None, data_pipeline=self.pipeline)
