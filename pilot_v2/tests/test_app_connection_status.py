@@ -44,13 +44,14 @@ class LocalConnectionStatusTests(unittest.TestCase):
         self.assertNotIn("session_active = True", main)
         self.assertIn("Enable / Disable / Revoke require verified device login", main)
 
-    def test_local_logout_is_explicit_and_never_claims_remote_revoke(self):
+    def test_signout_cancels_pending_login_and_reports_unverified_remote_revoke(self):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("def clear_local_device_session(e):", source)
-        self.assertIn("device_session_slot.clear()", source)
-        self.assertIn("device_session_slot.clear()", source)
-        self.assertIn("server revocation not sent", source)
-        self.assertIn("Clear local device session (no server revoke)", source)
+        self.assertIn("device_session_slot.detach_for_remote_sign_out()", source)
+        self.assertIn("reader.sign_out_remote()", source)
+        self.assertIn("Oracle bearer revoked", source)
+        self.assertIn("remote revoke not verified", source)
+        self.assertIn("Sign out V2 session (Oracle revoke when connected)", source)
         self.assertIn("on_click=clear_local_device_session", source)
 
     def test_unknown_connection_handle_is_rejected(self):
