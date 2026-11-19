@@ -290,7 +290,7 @@ jobs:
             sudo -n rm -f "$UNIT"
             sudo -n systemctl daemon-reload || true
           }
-          TMP_UNIT="/tmp/bot-king-v2-unit-$"
+          TMP_UNIT="$(mktemp /tmp/bot-king-v2-unit.XXXXXXXX)"
           cleanup_unit() { rm -f "$TMP_UNIT"; }
           trap cleanup_unit EXIT
           trap rollback ERR
