@@ -48,7 +48,7 @@ class PersistentHistoryWindow(unittest.TestCase):
             self.w, self.scanner, self.smart, self.slots,
             chart_style="Candles", chart_window=35))
         for key, value in (("chart_window", 12), ("chart_window", "35"),
-                           ("chart_window", True), ("schema_version", 4),
+                           ("chart_window", True), ("schema_version", 5),
                            ("api_key", "PRIVATE"), ("oracle_url", "https://example.test")):
             with self.subTest(key=key, value=value):
                 mutated = dict(good, **{key: value})

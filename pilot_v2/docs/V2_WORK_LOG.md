@@ -1,3 +1,10 @@
+## V2 SCANNER V1 SHOW/HIDE CHART PARITY — 2026-11-19
+- Owner rule: on failed commit/CI, explain exact cause, repair and **continue next work**, never report-and-stop. CI #116 legacy SmartData class identity failed; #117 327/327 PASS. Later CI #120 and #122 assertion/syntax failures repaired; latest verified exact-source #123 339/339 PASS at `20a651db4fc28eae8cd6833e7cf78fe07e26539b`.
+- Source audit of read-only V1 `scanner_chart_toggle(e)` found Scanner chart visibility missing in V2. This coherent V2-only batch adds local Scanner Show Chart switch (native Candles/Line presentation only), device-persisted strict boolean preference, safe invalid stored state, and local Backup schema **4** with both show/hide and prior chart style/history; schemas 1/2/3 remain accepted and preserve unset later fields. No provider calls/fanout or cached data deletion when hidden.
+- One new cross-feature regression `test_chart_visibility_parity.py`, updated prior schema invalid-version assertion, exact new CI pending. Full rich V1 WebView/chart live sync still PENDING, no Oracle production, V1 change, APK, Dhan token or trading orders.
+
+---
+
 ## VERIFIED V2 CONTINUOUS MIGRATION CHECKPOINT — CI #118–#123 (2026-11-19)
 - Owner standing instruction: **after each commit explain actual result/failure and fix, then continue immediately to the next concrete segment; never stop merely after reporting.** Combine coherent changes and use one V2 CI workflow, avoid rerunning old failed exact SHAs or already-green tests.
 - Predecessor **CI #116 FAILED** 326/327 due to test equality comparing two reload-distinct `SmartDataSettings` classes; fixed in `74a63cfd43458f7b5591dd0998218f2b1e08db37` and **CI #117 PASSED 327/327**.

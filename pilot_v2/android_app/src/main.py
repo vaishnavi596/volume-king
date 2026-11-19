@@ -19,6 +19,7 @@ from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown, choose_chart_window
 from chart_style import CHART_STYLES, DEFAULT_CHART_STYLE, chart_style_choice
+from chart_visibility import validated_chart_visible
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
@@ -159,6 +160,25 @@ def main(page: ft.Page):
     group = [0]
     watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
+    chart_visible_key = "botking.v2.chart_visible.v1"
+    try:
+        saved_visible = page.client_storage.get(chart_visible_key)
+        chart_visible = [validated_chart_visible(saved_visible)
+                         if saved_visible is not None else True]
+        chart_visible_error = ""
+    except (OSError, ValueError, TypeError, RuntimeError):
+        chart_visible = [True]
+        chart_visible_error = "Invalid chart visibility save; previous save preserved"
+
+    def save_chart_visible():
+        if chart_visible_error:
+            return False
+        try:
+            page.client_storage.set(chart_visible_key, chart_visible[0])
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
     chart_window = [DEFAULT_WINDOW]  # Local history display only.
     chart_window_key = "botking.v2.chart_window.v1"
     try:
@@ -242,6 +262,15 @@ def main(page: ft.Page):
                                     else "Scanner choice changed for session only")
                 except ScannerError as exc:
                     status.value = str(exc)
+                render()
+                page.update()
+            def toggle_scanner_chart(e):
+                try:
+                    chart_visible[0] = validated_chart_visible(e.control.value)
+                    status.value = ("Chart visibility saved locally" if save_chart_visible()
+                                    else "Chart visibility changed for this session")
+                except ValueError:
+                    status.value = "Invalid chart visibility"
                 render()
                 page.update()
             def change_chart_style(e):
@@ -408,6 +437,9 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(n), str(n) + " bars")
                                      for n in WINDOWS],
                             on_change=change_chart_window),
+                ft.Switch(label="Show Scanner chart",
+                          value=chart_visible[0],
+                          on_change=toggle_scanner_chart),
                 ft.Dropdown(label="Scanner chart style", width=190,
                             value=chart_style[0],
                             options=[ft.dropdown.Option(style, style)
@@ -431,12 +463,12 @@ def main(page: ft.Page):
                             stroke_width=2, curved=False)],
                         expand=True),
                     height=150, padding=5,
-                )] if chart_style[0] == "Line" and len(chart_points(
+                )] if chart_visible[0] and chart_style[0] == "Line" and len(chart_points(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected,
                     limit=chart_window[0])) >= 2 else
                    ([ft.Text("Scanner chart WAIT · completed candle history unavailable")]
-                    if chart_style[0] == "Line" else [])),
+                    if chart_visible[0] and chart_style[0] == "Line" else [])),
                 ft.Text("Completed OHLC candles · historical / unverified",
                         size=14, color=MUTED),
                 ft.Row([
@@ -451,7 +483,7 @@ def main(page: ft.Page):
                         scanner_history, scanner[0].symbol, scanner[0].timeframe,
                         selected_equities=state.selected)
                 ], scroll=ft.ScrollMode.AUTO, spacing=4)
-                if chart_style[0] == "Candles" else
+                if chart_visible[0] and chart_style[0] == "Candles" else
                 ft.Text("Native candle chart hidden · Line style selected"),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=14, color=MUTED),
@@ -745,7 +777,8 @@ def main(page: ft.Page):
             def prepare_local_backup(e):
                 backup_text[0] = export_local_backup(
                     state, scanner[0], smart[0], analysis_slots[0],
-                    chart_style=chart_style[0], chart_window=chart_window[0])
+                    chart_style=chart_style[0], chart_window=chart_window[0],
+                    chart_visible=chart_visible[0])
                 backup_confirm[0] = False
                 status.value = "Local preference backup prepared; copy it yourself"
                 render()
@@ -756,7 +789,8 @@ def main(page: ft.Page):
                     page.update()
                     return
                 if (storage_error or smart_error or scanner_error
-                        or analysis_error or chart_style_error or chart_window_error):
+                        or analysis_error or chart_style_error or chart_window_error
+                        or chart_visible_error):
                     status.value = "Current local save is invalid; existing backup preserved"
                     page.update()
                     return
@@ -764,7 +798,8 @@ def main(page: ft.Page):
                     restored = parse_local_backup(backup_text[0])
                     new_watchlists, new_scanner, new_smart, new_slots = restored[:4]
                     new_chart_style = restored[4] if len(restored) >= 5 else None
-                    new_chart_window = restored[5] if len(restored) == 6 else None
+                    new_chart_window = restored[5] if len(restored) >= 6 else None
+                    new_chart_visible = restored[6] if len(restored) == 7 else None
                 except LocalBackupError:
                     status.value = "Rejected malformed or nonlocal preference backup"
                     page.update()
@@ -778,6 +813,8 @@ def main(page: ft.Page):
                     chart_style[0] = new_chart_style
                 if new_chart_window is not None:
                     chart_window[0] = new_chart_window
+                if new_chart_visible is not None:
+                    chart_visible[0] = new_chart_visible
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
                 assessment.forget_removed(state.selected)
@@ -787,7 +824,7 @@ def main(page: ft.Page):
                 backup_text[0] = ""
                 saved = all((save_local(), save_scanner(),
                              save_smart(), save_analysis(), save_chart_style(),
-                             save_chart_window()))
+                             save_chart_window(), save_chart_visible()))
                 notices.record("LOCAL_PREFS_RESTORED")
                 status.value = ("Local preferences restored on device" if saved
                                 else "Restored for session; some device saves failed")

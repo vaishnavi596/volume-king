@@ -10,6 +10,7 @@ from smart_data import SmartDataSettings
 from local_analysis_slots import LocalAnalysisSlots
 from chart_style import chart_style_choice
 from chart_window import choose_chart_window
+from chart_visibility import validated_chart_visible
 
 BACKUP_KIND = "botking-v2-local-preferences"
 MAX_BACKUP_CHARS = 16384
@@ -17,6 +18,7 @@ FIELDS = {"kind", "schema_version", "watchlists", "scanner",
           "smart_data", "analysis_slots"}
 FIELDS_V2 = FIELDS | {"chart_style"}
 FIELDS_V3 = FIELDS_V2 | {"chart_window"}
+FIELDS_V4 = FIELDS_V3 | {"chart_visible"}
 
 
 class LocalBackupError(ValueError):
@@ -24,7 +26,7 @@ class LocalBackupError(ValueError):
 
 
 def export_local_backup(watchlists, scanner, smart, analysis_slots, *,
-                        chart_style=None, chart_window=None):
+                        chart_style=None, chart_window=None, chart_visible=None):
     data = {
         "kind": BACKUP_KIND,
         "schema_version": 1,
@@ -41,6 +43,11 @@ def export_local_backup(watchlists, scanner, smart, analysis_slots, *,
             raise LocalBackupError("Chart history window requires the chart style preference")
         data["schema_version"] = 3
         data["chart_window"] = choose_chart_window(chart_window)
+    if chart_visible is not None:
+        if chart_style is None or chart_window is None:
+            raise LocalBackupError("Chart visibility requires existing chart preferences")
+        data["schema_version"] = 4
+        data["chart_visible"] = validated_chart_visible(chart_visible)
     return json.dumps(data, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
 
 
@@ -51,9 +58,9 @@ def parse_local_backup(text):
         doc = json.loads(text)
         if (type(doc) is not dict or doc.get("kind") != BACKUP_KIND
                 or type(doc.get("schema_version")) is not int
-                or doc["schema_version"] not in (1, 2, 3)
+                or doc["schema_version"] not in (1, 2, 3, 4)
                 or set(doc) != {1: FIELDS, 2: FIELDS_V2,
-                                   3: FIELDS_V3}[doc["schema_version"]]):
+                                   3: FIELDS_V3, 4: FIELDS_V4}[doc["schema_version"]]):
             raise LocalBackupError("Only V2 local preference backups are accepted")
         watchlists = LocalWatchlists.from_saved(doc["watchlists"])
         scanner = ScannerSelection.from_saved(doc["scanner"], watchlists)
@@ -62,9 +69,13 @@ def parse_local_backup(text):
         style = (chart_style_choice(doc["chart_style"])
                  if doc["schema_version"] >= 2 else None)
         window = (choose_chart_window(doc["chart_window"])
-                  if doc["schema_version"] == 3 else None)
+                  if doc["schema_version"] >= 3 else None)
+        visible = (validated_chart_visible(doc["chart_visible"])
+                   if doc["schema_version"] == 4 else None)
     except (ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
         raise LocalBackupError("Invalid or unsupported local preferences backup") from exc
+    if doc["schema_version"] == 4:
+        return watchlists, scanner, smart, slots, style, window, visible
     if doc["schema_version"] == 3:
         return watchlists, scanner, smart, slots, style, window
     if doc["schema_version"] == 2:
