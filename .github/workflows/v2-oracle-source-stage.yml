@@ -34,7 +34,10 @@ jobs:
           chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts /tmp/botking-v2-source.tgz' EXIT
           # Only source: no credentials, Android artifacts, or production writes.
-          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- $(cd pilot_v2 && ls *.py)
+          # Remote stage requires the two protected activation/enrollment tools
+          # inside the verified archive; staging remains NON-ACTIVATING.
+          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- $(cd pilot_v2 && ls *.py) \
+            tools/v2_activation_gate.py tools/provision_oracle_master.py
           HASH="$(sha256sum /tmp/botking-v2-source.tgz | cut -d' ' -f1)"
           ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
             "mkdir -p /home/opc/botking-v2-staging"
