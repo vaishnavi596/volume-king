@@ -15,9 +15,8 @@ class OraclePy39PolicyTests(unittest.TestCase):
             and any(a.name == "annotations" for a in n.names)
             for n in tree.body
         ))
-        namespace = {"__name__": "pilot_v2.device_policy"}
-        exec(compile(source, str(path), "exec"), namespace)
-        self.assertIsNone(namespace["DeviceRegistry"]().master_id)
+        from pilot_v2.device_policy import DeviceRegistry
+        self.assertIsNone(DeviceRegistry().master_id)
 
 
 if __name__ == "__main__":
