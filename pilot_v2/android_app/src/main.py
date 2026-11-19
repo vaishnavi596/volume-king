@@ -13,6 +13,7 @@ from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows, watchlist_row
 from watchlist_search import filtered_watchlist_symbols
+from equity_catalog import EquityCatalog
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_indicator_panel import historical_indicator_panel
 from local_webview_chart import historical_chart_html
@@ -162,6 +163,8 @@ def main(page: ft.Page):
     current = [0]
     group = [0]
     watch_search = [""]  # Session-local display query; never changes selected roster.
+    catalog_search = [""]  # Full-catalog query is independent from list filtering.
+    verified_catalog = [None]  # Only a signed-in trusted catalog producer may populate this.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
     chart_visible_key = "botking.v2.chart_visible.v1"
     try:
@@ -924,9 +927,33 @@ def main(page: ft.Page):
             symbol = ft.TextField(label="NSE equity symbol", hint_text="TCS", expand=True)
             def add(_):
                 try:
-                    state.add(group[0], (symbol.value or "").strip().upper())
+                    new_symbol = (symbol.value or "").strip().upper()
+                    if verified_catalog[0] is not None:
+                        verified_catalog[0].add(state, group[0], new_symbol)
+                    else:
+                        state.add(group[0], new_symbol)
                     status.value = ("Saved on this device; server not contacted" if save_local() else "Selection changed for this session; local save unavailable")
                     symbol.value = ""
+                    notices.record("WATCHLIST_ADDED")
+                except SelectionError as exc:
+                    status.value = str(exc)
+                render()
+                page.update()
+            def apply_catalog_search(e):
+                query = e.control.value or ""
+                if len(query) > 64:
+                    status.value = "Catalog search text too long"
+                    return
+                catalog_search[0] = query
+                render()
+                page.update()
+            def add_catalog_symbol(item):
+                try:
+                    if verified_catalog[0] is None:
+                        raise SelectionError("Verified Dhan catalog not connected")
+                    verified_catalog[0].add(state, group[0], item)
+                    status.value = ("Saved on this device" if save_local()
+                                    else "Changed for session; local save unavailable")
                     notices.record("WATCHLIST_ADDED")
                 except SelectionError as exc:
                     status.value = str(exc)
@@ -984,6 +1011,20 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
                 ft.Row([symbol, ft.ElevatedButton("Add", on_click=add)]),
+                ft.TextField(label="Search Dhan equity catalog", hint_text="Share symbol or company name",
+                             value=catalog_search[0], dense=True, text_size=16,
+                             on_submit=apply_catalog_search),
+                ft.Text("Verified Dhan catalog not yet connected · manual symbol entry is offline-only"
+                        if verified_catalog[0] is None else
+                        f"Showing verified NSE_EQ matches · up to 70 selected",
+                        color=MUTED, size=13),
+                *([] if verified_catalog[0] is None or not catalog_search[0].strip() else [
+                    ft.Row([
+                        ft.Text(item["symbol"] + " · " + item["name"], expand=True,
+                                color=WHITE, size=14),
+                        ft.TextButton("Add", on_click=lambda e, s=item["symbol"]: add_catalog_symbol(s)),
+                    ]) for item in verified_catalog[0].search(catalog_search[0], limit=10)
+                ]),
                 ft.TextField(label="Search in selected list",
                              hint_text="e.g. HDFCBANK",
                              value=watch_search[0],
