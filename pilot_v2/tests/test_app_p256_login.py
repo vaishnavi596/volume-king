@@ -145,6 +145,22 @@ class P256AndroidLoginContractTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             slot.active_reader()
 
+    def test_cancelled_login_response_cannot_restore_cleared_session(self):
+        slot = DeviceReaderSlot()
+        def cancel_during_signature(message):
+            # Deterministic cancellation while signed login is pending,
+            # before any bearer is attached to the active app.
+            slot.clear()
+            return self.key.sign(message, ec.ECDSA(hashes.SHA256()))
+        with self.assertRaises(FeedError) as error:
+            slot.sign_in(self.make_login(cancel_during_signature))
+        self.assertIn("cancelled", str(error.exception))
+        self.assertIsNone(slot.reader)
+        with self.assertRaises(FeedError):
+            slot.active_reader()
+        self.assertTrue(slot.sign_in(self.make_login()))
+        self.assertTrue(slot.active_reader().session_active)
+
     def test_invalid_origin_device_and_signer_fail_before_any_http(self):
         for origin in ("http://v2.example.test", "https://user@v2.example.test"):
             with self.subTest(origin=origin), self.assertRaises(FeedError):
