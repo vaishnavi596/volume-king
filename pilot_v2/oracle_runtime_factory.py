@@ -19,6 +19,7 @@ from .durable_device_keys import DurableDeviceKeys
 from .internal_dhan_read_port import InternalDhanReadPort
 from .oracle_dhan_read_transport import OracleDhanReadTransport
 from .shared_read_budget import SharedReadBudget
+from .oracle_evidence_lane import OracleDhanEvidenceLane
 from .unified_data_pipeline import V2UnifiedReadPipeline, PipelineUnavailable
 from .unified_gateway_app import create_v2_unified_app
 
@@ -26,7 +27,7 @@ from .unified_gateway_app import create_v2_unified_app
 def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
                              pairing_key, selected_equities=(),
                              transport=None, clock=None, monotonic=None,
-                             roster_persistor=None):
+                             roster_persistor=None, evidence_transport=None):
     """Build only from operator-supplied, independently enrolled secrets.
 
     A missing/unapproved master never triggers bootstrap. The SQLite parent
@@ -66,12 +67,15 @@ def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
         raise ValueError("Approved test transport required")
     if roster_persistor is not None and not callable(roster_persistor):
         raise ValueError("Protected roster persistor required")
+    if evidence_transport is not None and not callable(evidence_transport):
+        raise ValueError("Approved private evidence collector required")
     port = InternalDhanReadPort(transport=provider, selected_equities=selected_equities)
+    budget = SharedReadBudget(monotonic=mono)
     pipe = V2UnifiedReadPipeline(
         read_port=port,
         clock=clock or (lambda: datetime.now().astimezone()),
         monotonic=mono,
-        read_budget=SharedReadBudget(monotonic=mono),
+        read_budget=budget,
     )
     change_lock = RLock()
     def trusted_master_roster_update(symbols):
@@ -92,4 +96,8 @@ def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
     return create_v2_unified_app(
         verified_login=login, data_pipeline=pipe,
         master_roster_updater=(trusted_master_roster_update
-                              if roster_persistor is not None else None))
+                              if roster_persistor is not None else None),
+        evidence_provider=(OracleDhanEvidenceLane(
+            transport=evidence_transport, read_budget=budget,
+            monotonic=mono, clock=time.time)
+            if evidence_transport is not None else None))
