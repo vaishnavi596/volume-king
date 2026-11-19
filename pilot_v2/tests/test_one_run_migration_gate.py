@@ -26,7 +26,7 @@ class OneRunGateTests(unittest.TestCase):
                 text = gate.REPORT.read_text(encoding="utf-8")
                 self.assertIn("NOT COMPLETE", text)
                 self.assertIn("Separate mandatory acceptance still pending", text)
-                self.assertNotIn("COMPLETE\n- Audit", text)
+                self.assertIn("- App + device + provider migration: NOT COMPLETE", text)
             finally:
                 gate.REPORT = prior
 
