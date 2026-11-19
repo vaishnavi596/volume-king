@@ -1235,7 +1235,7 @@ def main(page: ft.Page):
                         color=MUTED, size=14),
                 ft.OutlinedButton("Request read-only data (verified sign-in required)",
                                   on_click=manual_verified_data_refresh),
-                ft.TextButton("Clear local device session (no server revoke)",
+                ft.TextButton("Sign out V2 session (Oracle revoke when connected)",
                               on_click=clear_local_device_session),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
                                   on_click=preview_manual_refresh),
