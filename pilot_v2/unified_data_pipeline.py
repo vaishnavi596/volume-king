@@ -50,6 +50,19 @@ class V2UnifiedReadPipeline:
         self._cache = {}
         self._lock = RLock()
 
+    def replace_selected_equities(self, symbols):
+        """Trusted server-only demand control; no device-supplied roster accepted."""
+        with self._lock:
+            try:
+                changed = self._port.replace_selected_equities(symbols)
+            except (ValueError, TypeError):
+                raise PipelineUnavailable("Invalid server-owned equity roster") from None
+            if changed:
+                # Old quote batch does not cover the new selected set. Keep the
+                # independent index cache and all provider cooldown state.
+                self._cache.pop("quotes", None)
+            return changed
+
     def dispatch(self, device_id, feed, *, manual=False):
         if (type(device_id) is not str or not device_id or
                 type(feed) is not str or type(manual) is not bool):

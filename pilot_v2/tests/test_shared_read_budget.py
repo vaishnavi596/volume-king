@@ -88,6 +88,38 @@ class SharedBudgetTests(unittest.TestCase):
             self.pipeline.dispatch("verified-device-001", "quotes")
         self.assertEqual(self.budget.status()["cooldown_seconds"], 0)
 
+    def test_dynamic_roster_replaces_only_quotes_cache(self):
+        self.pipeline.dispatch("verified-device-001", "indices")
+        self.t += 1.1
+        self.pipeline.dispatch("verified-device-001", "quotes")
+        self.assertEqual(self.calls[-1][1], ("RELIANCE",))
+        self.assertFalse(self.pipeline.replace_selected_equities(("RELIANCE",)))
+        self.assertTrue(self.pipeline.replace_selected_equities(("TCS", "INFY")))
+        self.assertEqual(self.pipeline.dispatch("verified-device-002", "indices")["feed"], "indices")
+        # No old selected quote batch may satisfy the updated watchlist.
+        self.t += 1.1
+        self.pipeline.dispatch("verified-device-002", "quotes")
+        self.assertEqual(self.calls[-1][1], ("TCS", "INFY"))
+        self.assertEqual(len(self.calls), 3)
+
+    def test_roster_validation_does_not_mutate_or_consume_budget(self):
+        for bad in ((["RELIANCE"],), ("RELIANCE", "RELIANCE"),
+                    ("nifty",), (None,), tuple("S%03d" % i for i in range(71))):
+            with self.assertRaises(PipelineUnavailable):
+                self.pipeline.replace_selected_equities(bad)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.budget.status()["next_read_seconds"], 0.0)
+        self.pipeline.dispatch("verified-device-001", "quotes")
+        self.assertEqual(self.calls[-1][1], ("RELIANCE",))
+
+    def test_zero_roster_skips_selection_without_spoofing_index(self):
+        self.assertTrue(self.pipeline.replace_selected_equities(()))
+        with self.assertRaises(PipelineUnavailable):
+            self.pipeline.dispatch("verified-device-001", "quotes")
+        # Even with no equities, the independent index lane still works.
+        self.pipeline.dispatch("verified-device-001", "indices")
+        self.assertEqual(self.calls[-1][1], ("NIFTY", "BANKNIFTY", "SENSEX"))
+
     def test_invalid_quota_clock_and_config_fail_closed(self):
         with self.assertRaises(ValueError):
             SharedReadBudget(monotonic=lambda: 1, min_gap_seconds=0)
