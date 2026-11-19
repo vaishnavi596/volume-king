@@ -65,6 +65,30 @@ class LocalCandleHistoryTests(unittest.TestCase):
                                  allowed_symbols=("NIFTY",)))
         self.assertEqual(c.view("NIFTY","1m")["bars"][-1]["timestamp"],400)
 
+    def test_partial_newer_history_cannot_shrink_last_good_chart(self):
+        c = module.LocalCandleHistory()
+        complete = [
+            {"timestamp": 60 * (i + 1), "open": 100., "high": 102.,
+             "low": 99., "close": 101., "volume": 10., "completed": True}
+            for i in range(35)
+        ]
+        self.assertTrue(c.accept("TCS", "3m", 7, complete,
+                                 allowed_symbols=("TCS",)))
+        newer_partial = complete[-1:] + [
+            {"timestamp": 60 * 36, "open": 101., "high": 103.,
+             "low": 100., "close": 102., "volume": 10., "completed": True}
+        ]
+        self.assertFalse(c.accept("TCS", "3m", 8, newer_partial,
+                                  allowed_symbols=("TCS",)))
+        retained = c.view("TCS", "3m", selected_equities=("TCS",))
+        self.assertEqual(retained["count"], 35)
+        self.assertEqual(retained["bars"][-1]["timestamp"], 60 * 35)
+        corrected = complete + newer_partial[-1:]
+        self.assertTrue(c.accept("TCS", "3m", 8, corrected,
+                                 allowed_symbols=("TCS",)))
+        self.assertEqual(c.view("TCS", "3m",
+                               selected_equities=("TCS",))["count"], 36)
+
     def test_independent_index_and_equity_timeframes_unchanged_by_replay(self):
         c=module.LocalCandleHistory()
         extended=bars()+[{"timestamp":300,"open":103,"high":107,"low":102,

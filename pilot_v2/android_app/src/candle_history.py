@@ -51,6 +51,11 @@ class LocalCandleHistory:
             # A higher transport revision is not evidence of a newer candle.
             # Protect last-good history from a replay/short historical window.
             return False
+        if previous and len(validated) < len(previous["bars"]):
+            # Do not discard a complete chart for a shorter refresh window,
+            # even if that partial response happens to contain a newer bar.
+            # The existing revision remains available for a later full retry.
+            return False
         self._entries[key] = {"revision": revision, "bars": validated}
         return True
 

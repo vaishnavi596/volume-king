@@ -123,3 +123,9 @@
 - Added AST and positive/negative offline regression `test_ft3_manual_refresh_plan_ui.py`. New exact-source CI PENDING. This closes only app-side intent UI reachability, not real data-only refresh scheduling or source-confirmed Dhan updates.
 - One-click GitHub Actions workflow on pilot branch may not appear as a manual dispatch in the Actions UI until it also exists on repository default branch; do not claim an operational button without observing its dispatch. Do not change V1/default branch under current V2-only ownership constraint.
 - Remain open: live authenticated data, device/master authorization, full V1 UI/Options/Super Five/Paper, real chart and Android acceptance. No APK/Oracle/production modifications.
+
+## V2-FT3-CANDLE-PARTIAL-NEWER-HISTORY-RETENTION-20261119
+- Latest exact source CI #99 commit `61ecb5cc409c5a0d9ec9a76a69e193c9527a8561` [run 44429379524](https://github.com/vaishnavi596/volume-king/actions/runs/44429379524), SUCCESS. Source prior #97/#98 also SUCCESS; reviewed newest 10 commits before patch.
+- Found additional partial-window hazard: `LocalCandleHistory.accept` previously rejected old-end replay, but could accept a shorter newer-ended validated window and shrink a 35-bar chart/indicator history to two bars. Fixed fail-closed: when existing history is longer, reject shortened incoming history while preserving original revision and current completed bars. A later complete longer window may still update history.
+- Added targeted regression to `test_flet_candle_history.py` for 35-bar retained 3m chart, newer 2-bar partial rejected, and corrected 36-bar refresh accepted.
+- This is app-side V2-only cache retention; does not assert live candle or broker data, and does not fetch Dhan. Source CI PENDING until observed. No V1/Oracle/APK/credentials/orders changes.
