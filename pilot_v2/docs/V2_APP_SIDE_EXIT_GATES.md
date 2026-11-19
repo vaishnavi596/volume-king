@@ -1,6 +1,6 @@
 # BOT KING V2 — App-side Exit and External Acceptance Gates
 
-**Latest source-only baseline:** CI #164 / commit `789b389691568a4e8a3c3b015089e5aea55f035c`, 370/370 offline tests PASS, zero source security findings, source UI wiring 9/9. This is NOT a completed Android build or live integration.
+**Latest source-only baseline:** [CI #170](https://github.com/vaishnavi596/volume-king/actions/runs/44459269573), commit `22e378d9c4e5df53fb84eecc89cba778b63c13bd`, **375/375 offline tests PASS**, zero source security findings, source UI wiring 9/9. This is NOT a completed Android build or live integration.
 
 ## App-side source validated
 - Five migrated V1 UI controls: Scanner show/hide, chart style, timeframe, expiry selection, native historical chart.
@@ -8,6 +8,7 @@
 - Five source-gated filters plus deliberately blank sixth. Historical/WAIT labels without exchange-authenticated timestamps; never invent scores.
 - Revision-stamped shared collector cache and Android mock enforce independent per-symbol replay rules; old numeric-only collector data remains unverified.
 - Device/collector-facing contracts are **offline implementations**. No live data producer is attached to `main.py`.
+- Source-only automatic lane cadence now independently claims index/equity due windows under confirmed 09:10–15:45 IST session without issuing network requests. Mounted native Scanner Line/Candles chart, historical EMA/RSI/ATR/levels and five-filter source-gated labels update from accepted cache without a full-page render. This does NOT implement actual live Scanner polling or WebView parity.
 
 ## Unmet source/runtime acceptance
 1. Rich V1 WebView chart feature: NOT MIGRATED. Need supported Android WebView runtime, local navigation/session safety, and real device check.
