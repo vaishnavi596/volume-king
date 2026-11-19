@@ -11,7 +11,8 @@ from urllib.parse import urlsplit
 from urllib.request import (
     HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener,
 )
-from feed_inbox import DeviceFeedInbox, FeedError
+from feed_inbox import DeviceFeedInbox, FeedError, INDEXES
+from app_state import valid_symbol
 from read_delivery import deliver_readonly_response
 
 MAX_RESPONSE_BYTES = 65536
@@ -75,6 +76,16 @@ class V2ReadonlyHTTPSReader:
             raise FeedError("Unsupported V2 read-only destination")
         if not self.session_active:
             raise FeedError("V2 device session requires verified sign-in")
+        # Direct reader callers must not bypass app-owned selection validation.
+        # Fail closed before constructing or opening ANY HTTPS request.
+        if type(selected_equities) not in (tuple, list):
+            raise FeedError("Invalid selected read-only equity roster")
+        selected = tuple(selected_equities)
+        if (len(selected) > 70
+                or any(not valid_symbol(symbol) or symbol in INDEXES
+                       for symbol in selected)
+                or len(set(selected)) != len(selected)):
+            raise FeedError("Invalid selected read-only equity roster")
         # No Dhan OAuth/broker secret ever goes to this phone.
         url = self._origin + "/v2-pilot/" + feed
         request = Request(
@@ -112,7 +123,7 @@ class V2ReadonlyHTTPSReader:
         # Only a successful HTTPS response from the configured origin and
         # protected endpoint can enter the independent app-owned lane.
         accepted = deliver_readonly_response(
-            inbox, feed, 200, payload, selected_equities=selected_equities,
+            inbox, feed, 200, payload, selected_equities=selected,
             authenticated_session=True)
         # Advancing a global envelope without any newer per-symbol row is not
         # a visible data refresh. Do not report HIST or trigger a visual update.

@@ -142,6 +142,27 @@ class HTTPSReaderTests(unittest.TestCase):
             self.reader.refresh(self.inbox, "indices")
         self.assertEqual(len(self.opener.calls), count)
 
+    def test_direct_reader_malformed_selected_roster_has_zero_http_calls(self):
+        invalid = (None, "TCS", {"TCS"}, (x for x in ("TCS",)),
+                   ("TCS", ["INFY"]), ("TCS", {"symbol": "INFY"}),
+                   ("TCS", "TCS"), ("NIFTY",), ("tcs",), ("TCS ",),
+                   tuple(f"EQ{i:03d}" for i in range(71)))
+        for selected in invalid:
+            with self.subTest(roster=repr(selected)[:80]):
+                with self.assertRaises(FeedError):
+                    self.reader.refresh(self.inbox, "quotes",
+                                        selected_equities=selected)
+        self.assertEqual(self.opener.calls, [])
+        self.assertEqual(self.inbox.revision_for("quotes"), -1)
+        self.assertEqual(self.inbox.revision_for("indices"), -1)
+        # Authorized empty index lane and explicitly selected equity are valid.
+        self.offer("indices", 1, "NIFTY", 25000)
+        self.assertTrue(self.reader.refresh(self.inbox, "indices"))
+        self.offer("quotes", 1, "TCS", 100)
+        self.assertTrue(self.reader.refresh(
+            self.inbox, "quotes", selected_equities=("TCS",)))
+        self.assertEqual(len(self.opener.calls), 2)
+
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
                        "https://v2.example.test/secret", "https://v2.example.test/?q=1",
