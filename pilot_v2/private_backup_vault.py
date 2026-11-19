@@ -205,6 +205,10 @@ def create_private_backup_router(vault):
     router = APIRouter()
 
     def bearer(request):
+        # Do not trust arbitrary X-Forwarded-Proto headers. The deployment
+        # must configure a trusted TLS proxy so ASGI scheme is genuine HTTPS.
+        if request.scope.get("scheme") != "https":
+            raise HTTPException(403, "HTTPS required")
         header = request.headers.get("authorization", "")
         if (not header.startswith("Bearer ") or header.count(" ") != 1
                 or not 40 <= len(header[7:]) <= 160):

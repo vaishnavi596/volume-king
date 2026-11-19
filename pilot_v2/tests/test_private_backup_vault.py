@@ -122,15 +122,20 @@ class PrivateBackupVaultTests(unittest.TestCase):
                 Path(d) / "private.sqlite", sessions)
             app = FastAPI()
             app.include_router(create_private_backup_router(vault))
-            client = TestClient(app)
+            client = TestClient(app, base_url="https://testserver")
+            insecure = TestClient(app, base_url="http://testserver")
             url = "/v2-pilot/private-backup"
             auth = {"Authorization": "Bearer " + master}
             bad = {"Authorization": "Bearer " + delegate}
+            self.assertEqual(insecure.get(url).status_code, 403)
             self.assertEqual(client.get(url).status_code, 401)
             self.assertEqual(client.get(url, headers=bad).status_code, 403)
             self.assertEqual(client.get(url, headers=auth).json(),
                              {"revision": 0, "encrypted_envelope": None})
             encrypted = seal_local_preferences(BACKUP, PASSWORD)
+            self.assertEqual(insecure.post(url, headers=auth, json={
+                "encrypted_envelope": encrypted, "expected_revision": 0
+            }).status_code, 403)
             post = client.post(url, headers=auth, json={
                 "encrypted_envelope": encrypted, "expected_revision": 0})
             self.assertEqual(post.status_code, 200)

@@ -114,7 +114,7 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
                 private_backup_vault=mismatched)
         client = TestClient(create_v2_unified_app(
             verified_login=self.login, data_pipeline=self.pipeline,
-            private_backup_vault=vault))
+            private_backup_vault=vault), base_url="https://testserver")
         self.assertEqual(client.get("/v2-pilot/private-backup").status_code, 401)
         bearer = self.signed_bearer()
         headers = {"Authorization": "Bearer " + bearer}
