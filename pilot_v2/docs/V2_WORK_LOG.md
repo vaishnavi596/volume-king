@@ -1,4 +1,13 @@
 
+## VERIFIED DEVICE SESSION AND V1 FOUR-FACTOR ASSESSMENT MIGRATION — 2026-11-19
+- Confirmed exact-source [CI #112](https://github.com/vaishnavi596/volume-king/actions/runs/44439262854) **SUCCESS 313/313** for `a8ce20b3526c3ad286551077d4b563f05e543610`: offline server-owned `DeviceSessionGateway` checks every authorized evidence permission (candles, options, assessment), expiry/revocation before atomic app cache delivery; mock session proofs only. This does NOT establish production Oracle/phone login.
+- Next joint **V1 assessment parity** source batch adds V2-local `local_assessment_evidence.py` for four independent `news/futures/options/candle` assessment factors, strict trusted Dhan-source/context/revision checks, unselected equity isolation, no fake AI probabilities. Scanner UI displays four factor rows and `0/4 historical factors` status (WAIT without eligible evidence). Separate five active filters remain unchanged; sixth intentionally empty. On Watchlist removal/restore, assessment cache forgets removed symbols. No broker requests, endpoint, fabricated news or order execution.
+- Added `test_local_assessment_parity.py` for 4-factor defaults, partial independent revisions, source/permission/schema rejection, removed equity and actual Scanner source reachability. New exact-source CI is **PENDING**, not a claim of live News/Futures integration or complete V1 parity.
+- Owner guard unchanged: V1/old journals read-only; no Oracle server production changes and no APK build. NEXT: full V1 visual/control parity and authenticated app data delivery acceptance; the Dhan/Oracle production phase later only after authorization.
+
+---
+
+
 ## V2 VERIFIED-SESSION / EVIDENCE DELIVERY JOINT CONTRACT — 2026-11-19
 - Owner requires uninterrupted next work, one coherent segment and combined CI. Reviewed 10 latest commits, V2 General, Handoff and baseline exact-source [CI #111](https://github.com/vaishnavi596/volume-king/actions/runs/44438674534), 309/309 PASS at `83f8ac184e5bb4b5fc437327baa8758ed142d999`. Documentation HEAD `be4ba30328d64b6363e993073df377e1a1b14765`.
 - New **offline** `pilot_v2/session_evidence_contract.py` connects existing server-owned `DeviceSessionGateway` verification to existing V2 app-local atomic `app_evidence_batch.apply_staged_evidence_batch`. For every ordered evidence batch: strict event kind/size; preflight ALL server-issued revocable bearer permissions against the same verified device (candles, options, assessment combinations); only then enter app cache with trusted delivery. Denied, revoked or expired session never updates app cache. Super Five is not a fabricated evidence producer or added feed endpoint.

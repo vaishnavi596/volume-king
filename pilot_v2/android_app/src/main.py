@@ -28,6 +28,7 @@ from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
 from local_paper_ledger import ManualPaperLedger, PaperLedgerError
 from local_notices import LocalNoticeCenter
 from app_data_readiness import joint_data_readiness, data_readiness_label
+from local_assessment_evidence import LocalAssessmentEvidence
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -127,6 +128,7 @@ def main(page: ft.Page):
 
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     evidence_inbox = DeviceEvidenceInbox()  # Offline, authenticated data client NOT connected.
+    assessment = LocalAssessmentEvidence()  # Four optional source-gated factors; all WAIT.
     candle_history = evidence_inbox.candles
     scanner_history = HistoricalThreeMinuteFallback(candle_history)
     filter_evidence = evidence_inbox.filters
@@ -391,6 +393,13 @@ def main(page: ft.Page):
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
                 ft.Text("Sixth filter: reserved / blank"),
+                ft.Text("Assessment · News / Futures / Options / Candle", color=GOLD),
+                *[ft.Text(f"{factor}: {value}", color=MUTED, size=14)
+                  for factor, value in assessment.rows(
+                      scanner[0].symbol, selected_equities=state.selected)],
+                ft.Text(assessment.label(
+                    scanner[0].symbol, selected_equities=state.selected),
+                    color=MUTED, size=13),
                 ft.Text(shared_filter_context(
                     filter_evidence, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["coverage_label"],
@@ -488,6 +497,7 @@ def main(page: ft.Page):
                 state.remove(group[0], item)
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
+                assessment.forget_removed(state.selected)
                 notices.record("WATCHLIST_REMOVED")
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
@@ -690,6 +700,7 @@ def main(page: ft.Page):
                 analysis_slots[0] = new_slots
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
+                assessment.forget_removed(state.selected)
                 watch_search[0] = ""
                 group[0] = 0
                 backup_confirm[0] = False
