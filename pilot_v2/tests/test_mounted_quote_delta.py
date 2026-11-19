@@ -148,6 +148,25 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn('tracked_filter_text(\n                    scanner[0].symbol, scanner[0].timeframe,', self.source)
         self.assertIn("Sixth filter: reserved / blank", self.source)
 
+    def test_optional_webview_has_native_fallback_no_external_fetch(self):
+        source = self.source
+        self.assertIn("rich_preview_enabled = [False]", source)
+        self.assertIn('getattr(ft, "WebView", None)', source)
+        self.assertIn('url="about:blank", enable_javascript=False', source)
+        self.assertIn("historical_chart_html(", source)
+        self.assertIn("on_web_resource_error=fail_rich_preview", source)
+        self.assertIn("native chart remains available", source)
+        self.assertIn('tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "line")', source)
+        self.assertIn('tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "candles")', source)
+        self.assertNotIn('ft.WebView(', source)
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "build_optional_rich_preview")
+        fragment = ast.get_source_segment(source, callback)
+        for forbidden in ("requests.", "httpx.", "submit_order(", "get_yahoo("):
+            self.assertNotIn(forbidden, fragment)
+        self.assertIn('if html is None:', fragment)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)

@@ -15,6 +15,7 @@ from watchlist_parity import watchlist_rows, watchlist_row
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_indicator_panel import historical_indicator_panel
+from local_webview_chart import historical_chart_html
 from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown, choose_chart_window
@@ -233,6 +234,10 @@ def main(page: ft.Page):
     filter_labels = {}  # Existing evidence-gated visible factors only.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
+    rich_preview_enabled = [False]  # Explicit session-only opt-in, never the default.
+    rich_preview_view = [None]
+    rich_preview_html = [None]
+    rich_preview_loaded = [False]
 
     def tracked_quote_text(symbol, value, kind="display", **style):
         control = ft.Text(value, **style)
@@ -319,6 +324,60 @@ def main(page: ft.Page):
                                     for line in lines]
                 control.update()
 
+    def fail_rich_preview(e):
+        """WebView error cannot hide or replace native Scanner chart."""
+        if getattr(e, "control", None) is not rich_preview_view[0]:
+            return
+        rich_preview_enabled[0] = False
+        rich_preview_view[0] = None
+        status.value = "Offline rich preview failed · native candles remain available"
+        render()
+        page.update()
+
+    def rich_preview_ready(e):
+        view = getattr(e, "control", None)
+        if (view is not rich_preview_view[0]
+                or rich_preview_loaded[0]
+                or not rich_preview_html[0]):
+            return
+        rich_preview_loaded[0] = True
+        try:
+            view.load_html(rich_preview_html[0])
+        except (AttributeError, RuntimeError, ValueError, TypeError):
+            fail_rich_preview(e)
+
+    def toggle_rich_preview(e):
+        requested = e.control.value is True
+        if requested and not callable(getattr(ft, "WebView", None)):
+            status.value = "Offline WebView unsupported · native chart remains available"
+            rich_preview_enabled[0] = False
+        else:
+            rich_preview_enabled[0] = requested
+        render()
+        page.update()
+
+    def build_optional_rich_preview():
+        """Never blocks the always-visible native chart or requests external data."""
+        if not rich_preview_enabled[0]:
+            return None
+        html = historical_chart_html(
+            scanner_history, scanner[0].symbol, scanner[0].timeframe,
+            selected_equities=state.selected, limit=chart_window[0],
+            style=chart_style[0])
+        if html is None:
+            return ft.Text("Offline rich chart WAIT · completed source history unavailable")
+        factory = getattr(ft, "WebView", None)
+        if not callable(factory):
+            return ft.Text("Offline WebView unsupported · native chart available")
+        view = factory(
+            url="about:blank", enable_javascript=False, expand=True,
+            on_page_ended=rich_preview_ready,
+            on_web_resource_error=fail_rich_preview)
+        rich_preview_view[0] = view
+        rich_preview_html[0] = html
+        rich_preview_loaded[0] = False
+        return ft.Container(content=view, height=260, padding=5)
+
     def apply_data_only_candle_snapshot(symbol, timeframe, revision, bars, *,
                                         trusted_transport=False):
         """Accept already-authenticated completed history; update labels only."""
@@ -344,6 +403,19 @@ def main(page: ft.Page):
                 control.update()
         refresh_visible_native_chart(symbol, timeframe)
         refresh_visible_technical(symbol, timeframe)
+        if (rich_preview_enabled[0] and rich_preview_view[0] is not None
+                and symbol == scanner[0].symbol and timeframe == scanner[0].timeframe):
+            candidate = historical_chart_html(
+                scanner_history, symbol, timeframe,
+                selected_equities=state.selected, limit=chart_window[0],
+                style=chart_style[0])
+            if candidate is not None:
+                rich_preview_html[0] = candidate
+                if rich_preview_loaded[0]:
+                    try:
+                        rich_preview_view[0].load_html(candidate)
+                    except (AttributeError, RuntimeError, ValueError, TypeError):
+                        rich_preview_view[0] = None  # Native chart stays mounted.
         return True
 
     def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
@@ -450,6 +522,8 @@ def main(page: ft.Page):
         filter_labels.clear()
         native_chart_hosts.clear()
         technical_hosts.clear()
+        rich_preview_view[0] = None
+        rich_preview_loaded[0] = False
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -648,6 +722,9 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(style, style)
                                      for style in CHART_STYLES],
                             on_change=change_chart_style),
+                ft.Switch(label="Optional offline rich chart preview · native fallback",
+                          value=rich_preview_enabled[0],
+                          on_change=toggle_rich_preview),
                 tracked_quote_text(scanner[0].symbol, quote_view.display(scanner[0].symbol, state.selected)),
                 tracked_candle_text(scanner[0].symbol, scanner[0].timeframe,
                                     scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
@@ -664,6 +741,7 @@ def main(page: ft.Page):
                 tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "candles")
                 if chart_visible[0] and chart_style[0] == "Candles" else
                 ft.Text("Native candle chart hidden · Line style selected"),
+                *([build_optional_rich_preview()] if rich_preview_enabled[0] else []),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=14, color=MUTED),
                 ft.Text("Technical levels · completed candles only", color=GOLD, size=14),
