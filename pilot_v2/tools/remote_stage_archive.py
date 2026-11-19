@@ -8,6 +8,8 @@ import io
 import json
 from pathlib import Path
 import re
+import shutil
+import stat
 import tarfile
 
 MAX_ARCHIVE = 8_000_000
@@ -27,7 +29,10 @@ def stage(archive, *, sha, checksum, root):
     if not re.fullmatch(r"[0-9a-f]{64}", checksum):
         raise ValueError("Exact source archive SHA-256 required")
     archive = Path(archive)
-    root = Path(root).resolve()
+    requested_root = Path(root)
+    if requested_root.is_symlink():
+        raise ValueError("Staging root must not be a symlink")
+    root = requested_root.resolve()
     if root != Path.home().resolve() / "botking-v2-staging":
         raise ValueError("Unexpected staging root")
     target = root / ("gh-" + sha)
@@ -54,18 +59,32 @@ def stage(archive, *, sha, checksum, root):
     if not REQUIRED.issubset(files) or not REQUIRED_TOOLS.issubset(files):
         raise ValueError("Incomplete V2 gateway source")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    target.mkdir(mode=0o700)
-    source = target / "pilot_v2"
-    source.mkdir(mode=0o700)
-    for name, content in sorted(files.items()):
-        path = source / name
-        if name.startswith("tools/"):
-            (source / "tools").mkdir(mode=0o700, exist_ok=True)
-        path.write_bytes(content)
-        path.chmod(0o600)
-    manifest = {"commit": sha, "archive_sha256": checksum,
-                "source_count": len(files), "activated": False}
-    (target / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
+    if stat.S_IMODE(root.stat().st_mode) & 0o077:
+        raise ValueError("Staging root must be private")
+    # Never publish a partially written commit: retrying the exact SHA must
+    # remain possible after a disk/write failure without overwriting a release.
+    pending = root / (".pending-gh-" + sha)
+    if pending.exists() or pending.is_symlink():
+        raise FileExistsError("Existing incomplete staging transaction")
+    pending.mkdir(mode=0o700)
+    try:
+        source = pending / "pilot_v2"
+        source.mkdir(mode=0o700)
+        for name, content in sorted(files.items()):
+            path = source / name
+            if name.startswith("tools/"):
+                (source / "tools").mkdir(mode=0o700, exist_ok=True)
+            path.write_bytes(content)
+            path.chmod(0o600)
+        manifest = {"commit": sha, "archive_sha256": checksum,
+                    "source_count": len(files), "activated": False}
+        manifest_file = pending / "manifest.json"
+        manifest_file.write_text(json.dumps(manifest, sort_keys=True) + "\n")
+        manifest_file.chmod(0o600)
+        pending.rename(target)
+    except BaseException:
+        shutil.rmtree(pending)
+        raise
     return manifest
 
 

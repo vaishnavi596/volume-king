@@ -51,6 +51,44 @@ class StageTests(unittest.TestCase):
         self.assertNotIn("systemctl restart", workflow)
         self.assertNotIn("on:\n  push:", workflow)
 
+    def test_rejects_insecure_existing_root(self):
+        data = bundle()
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            root = home / "botking-v2-staging"
+            root.mkdir(mode=0o755)
+            root.chmod(0o755)
+            archive = home / "source.tgz"
+            archive.write_bytes(data)
+            with patch("pathlib.Path.home", return_value=home):
+                with self.assertRaisesRegex(ValueError, "private"):
+                    stage(archive, sha="a" * 40,
+                          checksum=hashlib.sha256(data).hexdigest(), root=root)
+            self.assertFalse((root / ("gh-" + "a" * 40)).exists())
+
+    def test_write_failure_cleans_pending_and_allows_retry(self):
+        data = bundle()
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            root = home / "botking-v2-staging"
+            archive = home / "source.tgz"
+            archive.write_bytes(data)
+            checksum = hashlib.sha256(data).hexdigest()
+            original = Path.write_bytes
+            def fail_once(path, content):
+                if path.name == "unified_gateway_app.py":
+                    raise OSError("simulated staging write failure")
+                return original(path, content)
+            with patch("pathlib.Path.home", return_value=home):
+                with patch.object(Path, "write_bytes", autospec=True, side_effect=fail_once):
+                    with self.assertRaisesRegex(OSError, "write failure"):
+                        stage(archive, sha="a" * 40, checksum=checksum, root=root)
+                self.assertFalse((root / (".pending-gh-" + "a" * 40)).exists())
+                self.assertFalse((root / ("gh-" + "a" * 40)).exists())
+                result = stage(archive, sha="a" * 40, checksum=checksum, root=root)
+                self.assertFalse(result["activated"])
+                self.assertTrue((root / ("gh-" + "a" * 40) / "manifest.json").exists())
+
     def test_valid(self):
         self.run_stage(bundle())
 
