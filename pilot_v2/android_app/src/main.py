@@ -36,6 +36,7 @@ from app_data_readiness import joint_data_readiness, data_readiness_label
 from app_connection_status import local_connection_state
 from app_device_reader_slot import DeviceReaderSlot
 from app_native_keystore import AndroidNativeP256Provider
+from app_signed_evidence_delivery import read_signed_evidence_batch
 from local_assessment_evidence import LocalAssessmentEvidence
 
 def main(page: ft.Page):
@@ -559,6 +560,47 @@ def main(page: ft.Page):
             status.value = "Signed V2 device session issued · live Dhan data not verified"
         render()
         page.update()
+
+    def manual_verified_evidence_refresh(e):
+        """One signed source-evidence request; no fabricated candles or filter votes."""
+        reader = device_session_slot.reader
+        if reader is None or not reader.session_active:
+            status.value = local_connection_state(reader)["label"]
+        else:
+            try:
+                outcome = read_signed_evidence_batch(
+                    reader, evidence_inbox, selected_equities=state.selected)
+            except FeedError:
+                status.value = "Source evidence WAIT · existing completed bars retained"
+            else:
+                if device_session_slot.reader is not reader or not reader.session_active:
+                    return
+                # Repaint mounted labels only; do not reconstruct the whole page.
+                for symbol, timeframe in tuple(candle_labels):
+                    for control, kind in candle_labels.get((symbol, timeframe), ()):
+                        if kind == "index":
+                            value = index_card_model(
+                                symbol, quote_view, evidence_inbox, state.selected)["candle_label"]
+                        elif kind == "watchlist":
+                            value = watchlist_row(
+                                symbol, quote_view, evidence_inbox,
+                                selected_equities=state.selected,
+                                history_view=scanner_history)["candle"]
+                        else:
+                            value = scanner_history.summary(
+                                symbol, timeframe, selected_equities=state.selected)
+                        if control.value != value:
+                            control.value = value
+                            control.update()
+                    refresh_visible_native_chart(symbol, timeframe)
+                    refresh_visible_technical(symbol, timeframe)
+                for symbol, timeframe in tuple(filter_labels):
+                    refresh_visible_filter_labels(symbol, timeframe)
+                status.value = (
+                    f'Authenticated evidence events {outcome["events"]}, '
+                    f'accepted {outcome["updated"]} · HIST/WAIT until live source proven')
+        if status.page is not None:
+            status.update()
 
     def clear_local_device_session(e):
         """Cancel pending login; revoke active Oracle bearer where reachable."""
@@ -1295,6 +1337,8 @@ def main(page: ft.Page):
                         color=MUTED, size=14),
                 ft.OutlinedButton("Request read-only data (verified sign-in required)",
                                   on_click=manual_verified_data_refresh),
+                ft.OutlinedButton("Request verified candle/option/filter evidence",
+                                  on_click=manual_verified_evidence_refresh),
                 ft.TextButton("Sign out V2 session (Oracle revoke when connected)",
                               on_click=clear_local_device_session),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
