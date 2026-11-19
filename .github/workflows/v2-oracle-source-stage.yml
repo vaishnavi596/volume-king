@@ -41,9 +41,8 @@ jobs:
           scp -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes \
             /tmp/botking-v2-source.tgz pilot_v2/tools/remote_stage_archive.py \
             "opc@$ORACLE_HOST:/home/opc/botking-v2-staging/"
+          # A failed stage must not leave transferred temporary files behind.
           ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
-            "python3 /home/opc/botking-v2-staging/remote_stage_archive.py --archive /home/opc/botking-v2-staging/botking-v2-source.tgz --sha ${SHA} --checksum ${HASH} --root /home/opc/botking-v2-staging"
-          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
-            'rm -f /home/opc/botking-v2-staging/botking-v2-source.tgz /home/opc/botking-v2-staging/remote_stage_archive.py'
+            "trap 'rm -f /home/opc/botking-v2-staging/botking-v2-source.tgz /home/opc/botking-v2-staging/remote_stage_archive.py' EXIT; python3 /home/opc/botking-v2-staging/remote_stage_archive.py --archive /home/opc/botking-v2-staging/botking-v2-source.tgz --sha ${SHA} --checksum ${HASH} --root /home/opc/botking-v2-staging"
           ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
             'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
