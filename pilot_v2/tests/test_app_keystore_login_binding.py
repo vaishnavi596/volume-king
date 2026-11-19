@@ -94,7 +94,12 @@ class KeystoreBindingTests(unittest.TestCase):
             binding.sign_login_challenge(message)
         self.assertNotIn("private", str(error.exception))
         self.assertEqual(self.calls, [])
-        self.assertEqual(binding.public_key_fingerprint_sha256(), original_fingerprint)
+        self.assertEqual(original_fingerprint, hashlib.sha256(self.public).hexdigest())
+        with self.assertRaises(FeedError):
+            binding.public_spki_for_owner_enrollment()
+        with self.assertRaises(FeedError):
+            binding.public_key_fingerprint_sha256()
+        self.assertEqual(self.calls, [])
 
     def test_native_public_recheck_failure_denied_without_signing(self):
         calls = [0]
@@ -109,6 +114,25 @@ class KeystoreBindingTests(unittest.TestCase):
             binding.sign_login_challenge(message)
         self.assertNotIn("sensitive", str(error.exception))
         self.assertEqual(self.calls, [])
+        with self.assertRaises(FeedError):
+            binding.public_spki_for_owner_enrollment()
+        with self.assertRaises(FeedError):
+            binding.public_key_fingerprint_sha256()
+
+    def test_current_public_export_and_fingerprint_remain_consistent(self):
+        calls = []
+        def export():
+            calls.append("public")
+            return self.public
+        binding = AndroidKeystoreLoginBinding(MASTER, export, self.signer)
+        self.assertEqual(binding.public_spki_for_owner_enrollment(), self.public)
+        self.assertEqual(binding.public_key_fingerprint_sha256(),
+                         hashlib.sha256(self.public).hexdigest())
+        message = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\\x00" + bytes(32)
+        signature = binding.sign_login_challenge(message)
+        self.key.public_key().verify(signature, message, ec.ECDSA(hashes.SHA256()))
+        self.assertEqual(calls, ["public"] * 4)
+        self.assertEqual(self.calls, [message])
 
     def test_login_client_enforces_approved_https_origin_before_network(self):
         binding = self.bind()
