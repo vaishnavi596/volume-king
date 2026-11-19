@@ -16,7 +16,12 @@ SOURCE_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ("http_gateway.py", "api_contract.py", "device_sessions.py",
             "durable_device_sessions.py", "verified_login_gateway.py",
             "durable_challenges.py", "atomic_verified_login.py",
-                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py")
+                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py",
+                "oracle_secure_entrypoint.py", "oracle_runtime_factory.py",
+                "oracle_dhan_read_transport.py")
+
+
+REQUIRED_TOOLS = ("tools/v2_activation_gate.py", "tools/provision_oracle_master.py")
 
 
 def build(output: Path, source_root: Path = SOURCE_ROOT) -> dict:
@@ -26,7 +31,11 @@ def build(output: Path, source_root: Path = SOURCE_ROOT) -> dict:
     for name in REQUIRED:
         if not (source_root / name).is_file():
             raise FileNotFoundError("Missing V2 source: " + name)
+    for name in REQUIRED_TOOLS:
+        if not (source_root / name).is_file():
+            raise FileNotFoundError("Missing V2 protected tool: " + name)
     files = sorted(source_root.glob("*.py"))
+    files += sorted(source_root / name for name in REQUIRED_TOOLS)
     files += sorted((source_root / "tools").glob("verify_v2_gateway_routes.py"))
     if not files:
         raise ValueError("Empty V2 source bundle")

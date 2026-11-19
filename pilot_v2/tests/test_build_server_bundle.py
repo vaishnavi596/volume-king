@@ -16,7 +16,9 @@ class BundleTests(unittest.TestCase):
     def make_sources(self, root):
         base = root / "pilot_v2"
         base.mkdir()
-        for name in module.REQUIRED:
+        (base / "tools").mkdir()
+        for name in module.REQUIRED + module.REQUIRED_TOOLS:
+            (base / name).parent.mkdir(parents=True, exist_ok=True)
             (base / name).write_text("# isolated test fixture\n", encoding="utf8")
         return base
 
@@ -32,12 +34,12 @@ class BundleTests(unittest.TestCase):
             with ZipFile(target) as bundle:
                 self.assertEqual(set(bundle.namelist()), {
                     "manifest.json",
-                    *("pilot_v2/" + name for name in module.REQUIRED),
+                    *("pilot_v2/" + name for name in module.REQUIRED + module.REQUIRED_TOOLS),
                 })
                 self.assertEqual(json.loads(bundle.read("manifest.json")), manifest)
                 self.assertTrue(all(
                     bundle.read("pilot_v2/" + n) == (src / n).read_bytes()
-                    for n in module.REQUIRED
+                    for n in module.REQUIRED + module.REQUIRED_TOOLS
                 ))
 
     def test_refuses_overwrite(self):
@@ -60,6 +62,17 @@ class BundleTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 module.build(root / "missing.zip", source)
             self.assertFalse((root / "missing.zip").exists())
+
+    def test_secure_runtime_and_provisioning_tools_mandatory(self):
+        for name in ("oracle_secure_entrypoint.py", "oracle_runtime_factory.py",
+                     "tools/v2_activation_gate.py", "tools/provision_oracle_master.py"):
+            with self.subTest(missing=name), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                src = self.make_sources(root)
+                (src / name).unlink()
+                with self.assertRaises(FileNotFoundError):
+                    module.build(root / "incomplete.zip", src)
+                self.assertFalse((root / "incomplete.zip").exists())
 
     def test_rejects_missing_source(self):
         with tempfile.TemporaryDirectory() as d:
