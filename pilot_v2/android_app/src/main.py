@@ -1,5 +1,6 @@
 """BOT KING V2 Flet offline app; app owns settings, no live Dhan/Oracle calls."""
 import flet as ft
+import base64
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from app_identity import APP_VERSION_NAME, APP_VERSION_CODE
@@ -249,6 +250,8 @@ def main(page: ft.Page):
     device_login_origin = ft.TextField(label="Owner-approved V2 HTTPS origin", width=330,
                                        value="https://botkingrajesh.duckdns.org")
     device_public_fingerprint = [""]  # Public-key checksum ONLY; no private key or bearer.
+    device_public_spki_b64 = [""]  # Public SPKI DER only, session memory; never client_storage.
+    device_fingerprint_label = ft.Text("No approved public-key fingerprint displayed", color=MUTED)
     rich_preview_enabled = [False]  # Explicit session-only opt-in, never the default.
     rich_preview_view = [None]
     rich_preview_html = [None]
@@ -600,12 +603,33 @@ def main(page: ft.Page):
             provider.ensure_public_spki()
             binding = provider.binding()
             device_public_fingerprint[0] = binding.public_key_fingerprint_sha256()
+            device_public_spki_b64[0] = base64.b64encode(
+                binding.public_spki_for_owner_enrollment()).decode("ascii")
         except FeedError:
             device_public_fingerprint[0] = ""
+            device_public_spki_b64[0] = ""
             status.value = "Android Keystore unavailable · device not enrolled"
         else:
             status.value = ("Public P-256 SHA256: " + device_public_fingerprint[0]
                             + " · owner must approve it on Oracle")
+        device_fingerprint_label.value = (device_public_fingerprint[0] or
+            "No approved public-key fingerprint displayed")
+        if device_fingerprint_label.page is not None:
+            device_fingerprint_label.update()
+        if status.page is not None:
+            status.update()
+
+    def copy_public_enrollment_spki(e):
+        """Export only the Keystore public SPKI, never a private key or bearer."""
+        if not device_public_spki_b64[0]:
+            status.value = "Prepare the Android public key on this phone first"
+        else:
+            try:
+                page.set_clipboard(device_public_spki_b64[0])
+            except (AttributeError, RuntimeError, OSError):
+                status.value = "Public key copy unavailable on this device"
+            else:
+                status.value = "Public SPKI copied · Oracle owner approval required"
         if status.page is not None:
             status.update()
 
@@ -1373,8 +1397,9 @@ def main(page: ft.Page):
                 device_login_origin,
                 ft.OutlinedButton("Prepare public Android Keystore enrollment key",
                                   on_click=prepare_native_device_enrollment),
-                ft.Text(device_public_fingerprint[0] or
-                        "No approved public-key fingerprint displayed", color=MUTED),
+                device_fingerprint_label,
+                ft.OutlinedButton("Copy public SPKI for Oracle Master enrollment",
+                                  on_click=copy_public_enrollment_spki),
                 ft.OutlinedButton("Sign in with Android Keystore (approved devices)",
                                   on_click=sign_in_native_v2_device),
                 ft.Text(local_connection_state(device_session_slot.reader)["label"],
