@@ -44,7 +44,7 @@ jobs:
         if: inputs.operation == 'stage_v2'
         uses: actions/checkout@v4
         with:
-          ref: c4c9deaf2ffd902062c1888675aabb58352052a4
+          ref: f6b7c9489576691e73fb678efb431542b5608a1c
           persist-credentials: false
       - name: Connect securely with existing owner-authorized key
         shell: bash
@@ -183,7 +183,7 @@ jobs:
           REMOTE
           elif [ "$OPERATION" = "stage_v2" ]; then
             test -z "$OWNER_COMMAND"
-            SHA=c4c9deaf2ffd902062c1888675aabb58352052a4
+            SHA=f6b7c9489576691e73fb678efb431542b5608a1c
             test "$(git rev-parse HEAD)" = "$SHA"
             python3 -m compileall -q pilot_v2
             tar -czf "$RUNNER_TEMP/botking-v2-source.tar.gz" -C pilot_v2 -- $(cd pilot_v2 && ls *.py)
@@ -192,9 +192,42 @@ jobs:
             "${SSH[@]}" "opc@$ORACLE_HOST" 'mkdir -p /home/opc/botking-v2-staging && chmod 700 /home/opc/botking-v2-staging'
             "${SCP[@]}" "$RUNNER_TEMP/botking-v2-source.tar.gz" pilot_v2/tools/remote_stage_archive.py "opc@$ORACLE_HOST:/home/opc/botking-v2-staging/"
             "${SSH[@]}" "opc@$ORACLE_HOST" "trap 'rm -f /home/opc/botking-v2-staging/botking-v2-source.tar.gz /home/opc/botking-v2-staging/remote_stage_archive.py' EXIT; python3 /home/opc/botking-v2-staging/remote_stage_archive.py --archive /home/opc/botking-v2-staging/botking-v2-source.tar.gz --sha $SHA --checksum $HASH --root /home/opc/botking-v2-staging"
+            "${SSH[@]}" "opc@$ORACLE_HOST" "STAGE_SHA=$SHA bash -s" <<'REMOTE'
+          set -eu
+          umask 077
+          ROOT="/home/opc/botking-v2-staging/gh-$STAGE_SHA"
+          test -f "$ROOT/manifest.json"
+          python3 - "$ROOT/manifest.json" "$STAGE_SHA" <<'PY'
+          import json, sys
+          m=json.load(open(sys.argv[1]))
+          assert m["commit"] == sys.argv[2] and m["activated"] is False
+          assert m["source_count"] >= 36
+          print("V2_NEW_STAGE_MANIFEST=VERIFIED")
+          PY
+          test ! -L "$ROOT"
+          python3 -m venv "$ROOT/.venv"
+          "$ROOT/.venv/bin/python" -m pip install --disable-pip-version-check --no-input -q "fastapi==0.115.12" "uvicorn==0.34.2" "httpx==0.28.1" "cryptography==44.0.3"
+          cd "$ROOT"
+          "$ROOT/.venv/bin/python" - <<'PY'
+          from fastapi.testclient import TestClient
+          from pilot_v2.oracle_secure_entrypoint import create_app
+          try:
+              create_app()
+          except ValueError:
+              print("V2_UNPROVISIONED_START=BLOCKED_AS_REQUIRED")
+          else:
+              raise AssertionError("Unprovisioned production app must fail closed")
+          from pilot_v2.isolated_gateway_app import create_app as isolated
+          c=TestClient(isolated())
+          assert c.get("/v2-pilot/health").json()["live_data"] is False
+          assert c.get("/v2-pilot/quotes").status_code == 401
+          assert c.get("/v2-pilot/orders").status_code == 404
+          print("V2_NEW_STAGE_RUNTIME_SMOKE=PASS")
+          PY
+          REMOTE
             rm -f "$RUNNER_TEMP/botking-v2-source.tar.gz"
             "${SSH[@]}" "opc@$ORACLE_HOST" 'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
-            echo "V2_NEW_SOURCE_STAGE=SUCCESS; V2_ACTIVATED=NO; V1=HEALTHY"
+            echo "V2_NEW_SOURCE_STAGE_AND_RUNTIME=SUCCESS; V2_ACTIVATED=NO; V1=HEALTHY"
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
               echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
