@@ -41,6 +41,31 @@ EXTERNAL_GATES = (
     "Authorized Dhan-to-Oracle-to-V2 production verification",
 )
 
+# Every row describes a real read-only V1 callback/control family and the
+# V2 *source* wiring; never interpret a match as Android or server acceptance.
+V1_CONTROL_GAPS = (
+    ("Scanner native line/candle style", "def scanner_chart_style_change(e):",
+     ('label="Scanner chart style"', "on_change=change_chart_style")),
+    ("Scanner selected timeframe", "def scanner_chart_filter(e):",
+     ('label="Scanner timeframe"', "on_change=select_scanner_timeframe")),
+    ("Expiry selection UI", "def refresh_option_expiry(e=None):",
+     ('label="Option expiry (verified Dhan only)"', "on_change=select_expiry")),
+    ("Native historical chart", "def scanner_compact_chart():",
+     ("candle_geometry(", "chart_points(")),
+    ("Rich chart WebView", "ft.WebView(", ("ft.WebView(",)),
+    ("Verified real-time visible chart sync", "async def sync_visible_chart():",
+     ("async def sync_visible_chart():",)),
+    ("Scanner automatic market refresh", "async def supervised_market_refresh():",
+     ("async def supervised_market_refresh():",)),
+)
+
+def control_parity():
+    original = (V1 / "main.py").read_text(encoding="utf-8")
+    current = (V2 / "main.py").read_text(encoding="utf-8")
+    return tuple((name, bool(v1_key in original),
+                  all(key in current for key in v2_keys))
+                 for name, v1_key, v2_keys in V1_CONTROL_GAPS)
+
 def audit():
     if not V1.is_dir() or not V2.is_dir():
         raise RuntimeError("Source root missing: read-only V1 and V2 required")
@@ -87,6 +112,7 @@ def audit():
         "issues": issues,
         "wired": wired,
         "pending_external": EXTERNAL_GATES,
+        "control_parity": control_parity() if (V1 / "main.py").is_file() else (),
         "legacy_module_count": len(tuple(V1.glob("*.py"))),
         "active_module_count": len(py_files),
     }
@@ -111,6 +137,11 @@ def write_report(result, *, strict=False):
         "",
         "## Source-level UI reachability (not a runtime/device verdict)",
         *[f"- [{'x' if yes else ' '}] {name}" for name, yes in wired.items()],
+        "",
+        "## Read-only V1→V2 callable UI source gap audit",
+        *[f"- [{'x' if present else ' '}] V1 {name} · "
+          f"V2 {'SOURCE WIRED' if wired else 'PENDING'}"
+          for name, present, wired in result.get("control_parity", ())],
         "",
         "## Separate mandatory acceptance still pending",
         *["- [ ] " + name for name in result["pending_external"]],

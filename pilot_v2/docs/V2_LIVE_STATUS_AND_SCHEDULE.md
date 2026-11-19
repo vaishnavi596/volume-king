@@ -1,4 +1,13 @@
 
+## V1→V2 MACHINE-CHECKABLE UI CONTROLS AUDIT, 2026-11-19
+- Exact last tested executable `ccb00f5528ec748c07e6c75d90cf4fb9ba01f46b` [CI #114](https://github.com/vaishnavi596/volume-king/actions/runs/44440548888) **SUCCESS 321/321**. This established V2-only native Candles / Line style dropdown, device-local strict preference and source checks; the original read-only V1 `src/main.py` has richer WebView but V2 does NOT.
+- Existing **one** `one_click_migration_gate.py` migration-report now carries a source-derived seven-row **callable V1→V2 control parity** section (native line/candle style, Scanner timeframe, expiry picker, native chart, rich WebView, visible live chart sync and auto-refresh). Rows display `SOURCE WIRED` vs `PENDING` only, not phone/runtime/market-data proof; report remains fail-closed for external acceptance in strict mode. No additional workflow, CI job or market fetch.
+- Added `test_v1_v2_control_gap_report.py` confirming exact V1 read-only callback/control indicators and V2 native source controls. Rich WebView/visible live sync/market auto-refresh intentionally remain pending. New exact CI pending.
+- NEXT source-gap segment should implement V2 safe app-owned data-only controls and alert policies without copying unsafe V1 server/provider calls, then full coherent app-side parity regression. No V1 edit, Oracle production, APK, credentials or orders.
+
+---
+
+
 ## V1→V2 SCANNER NATIVE CHART-CONTROL PARITY — 2026-11-19
 - Owner directive: continue to next actual work, not just summarize. Reviewed V2 General/Handoff, last 10 commits, CI #113 **317/317 PASS** at `bbf765aa116a429eab79885f21030281788397f7`, and read-only V1 `src/main.py` (7,074 lines). V1 has explicit `scanner_chart_style_change`, `scanner_compact_chart`, WebView recovery and scanner chart toggle; V2 had native historical line/candles but no style control.
 - This V2-only coherent candidate adds strict app-local Scanner **Candles / Line** style control, native cache-only rendering switch and device-local `botking.v2.chart_style.v1` setting. A corrupt saved style is rejected without overwriting original stored preference. Existing 1/3/5/15/30m timeframe, 15/35/70 chart window and Scanner/Watchlist/Super Five navigation remain separate. No provider, external URL or network code copied from V1.
