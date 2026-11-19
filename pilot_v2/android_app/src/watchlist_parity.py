@@ -9,7 +9,9 @@ from shared_filter_context import shared_filter_context
 def watchlist_row(symbol, quotes, evidence, *, selected_equities, history_view=None):
     selected = tuple(selected_equities)
     if (type(symbol) is not str or symbol not in selected or symbol in INDEXES
-            or len(selected) > MAX_EQUITIES or len(set(selected)) != len(selected)):
+            or len(selected) > MAX_EQUITIES
+            or any(type(s) is not str or not s or s in INDEXES for s in selected)
+            or len(set(selected)) != len(selected)):
         raise ValueError("Watchlist row must be a unique selected equity")
     quote = quotes.visible(symbol, selected)
     candles = history_view if history_view is not None else evidence.candles
@@ -28,7 +30,9 @@ def watchlist_row(symbol, quotes, evidence, *, selected_equities, history_view=N
 
 
 def watchlist_rows(group, quotes, evidence, *, selected_equities, history_view=None):
-    if type(group) is not list or len(group) != len(set(group)):
+    if (type(group) is not list
+            or any(type(s) is not str or not s or s in INDEXES for s in group)
+            or len(group) != len(set(group))):
         raise ValueError("Duplicate or invalid Watchlist group")
     return tuple(watchlist_row(s, quotes, evidence,
                                selected_equities=selected_equities, history_view=history_view) for s in group)

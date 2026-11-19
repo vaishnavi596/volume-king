@@ -62,6 +62,13 @@ class SharedFilterContextTest(unittest.TestCase):
                 shared_filter_context(e.filters, symbol, tf,
                                       selected_equities=roster)
 
+    def test_unhashable_roster_rejected_as_value_error_not_type_error(self):
+        inbox = DeviceEvidenceInbox()
+        for roster in (("TCS", ["INFY"]), ("TCS", {"x": 1}), ("NIFTY",)):
+            with self.subTest(roster=str(roster)), self.assertRaises(ValueError):
+                shared_filter_context(inbox.filters, "TCS", "3m",
+                                      selected_equities=roster)
+
     def test_actual_wiring_all_four_views(self):
         for name in ("main.py", "watchlist_parity.py", "dashboard_parity.py"):
             s = (SRC / name).read_text()

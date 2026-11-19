@@ -66,6 +66,15 @@ class WatchlistParityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             watchlist_row("TCS", self.q, self.e, selected_equities=("TCS", "TCS"))
 
+    def test_unhashable_watchlist_selection_fails_closed(self):
+        for roster in (("TCS", ["INFY"]), ("TCS", {"x": 1}), ("TCS", "TCS")):
+            with self.subTest(roster=str(roster)), self.assertRaises(ValueError):
+                watchlist_row("TCS", self.q, self.e, selected_equities=roster)
+        for group in (["TCS", ["INFY"]], ["TCS", {"x": 1}],
+                      ["NIFTY"], ["TCS", "TCS"]):
+            with self.subTest(group=str(group)), self.assertRaises(ValueError):
+                watchlist_rows(group, self.q, self.e, selected_equities=("TCS",))
+
     def test_watchlist_chart_button_routes_selected_equity_to_3m_scanner(self):
         src = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("def open_watchlist_chart(symbol):", src)
