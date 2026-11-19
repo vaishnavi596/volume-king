@@ -80,6 +80,22 @@ class SecureEntrypointTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build()
 
+    def test_explicit_private_expiry_evidence_opt_in_is_off_by_default(self):
+        self.provision()
+        absent = self.build()
+        self.assertEqual(TestClient(absent).get("/v2-pilot/evidence").status_code, 401)
+        enabled = from_private_config(
+            device_id=self.device_id, master_der_path=str(self.der),
+            pairing_path=str(self.key), db_path=str(self.db),
+            expiry_evidence_symbol="NIFTY")
+        self.assertEqual(TestClient(enabled).get("/v2-pilot/evidence").status_code, 401)
+        for invalid in ("", "nifty", "NIFTY/../../orders"):
+            with self.subTest(symbol=invalid), self.assertRaises(ValueError):
+                from_private_config(
+                    device_id=self.device_id, master_der_path=str(self.der),
+                    pairing_path=str(self.key), db_path=str(self.db),
+                    expiry_evidence_symbol=invalid)
+
     def test_private_selected_equities_applied_and_index_independent(self):
         self.provision()
         roster = self.root / "selected-equities.json"
