@@ -1,3 +1,9 @@
+## 2026-11-19 — [V2][ORACLE PREFLIGHT] CI #264 MOCK NEWLINE FAILURE FIX
+- **EXACT FAIL:** Unified #264 https://github.com/vaishnavi596/volume-king/actions/runs/44509146101 at `1e15dc55350bfdd4958eed413acc0f8ae970725f` 521 tests, one failure in `test_bounded_dual_service_metadata_never_reads_secret_environment`. Synthetic systemctl `stdout` used literal backslash-n rather than actual newline, so preflight's correct `splitlines()` did not locate separate WorkingDirectory records. It was a mocked fixture bug, not an Oracle host failure.
+- **FIX:** Replace mock's doubly-escaped newline markers with ordinary Python newline escapes, preserving environment value redaction and two fixed-unit checks. No production source logic or service configuration altered. Exact corrective Unified CI must be independently verified before PASS.
+
+---
+
 ## 2026-11-19 — [V2][ORACLE PREFLIGHT] ONE SAFE V1/V2 SERVICE INVENTORY CANDIDATE
 - **PRECHECK:** Exact #263 Unified V2 `44508763635` at `4924ba906e59179a25bb0e45257ed7360f8aac46` completed SUCCESS, all core V2 backup source CI closed. Before edit reviewed existing `oracle_preflight.py`, current `test_preflight_gates.py`, `V2_ORACLE_PREFLIGHT_AND_BUILD_GATES.md` and General Rules. Branch HEAD docs-only `79ccecacc9f27ba8ba07f50d26c38802d0242d2c`.
 - **CHANGE:** Existing READ-ONLY Oracle audit now optionally checks fixed `bot-king-v2.service` alongside V1 `bot-king.service` with only allowlisted `systemctl show` properties, no arbitrary service name, env or credentials, commands that modify host, provider requests or restarts. Reports whether both units have distinct WorkingDirectory, but does NOT infer separate port/TLS/route deployment. CLI `--include-v2-service`; legacy default behavior and source SHA inspection retained.

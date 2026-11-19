@@ -30,8 +30,8 @@ class PreflightTests(unittest.TestCase):
             name = argv[2]
             path = "/opt/bot-king-server" if name == "bot-king.service" else "/opt/bot-king-v2"
             return SimpleNamespace(returncode=0, stdout=(
-                "ActiveState=active\\nWorkingDirectory=" + path +
-                "\\nEnvironment=SECRET_SHOULD_NEVER_BE_REPORTED\\n"))
+                "ActiveState=active\nWorkingDirectory=" + path +
+                "\nEnvironment=SECRET_SHOULD_NEVER_BE_REPORTED\n"))
         with tempfile.TemporaryDirectory() as d, patch(
                 "pilot_v2.oracle_preflight.subprocess.run",
                 side_effect=fake_run):
@@ -49,7 +49,7 @@ class PreflightTests(unittest.TestCase):
             if argv[2] == "bot-king-v2.service":
                 return SimpleNamespace(returncode=1, stdout="")
             return SimpleNamespace(returncode=0,
-                                   stdout="WorkingDirectory=/opt/bot-king-server\\n")
+                                   stdout="WorkingDirectory=/opt/bot-king-server\n")
         with tempfile.TemporaryDirectory() as d, patch(
                 "pilot_v2.oracle_preflight.subprocess.run",
                 side_effect=fake_run):
@@ -141,9 +141,9 @@ class PreflightTests(unittest.TestCase):
             self.assertFalse(broken["release_ready"])
             self.assertIn("Displayed app version/package mismatches V2 identity",
                           broken["failures"])
-            path.write_text('APP_VERSION_NAME = "2.0.100"\\n'
-                            'APP_VERSION_CODE = True\\n'
-                            'APP_PACKAGE = "com.botking.bot_king_v2"\\n')
+            path.write_text('APP_VERSION_NAME = "2.0.100"\n'
+                            'APP_VERSION_CODE = True\n'
+                            'APP_PACKAGE = "com.botking.bot_king_v2"\n')
             self.assertEqual(inspect(root)["status"],"FAIL")
 
     def test_mutated_metadata_fails_closed(self):
