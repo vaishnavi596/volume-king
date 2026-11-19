@@ -1,3 +1,11 @@
+## V2 NEXT SOURCE-ONLY WEBVIEW BUILDING BLOCK: LOCAL OHLC SVG HTML — 2026-11-19
+- Continued after verified #170 375/375 and native chart acceptance audit, without starting APK/server work. Added `local_webview_chart.py`: a pure local HTML/SVG renderer that reads only existing validated completed historical candles by selected symbol/timeframe, supports the existing Candles/Line modes and 15/35/70 bar windows, and returns None for WAIT/unselected data rather than inventing prices or signals. HTML contains restrictive CSP and no external TradingView script, external URL, broker credential, HTTP fetch or WebSocket. Still labels HIST/unverified and not LIVE.
+- Added `test_local_webview_chart.py` to guard no-source WAIT, strict symbol/limit/style inputs, no external assets/scripts, partial candle rejection preserving last-good and both supported presentation modes.
+- This is a disabled/unmounted WebView *content candidate* only, NOT an Android WebView installation, not a Flet version compatibility result and NOT completed V1 rich WebView migration. Keep the tested native Scanner chart as default; eventual WebView opt-in requires physical Android blank/ready/fallback acceptance. No Oracle production, APK build, V1 source changes or orders.
+- NEXT: check exact CI. Then audit supported Flet 0.25.2 WebView mount lifecycle in an isolated feature-flagged V2 app path if and only if native fallback remains guaranteed; true Dhan/Oracle chart sync still needs verified session and source evidence.
+
+---
+
 ## VERIFIED CI #159–#170, SCANNER LOCAL SYNC BATCH CHECKPOINT — 2026-11-19
 - Latest exact CI [#170](https://github.com/vaishnavi596/volume-king/actions/runs/44459269573), commit 22e378d9c4e5df53fb84eecc89cba778b63c13bd SUCCESS **375/375**, security findings 0, source UI wiring 9/9. #169 374/375 failed only an obsolete direct Scanner `filter_evidence.rows` string check; fixed assertion in #170. #166 372/373 similarly failed one old native candle geometry string; fixed in #167 373/373. Do not rerun old failed SHAs or already-green runs.
 - #159 365/365 mobile-mock per-symbol last-good cache; #160 366/366 collector per-symbol revision contract; #161 367/367 downgrade prevention; #162 368/368 strict collector payload allowlist; #163 369/369 global authorized device-symbol union; #164 370/370 Android HTTPS visible-delta-only refresh. All green.
