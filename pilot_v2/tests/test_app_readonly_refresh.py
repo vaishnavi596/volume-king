@@ -126,6 +126,35 @@ class ApprovedQuoteRefreshTests(unittest.TestCase):
             apply_approved_quote_intent(intent, object(), inbox, w.selected)
         self.assertEqual(opener.calls, [])
 
+    def test_invalid_roster_and_forged_refresh_contract_never_fetch(self):
+        from refresh_intent import RefreshIntent
+        w, intent = intent_for(5)
+        reader, opener = self.make_reader(5)
+        inbox = DeviceFeedInbox()
+        for invalid in (("TCS", ["INFY"]), ("TCS", {"x": 1}),
+                        ("NIFTY",), ("TCS", "TCS"),
+                        tuple(f"EQ{i:03d}" for i in range(71))):
+            with self.subTest(roster=str(invalid)[:30]), self.assertRaises(FeedError):
+                apply_approved_quote_intent(intent, reader, inbox, invalid)
+        variations = (
+            {"reason": "UNKNOWN"},
+            {"reason": "AUTO_OFF_OR_UNCONFIRMED"},
+            {"reason": "AUTO_MARKET_CONFIRMED", "permitted": False},
+            {"permitted": 1},
+            {"indexes": ("NIFTY",)},
+            {"index_signal_timeframe": "5m"},
+            {"watchlist_candle_timeframe": "1m"},
+            {"equity_seconds": True},
+        )
+        from dataclasses import replace
+        for edits in variations:
+            with self.subTest(intent=str(edits)), self.assertRaises(FeedError):
+                apply_approved_quote_intent(
+                    replace(intent, **edits), reader, inbox, w.selected)
+        self.assertEqual(opener.calls, [])
+        self.assertEqual(inbox.revision_for("quotes"), -1)
+        self.assertEqual(inbox.revision_for("indices"), -1)
+
     def test_no_real_transport_wired_into_app_before_login(self):
         main = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertNotIn("apply_approved_quote_intent(", main)
