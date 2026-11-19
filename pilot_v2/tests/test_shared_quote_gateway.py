@@ -26,6 +26,16 @@ class SharedQuoteGatewayTests(unittest.TestCase):
         self.master=self.gateway.issue(MASTER)
         self.shared=SharedQuoteGateway(self.gateway)
 
+    def test_uninitialized_collector_never_emits_invalid_mobile_envelope(self):
+        self.shared.select_equities(self.master, [["TCS"], [], [], [], []])
+        with self.assertRaisesRegex(ContractError, "No validated collector snapshot"):
+            self.shared.read(self.master, "quotes")
+        with self.assertRaisesRegex(ContractError, "No validated collector snapshot"):
+            self.shared.read(self.master, "indices")
+        self.assertEqual(self.shared.union_demand().equities, ("TCS",))
+        with self.assertRaises(SessionDenied):
+            self.shared.read("invalid", "quotes")
+
     def test_two_or_three_phones_read_same_cache_without_provider_calls(self):
         self.gateway.assign(self.master,SECOND,{"quotes"})
         self.gateway.assign(self.master,THIRD,{"quotes","indices"})

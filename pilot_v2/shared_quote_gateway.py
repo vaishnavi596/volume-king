@@ -60,6 +60,9 @@ class SharedQuoteGateway:
         if feed not in ("quotes", "indices"):
             raise SessionDenied("Unsupported shared quote feed")
         device = self._sessions.check_feed(session, feed)
+        if self._cache.revision < 0:
+            # Never emit an invalid -1 envelope or fabricate a zero-revision feed.
+            raise ContractError("No validated collector snapshot available")
         allowed = (self._selections.get(device, ())
                    if feed == "quotes" else Demand(()).indices)
         # Clone rows: consumers may mutate returned objects, never shared state.
