@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from .internal_dhan_read_port import InternalDhanReadPort, DhanReadUnavailable
 from .api_contract import validate_snapshot
+from .shared_read_budget import SharedReadBudget, BudgetDenied
 
 IST = ZoneInfo("Asia/Kolkata")
 START = time(9, 10)
@@ -35,11 +36,14 @@ def market_poll_allowed(moment):
 class V2UnifiedReadPipeline:
     """Read-only common gateway with bounded cache shared across authorized devices."""
 
-    def __init__(self, *, read_port, clock, monotonic):
+    def __init__(self, *, read_port, clock, monotonic, read_budget=None):
         if not isinstance(read_port, InternalDhanReadPort):
             raise ValueError("Explicit Dhan-only read port required")
         if not callable(clock) or not callable(monotonic):
             raise ValueError("Verified clock sources required")
+        if read_budget is not None and not isinstance(read_budget, SharedReadBudget):
+            raise ValueError("One shared provider quota gate required")
+        self._read_budget = read_budget
         self._port = read_port
         self._clock = clock
         self._mono = monotonic
@@ -66,8 +70,10 @@ class V2UnifiedReadPipeline:
             if not manual and cached and 0 <= now - cached[0] < CACHE_SECONDS[feed]:
                 return validate_snapshot(cached[1])
             try:
+                if self._read_budget is not None:
+                    self._read_budget.reserve()
                 snapshot = validate_snapshot(self._port(device_id, feed))
-            except (DhanReadUnavailable, ValueError, TypeError):
+            except (DhanReadUnavailable, BudgetDenied, ValueError, TypeError):
                 # Client and app retain last-good. Do not silently relabel an
                 # old snapshot as newly verified or substitute a fake quote.
                 raise PipelineUnavailable("Read-only Dhan lane unavailable") from None
