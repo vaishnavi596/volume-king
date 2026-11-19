@@ -229,11 +229,42 @@ def main(page: ft.Page):
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
     quote_labels = {}  # Mounted Flet Text references, not server settings.
+    candle_labels = {}  # Keyed by symbol/timeframe, independent of quotes.
 
     def tracked_quote_text(symbol, value, kind="display", **style):
         control = ft.Text(value, **style)
         quote_labels.setdefault(symbol, []).append((control, kind))
         return control
+
+    def tracked_candle_text(symbol, timeframe, value, kind="summary", **style):
+        control = ft.Text(value, **style)
+        candle_labels.setdefault((symbol, timeframe), []).append((control, kind))
+        return control
+
+    def apply_data_only_candle_snapshot(symbol, timeframe, revision, bars, *,
+                                        trusted_transport=False):
+        """Accept already-authenticated completed history; update labels only."""
+        accepted = evidence_inbox.apply_candles(
+            symbol, timeframe, revision, bars, selected_equities=state.selected,
+            trusted_transport=trusted_transport)
+        if not accepted:
+            return False
+        for control, kind in candle_labels.get((symbol, timeframe), ()):
+            if kind == "index":
+                value = index_card_model(
+                    symbol, quote_view, evidence_inbox, state.selected)["candle_label"]
+            elif kind == "watchlist":
+                value = watchlist_row(
+                    symbol, quote_view, evidence_inbox,
+                    selected_equities=state.selected,
+                    history_view=scanner_history)["candle"]
+            else:
+                value = scanner_history.summary(
+                    symbol, timeframe, selected_equities=state.selected)
+            if control.value != value:
+                control.value = value
+                control.update()
+        return True
 
     def apply_data_only_quote_snapshot(feed, payload):
         """Offline validated read-only snapshot; update mounted Text only.
@@ -281,6 +312,7 @@ def main(page: ft.Page):
 
     def render():
         quote_labels.clear()  # Discard prior-page control references.
+        candle_labels.clear()
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -413,7 +445,7 @@ def main(page: ft.Page):
                 *[v1_card(ft, [
                         ft.Text(card["symbol"], color=GOLD, weight=ft.FontWeight.BOLD, size=16),
                         tracked_quote_text(card["symbol"], card["price_label"], "index", size=15),
-                        ft.Text(card["candle_label"], size=13),
+                        tracked_candle_text(card["symbol"], "1m", card["candle_label"], "index", size=13),
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
                         ft.Text(card["factor_coverage"], color=MUTED, size=14),
@@ -430,7 +462,7 @@ def main(page: ft.Page):
                                          for item in selectable_symbols(state)],
                                 on_change=lambda e, slot=slot: select_analysis_slot(e, slot)),
                     tracked_quote_text(symbol, quote_view.display(symbol, state.selected), color=WHITE),
-                    ft.Text(candle_history.summary(
+                    tracked_candle_text(symbol, "1m", candle_history.summary(
                         symbol, "1m", selected_equities=state.selected),
                         color=MUTED, size=14),
                     ft.Text(shared_filter_context(filter_evidence, symbol, "1m",
@@ -480,7 +512,8 @@ def main(page: ft.Page):
                                      for style in CHART_STYLES],
                             on_change=change_chart_style),
                 tracked_quote_text(scanner[0].symbol, quote_view.display(scanner[0].symbol, state.selected)),
-                ft.Text(scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
+                tracked_candle_text(scanner[0].symbol, scanner[0].timeframe,
+                                    scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
                 ft.Text(historical_scanner_analysis(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
@@ -699,7 +732,7 @@ def main(page: ft.Page):
                             ft.TextButton("Remove",
                                           on_click=lambda e, item=row["symbol"]: remove(e, item)),
                         ], spacing=4),
-                        ft.Text(row["candle"], size=14, color=WHITE),
+                        tracked_candle_text(row["symbol"], "3m", row["candle"], "watchlist", size=14, color=WHITE),
                         ft.Text(row["filter_text"], size=14, color=MUTED),
                     ]) for row in watchlist_rows(
                     filtered_watchlist_symbols(state.groups[group[0]], watch_search[0]),
