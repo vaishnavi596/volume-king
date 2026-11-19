@@ -6,6 +6,7 @@ The server independently checks device proof and scope on each read.
 """
 from threading import Lock
 from app_p256_login import V2P256LoginHTTPSClient
+from app_keystore_login_binding import AndroidKeystoreLoginBinding
 from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
 
 
@@ -52,6 +53,19 @@ class DeviceReaderSlot:
                 raise FeedError("Device sign-in was cancelled")
             self._reader = reader
         return True
+
+    def sign_in_with_keystore(self, binding, approved_https_origin, *,
+                              opener=None, timeout=10):
+        """Dormant app-only handoff; no native implementation is bundled.
+
+        Refuse any generic signer/bearer and use the reviewed Keystore
+        challenge-bound client only. Actual native callback provenance and
+        server enrolment must be independently verified before UI activation.
+        """
+        if type(binding) is not AndroidKeystoreLoginBinding:
+            raise FeedError("Approved Android Keystore login binding required")
+        return self.sign_in(binding.login_client(
+            approved_https_origin, opener=opener, timeout=timeout))
 
     def active_reader(self):
         with self._lock:
