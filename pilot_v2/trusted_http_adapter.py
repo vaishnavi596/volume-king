@@ -19,13 +19,15 @@ MAX_TOKEN = 160
 
 
 def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=None,
-                       master_roster_updater=None):
+                       master_roster_updater=None, evidence_provider=None):
     if not isinstance(login, AtomicVerifiedLogin) or not callable(snapshot_provider):
         raise ValueError("Atomic trusted login and internal provider required")
     if manual_snapshot_provider is not None and not callable(manual_snapshot_provider):
         raise ValueError("Verified manual read provider required")
     if master_roster_updater is not None and not callable(master_roster_updater):
         raise ValueError("Trusted Master roster updater required")
+    if evidence_provider is not None and not callable(evidence_provider):
+        raise ValueError("Approved authenticated evidence provider required")
     app = FastAPI(title="BOT KING V2 Trusted Adapter", docs_url=None,
                   redoc_url=None, openapi_url=None)
 
@@ -100,6 +102,28 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
     @app.get("/v2-pilot/quotes")
     def quotes(request: Request):
         return read_feed(request, "quotes")
+
+
+    @app.get("/v2-pilot/evidence")
+    def evidence(request: Request):
+        """Explicit signed source-evidence route, disabled without a provider."""
+        token = bearer_from_request(request)
+        try:
+            device = login.read_feed(token, "quotes")
+        except SessionDenied:
+            raise HTTPException(status_code=403, detail="Device evidence denied") from None
+        if evidence_provider is None:
+            raise HTTPException(status_code=503, detail="Source evidence not connected")
+        try:
+            supplied = evidence_provider(device)
+        except (ValueError, TypeError, PipelineUnavailable):
+            raise HTTPException(status_code=503, detail="Source evidence unavailable") from None
+        from .evidence_contract import validate_evidence_envelope
+        try:
+            validated = validate_evidence_envelope(supplied)
+        except ValueError:
+            raise HTTPException(status_code=503, detail="Source evidence unavailable") from None
+        return JSONResponse(validated, headers={"Cache-Control": "no-store"})
 
     @app.post("/v2-pilot/auth/logout")
     def logout(request: Request):
