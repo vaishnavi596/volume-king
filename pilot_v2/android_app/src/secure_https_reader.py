@@ -126,6 +126,10 @@ class V2ReadonlyHTTPSReader:
                 if len(content) > MAX_RESPONSE_BYTES:
                     raise FeedError("Oversized read-only response")
                 payload = json.loads(content.decode("utf-8"))
+        except FeedError:
+            # These are already sanitized, locally generated contract errors.
+            # Do not replace a meaningful 429 cooldown with generic HTTP error.
+            raise
         except HTTPError as exc:
             # Only explicit auth rejection invalidates this device session.
             # 429/cooldown or upstream 5xx must NOT erase local auth state.
