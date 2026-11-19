@@ -522,13 +522,13 @@ def main(page: ft.Page):
 
 
     def clear_local_device_session(e):
-        """Local credential disposal only, NOT remote revocation or logout."""
-        reader = device_session_slot.reader
-        if reader is not None:
-            device_session_slot.clear()
-            status.value = "Local V2 device session cleared · server revocation not sent"
-        else:
-            status.value = "No local V2 device session to clear"
+        """Always cancel pending login; local-only, never server revocation."""
+        # A sign-in can be in-flight before a reader exists. Never infer
+        # "nothing to clear" from an empty reader slot: clear() increments
+        # its generation and prevents a late native/HTTPS login resurrection.
+        device_session_slot.clear()
+        status.value = ("Local V2 session cleared or pending login cancelled"
+                        " · server revocation not sent")
         render()
         page.update()
 
