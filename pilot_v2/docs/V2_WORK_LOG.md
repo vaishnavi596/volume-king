@@ -1,3 +1,11 @@
+## 2026-11-19 — NEXT SEGMENT PRECHECK: FLET 0.25.2 NATIVE PLUGIN CONTRACT HOLD
+- Continued immediately after current Keystore public-key joint fix (final source-test commit `fc2581743e9a0da89d8eab29f3515f96ccf0cbc8`); inspected actual V2 `android_app/pyproject.toml` pin `flet==0.25.2` and `main.py` dormant `DeviceReaderSlot` (no call to `sign_in` and no imported `AndroidKeystoreLoginBinding`).
+- Consulted Flet vendor release notes: the **0.26.0** release introduced a materially changed single-Python-package Flutter extension approach, so current generic/latest Flet extension documentation cannot be assumed compatible with the V2 **0.25.2** pin. Sources: https://flet.dev/blog/flet-v-0-26-release-announcement/ ; https://flet.dev/blog/flet-v-0-25-release-announcement/ . No native Keystore plugin or specific 0.25.2 callback entrypoint verified in this session.
+- **Safety decision:** do NOT add unproven Dart/Kotlin dependencies to V2, fake Keystore hardware flags, auto-login the UI, or invoke real broker/Oracle endpoints. Proposed next whole segment requires a version-pinned source/extension API demonstration or reviewed implementation and physical acceptance before enabling native sign-in. The existing public-key identity recheck is pure Python and is not evidence of physical non-exportable key storage.
+- No source build, APK, Oracle production, V1 or old journal change. Current recent code CI result still NOT VERIFIED; await exact run evidence and repair any failing same-segment test rather than asserting PASS.
+
+---
+
 ## 2026-11-19 — CONTINUOUS NEXT-WORK: KEYSTORE ROTATION ENROLLMENT + SIGNING JOINT HARDENING
 - **Owner continuity rule reaffirmed:** report work and immediately continue to next concrete safe V2 segment; do not stop after a narrative handoff. Record all activity/failure/workflow in General/Master/Work/Handoff as applicable. No early APK, Oracle, V1, provider/order access.
 - **Starting V2 HEAD:** `f755a4e753449ad7d93414cbf83e6fa08be1951f` (prior docs-only [skip ci]); last previously verified source CI #199 421/421 PASS at `059ae9ae`. Prior public-rotation sign guard source `9d69e5ff` had no confirmed exact-SHA push CI in connector commit statuses; do not invent PASS.
