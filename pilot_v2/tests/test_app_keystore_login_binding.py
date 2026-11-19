@@ -3,7 +3,7 @@ import hashlib
 from threading import Event, Thread
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -187,6 +187,21 @@ class KeystoreBindingTests(unittest.TestCase):
         with self.assertRaises(FeedError) as error:
             binding.login_client("https://v2.example.test")
         self.assertNotIn("secret native key alias", str(error.exception))
+        self.assertEqual(self.calls, [])
+
+    def test_invalid_login_input_keeps_last_local_reader_and_does_not_sign(self):
+        slot = DeviceReaderSlot()
+        current = Mock()
+        slot._reader = current  # A previous signed read-only session.
+        binding = self.bind()
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(binding, "http://v2.example.test")
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(binding, "https://v2.example.test", timeout=0)
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(object(), "https://v2.example.test")
+        self.assertIs(slot.reader, current)
+        current.invalidate.assert_not_called()
         self.assertEqual(self.calls, [])
 
     def test_logout_during_native_preflight_cancels_before_any_auth_io(self):
