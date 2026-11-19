@@ -1,3 +1,10 @@
+## CI #135–#141 COMMON FAILURE REPAIR — 2026-11-19
+- Read actual GitHub Actions job logs (not inferred from UI): #135 run 44446359516 349 tests, 1 FAIL; #141 run 44446686387 355 tests, 1 FAIL. Both report `test_v1_visual_doctor_migration.V1VisualDoctorMigration.test_dashboard_watchlist_reuse_v1_visual_shell_without_provider` asserting obsolete direct `ft.Text(row["symbol"] + "  " + row["price"],` source string. New V2 app correctly registers mounted Watchlist price with `tracked_quote_text(..., "watchlist", ...)`. The stale source-string test, not a proven runtime UI regression, explains the identical persistent CI failure after the mounted-quote change; no evidence of seven separate faults.
+- Fixed only the obsolete assertion in `pilot_v2/tests/test_v1_visual_doctor_migration.py`, keeping candle/filter rendering, V1 visual shell, three navigation destinations and banned-provider assertions. Commit `b0855c291c8e5a6ccb3be45e9ff32d61588cac82`. CI #142 run 44446951479 automatically triggered on this exact code commit; outcome initially IN_PROGRESS, do not report PASS before finished.
+- No repeated old failed SHAs, no APK/server/V1 mutation, no real orders or credentials. NEXT after CI completion: inspect whole job, repair any remaining failures, then resume actual authenticated-evidence-safe app-only candle/filter visible delta checks and consolidated journal handoff.
+
+---
+
 ## FT-3 LAST-GOOD EQUAL-REVISION REPLAY HARDENING — 2026-11-19
 - Continued beyond prior evidence-roster safety patch: a newer envelope with an equal per-symbol revision but conflicting quote price must not replace last-good. Commit `0b69e033f8bfacae1590f8cbfab9cd8098b58b11` requires strictly greater per-symbol revision before accepting replacement (new symbol still allowed). This stops equal-revision equivocation while global envelope revision can advance.
 - Commit `fe32df7d8e3acb2184a43376f908c84d0b173b03` extends existing joined feed-cache regression: equal TCS/INFY symbol revisions with different prices produce no visual delta and retain the good cached values. This remains offline quote data tagged HIST/unverified, not live market evidence.
