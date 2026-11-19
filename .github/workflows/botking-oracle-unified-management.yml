@@ -12,6 +12,7 @@ on:
           - audit
           - prepare_v2
           - live_preflight
+          - stage_v2
           - maintenance
         default: audit
       command:
@@ -39,6 +40,12 @@ jobs:
     environment: oracle-v2
     timeout-minutes: 15
     steps:
+      - name: Checkout exact reviewed V2 branch snapshot for staging only
+        if: inputs.operation == 'stage_v2'
+        uses: actions/checkout@v4
+        with:
+          ref: c4c9deaf2ffd902062c1888675aabb58352052a4
+          persist-credentials: false
       - name: Connect securely with existing owner-authorized key
         shell: bash
         env:
@@ -174,6 +181,20 @@ jobs:
           echo "V1_SERVICE=HEALTHY_UNCHANGED"
           echo "LIVE_PREFLIGHT=COMPLETE; LIVE_ACTIVATION=NOT_CLAIMED"
           REMOTE
+          elif [ "$OPERATION" = "stage_v2" ]; then
+            test -z "$OWNER_COMMAND"
+            SHA=c4c9deaf2ffd902062c1888675aabb58352052a4
+            test "$(git rev-parse HEAD)" = "$SHA"
+            python3 -m compileall -q pilot_v2
+            tar -czf "$RUNNER_TEMP/botking-v2-source.tar.gz" -C pilot_v2 -- $(cd pilot_v2 && ls *.py)
+            HASH="$(sha256sum "$RUNNER_TEMP/botking-v2-source.tar.gz" | cut -d" " -f1)"
+            SCP=(scp -i "$HOME/.ssh/botking_oracle" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
+            "${SSH[@]}" "opc@$ORACLE_HOST" 'mkdir -p /home/opc/botking-v2-staging && chmod 700 /home/opc/botking-v2-staging'
+            "${SCP[@]}" "$RUNNER_TEMP/botking-v2-source.tar.gz" pilot_v2/tools/remote_stage_archive.py "opc@$ORACLE_HOST:/home/opc/botking-v2-staging/"
+            "${SSH[@]}" "opc@$ORACLE_HOST" "trap 'rm -f /home/opc/botking-v2-staging/botking-v2-source.tar.gz /home/opc/botking-v2-staging/remote_stage_archive.py' EXIT; python3 /home/opc/botking-v2-staging/remote_stage_archive.py --archive /home/opc/botking-v2-staging/botking-v2-source.tar.gz --sha $SHA --checksum $HASH --root /home/opc/botking-v2-staging"
+            rm -f "$RUNNER_TEMP/botking-v2-source.tar.gz"
+            "${SSH[@]}" "opc@$ORACLE_HOST" 'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
+            echo "V2_NEW_SOURCE_STAGE=SUCCESS; V2_ACTIVATED=NO; V1=HEALTHY"
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
               echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
