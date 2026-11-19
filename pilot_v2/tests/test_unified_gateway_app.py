@@ -260,6 +260,35 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
             self.assertEqual(client.get("/v2-pilot/evidence",
                                         headers=headers).status_code, 403)
 
+    def test_indices_only_delegate_can_read_only_indices_evidence(self):
+        from unittest.mock import patch
+        from pilot_v2.device_sessions import SessionDenied
+        events = [{"kind": "expiries", "symbol": "BANKNIFTY",
+                   "revision": 1, "available": ["2026-11-26"]}]
+        client = TestClient(create_v2_unified_app(
+            verified_login=self.login, data_pipeline=self.pipeline,
+            evidence_provider=lambda device: {"events": events}))
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        read_feed = self.login.read_feed
+
+        def only_indices(token, feed):
+            if feed == "quotes":
+                raise SessionDenied("Quotes prohibited")
+            return read_feed(token, feed)
+
+        with patch.object(self.login, "read_feed", side_effect=only_indices):
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 200)
+            events[0]["symbol"] = "RELIANCE"
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 403)
+            events[0] = {"kind": "options", "payload": {"symbol": "SENSEX"}}
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 200)
+        # No Dhan calls were initiated by evidence authorization itself.
+        self.assertEqual(self.calls, [])
+
     def test_evidence_provider_does_not_accept_unbounded_or_invalid_events(self):
         from pilot_v2.evidence_contract import validate_evidence_envelope
         for bad in ({"events": []},
