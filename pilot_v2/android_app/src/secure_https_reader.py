@@ -6,6 +6,7 @@ login over an independently trusted server origin. Never persist broker keys.
 """
 import json
 import ssl
+from threading import Lock
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import (
@@ -54,6 +55,7 @@ class V2ReadonlyHTTPSReader:
         if type(timeout) not in (int, float) or not 1 <= timeout <= 30:
             raise FeedError("Invalid HTTPS request timeout")
         self._bearer = device_bearer  # Never printed, persisted or exposed.
+        self._session_lock = Lock()
         self._timeout = timeout
         self._opener = (opener if opener is not None else build_opener(
             ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context()),
@@ -64,11 +66,13 @@ class V2ReadonlyHTTPSReader:
     @property
     def session_active(self):
         """Only local bearer availability; NOT proof of ongoing server login."""
-        return self._bearer is not None
+        with self._session_lock:
+            return self._bearer is not None
 
     def invalidate(self):
         """Forget a revoked/expired in-memory session; never persist credentials."""
-        self._bearer = None
+        with self._session_lock:
+            self._bearer = None
 
     def refresh(self, inbox, feed, *, selected_equities=()):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
@@ -88,9 +92,13 @@ class V2ReadonlyHTTPSReader:
             raise FeedError("Invalid selected read-only equity roster")
         # No Dhan OAuth/broker secret ever goes to this phone.
         url = self._origin + "/v2-pilot/" + feed
-        request = Request(
-            url, headers={"Authorization": "Bearer " + self._bearer,
-                          "Accept": "application/json"}, method="GET")
+        with self._session_lock:
+            bearer = self._bearer
+            if bearer is None:
+                raise FeedError("V2 device session requires verified sign-in")
+            request = Request(
+                url, headers={"Authorization": "Bearer " + bearer,
+                              "Accept": "application/json"}, method="GET")
         try:
             with self._opener.open(request, timeout=self._timeout) as response:
                 # HTTPSHandler verifies system CA and hostname, and redirects
@@ -123,13 +131,14 @@ class V2ReadonlyHTTPSReader:
         # Logout, revocation or sign-in rotation may have invalidated this
         # reader while its HTTPS request was in flight. Never ingest a late
         # response after its local bearer has been scrubbed.
-        if not self.session_active:
-            raise FeedError("V2 device session ended; cached data retained")
-        # Only a successful HTTPS response from the configured origin and
-        # protected endpoint can enter the independent app-owned lane.
-        accepted = deliver_readonly_response(
-            inbox, feed, 200, payload, selected_equities=selected,
-            authenticated_session=True)
-        # Advancing a global envelope without any newer per-symbol row is not
-        # a visible data refresh. Do not report HIST or trigger a visual update.
-        return bool(accepted and inbox.changed_for(feed))
+        # The post-response gate and cache delivery are ONE atomic session
+        # operation with invalidate(). Either commit precedes logout, or the
+        # revoked reader cannot commit. Never hold this lock across HTTPS I/O.
+        with self._session_lock:
+            if self._bearer is None:
+                raise FeedError("V2 device session ended; cached data retained")
+            accepted = deliver_readonly_response(
+                inbox, feed, 200, payload, selected_equities=selected,
+                authenticated_session=True)
+            # An envelope-only revision is not a visible price refresh.
+            return bool(accepted and inbox.changed_for(feed))

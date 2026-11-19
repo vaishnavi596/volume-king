@@ -2,6 +2,8 @@
 import json
 import sys
 import unittest
+from threading import Event, Thread
+from unittest.mock import patch
 from email.message import Message
 from pathlib import Path
 from urllib.error import HTTPError
@@ -189,6 +191,53 @@ class HTTPSReaderTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             owner.refresh(self.inbox, "quotes", selected_equities=("TCS",))
         self.assertEqual(wrapped.calls, 1)
+
+    def test_logout_and_cache_delivery_are_serialized(self):
+        self.offer("quotes", 1, "TCS", 100)
+        inside_delivery = Event()
+        allow_delivery = Event()
+        logout_done = Event()
+        errors = []
+        reader = self.reader
+        original_delivery = __import__("secure_https_reader").deliver_readonly_response
+
+        def gated_delivery(*args, **kwargs):
+            inside_delivery.set()
+            if not allow_delivery.wait(5):
+                raise RuntimeError("Test delivery gate timed out")
+            return original_delivery(*args, **kwargs)
+
+        def read_task():
+            try:
+                reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+            except Exception as exc:
+                errors.append(type(exc).__name__)
+
+        with patch("secure_https_reader.deliver_readonly_response", gated_delivery):
+            worker = Thread(target=read_task)
+            worker.start()
+            logout = None
+            try:
+                self.assertTrue(inside_delivery.wait(5))
+                logout = Thread(target=lambda: (reader.invalidate(), logout_done.set()))
+                logout.start()
+                # Logout cannot interleave after successful post-response
+                # validation but before the accepted cache update.
+                self.assertFalse(logout_done.wait(0.02))
+            finally:
+                allow_delivery.set()
+                worker.join(5)
+                if logout is not None:
+                    logout.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(errors, [])
+        self.assertTrue(logout_done.is_set())
+        self.assertFalse(reader.session_active)
+        self.assertEqual(self.inbox.visible("TCS", ("TCS",))["price"], 100)
+        calls = len(self.opener.calls)
+        with self.assertRaises(FeedError):
+            reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+        self.assertEqual(len(self.opener.calls), calls)
 
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
