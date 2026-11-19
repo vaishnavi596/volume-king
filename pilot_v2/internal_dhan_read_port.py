@@ -63,6 +63,10 @@ class InternalDhanReadPort:
                 raise ValueError("Invalid equity selection") from None
         return selected
 
+    def has_selected_equities(self):
+        with self._lock:
+            return bool(self._equities)
+
     def replace_selected_equities(self, symbols):
         """Server-controlled roster change, never a direct device HTTP action."""
         validated = self._validated_equities(symbols)

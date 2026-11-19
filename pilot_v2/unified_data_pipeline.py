@@ -11,7 +11,7 @@ from threading import RLock
 from zoneinfo import ZoneInfo
 
 from .internal_dhan_read_port import InternalDhanReadPort, DhanReadUnavailable, DhanRateLimited
-from .api_contract import validate_snapshot
+from .api_contract import validate_snapshot, make_snapshot
 from .shared_read_budget import SharedReadBudget, BudgetDenied
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -79,6 +79,9 @@ class V2UnifiedReadPipeline:
             now = self._mono()
             if type(now) not in (int, float) or not 0 <= now < float("inf"):
                 raise PipelineUnavailable("Invalid cache clock")
+            if feed == "quotes" and not self._port.has_selected_equities():
+                # Zero equities: do not spend provider budget or call Dhan.
+                return make_snapshot(0, {})
             cached = self._cache.get(feed)
             if not manual and cached and 0 <= now - cached[0] < CACHE_SECONDS[feed]:
                 return validate_snapshot(cached[1])

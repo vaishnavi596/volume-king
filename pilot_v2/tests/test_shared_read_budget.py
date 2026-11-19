@@ -95,7 +95,9 @@ class SharedBudgetTests(unittest.TestCase):
         self.assertEqual(self.calls[-1][1], ("RELIANCE",))
         self.assertFalse(self.pipeline.replace_selected_equities(("RELIANCE",)))
         self.assertTrue(self.pipeline.replace_selected_equities(("TCS", "INFY")))
-        self.assertEqual(self.pipeline.dispatch("verified-device-002", "indices")["feed"], "indices")
+        self.assertEqual(
+            set(self.pipeline.dispatch("verified-device-002", "indices")["quotes"]),
+            {"NIFTY", "BANKNIFTY", "SENSEX"})
         # No old selected quote batch may satisfy the updated watchlist.
         self.t += 1.1
         self.pipeline.dispatch("verified-device-002", "quotes")
@@ -114,8 +116,10 @@ class SharedBudgetTests(unittest.TestCase):
 
     def test_zero_roster_skips_selection_without_spoofing_index(self):
         self.assertTrue(self.pipeline.replace_selected_equities(()))
-        with self.assertRaises(PipelineUnavailable):
-            self.pipeline.dispatch("verified-device-001", "quotes")
+        self.assertEqual(
+            self.pipeline.dispatch("verified-device-001", "quotes")["quotes"], {})
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.budget.status()["next_read_seconds"], 0.0)
         # Even with no equities, the independent index lane still works.
         self.pipeline.dispatch("verified-device-001", "indices")
         self.assertEqual(self.calls[-1][1], ("NIFTY", "BANKNIFTY", "SENSEX"))
