@@ -14,7 +14,7 @@ sys.path.insert(0, str(SRC))
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
 from app_device_reader_slot import DeviceReaderSlot
 from app_p256_login import LOGIN_CONTEXT, V2P256LoginHTTPSClient
-from secure_https_reader import FeedError
+from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
 
 MASTER = "master_device_000001"
 DELEGATE = "second_device_00001"
@@ -255,6 +255,71 @@ class KeystoreBindingTests(unittest.TestCase):
         completion = body.index("partial = index_changed is None or equity_changed is None")
         self.assertLess(equities, gate)
         self.assertLess(gate, completion)
+
+    def test_failed_keystore_relogin_keeps_previous_verified_reader(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login",
+                          side_effect=FeedError("V2 device login unavailable")):
+            with self.assertRaises(FeedError):
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+        self.assertEqual(self.calls, [])
+
+    def test_successful_keystore_relogin_replaces_and_scrubs_old_reader(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        incoming = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "B" * 32, opener=Mock())
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login", return_value=incoming):
+            self.assertTrue(slot.sign_in_with_keystore(
+                binding, "https://v2.example.test"))
+        self.assertIs(slot.reader, incoming)
+        self.assertFalse(previous.session_active)
+        self.assertTrue(incoming.session_active)
+
+    def test_clear_during_relogin_scrubs_previous_and_rejects_late_reader(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        incoming = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "B" * 32, opener=Mock())
+        slot._reader = previous
+        entered, release = Event(), Event()
+        errors = []
+        def delayed_login(self_client):
+            entered.set()
+            self.assertTrue(release.wait(3))
+            return incoming
+        def attempt():
+            try:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+            except FeedError as error:
+                errors.append(str(error))
+        with patch.object(V2P256LoginHTTPSClient, "login", delayed_login):
+            worker = Thread(target=attempt, daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(3))
+                self.assertIs(slot.reader, previous)
+                self.assertTrue(previous.session_active)
+                slot.clear()
+            finally:
+                release.set()
+                worker.join(3)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(errors, ["Device sign-in was cancelled"])
+        self.assertIsNone(slot.reader)
+        self.assertFalse(previous.session_active)
+        self.assertFalse(incoming.session_active)
 
     def test_logout_during_native_preflight_cancels_before_any_auth_io(self):
         entered = Event()
