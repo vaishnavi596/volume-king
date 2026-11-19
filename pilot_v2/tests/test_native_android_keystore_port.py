@@ -168,7 +168,7 @@ class NativeKeystoreContractTests(unittest.TestCase):
         # higher-level binding, without leaking platform error details.
         adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
         adapter.ensure_public_spki()
-        signed = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\\x00" + bytes(range(32))
+        signed = LOGIN_CONTEXT + DEVICE.encode("ascii") + bytes([0]) + bytes(range(32))
         class MalformedSignature:
             def initSign(self, key):
                 pass

@@ -1,3 +1,8 @@
+## 2026-11-20 — [BATCH 1 MOVE 1][CORRECTIVE REGRESSION FOR CI #381]
+- Candidate `7c6ceac69c32ee502695a134a20b0ee5b98f6c98`, [Unified CI #381](https://github.com/vaishnavi596/volume-king/actions/runs/44592578826) **COMPLETED FAILURE**, 630 tests, 1 failure in newly added `test_native_direct_sign_rejects_malformed_java_signature`. Exact log: `Unsupported native signing input` rather than expected `signature unavailable`.
+- Root cause is test fixture only: it encoded literal backslash-x-zero text (`b"\\x00"`) instead of the required one-byte NUL login delimiter, so test never reached mock malformed signature. Corrected fixture to explicit `bytes([0])`; native source validation remains unchanged. No unrelated test or server rerun.
+- New exact corrective CI pending at commit creation; mark PASS only after GitHub run confirms. No V1 writes, no APK, Oracle production changes, token exposure or live order. Batch 1 physical JNI and real Dhan proof OPEN.
+
 ## 2026-11-20 — [BATCH 1 MOVE 1][DIRECT NATIVE SIGNATURE DER CONTRACT][CI PENDING]
 - Reviewed latest V2 General, Master, Work and Handoff on `c14edf660b3ed637ca3ada5deb4701dc73ca7f06`; resumed the first nonredundant security move. Previous #380 at `6dfbe18` 629/629 offline PASS is baseline only; historical Oracle stage succeeded and is not rerun.
 - Root cause: direct `AndroidNativeP256Provider.sign_login_message` accepted bytes returned by Android/JNI Signature.sign() without a canonical P-256 DER/r/s validation; higher-level binding validated later, leaving native public method fail-open for bypass callers.
