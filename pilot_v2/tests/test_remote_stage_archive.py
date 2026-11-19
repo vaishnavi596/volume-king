@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from pilot_v2.tools.remote_stage_archive import stage, REQUIRED
+from pilot_v2.tools.remote_stage_archive import stage, REQUIRED, REQUIRED_TOOLS
 
 
-def bundle(extra=None):
-    files = {name: b"VALUE = 1\n" for name in REQUIRED}
+def bundle(extra=None, *, omit=frozenset()):
+    files = {name: b"VALUE = 1\n" for name in (REQUIRED | REQUIRED_TOOLS) - set(omit)}
     files.update(extra or {})
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tf:
@@ -33,12 +33,31 @@ class StageTests(unittest.TestCase):
                     checksum=checksum or hashlib.sha256(data).hexdigest(), root=root)
             self.assertFalse(result["activated"])
             self.assertTrue((root / ("gh-" + "a" * 40) / "pilot_v2" / "unified_gateway_app.py").is_file())
+            self.assertTrue((root / ("gh-" + "a" * 40) / "pilot_v2" / "tools" / "v2_activation_gate.py").is_file())
             with patch("pathlib.Path.home", return_value=home):
                 with self.assertRaises(FileExistsError):
                     stage(archive, sha="a" * 40, checksum=result["archive_sha256"], root=root)
 
     def test_valid(self):
         self.run_stage(bundle())
+
+    def test_missing_security_tool_denied(self):
+        # Staged bundle without activation controls must fail closed.
+        for name in REQUIRED_TOOLS:
+            self._expect_bundle_rejected(bundle(omit={name}))
+
+    def _expect_bundle_rejected(self, data, missing=None):
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            archive = home / "source.tgz"
+            archive.write_bytes(data)
+            with patch("pathlib.Path.home", return_value=home):
+                with self.assertRaises(ValueError):
+                    stage(archive, sha="a" * 40,
+                          checksum=hashlib.sha256(data).hexdigest(), root=home / "botking-v2-staging")
+
+    def test_nested_path_traversal_denied(self):
+        self._expect_bundle_rejected(bundle({"tools/../unsafe.py": b"VALUE = 1\n"}))
 
     def test_wrong_hash(self):
         with tempfile.TemporaryDirectory() as td:
