@@ -2,7 +2,7 @@
 name = "bot-king-v2-pilot"
 version = "2.0.100"
 requires-python = ">=3.11"
-dependencies = ["flet==0.25.2"]
+dependencies = ["flet==0.25.2", "pyjnius==1.6.1"]
 [tool.flet]
 product = "BOT KING V2"
 org = "com.botking"
