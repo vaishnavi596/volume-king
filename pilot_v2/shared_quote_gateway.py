@@ -37,7 +37,7 @@ class SharedQuoteGateway:
         demand = plan_demand(watch_groups)
         candidate = dict(self._selections)
         candidate[device] = demand.equities
-        # The watchlist cap is GLOBAL across this owner's active three phones,
+        # The watchlist cap is GLOBAL across Master + 3 delegated phones,
         # not seventy subscriptions independently per device. Stage changes
         # before commit; a rejected selection must preserve the prior demand.
         active = {ident: symbols for ident, symbols in candidate.items()

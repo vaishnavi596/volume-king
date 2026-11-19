@@ -1,4 +1,4 @@
-"""Shared V2 read-only 1–3 phone fanout: OFFLINE no broker/socket requests."""
+"""Shared V2 read-only Master + 3 delegate fanout, offline only."""
 import unittest
 import sys
 from pathlib import Path
@@ -10,6 +10,7 @@ from pilot_v2.shared_quote_gateway import SharedQuoteGateway
 MASTER="master_device_000001"
 SECOND="second_device_00001"
 THIRD="third_device_000001"
+FOURTH="fourth_device_000001"
 
 def snapshot(revision, quotes):
     return {"protocol":"botking-v2-readonly","source":"dhan",
@@ -88,6 +89,47 @@ class SharedQuoteGatewayTests(unittest.TestCase):
         s2new=self.gateway.issue(SECOND)
         self.shared.select_equities(s2new,[["EQ070"],[],[],[],[]])
         self.assertEqual(len(self.shared.union_demand().equities),61)
+
+    def test_four_phones_share_one_seventy_symbol_budget_and_isolate_reads(self):
+        """Master + three delegates, one provider union, no device leak."""
+        for ident in (SECOND, THIRD, FOURTH):
+            self.gateway.assign(self.master, ident, {"quotes"})
+        sessions = (self.master, self.gateway.issue(SECOND),
+                    self.gateway.issue(THIRD), self.gateway.issue(FOURTH))
+        groups = (
+            tuple(f"EQ{i:03d}" for i in range(0, 20)),
+            tuple(f"EQ{i:03d}" for i in range(20, 40)),
+            tuple(f"EQ{i:03d}" for i in range(40, 60)),
+            tuple(f"EQ{i:03d}" for i in range(60, 70)),
+        )
+        for session, symbols in zip(sessions, groups):
+            self.shared.select_equities(session, [list(symbols), [], [], [], []])
+        plan = self.shared.union_demand()
+        self.assertEqual(len(plan.equities), 70)
+        self.assertEqual(len(plan.indices), 3)
+        self.assertEqual(len(set(plan.equities)), 70)
+        with self.assertRaises(ContractError):
+            self.shared.select_equities(
+                sessions[3], [list(groups[3]) + ["EQ070"], [], [], [], []])
+        self.assertEqual(self.shared.union_demand(), plan)
+        self.assertTrue(self.shared.publish_from_trusted_collector(
+            snapshot(7, {"EQ000": 100, "EQ060": 200, "NIFTY": 25000}), plan))
+        self.assertEqual(
+            set(self.shared.read(sessions[0], "quotes")["quotes"]), {"EQ000"})
+        self.assertEqual(
+            set(self.shared.read(sessions[3], "quotes")["quotes"]), {"EQ060"})
+        self.assertEqual(self.shared.read(sessions[1], "quotes")["quotes"], {})
+        with self.assertRaises(SessionDenied):
+            self.shared.read(sessions[3], "indices")
+        self.gateway.assign(self.master, THIRD, {"quotes"}, enabled=False)
+        self.assertEqual(len(self.shared.union_demand().equities), 50)
+        with self.assertRaises(SessionDenied):
+            self.shared.read(sessions[2], "quotes")
+        self.gateway.assign(self.master, THIRD, {"quotes"}, enabled=True)
+        self.assertEqual(len(self.shared.union_demand().equities), 50)
+        fresh = self.gateway.issue(THIRD)
+        self.shared.select_equities(fresh, [list(groups[2]), [], [], [], []])
+        self.assertEqual(len(self.shared.union_demand().equities), 70)
 
     def test_zero_selection_yields_zero_equity_work_plus_three_indices(self):
         self.shared.select_equities(self.master,[[],[],[],[],[]])
