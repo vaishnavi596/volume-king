@@ -60,7 +60,12 @@ class AndroidKeystoreLoginBinding:
         return signature
 
     def login_client(self, approved_https_origin, *, opener=None, timeout=10):
-        """Return a client; no login or network I/O occurs until explicit call."""
+        """Fail closed on a replaced key before creating a network client.
+
+        This is a local preflight, not native attestation or owner approval.
+        Actual sign-time verification is independently repeated.
+        """
+        self._confirmed_public()
         return V2P256LoginHTTPSClient(
             approved_https_origin, self._device_id, self.sign_login_challenge,
             opener=opener, timeout=timeout)
