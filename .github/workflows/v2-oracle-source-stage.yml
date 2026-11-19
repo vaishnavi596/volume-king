@@ -1,0 +1,64 @@
+name: BOT KING V2 Oracle Source Stage (No Activation)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: botking-v2-oracle-ops
+  cancel-in-progress: false
+jobs:
+  stage-v2:
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test source and safely stage on Oracle
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python -m compileall -q pilot_v2
+          python pilot_v2/tools/one_click_migration_gate.py
+          test -n "$ORACLE_HOST" && test -n "$ORACLE_SSH_KEY" && test -n "$ORACLE_KNOWN_HOSTS"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/botking_oracle
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts /tmp/botking-v2-source.tgz' EXIT
+          # Only source: no credentials, Android artifacts, or production writes.
+          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- *.py
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+            "test ! -e /home/opc/botking-v2-staging/gh-${SHA} && mkdir -m 700 -p /home/opc/botking-v2-staging/gh-${SHA}"
+          scp -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            /tmp/botking-v2-source.tgz "opc@$ORACLE_HOST:/home/opc/botking-v2-staging/gh-${SHA}/source.tgz"
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+             "SHA=${SHA} python3 - <<'PY'
+          import os, pathlib, tarfile
+          base = pathlib.Path('/home/opc/botking-v2-staging') / ('gh-' + os.environ['SHA'])
+          with tarfile.open(base / 'source.tgz', 'r:gz') as tf:
+              members = tf.getmembers()
+              if not 10 <= len(members) <= 250:
+                  raise ValueError('Unexpected V2 module count')
+              dest = base / 'pilot_v2'
+              dest.mkdir(mode=0o700)
+              for m in members:
+                  if (not m.isfile() or '/' in m.name or m.name.startswith('.')
+                          or not m.name.endswith('.py') or m.size > 1_000_000):
+                      raise ValueError('Unsafe V2 module')
+                  raw = tf.extractfile(m).read()
+                  compile(raw, m.name, 'exec')
+                  target = dest / m.name
+                  target.write_bytes(raw)
+                  target.chmod(0o600)
+          print('V2_STAGED_ONLY FILES', len(members), 'ACTIVATED', False)
+          PY"
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+            'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
