@@ -1,3 +1,10 @@
+## VERIFIED CI #111 — ATOMIC CROSS-FEED V2 APP EVIDENCE, 2026-11-19
+- Actual tested source **`83f8ac184e5bb4b5fc437327baa8758ed142d999`**, [BOT KING V2 CI #111](https://github.com/vaishnavi596/volume-king/actions/runs/44438674534) **SUCCESS 309/309 tests**; compile, integrated source/gap check, report artifact PASS. Previous verified executable CI #110 305/305. No previous CI rerun required.
+- Staged app-only `app_evidence_batch.py` validates existing retained candle/expiry/options/strikes/factor modules in a copy, commits state to original cache holders only if entire event sequence valid; malformed/unselected/unauthenticated-caller input does not partly mutate cache. Unit tests confirm cross-lane success and rollback. **No real auth login provided; `trusted_transport` must only be set by independently authorized caller; current Flet main remains disconnected.** This passes an *offline local-contract segment only*, NOT live Dhan/Oracle/Android or complete migration.
+- **NEXT:** one coherent app-only verified device session and feed contract, linked to existing source transport and cache policy; do not invent endpoints nor permit bearer string to stand as verified identity. Remain under no production server changes/no APK/no V1 guard. Continue on same V2 branch and combined workflow, then full V1 UI reachability parity.
+
+---
+
 
 ## V2 JOINT EVIDENCE STAGING BATCH — 2026-11-19
 - Owner instruction: do not stop after a report; next executable app-side migration segment after CI #110 305/305 PASS (last tested source `f4d91e0`). Reviewed current V2 General, consolidated handoff and latest branch commits/CI before edits.
