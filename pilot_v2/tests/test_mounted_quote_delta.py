@@ -112,6 +112,27 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn("ft.LineChart(", self.source)
         self.assertIn("candle_geometry(", self.source)
 
+    def test_technical_panel_follows_only_accepted_cached_candles(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "apply_data_only_candle_snapshot")
+        text = ast.get_source_segment(self.source, callback)
+        self.assertIn("refresh_visible_technical(symbol, timeframe)", text)
+        self.assertIn("if not accepted:", text)
+        helper = next(n for n in ast.walk(self.tree)
+                      if isinstance(n, ast.FunctionDef)
+                      and n.name == "refresh_visible_technical")
+        src = ast.get_source_segment(self.source, helper)
+        self.assertIn("historical_scanner_analysis(", src)
+        self.assertIn("historical_indicator_panel(", src)
+        self.assertIn("control.controls = ", src)
+        for unwanted in ("render()", "page.update()", "accept_available(",
+                         "trusted_transport=True", "requests.", "httpx."):
+            self.assertNotIn(unwanted, src)
+        self.assertIn("technical_hosts.clear()", self.source)
+        self.assertIn("tracked_technical_summary(", self.source)
+        self.assertIn("tracked_indicator_panel(", self.source)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)

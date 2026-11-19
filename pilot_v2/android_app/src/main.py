@@ -232,6 +232,7 @@ def main(page: ft.Page):
     candle_labels = {}  # Keyed by symbol/timeframe, independent of quotes.
     filter_labels = {}  # Existing evidence-gated visible factors only.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
+    technical_hosts = {}  # Historical technical summary + indicator panel.
 
     def tracked_quote_text(symbol, value, kind="display", **style):
         control = ft.Text(value, **style)
@@ -289,6 +290,35 @@ def main(page: ft.Page):
                 control.controls = new_content
             control.update()
 
+    def tracked_technical_summary(symbol, timeframe, value, **style):
+        control = ft.Text(value, **style)
+        technical_hosts.setdefault((symbol, timeframe), []).append((control, "summary"))
+        return control
+
+    def tracked_indicator_panel(symbol, timeframe, lines):
+        control = ft.Column([ft.Text(line, color=MUTED, size=14) for line in lines],
+                            spacing=2)
+        technical_hosts.setdefault((symbol, timeframe), []).append((control, "panel"))
+        return control
+
+    def refresh_visible_technical(symbol, timeframe):
+        """Historical-only technical analysis; never a five-filter vote."""
+        for control, kind in technical_hosts.get((symbol, timeframe), ()):
+            if kind == "summary":
+                value = historical_scanner_analysis(
+                    scanner_history, symbol, timeframe,
+                    selected_equities=state.selected)["summary"]
+                if control.value != value:
+                    control.value = value
+                    control.update()
+            else:
+                lines = historical_indicator_panel(
+                    scanner_history, symbol, timeframe,
+                    selected_equities=state.selected)
+                control.controls = [ft.Text(line, color=MUTED, size=14)
+                                    for line in lines]
+                control.update()
+
     def apply_data_only_candle_snapshot(symbol, timeframe, revision, bars, *,
                                         trusted_transport=False):
         """Accept already-authenticated completed history; update labels only."""
@@ -313,6 +343,7 @@ def main(page: ft.Page):
                 control.value = value
                 control.update()
         refresh_visible_native_chart(symbol, timeframe)
+        refresh_visible_technical(symbol, timeframe)
         return True
 
     def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
@@ -413,6 +444,7 @@ def main(page: ft.Page):
         candle_labels.clear()
         filter_labels.clear()
         native_chart_hosts.clear()
+        technical_hosts.clear()
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -615,7 +647,9 @@ def main(page: ft.Page):
                 tracked_candle_text(scanner[0].symbol, scanner[0].timeframe,
                                     scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
-                ft.Text(historical_scanner_analysis(
+                tracked_technical_summary(
+                    scanner[0].symbol, scanner[0].timeframe,
+                    historical_scanner_analysis(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["summary"], size=13),
                 *([tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "line")]
@@ -628,9 +662,11 @@ def main(page: ft.Page):
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=14, color=MUTED),
                 ft.Text("Technical levels · completed candles only", color=GOLD, size=14),
-                *[ft.Text(line, color=MUTED, size=14) for line in historical_indicator_panel(
+                tracked_indicator_panel(
+                    scanner[0].symbol, scanner[0].timeframe,
+                    historical_indicator_panel(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
-                    selected_equities=state.selected)],
+                    selected_equities=state.selected)),
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
