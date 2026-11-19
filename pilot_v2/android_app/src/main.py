@@ -14,6 +14,7 @@ from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
+from historical_indicator_panel import historical_indicator_panel
 from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
@@ -426,6 +427,10 @@ def main(page: ft.Page):
                 ft.Text("Native candle chart hidden · Line style selected"),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=14, color=MUTED),
+                ft.Text("Technical levels · completed candles only", color=GOLD, size=14),
+                *[ft.Text(line, color=MUTED, size=14) for line in historical_indicator_panel(
+                    scanner_history, scanner[0].symbol, scanner[0].timeframe,
+                    selected_equities=state.selected)],
                 *[ft.Text(f"{label}: {value}") for label, value in
                   filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
                                        selected_equities=state.selected)[:5]],
