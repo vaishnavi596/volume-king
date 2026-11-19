@@ -24,8 +24,9 @@ class DeviceFeedInbox:
         if type(feed) is not str or feed not in ("quotes", "indices"):
             raise FeedError("Unknown read-only feed")
         equities = tuple(selected_equities)
-        if len(set(equities)) != len(equities) or any(
-                type(s) is not str or s in INDEXES for s in equities):
+        if (any(type(s) is not str or s in INDEXES for s in equities)
+                or len(set(equities)) != len(equities)
+                or len(equities) > 70):
             raise FeedError("Invalid app-owned equity roster")
         if feed == "quotes":
             # Equity-only endpoint must never inject index prices.
