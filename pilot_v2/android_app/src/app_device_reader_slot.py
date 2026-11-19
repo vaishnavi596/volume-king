@@ -30,12 +30,20 @@ class DeviceReaderSlot:
         if reader is not None:
             reader.invalidate()
 
-    def _begin_sign_in(self):
-        """Reserve a cancellable attempt before any platform/network work."""
+    def _begin_sign_in(self, *, preserve_previous=False):
+        """Reserve a cancellable attempt before any platform/network work.
+
+        During an approved Keystore re-login the old signed session remains
+        usable until a new verified reader is accepted or the owner clears it.
+        Direct generic client replacement retains its previous scrub rule.
+        """
         with self._lock:
             self._generation += 1
             attempt = self._generation
-            previous, self._reader = self._reader, None
+            if preserve_previous:
+                previous = None
+            else:
+                previous, self._reader = self._reader, None
         if previous is not None:
             previous.invalidate()
         return attempt
@@ -52,7 +60,12 @@ class DeviceReaderSlot:
             if attempt != self._generation:
                 reader.invalidate()
                 raise FeedError("Device sign-in was cancelled")
-            self._reader = reader
+            previous, self._reader = self._reader, reader
+            # Complete the handover before exposing the new session.
+            # Do not hold this lock during HTTPS I/O; invalidate a previous
+            # reader while serialized with other local session operations.
+            if previous is not None and previous is not reader:
+                previous.invalidate()
         return True
 
     def sign_in(self, login_client):
@@ -85,7 +98,7 @@ class DeviceReaderSlot:
                 valid_opener = False
             if not valid_opener:
                 raise FeedError("Invalid verified HTTPS login opener")
-        attempt = self._begin_sign_in()
+        attempt = self._begin_sign_in(preserve_previous=True)
         client = binding.login_client(
             trusted_origin, opener=opener, timeout=timeout)
         return self._complete_sign_in(client, attempt)
