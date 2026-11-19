@@ -103,7 +103,7 @@ class AndroidNativeP256Provider:
     def sign_login_message(self, message):
         # Guard at BOTH native entry and public binding. Python callers
         # must not use this method as a generic AndroidKeyStore signing oracle.
-        prefix = LOGIN_CONTEXT + self.device_id.encode("ascii") + b"\\x00"
+        prefix = LOGIN_CONTEXT + self.device_id.encode("ascii") + b"\x00"
         if (type(message) is not bytes
                 or len(message) != len(prefix) + 32
                 or not message.startswith(prefix)):
