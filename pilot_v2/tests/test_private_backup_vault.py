@@ -203,6 +203,36 @@ class PrivateBackupVaultTests(unittest.TestCase):
             with self.assertRaises(VaultStorageDenied):
                 vault.replace("master", sealed, expected_revision=1)
 
+    def test_private_backup_parent_permissions_and_path_replacement(self):
+        with tempfile.TemporaryDirectory() as base:
+            parent = Path(base) / "protected"
+            parent.mkdir(mode=0o700)
+            vault = ServerBackupVault(parent / "vault.sqlite",
+                                      master_owner=lambda _: "master-authorized-0001")
+            self.assertEqual(vault.read("master"), (0, None))
+            parent.chmod(0o777)
+            with self.assertRaises(VaultStorageDenied):
+                vault.read("master")
+            parent.chmod(0o700)
+            self.assertEqual(vault.read("master"), (0, None))
+            moved = Path(base) / "moved"
+            parent.rename(moved)
+            parent.symlink_to(moved, target_is_directory=True)
+            with self.assertRaises(VaultStorageDenied):
+                vault.read("master")
+            parent.unlink()
+            moved.rename(parent)
+            self.assertEqual(vault.read("master"), (0, None))
+
+    def test_private_backup_rejects_unsafe_parent_at_creation(self):
+        with tempfile.TemporaryDirectory() as base:
+            parent = Path(base) / "public"
+            parent.mkdir(mode=0o777)
+            parent.chmod(0o777)
+            with self.assertRaises(ValueError):
+                ServerBackupVault(parent / "vault.sqlite",
+                    master_owner=lambda _: "master-authorized-0001")
+
     def test_auth_denial_precedes_envelope_storage(self):
         with tempfile.TemporaryDirectory() as d:
             db = Path(d) / "private.sqlite"
