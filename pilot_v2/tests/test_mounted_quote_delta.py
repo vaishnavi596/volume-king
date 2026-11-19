@@ -88,6 +88,30 @@ class MountedQuoteDeltaTests(unittest.TestCase):
                                   "requests.", "httpx.", "submit_order("):
                     self.assertNotIn(forbidden, fragment)
 
+    def test_native_chart_repaints_without_full_page_or_new_market_fetch(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "apply_data_only_candle_snapshot")
+        fragment = ast.get_source_segment(self.source, callback)
+        self.assertIn("evidence_inbox.apply_candles(", fragment)
+        self.assertIn("if not accepted:", fragment)
+        self.assertIn("refresh_visible_native_chart(symbol, timeframe)", fragment)
+        self.assertNotIn("page.update()", fragment)
+        self.assertNotIn("render()", fragment)
+        helper = next(n for n in ast.walk(self.tree)
+                      if isinstance(n, ast.FunctionDef)
+                      and n.name == "refresh_visible_native_chart")
+        helper_source = ast.get_source_segment(self.source, helper)
+        self.assertIn("control.content = new_content", helper_source)
+        self.assertIn("control.controls = new_content", helper_source)
+        self.assertIn("control.update()", helper_source)
+        self.assertNotIn("page.update()", helper_source)
+        self.assertIn("native_chart_hosts.clear()", self.source)
+        self.assertIn('tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "line")', self.source)
+        self.assertIn('tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "candles")', self.source)
+        self.assertIn("ft.LineChart(", self.source)
+        self.assertIn("candle_geometry(", self.source)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)

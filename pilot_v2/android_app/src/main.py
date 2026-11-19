@@ -231,6 +231,7 @@ def main(page: ft.Page):
     quote_labels = {}  # Mounted Flet Text references, not server settings.
     candle_labels = {}  # Keyed by symbol/timeframe, independent of quotes.
     filter_labels = {}  # Existing evidence-gated visible factors only.
+    native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
 
     def tracked_quote_text(symbol, value, kind="display", **style):
         control = ft.Text(value, **style)
@@ -241,6 +242,52 @@ def main(page: ft.Page):
         control = ft.Text(value, **style)
         candle_labels.setdefault((symbol, timeframe), []).append((control, kind))
         return control
+
+    def _native_bar_stack(c):
+        return ft.Stack([
+            ft.Container(width=2, height=c["wick_height"],
+                         bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
+                         top=c["wick_top"], left=5),
+            ft.Container(width=12, height=c["body_height"],
+                         bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
+                         top=c["body_top"], left=0),
+        ], width=12, height=116)
+
+    def _native_chart_content(symbol, timeframe, kind):
+        if kind == "line":
+            values = chart_points(
+                scanner_history, symbol, timeframe,
+                selected_equities=state.selected, limit=chart_window[0])
+            if len(values) < 2:
+                return ft.Text("Scanner chart WAIT · completed candle history unavailable")
+            return ft.LineChart(data_series=[ft.LineChartData(
+                data_points=[ft.LineChartDataPoint(i, price)
+                             for i, price in enumerate(values)],
+                stroke_width=2, curved=False)], expand=True)
+        return [_native_bar_stack(c) for c in candle_geometry(
+            scanner_history, symbol, timeframe,
+            selected_equities=state.selected)]
+
+    def tracked_native_chart(symbol, timeframe, kind):
+        if kind == "line":
+            control = ft.Container(
+                content=_native_chart_content(symbol, timeframe, kind),
+                height=150, padding=5)
+        else:
+            control = ft.Row(_native_chart_content(symbol, timeframe, kind),
+                             scroll=ft.ScrollMode.AUTO, spacing=4)
+        native_chart_hosts.setdefault((symbol, timeframe), []).append((control, kind))
+        return control
+
+    def refresh_visible_native_chart(symbol, timeframe):
+        """Update only the mounted native chart for accepted completed bars."""
+        for control, kind in native_chart_hosts.get((symbol, timeframe), ()):
+            new_content = _native_chart_content(symbol, timeframe, kind)
+            if kind == "line":
+                control.content = new_content
+            else:
+                control.controls = new_content
+            control.update()
 
     def apply_data_only_candle_snapshot(symbol, timeframe, revision, bars, *,
                                         trusted_transport=False):
@@ -265,6 +312,7 @@ def main(page: ft.Page):
             if control.value != value:
                 control.value = value
                 control.update()
+        refresh_visible_native_chart(symbol, timeframe)
         return True
 
     def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
@@ -364,6 +412,7 @@ def main(page: ft.Page):
         quote_labels.clear()  # Discard prior-page control references.
         candle_labels.clear()
         filter_labels.clear()
+        native_chart_hosts.clear()
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -569,38 +618,11 @@ def main(page: ft.Page):
                 ft.Text(historical_scanner_analysis(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["summary"], size=13),
-                *([ft.Container(
-                    content=ft.LineChart(
-                        data_series=[ft.LineChartData(
-                            data_points=[ft.LineChartDataPoint(i, price)
-                                         for i, price in enumerate(chart_points(
-                                             scanner_history, scanner[0].symbol,
-                                             scanner[0].timeframe,
-                                             selected_equities=state.selected,
-                                             limit=chart_window[0]))],
-                            stroke_width=2, curved=False)],
-                        expand=True),
-                    height=150, padding=5,
-                )] if chart_visible[0] and chart_style[0] == "Line" and len(chart_points(
-                    scanner_history, scanner[0].symbol, scanner[0].timeframe,
-                    selected_equities=state.selected,
-                    limit=chart_window[0])) >= 2 else
-                   ([ft.Text("Scanner chart WAIT · completed candle history unavailable")]
-                    if chart_visible[0] and chart_style[0] == "Line" else [])),
+                *([tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "line")]
+                  if chart_visible[0] and chart_style[0] == "Line" else []),
                 ft.Text("Completed OHLC candles · historical / unverified",
                         size=14, color=MUTED),
-                ft.Row([
-                    ft.Stack([
-                        ft.Container(width=2, height=c["wick_height"],
-                                     bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
-                                     top=c["wick_top"], left=5),
-                        ft.Container(width=12, height=c["body_height"],
-                                     bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
-                                     top=c["body_top"], left=0),
-                    ], width=12, height=116) for c in candle_geometry(
-                        scanner_history, scanner[0].symbol, scanner[0].timeframe,
-                        selected_equities=state.selected)
-                ], scroll=ft.ScrollMode.AUTO, spacing=4)
+                tracked_native_chart(scanner[0].symbol, scanner[0].timeframe, "candles")
                 if chart_visible[0] and chart_style[0] == "Candles" else
                 ft.Text("Native candle chart hidden · Line style selected"),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
