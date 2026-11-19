@@ -58,7 +58,8 @@ class ThreeMinuteFallbackTests(unittest.TestCase):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("scanner_history = HistoricalThreeMinuteFallback(candle_history)", source)
         self.assertIn("historical_scanner_analysis(\n                    scanner_history", source)
-        self.assertIn("candle_geometry(\n                        scanner_history", source)
+        self.assertIn("return [_native_bar_stack(c) for c in candle_geometry(", source)
+        self.assertIn("refresh_visible_native_chart(symbol, timeframe)", source)
         self.assertIn('filter_evidence.rows(scanner[0].symbol', source)
 
 if __name__ == "__main__":
