@@ -27,8 +27,10 @@ class DeviceReaderSlot:
         with self._lock:
             self._generation += 1
             reader, self._reader = self._reader, None
-        if reader is not None:
-            reader.invalidate()
+            # Keep slot ownership and bearer invalidation one local operation.
+            # No network I/O occurs while this lock is held.
+            if reader is not None:
+                reader.invalidate()
 
     def _begin_sign_in(self, *, preserve_previous=False):
         """Reserve a cancellable attempt before any platform/network work.
@@ -40,12 +42,10 @@ class DeviceReaderSlot:
         with self._lock:
             self._generation += 1
             attempt = self._generation
-            if preserve_previous:
-                previous = None
-            else:
+            if not preserve_previous:
                 previous, self._reader = self._reader, None
-        if previous is not None:
-            previous.invalidate()
+                if previous is not None:
+                    previous.invalidate()
         return attempt
 
     def _complete_sign_in(self, login_client, attempt):
