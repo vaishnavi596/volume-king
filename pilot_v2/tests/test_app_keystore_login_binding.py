@@ -1,0 +1,86 @@
+"""Source-only Android Keystore public/sign callback boundary, no Android runtime."""
+import sys
+import unittest
+from pathlib import Path
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
+SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
+sys.path.insert(0, str(SRC))
+from app_keystore_login_binding import AndroidKeystoreLoginBinding
+from app_p256_login import LOGIN_CONTEXT, V2P256LoginHTTPSClient
+from secure_https_reader import FeedError
+
+MASTER = "master_device_000001"
+DELEGATE = "second_device_00001"
+
+
+class KeystoreBindingTests(unittest.TestCase):
+    def setUp(self):
+        self.key = ec.generate_private_key(ec.SECP256R1())
+        self.public = self.key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        self.calls = []
+        def signer(message):
+            self.calls.append(message)
+            return self.key.sign(message, ec.ECDSA(hashes.SHA256()))
+        self.signer = signer
+
+    def bind(self, device=MASTER, signer=None):
+        return AndroidKeystoreLoginBinding(
+            device, lambda: self.public, signer or self.signer)
+
+    def test_public_only_enrollment_and_exact_login_context(self):
+        binding = self.bind()
+        self.assertEqual(binding.public_spki_for_owner_enrollment(), self.public)
+        signed = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(range(32))
+        sig = binding.sign_login_challenge(signed)
+        self.key.public_key().verify(sig, signed, ec.ECDSA(hashes.SHA256()))
+        self.assertEqual(self.calls, [signed])
+        self.assertNotIn("private_key", repr(binding))
+        client = binding.login_client("https://v2.example.test")
+        self.assertIsInstance(client, V2P256LoginHTTPSClient)
+        self.assertEqual(len(self.calls), 1)  # Constructor never signs or fetches.
+
+    def test_cross_device_or_arbitrary_messages_never_reach_native_signer(self):
+        binding = self.bind()
+        prefix = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00"
+        samples = (b"", b"market-order", b"token", prefix,
+                   prefix + bytes(31), prefix + bytes(33),
+                   LOGIN_CONTEXT + DELEGATE.encode("ascii") + b"\x00" + bytes(32),
+                   prefix + bytes(32) + b"trailing", "string", bytearray(prefix + bytes(32)))
+        for value in samples:
+            with self.subTest(value=repr(value)[:35]), self.assertRaises(FeedError):
+                binding.sign_login_challenge(value)
+        self.assertEqual(self.calls, [])
+
+    def test_invalid_public_key_bad_signer_and_platform_exception_fail_closed(self):
+        with self.assertRaises(FeedError):
+            AndroidKeystoreLoginBinding(MASTER, lambda: b"private-key", self.signer)
+        with self.assertRaises(FeedError):
+            AndroidKeystoreLoginBinding(MASTER, lambda: self.public, None)
+        with self.assertRaises(FeedError):
+            AndroidKeystoreLoginBinding("bad id", lambda: self.public, self.signer)
+        malformed = self.bind(signer=lambda message: b"sigbytes")
+        with self.assertRaises(FeedError):
+            malformed.sign_login_challenge(
+                LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(32))
+        def unavailable(message):
+            raise RuntimeError("native-secret-alias")
+        failed = self.bind(signer=unavailable)
+        with self.assertRaises(FeedError) as error:
+            failed.sign_login_challenge(
+                LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(32))
+        self.assertNotIn("native-secret-alias", str(error.exception))
+        self.assertEqual(self.calls, [])
+
+    def test_login_client_enforces_approved_https_origin_before_network(self):
+        binding = self.bind()
+        with self.assertRaises(FeedError):
+            binding.login_client("http://v2.example.test")
+        self.assertEqual(self.calls, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
