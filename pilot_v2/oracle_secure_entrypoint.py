@@ -21,6 +21,8 @@ from .device_policy import valid_id
 from .internal_dhan_read_port import InternalDhanReadPort
 from .oracle_runtime_factory import create_oracle_v2_runtime
 from .oracle_dhan_expiry_transport import OracleDhanExpiryTransport
+from .oracle_dhan_cached_candles import OracleDhanCachedCandleTransport
+from .oracle_evidence_lane import RoundRobinDhanEvidenceTransport
 
 
 def _private_file(path, *, max_bytes):
@@ -77,7 +79,8 @@ def _persist_selected_equities(path, selected):
 
 def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
                         selected_equities_path=None,
-                        expiry_evidence_symbol=None):
+                        expiry_evidence_symbol=None,
+                        candle_evidence_symbol=None, candle_evidence_timeframe="3m"):
     """Construct the real authenticated app, never the disabled demo shell."""
     if not valid_id(device_id):
         raise ValueError("Invalid independently approved Master device")
@@ -115,15 +118,26 @@ def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
     if record is None or not hmac.compare_digest(record[0], public):
         raise ValueError("Master key does not match enrolled public key")
     selected_equities = _server_selected_equities(selected_equities_path)
+    # Only operator-selected and authenticated Dhan local read-only sources.
+    # Each signed demand consumes at most ONE protected Oracle request.
+    evidence_sources = []
+    if expiry_evidence_symbol is not None:
+        evidence_sources.append(OracleDhanExpiryTransport(
+            pairing_key=pairing, symbol=expiry_evidence_symbol))
+    if candle_evidence_symbol is not None:
+        evidence_sources.append(OracleDhanCachedCandleTransport(
+            pairing_key=pairing, symbol=candle_evidence_symbol,
+            timeframe=candle_evidence_timeframe))
+    evidence_transport = (RoundRobinDhanEvidenceTransport(evidence_sources)
+        if len(evidence_sources) > 1 else
+        evidence_sources[0] if evidence_sources else None)
     return create_oracle_v2_runtime(
         db_path=db_path, master_device_id=device_id,
         master_public_der=public, pairing_key=pairing,
         selected_equities=selected_equities,
         roster_persistor=(lambda selected: _persist_selected_equities(
             selected_equities_path, selected)) if selected_equities_path else None,
-        evidence_transport=(OracleDhanExpiryTransport(
-            pairing_key=pairing, symbol=expiry_evidence_symbol)
-            if expiry_evidence_symbol is not None else None))
+        evidence_transport=evidence_transport)
 
 
 def create_app():
@@ -134,7 +148,9 @@ def create_app():
         pairing_path=os.environ.get("BOTKING_V2_PAIRING_KEY_PATH"),
         db_path=os.environ.get("BOTKING_V2_DB_PATH"),
         selected_equities_path=os.environ.get("BOTKING_V2_SELECTED_EQUITIES_PATH"),
-        expiry_evidence_symbol=os.environ.get("BOTKING_V2_EVIDENCE_EXPIRY_SYMBOL"))
+        expiry_evidence_symbol=os.environ.get("BOTKING_V2_EVIDENCE_EXPIRY_SYMBOL"),
+        candle_evidence_symbol=os.environ.get("BOTKING_V2_EVIDENCE_CANDLE_SYMBOL"),
+        candle_evidence_timeframe=os.environ.get("BOTKING_V2_EVIDENCE_CANDLE_TIMEFRAME", "3m"))
 
 
 __all__ = ["create_app", "from_private_config"]
