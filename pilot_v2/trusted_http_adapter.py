@@ -17,9 +17,11 @@ MAX_BODY = 1024
 MAX_TOKEN = 160
 
 
-def create_trusted_app(*, login, snapshot_provider):
+def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=None):
     if not isinstance(login, AtomicVerifiedLogin) or not callable(snapshot_provider):
         raise ValueError("Atomic trusted login and internal provider required")
+    if manual_snapshot_provider is not None and not callable(manual_snapshot_provider):
+        raise ValueError("Verified manual read provider required")
     app = FastAPI(title="BOT KING V2 Trusted Adapter", docs_url=None,
                   redoc_url=None, openapi_url=None)
 
@@ -57,17 +59,32 @@ def create_trusted_app(*, login, snapshot_provider):
         return JSONResponse({"device_bearer": token},
                             headers={"Cache-Control": "no-store"})
 
-    def read_feed(request, feed):
+    @app.get("/v2-pilot/health")
+    def health():
+        # Process readiness, not proof of fresh Dhan data.
+        return JSONResponse({"status": "authenticated_gateway_ready",
+                             "live_data_verified": False,
+                             "live_orders_enabled": False},
+                            headers={"Cache-Control": "no-store"})
+
+    def bearer_from_request(request):
         authorization = request.headers.get("authorization", "")
         if (not authorization.startswith("Bearer ") or authorization.count(" ") != 1 or
                 not 40 <= len(authorization[7:]) <= MAX_TOKEN):
             raise HTTPException(status_code=401, detail="Verified device bearer required")
+        return authorization[7:]
+
+    def read_feed(request, feed, *, manual=False):
+        token = bearer_from_request(request)
         try:
-            device = login.read_feed(authorization[7:], feed)
+            device = login.read_feed(token, feed)
         except SessionDenied:
             raise HTTPException(status_code=403, detail="Device access denied") from None
         try:
-            snapshot = validate_snapshot(snapshot_provider(device, feed))
+            provider = manual_snapshot_provider if manual else snapshot_provider
+            if provider is None:
+                raise PipelineUnavailable("Manual read not connected")
+            snapshot = validate_snapshot(provider(device, feed))
         except (ContractError, ValueError, TypeError, PipelineUnavailable):
             raise HTTPException(status_code=503, detail="Read-only Dhan snapshot unavailable") from None
         return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
@@ -79,5 +96,20 @@ def create_trusted_app(*, login, snapshot_provider):
     @app.get("/v2-pilot/quotes")
     def quotes(request: Request):
         return read_feed(request, "quotes")
+
+    @app.post("/v2-pilot/auth/logout")
+    def logout(request: Request):
+        token = bearer_from_request(request)
+        try:
+            login._sessions.logout(token)
+        except (SessionDenied, ValueError, TypeError):
+            raise HTTPException(status_code=403, detail="Device sign-out denied") from None
+        return JSONResponse({"signed_out": True}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/v2-pilot/manual/{feed}")
+    def manual_read(feed: str, request: Request):
+        if feed not in ("indices", "quotes"):
+            raise HTTPException(status_code=404, detail="Unsupported manual feed")
+        return read_feed(request, feed, manual=True)
 
     return app
