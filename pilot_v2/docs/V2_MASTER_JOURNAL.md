@@ -1,3 +1,9 @@
+## 2026-11-19 — SINGLE V2 UNIFIED CI AT AUTH+PIPELINE COMPOSITION SHA: PASS
+- Exact GitHub Actions [BOT KING V2 Unified Pipeline run #44500099971](https://github.com/vaishnavi596/volume-king/actions/runs/44500099971) `status=completed`, `conclusion=success` on source SHA `511d10f9294d68559bf6fd516e8f24ebefe11651`, including new `unified_gateway_app.py`, adapter error handling and signed-login-to-read-pipeline offline tests. This is ONE principal V2 workflow and ONE pilot branch. Prior unified runs `44499979164` and `44500011511` also completed success.
+- **Exact boundary:** PASS covers GitHub synthetic/offline source checks, not actual Dhan market-data/Oracle V2 deployment/Android physical login. No live Version-2 enabled yet. Source project is converged into one logical pipeline, but live integration requires real authorized Dhan transport and signed device enrollment; do not misrepresent CI artifact as running app.
+
+---
+
 ## 2026-11-19 — SINGLE V2 WORKFLOW CONSOLIDATED, SIGNED AUTH + UNIFIED GATEWAY COMPOSED
 - **Owner directive:** remove V2 workflow/branch proliferation and prioritize ONE working Version-2 pipeline with internal feature lanes. No more per-feature GitHub workflows; only one V2 branch `pilot/botking-v2-smart-gateway-20261118`. Do not delete V1 workflows or valid V2 feature source to reduce file count cosmetically.
 - **Concrete GitHub changes:** `.github/workflows/v2-pilot-contract.yml` commit `3d24b032f509aea16e4612a2ae964b2947b147b3` now `BOT KING V2 Unified Pipeline`: all V2 source compilation, entire offline tests, one V1-parity audit, one V2-only source archive upload; no automatic production deployment. Deleted duplicate `.github/workflows/v2-one-click-safe-migration.yml` at `00bfe27215f0d65de543fec98fbc5fddcd74c19d`. First consolidated workflow exact-SHA run [44499762188](https://github.com/vaishnavi596/volume-king/actions/runs/44499762188) at `3d24b032f509aea16e4612a2ae964b2947b147b3` completed SUCCESS.
