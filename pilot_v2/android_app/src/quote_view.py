@@ -43,22 +43,28 @@ class DeviceQuoteView:
     def __init__(self):
         self.revision = -1
         self._rows = {}
+        self.last_changed = ()  # Symbols whose visible data actually changed.
 
     def apply(self, payload, selected_equities):
         roster = tuple(selected_equities)
         allowed = INDEXES + roster
         revision, accepted = validate_readonly_snapshot(payload, allowed)
         if revision <= self.revision:
+            self.last_changed = ()
             return False
         # Apply all-or-nothing; absent symbols retain their last-good quote.
         self._rows = {symbol: dict(row) for symbol, row in self._rows.items()
                       if symbol in allowed}
         # A newer feed envelope may include a stale per-symbol row. Never
         # replace a last-good quote with an older symbol revision.
+        changed = []
         for symbol, row in accepted.items():
             previous = self._rows.get(symbol)
             if previous is None or row["revision"] >= previous["revision"]:
+                if previous != row:
+                    changed.append(symbol)
                 self._rows[symbol] = row
+        self.last_changed = tuple(changed)
         self.revision = revision
         return True
 
