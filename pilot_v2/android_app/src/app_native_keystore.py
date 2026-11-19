@@ -9,6 +9,7 @@ import hashlib
 
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
 from app_p256_login import _device_id_ok, LOGIN_CONTEXT
+from app_p256_public_key import canonical_p256_public_spki
 from secure_https_reader import FeedError
 
 _ALIAS_PREFIX = "botking_v2_device_"
@@ -70,7 +71,10 @@ class AndroidNativeP256Provider:
             cert = self._store.getCertificate(self.alias)
             if cert is None:
                 raise ValueError("Missing certificate")
-            return _safe_byte_string(cert.getPublicKey().getEncoded())
+            public = _safe_byte_string(cert.getPublicKey().getEncoded())
+            if not canonical_p256_public_spki(public):
+                raise ValueError("Noncanonical P-256 public certificate")
+            return public
         except Exception:
             raise FeedError("Android device public key unavailable") from None
 

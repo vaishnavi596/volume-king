@@ -124,6 +124,28 @@ class NativeKeystoreContractTests(unittest.TestCase):
             with self.subTest(value=bad_values), self.assertRaises(FeedError):
                 _safe_byte_string(bad_values)
 
+    def test_native_public_certificate_rejects_invalid_curve_before_export(self):
+        # A malformed/other-curve certificate must fail at the native boundary,
+        # not only in the higher-level login binding.
+        original = FakeKeyStore.getCertificate
+        class UntrustedPublic:
+            def getEncoded(self):
+                return b"not-a-valid-P256-SPKI"
+        class UntrustedCert:
+            def getPublicKey(self):
+                return UntrustedPublic()
+        def replaced_certificate(self, alias):
+            return UntrustedCert()
+        adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
+        FakeKeyStore.keys[adapter.alias] = ec.generate_private_key(ec.SECP256R1())
+        with patch.object(FakeKeyStore, "getCertificate", replaced_certificate):
+            with self.assertRaises(FeedError):
+                adapter.public_spki()
+            with self.assertRaises(FeedError):
+                adapter.ensure_public_spki()
+            with self.assertRaises(FeedError):
+                adapter.binding()
+
     def test_native_direct_sign_method_never_signs_arbitrary_bytes(self):
         # Direct access to the adapter must not bypass the binding's
         # exact domain separation and owner-approved device identity.
