@@ -10,6 +10,7 @@ import hashlib
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
 from app_p256_login import _device_id_ok, LOGIN_CONTEXT
 from app_p256_public_key import canonical_p256_public_spki
+from app_p256_signature import is_canonical_p256_der_signature
 from secure_https_reader import FeedError
 
 _ALIAS_PREFIX = "botking_v2_device_"
@@ -119,7 +120,10 @@ class AndroidNativeP256Provider:
             signature = self._Signature.getInstance("SHA256withECDSA")
             signature.initSign(key)
             signature.update(message)
-            return _safe_byte_string(signature.sign())
+            encoded = _safe_byte_string(signature.sign())
+            if not is_canonical_p256_der_signature(encoded):
+                raise ValueError("Noncanonical native P-256 signature")
+            return encoded
         except Exception:
             raise FeedError("Android device signature unavailable") from None
 

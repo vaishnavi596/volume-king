@@ -163,6 +163,24 @@ class NativeKeystoreContractTests(unittest.TestCase):
         FakeKeyStore.keys[adapter.alias].public_key().verify(
             signature, signed, ec.ECDSA(hashes.SHA256()))
 
+    def test_native_direct_sign_rejects_malformed_java_signature(self):
+        # The native entrypoint must fail closed even if a caller bypasses the
+        # higher-level binding, without leaking platform error details.
+        adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
+        adapter.ensure_public_spki()
+        signed = LOGIN_CONTEXT + DEVICE.encode("ascii") + b"\\x00" + bytes(range(32))
+        class MalformedSignature:
+            def initSign(self, key):
+                pass
+            def update(self, message):
+                pass
+            def sign(self):
+                return [48, 3, 2, 1, 0]
+        with patch.object(adapter._Signature, "getInstance",
+                          return_value=MalformedSignature()):
+            with self.assertRaisesRegex(FeedError, "signature unavailable"):
+                adapter.sign_login_message(signed)
+
     def test_key_replacement_denied_by_existing_binding(self):
         adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
         adapter.ensure_public_spki()
