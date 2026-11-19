@@ -76,6 +76,23 @@ class BridgeTests(unittest.TestCase):
                 with self.assertRaises(DhanReadUnavailable):
                     b("quotes", ("TCS", "INFY"))
 
+    def test_concurrent_bridge_reads_get_unique_monotonic_revisions(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        # All calls return already-validated synthetic snapshots. No Dhan HTTP
+        # and no extra broker fanout. Only revision assignment is shared.
+        opener = Opener({"source": "dhan", "live_orders_enabled": False,
+                         "quotes": {"TCS": 125.0}, "unavailable": []})
+        bridge = OracleDhanReadTransport(pairing_key=self.key, opener=opener,
+                                         clock=lambda: 1800000000.0)
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            batches = list(pool.map(lambda _: bridge("quotes", ("TCS",)), range(72)))
+        revisions = [batch.revision for batch in batches]
+        self.assertEqual(len(revisions), 72)
+        self.assertEqual(set(revisions), set(range(1, 73)))
+        self.assertTrue(all(batch.rows["TCS"]["price"] == 125 for batch in batches))
+        self.assertEqual(len(opener.calls), 72)
+
     def test_429_and_guard(self):
         error = HTTPError("http://127.0.0.1:8000/dhan/index-ltp-batch",
                           429, "cooldown", {}, None)
