@@ -40,7 +40,7 @@ def unpack(data: bytes, destination: Path, sha: str) -> dict:
             parts = p.parts
             if item.is_dir() or len(parts) < 3:
                 continue
-            if not parts[0].endswith("-" + sha) or parts[1] != "pilot_v2":
+            if not parts[0].endswith("-" + sha[:7]) or parts[1] != "pilot_v2":
                 continue
             relative = PurePosixPath(*parts[2:])
             if (relative.is_absolute() or ".." in relative.parts or
