@@ -267,8 +267,14 @@ jobs:
           echo "V2_REAL_MASTER_AND_PAIRING=APPROVED_BY_LOCAL_GATE"
           # Never assume a new HTTPS location is safe to inject into the existing V1 virtual host.
           sudo -n nginx -t >/dev/null 2>&1
-          if ! sudo -n nginx -T 2>/dev/null | grep -Fq '/v2-pilot/'; then
-            echo "V2_ACTIVATION=BLOCKED_EXISTING_HTTPS_ROUTE_NOT_CONFIGURED"; exit 1
+          # Static string presence is not proof of the correct proxy target.
+          # Require a reviewed mapping to the isolated loopback V2 listener.
+          NGINX_CONFIG="$(sudo -n nginx -T 2>/dev/null)"
+          if ! printf '%s\n' "$NGINX_CONFIG" | grep -Eq 'proxy_pass[[:space:]]+http://127[.]0[.]0[.]1:8001(/|[[:space:];])'; then
+            echo "V2_ACTIVATION=BLOCKED_HTTPS_V2_PROXY_NOT_VERIFIED"; exit 1
+          fi
+          if ! printf '%s\n' "$NGINX_CONFIG" | grep -Fq '/v2-pilot/'; then
+            echo "V2_ACTIVATION=BLOCKED_HTTPS_V2_PATH_NOT_VERIFIED"; exit 1
           fi
           if test -e "$UNIT" || test -L "$UNIT"; then
             echo "V2_ACTIVATION=BLOCKED_EXISTING_UNIT_REVIEW_REQUIRED"; exit 1
@@ -284,9 +290,12 @@ jobs:
             sudo -n rm -f "$UNIT"
             sudo -n systemctl daemon-reload || true
           }
+          TMP_UNIT="/tmp/bot-king-v2-unit-$"
+          cleanup_unit() { rm -f "$TMP_UNIT"; }
+          trap cleanup_unit EXIT
           trap rollback ERR
           # No V1 files or Nginx configuration are written.
-          cat > /tmp/bot-king-v2-unit-$$ <<'UNITFILE'
+          cat > "$TMP_UNIT" <<'UNITFILE'
           [Unit]
           Description=BOT KING Version 2 isolated authenticated read-only gateway
           After=network-online.target bot-king.service
@@ -306,13 +315,19 @@ jobs:
           [Install]
           WantedBy=multi-user.target
           UNITFILE
-          sudo -n install -o root -g root -m 0644 /tmp/bot-king-v2-unit-$$ "$UNIT"
-          rm -f /tmp/bot-king-v2-unit-$$
+          sudo -n install -o root -g root -m 0644 "$TMP_UNIT" "$UNIT"
+          cleanup_unit
           sudo -n systemctl daemon-reload
           sudo -n systemctl enable --now bot-king-v2.service >/dev/null
           test "$(systemctl is-active bot-king-v2.service)" = active
           test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8001/v2-pilot/quotes)" = 401
           test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 https://botkingrajesh.duckdns.org/v2-pilot/quotes)" = 401
+          # Independently prove HTTPS exposes the signed V2 challenge endpoint,
+          # and still rejects an unknown device; this sends no credentials.
+          for ORIGIN in http://127.0.0.1:8001 https://botkingrajesh.duckdns.org; do
+            test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Content-Type: application/json' --data '{"device_id":"unapproved-audit-probe"}' "$ORIGIN/v2-pilot/auth/challenge")" = 403
+            test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$ORIGIN/v2-pilot/orders")" = 404
+          done
           test "$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8000/health)" = 200
           trap - ERR
           echo "V2_GATEWAY_TRANSPORT=ACTIVE; V1=HEALTHY; LIVE_DHAN_QUOTES=NOT_VERIFIED; PHONE_SIGNED_LOGIN=NOT_VERIFIED"
