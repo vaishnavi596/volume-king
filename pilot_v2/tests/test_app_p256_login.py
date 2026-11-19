@@ -16,7 +16,7 @@ from app_p256_login import V2P256LoginHTTPSClient
 from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
 from pilot_v2.auth_http import create_pilot_auth_app
 from pilot_v2.atomic_verified_login import AtomicVerifiedLogin
-from pilot_v2.device_verifier import DurableP256ChallengeVerifier
+from pilot_v2.durable_challenges import DurableP256ChallengeVerifier
 from pilot_v2.durable_device_sessions import DurableDeviceSessions
 
 DEVICE = "master_device_000001"
