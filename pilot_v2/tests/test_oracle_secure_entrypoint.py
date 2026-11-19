@@ -1,5 +1,6 @@
 """Offline security gates for the real V2 Oracle entrypoint; no network."""
 import os
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
-from pilot_v2.durable_device_sessions import DurableDeviceSessions
+from pilot_v2.tools.provision_oracle_master import enroll_master
 from pilot_v2.oracle_secure_entrypoint import create_app, from_private_config
 
 
@@ -36,10 +37,9 @@ class SecureEntrypointTests(unittest.TestCase):
             db_path=str(self.db))
 
     def provision(self):
-        sessions = DurableDeviceSessions(self.db)
-        sessions.bootstrap(self.device_id,
-            authorize_bootstrap=lambda identifier: identifier == self.device_id)
-        self.db.chmod(0o600)
+        enroll_master(directory=self.root, device_id=self.device_id,
+            public_path=self.der,
+            approved_fingerprint=hashlib.sha256(self.der.read_bytes()).hexdigest())
 
     def test_no_configuration_never_bootstraps(self):
         with patch.dict(os.environ, {}, clear=True):
