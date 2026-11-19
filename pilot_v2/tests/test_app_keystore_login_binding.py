@@ -200,6 +200,18 @@ class KeystoreBindingTests(unittest.TestCase):
             slot.sign_in_with_keystore(binding, "https://v2.example.test", timeout=0)
         with self.assertRaises(FeedError):
             slot.sign_in_with_keystore(object(), "https://v2.example.test")
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(
+                binding, "https://v2.example.test", opener=object())
+        # An opener property throwing platform-specific secrets must fail closed.
+        class BrokenOpener:
+            @property
+            def open(self):
+                raise RuntimeError("sensitive-native-handle")
+        with self.assertRaises(FeedError) as error:
+            slot.sign_in_with_keystore(
+                binding, "https://v2.example.test", opener=BrokenOpener())
+        self.assertNotIn("sensitive-native-handle", str(error.exception))
         self.assertIs(slot.reader, current)
         current.invalidate.assert_not_called()
         self.assertEqual(self.calls, [])
