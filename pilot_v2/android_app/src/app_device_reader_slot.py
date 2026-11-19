@@ -54,12 +54,14 @@ class DeviceReaderSlot:
             if attempt != self._generation:
                 raise FeedError("Device sign-in was cancelled")
         reader = login_client.login()
-        if type(reader) is not V2ReadonlyHTTPSReader:
-            raise FeedError("Approved read-only device session required")
+        if type(reader) is not V2ReadonlyHTTPSReader or not reader.session_active:
+            raise FeedError("Active read-only device session required")
         with self._lock:
             if attempt != self._generation:
                 reader.invalidate()
                 raise FeedError("Device sign-in was cancelled")
+            if not reader.session_active:
+                raise FeedError("Active read-only device session required")
             previous, self._reader = self._reader, reader
             # Complete the handover before exposing the new session.
             # Do not hold this lock during HTTPS I/O; invalidate a previous
