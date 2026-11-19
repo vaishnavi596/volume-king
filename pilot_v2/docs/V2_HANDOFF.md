@@ -1,3 +1,16 @@
+## CURRENT EXECUTION ORDER — TWO ACTIONS ONLY (2026-11-19)
+
+Owner wants the shortest safe path to a completed BOT KING V2 app; no repeated micro-patches or repetitive planning commits.
+
+**ACTION A — SCAN + IMPLEMENT IN ONE LOCAL CANDIDATE:** Run V1 read-only vs V2 full dependency/feature delta once. Reuse already proven V2 code. Within the same bounded candidate, complete every safely app-owned missing screen, navigation, chart, Smart Data policy, Watchlist, Scanner, Super Five, options/filter evidence consumer, settings, Paper offline components and Master local controls, excluding non-verifiable live behavior. Quarantine legacy Angel One/Yahoo/order/credential/server-owned app paths, preserve 70 unique equity selection and 3 independent indices, five filters + blank sixth, and last-good history. Do not publish micro-commits mid-work; use a single joint code change + test change after local checks.
+
+**ACTION B — ONE TEST GATE + CLOSE / CORRECT ONLY FAILURES:** Offline compile, security and full tests run together once per candidate; check exact source SHA CI outcome. Correct only failed checks in same candidate, without rerunning unrelated successful work until source changes. Certify APP-SIDE MIGRATION READY only when all app-side gates pass, NOT live provider/device verified. Production Oracle integration and separately signed APK/device acceptance follow later and require separate authorization. No APK build/server change under current owner guard.
+
+**Integrity:** Collapsing user-visible steps does not remove validation. The manual workflow's hardcoded FALSE acceptance checklist is not a genuine automatic migration implementation; it must be changed to evidence-backed checks before claiming one-click completion. Do not promise timing or call the current V2 fully migrated. Existing latest verified executable source `46e79bfaddcb89cc7794bcb503c39cdf1a978692`, CI #102 SUCCESS; previous docs-only `145b8c0f099508124a18bb0f82bbaff059bd7903`.
+
+
+---
+
 ## CURRENT OWNER DECISION — COMPACT FINAL MIGRATION, 2026-11-19
 
 **Stop incremental micro-fixes.** Use a frozen one-time V1→V2 gap manifest and one coordinated V2-only app migration candidate; do not treat each feature as a separate migration. The purpose is to minimize commits, retests, clicks and CI cost without weakening security.
