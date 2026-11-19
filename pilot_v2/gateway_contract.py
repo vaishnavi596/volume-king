@@ -53,13 +53,30 @@ class RevisionCache:
         expected = set(demand.equities + demand.indices)
         fresh = {}
         for key, val in quotes.items():
-            if key not in expected or type(val) not in (int, float) or not isfinite(val) or val <= 0:
+            if key not in expected or not symbol_ok(key):
                 raise ContractError("Invalid quote in snapshot")
-            fresh[key] = {"price": float(val), "freshness": "unverified",
-                          "live_verified": False, "revision": rev}
+            if type(val) is dict:
+                # New collector contract: retain its independent per-symbol
+                # revision instead of stamping every row with envelope revision.
+                if (set(val) != {"price", "revision"} or
+                        type(val["revision"]) is not int or
+                        not 0 <= val["revision"] <= rev):
+                    raise ContractError("Invalid symbol revision evidence")
+                price, symbol_rev = val["price"], val["revision"]
+            else:
+                # Legacy offline numeric fixture; NOT reliable age evidence.
+                price, symbol_rev = val, rev
+            if (type(price) not in (int, float) or
+                    not isfinite(price) or price <= 0):
+                raise ContractError("Invalid quote in snapshot")
+            fresh[key] = {"price": float(price), "freshness": "unverified",
+                          "live_verified": False, "revision": symbol_rev}
         if rev <= self.revision:
             return False
-        self.rows.update(fresh)
+        for key, row in fresh.items():
+            previous = self.rows.get(key)
+            if previous is None or row["revision"] > previous["revision"]:
+                self.rows[key] = row
         self.revision = rev
         return True
 

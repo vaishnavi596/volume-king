@@ -126,6 +126,38 @@ class SharedQuoteGatewayTests(unittest.TestCase):
             self.shared.publish_from_trusted_collector(snapshot(3,{"TCS":False}),plan)
         self.assertEqual(self.shared.read(self.master,"quotes")["revision"],2)
 
+    def test_evidenced_collector_rows_preserve_last_good_across_mixed_revisions(self):
+        self.shared.select_equities(self.master, [["TCS", "INFY"], [], [], [], []])
+        plan = plan_demand([["TCS", "INFY"], [], [], [], []])
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            10, {"TCS": {"price": 120, "revision": 10},
+                 "INFY": {"price": 200, "revision": 8}}), plan))
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            11, {"TCS": {"price": 99, "revision": 9},
+                 "INFY": {"price": 205, "revision": 11}}), plan))
+        result = self.shared.read(self.master, "quotes")
+        self.assertEqual(result["revision"], 11)
+        self.assertEqual(result["quotes"]["TCS"]["price"], 120.0)
+        self.assertEqual(result["quotes"]["TCS"]["revision"], 10)
+        self.assertEqual(result["quotes"]["INFY"]["price"], 205.0)
+        self.assertEqual(result["quotes"]["INFY"]["revision"], 11)
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            12, {"TCS": {"price": 1, "revision": 10},
+                 "INFY": {"price": 1, "revision": 11}}), plan))
+        self.assertEqual(self.shared.read(self.master, "quotes")["quotes"],
+                         result["quotes"])
+        with self.assertRaises(ContractError):
+            self.shared.publish_from_trusted_collector(snapshot(
+                13, {"TCS": {"price": 500, "revision": 13},
+                     "INFY": {"price": 100, "revision": 14}}), plan)
+        self.assertEqual(self.shared.read(self.master, "quotes")["revision"], 12)
+        src = Path(__file__).resolve().parents[1] / "android_app" / "src"
+        sys.path.insert(0, str(src))
+        from feed_inbox import DeviceFeedInbox
+        device = DeviceFeedInbox()
+        self.assertTrue(device.apply_feed("quotes", result, ("TCS", "INFY")))
+        self.assertEqual(device.visible("TCS", ("TCS", "INFY"))["revision"], 10)
+
     def test_shared_read_contract_is_accepted_by_actual_flet_inbox(self):
         """The same quote/index read payload must pass the Android-side schema."""
         src=Path(__file__).resolve().parents[1]/"android_app"/"src"
