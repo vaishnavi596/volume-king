@@ -366,6 +366,11 @@ def main(page: ft.Page):
                 value = "1m signals · " + " / ".join(v for _, v in context["rows"])
             elif kind == "coverage":
                 value = context["coverage_label"]
+            elif kind.startswith("scanner_"):
+                # Five existing evidence-gated rows only; never include sixth.
+                index = int(kind.split("_", 1)[1])
+                label, state_value = context["rows"][index]
+                value = f"{label}: {state_value}"
             else:
                 value = context["compact"]
             if control.value != value:
@@ -667,9 +672,12 @@ def main(page: ft.Page):
                     historical_indicator_panel(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)),
-                *[ft.Text(f"{label}: {value}") for label, value in
-                  filter_evidence.rows(scanner[0].symbol, scanner[0].timeframe,
-                                       selected_equities=state.selected)[:5]],
+                *[tracked_filter_text(
+                    scanner[0].symbol, scanner[0].timeframe,
+                    f"{label}: {value}", f"scanner_{i}")
+                    for i, (label, value) in enumerate(filter_evidence.rows(
+                        scanner[0].symbol, scanner[0].timeframe,
+                        selected_equities=state.selected)[:5])],
                 ft.Text("Sixth filter: reserved / blank"),
                 ft.Text("Assessment · News / Futures / Options / Candle", color=GOLD),
                 *[ft.Text(f"{factor}: {value}", color=MUTED, size=14)
@@ -678,10 +686,12 @@ def main(page: ft.Page):
                 ft.Text(assessment.label(
                     scanner[0].symbol, selected_equities=state.selected),
                     color=MUTED, size=13),
-                ft.Text(shared_filter_context(
+                tracked_filter_text(
+                    scanner[0].symbol, scanner[0].timeframe,
+                    shared_filter_context(
                     filter_evidence, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["coverage_label"],
-                    color=MUTED, size=14),
+                    "coverage", color=MUTED, size=14),
                 ft.Dropdown(
                     label="Option expiry (verified Dhan only)", width=260,
                     value=expiry_choices.selected(scanner[0].symbol,

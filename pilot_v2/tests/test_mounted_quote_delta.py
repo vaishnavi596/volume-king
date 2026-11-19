@@ -133,6 +133,21 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn("tracked_technical_summary(", self.source)
         self.assertIn("tracked_indicator_panel(", self.source)
 
+    def test_scanner_five_rows_share_mounted_filter_evidence_delta(self):
+        helper = next(n for n in ast.walk(self.tree)
+                      if isinstance(n, ast.FunctionDef)
+                      and n.name == "refresh_visible_filter_labels")
+        code = ast.get_source_segment(self.source, helper)
+        self.assertIn('kind.startswith("scanner_")', code)
+        self.assertIn('context["rows"][index]', code)
+        self.assertIn("control.update()", code)
+        self.assertNotIn("page.update()", code)
+        self.assertNotIn("render()", code)
+        self.assertIn('f"scanner_{i}"', self.source)
+        self.assertIn("selected_equities=state.selected)[:5])", self.source)
+        self.assertIn('tracked_filter_text(\n                    scanner[0].symbol, scanner[0].timeframe,', self.source)
+        self.assertIn("Sixth filter: reserved / blank", self.source)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)
