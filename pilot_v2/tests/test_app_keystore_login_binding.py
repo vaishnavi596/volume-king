@@ -1,5 +1,6 @@
 """Source-only Android Keystore public/sign callback boundary, no Android runtime."""
 import hashlib
+from threading import Event, Thread
 import sys
 import unittest
 from unittest.mock import patch
@@ -145,12 +146,13 @@ class KeystoreBindingTests(unittest.TestCase):
             slot.sign_in_with_keystore(binding, "http://v2.example.test")
         self.assertEqual(self.calls, [])
         self.assertIsNone(slot.reader)
-        with patch.object(slot, "sign_in", return_value=True) as approved_login:
+        with patch.object(slot, "_complete_sign_in", return_value=True) as approved_login:
             self.assertTrue(slot.sign_in_with_keystore(
                 binding, "https://v2.example.test"))
             approved_login.assert_called_once()
-            client = approved_login.call_args.args[0]
+            client, attempt = approved_login.call_args.args
             self.assertIsInstance(client, V2P256LoginHTTPSClient)
+            self.assertIsInstance(attempt, int)
         # Constructing a client never invokes Keystore signing or network.
         self.assertEqual(self.calls, [])
         self.assertIsNone(slot.reader)
@@ -164,7 +166,7 @@ class KeystoreBindingTests(unittest.TestCase):
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo)
         slot = DeviceReaderSlot()
-        with patch.object(slot, "sign_in") as login:
+        with patch.object(slot, "_complete_sign_in") as login:
             with self.assertRaises(FeedError) as error:
                 slot.sign_in_with_keystore(binding, "https://v2.example.test")
             login.assert_not_called()
@@ -186,6 +188,40 @@ class KeystoreBindingTests(unittest.TestCase):
             binding.login_client("https://v2.example.test")
         self.assertNotIn("secret native key alias", str(error.exception))
         self.assertEqual(self.calls, [])
+
+    def test_logout_during_native_preflight_cancels_before_any_auth_io(self):
+        entered = Event()
+        release = Event()
+        callbacks = [0]
+        def delayed_public():
+            callbacks[0] += 1
+            if callbacks[0] > 1:
+                entered.set()
+                if not release.wait(3):
+                    raise RuntimeError("test public export timed out")
+            return self.public
+        binding = AndroidKeystoreLoginBinding(MASTER, delayed_public, self.signer)
+        slot = DeviceReaderSlot()
+        errors = []
+        def pending_login():
+            try:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+            except FeedError as exc:
+                errors.append(str(exc))
+        worker = Thread(target=pending_login, daemon=True)
+        with patch.object(slot, "_complete_sign_in", wraps=slot._complete_sign_in) as complete:
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(3), "native preflight did not start")
+                slot.clear()  # Logout must supersede an in-progress key check.
+            finally:
+                release.set()
+                worker.join(3)
+            self.assertFalse(worker.is_alive())
+            complete.assert_called_once()
+        self.assertEqual(errors, ["Device sign-in was cancelled"])
+        self.assertEqual(self.calls, [])
+        self.assertIsNone(slot.reader)
 
     def test_login_client_enforces_approved_https_origin_before_network(self):
         binding = self.bind()
