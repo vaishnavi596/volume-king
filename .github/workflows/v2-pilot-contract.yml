@@ -1,4 +1,4 @@
-name: BOT KING V2 Pilot Contract Tests
+name: BOT KING V2 Unified Pipeline
 on:
   push:
     branches:
@@ -12,30 +12,34 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: botking-v2-pilot-${{ github.ref }}
+  group: botking-v2-unified-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  pilot-contract:
+  unified-v2:
     runs-on: ubuntu-22.04
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install pinned V2 offline test dependencies
+      - name: Install isolated V2 regression dependencies
         run: python -m pip install cryptography==44.0.3 fastapi==0.115.12 httpx==0.28.1
-      - name: One combined source security, compile and offline regression
+      - name: Compile and regression-test ALL V2 modules in one gate
         run: |
           python -m compileall -q pilot_v2
           python -m unittest discover -s pilot_v2/tests -p 'test_*.py' -q
-      - name: One-run migration gap report
-        if: always()
+      - name: Run unified V1 parity and V2 gap audit without touching V1
         run: python pilot_v2/tools/one_click_migration_gate.py
-      - name: Attach factual migration gap report
-        if: always()
+      - name: Build ONE V2-only source artifact (not a deployable server)
+        run: |
+          mkdir -p pilot_v2/dist
+          python pilot_v2/tools/build_server_bundle.py --output pilot_v2/dist/v2-source-only.zip
+      - name: Publish unified V2 audit and source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: v2-single-run-gap-report
-          path: pilot_v2/migration_report.md
-          if-no-files-found: warn
+          name: botking-v2-unified-source-audit
+          path: |
+            pilot_v2/migration_report.md
+            pilot_v2/dist/v2-source-only.zip
+          if-no-files-found: error
