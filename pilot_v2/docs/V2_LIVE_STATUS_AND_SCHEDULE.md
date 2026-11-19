@@ -1,4 +1,14 @@
 
+## COMPLETE 1m/3m/5m/15m/30m TIMEFRAME SEGMENT — 2026-11-19
+- Owner rule: finish all interconnected work in one segment, one combined commit and one CI, not isolated micro-fixes. Latest executable preflight CI #104 SUCCESS at `f6ad846b632c6470026b3eae4711620cbfe350f6`; reviewed prior 10 relevant commits and prior CI failure #103 resolved at #104.
+- All five timeframes are allowed by Scanner app selection/saved preference, candle cache, five-filter evidence cache, candle-trend and option-factor input gates, and shared filter-context view. Scanner dropdown includes 1m/3m/5m/15m/30m; 1m index and 3m Watchlist defaults remain unchanged. Sixth slot stays empty.
+- One shared `HistoricalThreeMinuteFallback` wrapper now supports historical view over 1m, 3m, 5m, 15m and 30m. Direct accepted candle history takes precedence; otherwise 3m uses the reviewed historical helper and 5/15/30 use only complete session-aligned 1m buckets with gaps/duplicates/unfinished buckets rejected. No Dhan fanout, simulated live, server writes or fabricated candles. Watchlist, Scanner and Super Five historical shortlist use this same adapter (Watchlist 3m).
+- Combined regression `test_complete_timeframe_segment.py` checks choice/persistence, all five completed history sizes, selected roster, missing/forming bars, preferred direct data, filter sixth blank and shared cross-screen wiring. Prior invalid saved 15m test updated to unsupported 45m. Migration gate options UI false-negative corrected to inspect the actual visible strike view.
+- This commit is **APP-SIDE LOCAL HISTORICAL TIMEFRAME SEGMENT**, not Dhan/Oracle live integration, finished V1 WebView parity, authenticated Master login, real option chain or signed V2 APK. New exact CI result must be verified; no V1/default branch/Oracle production/APK/orders changes.
+
+---
+
+
 ## SINGLE-RUN V2 DELTA MIGRATION GATE — 2026-11-19
 - Owner condensed repeated V2 migrations to **one GitHub CI action per combined candidate**: static read-only V1/V2 delta report + existing full offline regression in the same pilot CI job. No additional workflow dispatch is needed for reporting.
 - Replaced prior `one_click_migration_gate.py` hardcoded `False` acceptance rows with source-observed UI wiring and separately named PENDING external acceptance (no fake completion). Active `five_engine.py` is correctly treated as staged/quarantined, not falsely reported missing from active app source. AST checks reject known legacy imports and direct provider calls in active V2 Python. `--strict` remains fail-closed until real external gates are independently verified.

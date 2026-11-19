@@ -1,7 +1,7 @@
 """App-owned normalized candle cache; not a Dhan/Oracle network adapter."""
 from math import isfinite
 
-TIMEFRAMES = ("1m", "3m", "5m")
+TIMEFRAMES = ("1m", "3m", "5m", "15m", "30m")
 INDEXES = ("NIFTY", "BANKNIFTY", "SENSEX")
 BAR_FIELDS = {"timestamp", "open", "high", "low", "close", "volume", "completed"}
 

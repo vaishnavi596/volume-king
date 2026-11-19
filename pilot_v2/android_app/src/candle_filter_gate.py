@@ -17,7 +17,7 @@ def accept_candle_trend(candles, filters, symbol, timeframe, revision, evidence,
     """
     allowed = ("NIFTY", "BANKNIFTY", "SENSEX") + tuple(selected_equities)
     if (trusted_transport is not True or type(symbol) is not str
-            or symbol not in allowed or timeframe not in ("1m", "3m", "5m")):
+            or symbol not in allowed or timeframe not in ("1m", "3m", "5m", "15m", "30m")):
         raise FilterEvidenceError("Untrusted candle trend context")
     snapshot = candles.view(symbol, timeframe, selected_equities=selected_equities)
     if snapshot["status"] != "HIST" or not snapshot["bars"]:

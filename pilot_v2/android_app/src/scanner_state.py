@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 INDEXES = ("NIFTY", "BANKNIFTY", "SENSEX")
-TIMEFRAMES = ("1m", "3m", "5m")
+TIMEFRAMES = ("1m", "3m", "5m", "15m", "30m")
 
 class ScannerError(ValueError):
     pass

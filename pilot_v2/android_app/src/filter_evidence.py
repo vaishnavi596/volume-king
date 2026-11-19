@@ -33,7 +33,7 @@ class LocalFilterEvidence:
                allowed_symbols, trusted_transport=False):
         if (trusted_transport is not True
                 or type(symbol) is not str or symbol not in tuple(allowed_symbols)
-                or timeframe not in ("1m", "3m", "5m")
+                or timeframe not in ("1m", "3m", "5m", "15m", "30m")
                 or type(revision) is not int or revision < 0
                 or type(evidence) is not dict or set(evidence) != set(FILTER_KEYS)):
             raise FilterEvidenceError("Incomplete or untrusted five-filter snapshot")
@@ -62,7 +62,7 @@ class LocalFilterEvidence:
         """
         if (trusted_transport is not True or type(symbol) is not str
                 or symbol not in tuple(allowed_symbols)
-                or type(timeframe) is not str or timeframe not in ("1m", "3m", "5m")
+                or type(timeframe) is not str or timeframe not in ("1m", "3m", "5m", "15m", "30m")
                 or type(revision) is not int or revision < 0
                 or type(evidence) is not dict or not evidence
                 or not set(evidence).issubset(FILTER_KEYS)):

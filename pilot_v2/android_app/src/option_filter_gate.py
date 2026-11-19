@@ -20,7 +20,7 @@ def accept_option_factors(filters, options, expiries, symbol, timeframe,
     if (trusted_transport is not True or type(factors) is not dict
             or not factors or not set(factors).issubset(OPTION_FACTORS)
             or type(symbol) is not str or type(timeframe) is not str
-            or timeframe not in ("1m", "3m", "5m")
+            or timeframe not in ("1m", "3m", "5m", "15m", "30m")
             or type(revision) is not int or revision < 0):
         raise FilterEvidenceError("Untrusted or unsupported option factor update")
     selected = expiries.selected(symbol, selected_equities=selected_equities)

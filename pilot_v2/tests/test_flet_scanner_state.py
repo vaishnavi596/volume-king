@@ -43,7 +43,7 @@ class ScannerAppTests(unittest.TestCase):
         good=scanner.ScannerSelection().saved_state()
         samples=[None, {}, {"schema_version":True,"symbol":"NIFTY","timeframe":"1m"},
                  {"schema_version":1,"symbol":"RELIANCE","timeframe":"1m"},
-                 {"schema_version":1,"symbol":"NIFTY","timeframe":"15m"},
+                 {"schema_version":1,"symbol":"NIFTY","timeframe":"45m"},
                  dict(good,access_token="bad")]
         for bad in samples:
             with self.subTest(bad=repr(bad)),self.assertRaises(scanner.ScannerError):

@@ -10,7 +10,7 @@ from filter_evidence import FILTER_LABELS
 def shared_filter_context(filters, symbol, timeframe, *, selected_equities=()):
     selected = tuple(selected_equities)
     if (type(symbol) is not str or type(timeframe) is not str
-            or timeframe not in ("1m", "3m", "5m")
+            or timeframe not in ("1m", "3m", "5m", "15m", "30m")
             or len(selected) > MAX_EQUITIES or len(selected) != len(set(selected))
             or any(type(s) is not str or not s or s in INDEXES for s in selected)
             or symbol not in INDEXES + selected):

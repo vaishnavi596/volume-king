@@ -77,7 +77,7 @@ def audit():
         "3 independent dashboard indices": "index_card_model(" in source and "INDEXES" in source,
         "Scanner + Super Five shared historical chart": "scanner_history = HistoricalThreeMinuteFallback(" in source and "historical_shortlist(" in source,
         "Five source-gated filter slots and sixth blank": "filter_evidence.rows(" in source and "Sixth filter: reserved / blank" in source,
-        "Verified-expiry options UI presentation": "expiry_choices." in source and "option_strikes" in source,
+        "Verified-expiry options UI presentation": "expiry_choices." in source and "evidence_inbox.strikes.visible(" in source,
         "App-owned selected-demand manual request preview": "make_refresh_intent(" in source and "manual=True" in source,
         "PAPER preview / local five slots": "preview_manual_paper_risk(" in source and "LocalPaperPlanSlots" in source,
     }

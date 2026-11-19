@@ -313,7 +313,7 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(s, s) for s in selectable_symbols(state)],
                             on_change=select_scanner_symbol),
                 ft.Dropdown(label="Scanner timeframe", width=180, value=scanner[0].timeframe,
-                            options=[ft.dropdown.Option(tf, tf) for tf in ("1m", "3m", "5m")],
+                            options=[ft.dropdown.Option(tf, tf) for tf in ("1m", "3m", "5m", "15m", "30m")],
                             on_change=select_scanner_timeframe),
                 ft.Dropdown(label="Chart history bars", width=190,
                             value=str(chart_window[0]),
@@ -527,7 +527,7 @@ def main(page: ft.Page):
                     ]) for row in watchlist_rows(
                     filtered_watchlist_symbols(state.groups[group[0]], watch_search[0]),
                     quote_view, evidence_inbox,
-                    selected_equities=state.selected)],
+                    selected_equities=state.selected, history_view=scanner_history)],
             ]
         else:
             def choose_help(e):
