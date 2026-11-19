@@ -266,19 +266,19 @@ class KeystoreBindingTests(unittest.TestCase):
                     and node.name == "clear_local_device_session"]
         self.assertEqual(len(handlers), 1)
         handler = handlers[0]
-        unconditional_clear = [
+        unconditional_detach = [
             statement for statement in handler.body
-            if isinstance(statement, ast.Expr)
+            if isinstance(statement, ast.Assign)
             and isinstance(statement.value, ast.Call)
             and isinstance(statement.value.func, ast.Attribute)
-            and statement.value.func.attr == "clear"
+            and statement.value.func.attr == "detach_for_remote_sign_out"
             and isinstance(statement.value.func.value, ast.Name)
             and statement.value.func.value.id == "device_session_slot"]
-        self.assertEqual(len(unconditional_clear), 1)
+        self.assertEqual(len(unconditional_detach), 1)
         slot = DeviceReaderSlot()
         generation = slot._generation
         self.assertIsNone(slot.reader)
-        slot.clear()  # Explicitly cancels attempts even with no reader.
+        self.assertIsNone(slot.detach_for_remote_sign_out())
         self.assertEqual(slot._generation, generation + 1)
 
     def test_manual_read_status_never_claims_complete_after_session_clear(self):
