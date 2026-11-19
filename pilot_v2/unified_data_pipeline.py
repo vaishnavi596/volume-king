@@ -63,7 +63,7 @@ class V2UnifiedReadPipeline:
             if type(now) not in (int, float) or not 0 <= now < float("inf"):
                 raise PipelineUnavailable("Invalid cache clock")
             cached = self._cache.get(feed)
-            if cached and 0 <= now - cached[0] < CACHE_SECONDS[feed]:
+            if not manual and cached and 0 <= now - cached[0] < CACHE_SECONDS[feed]:
                 return validate_snapshot(cached[1])
             try:
                 snapshot = validate_snapshot(self._port(device_id, feed))
