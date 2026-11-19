@@ -14,6 +14,7 @@ import time
 from .atomic_verified_login import AtomicVerifiedLogin
 from .durable_challenges import DurableP256ChallengeVerifier
 from .durable_device_sessions import DurableDeviceSessions
+from .durable_device_keys import DurableDeviceKeys
 from .internal_dhan_read_port import InternalDhanReadPort
 from .oracle_dhan_read_transport import OracleDhanReadTransport
 from .shared_read_budget import SharedReadBudget
@@ -52,8 +53,9 @@ def create_oracle_v2_runtime(*, db_path, master_device_id, master_public_der,
             (master_device_id,)).fetchone()
     if approved != (1, 1):
         raise ValueError("Master must be independently enrolled and enabled")
+    keys = DurableDeviceKeys(sessions)
     verifier = DurableP256ChallengeVerifier(path, {master_device_id: master_public_der},
-                                              trusted_key_resolver=sessions.resolve_public_key)
+                                              trusted_key_resolver=keys.public_key)
     login = AtomicVerifiedLogin(verifier, sessions)
     mono = monotonic or time.monotonic
     provider = transport if transport is not None else OracleDhanReadTransport(
