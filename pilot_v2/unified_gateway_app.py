@@ -31,6 +31,7 @@ def create_v2_unified_app(*, verified_login, data_pipeline, private_backup_vault
     app = create_trusted_app(
         login=verified_login,
         snapshot_provider=lambda device, feed: data_pipeline.dispatch(device, feed),
+        manual_snapshot_provider=lambda device, feed: data_pipeline.dispatch(device, feed, manual=True),
     )
     if private_backup_vault is not None:
         # Disabled by default; mount only a vault bound to THIS signed login.
