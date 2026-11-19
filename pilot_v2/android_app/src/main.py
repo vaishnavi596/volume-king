@@ -33,6 +33,7 @@ from local_paper_ledger import ManualPaperLedger, PaperLedgerError
 from local_notices import LocalNoticeCenter
 from app_data_readiness import joint_data_readiness, data_readiness_label
 from app_connection_status import local_connection_state
+from app_device_reader_slot import DeviceReaderSlot
 from local_assessment_evidence import LocalAssessmentEvidence
 
 def main(page: ft.Page):
@@ -235,7 +236,7 @@ def main(page: ft.Page):
     filter_labels = {}  # Existing evidence-gated visible factors only.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
-    device_session_reader = [None]  # No real verified sign-in/transport attached.
+    device_session_slot = DeviceReaderSlot()  # No Keystore sign-in wired yet.
     rich_preview_enabled = [False]  # Explicit session-only opt-in, never the default.
     rich_preview_view = [None]
     rich_preview_html = [None]
@@ -483,7 +484,7 @@ def main(page: ft.Page):
         """
         if type(feed) is not str or feed not in ("quotes", "indices"):
             raise FeedError("Unsupported read-only feed")
-        reader = device_session_reader[0]
+        reader = device_session_slot.reader
         if reader is None:
             return ()
         try:
@@ -522,10 +523,9 @@ def main(page: ft.Page):
 
     def clear_local_device_session(e):
         """Local credential disposal only, NOT remote revocation or logout."""
-        reader = device_session_reader[0]
+        reader = device_session_slot.reader
         if reader is not None:
-            reader.invalidate()
-            device_session_reader[0] = None
+            device_session_slot.clear()
             status.value = "Local V2 device session cleared · server revocation not sent"
         else:
             status.value = "No local V2 device session to clear"
@@ -1143,7 +1143,7 @@ def main(page: ft.Page):
                 ft.Text(data_readiness_label(readiness), color=MUTED, size=14),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
-                ft.Text(local_connection_state(device_session_reader[0])["label"],
+                ft.Text(local_connection_state(device_session_slot.reader)["label"],
                         color=MUTED, size=14),
                 ft.TextButton("Clear local device session (no server revoke)",
                               on_click=clear_local_device_session),

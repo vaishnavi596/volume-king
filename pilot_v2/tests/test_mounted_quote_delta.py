@@ -17,7 +17,7 @@ class MountedQuoteDeltaTests(unittest.TestCase):
                         if isinstance(n, ast.FunctionDef)
                         and n.name == "apply_data_only_quote_snapshot")
         source = ast.get_source_segment(self.source, callback)
-        self.assertIn("device_session_reader[0]", source)
+        self.assertIn("device_session_slot.reader", source)
         self.assertIn("reader.refresh(", source)
         self.assertIn('if reader is None:', source)
         self.assertIn('except FeedError:', source)

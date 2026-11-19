@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(SRC))
 from app_p256_login import V2P256LoginHTTPSClient
+from app_device_reader_slot import DeviceReaderSlot
 from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
 from pilot_v2.auth_http import create_pilot_auth_app
 from pilot_v2.atomic_verified_login import AtomicVerifiedLogin
@@ -111,6 +112,38 @@ class P256AndroidLoginContractTests(unittest.TestCase):
                 ValueError("my-private-key-name"))).login()
         self.assertNotIn("my-private-key-name", str(err.exception))
         self.assertNotIn("device_bearer", str(err.exception))
+
+    def test_single_reader_slot_rotates_only_after_real_signed_login(self):
+        slot = DeviceReaderSlot()
+        with self.assertRaises(FeedError):
+            slot.active_reader()
+        with self.assertRaises(FeedError):
+            slot.sign_in("untrusted-bearer")
+        self.assertEqual(self.bridge.calls, [])
+        self.assertTrue(slot.sign_in(self.make_login()))
+        first = slot.active_reader()
+        self.assertTrue(first.session_active)
+        self.assertTrue(slot.sign_in(self.make_login()))
+        self.assertFalse(first.session_active)
+        self.assertTrue(slot.active_reader().session_active)
+        slot.clear()
+        self.assertIsNone(slot.reader)
+        with self.assertRaises(FeedError):
+            slot.active_reader()
+
+    def test_bad_signed_relogin_invalidates_old_reader_atomically(self):
+        slot = DeviceReaderSlot()
+        slot.sign_in(self.make_login())
+        first = slot.active_reader()
+        wrong_key = ec.generate_private_key(ec.SECP256R1())
+        def bad_signer(message):
+            return wrong_key.sign(message, ec.ECDSA(hashes.SHA256()))
+        with self.assertRaises(FeedError):
+            slot.sign_in(self.make_login(bad_signer))
+        self.assertFalse(first.session_active)
+        self.assertIsNone(slot.reader)
+        with self.assertRaises(FeedError):
+            slot.active_reader()
 
     def test_invalid_origin_device_and_signer_fail_before_any_http(self):
         for origin in ("http://v2.example.test", "https://user@v2.example.test"):
