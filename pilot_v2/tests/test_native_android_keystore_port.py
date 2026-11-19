@@ -150,6 +150,19 @@ class NativeKeystoreContractTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             binding.sign_login_challenge(msg)
 
+    def test_flet_025_native_dependency_pinned_but_not_runtime_proof(self):
+        import tomllib
+        config = tomllib.loads(
+            (SRC.parent / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(config["project"]["dependencies"],
+                         ["flet==0.25.2", "pyjnius==1.6.1"])
+        # Neither a Python wheel pin nor mock Java tests authorize an APK,
+        # Android Keystore attestation or automatic signed-in status.
+        source = (SRC / "app_native_keystore.py").read_text(encoding="utf-8")
+        self.assertIn("from jnius import autoclass", source)
+        self.assertIn("Android Keystore native runtime not installed", source)
+        self.assertNotIn("import jnius\n", (SRC / "main.py").read_text())
+
     def test_flet_settings_actions_are_real_but_no_automatic_login(self):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
