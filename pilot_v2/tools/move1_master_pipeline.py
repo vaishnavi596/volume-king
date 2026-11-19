@@ -89,7 +89,22 @@ def run_move1(commit, home=None, archive=None):
     routes = route_decorators(gateway.read_text(encoding="utf-8"))
     if not REQUIRED_ROUTES.issubset(routes):
         raise ValueError("V2 route shape incomplete")
-    # This is only AST evidence. Actual ASGI/runtime must be independently tested.
+    # Import the isolated factory when FastAPI exists; no port or service is started.
+    asgi_routes = None
+    try:
+        spec = importlib.util.spec_from_file_location("botking_v2_staged_shell", gateway)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        app = module.create_app()
+        asgi_routes = all(
+            any(path == route.path and method in route.methods
+                for route in app.routes if hasattr(route, "methods"))
+            for method, path in REQUIRED_ROUTES
+        )
+    except ImportError:
+        pass  # Missing dependency means runtime remains NOT VERIFIED.
+    if asgi_routes is False:
+        raise ValueError("Runtime V2 route registration mismatch")
     after_sha = source_digest(V1_SOURCE)
     after_health = localhost_health()
     result = {
@@ -102,7 +117,7 @@ def run_move1(commit, home=None, archive=None):
         "v1_sha_unchanged": before_sha == after_sha and before_sha is not None,
         "v1_health_before": before_health,
         "v1_health_after": after_health,
-        "v2_http_runtime_verified": False,
+        "v2_asgi_routes_registered": asgi_routes,\n        "v2_http_runtime_verified": False,
         "v2_trusted_auth_verified": False,
         "v2_dhan_verified": False,
         "activated": False,
