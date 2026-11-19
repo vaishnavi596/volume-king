@@ -160,7 +160,24 @@ def main(page: ft.Page):
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
-    def preview_manual_refresh(e):        """Prepare request intent only; NEVER fetch or redraw remotely."""        try:            intent = make_refresh_intent(                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),                manual=True, confirmed_session=False)            manual_refresh_plan[0] = (                f"Manual plan · {len(intent.equities)} selected equities"                f" · {len(intent.indexes)} indexes · Dhan gateway NOT connected"                " · zero network requests sent")            status.value = "Manual data request PLAN only; no refresh performed"        except (SmartDataError, ValueError, TypeError):            manual_refresh_plan[0] = "Manual refresh plan unavailable"            status.value = "Unable to plan manual data request"        render()        page.update()    def render():
+    def preview_manual_refresh(e):
+        """Prepare request intent only; NEVER fetch or redraw remotely."""
+        try:
+            intent = make_refresh_intent(
+                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
+                manual=True, confirmed_session=False)
+            manual_refresh_plan[0] = (
+                f"Manual plan · {len(intent.equities)} selected equities"
+                f" · {len(intent.indexes)} indexes · Dhan gateway NOT connected"
+                " · zero network requests sent")
+            status.value = "Manual data request PLAN only; no refresh performed"
+        except (SmartDataError, ValueError, TypeError):
+            manual_refresh_plan[0] = "Manual refresh plan unavailable"
+            status.value = "Unable to plan manual data request"
+        render()
+        page.update()
+
+    def render():
         if analysis_slots[0].reconcile(state):
             save_analysis()
         if current[0] == 0:
