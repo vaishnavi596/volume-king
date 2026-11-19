@@ -1,3 +1,20 @@
+## Owner final execution compression — EXACTLY FOUR BATCHES / FOUR MAJOR MOVES
+
+**Plan lock:** Group all 10 items A1–D2 under the following four deliverable moves; do not interpret a move as a single commit or skip security acceptance. A move is complete only when its exit gate passes. If a gate fails, fix within that SAME move/batch, not a new fifth batch. No repeat of previously green stage/SSH audits.
+
+| Move | Locked deliverable | Covers | Mandatory exit gate |
+|---|---|---|---|
+| **1 — Joint implementation** | One coherent GitHub source patch set: compatible V2 read-only Dhan index + selected-equity batch contract, independently reviewed 3 index mappings, bounded 70-equity budget/cache, real Android Flet 0.25.2 ↔ Keystore bridge (no fake keys), hardened isolated Oracle HTTPS/systemd deployment and rollback | A2, B1, C1, C2, D1 source | Combined code review + relevant consolidated offline regression green for the exact SHA; absence of guesswork and secrets |
+| **2 — Real-owner provisioning** | On physical Master phone export only actual Keystore P-256 public SPKI and independently verify fingerprint; owner-enroll exact key into private Oracle SQLite, provision Oracle-only Dhan pairing and genuine token/entitlement; review TLS and V2 environment backed up safely | B2, C3, D1 production prerequisites | Hardware public-key provenance verified, private material never logged, required server files 0600/0700, actual Dhan access verified without false prices |
+| **3 — One-click V2 gateway activation** | One approved GitHub Unified `activate_v2` operation: guarded systemd 8001, narrow TLS /v2-pilot/ route, negative authorization, orders 404, V1 unchanged, rollback on failed gates | A1 preserve, A2, D1 | Exact owner-run GitHub logs prove safe V2 service + HTTPS, healthy V1 and rollback readiness. GitHub→Oracle command and results already proven; no separate control-plane rework |
+| **4 — Physical end-to-end acceptance + close** | Master + up to three Delegates real P-256 signed login/revoke, actual Dhan → Oracle → handset index/equity snapshots, timestamp/cooldown/offline handling, Watchlist/Scanner/Super Five/candle/options/five-filter parity audit; record results, residual feature gaps, rollback and closure | B3, C3, D2 plus all remaining feature acceptance | Mark **FULL LIVE/CLOSED** only if every requested live feature genuinely works; otherwise explicitly **PARTIAL/OPEN**, repair inside this same move. Separate signed APK approval/physical install gate cannot be silently assumed |
+
+**Reality constraint:** Four major moves is the management plan, not a guarantee of four clicks/commits or same-day fully live. Physical Keystore, Dhan entitlement/session, approved real index IDs, Oracle permissions and production TLS are external facts; no invented values or bypasses. One move may require multiple commands/tests if a true failure appears. Do not fabricate completion or self-enroll dummy Master.
+
+**Operator instructions:** Execute as much review/source/test work as possible without waiting for an `ok`; when external owner approval or physical phone material is required, present ONE consolidated checklist/command. Log decisions and exact evidence in V2 Master Journal, Work Log and Handoff. Every newly discovered defect maps into one of these four moves and existing A1–D2 register; no new standalone mini-batch.
+
+---
+
 # BOT KING V2 — FT-2 Login + Two-Way Connectivity Batch Lock (2026-11-19)
 
 **Status:** SCOPE LOCKED / IMPLEMENTATION AND REAL-LIVE ACCEPTANCE OPEN. This is the single authoritative execution matrix for closing the owner-requested GitHub ↔ Oracle maintenance plane and Dhan → Oracle ↔ Android V2 secure data plane. Do not create new micro-batches or rerun passed staging. This document supersedes earlier scattered "next run stage/preflight" directions; it does **not** claim that the user has a live app.
