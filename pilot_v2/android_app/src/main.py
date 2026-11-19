@@ -21,6 +21,7 @@ from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
 from local_settings_backup import export_local_backup, parse_local_backup, LocalBackupError
 from paper_preview import preview_manual_paper_risk
 from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
+from local_notices import LocalNoticeCenter
 
 def main(page: ft.Page):
     page.title = "BOT KING Version 2"
@@ -136,6 +137,7 @@ def main(page: ft.Page):
                     "capital": "10000", "max_risk": "1000", "risk_pct": "5"}
     paper_result = ["Manual paper-only calculation; no orders or market data"]
     paper_last_preview = [None]  # Only manual preview; no paper position or order.
+    notices = LocalNoticeCenter()  # Session-only app events, never signal alerts.
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -443,6 +445,7 @@ def main(page: ft.Page):
                     state.add(group[0], (symbol.value or "").strip().upper())
                     status.value = ("Saved on this device; server not contacted" if save_local() else "Selection changed for this session; local save unavailable")
                     symbol.value = ""
+                    notices.record("WATCHLIST_ADDED")
                 except SelectionError as exc:
                     status.value = str(exc)
                 render()
@@ -451,6 +454,7 @@ def main(page: ft.Page):
                 state.remove(group[0], item)
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
+                notices.record("WATCHLIST_REMOVED")
                 status.value = ("Removed from device storage" if save_local() else "Removed for this session; local save unavailable")
                 render()
                 page.update()
@@ -577,6 +581,7 @@ def main(page: ft.Page):
                     if paper_last_preview[0] is None:
                         raise PaperSlotError("Calculate a fresh manual preview first")
                     paper_slots[0].save_preview(paper_last_preview[0])
+                    notices.record("PAPER_PLAN_SAVED")
                     status.value = ("Manual PAPER preview saved on device"
                                     if save_paper_plans() else
                                     "Paper preview saved for session only")
@@ -587,6 +592,7 @@ def main(page: ft.Page):
             def clear_paper_slot(e):
                 paper_slots[0].clear()
                 paper_last_preview[0] = None
+                notices.record("PAPER_PLAN_CLEARED")
                 status.value = ("Paper preview cleared locally"
                                 if save_paper_plans() else
                                 "Paper preview cleared for session only")
@@ -628,6 +634,7 @@ def main(page: ft.Page):
                 backup_text[0] = ""
                 saved = all((save_local(), save_scanner(),
                              save_smart(), save_analysis()))
+                notices.record("LOCAL_PREFS_RESTORED")
                 status.value = ("Local preferences restored on device" if saved
                                 else "Restored for session; some device saves failed")
                 render()
@@ -703,6 +710,23 @@ def main(page: ft.Page):
                 ], wrap=True),
                 ft.Text("No BUY/SELL/EXIT, no broker, no automatic paper bot",
                         size=14, color=MUTED),
+                ft.Text("Local notices · session only", color=GOLD,
+                        weight=ft.FontWeight.BOLD),
+                ft.Text(f"{notices.unread} unread local events · not market alerts",
+                        color=MUTED, size=14),
+                *[ft.Text(("NEW · " if unread else "READ · ") + label,
+                          color=MUTED, size=14)
+                  for label, unread in notices.visible()],
+                ft.Row([
+                    ft.TextButton("Mark local notices read",
+                                  on_click=lambda e: (
+                                      notices.mark_read(), render(), page.update())),
+                    ft.TextButton("Clear local notices",
+                                  on_click=lambda e: (
+                                      notices.clear(), render(), page.update())),
+                ], wrap=True),
+                ft.Text("Price alerts and push notifications not connected",
+                        color=MUTED, size=14),
                 ft.Text("System Health / Error Doctor", color=GOLD, weight=ft.FontWeight.BOLD),
                 ft.Text("OFFLINE / provider not connected", color=MUTED),
                 ft.Text("Error Doctor: " + " · ".join(diagnose(storage_error or smart_error or "unavailable")[:2]), color=MUTED),
