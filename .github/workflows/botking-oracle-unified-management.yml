@@ -312,23 +312,32 @@ jobs:
           cd "$ROOT"
           "$ROOT/.venv/bin/python" -m pilot_v2.tools.v2_activation_gate --private-env-file "$PRIVATE"
           echo "V2_REAL_MASTER_AND_PAIRING=APPROVED_BY_LOCAL_GATE"
-          # Do not activate a V2 gateway whose requested internal Dhan routes
-          # cannot be served by the running V1 contract. GET OpenAPI is local-only,
-          # no user key or Dhan token is sent.
-          if ! curl -fsS --max-time 8 http://127.0.0.1:8000/openapi.json | python3 -c '
-          import json,sys
+          # The legacy V1 backend explicitly disables /openapi.json.
+          # Inspect the deployed, read-only FastAPI source AST, never import it
+          # or trigger a Dhan request just to discover route declarations.
+          if ! python3 - /opt/bot-king-server/server.py <<'PY'
+          import ast, sys
           try:
-              api=json.load(sys.stdin)
-              paths=api.get("paths",{})
-              required=("/dhan/index-ltp-batch", "/dhan/selected-ltp-batch")
-              if not all("post" in paths.get(path,{}) for path in required):
-                  sys.exit(1)
-          except (ValueError,TypeError,AttributeError):
+              with open(sys.argv[1], encoding="utf-8") as f:
+                  tree=ast.parse(f.read())
+              routes=set()
+              for node in ast.walk(tree):
+                  if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)): continue
+                  for dec in node.decorator_list:
+                      if not isinstance(dec, ast.Call) or not isinstance(dec.func, ast.Attribute): continue
+                      owner=dec.func.value
+                      if not isinstance(owner, ast.Name) or owner.id!="app" or dec.func.attr!="post": continue
+                      if dec.args and isinstance(dec.args[0], ast.Constant) and isinstance(dec.args[0].value,str):
+                          routes.add(dec.args[0].value)
+              required={"/dhan/index-ltp-batch", "/dhan/selected-ltp-batch"}
+              if not required.issubset(routes): sys.exit(1)
+          except (OSError, SyntaxError, UnicodeError, TypeError):
               sys.exit(1)
-          '; then
+          PY
+          then
             echo "V2_ACTIVATION=BLOCKED_UPSTREAM_DHAN_BATCH_CONTRACT_MISSING"; exit 1
           fi
-          echo "V2_REQUIRED_DHAN_BATCH_ENDPOINTS=VERIFIED"
+          echo "V2_REQUIRED_DHAN_BATCH_ROUTE_DECLARATIONS=VERIFIED_SOURCE_ONLY"
           # Never assume a new HTTPS location is safe to inject into the existing V1 virtual host.
           sudo -n nginx -t >/dev/null 2>&1
           # Static string presence is not proof of the correct proxy target.
