@@ -242,6 +242,20 @@ class KeystoreBindingTests(unittest.TestCase):
         slot.clear()  # Explicitly cancels attempts even with no reader.
         self.assertEqual(slot._generation, generation + 1)
 
+    def test_manual_read_status_never_claims_complete_after_session_clear(self):
+        source = (SRC / "main.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        handlers = [node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "manual_verified_data_refresh"]
+        self.assertEqual(len(handlers), 1)
+        body = ast.get_source_segment(source, handlers[0])
+        equities = body.index('equity_changed = (apply_data_only_quote_snapshot("quotes")')
+        gate = body.index("if device_session_slot.reader is not reader or not reader.session_active:")
+        completion = body.index("partial = index_changed is None or equity_changed is None")
+        self.assertLess(equities, gate)
+        self.assertLess(gate, completion)
+
     def test_logout_during_native_preflight_cancels_before_any_auth_io(self):
         entered = Event()
         release = Event()
