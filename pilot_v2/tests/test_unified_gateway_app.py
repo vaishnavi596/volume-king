@@ -132,6 +132,31 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
         self.assertEqual(client.get("/v2-pilot/private-backup",
                                     headers=headers).status_code, 403)
 
+    def test_production_health_never_claims_market_live(self):
+        result = self.client.get("/v2-pilot/health")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.headers.get("cache-control"), "no-store")
+        self.assertFalse(result.json()["live_data_verified"])
+        self.assertFalse(result.json()["live_orders_enabled"])
+        self.assertEqual(self.calls, [])
+
+    def test_signed_manual_read_uses_same_trusted_pipeline(self):
+        self.assertEqual(self.client.post("/v2-pilot/manual/indices").status_code, 401)
+        self.assertEqual(self.calls, [])
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        self.assertEqual(self.client.get("/v2-pilot/quotes", headers=headers).status_code, 200)
+        self.assertEqual(self.client.post("/v2-pilot/manual/quotes", headers=headers).status_code, 200)
+        self.assertEqual(self.calls, [("quotes", ("RELIANCE",)), ("quotes", ("RELIANCE",))])
+        self.assertEqual(self.client.post("/v2-pilot/manual/orders", headers=headers).status_code, 404)
+
+    def test_server_logout_revokes_bearer_without_provider_read(self):
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        self.assertEqual(self.client.post("/v2-pilot/auth/logout", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/v2-pilot/quotes", headers=headers).status_code, 403)
+        self.assertEqual(self.calls, [])
+
     def test_factory_fail_closed(self):
         with self.assertRaises(ValueError):
             create_v2_unified_app(verified_login=None, data_pipeline=self.pipeline)
