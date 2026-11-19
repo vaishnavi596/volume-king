@@ -9,7 +9,7 @@
 
 # BOT KING V2 — App-side Exit and External Acceptance Gates
 
-**Latest source-only baseline:** [CI #191](https://github.com/vaishnavi596/volume-king/actions/runs/44466358494), commit `1dcb348653a2065b6a30ed18d623c4342f030948`, **413/413 offline tests PASS**, zero source security findings, source UI wiring 9/9. This is NOT a completed Android build or live integration.
+**Latest source-only baseline:** [CI #199](https://github.com/vaishnavi596/volume-king/actions/runs/44468157045), commit `059ae9ae729603e10ab1d9599be36e5b34f947f7`, **421/421 offline tests PASS**, zero source security findings, source UI wiring 9/9. Android/Oracle runtime remains unverified.
 
 ## App-side source validated
 - Five migrated V1 UI controls: Scanner show/hide, chart style, timeframe, expiry selection, native historical chart.

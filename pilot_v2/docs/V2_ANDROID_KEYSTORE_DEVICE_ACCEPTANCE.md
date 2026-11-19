@@ -1,6 +1,6 @@
 # BOT KING V2 — Android Keystore and Device Acceptance Gates
 
-**Active:** `pilot/botking-v2-smart-gateway-20261118` · **verified source CI:** [#191, 413/413 PASS](https://github.com/vaishnavi596/volume-king/actions/runs/44466358494). **Status: source-only; NO deployed Oracle V2 gateway, live Dhan proof, or signed/installed V2 APK.**
+**Active:** `pilot/botking-v2-smart-gateway-20261118` · **verified source CI:** [#199, 421/421 PASS](https://github.com/vaishnavi596/volume-king/actions/runs/44468157045). **Status: source-only; NO deployed Oracle V2 gateway, live Dhan proof, or signed/installed V2 APK.**
 
 ## One source of truth
 - `app_p256_signature.py`: canonical DER P-256 `r/s` format only
@@ -23,3 +23,9 @@
 Any missing native API, key unavailable, invalid signature, wrong scope, denied session, blank WebView, missing provider, or malformed snapshot: **FAIL CLOSED**, retain last-good HIST where applicable, never claim LIVE, no automatic retry/fetching or trading orders. Do not treat 413 offline test passes as evidence of completed physical gates.
 
 **Standing rule:** Stay V2-only, leave old V1 and its journal untouched, do not expose keys or tokens, no Yahoo/Angel fallback, and combine related code/tests/journal in one coherent CI batch.
+
+
+## Updated verified source coverage (#199)
+- Four-device policy (Master + 3 Delegates) now has cross-device shared cache tests: one 70-equity global union, isolated quote visibility/3 indexes, atomic 71st rejection, disable and fresh reselection. These are synthetic sessions only.
+- Read-only HTTPS direct-entry selected-roster checks preclude unnecessary requests; local session rotation and in-flight logout prevent old data acceptance; rate-limited 429 respects bounded Retry-After 30–300s without login invalidation. Exact source CI 421/421 PASS.
+- **Still unverified physically:** native nonexportable Android Keystore keys, OS/plugin integration, owner enrollment, revocation after real signed login, real trusted Dhan/Oracle session and signed V2 APK installation. No production approval inferred.
