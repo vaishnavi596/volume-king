@@ -158,6 +158,26 @@ class SharedQuoteGatewayTests(unittest.TestCase):
         self.assertTrue(device.apply_feed("quotes", result, ("TCS", "INFY")))
         self.assertEqual(device.visible("TCS", ("TCS", "INFY"))["revision"], 10)
 
+    def test_symbol_revision_provenance_cannot_downgrade_to_numeric(self):
+        self.shared.select_equities(self.master, [["TCS", "INFY"], [], [], [], []])
+        plan = plan_demand([["TCS", "INFY"], [], [], [], []])
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            5, {"TCS": {"price": 100, "revision": 5}, "INFY": 200}), plan))
+        before = self.shared.read(self.master, "quotes")
+        with self.assertRaisesRegex(ContractError, "revision downgrade"):
+            self.shared.publish_from_trusted_collector(snapshot(
+                6, {"TCS": 1, "INFY": 210}), plan)
+        self.assertEqual(self.shared.read(self.master, "quotes"), before)
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            6, {"TCS": {"price": 110, "revision": 6}, "INFY": 210}), plan))
+        latest = self.shared.read(self.master, "quotes")
+        self.assertEqual(latest["quotes"]["TCS"]["price"], 110.0)
+        self.assertEqual(latest["quotes"]["INFY"]["price"], 210.0)
+        with self.assertRaises(ContractError):
+            self.shared.publish_from_trusted_collector(snapshot(
+                7, {"TCS": {"price": 111, "revision": True}}), plan)
+        self.assertEqual(self.shared.read(self.master, "quotes"), latest)
+
     def test_shared_read_contract_is_accepted_by_actual_flet_inbox(self):
         """The same quote/index read payload must pass the Android-side schema."""
         src=Path(__file__).resolve().parents[1]/"android_app"/"src"

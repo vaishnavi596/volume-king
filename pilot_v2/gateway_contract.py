@@ -38,6 +38,7 @@ class RevisionCache:
     """Last-good read-only cache; never manufactures verified live timestamps."""
     revision: int = -1
     rows: dict = field(default_factory=dict)
+    _evidenced_symbols: set = field(default_factory=set, repr=False)
 
     def update(self, payload, demand):
         if type(payload) is not dict or not isinstance(demand, Demand):
@@ -52,6 +53,7 @@ class RevisionCache:
             raise ContractError("Untrusted gateway snapshot")
         expected = set(demand.equities + demand.indices)
         fresh = {}
+        newly_evidenced = set()
         for key, val in quotes.items():
             if key not in expected or not symbol_ok(key):
                 raise ContractError("Invalid quote in snapshot")
@@ -63,7 +65,12 @@ class RevisionCache:
                         not 0 <= val["revision"] <= rev):
                     raise ContractError("Invalid symbol revision evidence")
                 price, symbol_rev = val["price"], val["revision"]
+                newly_evidenced.add(key)
             else:
+                # Once this symbol carries a distinct source revision, do not
+                # silently downgrade it to ambiguous numeric-only evidence.
+                if key in self._evidenced_symbols:
+                    raise ContractError("Collector symbol revision downgrade")
                 # Legacy offline numeric fixture; NOT reliable age evidence.
                 price, symbol_rev = val, rev
             if (type(price) not in (int, float) or
@@ -77,6 +84,7 @@ class RevisionCache:
             previous = self.rows.get(key)
             if previous is None or row["revision"] > previous["revision"]:
                 self.rows[key] = row
+        self._evidenced_symbols.update(newly_evidenced)
         self.revision = rev
         return True
 
