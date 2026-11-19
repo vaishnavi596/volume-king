@@ -110,6 +110,24 @@ class SignedEvidenceDeliveryTests(unittest.TestCase):
                 read_signed_evidence_batch(reader, inbox, selected_equities=())
             stage.assert_not_called()
 
+    def test_scanner_option_and_expiry_controls_refresh_without_page_render(self):
+        source = (SRC / "main.py").read_text(encoding="utf-8")
+        ast.parse(source)
+        # The same verified event batch updates existing mounted UI refs,
+        # preserving the user's Scanner selection and scroll position.
+        self.assertIn("option_summary_labels = {}", source)
+        self.assertIn("expiry_dropdowns = {}", source)
+        self.assertIn("tracked_expiry_dropdown(scanner[0].symbol, ft.Dropdown(", source)
+        self.assertIn("tracked_option_summary(scanner[0].symbol, option_evidence.summary(", source)
+        self.assertIn("refresh_visible_option_labels(symbol)", source)
+        start = source.index("def manual_verified_evidence_refresh(")
+        end = source.index("def clear_local_device_session(", start)
+        callback = source[start:end]
+        self.assertIn("refresh_visible_option_labels(symbol)", callback)
+        self.assertNotIn("render()", callback)
+        self.assertIn("control.options = new_options", source)
+        self.assertIn("control.disabled = not bool(available)", source)
+
     def test_only_real_signed_reader_and_explicit_flet_action(self):
         with self.assertRaises(FeedError):
             read_signed_evidence_batch(object(), DeviceEvidenceInbox(),
