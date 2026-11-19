@@ -17,7 +17,12 @@ class MountedQuoteDeltaTests(unittest.TestCase):
                         if isinstance(n, ast.FunctionDef)
                         and n.name == "apply_data_only_quote_snapshot")
         source = ast.get_source_segment(self.source, callback)
-        self.assertIn("quote_view.apply_feed(", source)
+        self.assertIn("device_session_reader[0]", source)
+        self.assertIn("reader.refresh(", source)
+        self.assertIn('if reader is None:', source)
+        self.assertIn('except FeedError:', source)
+        self.assertNotIn("quote_view.apply_feed(", source)
+        self.assertNotIn("payload", source.split("changed = quote_view.changed_for(feed)")[0].split("def apply_data_only_quote_snapshot(feed):")[1].split('"""')[-1])
         self.assertIn("quote_view.changed_for(", source)
         self.assertIn("control.update()", source)
         self.assertNotIn("render()", source)
@@ -26,6 +31,19 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertNotIn("ft.Column(", source)
         self.assertNotIn("ft.NavigationBar(", source)
         self.assertNotIn("http", source.lower())
+
+    def test_quote_ui_does_not_accept_arbitrary_payload_without_https_reader(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "apply_data_only_quote_snapshot")
+        self.assertEqual([arg.arg for arg in callback.args.args], ["feed"])
+        fragment = ast.get_source_segment(self.source, callback)
+        self.assertIn("selected_equities=state.selected if feed == \"quotes\" else ()", fragment)
+        self.assertIn("reader.refresh(", fragment)
+        self.assertNotIn("authenticated_session=True", fragment)
+        self.assertNotIn("quote_view.apply_feed(", fragment)
+        self.assertNotIn("render()", fragment)
+        self.assertNotIn("page.update()", fragment)
 
     def test_visible_labels_registered_on_dashboard_scanner_watchlist(self):
         text = self.source

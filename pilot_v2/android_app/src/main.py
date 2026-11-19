@@ -7,7 +7,7 @@ from app_state import LocalWatchlists, SelectionError
 from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
 from refresh_intent import make_refresh_intent
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
-from feed_inbox import DeviceFeedInbox
+from feed_inbox import DeviceFeedInbox, FeedError
 from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
@@ -474,12 +474,26 @@ def main(page: ft.Page):
             refresh_visible_filter_labels(symbol, timeframe)
         return accepted
 
-    def apply_data_only_quote_snapshot(feed, payload):
-        """Offline validated read-only snapshot; update mounted Text only.
+    def apply_data_only_quote_snapshot(feed):
+        """Future device-session reader only; no direct untrusted payload input.
 
-        No authenticated network producer is connected to this function yet.
+        This callback is not automatically scheduled or connected to login.
+        The reader must come from the separately verified owner-approved
+        device login boundary, never from a UI-entered token or fake flag.
         """
-        accepted = quote_view.apply_feed(feed, payload, state.selected)
+        if type(feed) is not str or feed not in ("quotes", "indices"):
+            raise FeedError("Unsupported read-only feed")
+        reader = device_session_reader[0]
+        if reader is None:
+            return ()
+        try:
+            accepted = reader.refresh(
+                quote_view, feed,
+                selected_equities=state.selected if feed == "quotes" else ())
+        except FeedError:
+            # A 401/403 invalidates the in-memory bearer within the reader.
+            # Keep last-good quote labels and never claim successful refresh.
+            return ()
         if not accepted:
             return ()
         changed = quote_view.changed_for(feed)
