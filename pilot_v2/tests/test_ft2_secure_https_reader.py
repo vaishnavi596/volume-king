@@ -95,6 +95,28 @@ class HTTPSReaderTests(unittest.TestCase):
                                 selected_equities=("TCS",), manual="yes")
         self.assertEqual(len(self.opener.calls), 1)
 
+    def test_remote_logout_scrubs_bearer_and_posts_revocation_once(self):
+        url = ORIGIN + "/v2-pilot/auth/logout"
+        self.opener.next_response = FakeResponse(url, {"signed_out": True})
+        self.assertTrue(self.reader.sign_out_remote())
+        self.assertFalse(self.reader.session_active)
+        self.assertFalse(self.reader.sign_out_remote())
+        self.assertEqual(len(self.opener.calls), 1)
+        self.assertEqual(self.opener.calls[0][0].get_method(), "POST")
+        self.assertEqual(self.opener.calls[0][0].full_url, url)
+        self.assertIn(TOKEN, self.opener.calls[0][0].get_header("Authorization"))
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+
+    def test_failed_remote_logout_never_retains_local_bearer(self):
+        self.opener.fail = HTTPError(
+            ORIGIN + "/v2-pilot/auth/logout", 503, "temporary", {}, None)
+        with self.assertRaisesRegex(FeedError, "revocation unverified"):
+            self.reader.sign_out_remote()
+        self.assertFalse(self.reader.session_active)
+        self.assertFalse(self.reader.sign_out_remote())
+        self.assertEqual(len(self.opener.calls), 1)
+
     def test_denied_http_and_redirect_preserve_last_good_without_secret_leak(self):
         self.offer("quotes", 1, "TCS", 100)
         self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
