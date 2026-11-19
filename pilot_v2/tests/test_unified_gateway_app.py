@@ -190,6 +190,61 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
                           json={"symbols": ["TCS"]},
                           headers={"Authorization": "Bearer " + bearer}).status_code, 503)
 
+
+    def test_signed_evidence_route_is_disabled_without_real_producer(self):
+        # Device authentication happens even when the source lane is absent.
+        self.assertEqual(self.client.get("/v2-pilot/evidence").status_code, 401)
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        self.assertEqual(self.client.get("/v2-pilot/evidence",
+                                         headers=headers).status_code, 503)
+        self.assertEqual(self.calls, [])  # No Dhan request or fake candle.
+
+    def test_optional_evidence_provider_requires_session_and_bounded_contract(self):
+        observed_devices = []
+        events = [{"kind": "expiries", "symbol": "NIFTY",
+                   "revision": 1, "available": ["2026-11-26"]}]
+
+        def producer(device):
+            observed_devices.append(device)
+            return {"events": events}
+
+        app = create_v2_unified_app(
+            verified_login=self.login, data_pipeline=self.pipeline,
+            evidence_provider=producer)
+        client = TestClient(app)
+        self.assertEqual(client.get("/v2-pilot/evidence").status_code, 401)
+        self.assertEqual(observed_devices, [])
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        response = client.get("/v2-pilot/evidence", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("cache-control"), "no-store")
+        self.assertEqual(response.json(), {"events": events})
+        self.assertEqual(observed_devices, [self.device])
+        self.assertEqual(self.calls, [])
+        events[0]["live_verified"] = True
+        self.assertEqual(client.get("/v2-pilot/evidence",
+                                    headers=headers).status_code, 503)
+        self.sessions.logout(bearer)
+        self.assertEqual(client.get("/v2-pilot/evidence",
+                                    headers=headers).status_code, 403)
+        self.assertEqual(len(observed_devices), 2)
+
+    def test_evidence_provider_does_not_accept_unbounded_or_invalid_events(self):
+        from pilot_v2.evidence_contract import validate_evidence_envelope
+        for bad in ({"events": []},
+                    {"events": [{"kind": "unknown"}]},
+                    {"events": [{"kind": "expiries", "symbol": "NIFTY",
+                                 "revision": 1, "available": [],
+                                 "trusted": True}]},
+                    {"events": [{"kind": "expiries", "symbol": "NIFTY",
+                                 "revision": 1, "available": ["X" * 66000]}]},
+                    {"events": [{"kind": "expiries", "symbol": "NIFTY",
+                                 "revision": True, "available": []}]}):
+            with self.subTest(bad=repr(bad)[:80]), self.assertRaises(ValueError):
+                validate_evidence_envelope(bad)
+
     def test_factory_fail_closed(self):
         with self.assertRaises(ValueError):
             create_v2_unified_app(verified_login=None, data_pipeline=self.pipeline)
