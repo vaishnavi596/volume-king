@@ -108,10 +108,16 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
     def evidence(request: Request):
         """Explicit signed source-evidence route, disabled without a provider."""
         token = bearer_from_request(request)
+        # An indices-only Delegate must not be forced to own quotes scope.
+        # Authenticate against at least one approved feed first; the event-by-
+        # event scope checks below decide what can actually be delivered.
         try:
             device = login.read_feed(token, "quotes")
         except SessionDenied:
-            raise HTTPException(status_code=403, detail="Device evidence denied") from None
+            try:
+                device = login.read_feed(token, "indices")
+            except SessionDenied:
+                raise HTTPException(status_code=403, detail="Device evidence denied") from None
         if evidence_provider is None:
             raise HTTPException(status_code=503, detail="Source evidence not connected")
         try:
@@ -133,13 +139,13 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
                       else event.get("symbol"))
             if type(symbol) is not str or not symbol:
                 raise HTTPException(status_code=503, detail="Source evidence unavailable")
-            if symbol in INDEXES:
-                try:
-                    scoped_device = login.read_feed(token, "indices")
-                except SessionDenied:
-                    raise HTTPException(status_code=403, detail="Device evidence denied") from None
-                if scoped_device != device:
-                    raise HTTPException(status_code=403, detail="Device evidence denied")
+            required = "indices" if symbol in INDEXES else "quotes"
+            try:
+                scoped_device = login.read_feed(token, required)
+            except SessionDenied:
+                raise HTTPException(status_code=403, detail="Device evidence denied") from None
+            if scoped_device != device:
+                raise HTTPException(status_code=403, detail="Device evidence denied")
         return JSONResponse(validated, headers={"Cache-Control": "no-store"})
 
     @app.post("/v2-pilot/auth/logout")
