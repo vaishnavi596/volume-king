@@ -124,6 +124,23 @@ class NativeKeystoreContractTests(unittest.TestCase):
             with self.subTest(value=bad_values), self.assertRaises(FeedError):
                 _safe_byte_string(bad_values)
 
+    def test_native_direct_sign_method_never_signs_arbitrary_bytes(self):
+        # Direct access to the adapter must not bypass the binding's
+        # exact domain separation and owner-approved device identity.
+        adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
+        adapter.ensure_public_spki()
+        prefix = LOGIN_CONTEXT + DEVICE.encode("ascii") + bytes([0])
+        bad = (b"", b"ORDER", prefix, prefix + bytes(31),
+               prefix + bytes(33), b"OTHER" + prefix + bytes(32),
+               "not-bytes", bytearray(prefix + bytes(32)))
+        for message in bad:
+            with self.subTest(message=repr(message)[:32]), self.assertRaises(FeedError):
+                adapter.sign_login_message(message)
+        signed = prefix + bytes(range(32))
+        signature = adapter.sign_login_message(signed)
+        FakeKeyStore.keys[adapter.alias].public_key().verify(
+            signature, signed, ec.ECDSA(hashes.SHA256()))
+
     def test_key_replacement_denied_by_existing_binding(self):
         adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
         adapter.ensure_public_spki()
