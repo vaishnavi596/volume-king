@@ -17,6 +17,15 @@ REPO = "vaishnavi596/volume-king"
 MAX_ARCHIVE = 30_000_000
 MAX_FILE = 1_000_000
 MAX_FILES = 250
+REQUIRED = frozenset((
+    "http_gateway.py", "api_contract.py", "device_sessions.py",
+    "durable_device_sessions.py", "verified_login_gateway.py",
+    "durable_challenges.py", "atomic_verified_login.py",
+    "unified_gateway_app.py", "unified_data_pipeline.py",
+    "internal_dhan_read_port.py", "shared_read_budget.py",
+    "trusted_http_adapter.py", "private_backup_vault.py",
+    "isolated_gateway_app.py",
+))
 
 
 def validate_commit(sha: str) -> str:
@@ -58,11 +67,8 @@ def unpack(data: bytes, destination: Path, sha: str) -> dict:
             if len(raw) > MAX_FILE:
                 raise ValueError("Decompression too large")
             selected[relative.name] = raw
-    required = {"http_gateway.py", "api_contract.py", "device_sessions.py",
-                "durable_device_sessions.py", "verified_login_gateway.py",
-                "durable_challenges.py", "atomic_verified_login.py",
-                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py"}
-    if not required.issubset(selected):
+
+    if not REQUIRED.issubset(selected):
         raise ValueError("Missing required V2 server prototype modules")
     destination.mkdir(mode=0o700, parents=True)
     try:
@@ -122,7 +128,8 @@ def verify_staged_source(destination: Path, sha: str) -> dict:
         if p.is_symlink() or not p.is_file() or p.suffix != ".py":
             raise ValueError("Unexpected V2 stage entry")
         names.add(p.name)
-    if names != set(listed) or len(names) > MAX_FILES:
+    if (names != set(listed) or len(names) > MAX_FILES
+            or not REQUIRED.issubset(names)):
         raise ValueError("V2 source manifest/file mismatch")
     for name, expected in listed.items():
         if (type(name) is not str or not re.fullmatch(r"[A-Za-z0-9_]+\.py", name)

@@ -84,6 +84,20 @@ class NoGitStageTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 stage.verify_staged_source(dst, SHA)
 
+    def test_manifest_and_files_cannot_jointly_hide_required_source(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / "source"
+            stage.unpack(archive(), dst, SHA)
+            missing = "unified_gateway_app.py"
+            (dst / "pilot_v2" / missing).unlink()
+            manifest = dst / "manifest.json"
+            import json
+            content = json.loads(manifest.read_text())
+            content["files"].pop(missing)
+            manifest.write_text(json.dumps(content))
+            with self.assertRaises(ValueError):
+                stage.verify_staged_source(dst, SHA)
+
     def test_existing_destination_never_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
             dst = Path(d) / "source"
