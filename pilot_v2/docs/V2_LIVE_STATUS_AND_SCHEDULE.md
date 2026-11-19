@@ -1,3 +1,13 @@
+
+## SINGLE-RUN V2 DELTA MIGRATION GATE — 2026-11-19
+- Owner condensed repeated V2 migrations to **one GitHub CI action per combined candidate**: static read-only V1/V2 delta report + existing full offline regression in the same pilot CI job. No additional workflow dispatch is needed for reporting.
+- Replaced prior `one_click_migration_gate.py` hardcoded `False` acceptance rows with source-observed UI wiring and separately named PENDING external acceptance (no fake completion). Active `five_engine.py` is correctly treated as staged/quarantined, not falsely reported missing from active app source. AST checks reject known legacy imports and direct provider calls in active V2 Python. `--strict` remains fail-closed until real external gates are independently verified.
+- Updated `.github/workflows/v2-pilot-contract.yml` to compile/test once, emit one gap report, and upload same-run report artifact. Separate manual strict workflow remains optional, not required for normal iterations.
+- Added `test_one_run_migration_gate.py` covering factual report, report-only vs strict distinction and banned provider import. CI on this new SHA remains PENDING until checked; prior executable [CI #102](https://github.com/vaishnavi596/volume-king/actions/runs/44432398138) SUCCESS.
+- This DOES NOT automatically copy V1, integrate Dhan/Oracle, build APK, enable orders, modify V1 or certify device/live acceptance. One-run is one orchestration, not a guarantee that unfinished development is complete. Server production only after separate owner approval.
+
+---
+
 # BOT KING V2 — LIVE STATUS & NEXT WORK SCHEDULE
 **As-of 2026-11-18; no background task exists outside active turns.** Current authoritative details: [canonical snapshot](V2_CURRENT_CANONICAL_STATUS_20261118.md). Owner rules: [General](V2_GENERAL_FRAMEWORK_RULES.md). Historical evidence remains in [Master](V2_MASTER_JOURNAL.md) / [Work Log](V2_WORK_LOG.md).
 

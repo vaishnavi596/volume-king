@@ -11,10 +11,13 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: botking-v2-pilot-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   pilot-contract:
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,7 +25,17 @@ jobs:
           python-version: '3.12'
       - name: Install pinned V2 offline test dependencies
         run: python -m pip install cryptography==44.0.3 fastapi==0.115.12 httpx==0.28.1
-      - name: Compile and run isolated pilot tests
+      - name: One combined source security, compile and offline regression
         run: |
           python -m compileall -q pilot_v2
-          python -m unittest discover -s pilot_v2/tests -p 'test_*.py' -v
+          python -m unittest discover -s pilot_v2/tests -p 'test_*.py' -q
+      - name: One-run migration gap report
+        if: always()
+        run: python pilot_v2/tools/one_click_migration_gate.py
+      - name: Attach factual migration gap report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-single-run-gap-report
+          path: pilot_v2/migration_report.md
+          if-no-files-found: warn
