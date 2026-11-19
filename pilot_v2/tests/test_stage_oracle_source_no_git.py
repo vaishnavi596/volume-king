@@ -54,6 +54,36 @@ class NoGitStageTests(unittest.TestCase):
                 stage.unpack(archive(missing="http_gateway.py"), dst, SHA)
             self.assertFalse(dst.exists())
 
+    def test_staged_source_verifier_checks_hash_and_never_activates(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / "source"
+            stage.unpack(archive(), dst, SHA)
+            result = stage.verify_staged_source(dst, SHA)
+            self.assertEqual(result["integrity"], "MATCHED_LOCAL_MANIFEST")
+            self.assertFalse(result["production_ready"])
+            self.assertFalse(result["activated"])
+            source = dst / "pilot_v2" / "http_gateway.py"
+            source.write_text("TAMPER")
+            with self.assertRaises(ValueError):
+                stage.verify_staged_source(dst, SHA)
+
+    def test_staging_audit_refuses_extra_symlink_and_false_enablement(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / "source"
+            stage.unpack(archive(), dst, SHA)
+            extra = dst / "pilot_v2" / "unexpected.py"
+            extra.write_text("unsafe")
+            with self.assertRaises(ValueError):
+                stage.verify_staged_source(dst, SHA)
+            extra.unlink()
+            manifest = dst / "manifest.json"
+            import json
+            data = json.loads(manifest.read_text())
+            data["enabled"] = True
+            manifest.write_text(json.dumps(data))
+            with self.assertRaises(ValueError):
+                stage.verify_staged_source(dst, SHA)
+
     def test_existing_destination_never_overwritten(self):
         with tempfile.TemporaryDirectory() as d:
             dst = Path(d) / "source"

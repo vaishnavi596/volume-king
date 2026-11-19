@@ -84,6 +84,61 @@ def unpack(data: bytes, destination: Path, sha: str) -> dict:
         raise
 
 
+
+def verify_staged_source(destination: Path, sha: str) -> dict:
+    """Read-only integrity audit of a pinned, disabled V2 source stage.
+
+    Detects missing/tampered staged files, unsafe extra files, and false
+    'enabled' manifest state. Does not authenticate the manifest's creator;
+    its trusted origin must still be the pinned GitHub commit.
+    """
+    validate_commit(sha)
+    destination = Path(destination)
+    if destination.is_symlink() or not destination.is_dir():
+        raise ValueError("Invalid V2 staging directory")
+    manifest_path = destination / "manifest.json"
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ValueError("Missing V2 staging manifest")
+    if manifest_path.stat().st_size > 50000:
+        raise ValueError("Oversize staging manifest")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError):
+        raise ValueError("Unreadable staging manifest") from None
+    if (type(manifest) is not dict
+            or manifest.get("commit") != sha
+            or manifest.get("source_only") is not True
+            or manifest.get("enabled") is not False
+            or manifest.get("production_ready") is not False
+            or manifest.get("oracle_deployed") is not False
+            or type(manifest.get("files")) is not dict):
+        raise ValueError("Unsafe V2 staging manifest")
+    listed = manifest["files"]
+    source_dir = destination / "pilot_v2"
+    if source_dir.is_symlink() or not source_dir.is_dir():
+        raise ValueError("Missing V2 stage source directory")
+    names = set()
+    for p in source_dir.iterdir():
+        if p.is_symlink() or not p.is_file() or p.suffix != ".py":
+            raise ValueError("Unexpected V2 stage entry")
+        names.add(p.name)
+    if names != set(listed) or len(names) > MAX_FILES:
+        raise ValueError("V2 source manifest/file mismatch")
+    for name, expected in listed.items():
+        if (type(name) is not str or not re.fullmatch(r"[A-Za-z0-9_]+\.py", name)
+                or type(expected) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", expected)):
+            raise ValueError("Invalid V2 stage fingerprint")
+        path = source_dir / name
+        if path.stat().st_size > MAX_FILE:
+            raise ValueError("Oversize V2 stage source")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError("V2 stage file fingerprint mismatch")
+    return {"commit": sha, "files_checked": len(names),
+            "integrity": "MATCHED_LOCAL_MANIFEST",
+            "production_ready": False, "activated": False}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--commit", required=True, type=validate_commit)
