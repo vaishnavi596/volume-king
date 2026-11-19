@@ -13,7 +13,8 @@ class SourceControlGapTests(unittest.TestCase):
     def test_read_only_v1_source_and_v2_controls(self):
         rows = {name: (v1, v2) for name, v1, v2 in gate.control_parity()}
         self.assertEqual(len(rows), len(gate.V1_CONTROL_GAPS))
-        for key in ("Scanner native line/candle style",
+        for key in ("Scanner show/hide chart control",
+                    "Scanner native line/candle style",
                     "Scanner selected timeframe",
                     "Expiry selection UI", "Native historical chart"):
             with self.subTest(key=key):

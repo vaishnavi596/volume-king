@@ -1,3 +1,11 @@
+## VERIFIED CI #124→#125, NEXT V1 CHART CONTROL PARITY GATE — 2026-11-19
+- Owner requirement: explain failures, fix immediately, continue next actual task; do not report-and-stop.
+- Scanner chart show/hide controls + V2 device-local boolean persistence + strict Backup schema 4 (schema 1/2/3 remain backward-compatible) applied at `03d300903edf066c39f73e9c210a3bb766ea8310`. [CI #124](https://github.com/vaishnavi596/volume-king/actions/runs/44444105930) FAILED **342/343** only due to stale test source-string expecting `len(restored) == 6`, while compatible newer schema properly uses `>= 6`. Corrected test expectation at `3bc03c331d13c29cf18f2de8c61083989dc09774`, [CI #125](https://github.com/vaishnavi596/volume-king/actions/runs/44444220010) **PASS 343/343**, compile and migration report PASS. Previous failures remain historical; do not rerun their original SHAs.
+- NEXT immediate source change (same session): add V1 `scanner_chart_toggle(e)` to existing eight-row migration-report source control parity and source regression, now genuinely wired to V2 local callback. This does NOT claim restored V1 WebView, authenticated live feed, market auto-refresh, device acceptance or complete migration.
+- Stay V2-only, source/read-only V1, Oracle production, APK and orders untouched. Continue next coherent segment rather than merely reporting.
+
+---
+
 ## V2 SCANNER V1 SHOW/HIDE CHART PARITY — 2026-11-19
 - Owner rule: on failed commit/CI, explain exact cause, repair and **continue next work**, never report-and-stop. CI #116 legacy SmartData class identity failed; #117 327/327 PASS. Later CI #120 and #122 assertion/syntax failures repaired; latest verified exact-source #123 339/339 PASS at `20a651db4fc28eae8cd6833e7cf78fe07e26539b`.
 - Source audit of read-only V1 `scanner_chart_toggle(e)` found Scanner chart visibility missing in V2. This coherent V2-only batch adds local Scanner Show Chart switch (native Candles/Line presentation only), device-persisted strict boolean preference, safe invalid stored state, and local Backup schema **4** with both show/hide and prior chart style/history; schemas 1/2/3 remain accepted and preserve unset later fields. No provider calls/fanout or cached data deletion when hidden.

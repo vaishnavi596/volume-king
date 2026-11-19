@@ -44,6 +44,8 @@ EXTERNAL_GATES = (
 # Every row describes a real read-only V1 callback/control family and the
 # V2 *source* wiring; never interpret a match as Android or server acceptance.
 V1_CONTROL_GAPS = (
+    ("Scanner show/hide chart control", "def scanner_chart_toggle(e):",
+     ('label="Show Scanner chart"', "on_change=toggle_scanner_chart")),
     ("Scanner native line/candle style", "def scanner_chart_style_change(e):",
      ('label="Scanner chart style"', "on_change=change_chart_style")),
     ("Scanner selected timeframe", "def scanner_chart_filter(e):",
