@@ -11,7 +11,7 @@ from feed_inbox import DeviceFeedInbox
 from evidence_inbox import DeviceEvidenceInbox
 from option_evidence import OptionEvidenceError
 from dashboard_parity import INDEXES, index_card_model, status_overview
-from watchlist_parity import watchlist_rows
+from watchlist_parity import watchlist_rows, watchlist_row
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
 from historical_indicator_panel import historical_indicator_panel
@@ -228,6 +228,39 @@ def main(page: ft.Page):
 
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+    quote_labels = {}  # Mounted Flet Text references, not server settings.
+
+    def tracked_quote_text(symbol, value, kind="display", **style):
+        control = ft.Text(value, **style)
+        quote_labels.setdefault(symbol, []).append((control, kind))
+        return control
+
+    def apply_data_only_quote_snapshot(feed, payload):
+        """Offline validated read-only snapshot; update mounted Text only.
+
+        No authenticated network producer is connected to this function yet.
+        """
+        accepted = quote_view.apply_feed(feed, payload, state.selected)
+        if not accepted:
+            return ()
+        changed = quote_view.changed_for(feed)
+        for symbol in changed:
+            for control, kind in quote_labels.get(symbol, ()):
+                if kind == "index":
+                    new_value = index_card_model(
+                        symbol, quote_view, evidence_inbox, state.selected)["price_label"]
+                elif kind == "watchlist":
+                    row = watchlist_row(
+                        symbol, quote_view, evidence_inbox,
+                        selected_equities=state.selected, history_view=scanner_history)
+                    new_value = symbol + "  " + row["price"]
+                else:
+                    new_value = quote_view.display(symbol, state.selected)
+                if control.value != new_value:
+                    control.value = new_value
+                    control.update()  # No page.update() or render() on data-only change.
+        return changed
+
 
     def preview_manual_refresh(e):
         """Prepare request intent only; NEVER fetch or redraw remotely."""
@@ -247,6 +280,7 @@ def main(page: ft.Page):
         page.update()
 
     def render():
+        quote_labels.clear()  # Discard prior-page control references.
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -378,7 +412,7 @@ def main(page: ft.Page):
                 ]),
                 *[v1_card(ft, [
                         ft.Text(card["symbol"], color=GOLD, weight=ft.FontWeight.BOLD, size=16),
-                        ft.Text(card["price_label"], size=15),
+                        tracked_quote_text(card["symbol"], card["price_label"], "index", size=15),
                         ft.Text(card["candle_label"], size=13),
                         ft.Text("1m signals · " + " / ".join(
                             value for _, value in card["filters"])),
@@ -395,7 +429,7 @@ def main(page: ft.Page):
                                 options=[ft.dropdown.Option(item, item)
                                          for item in selectable_symbols(state)],
                                 on_change=lambda e, slot=slot: select_analysis_slot(e, slot)),
-                    ft.Text(quote_view.display(symbol, state.selected), color=WHITE),
+                    tracked_quote_text(symbol, quote_view.display(symbol, state.selected), color=WHITE),
                     ft.Text(candle_history.summary(
                         symbol, "1m", selected_equities=state.selected),
                         color=MUTED, size=14),
@@ -445,7 +479,7 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(style, style)
                                      for style in CHART_STYLES],
                             on_change=change_chart_style),
-                ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
+                tracked_quote_text(scanner[0].symbol, quote_view.display(scanner[0].symbol, state.selected)),
                 ft.Text(scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
                 ft.Text(historical_scanner_analysis(
@@ -656,7 +690,7 @@ def main(page: ft.Page):
                         color=MUTED, size=14),
                 *[v1_card(ft, [
                         ft.Row([
-                            ft.Text(row["symbol"] + "  " + row["price"],
+                            tracked_quote_text(row["symbol"], row["symbol"] + "  " + row["price"], "watchlist",
                                     color=GOLD, size=16,
                                     weight=ft.FontWeight.BOLD, expand=True),
                             ft.TextButton("Chart",
