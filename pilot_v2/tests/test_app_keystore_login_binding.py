@@ -301,6 +301,49 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertTrue(previous.session_active)
         self.assertFalse(inactive.session_active)
 
+    def test_second_keystore_login_wins_over_older_inflight_login(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        first = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "B" * 32, opener=Mock())
+        second = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "C" * 32, opener=Mock())
+        slot._reader = previous
+        first_entered, release_first = Event(), Event()
+        outcomes = []
+        def login(self_client):
+            if not first_entered.is_set():
+                first_entered.set()
+                if not release_first.wait(3):
+                    raise FeedError("Timed-out synthetic first login")
+                return first
+            return second
+        def first_worker():
+            try:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+                outcomes.append("first accepted")
+            except FeedError as error:
+                outcomes.append(str(error))
+        with patch.object(V2P256LoginHTTPSClient, "login", login):
+            worker = Thread(target=first_worker, daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(first_entered.wait(3))
+                self.assertIs(slot.reader, previous)
+                self.assertTrue(slot.sign_in_with_keystore(
+                    binding, "https://v2.example.test"))
+            finally:
+                release_first.set()
+                worker.join(3)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(outcomes, ["Device sign-in was cancelled"])
+        self.assertIs(slot.reader, second)
+        self.assertTrue(second.session_active)
+        self.assertFalse(previous.session_active)
+        self.assertFalse(first.session_active)
+
     def test_clear_during_relogin_scrubs_previous_and_rejects_late_reader(self):
         binding = self.bind()
         slot = DeviceReaderSlot()
