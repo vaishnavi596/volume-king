@@ -1,4 +1,13 @@
 
+## V1→V2 SCANNER NATIVE CHART-CONTROL PARITY — 2026-11-19
+- Owner directive: continue to next actual work, not just summarize. Reviewed V2 General/Handoff, last 10 commits, CI #113 **317/317 PASS** at `bbf765aa116a429eab79885f21030281788397f7`, and read-only V1 `src/main.py` (7,074 lines). V1 has explicit `scanner_chart_style_change`, `scanner_compact_chart`, WebView recovery and scanner chart toggle; V2 had native historical line/candles but no style control.
+- This V2-only coherent candidate adds strict app-local Scanner **Candles / Line** style control, native cache-only rendering switch and device-local `botking.v2.chart_style.v1` setting. A corrupt saved style is rejected without overwriting original stored preference. Existing 1/3/5/15/30m timeframe, 15/35/70 chart window and Scanner/Watchlist/Super Five navigation remain separate. No provider, external URL or network code copied from V1.
+- New `chart_style.py`, `test_v2_native_chart_style.py` and source-oriented `test_v1_v2_native_chart_parity.py` compare actual V1 control names and V2 native behaviors. **V1 Lightweight TradingView WebView / Android renderer is NOT migrated, NOT tested or declared complete**; separate authorized Android acceptance and full control parity remain mandatory. Offline CI on new SHA pending.
+- No server/Oracle production, V1, APK, real orders or access credentials changed. NEXT: finish remaining V1 app control/event parity and automated source-delta coverage in one coherent batch; retain no-build/no-server guard.
+
+---
+
+
 ## VERIFIED SOURCE CI #113 — DEVICE PERMISSIONS + FOUR-FACTOR V1 ASSESSMENT, 2026-11-19
 - Exact current source `bbf765aa116a429eab79885f21030281788397f7` [V2 Pilot Contract CI #113](https://github.com/vaishnavi596/volume-king/actions/runs/44439686265) **317/317 PASS** (compile, regression, migration-report artifact). Predecessor `a8ce20b3526c3ad286551077d4b563f05e543610` [CI #112](https://github.com/vaishnavi596/volume-king/actions/runs/44439262854) **313/313 PASS**. No retransmission/re-run of older successful tests.
 - CI #112: app evidence cache cannot be updated through the staged integration contract without server-verified session and every required feed permission. Existing Master/delegate revoke/expiry and server-owned feed checks exercised in OFFLINE synthetic integration tests. This does NOT prove actual Android identity/login.

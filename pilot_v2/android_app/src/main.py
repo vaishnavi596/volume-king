@@ -17,6 +17,7 @@ from legacy_technical_bridge import historical_scanner_analysis
 from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
+from chart_style import CHART_STYLES, DEFAULT_CHART_STYLE, chart_style_choice
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
 from local_help_doctor import diagnose, help_for
@@ -84,6 +85,25 @@ def main(page: ft.Page):
             return False
         try:
             page.client_storage.set(scanner_key, scanner[0].saved_state())
+            return True
+        except (OSError, ValueError, TypeError, RuntimeError):
+            return False
+
+    chart_style_key = "botking.v2.chart_style.v1"
+    try:
+        stored_chart_style = page.client_storage.get(chart_style_key)
+        chart_style = [chart_style_choice(stored_chart_style)
+                       if stored_chart_style is not None else DEFAULT_CHART_STYLE]
+        chart_style_error = ""
+    except (ValueError, TypeError, OSError, RuntimeError):
+        chart_style = [DEFAULT_CHART_STYLE]
+        chart_style_error = "Saved chart preference invalid; original save preserved"
+
+    def save_chart_style():
+        if chart_style_error:
+            return False
+        try:
+            page.client_storage.set(chart_style_key, chart_style[0])
             return True
         except (OSError, ValueError, TypeError, RuntimeError):
             return False
@@ -196,6 +216,15 @@ def main(page: ft.Page):
                                     else "Scanner choice changed for session only")
                 except ScannerError as exc:
                     status.value = str(exc)
+                render()
+                page.update()
+            def change_chart_style(e):
+                try:
+                    chart_style[0] = chart_style_choice(e.control.value)
+                    status.value = ("Chart style saved locally" if save_chart_style()
+                                    else "Chart style selected for session")
+                except ValueError:
+                    status.value = "Unsupported chart style"
                 render()
                 page.update()
             def change_chart_window(e):
@@ -350,6 +379,11 @@ def main(page: ft.Page):
                             options=[ft.dropdown.Option(str(n), str(n) + " bars")
                                      for n in WINDOWS],
                             on_change=change_chart_window),
+                ft.Dropdown(label="Scanner chart style", width=190,
+                            value=chart_style[0],
+                            options=[ft.dropdown.Option(style, style)
+                                     for style in CHART_STYLES],
+                            on_change=change_chart_style),
                 ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
                 ft.Text(scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
@@ -368,11 +402,12 @@ def main(page: ft.Page):
                             stroke_width=2, curved=False)],
                         expand=True),
                     height=150, padding=5,
-                )] if len(chart_points(
+                )] if chart_style[0] == "Line" and len(chart_points(
                     scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected,
                     limit=chart_window[0])) >= 2 else
-                   [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
+                   ([ft.Text("Scanner chart WAIT · completed candle history unavailable")]
+                    if chart_style[0] == "Line" else [])),
                 ft.Text("Completed OHLC candles · historical / unverified",
                         size=14, color=MUTED),
                 ft.Row([
@@ -386,7 +421,9 @@ def main(page: ft.Page):
                     ], width=12, height=116) for c in candle_geometry(
                         scanner_history, scanner[0].symbol, scanner[0].timeframe,
                         selected_equities=state.selected)
-                ], scroll=ft.ScrollMode.AUTO, spacing=4),
+                ], scroll=ft.ScrollMode.AUTO, spacing=4)
+                if chart_style[0] == "Candles" else
+                ft.Text("Native candle chart hidden · Line style selected"),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",
                         size=14, color=MUTED),
                 *[ft.Text(f"{label}: {value}") for label, value in
