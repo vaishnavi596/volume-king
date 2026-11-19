@@ -80,6 +80,8 @@ def audit():
         "Verified-expiry options UI presentation": "expiry_choices." in source and "evidence_inbox.strikes.visible(" in source,
         "App-owned selected-demand manual request preview": "make_refresh_intent(" in source and "manual=True" in source,
         "PAPER preview / local five slots": "preview_manual_paper_risk(" in source and "LocalPaperPlanSlots" in source,
+        "Manual PAPER session ledger (no orders)": "ManualPaperLedger()" in source and "ledger.open_simulation(" in source and "ledger.close_simulation(" in source,
+        "Watchlist + Settings shared manual refresh plan": source.count("on_click=preview_manual_refresh") >= 2,
     }
     return {
         "issues": issues,

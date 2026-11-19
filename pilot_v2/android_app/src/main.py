@@ -25,6 +25,7 @@ from local_analysis_slots import LocalAnalysisSlots, AnalysisSlotError
 from local_settings_backup import export_local_backup, parse_local_backup, LocalBackupError
 from paper_preview import preview_manual_paper_risk
 from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
+from local_paper_ledger import ManualPaperLedger, PaperLedgerError
 from local_notices import LocalNoticeCenter
 
 def main(page: ft.Page):
@@ -144,6 +145,9 @@ def main(page: ft.Page):
     paper_result = ["Manual paper-only calculation; no orders or market data"]
     paper_last_preview = [None]  # Only manual preview; no paper position or order.
     notices = LocalNoticeCenter()  # Session-only app events, never signal alerts.
+    ledger = ManualPaperLedger()  # Session-only; no broker or real fills.
+    paper_confirm = [False]
+    paper_exit = [""]
 
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
@@ -156,7 +160,7 @@ def main(page: ft.Page):
     status = ft.Text(storage_error or "Offline pilot — no verified market data", size=14, color=MUTED)
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
-    def render():
+    def preview_manual_refresh(e):        """Prepare request intent only; NEVER fetch or redraw remotely."""        try:            intent = make_refresh_intent(                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),                manual=True, confirmed_session=False)            manual_refresh_plan[0] = (                f"Manual plan · {len(intent.equities)} selected equities"                f" · {len(intent.indexes)} indexes · Dhan gateway NOT connected"                " · zero network requests sent")            status.value = "Manual data request PLAN only; no refresh performed"        except (SmartDataError, ValueError, TypeError):            manual_refresh_plan[0] = "Manual refresh plan unavailable"            status.value = "Unable to plan manual data request"        render()        page.update()    def render():
         if analysis_slots[0].reconcile(state):
             save_analysis()
         if current[0] == 0:
@@ -500,6 +504,9 @@ def main(page: ft.Page):
                                   on_click=lambda e: open_help("Watchlist")),
                 ]),
                 ft.Text(f"{selected_equity_plan(state)['equity_count']}/70 unique equities · 3 indexes separate"),
+                ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
+                                  on_click=preview_manual_refresh),
+                ft.Text(manual_refresh_plan[0], color=MUTED, size=13),
                 ft.Dropdown(label="Watchlist", width=190, value=str(group[0]),
                             options=[ft.dropdown.Option(str(i), f"Watchlist {i+1}") for i in range(5)],
                             on_change=switch_group),
@@ -553,22 +560,6 @@ def main(page: ft.Page):
                     status.value = "Invalid refresh interval"
                 render()
                 page.update()
-            def preview_manual_refresh(e):
-                """Prepare request intent only; NEVER fetch or redraw remotely."""
-                try:
-                    intent = make_refresh_intent(
-                        state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
-                        manual=True, confirmed_session=False)
-                    manual_refresh_plan[0] = (
-                        f"Manual plan · {len(intent.equities)} selected equities"
-                        f" · {len(intent.indexes)} indexes · Dhan gateway NOT connected"
-                        " · zero network requests sent")
-                    status.value = "Manual data request PLAN only; no refresh performed"
-                except (SmartDataError, ValueError, TypeError):
-                    manual_refresh_plan[0] = "Manual refresh plan unavailable"
-                    status.value = "Unable to plan manual data request"
-                render()
-                page.update()
             def calculate_paper_preview(e):
                 try:
                     result = preview_manual_paper_risk(
@@ -618,6 +609,31 @@ def main(page: ft.Page):
                 status.value = ("Paper preview cleared locally"
                                 if save_paper_plans() else
                                 "Paper preview cleared for session only")
+                render()
+                page.update()
+            def open_paper_simulation(e):
+                try:
+                    slot = paper_slots[0].selected_slot
+                    ledger.open_simulation(
+                        slot, paper_slots[0].previews[slot],
+                        confirmed=paper_confirm[0])
+                    status.value = "Manual PAPER simulation opened · zero broker orders"
+                except PaperLedgerError as exc:
+                    status.value = str(exc)
+                paper_confirm[0] = False
+                render()
+                page.update()
+            def close_paper_simulation(e):
+                try:
+                    row = ledger.close_simulation(
+                        paper_slots[0].selected_slot, paper_exit[0],
+                        confirmed=paper_confirm[0])
+                    status.value = (
+                        f'Manual PAPER simulation closed · hypothetical P&L ₹{row["paper_pnl"]:,.2f}'
+                        " · zero broker orders")
+                except PaperLedgerError as exc:
+                    status.value = str(exc)
+                paper_confirm[0] = False
                 render()
                 page.update()
             def prepare_local_backup(e):
@@ -735,6 +751,30 @@ def main(page: ft.Page):
                 ], wrap=True),
                 ft.Text("No BUY/SELL/EXIT, no broker, no automatic paper bot",
                         size=14, color=MUTED),
+                ft.Text("Manual PAPER simulation ledger · SESSION ONLY",
+                        color=GOLD, weight=ft.FontWeight.BOLD),
+                ft.Text("Saved plans only · manual entry/exit · hypothetical P&L, no broker fills",
+                        color=MUTED, size=14),
+                *[ft.Text(slot + " · " + ("FLAT" if plan is None else
+                          plan["side"] + " · simulated entry ₹" + f'{plan["entry"]:,.2f}'),
+                          size=14, color=MUTED)
+                  for slot, plan in ledger.open_rows()],
+                ft.TextField(label="Manually entered PAPER exit ₹", width=220,
+                             value=paper_exit[0],
+                             on_change=lambda e: paper_exit.__setitem__(
+                                 0, e.control.value or "")),
+                ft.Checkbox(label="Confirm manual PAPER simulation",
+                            value=paper_confirm[0],
+                            on_change=lambda e: paper_confirm.__setitem__(
+                                0, bool(e.control.value))),
+                ft.Row([
+                    ft.TextButton("Open PAPER simulation", on_click=open_paper_simulation),
+                    ft.TextButton("Close PAPER simulation", on_click=close_paper_simulation),
+                ], wrap=True),
+                *[ft.Text(row["slot"] + " · " + row["side"] +
+                          " · hypothetical PAPER P&L ₹" + f'{row["paper_pnl"]:,.2f}',
+                          color=MUTED, size=14)
+                  for row in ledger.closed_rows()],
                 ft.Text("Local notices · session only", color=GOLD,
                         weight=ft.FontWeight.BOLD),
                 ft.Text(f"{notices.unread} unread local events · not market alerts",

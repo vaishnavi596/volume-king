@@ -1,4 +1,13 @@
 
+## V2 APP MIGRATION — JOINT OPERATIONAL PARITY CANDIDATE, 2026-11-19
+- Read latest V2 General/Handoff and prior 10 commits/CI before editing. Exact baseline source `576fb377f2631bd6ef7509baee3301255f769ac8` passed [CI #105](https://github.com/vaishnavi596/volume-king/actions/runs/44435368801) 294/294 offline tests. Previous failure #103 was fixed by #104.
+- This coordinated **V2-only** app-side batch addresses V1 operational gaps: the existing app-owned data-only manual intent preview is now reachable from both Watchlist and Settings using **one callback**, still zero network calls; five saved PAPER risk plans can be used in an **explicit-confirmation, session-only manual PAPER simulation ledger**, with independent slot tracking, manually entered exits and hypothetical P&L. Uses saved strict risk plans only; rejects missing/invalid plans, unauthorized slot, missing consent, duplicate simulated position and invalid exit. No broker orders, auto fills, live quotes, Dhan/Oracle traffic, API keys or external callbacks.
+- Added `local_paper_ledger.py` and consolidated `test_operational_app_migration.py` for positive/negative and actual UI wiring; strengthened one-run audit to distinguish paper risk previews and manual simulated ledger and shared refresh callback. This is code and tests in **one combined commit**, not multiple feature migrations.
+- **PENDING:** new exact-SHA CI result. A green offline source test would show only local component functionality; rich V1 WebView visual parity, authenticated 5-filter/Option/Super Five, data-only real refresh, Master+3 security, production Oracle/Dhan and separately signed V2 APK remain outside verified acceptance. No V1 branch, Oracle server, APK build or real orders changed.
+
+---
+
+
 ## COMPLETE 1m/3m/5m/15m/30m TIMEFRAME SEGMENT — 2026-11-19
 - Owner rule: finish all interconnected work in one segment, one combined commit and one CI, not isolated micro-fixes. Latest executable preflight CI #104 SUCCESS at `f6ad846b632c6470026b3eae4711620cbfe350f6`; reviewed prior 10 relevant commits and prior CI failure #103 resolved at #104.
 - All five timeframes are allowed by Scanner app selection/saved preference, candle cache, five-filter evidence cache, candle-trend and option-factor input gates, and shared filter-context view. Scanner dropdown includes 1m/3m/5m/15m/30m; 1m index and 3m Watchlist defaults remain unchanged. Sixth slot stays empty.
