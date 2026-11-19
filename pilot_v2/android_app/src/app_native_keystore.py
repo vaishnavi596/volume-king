@@ -23,11 +23,16 @@ def _alias_for_device(device_id):
 def _safe_byte_string(java_bytes):
     """Java signed byte[] -> immutable unsigned bytes, with a strict limit."""
     try:
-        result = bytes(int(value) & 255 for value in java_bytes)
+        values = list(java_bytes)
+        if len(values) > 1024 or any(
+                type(value) is not int or value < -128 or value > 255
+                for value in values):
+            raise ValueError("Invalid signed Java byte array")
+        # Java byte[] is signed, but some JNI adapters expose unsigned 0..255.
+        # Reject values outside BOTH representations instead of masking them.
+        result = bytes(value if value >= 0 else value + 256 for value in values)
     except (TypeError, ValueError, OverflowError):
         raise FeedError("Android Keystore byte encoding unavailable") from None
-    if len(result) > 1024:
-        raise FeedError("Android Keystore payload oversized")
     return result
 
 
