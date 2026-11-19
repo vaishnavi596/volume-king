@@ -122,7 +122,10 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
             raise HTTPException(status_code=503, detail="Source evidence not connected")
         try:
             supplied = evidence_provider(device)
-        except (ValueError, TypeError, PipelineUnavailable):
+        except (ValueError, TypeError, OSError, TimeoutError, LookupError,
+                PipelineUnavailable):
+            # Do not leak collector internals or turn expected source
+            # failures into unhandled HTTP 500 responses.
             raise HTTPException(status_code=503, detail="Source evidence unavailable") from None
         from .evidence_contract import validate_evidence_envelope
         try:
