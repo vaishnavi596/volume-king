@@ -9,7 +9,7 @@ src = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(src))
 from app_state import LocalWatchlists  # noqa: E402
 from smart_data import SmartDataSettings, SmartDataError  # noqa: E402
-from refresh_intent import make_refresh_intent  # noqa: E402
+from refresh_intent import make_refresh_intent, LocalRefreshCadence  # noqa: E402
 
 IST=ZoneInfo("Asia/Kolkata")
 
@@ -48,6 +48,56 @@ class SmartDataRefreshIntentTests(unittest.TestCase):
         self.assertTrue(after.permitted)
         self.assertEqual(len(after.equities),5)
         self.assertEqual(after.reason,"MANUAL_DATA_REQUEST_ONLY")
+
+    def test_independent_auto_lane_cadence_and_no_duplicate_claims(self):
+        cadence = LocalRefreshCadence(index_seconds=60)
+        w = selected(5)
+        settings = SmartDataSettings(True, 180)
+        self.assertEqual(tuple(feed for feed, _ in cadence.claim_auto(
+            w, settings, clock(10, 30), monotonic_seconds=1000,
+            confirmed_session=True)), ("indices", "quotes"))
+        self.assertEqual(cadence.claim_auto(
+            w, settings, clock(10, 30), monotonic_seconds=1000,
+            confirmed_session=True), ())
+        self.assertEqual(cadence.claim_auto(
+            w, settings, clock(10, 31), monotonic_seconds=1059,
+            confirmed_session=True), ())
+        self.assertEqual(tuple(feed for feed, _ in cadence.claim_auto(
+            w, settings, clock(10, 31), monotonic_seconds=1060,
+            confirmed_session=True)), ("indices",))
+        self.assertEqual(tuple(feed for feed, _ in cadence.claim_auto(
+            w, settings, clock(10, 33), monotonic_seconds=1180,
+            confirmed_session=True)), ("indices", "quotes"))
+        self.assertEqual(cadence.claim_auto(
+            w, settings, clock(10, 33), monotonic_seconds=1100,
+            confirmed_session=True), ())
+
+    def test_auto_cadence_requires_confirmed_open_market_and_selected_equities(self):
+        for n in (0, 5, 70):
+            with self.subTest(n=n):
+                cadence = LocalRefreshCadence()
+                w = selected(n)
+                self.assertEqual(cadence.claim_auto(
+                    w, SmartDataSettings(), clock(10, 30),
+                    monotonic_seconds=1000, confirmed_session=False), ())
+                lanes = cadence.claim_auto(
+                    w, SmartDataSettings(), clock(10, 30),
+                    monotonic_seconds=1000, confirmed_session=True)
+                self.assertEqual(lanes[0][0], "indices")
+                self.assertEqual(len(lanes[0][1]), 3)
+                self.assertEqual(len(lanes), 1 if n == 0 else 2)
+                if n:
+                    self.assertEqual(len(lanes[1][1]), n)
+                self.assertEqual(cadence.claim_auto(
+                    w, SmartDataSettings(), clock(15, 46),
+                    monotonic_seconds=2000, confirmed_session=True), ())
+        with self.assertRaises(SmartDataError):
+            LocalRefreshCadence(index_seconds=1)
+        for tick in (-1, True, float("nan"), float("inf"), "1000"):
+            with self.subTest(tick=str(tick)), self.assertRaises(SmartDataError):
+                LocalRefreshCadence().claim_auto(
+                    selected(5), SmartDataSettings(), clock(10, 30),
+                    monotonic_seconds=tick, confirmed_session=True)
 
     def test_missing_market_session_or_disabled_auto_never_triggers(self):
         blocked=make_refresh_intent(selected(51),SmartDataSettings(),clock(10,30))

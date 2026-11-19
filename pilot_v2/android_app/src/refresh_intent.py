@@ -1,5 +1,6 @@
 """FT-3 Flet-only refresh intent. Zero HTTP requests, timers or server settings."""
 from dataclasses import dataclass
+from math import isfinite
 from datetime import datetime
 from smart_data import (SmartDataSettings, SmartDataError,
                         permitted_auto_refresh, selected_equity_plan)
@@ -36,3 +37,42 @@ def make_refresh_intent(watchlists, settings, now, *,
         tuple(selection["equities"]) if permitted else (),
         tuple(selection["indices"]) if permitted else (),
         settings.equity_seconds)
+
+
+class LocalRefreshCadence:
+    """Device-owned no-I/O AUTO lane claims; NOT a network or timer client.
+
+    The future trusted Android session owner must independently authorize
+    requests and share Oracle's global rate budget before dispatching a lane.
+    """
+
+    def __init__(self, *, index_seconds=60):
+        if type(index_seconds) is not int or index_seconds not in (60, 120, 180, 300, 600):
+            raise SmartDataError("Bounded index refresh interval required")
+        self.index_seconds = index_seconds
+        self._last_claim = {"indices": None, "quotes": None}
+
+    def claim_auto(self, watchlists, settings, now, *, monotonic_seconds,
+                   confirmed_session=False):
+        if (type(monotonic_seconds) not in (int, float)
+                or not isfinite(monotonic_seconds) or monotonic_seconds < 0):
+            raise SmartDataError("Valid monotonic app clock required")
+        intent = make_refresh_intent(
+            watchlists, settings, now, confirmed_session=confirmed_session,
+            manual=False)
+        if not intent.permitted:
+            return ()
+        available = (("indices", intent.indexes, self.index_seconds),
+                     ("quotes", intent.equities, intent.equity_seconds))
+        claimed = []
+        for feed, symbols, interval in available:
+            if not symbols:
+                continue
+            last = self._last_claim[feed]
+            # A clock rollback cannot create a duplicate poll.
+            if last is not None and monotonic_seconds - last < interval:
+                continue
+            claimed.append((feed, symbols))
+        for feed, _ in claimed:
+            self._last_claim[feed] = monotonic_seconds
+        return tuple(claimed)
