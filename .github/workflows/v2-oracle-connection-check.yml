@@ -1,0 +1,52 @@
+name: BOT KING V2 Oracle Connection Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: botking-oracle-remote-management
+  cancel-in-progress: false
+
+jobs:
+  remote-connection:
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 5
+    steps:
+      - name: Authenticate SSH and inspect V1/V2 read-only
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$ORACLE_HOST" || { echo "MISSING ORACLE_HOST"; exit 1; }
+          test -n "$ORACLE_SSH_KEY" || { echo "MISSING ORACLE_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "$ORACLE_KNOWN_HOSTS" || { echo "MISSING ORACLE_SSH_KNOWN_HOSTS"; exit 1; }
+          case "$ORACLE_HOST" in *[!a-zA-Z0-9.:-]*|"") echo "INVALID ORACLE_HOST"; exit 1;; esac
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          umask 077
+          printf '%s\n' "$ORACLE_SSH_KEY" > "$HOME/.ssh/botking_oracle"
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          trap 'rm -f "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"' EXIT
+          chmod 600 "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"
+          ssh -i "$HOME/.ssh/botking_oracle" -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10 \
+            "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          printf 'SSH_STATUS=CONNECTED\n'
+          printf 'V1_SERVICE='
+          systemctl is-active bot-king.service || true
+          printf 'V2_SERVICE='
+          systemctl is-active bot-king-v2.service || true
+          printf 'V1_HEALTH_HTTP='
+          curl --silent --show-error --output /dev/null --max-time 8 \
+            --write-out '%{http_code}\n' http://127.0.0.1:8000/health
+          printf 'V2_PORT='
+          if ss -lnt '( sport = :8001 )' | grep -q LISTEN; then echo LISTEN; else echo ABSENT; fi
+          REMOTE
