@@ -1,3 +1,7 @@
+## 2026-11-19 — [V2][OPERATIONS] Stage temporary-file cleanup
+- Audited current Oracle source staging workflow and verified exact prior Unified PASS #44522539406 at executable SHA 17fbf16e0c0afb3ea804a12c06b31a4aa5c4ec01. New workflow-only commit `47481424491114fd57726a3b9b898fffe6761cb7` adds a remote EXIT cleanup trap for temporary copied archive/stager on both success and Python-stage failure. No Oracle connection/dispatch and no APK; this is source workflow preparation only. Main app catalog source is implemented but not wired to runtime authenticated catalog supply; do not label user-facing live search PASS.
+- Still requires one-time GitHub protected environment + existing Oracle SSH key/known-host secrets, then actual audit and isolated deployment. V1 health and Dhan 3-index read were owner-proven earlier; no redundant Dhan quote probe needed now.
+
 ## 2026-11-19 — [V2][CI REPAIR] Remote staging archive filename validator
 - Exact source CI #44522353038 at `a121af35ed153e045998210f1b9a1f3ad15993fb` FAILED after 549 tests with one error `test_remote_stage_archive.StageTests.test_valid`: valid Python filenames were rejected due to doubled backslash in raw regex. Failed source was not deployed.
 - Repaired archive filename regex in `pilot_v2/tools/remote_stage_archive.py` commit `17fbf16e0c0afb3ea804a12c06b31a4aa5c4ec01`; new CI run #44522539406 triggered, outcome pending at entry time. Source-staging and SSH audit Actions remain unexecuted (owner environment/SSH secrets not configured), V1 unchanged, V2 production service absent, no orders.
