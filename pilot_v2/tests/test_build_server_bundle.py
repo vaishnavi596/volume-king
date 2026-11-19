@@ -50,6 +50,17 @@ class BundleTests(unittest.TestCase):
                 module.build(dst, src)
             self.assertEqual(dst.read_bytes(), b"KEEP")
 
+    def test_complete_gateway_source_is_mandatory(self):
+        self.assertIn("unified_gateway_app.py", module.REQUIRED)
+        self.assertIn("private_backup_vault.py", module.REQUIRED)
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source = self.make_sources(root)
+            (source / "private_backup_vault.py").unlink()
+            with self.assertRaises(FileNotFoundError):
+                module.build(root / "missing.zip", source)
+            self.assertFalse((root / "missing.zip").exists())
+
     def test_rejects_missing_source(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

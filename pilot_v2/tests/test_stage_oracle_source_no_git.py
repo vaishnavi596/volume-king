@@ -17,7 +17,8 @@ def archive(missing=None, extra=None):
     buf = io.BytesIO()
     required = ("http_gateway.py", "api_contract.py", "device_sessions.py",
                 "durable_device_sessions.py", "verified_login_gateway.py",
-                "durable_challenges.py", "atomic_verified_login.py")
+                "durable_challenges.py", "atomic_verified_login.py",
+                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py")
     with zipfile.ZipFile(buf, "w") as z:
         for n in required:
             if n != missing:
@@ -38,6 +39,13 @@ class NoGitStageTests(unittest.TestCase):
             self.assertFalse(result["oracle_deployed"])
             self.assertFalse((dst / "server.py").exists())
             self.assertTrue((dst / "pilot_v2/http_gateway.py").is_file())
+
+    def test_missing_unified_gateway_is_fail_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / "source"
+            with self.assertRaises(ValueError):
+                stage.unpack(archive(missing="unified_gateway_app.py"), dst, SHA)
+            self.assertFalse(dst.exists())
 
     def test_missing_module_is_fail_closed(self):
         with tempfile.TemporaryDirectory() as d:

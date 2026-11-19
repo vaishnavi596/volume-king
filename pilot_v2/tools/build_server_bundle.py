@@ -15,7 +15,8 @@ import zipfile
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ("http_gateway.py", "api_contract.py", "device_sessions.py",
             "durable_device_sessions.py", "verified_login_gateway.py",
-            "durable_challenges.py", "atomic_verified_login.py")
+            "durable_challenges.py", "atomic_verified_login.py",
+                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py")
 
 
 def build(output: Path, source_root: Path = SOURCE_ROOT) -> dict:

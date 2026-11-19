@@ -60,7 +60,8 @@ def unpack(data: bytes, destination: Path, sha: str) -> dict:
             selected[relative.name] = raw
     required = {"http_gateway.py", "api_contract.py", "device_sessions.py",
                 "durable_device_sessions.py", "verified_login_gateway.py",
-                "durable_challenges.py", "atomic_verified_login.py"}
+                "durable_challenges.py", "atomic_verified_login.py",
+                "unified_gateway_app.py", "unified_data_pipeline.py", "internal_dhan_read_port.py", "shared_read_budget.py", "trusted_http_adapter.py", "private_backup_vault.py", "isolated_gateway_app.py"}
     if not required.issubset(selected):
         raise ValueError("Missing required V2 server prototype modules")
     destination.mkdir(mode=0o700, parents=True)
