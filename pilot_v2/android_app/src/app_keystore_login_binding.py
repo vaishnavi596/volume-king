@@ -6,6 +6,7 @@ The only public value crossing enrollment is canonical P-256 SPKI DER.
 Only the protocol-specific signed challenge may reach the native signer.
 """
 import hashlib
+import hmac
 from app_p256_login import LOGIN_CONTEXT, V2P256LoginHTTPSClient, _device_id_ok
 from app_p256_public_key import export_validated_p256_public_spki
 from app_p256_signature import is_canonical_p256_der_signature
@@ -22,6 +23,7 @@ class AndroidKeystoreLoginBinding:
             raise FeedError("Approved public P-256 Keystore key unavailable") from None
         self._device_id = device_id
         self._public = public
+        self._export_public_spki = export_public_spki
         self._sign_message = sign_message
 
     def public_spki_for_owner_enrollment(self):
@@ -37,6 +39,15 @@ class AndroidKeystoreLoginBinding:
         if (type(message) is not bytes or
                 len(message) != len(prefix) + 32 or not message.startswith(prefix)):
             raise FeedError("Unsupported device login signing operation")
+        # A rotated or replaced native key must not sign under the prior
+        # enrolled public-key fingerprint. No private bytes are requested.
+        try:
+            current_public = export_validated_p256_public_spki(
+                self._export_public_spki)
+        except ValueError:
+            raise FeedError("Native device public key unavailable") from None
+        if not hmac.compare_digest(current_public, self._public):
+            raise FeedError("Native device key changed; enrollment required")
         try:
             signature = self._sign_message(message)
         except Exception:
