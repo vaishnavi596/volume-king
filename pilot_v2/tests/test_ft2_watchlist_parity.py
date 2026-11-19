@@ -86,7 +86,7 @@ class WatchlistParityTests(unittest.TestCase):
         self.assertIn("on_submit=apply_search", src)
         self.assertIn("selected_equities=state.selected", src)
         self.assertIn('tracked_candle_text(row["symbol"], "3m", row["candle"], "watchlist"', src)
-        self.assertIn('ft.Text(row["filter_text"]', src)
+        self.assertIn('tracked_filter_text(row["symbol"], "3m", row["filter_text"]', src)
         self.assertIn('on_click=lambda e, item=row["symbol"]: remove(e, item)', src)
 
 
