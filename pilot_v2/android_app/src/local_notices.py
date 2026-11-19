@@ -9,6 +9,9 @@ EVENTS = {
     "PAPER_PLAN_SAVED": "Manual PAPER risk preview saved locally",
     "PAPER_PLAN_CLEARED": "Manual PAPER preview cleared locally",
     "LOCAL_PREFS_RESTORED": "Local preferences restored for this session",
+    "PAPER_SIM_OPENED": "Manual PAPER simulation opened locally (no orders)",
+    "PAPER_SIM_CLOSED": "Manual PAPER simulation closed locally (hypothetical only)",
+    "CHART_STYLE_CHANGED": "Native Scanner chart style changed locally",
 }
 MAX_NOTICES = 20
 

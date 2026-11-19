@@ -1,4 +1,13 @@
 
+## NEXT V2 LOCAL ACTION ALERTS / NOTICES PARITY — 2026-11-19
+- Latest executable `4bd814a0c13005bfad1f1ad512b2d7bb9adabc58` [CI #118](https://github.com/vaishnavi596/volume-king/actions/runs/44441859427) **330/330 PASS**, including read-only cached Scanner EMA20/50, RSI14, ATR14, support/resistance panel. Previous #116 FAIL was repaired with #117 327/327 PASS; no reruns needed.
+- Complete next **app-only local-notice** segment: V2 `LocalNoticeCenter` now allowlists `PAPER_SIM_OPENED`, `PAPER_SIM_CLOSED`, `CHART_STYLE_CHANGED`; in Flet main notices are recorded **after** successful manual PAPER entry/exit or strict chart-style choice. Existing bounded 20-session notice list, mark-read and clear operations preserved. No free text, broker order, market signal, price-trigger or external push notifications; market alerts remain PENDING actual authenticated live feed and explicit policy acceptance.
+- Added `test_local_action_notices.py` to verify new events, spoofed market alert rejection, limit, button-side action order and absence of legacy calls. New exact CI pending. No V1, server, Oracle production, APK or credentials touched.
+- NEXT: finish other missing V1 UI callbacks and one coherent app acceptance audit; do not mistake historical-only controls for V1 live/WebView parity.
+
+---
+
+
 ## V2 CHART TECHNICAL PANEL — FULL NEXT FEATURE SEGMENT (2026-11-19)
 - Owner workflow: tell real commit/CI failure & fix, but **continue immediately to next concrete work**. Latest tested V2 executable `74a63cfd43458f7b5591dd0998218f2b1e08db37` [CI #117](https://github.com/vaishnavi596/volume-king/actions/runs/44441434039) **327/327 PASS**. Previous [CI #116](https://github.com/vaishnavi596/volume-king/actions/runs/44441299677) FAILED one 327-test equality assertion: test-reloaded `SmartDataSettings` class identity mismatch despite identical values; corrected the test to compare strict serialized preference values, without changing application validation. Do not rerun #116.
 - Next V1→V2 **completed, cache-only technical chart panel** candidate: `historical_indicator_panel.py` reuses existing reviewed `historical_scanner_analysis()` and already accepted cached candles. V2 Scanner shows EMA20/50, RSI14, ATR14 and approximate local historical support/resistance; displays WAIT unless >=30 validated completed bars exist, never presents these as five core OI filters, NEWS/FUTURES factors, LIVE or order signals. All five 1/3/5/15/30m scanner timeframe choices remain independent; zero new network calls or external provider requirements.

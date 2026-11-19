@@ -222,6 +222,7 @@ def main(page: ft.Page):
             def change_chart_style(e):
                 try:
                     chart_style[0] = chart_style_choice(e.control.value)
+                    notices.record("CHART_STYLE_CHANGED")
                     status.value = ("Chart style saved locally" if save_chart_style()
                                     else "Chart style selected for session")
                 except ValueError:
@@ -693,6 +694,7 @@ def main(page: ft.Page):
                     ledger.open_simulation(
                         slot, paper_slots[0].previews[slot],
                         confirmed=paper_confirm[0])
+                    notices.record("PAPER_SIM_OPENED")
                     status.value = "Manual PAPER simulation opened · zero broker orders"
                 except PaperLedgerError as exc:
                     status.value = str(exc)
@@ -704,6 +706,7 @@ def main(page: ft.Page):
                     row = ledger.close_simulation(
                         paper_slots[0].selected_slot, paper_exit[0],
                         confirmed=paper_confirm[0])
+                    notices.record("PAPER_SIM_CLOSED")
                     status.value = (
                         f'Manual PAPER simulation closed · hypothetical P&L ₹{row["paper_pnl"]:,.2f}'
                         " · zero broker orders")
