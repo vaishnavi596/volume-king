@@ -13,6 +13,7 @@ on:
           - prepare_v2
           - live_preflight
           - stage_v2
+          - activate_v2
           - maintenance
         default: audit
       command:
@@ -230,6 +231,92 @@ jobs:
             rm -f "$RUNNER_TEMP/botking-v2-source.tar.gz"
             "${SSH[@]}" "opc@$ORACLE_HOST" 'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -fsS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
             echo "V2_NEW_SOURCE_STAGE_AND_RUNTIME=SUCCESS; V2_ACTIVATED=NO; V1=HEALTHY"
+          elif [ "$OPERATION" = "activate_v2" ]; then
+            test -z "$OWNER_COMMAND"
+            if [ "$APPROVAL" != "APPROVE_V2_LIVE" ]; then
+              echo "V2_ACTIVATION=BLOCKED_OWNER_APPROVAL_REQUIRED"; exit 1
+            fi
+            "${SSH[@]}" "opc@$ORACLE_HOST" 'bash -s' <<'ACTIVATE'
+          set -euo pipefail
+          umask 077
+          ROOT=/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40
+          PRIVATE=/home/opc/botking-v2-private/v2.env
+          UNIT=/etc/systemd/system/bot-king-v2.service
+          echo "V2_ONE_CLICK_ACTIVATION=BEGIN"
+          test -x "$ROOT/.venv/bin/python"
+          test -f "$ROOT/pilot_v2/tools/v2_activation_gate.py"
+          test -f "$ROOT/pilot_v2/tools/provision_oracle_master.py"
+          test -r "$ROOT/manifest.json"
+          "$ROOT/.venv/bin/python" - "$ROOT/manifest.json" <<'PY'
+          import json, sys
+          m = json.load(open(sys.argv[1]))
+          assert m["commit"] == "94e814031896445874fa3f81677b85d118584f40"
+          assert m["source_count"] == 38 and m["activated"] is False
+          assert m["archive_sha256"] == "d592fd686dfb059b33d5b98fa42cb380f17403688b543e384c9f20d9d41358a2"
+          print("V2_PINNED_ARCHIVE=VERIFIED")
+          PY
+          test "$(systemctl is-active bot-king.service)" = active
+          test "$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8000/health)" = 200
+          test "$(id -un)" = opc
+          test -f "$PRIVATE"
+          test ! -L "$PRIVATE"
+          test "$(stat -c %a "$PRIVATE")" = 600
+          test "$(stat -c %a /home/opc/botking-v2-private)" = 700
+          cd "$ROOT"
+          "$ROOT/.venv/bin/python" -m pilot_v2.tools.v2_activation_gate --private-env-file "$PRIVATE"
+          echo "V2_REAL_MASTER_AND_PAIRING=APPROVED_BY_LOCAL_GATE"
+          # Never assume a new HTTPS location is safe to inject into the existing V1 virtual host.
+          sudo -n nginx -t >/dev/null 2>&1
+          if ! sudo -n nginx -T 2>/dev/null | grep -Fq '/v2-pilot/'; then
+            echo "V2_ACTIVATION=BLOCKED_EXISTING_HTTPS_ROUTE_NOT_CONFIGURED"; exit 1
+          fi
+          if test -e "$UNIT" || test -L "$UNIT"; then
+            echo "V2_ACTIVATION=BLOCKED_EXISTING_UNIT_REVIEW_REQUIRED"; exit 1
+          fi
+          if ss -lnt '( sport = :8001 )' | grep -q LISTEN; then
+            echo "V2_ACTIVATION=BLOCKED_PORT_OCCUPIED"; exit 1
+          fi
+          sudo -n true
+          rollback() {
+            echo "V2_ACTIVATION=ROLLING_BACK"
+            sudo -n systemctl stop bot-king-v2.service >/dev/null 2>&1 || true
+            sudo -n systemctl disable bot-king-v2.service >/dev/null 2>&1 || true
+            sudo -n rm -f "$UNIT"
+            sudo -n systemctl daemon-reload || true
+          }
+          trap rollback ERR
+          # No V1 files or Nginx configuration are written.
+          cat > /tmp/bot-king-v2-unit-$ <<'UNITFILE'
+          [Unit]
+          Description=BOT KING Version 2 isolated authenticated read-only gateway
+          After=network-online.target bot-king.service
+          Wants=network-online.target
+          [Service]
+          Type=simple
+          User=opc
+          Group=opc
+          WorkingDirectory=/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40
+          EnvironmentFile=/home/opc/botking-v2-private/v2.env
+          ExecStart=/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40/.venv/bin/uvicorn pilot_v2.oracle_secure_entrypoint:create_app --factory --host 127.0.0.1 --port 8001 --workers 1
+          Restart=on-failure
+          RestartSec=5
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectSystem=full
+          [Install]
+          WantedBy=multi-user.target
+          UNITFILE
+          sudo -n install -o root -g root -m 0644 /tmp/bot-king-v2-unit-$ "$UNIT"
+          rm -f /tmp/bot-king-v2-unit-$
+          sudo -n systemctl daemon-reload
+          sudo -n systemctl enable --now bot-king-v2.service >/dev/null
+          test "$(systemctl is-active bot-king-v2.service)" = active
+          test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8001/v2-pilot/quotes)" = 401
+          test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 https://botkingrajesh.duckdns.org/v2-pilot/quotes)" = 401
+          test "$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8000/health)" = 200
+          trap - ERR
+          echo "V2_GATEWAY_TRANSPORT=ACTIVE; V1=HEALTHY; LIVE_DHAN_QUOTES=NOT_VERIFIED; PHONE_SIGNED_LOGIN=NOT_VERIFIED"
+          ACTIVATE
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
               echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
