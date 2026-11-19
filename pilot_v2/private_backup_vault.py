@@ -151,8 +151,13 @@ class ServerBackupVault:
         if not callable(master_owner) or not isinstance(db_path, (str, Path)):
             raise ValueError("Verified Master resolver and database path required")
         path = Path(db_path)
-        if path.is_symlink() or not path.parent.is_dir():
+        if path.is_symlink() or not path.parent.is_dir() or path.parent.is_symlink():
             raise ValueError("Unsafe database path")
+        directory = os.stat(path.parent, follow_symlinks=False)
+        if (not stat.S_ISDIR(directory.st_mode)
+                or directory.st_mode & 0o022):
+            raise ValueError("Private backup directory must not be group/world writable")
+        self._dir_identity = (directory.st_dev, directory.st_ino)
         self._path = str(path)
         self._master_owner = master_owner
         if not path.exists():
@@ -174,6 +179,11 @@ class ServerBackupVault:
         # Detect a replaced/linked database on each access. Full race safety
         # still depends on a private server-owned parent directory.
         try:
+            directory = os.stat(Path(self._path).parent, follow_symlinks=False)
+            if (not stat.S_ISDIR(directory.st_mode)
+                    or directory.st_mode & 0o022
+                    or (directory.st_dev, directory.st_ino) != self._dir_identity):
+                raise VaultStorageDenied("Private backup storage unavailable")
             current = os.stat(self._path, follow_symlinks=False)
             if (not stat.S_ISREG(current.st_mode) or current.st_mode & 0o077
                     or current.st_nlink != 1
