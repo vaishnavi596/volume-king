@@ -286,7 +286,7 @@ jobs:
           }
           trap rollback ERR
           # No V1 files or Nginx configuration are written.
-          cat > /tmp/bot-king-v2-unit-$ <<'UNITFILE'
+          cat > /tmp/bot-king-v2-unit-$$ <<'UNITFILE'
           [Unit]
           Description=BOT KING Version 2 isolated authenticated read-only gateway
           After=network-online.target bot-king.service
@@ -306,8 +306,8 @@ jobs:
           [Install]
           WantedBy=multi-user.target
           UNITFILE
-          sudo -n install -o root -g root -m 0644 /tmp/bot-king-v2-unit-$ "$UNIT"
-          rm -f /tmp/bot-king-v2-unit-$
+          sudo -n install -o root -g root -m 0644 /tmp/bot-king-v2-unit-$$ "$UNIT"
+          rm -f /tmp/bot-king-v2-unit-$$
           sudo -n systemctl daemon-reload
           sudo -n systemctl enable --now bot-king-v2.service >/dev/null
           test "$(systemctl is-active bot-king-v2.service)" = active
