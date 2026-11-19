@@ -14,6 +14,7 @@ from dashboard_parity import INDEXES, index_card_model, status_overview
 from watchlist_parity import watchlist_rows
 from watchlist_search import filtered_watchlist_symbols
 from legacy_technical_bridge import historical_scanner_analysis
+from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
 from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
 from candle_option_views import candle_geometry
@@ -125,6 +126,7 @@ def main(page: ft.Page):
     quote_view = DeviceFeedInbox()  # Separate equity/index revisions; no network producer yet.
     evidence_inbox = DeviceEvidenceInbox()  # Offline, authenticated data client NOT connected.
     candle_history = evidence_inbox.candles
+    scanner_history = HistoricalThreeMinuteFallback(candle_history)
     filter_evidence = evidence_inbox.filters
     option_evidence = evidence_inbox.options
     expiry_choices = evidence_inbox.expiries
@@ -319,17 +321,17 @@ def main(page: ft.Page):
                                      for n in WINDOWS],
                             on_change=change_chart_window),
                 ft.Text(quote_view.display(scanner[0].symbol, state.selected)),
-                ft.Text(candle_history.summary(scanner[0].symbol, scanner[0].timeframe,
+                ft.Text(scanner_history.summary(scanner[0].symbol, scanner[0].timeframe,
                                                selected_equities=state.selected)),
                 ft.Text(historical_scanner_analysis(
-                    candle_history, scanner[0].symbol, scanner[0].timeframe,
+                    scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["summary"], size=13),
                 *([ft.Container(
                     content=ft.LineChart(
                         data_series=[ft.LineChartData(
                             data_points=[ft.LineChartDataPoint(i, price)
                                          for i, price in enumerate(chart_points(
-                                             candle_history, scanner[0].symbol,
+                                             scanner_history, scanner[0].symbol,
                                              scanner[0].timeframe,
                                              selected_equities=state.selected,
                                              limit=chart_window[0]))],
@@ -337,7 +339,7 @@ def main(page: ft.Page):
                         expand=True),
                     height=150, padding=5,
                 )] if len(chart_points(
-                    candle_history, scanner[0].symbol, scanner[0].timeframe,
+                    scanner_history, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected,
                     limit=chart_window[0])) >= 2 else
                    [ft.Text("Scanner chart WAIT · completed candle history unavailable")]),
@@ -352,7 +354,7 @@ def main(page: ft.Page):
                                      bgcolor=ft.Colors.GREEN if c["up"] else ft.Colors.RED,
                                      top=c["body_top"], left=0),
                     ], width=12, height=116) for c in candle_geometry(
-                        candle_history, scanner[0].symbol, scanner[0].timeframe,
+                        scanner_history, scanner[0].symbol, scanner[0].timeframe,
                         selected_equities=state.selected)
                 ], scroll=ft.ScrollMode.AUTO, spacing=4),
                 ft.Text("Historical close-price chart · NOT live / not a verified trade signal",

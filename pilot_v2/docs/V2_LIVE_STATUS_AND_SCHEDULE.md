@@ -138,3 +138,9 @@
 - Found additional partial-window hazard: `LocalCandleHistory.accept` previously rejected old-end replay, but could accept a shorter newer-ended validated window and shrink a 35-bar chart/indicator history to two bars. Fixed fail-closed: when existing history is longer, reject shortened incoming history while preserving original revision and current completed bars. A later complete longer window may still update history.
 - Added targeted regression to `test_flet_candle_history.py` for 35-bar retained 3m chart, newer 2-bar partial rejected, and corrected 36-bar refresh accepted.
 - This is app-side V2-only cache retention; does not assert live candle or broker data, and does not fetch Dhan. Source CI PENDING until observed. No V1/Oracle/APK/credentials/orders changes.
+
+## V2-FT2-SCANNER-3M-CACHED-1M-OFFLINE-FALLBACK-20261119
+- Preflight: V2 Pilot CI #100 [run 44430597636](https://github.com/vaishnavi596/volume-king/actions/runs/44430597636) SUCCESS exact source `cf063efbe6712b03e07144d69d475da487766463`. Reviewed previous 10 V2 commits. Earlier #99/#98/#97 successful.
+- V2-only scanner view adapter `historical_three_minute_fallback.py`: if trusted local 3m cache is missing, derive display-only completed session-aligned 3m bars from already accepted cached 1m using reviewed V1 pure `dhan_three_minute` helper. Never mutates primary 3m cache, bypasses symbol selection, invokes provider or creates live evidence.
+- Scanner summary, technical historical analysis, native candle and line chart consume overlay; five source-gated filter votes, options and Super Five ranking remain on existing evidence gates. Missing/incomplete/unfinished minutes remain WAIT. Added focused offline regression `test_scanner_3m_historical_fallback.py`.
+- CI pending for new SHA; no V1 code, default branch, server, APK, Dhan API, trading, secrets or production edits. Complete V1 migration/device/live data acceptance remains open.
