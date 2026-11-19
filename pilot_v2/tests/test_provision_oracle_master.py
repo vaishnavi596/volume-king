@@ -1,14 +1,16 @@
 """Local-only owner-approved Oracle V2 Master enrollment tests."""
 import hashlib
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from pilot_v2.tools.provision_oracle_master import enroll_master
+from pilot_v2.tools.provision_oracle_master import enroll_master, main
 
 
 class MasterEnrollmentTests(unittest.TestCase):
@@ -30,6 +32,27 @@ class MasterEnrollmentTests(unittest.TestCase):
                   public_path=self.public, approved_fingerprint=self.digest)
         args.update(kw)
         return enroll_master(**args)
+
+    def test_production_cli_rejects_non_v2_directory_before_any_enrollment(self):
+        # An operator cannot accidentally enroll into V1 or a similarly
+        # named path: no file or stdout exposing details is produced.
+        args = ["provision_oracle_master.py", "--private-directory", str(self.root),
+                "--device-id", self.device_id, "--public-spki-der",
+                str(self.public), "--approved-public-sha256", self.digest]
+        with patch.object(sys, "argv", args), self.assertRaises(SystemExit) as error:
+            main()
+        self.assertEqual(error.exception.code, 2)
+        self.assertFalse((self.root / "master.sqlite").exists())
+        self.assertEqual(list(self.root.glob(".master-enroll-*")), [])
+
+    def test_production_cli_rejects_v2_private_directory_lookalike(self):
+        args = ["provision_oracle_master.py", "--private-directory",
+                "/home/opc/botking-v2-private-copy", "--device-id",
+                self.device_id, "--public-spki-der", str(self.public),
+                "--approved-public-sha256", self.digest]
+        with patch.object(sys, "argv", args), self.assertRaises(SystemExit) as error:
+            main()
+        self.assertEqual(error.exception.code, 2)
 
     def test_explicit_approval_once_no_private_key(self):
         result=self.enroll()

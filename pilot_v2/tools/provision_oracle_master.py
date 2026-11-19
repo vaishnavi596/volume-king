@@ -18,6 +18,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from pilot_v2.device_policy import valid_id
+
+PRODUCTION_V2_PRIVATE_DIR = Path("/home/opc/botking-v2-private")
 from pilot_v2.durable_device_sessions import DurableDeviceSessions
 from pilot_v2.durable_device_keys import DurableDeviceKeys
 
@@ -100,6 +102,11 @@ def main():
     p.add_argument("--public-spki-der", required=True)
     p.add_argument("--approved-public-sha256", required=True)
     a = p.parse_args()
+    # Production CLI can write ONLY into the dedicated V2 private root;
+    # library-level isolated tests use temporary directories independently.
+    # Do not resolve here: a linked path must be rejected by _private_directory.
+    if Path(a.private_directory) != PRODUCTION_V2_PRIVATE_DIR:
+        p.error("Only dedicated V2 private directory may be provisioned")
     result = enroll_master(directory=a.private_directory, device_id=a.device_id,
                            public_path=a.public_spki_der,
                            approved_fingerprint=a.approved_public_sha256)
