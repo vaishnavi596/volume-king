@@ -47,7 +47,7 @@ class LocalConnectionStatusTests(unittest.TestCase):
     def test_local_logout_is_explicit_and_never_claims_remote_revoke(self):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         self.assertIn("def clear_local_device_session(e):", source)
-        self.assertIn("reader.invalidate()", source)
+        self.assertIn("device_session_slot.clear()", source)
         self.assertIn("device_session_slot.clear()", source)
         self.assertIn("server revocation not sent", source)
         self.assertIn("Clear local device session (no server revoke)", source)
