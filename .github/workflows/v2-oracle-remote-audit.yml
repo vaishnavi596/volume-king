@@ -1,0 +1,55 @@
+name: BOT KING V2 Oracle Remote Audit
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: botking-v2-oracle-ops
+  cancel-in-progress: false
+jobs:
+  oracle-audit:
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 5
+    steps:
+      - name: Confirm protected Oracle credentials exist
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ORACLE_HOST"
+          test -n "$ORACLE_SSH_KEY"
+          test -n "$ORACLE_KNOWN_HOSTS"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/botking_oracle
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
+          echo "Oracle remote credentials configured (contents hidden)."
+      - name: Read-only V1 and V2 status (no credentials or market calls)
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10 "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          printf 'V1='
+          systemctl is-active bot-king.service
+          printf 'V2_LOAD='
+          systemctl show bot-king-v2.service -p LoadState --value
+          printf 'V2_STATE='
+          systemctl show bot-king-v2.service -p ActiveState --value
+          printf 'HEALTH='
+          curl -sS -o /dev/null --max-time 8 -w '%{http_code}\n' http://127.0.0.1:8000/health
+          printf 'V2_PORT='
+          if ss -lnt '( sport = :8001 )' | grep -q LISTEN; then echo LISTEN; else echo ABSENT; fi
+          REMOTE
+      - name: Erase temporary SSH identity
+        if: always()
+        shell: bash
+        run: |
+          rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts
