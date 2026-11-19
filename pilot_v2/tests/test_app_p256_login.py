@@ -2,6 +2,8 @@
 import json
 import sys
 import tempfile
+from threading import Event, Thread
+from unittest.mock import patch
 import unittest
 from email.message import Message
 from pathlib import Path
@@ -207,6 +209,50 @@ class P256AndroidLoginContractTests(unittest.TestCase):
             slot.active_reader()
         self.assertTrue(slot.sign_in(self.make_login()))
         self.assertTrue(slot.active_reader().session_active)
+
+    def test_overlapping_logins_cannot_install_superseded_bearer(self):
+        slot = DeviceReaderSlot()
+        first_login = self.make_login()
+        second_login = self.make_login()
+        first_ready = Event()
+        release_first = Event()
+        old_result = []
+
+        # Deterministically pause the FIRST login only after it has reserved
+        # its generation. The second verified login must win even when the
+        # first returns its valid reader last.
+        actual_login = V2P256LoginHTTPSClient.login
+
+        def controlled_login(client):
+            if client is first_login:
+                first_ready.set()
+                self.assertTrue(release_first.wait(5))
+            return actual_login(client)
+
+        def old_task():
+            try:
+                old_result.append(slot.sign_in(first_login))
+            except FeedError as exc:
+                old_result.append(str(exc))
+
+        with patch.object(V2P256LoginHTTPSClient, "login", controlled_login):
+            worker = Thread(target=old_task)
+            worker.start()
+            try:
+                self.assertTrue(first_ready.wait(5))
+                self.assertTrue(slot.sign_in(second_login))
+                winning_reader = slot.active_reader()
+                release_first.set()
+                worker.join(5)
+                self.assertFalse(worker.is_alive())
+                self.assertEqual(len(old_result), 1)
+                self.assertIn("cancelled", old_result[0])
+                self.assertIs(slot.active_reader(), winning_reader)
+                self.assertTrue(winning_reader.session_active)
+            finally:
+                release_first.set()
+                worker.join(5)
+                slot.clear()
 
     def test_invalid_origin_device_and_signer_fail_before_any_http(self):
         for origin in ("http://v2.example.test", "https://user@v2.example.test"):

@@ -33,9 +33,15 @@ class DeviceReaderSlot:
         """Accept only a successful signed HTTPS login, never a token string."""
         if type(login_client) is not V2P256LoginHTTPSClient:
             raise FeedError("Approved P-256 HTTPS login client required")
-        self.clear()  # Rotate session; failed sign-in must leave no old bearer.
+        # Atomically reserve a unique generation for THIS login attempt.
+        # An intervening clear/new sign-in cannot let an older attempt adopt
+        # the newer generation between two separate lock acquisitions.
         with self._lock:
+            self._generation += 1
             attempt = self._generation
+            previous, self._reader = self._reader, None
+        if previous is not None:
+            previous.invalidate()
         reader = login_client.login()
         if type(reader) is not V2ReadonlyHTTPSReader:
             raise FeedError("Approved read-only device session required")
@@ -48,7 +54,8 @@ class DeviceReaderSlot:
         return True
 
     def active_reader(self):
-        reader = self._reader
-        if reader is None or not reader.session_active:
-            raise FeedError("V2 device session sign-in required")
-        return reader
+        with self._lock:
+            reader = self._reader
+            if reader is None or not reader.session_active:
+                raise FeedError("V2 device session sign-in required")
+            return reader
