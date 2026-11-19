@@ -22,8 +22,13 @@ class SharedQuoteGateway:
         The caller must authenticate the collector and ensure one atomic
         publish across processes before production integration.
         """
-        if not isinstance(union_demand, Demand):
-            raise ContractError("Invalid union demand")
+        if (type(union_demand) is not Demand
+                or type(union_demand.equities) is not tuple
+                or type(union_demand.indices) is not tuple
+                or union_demand != self.union_demand()):
+            # The collector cannot widen the global owner-selected roster or
+            # substitute other indexes; no central-cache mutation on mismatch.
+            raise ContractError("Collector demand not authorized by selected devices")
         return self._cache.update(payload, union_demand)
 
     def select_equities(self, session, watch_groups):

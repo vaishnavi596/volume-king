@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from pilot_v2.device_policy import DeviceRegistry
 from pilot_v2.device_sessions import DeviceSessionGateway, VerifiedDevice, SessionDenied
-from pilot_v2.gateway_contract import plan_demand, ContractError
+from pilot_v2.gateway_contract import plan_demand, ContractError, Demand
 from pilot_v2.shared_quote_gateway import SharedQuoteGateway
 
 MASTER="master_device_000001"
@@ -195,6 +195,26 @@ class SharedQuoteGatewayTests(unittest.TestCase):
                     schema_version=1)
         self.assertTrue(self.shared.publish_from_trusted_collector(good, plan))
         self.assertEqual(self.shared.read(self.master, "quotes")["quotes"]["TCS"]["price"], 120.0)
+
+    def test_collector_cannot_expand_global_demand_or_change_indexes(self):
+        self.shared.select_equities(self.master, [["TCS"], [], [], [], []])
+        actual = self.shared.union_demand()
+        self.assertEqual(actual.equities, ("TCS",))
+        for unauthorized in (
+                Demand(("TCS", "INFY")),
+                Demand(("TCS",), ("NIFTY",)),
+                Demand(tuple("EQ" + str(i) for i in range(71))),
+                Demand(("TCS", "TCS")),
+                Demand(("TCS",), ("NIFTY", "BANKNIFTY", "FAKE"))):
+            with self.subTest(demand=repr(unauthorized)), self.assertRaises(ContractError):
+                self.shared.publish_from_trusted_collector(
+                    snapshot(1, {"TCS": 100, "INFY": 200}), unauthorized)
+        with self.assertRaises(ContractError):
+            self.shared.read(self.master, "quotes")
+        self.assertTrue(self.shared.publish_from_trusted_collector(
+            snapshot(1, {"TCS": 100, "NIFTY": 25000}), actual))
+        self.assertEqual(set(self.shared.read(self.master, "quotes")["quotes"]), {"TCS"})
+        self.assertEqual(set(self.shared.read(self.master, "indices")["quotes"]), {"NIFTY"})
 
     def test_shared_read_contract_is_accepted_by_actual_flet_inbox(self):
         """The same quote/index read payload must pass the Android-side schema."""
