@@ -1,3 +1,21 @@
+## CURRENT OWNER DECISION — COMPACT FINAL MIGRATION, 2026-11-19
+
+**Stop incremental micro-fixes.** Use a frozen one-time V1→V2 gap manifest and one coordinated V2-only app migration candidate; do not treat each feature as a separate migration. The purpose is to minimize commits, retests, clicks and CI cost without weakening security.
+
+**Exactly three operational gates (not 18 separate migrations):**
+1. **FREEZE / SCAN ONCE:** use V1 read-only and current V2 source; assign each previously inventoried feature one row with source/dependency, V2 entrypoint reachability, data state, missing behavior, risk, and proof. Close scope before modifying code. Group UI+navigation+Settings+Watchlist+Scanner+Super Five+Paper; candle+options+five filters+Smart Data; security+Master+3/auth and provider quarantine. Explicitly reconcile 3-vs-5 watchlists without destroying stored state. Keep Android device/real provider gates separate.
+2. **ONE V2 APP CANDIDATE:** implement the entire safe app-owned dependency graph in a dedicated V2-only candidate; preserve existing good implementations, block Angel One/Yahoo/legacy server settings/credentials/live orders, and keep Dhan-only authenticated transport unavailable as WAIT until independently verified. No V1/default-branch/Oracle production/APK changes. Combined fixes and tests in ONE coherent code commit when source is ready. If a regression fails, repair only failures in the same candidate; no ad hoc new migration rounds.
+3. **ONE COMBINED ACCEPTANCE:** run static security/compile, all functional cross-screen+0/5/70 roster+index/1m/3m/5m+five-filter/blank-sixth+cache+session/rollback tests together. Require exact SHA CI PASS and source-to-UI reachability; do not call Android device/provider LIVE accepted from offline CI. Gate reports distinguish APP CODE READY, DEVICE PENDING, and ORACLE PENDING. No automatic production merge/cutover or false final COMPLETE.
+
+**Known audited open domains (not independent tasks):** V1 full visual/WebView/device parity; live Super Five/five evidence engines; options CE/PE/OI/PCR/max pain; verified News/Futures/AI; real data-only Smart Data refresh, adaptive shared budget; Master +3 integrated enforcement; safe Paper ledger/alerts; secure Dhan/Oracle transport; signed APK/device acceptance. The existing one-click audit tool has eight hardcoded False acceptance checks and is a fail-closed diagnostic, NOT actual automatic migration; replace with evidence-driven checks as part of coordinated candidate. Do not promise one-click completion before verified automation exists.
+
+**Last known executable verification at decision:** commit `46e79bfaddcb89cc7794bcb503c39cdf1a978692`, [V2 CI #102](https://github.com/vaishnavi596/volume-king/actions/runs/44432398138) completed SUCCESS; previous #101 and #100 also SUCCESS. This handoff revision is documentation only, not new CI evidence.
+
+**NEXT EXACT ACTION:** Produce/freeze one machine-checkable full gap manifest across all V2 modules and V1 read-only callable UI graph, prioritizing missing entrypoint connections and high-risk provider boundary. Then build the one coordinated candidate. No more isolated functionality patches prior to frozen audit.
+
+
+---
+
 # BOT KING V2 — HANDOFF (CURRENT)
 **Checkpoint 2026-11-18.** Detailed current category status, CI, blocked work and rules: [CURRENT CANONICAL STATUS](V2_CURRENT_CANONICAL_STATUS_20261118.md). Standing owner rules: [GENERAL FRAMEWORK](V2_GENERAL_FRAMEWORK_RULES.md). Historical batches: [MASTER JOURNAL](V2_MASTER_JOURNAL.md) and [WORK LOG](V2_WORK_LOG.md).
 
