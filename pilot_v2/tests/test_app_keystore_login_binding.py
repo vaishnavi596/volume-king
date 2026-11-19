@@ -2,6 +2,7 @@
 import hashlib
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -9,6 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(SRC))
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
+from app_device_reader_slot import DeviceReaderSlot
 from app_p256_login import LOGIN_CONTEXT, V2P256LoginHTTPSClient
 from secure_https_reader import FeedError
 
@@ -133,6 +135,25 @@ class KeystoreBindingTests(unittest.TestCase):
         self.key.public_key().verify(signature, message, ec.ECDSA(hashes.SHA256()))
         self.assertEqual(calls, ["public"] * 4)
         self.assertEqual(self.calls, [message])
+
+    def test_strict_keystore_to_session_handoff_remains_dormant(self):
+        slot = DeviceReaderSlot()
+        binding = self.bind()
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(object(), "https://v2.example.test")
+        with self.assertRaises(FeedError):
+            slot.sign_in_with_keystore(binding, "http://v2.example.test")
+        self.assertEqual(self.calls, [])
+        self.assertIsNone(slot.reader)
+        with patch.object(slot, "sign_in", return_value=True) as approved_login:
+            self.assertTrue(slot.sign_in_with_keystore(
+                binding, "https://v2.example.test"))
+            approved_login.assert_called_once()
+            client = approved_login.call_args.args[0]
+            self.assertIsInstance(client, V2P256LoginHTTPSClient)
+        # Constructing a client never invokes Keystore signing or network.
+        self.assertEqual(self.calls, [])
+        self.assertIsNone(slot.reader)
 
     def test_login_client_enforces_approved_https_origin_before_network(self):
         binding = self.bind()
