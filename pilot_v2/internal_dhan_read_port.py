@@ -26,6 +26,11 @@ class DhanReadUnavailable(RuntimeError):
     pass
 
 
+class DhanRateLimited(DhanReadUnavailable):
+    """Only the approved internal Dhan adapter may signal provider HTTP 429."""
+    pass
+
+
 class InternalDhanReadPort:
     """Compose only a server-injected Dhan transport, never user-supplied data."""
 
@@ -58,6 +63,8 @@ class InternalDhanReadPort:
         selected = INDEXES if feed == "indices" else self._equities
         try:
             batch = self._transport(feed, selected)
+        except DhanRateLimited:
+            raise
         except Exception:
             raise DhanReadUnavailable("Authorized Dhan transport unavailable") from None
         if not isinstance(batch, DhanReadBatch) or batch.source != "dhan":
