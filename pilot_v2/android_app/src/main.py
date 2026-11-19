@@ -230,6 +230,7 @@ def main(page: ft.Page):
     content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
     quote_labels = {}  # Mounted Flet Text references, not server settings.
     candle_labels = {}  # Keyed by symbol/timeframe, independent of quotes.
+    filter_labels = {}  # Existing evidence-gated visible factors only.
 
     def tracked_quote_text(symbol, value, kind="display", **style):
         control = ft.Text(value, **style)
@@ -261,6 +262,33 @@ def main(page: ft.Page):
             else:
                 value = scanner_history.summary(
                     symbol, timeframe, selected_equities=state.selected)
+            if control.value != value:
+                control.value = value
+                control.update()
+        return True
+
+    def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
+        control = ft.Text(value, **style)
+        filter_labels.setdefault((symbol, timeframe), []).append((control, kind))
+        return control
+
+    def refresh_visible_filter_labels(symbol, timeframe):
+        """Repaint only labels after a separately authenticated evidence gate.
+
+        Never accepts incoming signals or authenticates transport itself.
+        """
+        labels = filter_labels.get((symbol, timeframe), ())
+        if not labels:
+            return False
+        context = shared_filter_context(
+            filter_evidence, symbol, timeframe, selected_equities=state.selected)
+        for control, kind in labels:
+            if kind == "index_signals":
+                value = "1m signals · " + " / ".join(v for _, v in context["rows"])
+            elif kind == "coverage":
+                value = context["coverage_label"]
+            else:
+                value = context["compact"]
             if control.value != value:
                 control.value = value
                 control.update()
@@ -313,6 +341,7 @@ def main(page: ft.Page):
     def render():
         quote_labels.clear()  # Discard prior-page control references.
         candle_labels.clear()
+        filter_labels.clear()
         scanner[0] = for_visible_roster(scanner[0], state)
         readiness = joint_data_readiness(
             state, scanner[0], smart[0], quote_view, evidence_inbox,
@@ -446,9 +475,9 @@ def main(page: ft.Page):
                         ft.Text(card["symbol"], color=GOLD, weight=ft.FontWeight.BOLD, size=16),
                         tracked_quote_text(card["symbol"], card["price_label"], "index", size=15),
                         tracked_candle_text(card["symbol"], "1m", card["candle_label"], "index", size=13),
-                        ft.Text("1m signals · " + " / ".join(
-                            value for _, value in card["filters"])),
-                        ft.Text(card["factor_coverage"], color=MUTED, size=14),
+                        tracked_filter_text(card["symbol"], "1m", "1m signals · " + " / ".join(
+                            value for _, value in card["filters"]), "index_signals"),
+                        tracked_filter_text(card["symbol"], "1m", card["factor_coverage"], "coverage", color=MUTED, size=14),
                         ft.TextButton("1m Chart",
                                       on_click=lambda e, symbol=card["symbol"]:
                                       open_index_chart(symbol)),
@@ -465,9 +494,9 @@ def main(page: ft.Page):
                     tracked_candle_text(symbol, "1m", candle_history.summary(
                         symbol, "1m", selected_equities=state.selected),
                         color=MUTED, size=14),
-                    ft.Text(shared_filter_context(filter_evidence, symbol, "1m",
+                    tracked_filter_text(symbol, "1m", shared_filter_context(filter_evidence, symbol, "1m",
                             selected_equities=state.selected)["coverage_label"],
-                            color=MUTED, size=14),
+                            "coverage", color=MUTED, size=14),
                     ft.TextButton("1m Chart",
                                   on_click=lambda e, symbol=symbol:
                                   open_analysis_chart(symbol)),
@@ -733,7 +762,7 @@ def main(page: ft.Page):
                                           on_click=lambda e, item=row["symbol"]: remove(e, item)),
                         ], spacing=4),
                         tracked_candle_text(row["symbol"], "3m", row["candle"], "watchlist", size=14, color=WHITE),
-                        ft.Text(row["filter_text"], size=14, color=MUTED),
+                        tracked_filter_text(row["symbol"], "3m", row["filter_text"], size=14, color=MUTED),
                     ]) for row in watchlist_rows(
                     filtered_watchlist_symbols(state.groups[group[0]], watch_search[0]),
                     quote_view, evidence_inbox,
