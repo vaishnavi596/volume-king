@@ -35,6 +35,12 @@ class FeedLastGoodRegression(unittest.TestCase):
         self.assertEqual(self.feed.visible("TCS", self.selected)["price"], 120)
         self.assertEqual(self.feed.visible("INFY", self.selected)["price"], 205)
         self.assertEqual(self.feed.revision_for("quotes"), 11)
+        # A new envelope must not rewrite an unchanged per-symbol revision.
+        self.assertTrue(self.feed.apply_feed("quotes", snapshot(
+            12, {"TCS": (75, 10), "INFY": (207, 11)}), self.selected))
+        self.assertEqual(self.feed.visible("TCS", self.selected)["price"], 120)
+        self.assertEqual(self.feed.visible("INFY", self.selected)["price"], 205)
+        self.assertEqual(self.feed.changed_for("quotes"), ())
 
     def test_empty_and_malformed_failures_retain_last_good_and_index_lane(self):
         self.feed.apply_feed("quotes", snapshot(4, {"TCS": (120, 4)}),
