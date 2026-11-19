@@ -4,6 +4,7 @@ The HTTP gateway MUST authenticate the master actor independently using a
 server-side revocable session; never trust a claimed role or device ID from a
 mobile payload. These are domain rules, NOT a deployed authentication system.
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 MAX_DEVICES = 4
