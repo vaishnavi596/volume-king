@@ -7,6 +7,7 @@ the vault. The raw backup password never crosses into ServerBackupVault.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import os
 import sqlite3
@@ -40,7 +41,7 @@ def _bytes(value, n=None):
         if _b64(b) != value or (n is not None and len(b) != n):
             raise ValueError
         return b
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, binascii.Error):
         raise PrivateBackupDenied("Invalid encrypted envelope") from None
 
 
@@ -127,6 +128,14 @@ class ServerBackupVault:
     session and return its stable server-owned owner ID. No owner ID is accepted
     from an HTTP payload or from this class's callers.
     """
+    @classmethod
+    def from_durable_sessions(cls, db_path, sessions):
+        """Bind only the existing revocable server-side Master session store."""
+        from .durable_device_sessions import DurableDeviceSessions
+        if not isinstance(sessions, DurableDeviceSessions):
+            raise ValueError("Durable verified device sessions required")
+        return cls(db_path, master_owner=sessions.authorize_master)
+
     def __init__(self, db_path, *, master_owner):
         if not callable(master_owner) or not isinstance(db_path, (str, Path)):
             raise ValueError("Verified Master resolver and database path required")

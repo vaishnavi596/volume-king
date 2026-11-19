@@ -4,6 +4,8 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from pilot_v2.durable_device_sessions import DurableDeviceSessions
+from pilot_v2.device_sessions import VerifiedDevice
 from pilot_v2.private_backup_vault import (
     PrivateBackupDenied, ServerBackupVault, inspect_envelope,
     seal_local_preferences, unseal_local_preferences,
@@ -67,6 +69,43 @@ class PrivateBackupVaultTests(unittest.TestCase):
             raw = db.read_bytes()
             self.assertNotIn(PASSWORD.encode(), raw)
             self.assertNotIn(b"watchlists", raw)
+
+    def test_real_durable_master_session_revoke_rotate_and_expiry(self):
+        with tempfile.TemporaryDirectory() as d:
+            now = [1000.0]
+            sessions = DurableDeviceSessions(
+                Path(d) / "sessions.sqlite", clock=lambda: now[0], ttl=60)
+            master_id = "master_authorized_0001"
+            delegate_id = "delegate_authorized_0001"
+            sessions.bootstrap(master_id, authorize_bootstrap=lambda _: True)
+            master = sessions.issue_verified(VerifiedDevice(master_id))
+            sessions.master_grant(master, delegate_id, ["quotes"])
+            delegate = sessions.issue_verified(VerifiedDevice(delegate_id))
+            vault = ServerBackupVault.from_durable_sessions(
+                Path(d) / "vault.sqlite", sessions)
+            sealed = seal_local_preferences(BACKUP, PASSWORD)
+            self.assertEqual(vault.replace(master, sealed, expected_revision=0), 1)
+            with self.assertRaises(PrivateBackupDenied):
+                vault.read(delegate)
+            with self.assertRaises(PrivateBackupDenied):
+                vault.replace(delegate, sealed, expected_revision=1)
+            fresh = sessions.issue_verified(VerifiedDevice(master_id))
+            with self.assertRaises(PrivateBackupDenied):
+                vault.read(master)
+            self.assertEqual(vault.read(fresh), (1, sealed))
+            sessions.logout(fresh)
+            with self.assertRaises(PrivateBackupDenied):
+                vault.read(fresh)
+            renewed = sessions.issue_verified(VerifiedDevice(master_id))
+            now[0] += 60
+            with self.assertRaises(PrivateBackupDenied):
+                vault.read(renewed)
+
+    def test_invalid_base64_fails_cleanly(self):
+        item = json.loads(seal_local_preferences(BACKUP, PASSWORD))
+        item["salt"] = "!!!not valid!!!"
+        with self.assertRaises(PrivateBackupDenied):
+            inspect_envelope(json.dumps(item))
 
     def test_auth_denial_precedes_envelope_storage(self):
         with tempfile.TemporaryDirectory() as d:

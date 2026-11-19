@@ -127,6 +127,18 @@ class DurableDeviceSessions:
                 db.execute("ROLLBACK")
                 raise
 
+    def authorize_master(self, token):
+        """Verify a live Master session for internal private-data operations."""
+        with self._db() as db:
+            db.execute("BEGIN")
+            try:
+                master_id = self._identity_tx(db, token, master=True)
+                db.execute("COMMIT")
+                return master_id
+            except BaseException:
+                db.execute("ROLLBACK")
+                raise
+
     def master_grant(self, token, device_id, feeds, *, enabled=True):
         """Changes are atomic with session revocation on disable/update."""
         if not valid_id(device_id) or type(enabled) is not bool:
