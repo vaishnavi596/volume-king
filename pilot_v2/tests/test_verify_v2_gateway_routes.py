@@ -41,6 +41,19 @@ class Gate1RoutesTests(unittest.TestCase):
         self.assertEqual(actual["tests"][0]["assessment"],
                          "PUBLIC_200_NOT_AUTH_OR_DATA_PROOF")
 
+    def test_post_auth_never_probed_as_get(self):
+        observed = []
+        def opener(request, timeout):
+            observed.append((request.get_method(), request.full_url))
+            return DummyResponse(request.full_url, 404)
+        report = mod.probe("https://example.test", opener=Mock(open=opener))
+        self.assertEqual(report["post_only_not_tested"], [
+            "/v2-pilot/auth/challenge", "/v2-pilot/auth/login"])
+        self.assertTrue(all(method == "GET" and "/auth/" not in url
+                            for method, url in observed))
+        self.assertEqual(len(observed), len(mod.PATHS))
+        self.assertIn("/v2-pilot/private-backup", mod.PATHS)
+
     def test_status_indications_are_never_auth_proof(self):
         self.assertEqual(mod._meaning(403), "AUTH_DENIED_ROUTE_UNCONFIRMED")
         self.assertEqual(mod._meaning(405), "METHOD_DENIED_ROUTE_UNCONFIRMED")

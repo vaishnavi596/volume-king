@@ -13,12 +13,17 @@ from urllib.request import (
     HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener,
 )
 
+# GET-only no-auth check: do NOT infer POST route status from GET 404.
 PATHS = (
     "/health",
-    "/v2-pilot/auth/challenge",
-    "/v2-pilot/auth/login",
+    "/v2-pilot/health",
     "/v2-pilot/indices",
     "/v2-pilot/quotes",
+    "/v2-pilot/private-backup",
+)
+POST_ONLY_NOT_TESTED = (
+    "/v2-pilot/auth/challenge",
+    "/v2-pilot/auth/login",
 )
 
 
@@ -82,8 +87,8 @@ def probe(origin, *, opener, timeout=5):
         outcomes.append({"path": path, "status": code,
                          "assessment": _meaning(code)})
     return {"gate": "LIVE-MVP-01/GATE-1", "status": "OPEN_UNVERIFIED",
-            "tests": outcomes,
-            "limits": "No credentials or bodies read; NOT proof of routing, auth, Dhan freshness, or LIVE phone data"}
+            "tests": outcomes, "post_only_not_tested": list(POST_ONLY_NOT_TESTED),
+            "limits": "No POST, credentials or bodies; no live/auth proof. GET-only 404 cannot establish a POST endpoint's availability"}
 
 
 def main():
