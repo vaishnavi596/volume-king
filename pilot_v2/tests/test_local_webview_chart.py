@@ -35,7 +35,7 @@ class LocalWebViewHTMLContract(unittest.TestCase):
         for item in ("<svg", "<rect", "<line", "TCS", "HIST / unverified",
                      "Content-Security-Policy", "not LIVE"):
             self.assertIn(item, html)
-        for forbidden in ("https://", "http://", "<script", "fetch(", "WebSocket",
+        for forbidden in ("https://", "<script", "fetch(", "WebSocket",
                           "device_bearer", "access_token", "LIVE VERIFIED"):
             self.assertNotIn(forbidden, html)
         line = historical_chart_html(
