@@ -120,8 +120,9 @@ class V2ReadonlyHTTPSReader:
         if type(selected_equities) not in (list, tuple):
             raise FeedError("Invalid Master equity selection")
         selected = tuple(selected_equities)
-        if (len(selected) > 70 or len(set(selected)) != len(selected)
-                or any(not valid_symbol(s) or s in INDEXES for s in selected)):
+        if (len(selected) > 70
+                or any(not valid_symbol(s) or s in INDEXES for s in selected)
+                or len(set(selected)) != len(selected)):
             raise FeedError("Invalid Master equity selection")
         with self._session_lock:
             bearer = self._bearer

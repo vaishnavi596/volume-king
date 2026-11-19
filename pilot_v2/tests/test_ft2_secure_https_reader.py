@@ -128,6 +128,8 @@ class HTTPSReaderTests(unittest.TestCase):
         self.assertTrue(self.reader.session_active)
         with self.assertRaises(FeedError):
             self.reader.sync_master_roster(("TCS", "TCS"))
+        with self.assertRaises(FeedError):
+            self.reader.sync_master_roster(("TCS", ["INFY"]))
         self.assertEqual(len(self.opener.calls), 1)
 
     def test_delegate_roster_403_not_mistaken_for_bearer_revocation(self):
