@@ -20,7 +20,7 @@ class SecureEntrypointTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "v2-private"
         self.root.mkdir(mode=0o700)
-        self.db = self.root / "master.db"
+        self.db = self.root / "master.sqlite"
         self.der = self.root / "master.der"
         self.key = self.root / "pairing.key"
         self.device_id = "master-v2-android-001"
