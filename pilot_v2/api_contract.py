@@ -20,7 +20,7 @@ def validate_snapshot(p):
               "live_orders_enabled","revision","quotes"}
     if (type(p) is not dict or set(p)!=required or
             p["protocol"]!="botking-v2-readonly" or
-            p["schema_version"]!=SCHEMA_VERSION or
+            type(p["schema_version"]) is not int or p["schema_version"]!=SCHEMA_VERSION or
             p["source"]!="dhan" or p["freshness"]!="unverified" or
             p["live_orders_enabled"] is not False or
             type(p["revision"]) is not int or p["revision"]<0 or

@@ -1,7 +1,7 @@
 """Shared versioned mock server + mock mobile contract tests, no network."""
 import unittest
 from pilot_v2.api_contract import (API_PREFIX,ENABLED_BY_DEFAULT,
-                                    make_snapshot,parse_selection)
+                                    make_snapshot,parse_selection,validate_snapshot)
 from pilot_v2.mobile_contract_mock import V2MobileFixture
 from pilot_v2.gateway_contract import ContractError
 
@@ -40,6 +40,20 @@ class ContractTests(unittest.TestCase):
                   make_snapshot(2,{"INFY":q(200,2)})):
             with self.assertRaises(ContractError):
                 m.apply(p)
+
+    def test_gateway_and_mobile_reject_boolean_schema_version(self):
+        baseline = make_snapshot(7, {"TCS": q(100, 7)})
+        for invalid in (dict(baseline, schema_version=True),
+                        dict(baseline, schema_version=1.0),
+                        dict(baseline, schema_version=False)):
+            with self.subTest(schema=invalid["schema_version"]):
+                with self.assertRaises(ContractError):
+                    validate_snapshot(invalid)
+                m = V2MobileFixture()
+                m.select({"watchlists": [["TCS"], [], [], [], []]})
+                with self.assertRaises(ContractError):
+                    m.apply(invalid)
+                self.assertEqual(m.quotes, {})
 
     def test_invalid_selection_and_prices(self):
         for body in ({"watchlists":[["TCS"],["TCS"],[],[],[]]},
