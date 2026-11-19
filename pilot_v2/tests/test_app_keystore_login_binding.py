@@ -128,7 +128,7 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertEqual(binding.public_spki_for_owner_enrollment(), self.public)
         self.assertEqual(binding.public_key_fingerprint_sha256(),
                          hashlib.sha256(self.public).hexdigest())
-        message = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\\x00" + bytes(32)
+        message = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(32)
         signature = binding.sign_login_challenge(message)
         self.key.public_key().verify(signature, message, ec.ECDSA(hashes.SHA256()))
         self.assertEqual(calls, ["public"] * 4)
