@@ -60,7 +60,7 @@ class DeviceQuoteView:
         changed = []
         for symbol, row in accepted.items():
             previous = self._rows.get(symbol)
-            if previous is None or row["revision"] >= previous["revision"]:
+            if previous is None or row["revision"] > previous["revision"]:
                 if previous != row:
                     changed.append(symbol)
                 self._rows[symbol] = row
