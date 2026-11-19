@@ -301,6 +301,25 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertTrue(previous.session_active)
         self.assertFalse(inactive.session_active)
 
+    def test_native_key_failure_during_relogin_preserves_prior_reader(self):
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        slot._reader = previous
+        calls = [0]
+        def public_key():
+            calls[0] += 1
+            if calls[0] > 1:
+                raise RuntimeError("secret platform alias")
+            return self.public
+        binding = AndroidKeystoreLoginBinding(MASTER, public_key, self.signer)
+        with self.assertRaises(FeedError) as error:
+            slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertNotIn("secret platform alias", str(error.exception))
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+        self.assertEqual(self.calls, [])
+
     def test_second_keystore_login_wins_over_older_inflight_login(self):
         binding = self.bind()
         slot = DeviceReaderSlot()
