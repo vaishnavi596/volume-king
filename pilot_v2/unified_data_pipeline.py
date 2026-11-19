@@ -10,7 +10,7 @@ from datetime import datetime, time
 from threading import RLock
 from zoneinfo import ZoneInfo
 
-from .internal_dhan_read_port import InternalDhanReadPort, DhanReadUnavailable
+from .internal_dhan_read_port import InternalDhanReadPort, DhanReadUnavailable, DhanRateLimited
 from .api_contract import validate_snapshot
 from .shared_read_budget import SharedReadBudget, BudgetDenied
 
@@ -73,6 +73,10 @@ class V2UnifiedReadPipeline:
                 if self._read_budget is not None:
                     self._read_budget.reserve()
                 snapshot = validate_snapshot(self._port(device_id, feed))
+            except DhanRateLimited:
+                if self._read_budget is not None:
+                    self._read_budget.throttle()
+                raise PipelineUnavailable("Dhan provider cooldown") from None
             except (DhanReadUnavailable, BudgetDenied, ValueError, TypeError):
                 # Client and app retain last-good. Do not silently relabel an
                 # old snapshot as newly verified or substitute a fake quote.
