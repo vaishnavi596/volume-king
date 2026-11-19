@@ -88,7 +88,7 @@ jobs:
           else
             echo "PASSWORDLESS_SUDO=NOT_VERIFIED"
           fi
-          STAGE=/home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80
+          STAGE=/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40
           if test -r "$STAGE/manifest.json"; then
             echo "V2_STAGE=PRESENT"
             if test -x "$STAGE/.venv/bin/python"; then
@@ -103,6 +103,20 @@ jobs:
           echo "V2_PUBLIC_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' https://botkingrajesh.duckdns.org/v2-pilot/health || true)"
           echo "V2_LOCAL_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' http://127.0.0.1:8001/v2-pilot/health || true)"
           echo "V1_READ_ROUTE_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' -X POST http://127.0.0.1:8000/dhan/index-ltp-batch || true)"
+          if [ -r /home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40/manifest.json ]; then
+            python3 - <<'PY'
+          import json
+          p="/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40/manifest.json"
+          m=json.load(open(p))
+          print("V2_38_FILE_MANIFEST="+("VERIFIED" if m.get("commit")=="94e814031896445874fa3f81677b85d118584f40" and m.get("source_count")==38 and m.get("activated") is False else "MISMATCH"))
+          PY
+          fi
+          if [ -f /home/opc/botking-v2-private/v2.env ] && [ ! -L /home/opc/botking-v2-private/v2.env ]; then
+            echo "V2_PRIVATE_ENV=PRESENT_NO_CONTENT_PRINTED"
+          else
+            echo "V2_PRIVATE_ENV=ABSENT_OR_UNSAFE"
+          fi
+          if sudo -n nginx -t >/dev/null 2>&1; then echo NGINX_SYNTAX=PASS; else echo NGINX_SYNTAX=UNVERIFIED; fi
           echo "V2_READINESS_AUDIT=COMPLETE_NO_CHANGES"
           REMOTE
           elif [ "$OPERATION" = "prepare_v2" ]; then
