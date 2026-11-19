@@ -1,3 +1,11 @@
+## V2 NEXT ACTUAL WORK: MOBILE MOCK PER-SYMBOL REVISION PARITY — 2026-11-19
+- Resumed from head b6b55a0, latest verified #158 364/364. Audited existing `RevisionCache`, `SharedQuoteGateway`, `V2MobileFixture`, actual Android `DeviceQuoteView` and both contract tests.
+- Found that the offline `V2MobileFixture.apply` replaced all incoming rows for a higher *global* envelope revision, including equal/older individual symbol revisions; actual Android quote view already refuses such overwrite. Made mock match Android: each symbol updates only when its revision strictly increases (new symbol accepted), global envelope still advances; partial/missing rows retain last-good. Added regression for two equities with newer mixed-stale global envelopes and equal-revision conflicting prices.
+- This narrows the mock-to-device gap but DOES NOT itself attest a collector's source timestamp. Legacy numeric `RevisionCache` caller cannot tell stale per-symbol observations from fresh without a per-symbol field; NEXT inspect and implement bounded explicit collector evidence while keeping existing offline contract and no LIVE claims.
+- All changes V2-only. No APK build, Oracle production, live trading orders, secrets, or V1 edits. CI status of this new batch pending exact run verification.
+
+---
+
 ## VERIFIED FT-3 ORACLE-ANDROID APP-SIDE CONTRACT CI #154–#158 — 2026-11-19
 - #153 FAIL 360/361 from a forged false-permitted intent bypassing validation; fixed at 03780843 and [CI #154](https://github.com/vaishnavi596/volume-king/actions/runs/44453607332) SUCCESS 361/361.
 - [CI #155](https://github.com/vaishnavi596/volume-king/actions/runs/44453751516) commit c218bca4 SUCCESS 362/362: gateway schema_version requires exact integer 1, no Boolean/float bypass.

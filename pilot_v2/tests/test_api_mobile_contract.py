@@ -29,6 +29,23 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(m.quotes["NIFTY"]["price"],25000)
         self.assertEqual(m.quotes["TCS"]["price"],110)
 
+    def test_newer_envelope_cannot_relabel_older_symbol_data(self):
+        m = V2MobileFixture()
+        m.select({"watchlists": [["TCS", "INFY"], [], [], [], []]})
+        self.assertTrue(m.apply(make_snapshot(10, {
+            "TCS": q(120, 10), "INFY": q(200, 8)})))
+        self.assertTrue(m.apply(make_snapshot(11, {
+            "TCS": q(99, 9), "INFY": q(205, 11)})))
+        self.assertEqual(m.quotes["TCS"]["price"], 120)
+        self.assertEqual(m.quotes["TCS"]["revision"], 10)
+        self.assertEqual(m.quotes["INFY"]["price"], 205)
+        self.assertTrue(m.apply(make_snapshot(12, {
+            "TCS": q(75, 10), "INFY": q(1, 11)})))
+        self.assertEqual(m.quotes["TCS"]["price"], 120)
+        self.assertEqual(m.quotes["INFY"]["price"], 205)
+        self.assertEqual(m.revision, 12)
+        self.assertFalse(m.apply(make_snapshot(12, {"TCS": q(150, 12)})))
+
     def test_never_trust_live_token_orders_or_unselected(self):
         m=V2MobileFixture()
         m.select({"watchlists":[["TCS"],[],[],[],[]]})
