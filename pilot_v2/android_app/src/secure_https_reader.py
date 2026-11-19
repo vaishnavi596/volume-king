@@ -89,6 +89,32 @@ class V2ReadonlyHTTPSReader:
             self._bearer = None
             self._cooldown_until = 0.0
 
+    def sign_out_remote(self):
+        """Revoke this bearer on Oracle and always scrub it locally first.
+
+        A network failure cannot prove remote revocation; caller must report
+        that distinction and server TTL/revocation remains authoritative.
+        """
+        with self._session_lock:
+            bearer = self._bearer
+            self._bearer = None
+            self._cooldown_until = 0.0
+        if bearer is None:
+            return False
+        url = self._origin + "/v2-pilot/auth/logout"
+        request = Request(url, method="POST", headers={
+            "Authorization": "Bearer " + bearer,
+            "Accept": "application/json"})
+        try:
+            with self._opener.open(request, timeout=self._timeout) as response:
+                if response.status != 200 or response.geturl() != url:
+                    raise FeedError("Remote V2 session revocation unverified")
+                if response.headers.get_content_type() != "application/json":
+                    raise FeedError("Remote V2 session revocation unverified")
+        except (HTTPError, URLError, OSError, ValueError):
+            raise FeedError("Remote V2 session revocation unverified") from None
+        return True
+
     def refresh(self, inbox, feed, *, selected_equities=(), manual=False):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
                 "quotes", "indices"):
