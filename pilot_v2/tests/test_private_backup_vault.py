@@ -152,6 +152,29 @@ class PrivateBackupVaultTests(unittest.TestCase):
             sessions.logout(master)
             self.assertEqual(client.get(url, headers=auth).status_code, 403)
 
+    def test_session_revoked_between_checks_returns_403_without_write(self):
+        with tempfile.TemporaryDirectory() as d:
+            calls = [0]
+            def master_owner(token):
+                calls[0] += 1
+                if calls[0] > 1:
+                    raise PermissionError("session no longer valid")
+                return "master-authorized-0001"
+            vault = ServerBackupVault(Path(d) / "vault.sqlite",
+                                      master_owner=master_owner)
+            app = FastAPI()
+            app.include_router(create_private_backup_router(vault))
+            client = TestClient(app, base_url="https://testserver")
+            encrypted = seal_local_preferences(BACKUP, PASSWORD)
+            response = client.post("/v2-pilot/private-backup",
+                headers={"Authorization": "Bearer " + "a" * 48},
+                json={"encrypted_envelope": encrypted, "expected_revision": 0})
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(calls[0], 2)
+            with vault._db() as db:
+                count = db.execute("SELECT COUNT(*) FROM private_backups").fetchone()[0]
+            self.assertEqual(count, 0)
+
     def test_auth_denial_precedes_envelope_storage(self):
         with tempfile.TemporaryDirectory() as d:
             db = Path(d) / "private.sqlite"
