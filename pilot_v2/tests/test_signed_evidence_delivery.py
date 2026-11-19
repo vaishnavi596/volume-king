@@ -110,6 +110,20 @@ class SignedEvidenceDeliveryTests(unittest.TestCase):
                 read_signed_evidence_batch(reader, inbox, selected_equities=())
             stage.assert_not_called()
 
+    def test_scanner_ce_pe_strikes_refresh_without_navigation_or_synthesis(self):
+        source = (SRC / "main.py").read_text(encoding="utf-8")
+        ast.parse(source)
+        self.assertIn("option_strike_hosts = {}", source)
+        self.assertIn("tracked_option_strikes(scanner[0].symbol)", source)
+        self.assertIn("control.controls = option_strike_rows(symbol)", source)
+        self.assertIn('if snapshot["status"] != "HIST":', source)
+        self.assertIn("CE/PE strikes WAIT · no trusted selected expiry", source)
+        self.assertIn("option_strike_hosts.clear()", source)
+        begin = source.index("def manual_verified_evidence_refresh(")
+        end = source.index("def clear_local_device_session(", begin)
+        self.assertIn("refresh_visible_option_labels(symbol)", source[begin:end])
+        self.assertNotIn("render()", source[begin:end])
+
     def test_scanner_option_and_expiry_controls_refresh_without_page_render(self):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
