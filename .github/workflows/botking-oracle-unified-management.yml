@@ -68,6 +68,7 @@ jobs:
           set -eu
           echo "SSH_STATUS=CONNECTED"
           echo "REMOTE_USER=$(id -un)"
+          echo "REMOTE_HOST=$(hostname -s)"
           echo "V1_SERVICE=$(systemctl is-active bot-king.service || true)"
           echo "V2_SERVICE=$(systemctl is-active bot-king-v2.service || true)"
           echo "V1_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8000/health)"
@@ -77,7 +78,22 @@ jobs:
           else
             echo "PASSWORDLESS_SUDO=NOT_VERIFIED"
           fi
-          test -r /home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80/manifest.json && echo "V2_STAGE=PRESENT" || echo "V2_STAGE=ABSENT"
+          STAGE=/home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80
+          if test -r "$STAGE/manifest.json"; then
+            echo "V2_STAGE=PRESENT"
+            if test -x "$STAGE/.venv/bin/python"; then
+              echo "V2_VENV=PRESENT"
+              "$STAGE/.venv/bin/python" -c 'import importlib.util; print("V2_DEPENDENCIES="+",".join(k+":"+("YES" if importlib.util.find_spec(k) else "NO") for k in ("fastapi","uvicorn","httpx","cryptography")))'
+            else
+              echo "V2_VENV=ABSENT"
+            fi
+          else
+            echo "V2_STAGE=ABSENT"
+          fi
+          echo "V2_PUBLIC_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' https://botkingrajesh.duckdns.org/v2-pilot/health || true)"
+          echo "V2_LOCAL_HEALTH_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' http://127.0.0.1:8001/v2-pilot/health || true)"
+          echo "V1_READ_ROUTE_HTTP=$(curl -sS -o /dev/null --max-time 7 -w '%{http_code}' -X POST http://127.0.0.1:8000/dhan/index-ltp-batch || true)"
+          echo "V2_READINESS_AUDIT=COMPLETE_NO_CHANGES"
           REMOTE
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
