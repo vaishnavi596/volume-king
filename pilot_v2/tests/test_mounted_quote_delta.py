@@ -45,6 +45,18 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertNotIn("render()", fragment)
         self.assertNotIn("page.update()", fragment)
 
+    def test_denied_quote_refresh_updates_only_sanitized_status(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "apply_data_only_quote_snapshot")
+        snippet = ast.get_source_segment(self.source, callback)
+        self.assertIn("if not reader.session_active", snippet)
+        self.assertIn("local_connection_state(reader)", snippet)
+        self.assertIn("cached HIST retained", snippet)
+        self.assertIn("status.update()", snippet)
+        self.assertNotIn("page.update()", snippet)
+        self.assertNotIn("render()", snippet)
+
     def test_visible_labels_registered_on_dashboard_scanner_watchlist(self):
         text = self.source
         self.assertIn('tracked_quote_text(card["symbol"], card["price_label"], "index"', text)

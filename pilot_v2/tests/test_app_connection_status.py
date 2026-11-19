@@ -44,6 +44,15 @@ class LocalConnectionStatusTests(unittest.TestCase):
         self.assertNotIn("session_active = True", main)
         self.assertIn("Enable / Disable / Revoke require verified device login", main)
 
+    def test_local_logout_is_explicit_and_never_claims_remote_revoke(self):
+        source = (SRC / "main.py").read_text(encoding="utf-8")
+        self.assertIn("def clear_local_device_session(e):", source)
+        self.assertIn("reader.invalidate()", source)
+        self.assertIn("device_session_reader[0] = None", source)
+        self.assertIn("server revocation not sent", source)
+        self.assertIn("Clear local device session (no server revoke)", source)
+        self.assertIn("on_click=clear_local_device_session", source)
+
     def test_unknown_connection_handle_is_rejected(self):
         for value in ("token", {}, object(), True):
             with self.subTest(value=type(value).__name__), self.assertRaises(ValueError):

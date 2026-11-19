@@ -492,7 +492,12 @@ def main(page: ft.Page):
                 selected_equities=state.selected if feed == "quotes" else ())
         except FeedError:
             # A 401/403 invalidates the in-memory bearer within the reader.
-            # Keep last-good quote labels and never claim successful refresh.
+            # Never show a sign-in error for an ordinary 429/cooldown.
+            status.value = (local_connection_state(reader)["label"]
+                            if not reader.session_active else
+                            "V2 data temporarily unavailable · cached HIST retained")
+            if status.page is not None:
+                status.update()
             return ()
         if not accepted:
             return ()
@@ -514,6 +519,18 @@ def main(page: ft.Page):
                     control.update()  # Update only this mounted Flet label.
         return changed
 
+
+    def clear_local_device_session(e):
+        """Local credential disposal only, NOT remote revocation or logout."""
+        reader = device_session_reader[0]
+        if reader is not None:
+            reader.invalidate()
+            device_session_reader[0] = None
+            status.value = "Local V2 device session cleared · server revocation not sent"
+        else:
+            status.value = "No local V2 device session to clear"
+        render()
+        page.update()
 
     def preview_manual_refresh(e):
         """Prepare request intent only; NEVER fetch or redraw remotely."""
@@ -1128,6 +1145,8 @@ def main(page: ft.Page):
                 ft.Text("Data connection and manual fetch not yet enabled"),
                 ft.Text(local_connection_state(device_session_reader[0])["label"],
                         color=MUTED, size=14),
+                ft.TextButton("Clear local device session (no server revoke)",
+                              on_click=clear_local_device_session),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
                                   on_click=preview_manual_refresh),
                 ft.Text(manual_refresh_plan[0], color=MUTED),
