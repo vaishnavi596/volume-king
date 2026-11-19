@@ -96,6 +96,25 @@ class SecureEntrypointTests(unittest.TestCase):
                     pairing_path=str(self.key), db_path=str(self.db),
                     expiry_evidence_symbol=invalid)
 
+    def test_private_expiry_and_3m_candle_sources_share_one_disabled_by_default_lane(self):
+        self.provision()
+        source_args = dict(device_id=self.device_id,
+            master_der_path=str(self.der), pairing_path=str(self.key),
+            db_path=str(self.db),
+            expiry_evidence_symbol="NIFTY",
+            candle_evidence_symbol="RELIANCE",
+            candle_evidence_timeframe="3m")
+        app = from_private_config(**source_args)
+        # Constructing a secure app never contacts the Dhan provider.
+        self.assertEqual(TestClient(app).get("/v2-pilot/evidence").status_code, 401)
+        self.assertEqual(TestClient(app).get("/v2-pilot/orders").status_code, 404)
+        for wrong in ("2m", "", "60m"):
+            with self.subTest(frame=wrong), self.assertRaises(ValueError):
+                from_private_config(**dict(source_args, candle_evidence_timeframe=wrong))
+        with self.assertRaises(ValueError):
+            from_private_config(**dict(source_args,
+                candle_evidence_symbol="NIFTY/../../orders"))
+
     def test_private_selected_equities_applied_and_index_independent(self):
         self.provision()
         roster = self.root / "selected-equities.json"
