@@ -119,6 +119,10 @@ class NativeKeystoreContractTests(unittest.TestCase):
         with self.assertRaises(FeedError):
             _safe_byte_string([0] * 1025)
         self.assertEqual(_safe_byte_string([-1, -128, 0, 127]), b"\xff\x80\x00\x7f")
+        self.assertEqual(_safe_byte_string([255, 128, 0, 127]), b"\xff\x80\x00\x7f")
+        for bad_values in ([256], [-129], [1024], [True], ["3"], [None]):
+            with self.subTest(value=bad_values), self.assertRaises(FeedError):
+                _safe_byte_string(bad_values)
 
     def test_key_replacement_denied_by_existing_binding(self):
         adapter = AndroidNativeP256Provider(DEVICE, autoclass=fake_autoclass)
