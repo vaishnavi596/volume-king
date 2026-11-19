@@ -80,9 +80,9 @@ class CachedDhanCandleTests(unittest.TestCase):
 
     def test_3m_close_delay_rejects_open_bar_and_no_fake_gap_fill(self):
         self.assertEqual(len(normalize_cached_bars(
-            minute_rows(12), timeframe="3m", now=BASE + 650)), 2)
+            minute_rows(12), timeframe="3m", now=BASE + 550)), 2)
         with self.assertRaises(ValueError):
-            normalize_cached_bars(minute_rows(4), timeframe="3m", now=BASE + 650)
+            normalize_cached_bars(minute_rows(4), timeframe="3m", now=BASE + 550)
         with self.assertRaises(ValueError):
             normalize_cached_bars(
                 [minute_rows()[0], minute_rows()[0]], timeframe="3m", now=NOW)
