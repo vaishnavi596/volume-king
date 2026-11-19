@@ -35,6 +35,7 @@ from local_notices import LocalNoticeCenter
 from app_data_readiness import joint_data_readiness, data_readiness_label
 from app_connection_status import local_connection_state
 from app_device_reader_slot import DeviceReaderSlot
+from app_native_keystore import AndroidNativeP256Provider
 from local_assessment_evidence import LocalAssessmentEvidence
 
 def main(page: ft.Page):
@@ -239,7 +240,11 @@ def main(page: ft.Page):
     filter_labels = {}  # Existing evidence-gated visible factors only.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
-    device_session_slot = DeviceReaderSlot()  # No Keystore sign-in wired yet.
+    device_session_slot = DeviceReaderSlot()  # Native sign-in only on explicit owner action.
+    device_login_id = ft.TextField(label="Approved device ID (16–128 characters)", width=310)
+    device_login_origin = ft.TextField(label="Owner-approved V2 HTTPS origin", width=330,
+                                       value="https://botkingrajesh.duckdns.org")
+    device_public_fingerprint = [""]  # Public-key checksum ONLY; no private key or bearer.
     rich_preview_enabled = [False]  # Explicit session-only opt-in, never the default.
     rich_preview_view = [None]
     rich_preview_html = [None]
@@ -524,6 +529,36 @@ def main(page: ft.Page):
                     control.update()  # Update only this mounted Flet label.
         return changed
 
+
+    def prepare_native_device_enrollment(e):
+        """Create/reuse an AndroidKeyStore public key; never enroll automatically."""
+        try:
+            provider = AndroidNativeP256Provider(device_login_id.value)
+            provider.ensure_public_spki()
+            binding = provider.binding()
+            device_public_fingerprint[0] = binding.public_key_fingerprint_sha256()
+        except FeedError:
+            device_public_fingerprint[0] = ""
+            status.value = "Android Keystore unavailable · device not enrolled"
+        else:
+            status.value = ("Public P-256 SHA256: " + device_public_fingerprint[0]
+                            + " · owner must approve it on Oracle")
+        if status.page is not None:
+            status.update()
+
+    def sign_in_native_v2_device(e):
+        """User-triggered Android-native signed login; no fake bearer fallback."""
+        try:
+            provider = AndroidNativeP256Provider(device_login_id.value)
+            binding = provider.binding()  # Requires already-created native key.
+            device_session_slot.sign_in_with_keystore(
+                binding, device_login_origin.value)
+        except FeedError:
+            status.value = "Native V2 sign-in unavailable · approved enrollment/TLS required"
+        else:
+            status.value = "Signed V2 device session issued · live Dhan data not verified"
+        render()
+        page.update()
 
     def clear_local_device_session(e):
         """Cancel pending login; revoke active Oracle bearer where reachable."""
@@ -1247,7 +1282,15 @@ def main(page: ft.Page):
                 ft.Text(f"{len(state.selected)} selected equities; 3 independent indexes"),
                 ft.Text(data_readiness_label(readiness), color=MUTED, size=14),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
-                ft.Text("Data connection and manual fetch not yet enabled"),
+                ft.Text("Native Android sign-in requires owner enrollment and deployed V2 HTTPS; no auto-login"),
+                device_login_id,
+                device_login_origin,
+                ft.OutlinedButton("Prepare public Android Keystore enrollment key",
+                                  on_click=prepare_native_device_enrollment),
+                ft.Text(device_public_fingerprint[0] or
+                        "No approved public-key fingerprint displayed", color=MUTED),
+                ft.OutlinedButton("Sign in with Android Keystore (approved devices)",
+                                  on_click=sign_in_native_v2_device),
                 ft.Text(local_connection_state(device_session_slot.reader)["label"],
                         color=MUTED, size=14),
                 ft.OutlinedButton("Request read-only data (verified sign-in required)",
