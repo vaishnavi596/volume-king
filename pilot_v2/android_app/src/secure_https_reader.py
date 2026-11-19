@@ -89,10 +89,12 @@ class V2ReadonlyHTTPSReader:
             self._bearer = None
             self._cooldown_until = 0.0
 
-    def refresh(self, inbox, feed, *, selected_equities=()):
+    def refresh(self, inbox, feed, *, selected_equities=(), manual=False):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
                 "quotes", "indices"):
             raise FeedError("Unsupported V2 read-only destination")
+        if type(manual) is not bool:
+            raise FeedError("Invalid manual data request")
         if not self.session_active:
             raise FeedError("V2 device session requires verified sign-in")
         # Direct reader callers must not bypass app-owned selection validation.
@@ -106,7 +108,7 @@ class V2ReadonlyHTTPSReader:
                 or len(set(selected)) != len(selected)):
             raise FeedError("Invalid selected read-only equity roster")
         # No Dhan OAuth/broker secret ever goes to this phone.
-        url = self._origin + "/v2-pilot/" + feed
+        url = self._origin + ("/v2-pilot/manual/" if manual else "/v2-pilot/") + feed
         with self._session_lock:
             bearer = self._bearer
             if bearer is None:
@@ -115,7 +117,7 @@ class V2ReadonlyHTTPSReader:
                 raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained")
             request = Request(
                 url, headers={"Authorization": "Bearer " + bearer,
-                              "Accept": "application/json"}, method="GET")
+                              "Accept": "application/json"}, method="POST" if manual else "GET")
         try:
             with self._opener.open(request, timeout=self._timeout) as response:
                 # HTTPSHandler verifies system CA and hostname, and redirects
