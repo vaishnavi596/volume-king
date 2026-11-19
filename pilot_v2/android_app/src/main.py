@@ -17,7 +17,7 @@ from legacy_technical_bridge import historical_scanner_analysis
 from historical_indicator_panel import historical_indicator_panel
 from historical_three_minute_fallback import HistoricalThreeMinuteFallback
 from historical_chart_context import chart_points, historical_shortlist, choose_historical_shortlist_symbol
-from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown
+from chart_window import DEFAULT_WINDOW, WINDOWS, window_from_dropdown, choose_chart_window
 from chart_style import CHART_STYLES, DEFAULT_CHART_STYLE, chart_style_choice
 from candle_option_views import candle_geometry
 from v1_visual_style import apply_v1_theme, v1_header, v1_card, GOLD, MUTED, WHITE, PANEL2
@@ -160,6 +160,23 @@ def main(page: ft.Page):
     watch_search = [""]  # Session-local display query; never changes selected roster.
     help_topic = ["Dashboard"]  # UI-only; never persisted as server preference.
     chart_window = [DEFAULT_WINDOW]  # Local history display only.
+    chart_window_key = "botking.v2.chart_window.v1"
+    try:
+        saved_window = page.client_storage.get(chart_window_key)
+        chart_window[0] = (choose_chart_window(saved_window)
+                           if saved_window is not None else DEFAULT_WINDOW)
+        chart_window_error = ""
+    except (ValueError, TypeError, OSError, RuntimeError):
+        chart_window_error = "Saved chart window invalid; previous save preserved"
+
+    def save_chart_window():
+        if chart_window_error:
+            return False
+        try:
+            page.client_storage.set(chart_window_key, chart_window[0])
+            return True
+        except (OSError, TypeError, ValueError, RuntimeError):
+            return False
     manual_refresh_plan = ["No data request planned; gateway is not connected"]
     backup_text = [""]
     backup_confirm = [False]  # Explicit consent for replacing local preferences.
@@ -240,7 +257,9 @@ def main(page: ft.Page):
             def change_chart_window(e):
                 try:
                     chart_window[0] = window_from_dropdown(e.control.value)
-                    status.value = "Historical chart window updated locally"
+                    status.value = ("Historical chart window saved on device"
+                                    if save_chart_window() else
+                                    "Historical chart window selected for session")
                 except ValueError:
                     status.value = "Unsupported chart history window"
                 render()
@@ -726,7 +745,7 @@ def main(page: ft.Page):
             def prepare_local_backup(e):
                 backup_text[0] = export_local_backup(
                     state, scanner[0], smart[0], analysis_slots[0],
-                    chart_style=chart_style[0])
+                    chart_style=chart_style[0], chart_window=chart_window[0])
                 backup_confirm[0] = False
                 status.value = "Local preference backup prepared; copy it yourself"
                 render()
@@ -737,14 +756,15 @@ def main(page: ft.Page):
                     page.update()
                     return
                 if (storage_error or smart_error or scanner_error
-                        or analysis_error or chart_style_error):
+                        or analysis_error or chart_style_error or chart_window_error):
                     status.value = "Current local save is invalid; existing backup preserved"
                     page.update()
                     return
                 try:
                     restored = parse_local_backup(backup_text[0])
                     new_watchlists, new_scanner, new_smart, new_slots = restored[:4]
-                    new_chart_style = restored[4] if len(restored) == 5 else None
+                    new_chart_style = restored[4] if len(restored) >= 5 else None
+                    new_chart_window = restored[5] if len(restored) == 6 else None
                 except LocalBackupError:
                     status.value = "Rejected malformed or nonlocal preference backup"
                     page.update()
@@ -756,6 +776,8 @@ def main(page: ft.Page):
                 analysis_slots[0] = new_slots
                 if new_chart_style is not None:
                     chart_style[0] = new_chart_style
+                if new_chart_window is not None:
+                    chart_window[0] = new_chart_window
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
                 assessment.forget_removed(state.selected)
@@ -764,7 +786,8 @@ def main(page: ft.Page):
                 backup_confirm[0] = False
                 backup_text[0] = ""
                 saved = all((save_local(), save_scanner(),
-                             save_smart(), save_analysis(), save_chart_style()))
+                             save_smart(), save_analysis(), save_chart_style(),
+                             save_chart_window()))
                 notices.record("LOCAL_PREFS_RESTORED")
                 status.value = ("Local preferences restored on device" if saved
                                 else "Restored for session; some device saves failed")
@@ -900,7 +923,7 @@ def main(page: ft.Page):
                              ft.Text(help_for(help_topic[0]), color=WHITE)]),
                 ft.Text("Local preferences backup / restore", color=GOLD,
                         weight=ft.FontWeight.BOLD),
-                ft.Text("Watchlists, Scanner, chart style, Smart Data and 3 analysis slots. "
+                ft.Text("Watchlists, Scanner, chart style/history, Smart Data and 3 analysis slots. 
                         "No broker credentials, orders or server settings.",
                         color=MUTED, size=14),
                 ft.TextButton("Prepare local backup", on_click=prepare_local_backup),

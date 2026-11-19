@@ -1,4 +1,13 @@
 
+## COMPLETE V2 NATIVE CHART HISTORY WINDOW PERSISTENCE / BACKUP — 2026-11-19
+- Owner requests **report + immediately continue**. Latest exact tested source `67c3c53c8c635ba367de98f878a87ce8b289f927` [CI #121](https://github.com/vaishnavi596/volume-king/actions/runs/44442747259) **335/335 PASS**. #120 previously FAILED two UI test assertions after making the header bell clickable; fixed both at #121. Old failed SHA need not rerun. CI #118 330/330 and #119 333/333 were successful.
+- Completed next coherent chart preference segment: 15/35/70 historical chart bars now stored in the app's **local** `botking.v2.chart_window.v1` device setting with strict selection and fail-safe malformed-save behavior. Existing Scanner timeframe/candle cache untouched.
+- Local preferences backup **schema 3** strictly includes both `chart_style` and `chart_window` on new exports; previous schema 1 and 2 backups still read without modifying unavailable newer preferences; validation of ALL sections before any Settings state replacement; credentials/provider keys and invalid windows rejected. Updated V2 UI backup/restore callbacks, original schema 2 source assertion, and added `test_persisted_chart_window.py` validating 15/35/70 and legacy/no-secret behavior. New exact CI pending; no V1/Oracle production/APK/order changes.
+- NOTE V1 native chart control parity is improving, but TradingView WebView, real automatic data-only refresh, verified five-filter market signals, Master+3 device end-to-end and physical Android acceptance remain pending. These are not implied by offline tests.
+
+---
+
+
 ## V2 DASHBOARD BELL → SETTINGS LOCAL NOTICE CENTER — 2026-11-19
 - Immediately following completed [CI #119](https://github.com/vaishnavi596/volume-king/actions/runs/44442219567) **333/333 PASS** at `21339fc1b22fefeabb927e508b5845c59a51825d`, inspected V2 header and main. Before this batch the gold bell was a decorative `ft.Icon` and Settings already had bounded session-only notices.
 - Finished one safe V1→V2 header callback segment: `v1_header` bell is now a clickable `ft.IconButton` with optional callback, preserving trophy/title/version and three bottom navigation tabs. Clicking navigates directly to existing Settings local-notice center; displays unread local event count with clear `market alerts unavailable` message. No new provider, polling, invented market alert, persistent notification or push integration.

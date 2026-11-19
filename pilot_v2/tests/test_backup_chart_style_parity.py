@@ -62,7 +62,7 @@ class BackupChartStyleParity(unittest.TestCase):
 
     def test_ui_restore_wires_both_v1_and_v2_without_overwrite(self):
         main = (SRC / "main.py").read_text(encoding="utf-8")
-        self.assertIn("new_chart_style = restored[4] if len(restored) == 5 else None", main)
+        self.assertIn("new_chart_style = restored[4] if len(restored) >= 5 else None", main)
         self.assertIn("if new_chart_style is not None:", main)
         self.assertIn("chart_style[0] = new_chart_style", main)
         self.assertIn("save_chart_style()", main)
