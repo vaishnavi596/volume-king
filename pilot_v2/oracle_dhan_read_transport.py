@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 import time
+from threading import Lock
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, ProxyHandler, HTTPRedirectHandler
 
@@ -33,6 +34,7 @@ class OracleDhanReadTransport:
         self._clock = clock or time.time
         self._opener = opener or build_opener(ProxyHandler({}), _NoRedirect())
         self._revision = 0
+        self._revision_lock = Lock()
 
     def __call__(self, feed, selected):
         if feed not in PATHS or type(selected) is not tuple:
@@ -85,7 +87,9 @@ class OracleDhanReadTransport:
                 if type(price) not in (int, float) or not math.isfinite(price) or price <= 0:
                     raise ValueError("Bad quote")
                 rows[symbol] = {"price": price, "observed_at": observed_at}
-            self._revision += 1
-            return DhanReadBatch("dhan", selected, rows, self._revision, observed_at)
+            with self._revision_lock:
+                self._revision += 1
+                revision = self._revision
+            return DhanReadBatch("dhan", selected, rows, revision, observed_at)
         except (TypeError, ValueError, KeyError, OverflowError):
             raise DhanReadUnavailable("Invalid/incomplete Oracle Dhan response") from None
