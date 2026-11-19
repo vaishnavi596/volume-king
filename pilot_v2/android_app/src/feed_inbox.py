@@ -36,6 +36,14 @@ class DeviceFeedInbox:
         validate_readonly_snapshot(payload, INDEXES)
         return self._index.apply(payload, ())
 
+    def changed_for(self, feed):
+        """Data-only UI invalidation hint; never initiates a fetch or redraw."""
+        if feed == "quotes":
+            return self._equity.last_changed
+        if feed == "indices":
+            return self._index.last_changed
+        raise FeedError("Unknown read-only feed")
+
     def visible(self, symbol, selected_equities):
         if symbol in INDEXES:
             return self._index.visible(symbol, ())
