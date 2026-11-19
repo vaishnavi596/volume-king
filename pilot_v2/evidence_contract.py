@@ -18,6 +18,42 @@ EVENT_FIELDS = {
 }
 
 
+
+def _bounded_json(value, depth=0):
+    """Reject pathological provider objects before HTTP serialization."""
+    if depth > 12:
+        raise ValueError("Source evidence nesting exceeds limit")
+    if value is None or type(value) in (bool, int):
+        return
+    if type(value) is float:
+        from math import isfinite
+        if not isfinite(value):
+            raise ValueError("Nonfinite source number")
+        return
+    if type(value) is str:
+        if len(value.encode("utf-8")) > 1024:
+            raise ValueError("Source evidence string oversized")
+        return
+    if type(value) is list:
+        if len(value) > 2000:
+            raise ValueError("Source evidence list oversized")
+        for item in value:
+            _bounded_json(item, depth + 1)
+        return
+    if type(value) is dict:
+        if len(value) > 32:
+            raise ValueError("Source evidence record oversized")
+        for key, item in value.items():
+            if type(key) is not str or len(key) > 64:
+                raise ValueError("Invalid source evidence key")
+            if key in ("live_verified", "broker_token", "access_token",
+                       "private_key", "device_bearer"):
+                raise ValueError("Prohibited source evidence field")
+            _bounded_json(item, depth + 1)
+        return
+    raise ValueError("Unsupported source evidence JSON type")
+
+
 def validate_evidence_envelope(value):
     """Reject extra fields, non-JSON, unbounded and fabricated LIVE metadata."""
     if type(value) is not dict or set(value) != {"events"}:
@@ -39,6 +75,7 @@ def validate_evidence_envelope(value):
         if "revision" in item and (
                 type(item["revision"]) is not int or item["revision"] < 0):
             raise ValueError("Invalid evidence revision")
+    _bounded_json(value)
     try:
         serialized = json.dumps(value, allow_nan=False, separators=(",", ":"))
     except (TypeError, ValueError, OverflowError):
