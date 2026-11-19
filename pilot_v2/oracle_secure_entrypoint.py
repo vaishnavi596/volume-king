@@ -7,6 +7,8 @@ SQLite database, is mandatory. Never auto-enroll or bootstrap any identity.
 from __future__ import annotations
 
 import os
+import hmac
+import sqlite3
 from pathlib import Path
 import stat
 
@@ -57,6 +59,18 @@ def from_private_config(*, device_id, master_der_path, pairing_path, db_path):
     # Also validate the DB file and parent; factory independently verifies the
     # Master is already present AND enabled, so no bootstrap is possible.
     _private_file(db_path, max_bytes=50_000_000)
+    # The enrolled identity must own THIS exact device public key. Merely
+    # checking a matching Master device_id is insufficient: an arbitrary
+    # replacement P-256 public key could otherwise become trusted at restart.
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5) as db:
+            record = db.execute("SELECT k.public_der FROM device_keys AS k "
+                "JOIN devices AS d ON d.device=k.device "
+                "WHERE k.device=? AND d.master=1 AND d.enabled=1", (device_id,)).fetchone()
+    except (sqlite3.Error, OSError):
+        raise ValueError("Approved Master key record missing") from None
+    if record is None or not hmac.compare_digest(record[0], public):
+        raise ValueError("Master key does not match enrolled public key")
     return create_oracle_v2_runtime(
         db_path=db_path, master_device_id=device_id,
         master_public_der=public, pairing_key=pairing)
