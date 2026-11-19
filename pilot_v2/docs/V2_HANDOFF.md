@@ -1,3 +1,11 @@
+## 2026-11-19 — MOVE-1 FIRST ORACLE RUN FAILED; EXACT SYNTAX ROOT CAUSE FIXED
+- **Actual owner Oracle output:** downloaded `stage_oracle_source_no_git.py` successfully, but compile of `move1_master_pipeline.py` at pinned SHA `f722cd2d676fc116377a88c45b224935715d0d1c` raised `SyntaxError: unexpected character after line continuation character` at line 120. The dict contained literal characters `\\n` between `v2_asgi_routes_registered` and `v2_http_runtime_verified`. Runner did NOT execute; shell returned `MOVE1_BLOCKED: source download failed`. No new V2 stage/activation or V1 changes indicated. Distinguish this failure from failed source download: first module was READY, second failed compilation.
+- **Exact same-segment correction:** `pilot_v2/tools/move1_master_pipeline.py` commit `137272e070191f3f3fafc9344e15b68c7434813e` replaces malformed literal slash-n with real newline. No new feature or unrelated source edits. A previous successful 24-file V2 stage remains intact.
+- **Verification status:** correction committed; exact-SHA GitHub CI and corrected Oracle compile/runtime NOT VERIFIED. Do not state PASS until operator reruns pinned corrected SHA. Next command should use a single Python bootstrap with compile-before-write for BOTH scripts, explicit failure handling and corrected pinned SHA; master runner remains source-only and V1 must retain /health 200.
+- **No APK, V1 service edits/restarts, Dhan token or trade requests.**
+
+---
+
 ## 2026-11-19 — OWNER OK: TWO-MOVE MASTER PIPELINE, MOVE-1 CODE CREATED
 - **Owner decision:** minimize manual movements with two major operator stages, not promise two executions regardless of failures. Continue concrete work after status; always journal on Master, Work Log and Handoff. V1 unchanged; one existing V2 pilot branch only.
 - **Actual verified Oracle owner output:** V2 no-git source staging returned source_count=24, activated=false, production_changed=false at SHA 34bbf03688e502a5202ac4e273d587b33dadc3d0; V1 health 200. This proves staging, not a live server.
