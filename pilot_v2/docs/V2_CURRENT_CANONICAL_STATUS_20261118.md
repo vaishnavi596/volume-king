@@ -1,3 +1,12 @@
+## 2026-11-19 CURRENT RESUME — VERIFIED CI #184 AND NEXT APP-FIRST GATE
+- Active repository `vaishnavi596/volume-king`; V2-only branch `pilot/botking-v2-smart-gateway-20261118`; old V1 sources and journals READ-ONLY.
+- LAST verified executable code: **598daa1b3cae41a206b56ec9be57d1b15d164d66**, [CI #184](https://github.com/vaishnavi596/volume-king/actions/runs/44464399318) SUCCESS **399/399 offline Python tests**, security findings **0**, source UI wiring **9/9**. CI #182 was 396/396, CI #183 398/398. Intermediate errors are historical; do not rerun old green/failure SHAs.
+- New app-only tested work since #173: in-memory read-only session 401/403 invalidation with no retry, sanitized Settings connection state, one-session-owner `DeviceReaderSlot`, P-256 challenge/login HTTPS client accepting ONLY external trusted signer callback, no arbitrary quote payload ingress, signed manual selected-only two-lane read-only request, joint offline P-256 auth→quotes/index cache→TTL expiry integration, coordinator stops after auth rejection without fake extra HTTP count. 429 remains cooldown, last-good retained. All are source/Mock HTTPS/TestClient results.
+- **NOT COMPLETED:** Android Keystore real signer/public-key enrollment; connected Oracle TLS origin/provider entitlement, real Dhan feed, authenticated live candle/options/five-filter source, true Scanner market polling, actual Android/WebView on-phone validation, signed V2 APK. Native chart safe default; optional local WebView preview default OFF. No claim of verified LIVE market data, remote Master controls, device acceptance or shipping readiness.
+- Next ACTION priority: app-side strict Keystore signer binding/provisioning contract and physical-device acceptance prerequisites, then *owner-authorized* integration preflight. No Oracle production changes, V1 changes, APK build, orders or secrets. Future coding session must read this current resume FIRST, then Master/Work latest entries and exact CI; `OK` means proceed to the next concrete job, explaining failures without stopping.
+
+---
+
 # BOT KING V2 — CURRENT CANONICAL STATUS & RESUME INDEX
 **As of 2026-11-18 | Docs-only snapshot; supersedes earlier "current"/"pending" entries for CURRENT status only.** Historical entries remain unmodified in the append-only Master Journal and Work Log.
 
