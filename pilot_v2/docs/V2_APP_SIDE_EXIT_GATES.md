@@ -1,6 +1,6 @@
 # BOT KING V2 — App-side Exit and External Acceptance Gates
 
-**Latest source-only baseline:** [CI #170](https://github.com/vaishnavi596/volume-king/actions/runs/44459269573), commit `22e378d9c4e5df53fb84eecc89cba778b63c13bd`, **375/375 offline tests PASS**, zero source security findings, source UI wiring 9/9. This is NOT a completed Android build or live integration.
+**Latest source-only baseline:** [CI #172](https://github.com/vaishnavi596/volume-king/actions/runs/44459815900), commit `7b04c0e7c968063cfb40e9ec293eded054204dcc`, **378/378 offline tests PASS**, zero source security findings, source UI wiring 9/9. This is NOT a completed Android build or live integration.
 
 ## App-side source validated
 - Five migrated V1 UI controls: Scanner show/hide, chart style, timeframe, expiry selection, native historical chart.
@@ -11,7 +11,7 @@
 - Source-only automatic lane cadence now independently claims index/equity due windows under confirmed 09:10–15:45 IST session without issuing network requests. Mounted native Scanner Line/Candles chart, historical EMA/RSI/ATR/levels and five-filter source-gated labels update from accepted cache without a full-page render. This does NOT implement actual live Scanner polling or WebView parity.
 
 ## Unmet source/runtime acceptance
-1. Rich V1 WebView chart feature: NOT MIGRATED. V2 pins Flet 0.25.2; V1 had about:blank recovery and native fallback after blank WebViews. Keep native default; require pinned-runtime capability check, isolated local HTML adapter, and actual Android blank/ready/fallback testing before enabling.
+1. Rich V1 WebView chart feature: NOT MIGRATED. A separately tested local no-remote-asset historical SVG/HTML content candidate now exists, but it is NOT mounted in Flet or verified on a phone. V2 pins Flet 0.25.2; V1 had about:blank recovery and native fallback after blank WebViews. Keep native default; require pinned-runtime capability check, isolated local HTML adapter, and actual Android blank/ready/fallback testing before enabling.
 2. Authenticated chart sync: NOT CONNECTED. Require verified P-256 device session and validated, source-stamped candle evidence from approved Oracle pipeline.
 3. Scanner supervised automatic refresh: NOT CONNECTED. Require app-owned market window 09:10–15:45 IST with explicit exchange session evidence; shared bounded index/equity lanes; cache reuse; no page-wide redraw.
 4. Owner/master and delegated phones: offline contract only; no verified end-to-end login, revoke or device-acceptance evidence.
