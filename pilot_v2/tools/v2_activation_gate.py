@@ -15,6 +15,7 @@ from pilot_v2.oracle_secure_entrypoint import from_private_config
 
 ENV_KEYS = ("BOTKING_V2_MASTER_DEVICE_ID", "BOTKING_V2_MASTER_PUBLIC_DER_PATH",
             "BOTKING_V2_PAIRING_KEY_PATH", "BOTKING_V2_DB_PATH")
+OPTIONAL_KEYS = ("BOTKING_V2_SELECTED_EQUITIES_PATH",)
 SAFE_PREFIX = "/home/opc/botking-v2-private/"
 
 
@@ -23,6 +24,8 @@ def verify_configuration(environ):
     if any(type(environ.get(k)) is not str or not environ[k] for k in ENV_KEYS):
         raise ValueError("V2 Master/key configuration incomplete")
     filenames = [environ[k] for k in ENV_KEYS[1:]]
+    if environ.get(OPTIONAL_KEYS[0]):
+        filenames.append(environ[OPTIONAL_KEYS[0]])
     if len(set(filenames)) != len(filenames) or any(
         not name.startswith(SAFE_PREFIX) or
         ".." in Path(name).parts or not Path(name).is_absolute()
@@ -36,6 +39,7 @@ def verify_configuration(environ):
         master_der_path=environ[ENV_KEYS[1]],
         pairing_path=environ[ENV_KEYS[2]],
         db_path=environ[ENV_KEYS[3]],
+        selected_equities_path=environ.get(OPTIONAL_KEYS[0]),
     )
     from fastapi.testclient import TestClient
     client = TestClient(app)
@@ -62,12 +66,12 @@ def parse_private_environment(path):
         if not line or line.startswith("#"):
             continue
         key, sep, value = line.partition("=")
-        if not sep or key not in ENV_KEYS or key in env or not value:
+        if not sep or key not in ENV_KEYS + OPTIONAL_KEYS or key in env or not value:
             raise ValueError("Invalid V2 environment key")
         if any(c in value for c in ("'", '"', "$", "`", "\\", " ", "\t", "\r")):
             raise ValueError("Unsafe V2 environment value")
         env[key] = value
-    if set(env) != set(ENV_KEYS):
+    if not set(ENV_KEYS).issubset(env) or not set(env).issubset(set(ENV_KEYS + OPTIONAL_KEYS)):
         raise ValueError("Missing V2 operator configuration")
     return env
 
