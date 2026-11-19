@@ -258,7 +258,7 @@ def main(page: ft.Page):
                     new_value = quote_view.display(symbol, state.selected)
                 if control.value != new_value:
                     control.value = new_value
-                    control.update()  # No page.update() or render() on data-only change.
+                    control.update()  # Update only this mounted Flet label.
         return changed
 
 
