@@ -1,3 +1,14 @@
+## VERIFIED FT-3 ORACLE-ANDROID APP-SIDE CONTRACT CI #154–#158 — 2026-11-19
+- #153 FAIL 360/361 from a forged false-permitted intent bypassing validation; fixed at 03780843 and [CI #154](https://github.com/vaishnavi596/volume-king/actions/runs/44453607332) SUCCESS 361/361.
+- [CI #155](https://github.com/vaishnavi596/volume-king/actions/runs/44453751516) commit c218bca4 SUCCESS 362/362: gateway schema_version requires exact integer 1, no Boolean/float bypass.
+- [CI #156](https://github.com/vaishnavi596/volume-king/actions/runs/44453911911) commit 594245e4 SUCCESS 362/362: app refresh coordinator rejects invalid symbol/container selection before HTTPS.
+- [CI #157](https://github.com/vaishnavi596/volume-king/actions/runs/44454045579) commit 8266ea0f SUCCESS 363/363: gateway rejects malformed quote symbols before handing off Android read-only snapshot.
+- [CI #158](https://github.com/vaishnavi596/volume-king/actions/runs/44454217490) commit cac9b889 SUCCESS 364/364: server-side offline shared-gateway cache refuses reads before any validated collector revision, rather than producing invalid -1/fictional zero. Latest CI source security findings 0, UI wiring 9/9. Previous failed/cancelled intermediate SHAs are historical; do not rerun.
+- This is a read-only SOURCE/TEST contract audit. Dhan actual response, HTTPS/P-256 production login, Oracle deployment, current Android device behavior and production source provenance remain UNVERIFIED. Do not declare live data, authorized collector or app acceptance from this CI.
+- NEXT WORK: review per-symbol provenance across `gateway_contract.RevisionCache` and Android `DeviceFeedInbox`, preventing an old individual equity quote in a newer global envelope from being spuriously relabeled as fresh. Decide and test strict collector contract before any production changes. Preserve up to 70 unique equities, three independent indexes, historical labels, blank sixth filter and shared budget. No V1/old journals, credentials, APK, Oracle prod or trading orders touched.
+
+---
+
 ## FT-3 VERIFIED #157; UNINITIALIZED COLLECTOR READ SAFETY — 2026-11-19
 - Gateway quote-symbol contract patch 8266ea0fca465618e49748df7afa8ed82aab2237 is verified [CI #157](https://github.com/vaishnavi596/volume-king/actions/runs/44454045579): SUCCESS 363/363, security findings 0, source wiring 9/9. Previously #154–#156 also green after real failures were corrected.
 - Continued offline shared gateway audit: `SharedQuoteGateway.read` before any accepted collector publish had cache revision -1, contradicting Android read-only schema (requires nonnegative revision). Fixed fail-closed behavior: after device feed authorization but before constructing payload, raise sanitized ContractError for uninitialized collector instead of emitting an invalid revision or inventing 0/LIVE data. Added regression for both index and equity lanes with a master session, correct demand preservation, and denied invalid session.
