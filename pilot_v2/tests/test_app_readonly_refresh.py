@@ -10,12 +10,23 @@ from zoneinfo import ZoneInfo
 
 SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
 sys.path.insert(0, str(SRC))
-from app_state import LocalWatchlists
-from smart_data import SmartDataSettings
-from refresh_intent import make_refresh_intent
-from feed_inbox import DeviceFeedInbox, FeedError
-from secure_https_reader import V2ReadonlyHTTPSReader
-from app_readonly_refresh import apply_approved_quote_intent
+# Import the tested app modules only when tests execute, after unittest's
+# discovery has loaded all prior test modules. An earlier legacy regression
+# intentionally reloads smart_data during module discovery.
+def setUpModule():
+    global LocalWatchlists, SmartDataSettings, make_refresh_intent
+    global DeviceFeedInbox, FeedError, V2ReadonlyHTTPSReader
+    global apply_approved_quote_intent
+    from app_state import LocalWatchlists as _Watchlists
+    from smart_data import SmartDataSettings as _Smart
+    from refresh_intent import make_refresh_intent as _Intent
+    from feed_inbox import DeviceFeedInbox as _Inbox, FeedError as _FeedError
+    from secure_https_reader import V2ReadonlyHTTPSReader as _Reader
+    from app_readonly_refresh import apply_approved_quote_intent as _Apply
+    LocalWatchlists, SmartDataSettings = _Watchlists, _Smart
+    make_refresh_intent = _Intent
+    DeviceFeedInbox, FeedError = _Inbox, _FeedError
+    V2ReadonlyHTTPSReader, apply_approved_quote_intent = _Reader, _Apply
 
 class Response:
     status = 200
