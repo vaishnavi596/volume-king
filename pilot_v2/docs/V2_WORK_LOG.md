@@ -1,3 +1,11 @@
+## FT-3 FOLLOW-ON V2 EVIDENCE ROSTER SAFETY — 2026-11-19
+- Continued immediately after mounted Flet quote-label update commits 6986f19 / b7c6e66 / 781d404 and journals 46b0166 / f2c2c67. This is additional app-side work, not a progress-only stop.
+- Audit of `DeviceEvidenceInbox.allowed()` found duplicate-set hashing before element type validation: an unhashable malformed selection could raise raw TypeError rather than fail closed through documented ValueError. Changed validation order in `26e142104081f49988512336ae9a63b916dae150` to reject >70, malformed/nonstring/index symbols first, then detect duplicates. No secrets, upstream requests or revision reset.
+- `cc22e8e93bda1bf773a417a0dd317369c02c86c7` adds offline tests for malformed unhashable/duplicate/index/over-70 rosters, 3 independent indexes and unauthenticated candle rejection. Existing safety guards for actual completed bars remain unchanged.
+- Source modifications and new tests are committed; exact-source CI outcome not yet verified. NEXT: validate CI results then continue cache-only candle/filter UI update contract, preserving WAIT and last-good. No live feed claimed, no Oracle production, APK, V1 modifications, Yahoo/Angel fallback or orders.
+
+---
+
 ## FT-3 V2 APP-ONLY MOUNTED QUOTE DELTA WIRING — 2026-11-19
 - Continued immediately from latest V2 Master Journal; inspected main.py widget lifetime, quote_view, feed_inbox and earlier delta helper. Current branch previously at 06a17e5d; no retroactive claim of CI success.
 - Implemented `6986f19df1fff8eba86127be1a4408e7bf393989`: one app-local callback `apply_data_only_quote_snapshot(feed, payload)` receives *already provided* read-only payloads, calls existing strict feed validation and per-symbol delta, and updates the *mounted* Flet Text control(s) for changed indices or equities. Dashboard index price cards, dashboard analysis price labels, Scanner selected price and Watchlist row labels are registered by symbol. The normal tab/settings navigation still uses full render on user action; quote-only callback does NOT call render/page.update or replace chart/history; it updates only changed visible quote labels. On render, references to old widgets are discarded. No auto scheduler or network producer is wired.
