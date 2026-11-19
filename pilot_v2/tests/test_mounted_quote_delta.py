@@ -37,6 +37,23 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn("watchlist_row(", text)
         self.assertIn('if control.value != new_value:', text)
 
+    def test_candle_delta_uses_trusted_source_gate_and_mounted_labels_only(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "apply_data_only_candle_snapshot")
+        fragment = ast.get_source_segment(self.source, callback)
+        self.assertIn("evidence_inbox.apply_candles(", fragment)
+        self.assertIn("trusted_transport=trusted_transport", fragment)
+        self.assertIn("if not accepted:", fragment)
+        self.assertIn("control.update()", fragment)
+        self.assertNotIn("render()", fragment)
+        self.assertNotIn("page.update()", fragment)
+        self.assertIn('tracked_candle_text(card["symbol"], "1m"', self.source)
+        self.assertIn('tracked_candle_text(symbol, "1m", candle_history.summary(', self.source)
+        self.assertIn('tracked_candle_text(scanner[0].symbol, scanner[0].timeframe,', self.source)
+        self.assertIn('tracked_candle_text(row["symbol"], "3m", row["candle"], "watchlist"', self.source)
+        self.assertIn("candle_labels.clear()", self.source)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)
