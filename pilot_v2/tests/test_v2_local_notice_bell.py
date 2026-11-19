@@ -39,7 +39,7 @@ class LocalBellParity(unittest.TestCase):
         called = []
         header = v1_header(FakeFT, "2", on_notices_click=lambda e: called.append(1))
         row = header[1]["content"]
-        bell = row[1][0][-1]
+        bell = row[1][-1]
         self.assertEqual(bell[0], "button")
         self.assertIn("not market alerts", bell[1]["tooltip"])
         bell[1]["on_click"](None)

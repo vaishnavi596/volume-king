@@ -106,7 +106,7 @@ class V1VisualDoctorMigration(unittest.TestCase):
     def test_flet_main_uses_safe_style_and_doctor_not_old_server(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
-        for expected in ("apply_v1_theme(page, ft)", "v1_header(ft, APP_VERSION_NAME)",
+        for expected in ("apply_v1_theme(page, ft)", "v1_header(ft, APP_VERSION_NAME, on_notices_click=open_local_notices)",
                          "v1_card(ft,", "diagnose(", "help_for("):
             self.assertIn(expected, source)
         for forbidden in ("from market_feed import", "from server_feed import",
