@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from pilot_v2.internal_dhan_read_port import DhanReadBatch, InternalDhanReadPort
+from pilot_v2.internal_dhan_read_port import DhanReadBatch, InternalDhanReadPort, DhanRateLimited
 from pilot_v2.shared_read_budget import SharedReadBudget, BudgetDenied
 from pilot_v2.unified_data_pipeline import V2UnifiedReadPipeline, PipelineUnavailable
 
@@ -62,6 +62,31 @@ class SharedBudgetTests(unittest.TestCase):
         self.t += 30
         self.pipeline.dispatch("verified-device-001", "indices")
         self.assertEqual(len(self.calls), 1)
+
+    def test_actual_transport_rate_limit_sets_shared_cooldown(self):
+        def refused(*_):
+            raise DhanRateLimited("HTTP 429")
+        self.pipeline._port._transport = refused
+        with self.assertRaises(PipelineUnavailable):
+            self.pipeline.dispatch("verified-device-001", "quotes")
+        self.assertEqual(self.budget.status()["cooldown_seconds"], 30)
+        self.assertEqual(self.calls, [])
+
+        # Subsequent requests for either lane cannot contact transport.
+        self.pipeline._port._transport = lambda *_: self.fail(
+            "Transport must not be invoked under cooldown")
+        with self.assertRaises(PipelineUnavailable):
+            self.pipeline.dispatch("verified-device-001", "indices", manual=True)
+        self.t += 30.1
+        self.assertEqual(self.budget.status()["cooldown_seconds"], 0)
+
+    def test_generic_transport_error_does_not_fake_a_429(self):
+        def unavailable(*_):
+            raise OSError("Offline")
+        self.pipeline._port._transport = unavailable
+        with self.assertRaises(PipelineUnavailable):
+            self.pipeline.dispatch("verified-device-001", "quotes")
+        self.assertEqual(self.budget.status()["cooldown_seconds"], 0)
 
     def test_invalid_quota_clock_and_config_fail_closed(self):
         with self.assertRaises(ValueError):
