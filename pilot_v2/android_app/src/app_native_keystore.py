@@ -8,7 +8,7 @@ This module never exports a private key or persists a bearer/credential.
 import hashlib
 
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
-from app_p256_login import _device_id_ok
+from app_p256_login import _device_id_ok, LOGIN_CONTEXT
 from secure_https_reader import FeedError
 
 _ALIAS_PREFIX = "botking_v2_device_"
@@ -101,8 +101,12 @@ class AndroidNativeP256Provider:
         return public
 
     def sign_login_message(self, message):
-        # AndroidKeystoreLoginBinding validates context/device/nonce first.
-        if type(message) is not bytes or len(message) > 256:
+        # Guard at BOTH native entry and public binding. Python callers
+        # must not use this method as a generic AndroidKeyStore signing oracle.
+        prefix = LOGIN_CONTEXT + self.device_id.encode("ascii") + b"\\x00"
+        if (type(message) is not bytes
+                or len(message) != len(prefix) + 32
+                or not message.startswith(prefix)):
             raise FeedError("Unsupported native signing input")
         try:
             key = self._store.getKey(self.alias, None)
