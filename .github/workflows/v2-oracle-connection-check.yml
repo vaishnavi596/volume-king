@@ -29,7 +29,14 @@ jobs:
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           umask 077
-          printf '%s\n' "$ORACLE_SSH_KEY" > "$HOME/.ssh/botking_oracle"
+          # Normalize Windows CRLF from a pasted key without ever logging it.
+          printf '%s\n' "$ORACLE_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/botking_oracle"
+          # Detect malformed/partial/non-SSH keys early without exposing contents.
+          if ! ssh-keygen -y -P '' -f "$HOME/.ssh/botking_oracle" >/dev/null 2>&1; then
+            echo "SSH_PRIVATE_KEY_FORMAT=INVALID_OR_ENCRYPTED; paste the COMPLETE unencrypted OpenSSH/PEM PRIVATE key (not .pub, .ppk, passphrase, or fingerprint) as the secret"
+            exit 1
+          fi
+          echo "SSH_PRIVATE_KEY_FORMAT=VALID"
           # The ED25519 PUBLIC host key was read by the owner directly from
           # /etc/ssh/ssh_host_ed25519_key.pub on bot-king-vnic (2026-11-19).
           # Pin exactly that key to the configured target; never ssh-keyscan,
