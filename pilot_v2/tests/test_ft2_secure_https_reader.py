@@ -239,6 +239,42 @@ class HTTPSReaderTests(unittest.TestCase):
             reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
         self.assertEqual(len(self.opener.calls), calls)
 
+    def test_http_429_suppresses_repeated_requests_without_logout(self):
+        clock = [1000.0]
+        with patch("secure_https_reader.monotonic", lambda: clock[0]):
+            self.opener.fail = HTTPError(
+                ORIGIN + "/v2-pilot/quotes", 429, "secret-not-exposed", {}, None)
+            with self.assertRaisesRegex(FeedError, "rate-limit cooldown") as e:
+                self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+            self.assertNotIn("secret-not-exposed", str(e.exception))
+            self.assertTrue(self.reader.session_active)
+            self.assertEqual(len(self.opener.calls), 1)
+            for tick in (1000.0, 1005.0, 1029.9):
+                clock[0] = tick
+                with self.assertRaisesRegex(FeedError, "rate-limit cooldown"):
+                    self.reader.refresh(self.inbox, "indices")
+            self.assertEqual(len(self.opener.calls), 1)
+            clock[0] = 1030.0
+            self.opener.fail = None
+            self.offer("indices", 1, "NIFTY", 25000)
+            self.assertTrue(self.reader.refresh(self.inbox, "indices"))
+            self.assertEqual(len(self.opener.calls), 2)
+            self.assertTrue(self.reader.session_active)
+
+    def test_explicit_429_response_without_http_exception_backs_off(self):
+        clock = [500.0]
+        self.opener.next_response = FakeResponse(
+            ORIGIN + "/v2-pilot/indices", snapshot(1, "NIFTY", 25000),
+            status=429)
+        with patch("secure_https_reader.monotonic", lambda: clock[0]):
+            with self.assertRaisesRegex(FeedError, "rate-limit cooldown"):
+                self.reader.refresh(self.inbox, "indices")
+            with self.assertRaisesRegex(FeedError, "rate-limit cooldown"):
+                self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
+            self.assertEqual(len(self.opener.calls), 1)
+            self.assertEqual(self.inbox.revision_for("indices"), -1)
+            self.assertTrue(self.reader.session_active)
+
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
                        "https://v2.example.test/secret", "https://v2.example.test/?q=1",

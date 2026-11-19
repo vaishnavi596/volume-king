@@ -6,6 +6,7 @@ login over an independently trusted server origin. Never persist broker keys.
 """
 import json
 import ssl
+from time import monotonic
 from threading import Lock
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -56,6 +57,7 @@ class V2ReadonlyHTTPSReader:
             raise FeedError("Invalid HTTPS request timeout")
         self._bearer = device_bearer  # Never printed, persisted or exposed.
         self._session_lock = Lock()
+        self._cooldown_until = 0.0  # Local HTTP 429 backoff; not broker token expiry.
         self._timeout = timeout
         self._opener = (opener if opener is not None else build_opener(
             ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context()),
@@ -73,6 +75,7 @@ class V2ReadonlyHTTPSReader:
         """Forget a revoked/expired in-memory session; never persist credentials."""
         with self._session_lock:
             self._bearer = None
+            self._cooldown_until = 0.0
 
     def refresh(self, inbox, feed, *, selected_equities=()):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
@@ -96,6 +99,8 @@ class V2ReadonlyHTTPSReader:
             bearer = self._bearer
             if bearer is None:
                 raise FeedError("V2 device session requires verified sign-in")
+            if monotonic() < self._cooldown_until:
+                raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained")
             request = Request(
                 url, headers={"Authorization": "Bearer " + bearer,
                               "Accept": "application/json"}, method="GET")
@@ -108,6 +113,11 @@ class V2ReadonlyHTTPSReader:
                 if response.status in (401, 403):
                     self.invalidate()
                     raise FeedError("V2 device sign-in required; cached data retained")
+                if response.status == 429:
+                    with self._session_lock:
+                        self._cooldown_until = max(
+                            self._cooldown_until, monotonic() + 30)
+                    raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained")
                 if response.status != 200:
                     raise FeedError("Untrusted HTTP redirect or response")
                 if response.headers.get_content_type() != "application/json":
@@ -122,6 +132,11 @@ class V2ReadonlyHTTPSReader:
             if exc.code in (401, 403):
                 self.invalidate()
                 raise FeedError("V2 device sign-in required; cached data retained") from None
+            if exc.code == 429:
+                with self._session_lock:
+                    self._cooldown_until = max(
+                        self._cooldown_until, monotonic() + 30)
+                raise FeedError("V2 HTTPS rate-limit cooldown; cached data retained") from None
             raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None
         except (URLError, OSError, UnicodeError, ValueError,
                 json.JSONDecodeError):
