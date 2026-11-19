@@ -1,3 +1,9 @@
+## 2026-11-19 — [V2][PRIVATE BACKUP] CI #261 REAL ROUTE ANNOTATION FAILURE AND FIX
+- **ACTUAL FAIL:** Unified V2 #261 https://github.com/vaishnavi596/volume-king/actions/runs/44508378850 at `50e907ef4a6da0ae5289a16e7a1dab8f1fd48dfe`: 518 tests, 1 failure. GET `/v2-pilot/private-backup` without Authorization returned 422 instead of 401. Source root cause: nested FastAPI endpoint's `Request` annotation resolved using module global namespace while `Request` had been imported only inside route factory; request interpreted as a required unbound parameter. Do NOT weaken authorization or adjust expected 401 to 422.
+- **SMALL FIX:** Move `APIRouter, HTTPException, Request, JSONResponse` imports to module scope, preserving original Master-only bearer checks, no-password transport, bounded POST, 409 revisions and no-store. Existing exact FastAPI TestClient test remains unchanged. One corrected Unified CI pending verification on new SHA. No Oracle deployment, APK, provider requests, or V1 edits.
+
+---
+
 ## 2026-11-19 — [V2][PRIVATE BACKUP] OPT-IN MASTER-ONLY HTTP ROUTER CANDIDATE
 - **PRECHECK:** Exact tested #259 `f5dd94af` SUCCESS and #260 `8989bae` SUCCESS. Reviewed `atomic_verified_login.py`, `trusted_http_adapter.py`, `unified_gateway_app.py`, `isolated_gateway_app.py` and Oracle preflight; actual Oracle V2 public routes still unmounted/404 in user probe. No V1 or production write.
 - **CODE:** Existing `private_backup_vault.py` now has `create_private_backup_router(vault)`, a deliberately UNMOUNTED opt-in APIRouter providing bounded GET/POST `/v2-pilot/private-backup` with server-verified Master bearer only, no-store, strict encrypted envelope, no password/plaintext field accepted, optimistic revision 409 conflicts and explicit 401/403/400/413 handling. No new global V2 app route was automatically mounted or enabled, and no Dhan provider calls/orders. Server-side password never accepted.

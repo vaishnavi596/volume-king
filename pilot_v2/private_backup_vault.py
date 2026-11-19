@@ -12,6 +12,8 @@ import json
 import os
 import sqlite3
 from pathlib import Path
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from .device_policy import valid_id
@@ -197,8 +199,7 @@ class ServerBackupVault:
 
 def create_private_backup_router(vault):
     """Opt-in V2-only read/write routes; never mounted without verified Master."""
-    from fastapi import APIRouter, HTTPException, Request
-    from fastapi.responses import JSONResponse
+    # Request is module-global so FastAPI resolves nested endpoint annotations.
     if not isinstance(vault, ServerBackupVault):
         raise ValueError("Explicit authenticated private vault required")
     router = APIRouter()
