@@ -1,3 +1,11 @@
+## 2026-11-19 — V2 PRIVATE BACKUP DATABASE PATH HARDENING / CI #271 FIX
+- **Precheck:** read General, actual current source, existing tests and branch HEAD `42d22d2484f8810afb21170eb641f14838189646`, latest complete CI #269 success at `2c472c22`. User instructed continue to next code segment without report-and-stop.
+- **Code:** commit `060d6ac9b9f5497b5916e1903cd0256acee3c2a0` rejects backup SQLite file that is non-regular, world/group accessible, hard-linked, symlinked, or replaced since vault initialization; adds VaultStorageDenied and fail-closed 503 on routed storage errors. This is a bounded best-effort path-identity guard, NOT a substitute for a private owner-controlled directory and no race-proof OS-level descriptor binding. Exact code-only CI #270 `44511145723` SUCCESS.
+- **Regression:** commit `8057958eed26b5ca03ce42bc881ff393cf8ba0a2` added permission, symlink and file-replacement test. CI #271 `44511186970` FAILED one/528 because test omitted the new exception import; executable guards were not failing. Corrected import-only commit `3fb10bcf3e10e72a59d69aadc06a903f21a7e42c`; CI #272 `44511295287` QUEUED at journal edit. Do not mark PASS until checked.
+- **Safety:** V2 only. No V1 changes, Oracle SSH/deploy, real Dhan, Android APK, secrets or orders. Next after full exact CI: inspect database parent-directory ownership and TLS/proxy deployment prerequisites before any V2 production enablement.
+
+---
+
 ## 2026-11-19 — V2 MASTER BACKUP REVALIDATION FIX + REGRESSION
 - Read V2 General, Handoff, original `private_backup_vault.py`, existing tests and exact current HEAD before edits. Last confirmed executable Unified run #267 at 52129267 SUCCESS.
 - Root cause: a Master bearer can expire between POST's pre-body authorization and the vault's second authorization check; previous generic error handler returned 400, concealing session denial. Existing SQL write was not performed on denial.
