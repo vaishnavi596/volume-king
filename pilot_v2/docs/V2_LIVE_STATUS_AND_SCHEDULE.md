@@ -1,3 +1,13 @@
+
+## V2 JOINT EVIDENCE STAGING BATCH — 2026-11-19
+- Owner instruction: do not stop after a report; next executable app-side migration segment after CI #110 305/305 PASS (last tested source `f4d91e0`). Reviewed current V2 General, consolidated handoff and latest branch commits/CI before edits.
+- New `android_app/src/app_evidence_batch.py` stages at most 32 prevalidated Dhan-only evidence events in a deep copy of the *same existing* `DeviceEvidenceInbox`: candles, candle-trend, verified expiry roster, option metrics, CE/PE strikes, listed ATM window, option-derived factors. Explicit current selected-symbol cap/unique roster; rejects malformed event schema or missing caller trust; existing expiry/candle exact-observation guards remain intact. Any event failure causes **zero cache mutation**. On complete validation, copies data to the existing cache holders so Scanner/Watchlist/filters references stay attached. No HTTP endpoint, no broker, no generated signal, no counterfeit login, no fake LIVE.
+- Added one combined offline regression `test_app_evidence_batch.py`: dual-lane success, rollback on later invalid expiry, original cache holder identity, unauthorized/unselected or unknown schema rejection. New exact-source CI outcome **PENDING** until Actions result seen.
+- This does **NOT** connect the actual Android app to Oracle or independently establish revocable phone credentials. Future authorized transport must be authenticated outside this helper before passing `trusted_transport=True`; a boolean alone is not authentication proof. Actual V1 visual/WebView parity, News/Futures, live five-filter producer, verified Super Five, 1 Master + 3 delegated devices and APK remain pending. No V1, Oracle production, APK, or order changes.
+- Next coherent app-side work: bind the staged evidence receive contract to a verified device-session/transport object (no new speculative production endpoint), and complete reachability/parity tests; keep one combined regression workflow.
+
+---
+
 ## CURRENT CONSOLIDATED JOURNAL / OWNER HANDOFF — 2026-11-19
 
 **Read this first:** [V2_SESSION_CONSOLIDATED_JOURNAL_20261119.md](V2_SESSION_CONSOLIDATED_JOURNAL_20261119.md) contains ALL confirmed work and failures/fixes from the current migration session, completed vs pending features, GitHub commit chain, acceptance boundaries, owner rules and **NEXT EXACT WORK**. This note preserves all prior category entries below.
