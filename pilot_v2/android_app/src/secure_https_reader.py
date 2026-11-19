@@ -84,7 +84,12 @@ class V2ReadonlyHTTPSReader:
             with self._opener.open(request, timeout=self._timeout) as response:
                 # HTTPSHandler verifies system CA and hostname, and redirects
                 # are explicitly disabled for the production opener.
-                if response.geturl() != url or response.status != 200:
+                if response.geturl() != url:
+                    raise FeedError("Untrusted HTTP redirect or response")
+                if response.status in (401, 403):
+                    self.invalidate()
+                    raise FeedError("V2 device sign-in required; cached data retained")
+                if response.status != 200:
                     raise FeedError("Untrusted HTTP redirect or response")
                 if response.headers.get_content_type() != "application/json":
                     raise FeedError("Unexpected read-only media type")

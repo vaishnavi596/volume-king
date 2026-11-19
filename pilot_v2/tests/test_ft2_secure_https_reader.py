@@ -116,6 +116,19 @@ class HTTPSReaderTests(unittest.TestCase):
                 self.assertEqual(len(opener.calls), prior)
                 self.assertEqual(inbox.visible("TCS", ("TCS",))["price"], 100)
 
+    def test_explicit_auth_error_response_without_http_exception_invalidates(self):
+        self.opener.next_response = FakeResponse(
+            ORIGIN + "/v2-pilot/indices", snapshot(1, "NIFTY", 25000),
+            status=403)
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "indices")
+        self.assertFalse(self.reader.session_active)
+        before = len(self.opener.calls)
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "indices")
+        self.assertEqual(len(self.opener.calls), before)
+        self.assertEqual(self.inbox.visible("NIFTY", ())["status"], "WAIT")
+
     def test_rate_limit_does_not_erase_signed_in_reader(self):
         self.opener.fail = HTTPError(
             ORIGIN + "/v2-pilot/indices", 429, TOKEN, {}, None)

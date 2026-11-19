@@ -32,6 +32,7 @@ from local_paper_slots import LocalPaperPlanSlots, PaperSlotError, SLOTS
 from local_paper_ledger import ManualPaperLedger, PaperLedgerError
 from local_notices import LocalNoticeCenter
 from app_data_readiness import joint_data_readiness, data_readiness_label
+from app_connection_status import local_connection_state
 from local_assessment_evidence import LocalAssessmentEvidence
 
 def main(page: ft.Page):
@@ -234,6 +235,7 @@ def main(page: ft.Page):
     filter_labels = {}  # Existing evidence-gated visible factors only.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
+    device_session_reader = [None]  # No real verified sign-in/transport attached.
     rich_preview_enabled = [False]  # Explicit session-only opt-in, never the default.
     rich_preview_view = [None]
     rich_preview_html = [None]
@@ -1110,6 +1112,8 @@ def main(page: ft.Page):
                 ft.Text(data_readiness_label(readiness), color=MUTED, size=14),
                 ft.Text(smart_error or "Stored on this device, never in Oracle settings"),
                 ft.Text("Data connection and manual fetch not yet enabled"),
+                ft.Text(local_connection_state(device_session_reader[0])["label"],
+                        color=MUTED, size=14),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
                                   on_click=preview_manual_refresh),
                 ft.Text(manual_refresh_plan[0], color=MUTED),
