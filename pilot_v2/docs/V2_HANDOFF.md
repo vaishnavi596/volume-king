@@ -1,3 +1,11 @@
+## 2026-11-19 — OWNER MANDATORY COMBINED-SEGMENT WORKFLOW REGISTERED
+- Read current V2 General/Master Journal/Work Log and HEAD before next work; the detailed authoritative grouped-segment audit/repair/regression/activity-record rules are now at the TOP of those three files. Do not start from obsolete historical source CI figures.
+- This journal-only workflow update was split across three GitHub Contents API file commits (not one atomic multi-file commit): General `f267524`, Master Journal `50575eb`, Work Log `9385819`. Record this limitation; future executable changes should bundle related code, tests and notes in one commit when feasible. These are `[skip ci]` docs-only changes and are NOT new test passes.
+- Latest verified executable #199 at `059ae9ae`: 421/421 PASS, 0 security findings, UI wiring 9/9. Native Android Keystore implementation, physical device acceptance, Oracle/Dhan production, APK remain unverified.
+- Next segment: whole-boundary Android native P-256 public-SPKI/signing and app session binding inventory; check real platform/plugin dependencies before editing. Group actual code fixes + negative tests + journals in one batch; fail closed if no reviewed native bridge. No server/APK/V1/old-journal changes.
+
+---
+
 ## VERIFIED CI #187–#191; ANDROID KEYSTORE SOURCE BOUNDARY HANDOFF — 2026-11-19
 - Active V2-only GitHub branch `pilot/botking-v2-smart-gateway-20261118`; historical V1/old journals READ-ONLY. Latest exact executable [CI #191](https://github.com/vaishnavi596/volume-king/actions/runs/44466358494) at `1dcb348653a2065b6a30ed18d623c4342f030948`: **SUCCESS 413/413**, source security findings 0, UI source wiring 9/9. Prior #187 404/404, #188 407/407, #189 411/411, #190 413/413 all GREEN. Do not rerun historical passing runs.
 - Real new source work: strict canonical P-256 ECDSA DER signer-output gate (reject bogus/non-minimal/out-of-range `r/s` before login POST), canonical P-256 public SPKI with actual curve-point validation and public-only export, `AndroidKeystoreLoginBinding` restricting sign operations to exact server challenge context + one named device + 32-byte nonce, signed-login→independently enrolled server verifier→`DeviceReaderSlot` integration including wrong-key denial, and owner-facing SHA-256 fingerprint of only the public DER.
