@@ -60,10 +60,21 @@ class V2ReadonlyHTTPSReader:
         if not callable(getattr(self._opener, "open", None)):
             raise FeedError("Invalid verified HTTPS opener")
 
+    @property
+    def session_active(self):
+        """Only local bearer availability; NOT proof of ongoing server login."""
+        return self._bearer is not None
+
+    def invalidate(self):
+        """Forget a revoked/expired in-memory session; never persist credentials."""
+        self._bearer = None
+
     def refresh(self, inbox, feed, *, selected_equities=()):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
                 "quotes", "indices"):
             raise FeedError("Unsupported V2 read-only destination")
+        if not self.session_active:
+            raise FeedError("V2 device session requires verified sign-in")
         # No Dhan OAuth/broker secret ever goes to this phone.
         url = self._origin + "/v2-pilot/" + feed
         request = Request(
@@ -81,8 +92,15 @@ class V2ReadonlyHTTPSReader:
                 if len(content) > MAX_RESPONSE_BYTES:
                     raise FeedError("Oversized read-only response")
                 payload = json.loads(content.decode("utf-8"))
-        except (HTTPError, URLError, OSError, UnicodeError, ValueError,
-                json.JSONDecodeError) as exc:
+        except HTTPError as exc:
+            # Only explicit auth rejection invalidates this device session.
+            # 429/cooldown or upstream 5xx must NOT erase local auth state.
+            if exc.code in (401, 403):
+                self.invalidate()
+                raise FeedError("V2 device sign-in required; cached data retained") from None
+            raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None
+        except (URLError, OSError, UnicodeError, ValueError,
+                json.JSONDecodeError):
             # Never include upstream exception text: it can contain the URL,
             # bearer, response body or an untrusted server message.
             raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None

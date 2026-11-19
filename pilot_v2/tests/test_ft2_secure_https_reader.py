@@ -93,6 +93,42 @@ class HTTPSReaderTests(unittest.TestCase):
             self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
         self.assertEqual(self.inbox.visible("TCS", ("TCS",))["price"], 100)
 
+    def test_revoked_or_expired_session_ends_local_bearer_and_prevents_retry(self):
+        for code in (401, 403):
+            with self.subTest(code=code):
+                opener = FakeOpener()
+                reader = V2ReadonlyHTTPSReader(ORIGIN, TOKEN, opener=opener)
+                inbox = DeviceFeedInbox()
+                opener.next_response = FakeResponse(
+                    ORIGIN + "/v2-pilot/quotes", snapshot(1, "TCS", 100))
+                self.assertTrue(reader.refresh(
+                    inbox, "quotes", selected_equities=("TCS",)))
+                self.assertTrue(reader.session_active)
+                opener.fail = HTTPError(ORIGIN + "/v2-pilot/quotes",
+                                        code, TOKEN, {}, None)
+                with self.assertRaises(FeedError) as error:
+                    reader.refresh(inbox, "quotes", selected_equities=("TCS",))
+                self.assertNotIn(TOKEN, str(error.exception))
+                self.assertFalse(reader.session_active)
+                prior = len(opener.calls)
+                with self.assertRaises(FeedError):
+                    reader.refresh(inbox, "quotes", selected_equities=("TCS",))
+                self.assertEqual(len(opener.calls), prior)
+                self.assertEqual(inbox.visible("TCS", ("TCS",))["price"], 100)
+
+    def test_rate_limit_does_not_erase_signed_in_reader(self):
+        self.opener.fail = HTTPError(
+            ORIGIN + "/v2-pilot/indices", 429, TOKEN, {}, None)
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "indices")
+        self.assertTrue(self.reader.session_active)
+        self.reader.invalidate()
+        self.assertFalse(self.reader.session_active)
+        count = len(self.opener.calls)
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "indices")
+        self.assertEqual(len(self.opener.calls), count)
+
     def test_invalid_https_origins_and_bearers_are_rejected(self):
         for origin in ("http://v2.example.test", "https://user:pass@v2.example.test",
                        "https://v2.example.test/secret", "https://v2.example.test/?q=1",
