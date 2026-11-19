@@ -11,6 +11,7 @@ import binascii
 import json
 import os
 import sqlite3
+import stat
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -32,6 +33,10 @@ class PrivateBackupDenied(ValueError):
 
 
 class MasterAccessDenied(PrivateBackupDenied):
+    pass
+
+
+class VaultStorageDenied(PrivateBackupDenied):
     pass
 
 
@@ -153,14 +158,29 @@ class ServerBackupVault:
         if not path.exists():
             fd = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
             os.close(fd)
-        if path.is_symlink() or os.stat(path).st_mode & 0o077:
+        if path.is_symlink():
             raise ValueError("Private backup database permissions are unsafe")
+        initial = os.stat(path, follow_symlinks=False)
+        if (not stat.S_ISREG(initial.st_mode) or initial.st_mode & 0o077
+                or initial.st_nlink != 1):
+            raise ValueError("Private backup database permissions are unsafe")
+        self._file_identity = (initial.st_dev, initial.st_ino)
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS private_backups(
                 owner TEXT PRIMARY KEY, revision INTEGER NOT NULL,
                 encrypted_envelope TEXT NOT NULL)""")
 
     def _db(self):
+        # Detect a replaced/linked database on each access. Full race safety
+        # still depends on a private server-owned parent directory.
+        try:
+            current = os.stat(self._path, follow_symlinks=False)
+            if (not stat.S_ISREG(current.st_mode) or current.st_mode & 0o077
+                    or current.st_nlink != 1
+                    or (current.st_dev, current.st_ino) != self._file_identity):
+                raise VaultStorageDenied("Private backup storage unavailable")
+        except OSError:
+            raise VaultStorageDenied("Private backup storage unavailable") from None
         db = sqlite3.connect(self._path, timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
@@ -223,8 +243,10 @@ def create_private_backup_router(vault):
     def get_private_backup(request: Request):
         try:
             revision, encrypted = vault.read(bearer(request))
-        except PrivateBackupDenied:
+        except MasterAccessDenied:
             raise HTTPException(403, "Master access denied") from None
+        except VaultStorageDenied:
+            raise HTTPException(503, "Private backup storage unavailable") from None
         return JSONResponse({"revision": revision, "encrypted_envelope": encrypted},
                             headers={"Cache-Control": "no-store"})
 
@@ -260,6 +282,8 @@ def create_private_backup_router(vault):
                                      expected_revision=data["expected_revision"])
         except MasterAccessDenied:
             raise HTTPException(403, "Master access denied") from None
+        except VaultStorageDenied:
+            raise HTTPException(503, "Private backup storage unavailable") from None
         except PrivateBackupDenied as exc:
             if str(exc) == "Backup changed; restore or reconcile first":
                 raise HTTPException(409, "Backup revision conflict") from None
