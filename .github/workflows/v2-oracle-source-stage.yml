@@ -34,7 +34,7 @@ jobs:
           chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts /tmp/botking-v2-source.tgz' EXIT
           # Only source: no credentials, Android artifacts, or production writes.
-          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- *.py
+          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- $(cd pilot_v2 && ls *.py)
           ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
             "test ! -e /home/opc/botking-v2-staging/gh-${SHA} && mkdir -m 700 -p /home/opc/botking-v2-staging/gh-${SHA}"
           scp -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes \
