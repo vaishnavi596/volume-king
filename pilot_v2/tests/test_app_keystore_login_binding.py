@@ -155,6 +155,38 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertEqual(self.calls, [])
         self.assertIsNone(slot.reader)
 
+    def test_rotated_key_blocks_login_client_before_any_auth_request(self):
+        later_key = ec.generate_private_key(ec.SECP256R1())
+        latest_public = [self.public]
+        binding = AndroidKeystoreLoginBinding(
+            MASTER, lambda: latest_public[0], self.signer)
+        latest_public[0] = later_key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        slot = DeviceReaderSlot()
+        with patch.object(slot, "sign_in") as login:
+            with self.assertRaises(FeedError) as error:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+            login.assert_not_called()
+        self.assertNotIn("private", str(error.exception))
+        self.assertEqual(self.calls, [])
+        self.assertIsNone(slot.reader)
+        with self.assertRaises(FeedError):
+            binding.login_client("https://v2.example.test")
+
+    def test_platform_export_exception_blocks_login_client_without_secret_leak(self):
+        exports = [0]
+        def export():
+            exports[0] += 1
+            if exports[0] > 1:
+                raise RuntimeError("secret native key alias")
+            return self.public
+        binding = AndroidKeystoreLoginBinding(MASTER, export, self.signer)
+        with self.assertRaises(FeedError) as error:
+            binding.login_client("https://v2.example.test")
+        self.assertNotIn("secret native key alias", str(error.exception))
+        self.assertEqual(self.calls, [])
+
     def test_login_client_enforces_approved_https_origin_before_network(self):
         binding = self.bind()
         with self.assertRaises(FeedError):
