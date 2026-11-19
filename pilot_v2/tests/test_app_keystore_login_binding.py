@@ -1,4 +1,5 @@
 """Source-only Android Keystore public/sign callback boundary, no Android runtime."""
+import hashlib
 import sys
 import unittest
 from pathlib import Path
@@ -34,6 +35,9 @@ class KeystoreBindingTests(unittest.TestCase):
     def test_public_only_enrollment_and_exact_login_context(self):
         binding = self.bind()
         self.assertEqual(binding.public_spki_for_owner_enrollment(), self.public)
+        self.assertEqual(binding.public_key_fingerprint_sha256(),
+                         hashlib.sha256(self.public).hexdigest())
+        self.assertEqual(len(binding.public_key_fingerprint_sha256()), 64)
         signed = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(range(32))
         sig = binding.sign_login_challenge(signed)
         self.key.public_key().verify(sig, signed, ec.ECDSA(hashes.SHA256()))

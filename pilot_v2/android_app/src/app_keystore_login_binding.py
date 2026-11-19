@@ -5,6 +5,7 @@ non-exportable Android Keystore implementation; Python cannot attest that.
 The only public value crossing enrollment is canonical P-256 SPKI DER.
 Only the protocol-specific signed challenge may reach the native signer.
 """
+import hashlib
 from app_p256_login import LOGIN_CONTEXT, V2P256LoginHTTPSClient, _device_id_ok
 from app_p256_public_key import export_validated_p256_public_spki
 from app_p256_signature import is_canonical_p256_der_signature
@@ -26,6 +27,10 @@ class AndroidKeystoreLoginBinding:
     def public_spki_for_owner_enrollment(self):
         """Public key only; actual Master must approve enrollment server-side."""
         return self._public
+
+    def public_key_fingerprint_sha256(self):
+        """Safe owner-comparison checksum of PUBLIC DER, not a key attestation."""
+        return hashlib.sha256(self._public).hexdigest()
 
     def sign_login_challenge(self, message):
         prefix = LOGIN_CONTEXT + self._device_id.encode("ascii") + b"\x00"
