@@ -16,6 +16,8 @@ from pilot_v2.durable_device_sessions import DurableDeviceSessions
 from pilot_v2.internal_dhan_read_port import DhanReadBatch, InternalDhanReadPort
 from pilot_v2.unified_data_pipeline import V2UnifiedReadPipeline
 from pilot_v2.unified_gateway_app import create_v2_unified_app
+from pilot_v2.private_backup_vault import ServerBackupVault, seal_local_preferences
+import json
 
 NOW = 1800000000
 IST = ZoneInfo("Asia/Kolkata")
@@ -35,6 +37,9 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
         sessions.bootstrap(self.device, authorize_bootstrap=lambda _: True)
         verifier = DurableP256ChallengeVerifier(db, {self.device: pub})
         login = AtomicVerifiedLogin(verifier, sessions)
+        self.login = login
+        self.sessions = sessions
+        self.vault_path = Path(tmp.name) / "backup.db"
         self.calls = []
 
         def transport(feed, symbols):
@@ -94,6 +99,38 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
                             headers={"Authorization": "Bearer " + bearer})
         self.assertEqual(r.status_code, 503)
         self.assertEqual(self.calls, [])
+
+    def test_opt_in_backup_mount_requires_exact_login_session_store(self):
+        # Ordinary gateway never mounts private storage.
+        self.assertEqual(self.client.get("/v2-pilot/private-backup").status_code, 404)
+        vault = ServerBackupVault.from_durable_sessions(
+            self.vault_path, self.sessions)
+        wrong = DurableDeviceSessions(Path(self.vault_path.parent) / "wrong.db")
+        mismatched = ServerBackupVault.from_durable_sessions(
+            Path(self.vault_path.parent) / "wrong-vault.db", wrong)
+        with self.assertRaises(ValueError):
+            create_v2_unified_app(
+                verified_login=self.login, data_pipeline=self.pipeline,
+                private_backup_vault=mismatched)
+        client = TestClient(create_v2_unified_app(
+            verified_login=self.login, data_pipeline=self.pipeline,
+            private_backup_vault=vault))
+        self.assertEqual(client.get("/v2-pilot/private-backup").status_code, 401)
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        raw = json.dumps({"kind": "botking-v2-local-preferences",
+            "schema_version": 1, "watchlists": {}, "scanner": {},
+            "smart_data": {}, "analysis_slots": {}})
+        encrypted = seal_local_preferences(raw, "long private backup password")
+        result = client.post("/v2-pilot/private-backup", headers=headers,
+            json={"expected_revision": 0, "encrypted_envelope": encrypted})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(client.get("/v2-pilot/private-backup", headers=headers)
+                         .json()["encrypted_envelope"], encrypted)
+        self.assertEqual(self.calls, [])  # No Dhan traffic for backups.
+        self.sessions.logout(bearer)
+        self.assertEqual(client.get("/v2-pilot/private-backup",
+                                    headers=headers).status_code, 403)
 
     def test_factory_fail_closed(self):
         with self.assertRaises(ValueError):
