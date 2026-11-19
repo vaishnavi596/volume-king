@@ -1,4 +1,13 @@
 
+## V1→V2 LOCAL CHART PREFERENCE BACKUP/RESTORE PARITY — 2026-11-19
+- Owner directive: do not stop after a progress report. Latest source audit [CI #115](https://github.com/vaishnavi596/volume-king/actions/runs/44440845149) `3ce0ced85e0baa504e6dac48aa8942529566806a` **323/323 PASS**; #114 chart style selector `ccb00f5` 321/321 PASS. V1 read-only `src/main.py`, V2 `main.py`, local backup and current V2 journals reviewed.
+- Found missing end-to-end local settings parity: Chart Style Candles/Line persisted separately but older V2 Backup/Restore didn't include it. New backward-compatible `local_settings_backup.py` **schema 2** includes strict whitelisted `chart_style`, preserves all existing Watchlist/Scanner/Smart Data/Analysis Slot fields; **schema 1** backups still parse as legacy four-section tuples, without resetting current style. Only schema 2 returns optional fifth validated style. Unknown provider, WebView, credential, token or extra keys fail closed. Does not copy V1 external WebView code.
+- V2 Settings source export now includes current chart style; restore validates complete schema before changing any section and persists style alongside existing local preferences. Existing backup source assertion updated, new `test_backup_chart_style_parity.py` covers both versions, invalid keys/schemas and source callbacks. New exact CI pending.
+- Live chart, app data auto-refresh, alerts, V1 full screen parity, authenticated Dhan/Oracle, signed APK are still pending acceptance; no V1, Oracle production, APK, server credentials or orders touched.
+
+---
+
+
 ## V1→V2 MACHINE-CHECKABLE UI CONTROLS AUDIT, 2026-11-19
 - Exact last tested executable `ccb00f5528ec748c07e6c75d90cf4fb9ba01f46b` [CI #114](https://github.com/vaishnavi596/volume-king/actions/runs/44440548888) **SUCCESS 321/321**. This established V2-only native Candles / Line style dropdown, device-local strict preference and source checks; the original read-only V1 `src/main.py` has richer WebView but V2 does NOT.
 - Existing **one** `one_click_migration_gate.py` migration-report now carries a source-derived seven-row **callable V1→V2 control parity** section (native line/candle style, Scanner timeframe, expiry picker, native chart, rich WebView, visible live chart sync and auto-refresh). Rows display `SOURCE WIRED` vs `PENDING` only, not phone/runtime/market-data proof; report remains fail-closed for external acceptance in strict mode. No additional workflow, CI job or market fetch.

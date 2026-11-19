@@ -709,7 +709,8 @@ def main(page: ft.Page):
                 page.update()
             def prepare_local_backup(e):
                 backup_text[0] = export_local_backup(
-                    state, scanner[0], smart[0], analysis_slots[0])
+                    state, scanner[0], smart[0], analysis_slots[0],
+                    chart_style=chart_style[0])
                 backup_confirm[0] = False
                 status.value = "Local preference backup prepared; copy it yourself"
                 render()
@@ -719,13 +720,15 @@ def main(page: ft.Page):
                     status.value = "Confirm local-only restore before applying"
                     page.update()
                     return
-                if storage_error or smart_error or scanner_error or analysis_error:
+                if (storage_error or smart_error or scanner_error
+                        or analysis_error or chart_style_error):
                     status.value = "Current local save is invalid; existing backup preserved"
                     page.update()
                     return
                 try:
-                    new_watchlists, new_scanner, new_smart, new_slots = (
-                        parse_local_backup(backup_text[0]))
+                    restored = parse_local_backup(backup_text[0])
+                    new_watchlists, new_scanner, new_smart, new_slots = restored[:4]
+                    new_chart_style = restored[4] if len(restored) == 5 else None
                 except LocalBackupError:
                     status.value = "Rejected malformed or nonlocal preference backup"
                     page.update()
@@ -735,6 +738,8 @@ def main(page: ft.Page):
                 scanner[0] = new_scanner
                 smart[0] = new_smart
                 analysis_slots[0] = new_slots
+                if new_chart_style is not None:
+                    chart_style[0] = new_chart_style
                 quote_view.forget_removed(state.selected)
                 evidence_inbox.forget_removed(state.selected)
                 assessment.forget_removed(state.selected)
@@ -743,7 +748,7 @@ def main(page: ft.Page):
                 backup_confirm[0] = False
                 backup_text[0] = ""
                 saved = all((save_local(), save_scanner(),
-                             save_smart(), save_analysis()))
+                             save_smart(), save_analysis(), save_chart_style()))
                 notices.record("LOCAL_PREFS_RESTORED")
                 status.value = ("Local preferences restored on device" if saved
                                 else "Restored for session; some device saves failed")

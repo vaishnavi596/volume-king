@@ -68,7 +68,8 @@ class LocalSettingsBackupTests(unittest.TestCase):
                        "def restore_local_backup(e):",
                        "parse_local_backup(backup_text[0])",
                        "export_local_backup(",
-                       "state, scanner[0], smart[0], analysis_slots[0])",
+                       "state, scanner[0], smart[0], analysis_slots[0],",
+                       "chart_style=chart_style[0]",
                        'ft.TextButton("Prepare local backup"',
                        'ft.TextButton("Restore local preferences"',
                        'label="Confirm local-only restore"'):
