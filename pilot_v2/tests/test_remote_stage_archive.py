@@ -38,6 +38,19 @@ class StageTests(unittest.TestCase):
                 with self.assertRaises(FileExistsError):
                     stage(archive, sha="a" * 40, checksum=result["archive_sha256"], root=root)
 
+    def test_workflow_archive_includes_nonactivating_owner_security_tools(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github" /
+                    "workflows" / "v2-oracle-source-stage.yml").read_text()
+        marker = "tar -czf /tmp/botking-v2-source.tgz"
+        self.assertIn(marker, workflow)
+        actual = workflow[workflow.index(marker):workflow.index("HASH=", workflow.index(marker))]
+        self.assertIn("tools/v2_activation_gate.py", actual)
+        self.assertIn("tools/provision_oracle_master.py", actual)
+        self.assertIn("$(cd pilot_v2 && ls *.py)", actual)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("systemctl restart", workflow)
+        self.assertNotIn("on:\n  push:", workflow)
+
     def test_valid(self):
         self.run_stage(bundle())
 
