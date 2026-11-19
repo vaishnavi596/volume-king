@@ -26,28 +26,31 @@ class AndroidKeystoreLoginBinding:
         self._export_public_spki = export_public_spki
         self._sign_message = sign_message
 
+    def _confirmed_public(self):
+        """Re-check key identity for every enrollment/read/sign operation."""
+        try:
+            current = export_validated_p256_public_spki(self._export_public_spki)
+        except ValueError:
+            raise FeedError("Native device public key unavailable") from None
+        if not hmac.compare_digest(current, self._public):
+            raise FeedError("Native device key changed; enrollment required")
+        return current
+
     def public_spki_for_owner_enrollment(self):
         """Public key only; actual Master must approve enrollment server-side."""
-        return self._public
+        return self._confirmed_public()
 
     def public_key_fingerprint_sha256(self):
-        """Safe owner-comparison checksum of PUBLIC DER, not a key attestation."""
-        return hashlib.sha256(self._public).hexdigest()
+        """Comparison checksum only: never attestation or authorization."""
+        return hashlib.sha256(self._confirmed_public()).hexdigest()
 
     def sign_login_challenge(self, message):
         prefix = LOGIN_CONTEXT + self._device_id.encode("ascii") + b"\x00"
         if (type(message) is not bytes or
                 len(message) != len(prefix) + 32 or not message.startswith(prefix)):
             raise FeedError("Unsupported device login signing operation")
-        # A rotated or replaced native key must not sign under the prior
-        # enrolled public-key fingerprint. No private bytes are requested.
-        try:
-            current_public = export_validated_p256_public_spki(
-                self._export_public_spki)
-        except ValueError:
-            raise FeedError("Native device public key unavailable") from None
-        if not hmac.compare_digest(current_public, self._public):
-            raise FeedError("Native device key changed; enrollment required")
+        # A replaced native key must not sign under a previous enrollment.
+        self._confirmed_public()
         try:
             signature = self._sign_message(message)
         except Exception:
