@@ -41,7 +41,7 @@ def stage(archive, *, sha, checksum, root):
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
         for member in tf:
             if (not member.isfile() or member.size > MAX_FILE
-                    or not re.fullmatch(r"[a-zA-Z0-9_]+\\.py", member.name)
+                    or not re.fullmatch(r"[a-zA-Z0-9_]+\.py", member.name)
                     or member.name in files or len(files) >= MAX_FILES):
                 raise ValueError("Unsafe or duplicate source archive member")
             content = tf.extractfile(member).read(MAX_FILE + 1)
