@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from .device_policy import valid_id
 from .internal_dhan_read_port import InternalDhanReadPort
 from .oracle_runtime_factory import create_oracle_v2_runtime
+from .oracle_dhan_expiry_transport import OracleDhanExpiryTransport
 
 
 def _private_file(path, *, max_bytes):
@@ -75,7 +76,8 @@ def _persist_selected_equities(path, selected):
 
 
 def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
-                        selected_equities_path=None):
+                        selected_equities_path=None,
+                        expiry_evidence_symbol=None):
     """Construct the real authenticated app, never the disabled demo shell."""
     if not valid_id(device_id):
         raise ValueError("Invalid independently approved Master device")
@@ -118,7 +120,10 @@ def from_private_config(*, device_id, master_der_path, pairing_path, db_path,
         master_public_der=public, pairing_key=pairing,
         selected_equities=selected_equities,
         roster_persistor=(lambda selected: _persist_selected_equities(
-            selected_equities_path, selected)) if selected_equities_path else None)
+            selected_equities_path, selected)) if selected_equities_path else None,
+        evidence_transport=(OracleDhanExpiryTransport(
+            pairing_key=pairing, symbol=expiry_evidence_symbol)
+            if expiry_evidence_symbol is not None else None))
 
 
 def create_app():
@@ -128,7 +133,8 @@ def create_app():
         master_der_path=os.environ.get("BOTKING_V2_MASTER_PUBLIC_DER_PATH"),
         pairing_path=os.environ.get("BOTKING_V2_PAIRING_KEY_PATH"),
         db_path=os.environ.get("BOTKING_V2_DB_PATH"),
-        selected_equities_path=os.environ.get("BOTKING_V2_SELECTED_EQUITIES_PATH"))
+        selected_equities_path=os.environ.get("BOTKING_V2_SELECTED_EQUITIES_PATH"),
+        expiry_evidence_symbol=os.environ.get("BOTKING_V2_EVIDENCE_EXPIRY_SYMBOL"))
 
 
 __all__ = ["create_app", "from_private_config"]
