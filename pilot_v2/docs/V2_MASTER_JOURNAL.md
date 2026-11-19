@@ -1,3 +1,11 @@
+## V2 DATA-ONLY FEED DELTA HINT — 2026-11-19
+- Continued beyond cache hardening instead of report-and-stop. Commit `610b79a1214c47c2c84905588add2ef9e79a28db`: each validated device quote lane now tracks changed visible symbols for an accepted envelope. Stale/equal envelope yields empty delta, and stale per-symbol rows never replace last-good. Revision can advance with empty delta without pretending a visual change.
+- Commit `85bed9c3ecd2eef6579aa802de8c043f4dc20d6b`: `DeviceFeedInbox.changed_for("quotes"|"indices")` exposes separate app-only delta hints; no HTTP, timer, full-page redraw or broker action. Commit `b07ffeb83acadfb33279a9a888684d3a7e40ad6c` adds regression for stale, partial, unchanged, independent index lane and invalid feed.
+- IMPORTANT: these are data-change *hints* for future UI wiring, not actual Flet widget incremental updates or authenticated upstream delivery. No live data and no claim of completed auto-refresh. New CI exact-source result pending; verify once, repair on failure.
+- NEXT: wire delta into actual data-only UI update path only after reviewing UI widget lifetime and authenticated feed acceptance; do not re-render entire page for a no-op feed. Preserve 70 equity max, 3 independent indexes, last-good, source-gated WAIT, no credentials/server changes/APK or real orders.
+
+---
+
 ## NEXT V2 APP-ONLY CACHE SAFETY BATCH — 2026-11-19
 - Continued immediately after source UI parity gate (commits 35b55bb3, fa344f23, 7038a3de); no claim of fresh CI green without reading results.
 - Reviewed active `quote_view.py`, `feed_inbox.py`, `refresh_intent.py`, `smart_data.py`. Found that a newer global read-only feed envelope could contain an older per-symbol revision and replace the last-good quote for that symbol. Fixed `quote_view.py` to preserve the prior row when incoming per-symbol revision is older while still allowing other fresh symbols to advance. Existing empty/partial response retention and independent index/equity revisions remain in force. Commit `53b06d2222e502e148836361d121d4662f5fbef9`.
