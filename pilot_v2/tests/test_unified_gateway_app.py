@@ -231,6 +231,35 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
                                     headers=headers).status_code, 403)
         self.assertEqual(len(observed_devices), 2)
 
+    def test_index_evidence_requires_independent_index_feed_scope(self):
+        from unittest.mock import patch
+        from pilot_v2.device_sessions import SessionDenied
+        events = [{"kind": "expiries", "symbol": "NIFTY",
+                   "revision": 7, "available": ["2026-11-26"]}]
+        client = TestClient(create_v2_unified_app(
+            verified_login=self.login, data_pipeline=self.pipeline,
+            evidence_provider=lambda device: {"events": events}))
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        real_read = self.login.read_feed
+
+        def quote_only(token, feed):
+            if feed == "indices":
+                raise SessionDenied("No index entitlement")
+            return real_read(token, feed)
+
+        with patch.object(self.login, "read_feed", side_effect=quote_only):
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 403)
+            # Equity-only evidence still uses its existing quotes entitlement.
+            events[0]["symbol"] = "RELIANCE"
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 200)
+            # Nested option rows must not bypass the independent index gate.
+            events[0] = {"kind": "options", "payload": {"symbol": "NIFTY"}}
+            self.assertEqual(client.get("/v2-pilot/evidence",
+                                        headers=headers).status_code, 403)
+
     def test_evidence_provider_does_not_accept_unbounded_or_invalid_events(self):
         from pilot_v2.evidence_contract import validate_evidence_envelope
         for bad in ({"events": []},
