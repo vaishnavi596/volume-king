@@ -1,3 +1,10 @@
+## FT-3 LAST-GOOD EQUAL-REVISION REPLAY HARDENING — 2026-11-19
+- Continued beyond prior evidence-roster safety patch: a newer envelope with an equal per-symbol revision but conflicting quote price must not replace last-good. Commit `0b69e033f8bfacae1590f8cbfab9cd8098b58b11` requires strictly greater per-symbol revision before accepting replacement (new symbol still allowed). This stops equal-revision equivocation while global envelope revision can advance.
+- Commit `fe32df7d8e3acb2184a43376f908c84d0b173b03` extends existing joined feed-cache regression: equal TCS/INFY symbol revisions with different prices produce no visual delta and retain the good cached values. This remains offline quote data tagged HIST/unverified, not live market evidence.
+- Exact current CI not verified; no APK/Oracle server or real order changes. NEXT: inspect workflow failure/success and adjust if needed; app-only local cache parity and authenticated future producer contract still pending.
+
+---
+
 ## FT-3 FOLLOW-ON V2 EVIDENCE ROSTER SAFETY — 2026-11-19
 - Continued immediately after mounted Flet quote-label update commits 6986f19 / b7c6e66 / 781d404 and journals 46b0166 / f2c2c67. This is additional app-side work, not a progress-only stop.
 - Audit of `DeviceEvidenceInbox.allowed()` found duplicate-set hashing before element type validation: an unhashable malformed selection could raise raw TypeError rather than fail closed through documented ValueError. Changed validation order in `26e142104081f49988512336ae9a63b916dae150` to reject >70, malformed/nonstring/index symbols first, then detect duplicates. No secrets, upstream requests or revision reset.
