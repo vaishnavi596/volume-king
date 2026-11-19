@@ -54,6 +54,22 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn('tracked_candle_text(row["symbol"], "3m", row["candle"], "watchlist"', self.source)
         self.assertIn("candle_labels.clear()", self.source)
 
+    def test_filter_update_reads_existing_evidence_and_never_ingests_signals(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "refresh_visible_filter_labels")
+        fragment = ast.get_source_segment(self.source, callback)
+        self.assertIn("shared_filter_context(", fragment)
+        self.assertIn("control.update()", fragment)
+        for forbidden in ("render()", "page.update()", "accept_available(",
+                          "apply_option_factors(", "trusted_transport=True",
+                          "requests.", "httpx."):
+            self.assertNotIn(forbidden, fragment)
+        self.assertIn('tracked_filter_text(row["symbol"], "3m", row["filter_text"]', self.source)
+        self.assertIn('tracked_filter_text(card["symbol"], "1m"', self.source)
+        self.assertIn("filter_labels.clear()", self.source)
+        self.assertIn('context["rows"]', fragment)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)
