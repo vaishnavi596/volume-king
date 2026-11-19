@@ -77,7 +77,7 @@ class V1VisualDoctorMigration(unittest.TestCase):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
         self.assertIn('ft.Text("System Health", color=GOLD', source)
-        self.assertIn('ft.Text(row["symbol"] + "  " + row["price"],', source)
+        self.assertIn('tracked_quote_text(row["symbol"], row["symbol"] + "  " + row["price"], "watchlist",', source)
         self.assertIn('ft.Text(row["candle"], size=14, color=WHITE)', source)
         self.assertIn('ft.Text(row["filter_text"], size=14, color=MUTED)', source)
         self.assertIn('ft.Text("Scanner", size=17, color=GOLD', source)
