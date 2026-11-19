@@ -81,6 +81,20 @@ class HTTPSReaderTests(unittest.TestCase):
                          [ORIGIN + "/v2-pilot/quotes", ORIGIN + "/v2-pilot/indices"])
         self.assertIn(TOKEN, self.opener.calls[0][0].get_header("Authorization"))
 
+    def test_manual_signed_refresh_uses_explicit_post_and_valid_roster(self):
+        url = ORIGIN + "/v2-pilot/manual/quotes"
+        self.opener.next_response = FakeResponse(url, snapshot(1, "TCS", 100))
+        self.assertTrue(self.reader.refresh(self.inbox, "quotes",
+                                           selected_equities=("TCS",), manual=True))
+        req = self.opener.calls[0][0]
+        self.assertEqual(req.get_method(), "POST")
+        self.assertEqual(req.full_url, url)
+        self.assertIn(TOKEN, req.get_header("Authorization"))
+        with self.assertRaises(FeedError):
+            self.reader.refresh(self.inbox, "quotes",
+                                selected_equities=("TCS",), manual="yes")
+        self.assertEqual(len(self.opener.calls), 1)
+
     def test_denied_http_and_redirect_preserve_last_good_without_secret_leak(self):
         self.offer("quotes", 1, "TCS", 100)
         self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
