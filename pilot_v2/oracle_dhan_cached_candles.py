@@ -76,7 +76,7 @@ def normalize_cached_bars(rows, *, timeframe, now):
     return [
         {"timestamp": ts, "open": op, "high": hi, "low": lo,
          "close": cl, "volume": vol, "completed": True}
-        for ts, op, hi, lo, cl, vol in candles[-2000:]
+        for ts, op, hi, lo, cl, vol in candles[-200:]
     ]
 
 
