@@ -1,4 +1,13 @@
 
+## APP-OWNED HTTPS QUOTE REFRESH BRIDGE — 2026-11-19
+- Owner requested continuous migration progress and no repetitive stopping. Latest exact source `cabda45234a8b0b5a9e82085fa764bfd08a0ef50` CI #108 PASS, 301/301 offline tests, following earlier #106 FAIL resolved in #107. No V1/default branch/Oracle production/APK writes.
+- Prepared `android_app/src/app_readonly_refresh.py`: one bounded app-side coordinator accepts a previously authorized `RefreshIntent`, exact current 0-70 distinct selected equities and an instantiated `V2ReadonlyHTTPSReader` (verified-origin HTTPS/bearer client). Runs independent three-index and selected-equity-only protected read-only quote lanes; skips equity fetch for zero selected equities; honors stale selection rejection, offline/not-permitted intent, separate lane failures, sanitized error outcomes and previous-good quote retention.
+- The Android Flet `main.py` deliberately **does not invoke** this adapter: secure device login/session/token approval is NOT yet wired. This is prepared app-contract integration, verified only with injected in-process HTTPS mock, not a production Oracle connection, no Dhan token/device bearer saved in app storage. Five filters, Options and Super Five remain source-gated HIST/WAIT, no live orders.
+- One consolidated `test_app_readonly_refresh.py` validates 0/5/70 demand, separate index lane, no unselected data, no access without typed authenticated reader/context, local cache retention after equity network error, no main.py real-connection claim. New CI result pending exact SHA.
+
+---
+
+
 ## JOINT APP-SIDE DATA READINESS — 2026-11-19
 - Owner directive: continue code work to next segment instead of reporting and stopping; one coherent batch, one combined CI. Preflight last 10 relevant commits, latest [CI #107](https://github.com/vaishnavi596/volume-king/actions/runs/44436548126) PASS (298/298) at `4ff96a7fac4ab3dd8f362772af5e5b722c41fa41`. #106 source syntax failure was corrected and passed #107.
 - New `android_app/src/app_data_readiness.py` is the single local read-only readiness snapshot for existing selected-only demand (0/5/70, no duplicates), independent three-index lane, five supported 1/3/5/15/30m Scanner intervals, validated quote/candle cache, five evidence-gated filters with blank sixth, selected expiry/option metrics/CE-PE strikes and Super Five WAIT. Does not schedule HTTP work, infer freshness, generate fake ranks, enable live orders or claim verified Oracle login. It explicitly reports zero network calls, source HIST/WAIT, and gateway disconnected.

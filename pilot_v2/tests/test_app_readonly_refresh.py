@@ -1,0 +1,125 @@
+"""Offline integration of V2 HTTPS quote lanes and selected-only intent."""
+import io
+import json
+import sys
+import unittest
+from email.message import Message
+from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+SRC = Path(__file__).resolve().parents[1] / "android_app" / "src"
+sys.path.insert(0, str(SRC))
+from app_state import LocalWatchlists
+from smart_data import SmartDataSettings
+from refresh_intent import make_refresh_intent
+from feed_inbox import DeviceFeedInbox, FeedError
+from secure_https_reader import V2ReadonlyHTTPSReader
+from app_readonly_refresh import apply_approved_quote_intent
+
+class Response:
+    status = 200
+    def __init__(self, url, payload):
+        self.url = url
+        self.data = io.BytesIO(json.dumps(payload).encode("utf-8"))
+        self.headers = Message()
+        self.headers["Content-Type"] = "application/json"
+    def geturl(self):
+        return self.url
+    def read(self, size):
+        return self.data.read(size)
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        self.data.close()
+
+class FakeOpener:
+    def __init__(self, payloads, fail=()):
+        self.payloads = payloads
+        self.fail = set(fail)
+        self.calls = []
+    def open(self, request, timeout):
+        path = request.full_url.rsplit("/", 1)[-1]
+        self.calls.append(path)
+        if path in self.fail:
+            raise OSError("private-server-error")
+        return Response(request.full_url, self.payloads[path])
+
+def payload(revision, quotes):
+    return {"protocol": "botking-v2-readonly", "schema_version": 1,
+            "source": "dhan", "freshness": "unverified",
+            "live_orders_enabled": False, "revision": revision,
+            "quotes": {symbol: {"price": price, "freshness": "unverified",
+                                "live_verified": False, "revision": revision}
+                       for symbol, price in quotes.items()}}
+
+def intent_for(count):
+    w = LocalWatchlists()
+    for i in range(count):
+        w.add(i % 5, f"EQ{i:03d}")
+    return w, make_refresh_intent(
+        w, SmartDataSettings(),
+        datetime(2026, 11, 19, 18, 0, tzinfo=ZoneInfo("Asia/Kolkata")),
+        manual=True, confirmed_session=False)
+
+class ApprovedQuoteRefreshTests(unittest.TestCase):
+    def make_reader(self, count, fail=()):
+        quotes = {f"EQ{i:03d}": 100 + i for i in range(count)}
+        opener = FakeOpener({
+            "quotes": payload(1, quotes),
+            "indices": payload(1, {"NIFTY": 20000, "BANKNIFTY": 46000,
+                                    "SENSEX": 80000})}, fail=fail)
+        reader = V2ReadonlyHTTPSReader(
+            "https://example.test", "x" * 32, opener=opener)
+        return reader, opener
+
+    def test_adaptive_selected_roster_and_index_isolation(self):
+        for count in (0, 5, 70):
+            with self.subTest(count=count):
+                w, intent = intent_for(count)
+                reader, opener = self.make_reader(count)
+                inbox = DeviceFeedInbox()
+                result = apply_approved_quote_intent(
+                    intent, reader, inbox, w.selected)
+                self.assertEqual(result["requests"], 2 if count else 1)
+                self.assertEqual(opener.calls, ["indices", "quotes"]
+                                 if count else ["indices"])
+                self.assertEqual(inbox.visible("NIFTY", ())["status"], "HIST")
+                if count:
+                    self.assertEqual(inbox.visible(w.selected[0],
+                                                   w.selected)["status"], "HIST")
+                self.assertEqual(inbox.visible("EQ099", w.selected)["status"], "WAIT")
+
+    def test_failed_equity_lane_retains_previous_and_index_continues(self):
+        w, intent = intent_for(5)
+        reader, opener = self.make_reader(5)
+        inbox = DeviceFeedInbox()
+        apply_approved_quote_intent(intent, reader, inbox, w.selected)
+        before = inbox.visible(w.selected[0], w.selected)
+        reader2, opener2 = self.make_reader(5, fail=("quotes",))
+        result = apply_approved_quote_intent(
+            intent, reader2, inbox, w.selected)
+        self.assertEqual(result["status"], "PARTIAL")
+        self.assertEqual(result["indexes"], "UNCHANGED")
+        self.assertEqual(result["quotes"], "WAIT")
+        self.assertEqual(inbox.visible(w.selected[0], w.selected), before)
+        self.assertEqual(opener2.calls, ["indices", "quotes"])
+
+    def test_untrusted_or_stale_request_does_not_fetch(self):
+        w, intent = intent_for(5)
+        reader, opener = self.make_reader(5)
+        inbox = DeviceFeedInbox()
+        with self.assertRaises(FeedError):
+            apply_approved_quote_intent(intent, reader, inbox, ())
+        with self.assertRaises(FeedError):
+            apply_approved_quote_intent(intent, object(), inbox, w.selected)
+        self.assertEqual(opener.calls, [])
+
+    def test_no_real_transport_wired_into_app_before_login(self):
+        main = (SRC / "main.py").read_text(encoding="utf-8")
+        self.assertNotIn("apply_approved_quote_intent(", main)
+        self.assertNotIn("V2ReadonlyHTTPSReader(", main)
+        self.assertNotIn("ServerAngelFeed", main)
+
+if __name__ == "__main__":
+    unittest.main()
