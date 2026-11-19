@@ -197,6 +197,25 @@ class MountedQuoteDeltaTests(unittest.TestCase):
             self.assertNotIn(forbidden, fragment)
         self.assertIn('if html is None:', fragment)
 
+    def test_manual_request_gated_by_signed_reader_and_separate_lanes(self):
+        callback = next(n for n in ast.walk(self.tree)
+                        if isinstance(n, ast.FunctionDef)
+                        and n.name == "manual_verified_data_refresh")
+        code = ast.get_source_segment(self.source, callback)
+        self.assertLess(code.index("reader is None or not reader.session_active"),
+                        code.index('apply_data_only_quote_snapshot("indices")'))
+        self.assertIn("manual=True, confirmed_session=False", code)
+        self.assertIn('apply_data_only_quote_snapshot("indices")', code)
+        self.assertIn('if not reader.session_active:', code)
+        self.assertIn('if intent.equities else ()', code)
+        self.assertIn('apply_data_only_quote_snapshot("quotes")', code)
+        self.assertIn("HIST/unverified only", code)
+        for forbidden in ("page.update()", "render()", "submit_order(", "get_yahoo("):
+            self.assertNotIn(forbidden, code)
+        self.assertIn('on_click=manual_verified_data_refresh', self.source)
+        self.assertIn('Request read-only data (verified sign-in required)', self.source)
+        self.assertIn('device_session_slot = DeviceReaderSlot()', self.source)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)

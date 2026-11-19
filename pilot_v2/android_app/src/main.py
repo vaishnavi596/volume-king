@@ -499,7 +499,7 @@ def main(page: ft.Page):
                             "V2 data temporarily unavailable · cached HIST retained")
             if status.page is not None:
                 status.update()
-            return ()
+            return None
         if not accepted:
             return ()
         changed = quote_view.changed_for(feed)
@@ -548,6 +548,42 @@ def main(page: ft.Page):
             status.value = "Unable to plan manual data request"
         render()
         page.update()
+
+    def manual_verified_data_refresh(e):
+        """Only an approved device session can request read-only quote lanes.
+
+        A missing Keystore-backed login means no HTTP request is possible.
+        There is no after-hours auto polling and no full-page data reload.
+        """
+        reader = device_session_slot.reader
+        if reader is None or not reader.session_active:
+            status.value = local_connection_state(reader)["label"]
+            if status.page is not None:
+                status.update()
+            return
+        try:
+            intent = make_refresh_intent(
+                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
+                manual=True, confirmed_session=False)
+        except (SmartDataError, ValueError, TypeError):
+            status.value = "Manual read-only request unavailable"
+            if status.page is not None:
+                status.update()
+            return
+        if not intent.permitted:
+            return
+        index_changed = apply_data_only_quote_snapshot("indices")
+        if not reader.session_active:
+            return  # Do not attempt equity request after server revoked login.
+        equity_changed = (apply_data_only_quote_snapshot("quotes")
+                          if intent.equities else ())
+        partial = index_changed is None or equity_changed is None
+        status.value = (
+            ("Manual data read PARTIAL" if partial else "Manual data read complete")
+            + f" · {len(index_changed or ())} indexes / "
+            + f"{len(equity_changed or ())} equities changed · HIST/unverified only")
+        if status.page is not None:
+            status.update()
 
     def render():
         quote_labels.clear()  # Discard prior-page control references.
@@ -1145,6 +1181,8 @@ def main(page: ft.Page):
                 ft.Text("Data connection and manual fetch not yet enabled"),
                 ft.Text(local_connection_state(device_session_slot.reader)["label"],
                         color=MUTED, size=14),
+                ft.OutlinedButton("Request read-only data (verified sign-in required)",
+                                  on_click=manual_verified_data_refresh),
                 ft.TextButton("Clear local device session (no server revoke)",
                               on_click=clear_local_device_session),
                 ft.OutlinedButton("Preview selected-symbol refresh plan (no fetch)",
