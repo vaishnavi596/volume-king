@@ -528,8 +528,7 @@ def main(page: ft.Page):
     def clear_local_device_session(e):
         """Cancel pending login; revoke active Oracle bearer where reachable."""
         # Cancel the in-flight sign-in first so late responses cannot resurrect it.
-        reader = device_session_slot.reader
-        device_session_slot.clear()
+        reader = device_session_slot.detach_for_remote_sign_out()
         remote = False
         if reader is not None:
             try:
