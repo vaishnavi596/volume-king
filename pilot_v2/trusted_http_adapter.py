@@ -11,6 +11,7 @@ from .api_contract import validate_snapshot, ContractError
 from .atomic_verified_login import AtomicVerifiedLogin
 from .device_verifier import DeviceProof
 from .device_sessions import SessionDenied
+from .unified_data_pipeline import PipelineUnavailable
 
 MAX_BODY = 1024
 MAX_TOKEN = 160
@@ -67,7 +68,7 @@ def create_trusted_app(*, login, snapshot_provider):
             raise HTTPException(status_code=403, detail="Device access denied") from None
         try:
             snapshot = validate_snapshot(snapshot_provider(device, feed))
-        except (ContractError, ValueError, TypeError):
+        except (ContractError, ValueError, TypeError, PipelineUnavailable):
             raise HTTPException(status_code=503, detail="Read-only Dhan snapshot unavailable") from None
         return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
 
