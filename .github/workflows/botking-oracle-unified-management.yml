@@ -147,18 +147,18 @@ jobs:
             test -z "$OWNER_COMMAND"
             "${SSH[@]}" "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
           set -eu
-          ROOT=/home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80
+          ROOT=/home/opc/botking-v2-staging/gh-94e814031896445874fa3f81677b85d118584f40
           test -x "$ROOT/.venv/bin/python"
           test -r "$ROOT/manifest.json"
           cd "$ROOT"
           "$ROOT/.venv/bin/python" - <<'PY'
           import json, pathlib, importlib.util
           m=json.loads(pathlib.Path("manifest.json").read_text())
-          assert m["commit"] == "7757df1e35c9846d8ef0296c4d1eefa733711a80"
-          assert not m["activated"] and m["source_count"] == 35
+          assert m["commit"] == "94e814031896445874fa3f81677b85d118584f40"
+          assert not m["activated"] and m["source_count"] == 38
           for n in ("fastapi", "uvicorn", "httpx", "cryptography"):
               assert importlib.util.find_spec(n)
-          for n in ("oracle_runtime_factory.py", "durable_device_sessions.py", "durable_device_keys.py", "atomic_verified_login.py", "oracle_dhan_read_transport.py", "trusted_http_adapter.py"):
+          for n in ("oracle_runtime_factory.py", "durable_device_sessions.py", "durable_device_keys.py", "atomic_verified_login.py", "oracle_dhan_read_transport.py", "trusted_http_adapter.py", "tools/v2_activation_gate.py", "tools/provision_oracle_master.py"):
               assert (pathlib.Path("pilot_v2")/n).is_file(), n
           from pilot_v2.oracle_runtime_factory import create_oracle_v2_runtime
           try:
@@ -167,7 +167,7 @@ jobs:
               print("V2_MISSING_MASTER_OR_PAIRING=FAIL_CLOSED")
           else:
               raise AssertionError("Runtime accepted missing authorization")
-          print("V2_STAGED_IMPORT_AND_DEPENDENCIES=PASS")
+          print("V2_38_SOURCE_TOOLS_AND_DEPENDENCIES=PASS")
           PY
           echo "V2_SYSTEMD_LOAD=$(systemctl show bot-king-v2.service --property=LoadState --value || true)"
           echo "V2_SYSTEMD_ACTIVE=$(systemctl is-active bot-king-v2.service || true)"
