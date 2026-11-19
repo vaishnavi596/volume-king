@@ -98,6 +98,14 @@ def audit():
                 name = node.func.id if isinstance(node.func, ast.Name) else None
                 if name in BANNED_CALLS:
                     issues.append("Blocked legacy call: " + path.name + " -> " + name)
+    # The five migrated, app-only V1 controls are required source contracts.
+    # Do not gate on the three still-unimplemented live/WebView capabilities.
+    if (V1 / "main.py").is_file() and (V2 / "main.py").is_file():
+        for name, legacy_present, migrated in control_parity()[:5]:
+            if not legacy_present:
+                issues.append("Missing read-only V1 control baseline: " + name)
+            elif not migrated:
+                issues.append("Regressed V2 local UI control: " + name)
     source = (V2 / "main.py").read_text(encoding="utf-8") if (V2 / "main.py").is_file() else ""
     wired = {
         "Watchlist + 70 unique equity selection": "LocalWatchlists" in source and "watchlist_rows(" in source,
