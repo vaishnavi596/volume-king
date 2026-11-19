@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location(
@@ -24,6 +25,21 @@ class SourceControlGapTests(unittest.TestCase):
                     "Scanner automatic market refresh"):
             with self.subTest(key=key):
                 self.assertEqual(rows[key], (True, False))
+
+    def test_migrated_control_regression_fails_gate(self):
+        baseline = gate.control_parity()
+        self.assertGreaterEqual(len(baseline), 8)
+        broken = ((baseline[0][0], True, False),) + baseline[1:]
+        with patch.object(gate, "control_parity", return_value=broken):
+            audit = gate.audit()
+        self.assertIn("Regressed V2 local UI control: " + baseline[0][0],
+                      audit["issues"])
+
+    def test_pending_live_capabilities_do_not_fail_source_gate(self):
+        audit = gate.audit()
+        self.assertFalse(any("Regressed V2 local UI control" in item
+                             for item in audit["issues"]))
+        self.assertEqual(sum(bool(v2) for _, _, v2 in audit["control_parity"][:5]), 5)
 
     def test_report_not_completed_by_source_match(self):
         report = gate.audit()
