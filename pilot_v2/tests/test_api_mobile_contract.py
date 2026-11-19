@@ -55,6 +55,16 @@ class ContractTests(unittest.TestCase):
                     m.apply(invalid)
                 self.assertEqual(m.quotes, {})
 
+    def test_gateway_rejects_noncanonical_quote_symbols_before_delivery(self):
+        for name in ("", "tcs", " TCS", "TCS ", "TCS/NSE",
+                     "A" * 33, "TCS\\nBAD", "NIFTY!"):
+            with self.subTest(name=repr(name)), self.assertRaises(ContractError):
+                make_snapshot(5, {name: q(101, 5)})
+        self.assertEqual(make_snapshot(5, {"NIFTY": q(25000, 5)})
+                         ["quotes"]["NIFTY"]["price"], 25000)
+        self.assertEqual(make_snapshot(5, {"TCS": q(101, 5)})
+                         ["quotes"]["TCS"]["price"], 101)
+
     def test_invalid_selection_and_prices(self):
         for body in ({"watchlists":[["TCS"],["TCS"],[],[],[]]},
                      {"watchlists":[[f"EQ{i:03d}" for i in range(71)],[],[],[],[]]},

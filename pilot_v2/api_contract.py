@@ -1,6 +1,6 @@
 """Versioned offline V2 gateway/mobile contract. No HTTP or trading."""
 from math import isfinite
-from .gateway_contract import ContractError, plan_demand
+from .gateway_contract import ContractError, plan_demand, symbol_ok
 
 API_PREFIX="/v2-pilot"
 SCHEMA_VERSION=1
@@ -27,7 +27,7 @@ def validate_snapshot(p):
             type(p["quotes"]) is not dict):
         raise ContractError("Invalid V2 read-only snapshot")
     for sym,row in p["quotes"].items():
-        if (type(sym) is not str or type(row) is not dict or
+        if (not symbol_ok(sym) or type(row) is not dict or
                 set(row)!={"price","freshness","live_verified","revision"} or
                 type(row["price"]) not in (int,float) or
                 not isfinite(row["price"]) or row["price"]<=0 or
