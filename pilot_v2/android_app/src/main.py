@@ -241,6 +241,7 @@ def main(page: ft.Page):
     filter_labels = {}  # Existing evidence-gated visible factors only.
     option_summary_labels = {}  # Scanner option summary without full-page repaint.
     expiry_dropdowns = {}  # Per-symbol dropdown updated from verified expiry roster.
+    option_strike_hosts = {}  # Mounted CE/PE rows; no Scanner page reconstruction.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
     device_session_slot = DeviceReaderSlot()  # Native sign-in only on explicit owner action.
@@ -441,6 +442,32 @@ def main(page: ft.Page):
         expiry_dropdowns.setdefault(symbol, []).append(control)
         return control
 
+    def option_strike_rows(symbol):
+        """Only verified selected expiry rows, never infer missing CE/PE data."""
+        expiry = expiry_choices.selected(symbol, selected_equities=state.selected)
+        snapshot = evidence_inbox.strikes.visible(
+            symbol, expiry, expiry_choices, selected_equities=state.selected)
+        if snapshot["status"] != "HIST":
+            return [ft.Text("CE/PE strikes WAIT · no trusted selected expiry / rows")]
+        header = ft.Row([
+            ft.Text("CE OI", width=75), ft.Text("CE ₹", width=75),
+            ft.Text("STRIKE", width=90), ft.Text("PE ₹", width=75),
+            ft.Text("PE OI", width=75),
+        ], spacing=2)
+        rows = [ft.Row([
+            ft.Text(f'{r["ce_oi"]:,.0f}', width=75),
+            ft.Text(f'{r["ce_price"]:,.2f}', width=75),
+            ft.Text(f'{r["strike"]:,.0f}', width=90),
+            ft.Text(f'{r["pe_price"]:,.2f}', width=75),
+            ft.Text(f'{r["pe_oi"]:,.0f}', width=75),
+        ], spacing=2) for r in snapshot["rows"]]
+        return [header, *rows]
+
+    def tracked_option_strikes(symbol):
+        control = ft.Column(controls=option_strike_rows(symbol), spacing=2)
+        option_strike_hosts.setdefault(symbol, []).append(control)
+        return control
+
     def refresh_visible_option_labels(symbol):
         """Update trusted option/expiry controls without remounting Scanner."""
         chosen = expiry_choices.selected(symbol, selected_equities=state.selected)
@@ -461,6 +488,9 @@ def main(page: ft.Page):
                 control.value = chosen
                 control.disabled = not bool(available)
                 control.update()
+        for control in option_strike_hosts.get(symbol, ()):
+            control.controls = option_strike_rows(symbol)
+            control.update()
 
     def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
         control = ft.Text(value, **style)
@@ -733,6 +763,7 @@ def main(page: ft.Page):
         filter_labels.clear()
         option_summary_labels.clear()
         expiry_dropdowns.clear()
+        option_strike_hosts.clear()
         native_chart_hosts.clear()
         technical_hosts.clear()
         rich_preview_view[0] = None
@@ -1007,30 +1038,7 @@ def main(page: ft.Page):
                                   on_click=lambda e: open_help("Options")),
                 ]),
                 ft.Text("Trusted completed cache only", color=MUTED, size=14),
-                *([ft.Row([
-                    ft.Text("CE OI", width=75),
-                    ft.Text("CE ₹", width=75),
-                    ft.Text("STRIKE", width=90),
-                    ft.Text("PE ₹", width=75),
-                    ft.Text("PE OI", width=75),
-                ], spacing=2)] + [
-                    ft.Row([
-                        ft.Text(f'{r["ce_oi"]:,.0f}', width=75),
-                        ft.Text(f'{r["ce_price"]:,.2f}', width=75),
-                        ft.Text(f'{r["strike"]:,.0f}', width=90),
-                        ft.Text(f'{r["pe_price"]:,.2f}', width=75),
-                        ft.Text(f'{r["pe_oi"]:,.0f}', width=75),
-                    ], spacing=2) for r in evidence_inbox.strikes.visible(
-                        scanner[0].symbol,
-                        expiry_choices.selected(scanner[0].symbol,
-                                                selected_equities=state.selected),
-                        expiry_choices, selected_equities=state.selected)["rows"]
-                ] if evidence_inbox.strikes.visible(
-                    scanner[0].symbol,
-                    expiry_choices.selected(scanner[0].symbol,
-                                            selected_equities=state.selected),
-                    expiry_choices, selected_equities=state.selected)["status"] == "HIST"
-                  else [ft.Text("CE/PE strikes WAIT · no trusted selected expiry / rows")]),
+                tracked_option_strikes(scanner[0].symbol),
                 ft.Text("Option-chain HIST only; OI/PCR is not a trading signal",
                         size=12),
                 ft.Row([
