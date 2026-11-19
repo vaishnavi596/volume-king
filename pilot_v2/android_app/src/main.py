@@ -493,7 +493,8 @@ def main(page: ft.Page):
         try:
             accepted = reader.refresh(
                 quote_view, feed,
-                selected_equities=state.selected if feed == "quotes" else ())
+                selected_equities=state.selected if feed == "quotes" else (),
+                manual=True)
         except FeedError:
             # A 401/403 invalidates the in-memory bearer within the reader.
             # Never show a sign-in error for an ordinary 429/cooldown.
