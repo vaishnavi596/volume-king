@@ -144,3 +144,9 @@
 - V2-only scanner view adapter `historical_three_minute_fallback.py`: if trusted local 3m cache is missing, derive display-only completed session-aligned 3m bars from already accepted cached 1m using reviewed V1 pure `dhan_three_minute` helper. Never mutates primary 3m cache, bypasses symbol selection, invokes provider or creates live evidence.
 - Scanner summary, technical historical analysis, native candle and line chart consume overlay; five source-gated filter votes, options and Super Five ranking remain on existing evidence gates. Missing/incomplete/unfinished minutes remain WAIT. Added focused offline regression `test_scanner_3m_historical_fallback.py`.
 - CI pending for new SHA; no V1 code, default branch, server, APK, Dhan API, trading, secrets or production edits. Complete V1 migration/device/live data acceptance remains open.
+
+## V2-FT2-SHARED-SCANNER-SUPERFIVE-HISTORICAL-3M-20261119
+- Exact [CI #101](https://github.com/vaishnavi596/volume-king/actions/runs/44431985861) completed SUCCESS at executable SHA `6acb6d9221b8150824922aaf4d1049f3d2be0c1d`. Last 10 commit lineage reviewed; no pending earlier source CI failure.
+- Fixed UI historical view mismatch: Scanner 3m used the offline cached 1m→3m overlay but the Super Five historical shortlist and its on-click validation used raw 3m cache. All three now use the same `scanner_history` read-only overlay, preserving strict selected-equity checks and historical-only labels. Does not mark actual source-based Super Five LIVE or alter five-filter votes.
+- Added shared-view regression `test_scanner_superfive_history_parity.py` to validate source callbacks, 35 complete 3m bars derived from 105 completed 1m bars, non-live presentation and hidden removed equity. New CI PENDING until observed.
+- No V1/Oracle/Dhan/API/APK/trading writes. App-side full V1 parity still incomplete; do not mark final migration done.

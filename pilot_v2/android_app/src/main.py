@@ -191,7 +191,7 @@ def main(page: ft.Page):
                 """Open the selected historical equity in Scanner, without fetching."""
                 try:
                     selected = choose_historical_shortlist_symbol(
-                        candle_history, state.selected, symbol,
+                        scanner_history, state.selected, symbol,
                         timeframe="3m")
                     scanner[0] = choose(scanner[0], state, symbol=selected,
                                         timeframe="3m")
@@ -436,10 +436,10 @@ def main(page: ft.Page):
                                   on_click=lambda e, symbol=item["symbol"]:
                                   select_historical_candidate(symbol)),
                 ]) for item in historical_shortlist(
-                    candle_history, state.selected, timeframe="3m")],
+                    scanner_history, state.selected, timeframe="3m")],
                 ft.Text("Shortlist unavailable · no validated historical votes",
                         color=MUTED, size=14) if not historical_shortlist(
-                    candle_history, state.selected, timeframe="3m") else
+                    scanner_history, state.selected, timeframe="3m") else
                 ft.Text("Historical selection only · not a live trade signal",
                         color=MUTED, size=14),
                 ft.Text(scanner_error or "Scanner selection stored on this device"),
