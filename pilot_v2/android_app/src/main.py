@@ -239,6 +239,8 @@ def main(page: ft.Page):
     quote_labels = {}  # Mounted Flet Text references, not server settings.
     candle_labels = {}  # Keyed by symbol/timeframe, independent of quotes.
     filter_labels = {}  # Existing evidence-gated visible factors only.
+    option_summary_labels = {}  # Scanner option summary without full-page repaint.
+    expiry_dropdowns = {}  # Per-symbol dropdown updated from verified expiry roster.
     native_chart_hosts = {}  # Only current Scanner symbol/timeframe controls.
     technical_hosts = {}  # Historical technical summary + indicator panel.
     device_session_slot = DeviceReaderSlot()  # Native sign-in only on explicit owner action.
@@ -430,6 +432,36 @@ def main(page: ft.Page):
                         rich_preview_view[0] = None  # Native chart stays mounted.
         return True
 
+    def tracked_option_summary(symbol, value, **style):
+        control = ft.Text(value, **style)
+        option_summary_labels.setdefault(symbol, []).append(control)
+        return control
+
+    def tracked_expiry_dropdown(symbol, control):
+        expiry_dropdowns.setdefault(symbol, []).append(control)
+        return control
+
+    def refresh_visible_option_labels(symbol):
+        """Update trusted option/expiry controls without remounting Scanner."""
+        chosen = expiry_choices.selected(symbol, selected_equities=state.selected)
+        available = expiry_choices.available(symbol, selected_equities=state.selected)
+        for control in option_summary_labels.get(symbol, ()):
+            value = option_evidence.summary(
+                symbol, chosen or "", selected_equities=state.selected)
+            if control.value != value:
+                control.value = value
+                control.update()
+        for control in expiry_dropdowns.get(symbol, ()):
+            new_options = [ft.dropdown.Option(x, x) for x in available]
+            changed = (control.value != chosen or
+                       [entry.key for entry in control.options] != list(available)
+                       or control.disabled == bool(available))
+            if changed:
+                control.options = new_options
+                control.value = chosen
+                control.disabled = not bool(available)
+                control.update()
+
     def tracked_filter_text(symbol, timeframe, value, kind="compact", **style):
         control = ft.Text(value, **style)
         filter_labels.setdefault((symbol, timeframe), []).append((control, kind))
@@ -596,6 +628,8 @@ def main(page: ft.Page):
                     refresh_visible_technical(symbol, timeframe)
                 for symbol, timeframe in tuple(filter_labels):
                     refresh_visible_filter_labels(symbol, timeframe)
+                for symbol in set(option_summary_labels) | set(expiry_dropdowns):
+                    refresh_visible_option_labels(symbol)
                 status.value = (
                     f'Authenticated evidence events {outcome["events"]}, '
                     f'accepted {outcome["updated"]} · HIST/WAIT until live source proven')
@@ -697,6 +731,8 @@ def main(page: ft.Page):
         quote_labels.clear()  # Discard prior-page control references.
         candle_labels.clear()
         filter_labels.clear()
+        option_summary_labels.clear()
+        expiry_dropdowns.clear()
         native_chart_hosts.clear()
         technical_hosts.clear()
         rich_preview_view[0] = None
@@ -947,7 +983,7 @@ def main(page: ft.Page):
                     filter_evidence, scanner[0].symbol, scanner[0].timeframe,
                     selected_equities=state.selected)["coverage_label"],
                     "coverage", color=MUTED, size=14),
-                ft.Dropdown(
+                tracked_expiry_dropdown(scanner[0].symbol, ft.Dropdown(
                     label="Option expiry (verified Dhan only)", width=260,
                     value=expiry_choices.selected(scanner[0].symbol,
                                                   selected_equities=state.selected),
@@ -956,8 +992,8 @@ def main(page: ft.Page):
                                                       selected_equities=state.selected)],
                     disabled=not bool(expiry_choices.available(
                         scanner[0].symbol, selected_equities=state.selected)),
-                    on_change=select_expiry),
-                ft.Text(option_evidence.summary(
+                    on_change=select_expiry)),
+                tracked_option_summary(scanner[0].symbol, option_evidence.summary(
                     scanner[0].symbol,
                     expiry_choices.selected(scanner[0].symbol,
                                             selected_equities=state.selected) or "",
