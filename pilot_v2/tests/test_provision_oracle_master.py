@@ -3,6 +3,7 @@ import hashlib
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -38,6 +39,25 @@ class MasterEnrollmentTests(unittest.TestCase):
         self.assertEqual((self.root/"master.sqlite").stat().st_mode & 0o777,0o600)
         with self.assertRaises(ValueError):
             self.enroll()
+
+    def test_failure_after_bootstrap_leaves_no_partial_master_and_retry_succeeds(self):
+        # A failure between Master record creation and key enrollment must
+        # not leave an incomplete irreversible master.sqlite.
+        with patch("pilot_v2.tools.provision_oracle_master.DurableDeviceKeys",
+                   side_effect=RuntimeError("simulated database init failure")):
+            with self.assertRaisesRegex(RuntimeError, "simulated database"):
+                self.enroll()
+        self.assertFalse((self.root / "master.sqlite").exists())
+        self.assertEqual(list(self.root.glob(".master-enroll-*")), [])
+        self.assertTrue(self.enroll()["master_enrolled"])
+
+    def test_existing_master_database_must_never_be_replaced(self):
+        db = self.root / "master.sqlite"
+        db.write_bytes(b"preexisting-master-record")
+        with self.assertRaises(ValueError):
+            self.enroll()
+        self.assertEqual(db.read_bytes(), b"preexisting-master-record")
+        self.assertEqual(list(self.root.glob(".master-enroll-*")), [])
 
     def test_mismatched_owner_fingerprint_refused(self):
         with self.assertRaises(ValueError):

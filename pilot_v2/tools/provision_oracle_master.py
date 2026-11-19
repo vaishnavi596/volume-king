@@ -12,6 +12,7 @@ import hmac
 import os
 from pathlib import Path
 import stat
+import tempfile
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -65,16 +66,28 @@ def enroll_master(*, directory, device_id, public_path, approved_fingerprint):
     db = directory / "master.sqlite"
     if db.exists() or db.is_symlink():
         raise ValueError("Master DB already exists; never overwrite enrollment")
+    # Assemble the entire approved enrollment privately before publishing.
+    # A failed bootstrap/key insert must never strand a partial master.sqlite.
     old_umask = os.umask(0o077)
+    temporary = None
     try:
-        sessions = DurableDeviceSessions(db)
-        db.chmod(0o600)
+        fd, name = tempfile.mkstemp(prefix=".master-enroll-", suffix=".sqlite",
+                                    dir=directory)
+        temporary = Path(name)
+        os.close(fd)
+        sessions = DurableDeviceSessions(temporary)
+        temporary.chmod(0o600)
         sessions.bootstrap(device_id, authorize_bootstrap=lambda candidate: candidate == device_id)
         DurableDeviceKeys(sessions)
         with sessions._db() as connection:
             connection.execute("INSERT INTO device_keys(device, public_der, generation) VALUES(?,?,1)",
                                (device_id, data))
+        # hard-link creation is atomic and refuses an existing DB even if
+        # another trusted operator attempted enrollment concurrently.
+        os.link(temporary, db, follow_symlinks=False)
     finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
         os.umask(old_umask)
     return {"master_enrolled": True, "public_fingerprint_sha256": digest,
             "private_key_exported": False, "orders_enabled": False}
