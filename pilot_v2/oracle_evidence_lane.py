@@ -87,3 +87,32 @@ class OracleDhanEvidenceLane:
             self._revision = batch.revision
             self._cached = (now, deepcopy(value))
             return deepcopy(value)
+
+
+class RoundRobinDhanEvidenceTransport:
+    """One protected Oracle read per demand, never simultaneous Dhan fanout.
+
+    Batches from different source lanes receive one aggregate revision while
+    their individual per-event revisions remain source-local and monotonic.
+    Failures rotate to the next source, preserving last-good app histories.
+    """
+
+    def __init__(self, transports):
+        if (type(transports) not in (list, tuple) or not transports
+                or len(transports) > 8 or any(not callable(t) for t in transports)):
+            raise ValueError("Approved bounded Dhan evidence transports required")
+        self._transports = tuple(transports)
+        self._next = 0
+        self._revision = 0
+        self._lock = RLock()
+
+    def __call__(self):
+        with self._lock:
+            transport = self._transports[self._next]
+            self._next = (self._next + 1) % len(self._transports)
+            batch = transport()
+            if type(batch) is not DhanEvidenceBatch or batch.source != "dhan":
+                raise PipelineUnavailable("Unverified source collection")
+            self._revision += 1
+            return DhanEvidenceBatch("dhan", self._revision,
+                                     batch.observed_at, batch.events)
