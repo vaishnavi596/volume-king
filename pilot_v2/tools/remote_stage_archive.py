@@ -13,6 +13,7 @@ import tarfile
 MAX_ARCHIVE = 8_000_000
 MAX_FILES = 120
 MAX_FILE = 1_000_000
+REQUIRED_TOOLS = {"tools/v2_activation_gate.py", "tools/provision_oracle_master.py"}
 REQUIRED = {
     "unified_gateway_app.py", "unified_data_pipeline.py",
     "internal_dhan_read_port.py", "trusted_http_adapter.py",
@@ -41,7 +42,8 @@ def stage(archive, *, sha, checksum, root):
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
         for member in tf:
             if (not member.isfile() or member.size > MAX_FILE
-                    or not re.fullmatch(r"[a-zA-Z0-9_]+\.py", member.name)
+                    or not (re.fullmatch(r"[a-zA-Z0-9_]+\.py", member.name)
+                            or re.fullmatch(r"tools/[a-zA-Z0-9_]+\.py", member.name))
                     or member.name in files or len(files) >= MAX_FILES):
                 raise ValueError("Unsafe or duplicate source archive member")
             content = tf.extractfile(member).read(MAX_FILE + 1)
@@ -49,7 +51,7 @@ def stage(archive, *, sha, checksum, root):
                 raise ValueError("Incomplete archive member")
             compile(content, member.name, "exec")
             files[member.name] = content
-    if not REQUIRED.issubset(files):
+    if not REQUIRED.issubset(files) or not REQUIRED_TOOLS.issubset(files):
         raise ValueError("Incomplete V2 gateway source")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     target.mkdir(mode=0o700)
@@ -57,6 +59,8 @@ def stage(archive, *, sha, checksum, root):
     source.mkdir(mode=0o700)
     for name, content in sorted(files.items()):
         path = source / name
+        if name.startswith("tools/"):
+            (source / "tools").mkdir(mode=0o700, exist_ok=True)
         path.write_bytes(content)
         path.chmod(0o600)
     manifest = {"commit": sha, "archive_sha256": checksum,
