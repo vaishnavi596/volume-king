@@ -219,6 +219,43 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertIs(slot.active_reader(), current)
         self.assertEqual(self.calls, [])
 
+    def test_clear_and_direct_signin_scrub_under_slot_ownership_lock(self):
+        # Bearer invalidation must finish while the same ownership lock is
+        # held; otherwise refresh could commit during a local logout gap.
+        for operation in ("clear", "direct_login_start"):
+            with self.subTest(operation=operation):
+                slot = DeviceReaderSlot()
+                previous = V2ReadonlyHTTPSReader(
+                    "https://v2.example.test", "A" * 32, opener=Mock())
+                slot._reader = previous
+                original_invalidate = previous.invalidate
+                calls = []
+                def checking_invalidate():
+                    acquired = slot._lock.acquire(blocking=False)
+                    if acquired:
+                        slot._lock.release()
+                    calls.append(acquired)
+                    original_invalidate()
+                with patch.object(previous, "invalidate",
+                                  side_effect=checking_invalidate):
+                    if operation == "clear":
+                        slot.clear()
+                    else:
+                        slot._begin_sign_in()
+                self.assertEqual(calls, [False])
+                self.assertIsNone(slot.reader)
+                self.assertFalse(previous.session_active)
+
+    def test_preserved_reader_not_invalidated_on_keystore_login_reservation(self):
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        slot._reader = previous
+        attempt = slot._begin_sign_in(preserve_previous=True)
+        self.assertGreater(attempt, 0)
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+
     def test_settings_clear_always_cancels_pending_login_even_without_reader(self):
         # Flet main isn't started in source-only CI; inspect the actual mounted
         # Settings callback so a future regression cannot gate cancellation
