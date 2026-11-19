@@ -1,3 +1,9 @@
+## 2026-11-19 — ONE UNIFIED READ BUDGET EXACT-SHA CI PASS
+- Exact source SHA `3100a55abb145ab3175b1faedfb355311dea4d24` run [BOT KING V2 Unified Pipeline #44503089687](https://github.com/vaishnavi596/volume-king/actions/runs/44503089687) `status=completed`, `conclusion=success`. This validates shared source quota/cache/429 cooldown offline tests within ONE workflow, not provider 429 wiring or live quotes. GitHub docs-only commits after it do not create separate CI.
+- **Next:** real isolated approved Dhan read-only adapter and explicit 429 feedback in same ONE gateway plus Android Keystore/device acceptance. Production/V1 unchanged, no order endpoints or APK.
+
+---
+
 ## 2026-11-19 — ONE SHARED V2 PROVIDER QUOTA GATE (SOURCE AND TEST BATCH)
 - **Owner OK; goal:** continue the SAME V2 Unified Pipeline and one pilot branch, without separate features/workflows, with shared Oracle/Dhan quota control as precursor to real authenticated live transport. Inspected current `unified_data_pipeline.py`, `internal_dhan_read_port.py`, `smart_demand_policy.py`, related tests and current General Framework. Starting HEAD was docs-only `6328e63281384d76c957190e4859a9a42a9f1d7d`, prior exact smart-demand code CI [44502034383](https://github.com/vaishnavi596/volume-king/actions/runs/44502034383) success.
 - **Source commits** `52c57ec48c254370f53228d711b5f6145de23e59`: new `pilot_v2/shared_read_budget.py` provides one worker-local monotonic min 1-second provider spacing with 30-second 429 cooldown method, no busy-wait, queue, SDK or network; no manual/priority bypass. `7bc84433fe209bb85ac5b837d532ad011713c839`: `pilot_v2/unified_data_pipeline.py` accepts optional injected `SharedReadBudget` and reserves before uncached provider read, preserving shared cache and predictable blocked response, no separate pipeline or call route.
