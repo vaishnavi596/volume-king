@@ -47,6 +47,12 @@ class StageTests(unittest.TestCase):
         self.assertIn("tools/v2_activation_gate.py", actual)
         self.assertIn("tools/provision_oracle_master.py", actual)
         self.assertIn("$(cd pilot_v2 && ls *.py)", actual)
+        # Workflow must enforce the same private staging root policy BEFORE SCP.
+        self.assertIn("test ! -L /home/opc/botking-v2-staging", workflow)
+        self.assertIn("install -d -m 700 /home/opc/botking-v2-staging", workflow)
+        self.assertIn("stat -c %a /home/opc/botking-v2-staging", workflow)
+        self.assertNotIn("mkdir -p /home/opc/botking-v2-staging", workflow)
+        self.assertLess(workflow.index("install -d -m 700"), workflow.index("scp -i"))
         self.assertIn("workflow_dispatch:", workflow)
         self.assertNotIn("systemctl restart", workflow)
         self.assertNotIn("on:\n  push:", workflow)
