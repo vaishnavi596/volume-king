@@ -192,8 +192,9 @@ class KeystoreBindingTests(unittest.TestCase):
 
     def test_invalid_login_input_keeps_last_local_reader_and_does_not_sign(self):
         slot = DeviceReaderSlot()
-        current = Mock()
-        slot._reader = current  # A previous signed read-only session.
+        current = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        slot._reader = current  # An actual in-memory read-only session.
         binding = self.bind()
         with self.assertRaises(FeedError):
             slot.sign_in_with_keystore(binding, "http://v2.example.test")
@@ -214,7 +215,8 @@ class KeystoreBindingTests(unittest.TestCase):
                 binding, "https://v2.example.test", opener=BrokenOpener())
         self.assertNotIn("sensitive-native-handle", str(error.exception))
         self.assertIs(slot.reader, current)
-        current.invalidate.assert_not_called()
+        self.assertTrue(current.session_active)
+        self.assertIs(slot.active_reader(), current)
         self.assertEqual(self.calls, [])
 
     def test_settings_clear_always_cancels_pending_login_even_without_reader(self):
