@@ -1,4 +1,5 @@
 """Source-only Android Keystore public/sign callback boundary, no Android runtime."""
+import ast
 import hashlib
 from threading import Event, Thread
 import sys
@@ -215,6 +216,31 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertIs(slot.reader, current)
         current.invalidate.assert_not_called()
         self.assertEqual(self.calls, [])
+
+    def test_settings_clear_always_cancels_pending_login_even_without_reader(self):
+        # Flet main isn't started in source-only CI; inspect the actual mounted
+        # Settings callback so a future regression cannot gate cancellation
+        # on 'reader is not None' before calling the slot's clear().
+        tree = ast.parse((SRC / "main.py").read_text(encoding="utf-8"))
+        handlers = [node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "clear_local_device_session"]
+        self.assertEqual(len(handlers), 1)
+        handler = handlers[0]
+        unconditional_clear = [
+            statement for statement in handler.body
+            if isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Attribute)
+            and statement.value.func.attr == "clear"
+            and isinstance(statement.value.func.value, ast.Name)
+            and statement.value.func.value.id == "device_session_slot"]
+        self.assertEqual(len(unconditional_clear), 1)
+        slot = DeviceReaderSlot()
+        generation = slot._generation
+        self.assertIsNone(slot.reader)
+        slot.clear()  # Explicitly cancels attempts even with no reader.
+        self.assertEqual(slot._generation, generation + 1)
 
     def test_logout_during_native_preflight_cancels_before_any_auth_io(self):
         entered = Event()
