@@ -123,6 +123,23 @@ def create_trusted_app(*, login, snapshot_provider, manual_snapshot_provider=Non
             validated = validate_evidence_envelope(supplied)
         except ValueError:
             raise HTTPException(status_code=503, detail="Source evidence unavailable") from None
+        # A quotes-only Delegate must never receive index observations through
+        # the evidence endpoint. Infer required scopes from actual event symbols,
+        # including nested CE/PE/strike payloads; deny ambiguous instruments.
+        from .internal_dhan_read_port import INDEXES
+        for event in validated["events"]:
+            symbol = (event.get("payload", {}).get("symbol")
+                      if event["kind"] in ("options", "strikes")
+                      else event.get("symbol"))
+            if type(symbol) is not str or not symbol:
+                raise HTTPException(status_code=503, detail="Source evidence unavailable")
+            if symbol in INDEXES:
+                try:
+                    scoped_device = login.read_feed(token, "indices")
+                except SessionDenied:
+                    raise HTTPException(status_code=403, detail="Device evidence denied") from None
+                if scoped_device != device:
+                    raise HTTPException(status_code=403, detail="Device evidence denied")
         return JSONResponse(validated, headers={"Cache-Control": "no-store"})
 
     @app.post("/v2-pilot/auth/logout")
