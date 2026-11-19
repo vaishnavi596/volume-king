@@ -1,3 +1,10 @@
+## V2 FT-2 DELEGATED DEVICE SIGNED LOGIN → FEED SCOPE → MASTER REVOKE TEST — 2026-11-19
+- Resumed after verified [CI #184](https://github.com/vaishnavi596/volume-king/actions/runs/44464399318) SUCCESS **399/399**, 0 source security findings and 9/9 wiring. Canonical status, handoff and live-status were updated to this exact executable SHA in a docs-only skip-CI checkpoint.
+- Extended the existing Android→offline FastAPI signed-session read test to cover a SECOND actual P-256 key: master-authorized durable server-side key request/possession proof, delegated `quotes`-only permission, delegated genuine ECDSA login, allowed selected TCS read, denied `indices` read resulting in local bearer invalidation, independent new delegated login, and revocation by the master on shared durable session store. After revocation, the next quote read fails and no further HTTP retry is attempted; last-good TCS remains retained. The master key, bearer or token is never passed to delegated phone client.
+- This validates *source/offline* 1 Master + 1 Delegate security and existing permission structure; it does not deploy server endpoints, enroll real Keystore keys, authorize an actual Android handset, or prove live market prices. No V1/APK/Oracle production/order edits, secrets or fabricated live status. Exact new CI pending; inspect/fix before next task.
+
+---
+
 ## 2026-11-19 CURRENT RESUME — VERIFIED CI #184 AND NEXT APP-FIRST GATE
 - Active repository `vaishnavi596/volume-king`; V2-only branch `pilot/botking-v2-smart-gateway-20261118`; old V1 sources and journals READ-ONLY.
 - LAST verified executable code: **598daa1b3cae41a206b56ec9be57d1b15d164d66**, [CI #184](https://github.com/vaishnavi596/volume-king/actions/runs/44464399318) SUCCESS **399/399 offline Python tests**, security findings **0**, source UI wiring **9/9**. CI #182 was 396/396, CI #183 398/398. Intermediate errors are historical; do not rerun old green/failure SHAs.
