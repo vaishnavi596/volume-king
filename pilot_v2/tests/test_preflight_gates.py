@@ -3,6 +3,8 @@ import pathlib
 import tempfile
 import unittest
 import json
+from unittest.mock import patch
+from types import SimpleNamespace
 from pilot_v2.oracle_preflight import audit_local
 from pilot_v2.android_build_gate import inspect
 
@@ -20,6 +22,42 @@ class PreflightTests(unittest.TestCase):
             self.assertEqual(result["dhan_requests"],0)
             self.assertNotIn("SECRET_TOKEN",json.dumps(result))
             self.assertNotIn("never_print",json.dumps(result))
+    def test_bounded_dual_service_metadata_never_reads_secret_environment(self):
+        commands = []
+        def fake_run(argv, **kwargs):
+            commands.append(argv)
+            self.assertNotIn("Environment", " ".join(argv))
+            name = argv[2]
+            path = "/opt/bot-king-server" if name == "bot-king.service" else "/opt/bot-king-v2"
+            return SimpleNamespace(returncode=0, stdout=(
+                "ActiveState=active\\nWorkingDirectory=" + path +
+                "\\nEnvironment=SECRET_SHOULD_NEVER_BE_REPORTED\\n"))
+        with tempfile.TemporaryDirectory() as d, patch(
+                "pilot_v2.oracle_preflight.subprocess.run",
+                side_effect=fake_run):
+            result = audit_local(d, include_v2_service=True)
+            self.assertEqual(len(commands), 2)
+            self.assertEqual(commands[0][2], "bot-king.service")
+            self.assertEqual(commands[1][2], "bot-king-v2.service")
+            self.assertTrue(result["v2_isolated_workdir"])
+            self.assertNotIn("SECRET_SHOULD_NEVER_BE_REPORTED", json.dumps(result))
+            self.assertEqual(result["source_files"]["server.py"]["present"], False)
+            self.assertEqual(result["orders_sent"], 0)
+
+    def test_v2_service_missing_cannot_claim_workdir_isolation(self):
+        def fake_run(argv, **kwargs):
+            if argv[2] == "bot-king-v2.service":
+                return SimpleNamespace(returncode=1, stdout="")
+            return SimpleNamespace(returncode=0,
+                                   stdout="WorkingDirectory=/opt/bot-king-server\\n")
+        with tempfile.TemporaryDirectory() as d, patch(
+                "pilot_v2.oracle_preflight.subprocess.run",
+                side_effect=fake_run):
+            result = audit_local(d, include_v2_service=True)
+            self.assertFalse(result["v2_isolated_workdir"])
+            self.assertEqual(result["v2_service"]["status"], "UNAVAILABLE")
+            self.assertFalse(result["production_changed"])
+
     def test_android_v2_identity_gate_without_build(self):
         root=pathlib.Path(__file__).resolve().parents[2]
         result=inspect(root)

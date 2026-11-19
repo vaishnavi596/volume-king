@@ -6,10 +6,10 @@
 Copy the reviewed `pilot_v2/oracle_preflight.py` to an approved local staging path on Oracle and run:
 
 ```sh
-python3 oracle_preflight.py --root /opt/bot-king-server
+python3 oracle_preflight.py --root /opt/bot-king-server --include-v2-service
 ```
 
-It reports SHA-256 of allowlisted Python modules and selected `systemctl show` metadata, not env contents, token values, Dhan calls, health credentials, or device pairing keys. Share only its redacted JSON output. No deletion, backup, restarts, production writes or HTTP calls. A missing file is explicitly marked absent. This is one preflight evidence report, not a production readiness PASS.
+It reports SHA-256 of allowlisted Python modules and selected `systemctl show` metadata for fixed `bot-king.service` and optional `bot-king-v2.service`, not env contents, token values, Dhan calls, health credentials, or device pairing keys. A different WorkingDirectory is a limited isolation indicator, NOT proof of separate ports, HTTPS mounts, service safety or production readiness. Share only its redacted JSON output. No deletion, backup, restarts, production writes or HTTP calls. A missing file is explicitly marked absent. This is one preflight evidence report, not a production readiness PASS.
 
 ## GitHub-only Android identity prebuild gate
 ```sh
