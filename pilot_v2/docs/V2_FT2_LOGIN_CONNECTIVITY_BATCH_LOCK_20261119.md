@@ -1,3 +1,13 @@
+## MOVE 1 CODE PASS — 2026-11-19 incremental cohesive integration, physical Live still open
+
+- Implemented V2 production source endpoint trio as ONE related login/read improvement: authenticated server /v2-pilot/auth/logout (revokes SQLite bearer), signed /v2-pilot/manual/{quotes|indices} POST routed via the existing V2UnifiedReadPipeline with manual=True and shared quota, and honest /v2-pilot/health (process readiness, live_data_verified=false, orders=false). Core code commits 2b77822a + f87de507 and joint tests d6bceab4; exact [GitHub CI 44564779961](https://github.com/vaishnavi596/volume-king/actions/runs/44564779961) SUCCESS. No real Dhan quote or phone login claimed.
+- Fixed empty selected-equity startup roster: protected optional JSON list, validated distinct <=70 names/0600 permissions and Oracle-only path via oracle_secure_entrypoint; operator path supported by V2 private activation gate, rejected duplicates/symlinks/invalid names; tests 380825c6 and b6add56a. [CI 44565219089](https://github.com/vaishnavi596/volume-king/actions/runs/44565219089) SUCCESS. This is a **static server-side roster bootstrap**, NOT completed dynamic Watchlist-to-Oracle sync.
+- Wired manual mobile HTTPS reader to signed POST endpoint with fail-closed manual flag; Flet manual data callback uses it, tests 83e22b5e ([CI 44565453869](https://github.com/vaishnavi596/volume-king/actions/runs/44565453869) SUCCESS). Actual native Android Keystore sign-in still unmounted.
+- Added remote sign-out attempt which always scrubs bearer locally, plus atomic DeviceReaderSlot detachment to cancel concurrent logins before network I/O. Server-side session invalidation remains authoritative; on 503/disconnect UI must report **remote revoke NOT VERIFIED**. Earlier intermediary CI runs failed a prior static test expecting local-only logout; updated UI and test_app_connection_status at c6a7c1f9. Latest CI for this final contract must be inspected before marking this sub-batch PASS.
+- No Oracle V2 deployment, no APK, no V1 production changes, no credentials, no owner-enrollment, no broker orders. Do NOT execute the main activate_v2 workflow pinned to previous 38-file source and claim it runs new features. Move 1 remaining frozen gates include native Android bridge, Dhan index/equity batch paths and verified index IDs, dynamic roster and feature-lane data provenance; Move 2 remains owner-controlled.
+
+---
+
 ## FINAL DEEP SCAN ADDENDUM — 2026-11-19
 
 This is an addendum to the EXISTING 4 moves / 10 locked parent items A1-D2, NOT a fifth batch. The additional twelve findings below are required sub-gates. This scan includes source analysis plus actual Oracle audit #44560073808; actual provisioning and phone acceptance remain unverified.
