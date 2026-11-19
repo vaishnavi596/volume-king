@@ -11,6 +11,7 @@ on:
         options:
           - audit
           - prepare_v2
+          - live_preflight
           - maintenance
         default: audit
       command:
@@ -135,6 +136,44 @@ jobs:
           echo "V2_RUNTIME=READY; V1=HEALTHY_UNCHANGED; V2_SERVICE_ACTIVATED=NO"
           REMOTE
           echo "V2_PREPARE=SUCCESS"
+          elif [ "$OPERATION" = "live_preflight" ]; then
+            test -z "$OWNER_COMMAND"
+            "${SSH[@]}" "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+          ROOT=/home/opc/botking-v2-staging/gh-7757df1e35c9846d8ef0296c4d1eefa733711a80
+          test -x "$ROOT/.venv/bin/python"
+          test -r "$ROOT/manifest.json"
+          cd "$ROOT"
+          "$ROOT/.venv/bin/python" - <<'PY'
+          import json, pathlib, importlib.util
+          m=json.loads(pathlib.Path("manifest.json").read_text())
+          assert m["commit"] == "7757df1e35c9846d8ef0296c4d1eefa733711a80"
+          assert not m["activated"] and m["source_count"] == 35
+          for n in ("fastapi", "uvicorn", "httpx", "cryptography"):
+              assert importlib.util.find_spec(n)
+          for n in ("oracle_runtime_factory.py", "durable_device_sessions.py", "durable_device_keys.py", "atomic_verified_login.py", "oracle_dhan_read_transport.py", "trusted_http_adapter.py"):
+              assert (pathlib.Path("pilot_v2")/n).is_file(), n
+          from pilot_v2.oracle_runtime_factory import create_oracle_v2_runtime
+          try:
+              create_oracle_v2_runtime(db_path="/dev/null", master_device_id="", master_public_der=b"", pairing_key="")
+          except ValueError:
+              print("V2_MISSING_MASTER_OR_PAIRING=FAIL_CLOSED")
+          else:
+              raise AssertionError("Runtime accepted missing authorization")
+          print("V2_STAGED_IMPORT_AND_DEPENDENCIES=PASS")
+          PY
+          echo "V2_SYSTEMD_LOAD=$(systemctl show bot-king-v2.service --property=LoadState --value || true)"
+          echo "V2_SYSTEMD_ACTIVE=$(systemctl is-active bot-king-v2.service || true)"
+          echo "V2_HTTPS_ROUTE_HTTP=$(curl -fsS -o /dev/null --max-time 7 -w '%{http_code}' https://botkingrajesh.duckdns.org/v2-pilot/health || true)"
+          echo "V2_AUTHORIZED_MASTER_PROVISIONING=NOT_VERIFIED"
+          echo "V2_DHAN_PRIVATE_PAIRING=NOT_VERIFIED"
+          echo "V2_REAL_PHONE_SIGNED_LOGIN=NOT_VERIFIED"
+          echo "V2_LIVE_DHAN_QUOTE=NOT_VERIFIED"
+          test "$(systemctl is-active bot-king.service)" = "active"
+          test "$(curl -fsS -o /dev/null --max-time 7 -w '%{http_code}' http://127.0.0.1:8000/health)" = "200"
+          echo "V1_SERVICE=HEALTHY_UNCHANGED"
+          echo "LIVE_PREFLIGHT=COMPLETE; LIVE_ACTIVATION=NOT_CLAIMED"
+          REMOTE
           elif [ "$OPERATION" = "maintenance" ]; then
             if [ "$APPROVAL" != "APPROVE_ORACLE_CHANGE" ]; then
               echo "MAINTENANCE_REQUIRES_EXPLICIT_APPROVAL"; exit 1
