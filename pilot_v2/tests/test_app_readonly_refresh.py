@@ -132,7 +132,9 @@ class ApprovedQuoteRefreshTests(unittest.TestCase):
         reader, opener = self.make_reader(5)
         inbox = DeviceFeedInbox()
         for invalid in (("TCS", ["INFY"]), ("TCS", {"x": 1}),
-                        ("NIFTY",), ("TCS", "TCS"),
+                        ("NIFTY",), ("TCS", "TCS"), ("tcs",),
+                        ("TCS/INVALID",), ("TCS ",), None, "TCS",
+                        (s for s in ("TCS",)),
                         tuple(f"EQ{i:03d}" for i in range(71))):
             with self.subTest(roster=str(invalid)[:30]), self.assertRaises(FeedError):
                 apply_approved_quote_intent(intent, reader, inbox, invalid)

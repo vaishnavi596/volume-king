@@ -5,6 +5,7 @@ creates a broker session, token, Dhan HTTP call, order, timer or new endpoint.
 The actual Android app has no verified device login yet and DOES NOT invoke it.
 """
 from feed_inbox import DeviceFeedInbox, FeedError, INDEXES
+from app_state import valid_symbol
 from refresh_intent import RefreshIntent
 from secure_https_reader import V2ReadonlyHTTPSReader
 
@@ -21,10 +22,11 @@ def apply_approved_quote_intent(intent, reader, inbox, selected_equities):
         raise FeedError("Verified HTTPS reader required")
     if not isinstance(inbox, DeviceFeedInbox):
         raise FeedError("Approved app quote destination required")
+    if type(selected_equities) not in (tuple, list):
+        raise FeedError("App-owned equity roster sequence required")
     selected = tuple(selected_equities)
     if (len(selected) > 70
-            or any(type(symbol) is not str or not symbol or symbol in INDEXES
-                   for symbol in selected)
+            or any(not valid_symbol(symbol) for symbol in selected)
             or len(set(selected)) != len(selected)):
         raise FeedError("Invalid unique equity roster")
     if (type(intent.permitted) is not bool
