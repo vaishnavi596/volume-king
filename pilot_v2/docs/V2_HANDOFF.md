@@ -1,3 +1,9 @@
+## 2026-11-19 — SMART-DEMAND EXACT SOURCE CI PASS
+- [BOT KING V2 Unified Pipeline run #44502034383](https://github.com/vaishnavi596/volume-king/actions/runs/44502034383) at `d04a8d743fdbf0c3b7f95593297f053dbf4988c4` completed SUCCESS. This covers new pure priority-demand policy + six tests in ONE unified V2 CI. The three canonical docs-only updates on top are not themselves executable CI checks. **No evidence of real provider scheduling, authenticated live quotes, Oracle deployment, Android device, or orders.**
+- **Next** integrate smart demand with one server-owned quota-limited cache and Dhan transport, not independent workflows. Source target intervals are not committed provider fetch intervals until Dhan limits measured.
+
+---
+
 ## 2026-11-19 — ONE SMART V2 PIPELINE: FAST/NORMAL/BACKGROUND DEMAND CLASSIFICATION
 - **Owner's refined operational requirement:** keep ONE V2 unified gateway and ONE principal GitHub workflow; avoid repeated SSH/manual movement. Classify app-side Watchlist, Super Five, selected scanner, manual Buy/Sell **decision-support** quote, indices and slower historical/options/news/filter demand by urgency. Dhan broker is technical read-only provider, Oracle shares/de-duplicates cache and quotas; mobile owns choice and feature/filter rules. No trading/order execution enabled.
 - **Existing source inspected** `pilot_v2/unified_data_pipeline.py`, `internal_dhan_read_port.py`, `V2_GENERAL_FRAMEWORK_RULES.md`. Current real quote cache defaults 180 seconds and indices 60 seconds, auto market window 09:10–15:45 IST; many data lanes not connected. Preserve source truth and do not imply higher polling frequency or live feed support than provider can verify.
