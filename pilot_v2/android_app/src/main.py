@@ -577,6 +577,10 @@ def main(page: ft.Page):
             return  # Do not attempt equity request after server revoked login.
         equity_changed = (apply_data_only_quote_snapshot("quotes")
                           if intent.equities else ())
+        # A concurrent Settings Clear or server revocation must not be
+        # overwritten by a misleading "complete" status from this callback.
+        if device_session_slot.reader is not reader or not reader.session_active:
+            return
         partial = index_changed is None or equity_changed is None
         status.value = (
             ("Manual data read PARTIAL" if partial else "Manual data read complete")
