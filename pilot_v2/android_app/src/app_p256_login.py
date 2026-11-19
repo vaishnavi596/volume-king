@@ -7,6 +7,7 @@ Only the server can verify the signed challenge and authorize device feeds.
 import base64
 import json
 import ssl
+from app_p256_signature import is_canonical_p256_der_signature
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, ProxyHandler, HTTPSHandler, build_opener
 from secure_https_reader import (
@@ -97,7 +98,7 @@ class V2P256LoginHTTPSClient:
         except Exception:
             # A Keystore error must never expose key aliases or exception data.
             raise FeedError("Approved device signature unavailable") from None
-        if type(signature) is not bytes or not 8 <= len(signature) <= 300:
+        if not is_canonical_p256_der_signature(signature):
             raise FeedError("Invalid approved device signature")
         signature_text = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
         result = self._post_json(

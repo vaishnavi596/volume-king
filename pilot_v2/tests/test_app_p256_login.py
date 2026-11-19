@@ -113,6 +113,15 @@ class P256AndroidLoginContractTests(unittest.TestCase):
         self.assertNotIn("my-private-key-name", str(err.exception))
         self.assertNotIn("device_bearer", str(err.exception))
 
+    def test_bad_keystore_signature_never_sends_login_post(self):
+        for bad in (b"sigbytes", b"\x30\x06\x02\x01\x00\x02\x01\x01",
+                    b"\x30\x06\x02\x01\x01\x02\x01\x00"):
+            before = len(self.bridge.calls)
+            with self.subTest(value=bad), self.assertRaises(FeedError):
+                self.make_login(lambda message: bad).login()
+            self.assertEqual(self.bridge.calls[before:], [
+                (ORIGIN + "/v2-pilot/auth/challenge", "POST")])
+
     def test_single_reader_slot_rotates_only_after_real_signed_login(self):
         slot = DeviceReaderSlot()
         with self.assertRaises(FeedError):
