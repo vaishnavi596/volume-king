@@ -43,6 +43,13 @@ class RevisionCache:
     def update(self, payload, demand):
         if type(payload) is not dict or not isinstance(demand, Demand):
             raise ContractError("Invalid snapshot")
+        required = {"protocol", "source", "live_orders_enabled",
+                    "freshness", "revision", "quotes"}
+        if (set(payload) not in (required, required | {"schema_version"})
+                or ("schema_version" in payload and
+                    (type(payload["schema_version"]) is not int or
+                     payload["schema_version"] != 1))):
+            raise ContractError("Invalid collector snapshot fields")
         rev = payload.get("revision")
         quotes = payload.get("quotes")
         if (payload.get("protocol") != "botking-v2-readonly"

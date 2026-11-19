@@ -1,3 +1,11 @@
+## VERIFIED #161; EXACT COLLECTOR PAYLOAD FIELD ALLOWLIST — 2026-11-19
+- [CI #161](https://github.com/vaishnavi596/volume-king/actions/runs/44457510436) SUCCESS 367/367, source security findings 0, UI wiring 9/9, exact commit fbdbbd1ec8b5b42c38e67fa66e53cf6176934ac1. After revision-stamped symbol data, a legacy numeric-only downgrade is now rejected atomically. #159 and #160 also green 365/365 and 366/366 respectively.
+- Continued offline collector-contract gate: `RevisionCache.update` now enforces an exact allowed payload key set (six legacy collector fields, optionally explicit integer `schema_version=1`), rejecting extra properties such as access_token and invalid schema type/version before price/revision changes. Existing shared read response continues to use its strict Android schema 1; legacy offline input remains allowed only with its six legitimate fields. Tests assert failed invalid/secret payload leaves last-good cache unchanged and valid explicitly versioned revision-stamped input succeeds.
+- This is a source-only V2 offline contract; never log secrets, claim authenticated collector origin, real-time Dhan prices or production deployment. No V1/old journal edits, APK build, Oracle production changes or orders. New CI not claimed green until observed.
+- NEXT: inspect exact CI and continue failure gating on cross-device selection and stale last-good while retaining 70 global equities and independent index lane, then evaluate remaining device acceptance blockers.
+
+---
+
 ## VERIFIED #159–#160; REJECT COLLECTOR SYMBOL REVISION DOWNGRADE — 2026-11-19
 - [CI #159](https://github.com/vaishnavi596/volume-king/actions/runs/44457276408) SUCCESS 365/365, source security findings 0, UI wiring 9/9: mobile mock now mirrors Android's strict per-symbol last-good cache, not just newer global envelope.
 - [CI #160](https://github.com/vaishnavi596/volume-king/actions/runs/44457374608) SUCCESS 366/366, source security findings 0, UI wiring 9/9: shared cache accepts validated optional independent symbol revision, refuses older/equal per-symbol updates while global envelope advances, and rejects invalid future symbol revision atomically.

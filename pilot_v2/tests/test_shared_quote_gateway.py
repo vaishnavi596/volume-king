@@ -178,6 +178,24 @@ class SharedQuoteGatewayTests(unittest.TestCase):
                 7, {"TCS": {"price": 111, "revision": True}}), plan)
         self.assertEqual(self.shared.read(self.master, "quotes"), latest)
 
+    def test_collector_rejects_secret_or_bad_schema_without_cache_mutation(self):
+        self.shared.select_equities(self.master, [["TCS"], [], [], [], []])
+        plan = plan_demand([["TCS"], [], [], [], []])
+        self.assertTrue(self.shared.publish_from_trusted_collector(snapshot(
+            3, {"TCS": {"price": 100, "revision": 3}}), plan))
+        baseline = self.shared.read(self.master, "quotes")
+        for bad in (dict(snapshot(4, {"TCS": 120}), access_token="private"),
+                    dict(snapshot(4, {"TCS": 120}), schema_version=True),
+                    dict(snapshot(4, {"TCS": 120}), schema_version=2),
+                    dict(snapshot(4, {"TCS": 120}), missing="field")):
+            with self.subTest(fields=tuple(sorted(bad))), self.assertRaises(ContractError):
+                self.shared.publish_from_trusted_collector(bad, plan)
+            self.assertEqual(self.shared.read(self.master, "quotes"), baseline)
+        good = dict(snapshot(4, {"TCS": {"price": 120, "revision": 4}}),
+                    schema_version=1)
+        self.assertTrue(self.shared.publish_from_trusted_collector(good, plan))
+        self.assertEqual(self.shared.read(self.master, "quotes")["quotes"]["TCS"]["price"], 120.0)
+
     def test_shared_read_contract_is_accepted_by_actual_flet_inbox(self):
         """The same quote/index read payload must pass the Android-side schema."""
         src=Path(__file__).resolve().parents[1]/"android_app"/"src"
