@@ -81,5 +81,67 @@ class OracleRuntimeTests(unittest.TestCase):
         self.assertEqual(client.post("/v2-pilot/order", headers=headers).status_code, 404)
 
 
+    def test_operator_only_evidence_transport_reaches_signed_oracle_app(self):
+        import time
+        from pilot_v2.oracle_evidence_lane import DhanEvidenceBatch
+        sessions = DurableDeviceSessions(self.db)
+        sessions.bootstrap(self.device, authorize_bootstrap=lambda x: x == self.device)
+        self.db.chmod(0o600)
+        calls = []
+
+        def private_collector():
+            calls.append(1)
+            return DhanEvidenceBatch("dhan", len(calls), time.time(), [
+                {"kind": "expiries", "symbol": "NIFTY", "revision": len(calls),
+                 "available": ["2026-11-26"]}])
+        client = TestClient(create_oracle_v2_runtime(
+            db_path=self.db, master_device_id=self.device,
+            master_public_der=self.public, pairing_key="p" * 40,
+            selected_equities=("TCS",), transport=self.producer,
+            evidence_transport=private_collector,
+            clock=self.clock, monotonic=lambda: 10))
+
+        self.assertEqual(client.get("/v2-pilot/evidence").status_code, 401)
+        self.assertEqual(calls, [])
+        challenge = client.post("/v2-pilot/auth/challenge",
+                                json={"device_id": self.device}).json()["challenge"]
+        signature = self.private.sign(
+            P256ChallengeVerifier.signed_message(self.device, challenge),
+            ec.ECDSA(hashes.SHA256()))
+        result = client.post("/v2-pilot/auth/login", json={
+            "device_id": self.device, "challenge": challenge,
+            "signature": encode_b64(signature)})
+        self.assertEqual(result.status_code, 200)
+        headers = {"Authorization": "Bearer " + result.json()["device_bearer"]}
+        response = client.get("/v2-pilot/evidence", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["events"][0]["symbol"], "NIFTY")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(client.get("/v2-pilot/evidence",
+                                    headers=headers).status_code, 200)
+        self.assertEqual(len(calls), 1)  # Shared cached evidence.
+        self.assertEqual(client.get("/v2-pilot/indices",
+                                    headers=headers).status_code, 503)
+        self.assertEqual(self.calls, [])  # One shared read budget, no fanout.
+        self.assertEqual(client.post("/v2-pilot/auth/logout",
+                                     headers=headers).status_code, 200)
+        self.assertEqual(client.get("/v2-pilot/evidence",
+                                    headers=headers).status_code, 403)
+
+    def test_operator_evidence_is_absent_by_default(self):
+        sessions = DurableDeviceSessions(self.db)
+        sessions.bootstrap(self.device, authorize_bootstrap=lambda x: x == self.device)
+        self.db.chmod(0o600)
+        with self.assertRaises(ValueError):
+            create_oracle_v2_runtime(
+                db_path=self.db, master_device_id=self.device,
+                master_public_der=self.public, pairing_key="p" * 40,
+                selected_equities=(), transport=self.producer,
+                evidence_transport=object(), clock=self.clock,
+                monotonic=lambda: 10)
+        client = TestClient(self.build())
+        self.assertEqual(client.get("/v2-pilot/evidence").status_code, 401)
+
+
 if __name__ == "__main__":
     unittest.main()
