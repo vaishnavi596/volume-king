@@ -117,6 +117,37 @@ jobs:
             echo "V2_PRIVATE_ENV=ABSENT_OR_UNSAFE"
           fi
           if sudo -n nginx -t >/dev/null 2>&1; then echo NGINX_SYNTAX=PASS; else echo NGINX_SYNTAX=UNVERIFIED; fi
+          # Single bounded read-only inventory. No secrets, master ids or key contents are printed.
+          if [ -x "$STAGE/.venv/bin/python" ] && [ -f /home/opc/botking-v2-private/v2.env ] && [ ! -L /home/opc/botking-v2-private/v2.env ]; then
+            if (cd "$STAGE" && "$STAGE/.venv/bin/python" -m pilot_v2.tools.v2_activation_gate --private-env-file /home/opc/botking-v2-private/v2.env) >/dev/null 2>&1; then
+              echo "V2_REAL_MASTER_AND_PAIRING=LOCALLY_VERIFIED"
+            else
+              echo "V2_REAL_MASTER_AND_PAIRING=BLOCKED"
+            fi
+          else
+            echo "V2_REAL_MASTER_AND_PAIRING=NOT_PROVISIONED"
+          fi
+          if sudo -n nginx -t >/dev/null 2>&1 && sudo -n nginx -T 2>/dev/null | python3 -c '
+          import re,sys
+          config=re.sub(r"(?m)#.*$", "", sys.stdin.read())
+          location=re.compile(r"location\\s+(?:\\^~\\s+)?(?:=\\s+)?/v2-pilot/\\s*\\{")
+          for m in location.finditer(config):
+              depth=1; i=m.end()
+              while i<len(config) and depth:
+                  if config[i]=="{": depth+=1
+                  elif config[i]=="}": depth-=1
+                  i+=1
+              if depth: continue
+              b=config[m.end():i-1]
+              if re.search(r"\\bproxy_pass\\s+http://127\\.0\\.0\\.1:8001\\s*;", b) and not re.search(r"\\brewrite\\s", b): sys.exit(0)
+          sys.exit(1)
+          '; then
+            echo "V2_HTTPS_ROUTE_TO_8001=CONFIGURED"
+          else
+            echo "V2_HTTPS_ROUTE_TO_8001=NOT_VERIFIED"
+          fi
+          echo "V2_DHAN_AUTHENTICATED_QUOTE=NOT_VERIFIED"
+          echo "V2_PHONE_SIGNED_LOGIN=NOT_VERIFIED"
           echo "V2_READINESS_AUDIT=COMPLETE_NO_CHANGES"
           REMOTE
           elif [ "$OPERATION" = "prepare_v2" ]; then
