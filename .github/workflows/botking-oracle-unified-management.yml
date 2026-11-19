@@ -44,7 +44,7 @@ jobs:
         if: inputs.operation == 'stage_v2'
         uses: actions/checkout@v4
         with:
-          ref: f6b7c9489576691e73fb678efb431542b5608a1c
+          ref: 94e814031896445874fa3f81677b85d118584f40
           persist-credentials: false
       - name: Connect securely with existing owner-authorized key
         shell: bash
@@ -183,10 +183,10 @@ jobs:
           REMOTE
           elif [ "$OPERATION" = "stage_v2" ]; then
             test -z "$OWNER_COMMAND"
-            SHA=f6b7c9489576691e73fb678efb431542b5608a1c
+            SHA=94e814031896445874fa3f81677b85d118584f40
             test "$(git rev-parse HEAD)" = "$SHA"
             python3 -m compileall -q pilot_v2
-            tar -czf "$RUNNER_TEMP/botking-v2-source.tar.gz" -C pilot_v2 -- $(cd pilot_v2 && ls *.py)
+            tar -czf "$RUNNER_TEMP/botking-v2-source.tar.gz" -C pilot_v2 -- $(cd pilot_v2 && ls *.py) tools/v2_activation_gate.py tools/provision_oracle_master.py
             HASH="$(sha256sum "$RUNNER_TEMP/botking-v2-source.tar.gz" | cut -d" " -f1)"
             SCP=(scp -i "$HOME/.ssh/botking_oracle" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
             "${SSH[@]}" "opc@$ORACLE_HOST" 'mkdir -p /home/opc/botking-v2-staging && chmod 700 /home/opc/botking-v2-staging'
@@ -201,10 +201,12 @@ jobs:
           import json, sys
           m=json.load(open(sys.argv[1]))
           assert m["commit"] == sys.argv[2] and m["activated"] is False
-          assert m["source_count"] >= 36
+          assert m["source_count"] >= 38
           print("V2_NEW_STAGE_MANIFEST=VERIFIED")
           PY
           test ! -L "$ROOT"
+          test -f "$ROOT/pilot_v2/tools/v2_activation_gate.py"
+          test -f "$ROOT/pilot_v2/tools/provision_oracle_master.py"
           python3 -m venv "$ROOT/.venv"
           "$ROOT/.venv/bin/python" -m pip install --disable-pip-version-check --no-input -q "fastapi==0.115.12" "uvicorn==0.34.2" "httpx==0.28.1" "cryptography==44.0.3"
           cd "$ROOT"
