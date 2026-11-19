@@ -1,3 +1,10 @@
+## V2 RICH WEBVIEW AUDIT: KEEP NATIVE FALLBACK UNTIL ANDROID ACCEPTANCE — 2026-11-19
+- Audited read-only legacy V1 `src/main.py` WebView path (about:blank bootstrap, local chart HTML, ready/page callbacks, no-extra-fetch retries, and fallback after resource errors); original comments explicitly note white Android WebView regressions and default native Dhan OHLC chart migration. V2 `pilot_v2/android_app/pyproject.toml` pins `flet==0.25.2`; no version/platform runtime support or physical device evidence has been verified for matching V1 WebView behavior.
+- Kept V2's newly validated native candle/line renderer the safe default. Do NOT auto-enable a half-ported WebView or declare rich chart parity from source alone. Next APP-SIDE V2 step: inspect actual Flet 0.25.2 WebView support and embedded HTML/JS capability in an isolated, disabled-by-default adapter with native fallback; validate symbol/timeframe switch and blank/ready timeout on physical Android before enabling. No TradingView network dependency or Yahoo/Angel fallbacks.
+- No app build, no server or credentials changed; this is an honest compatibility audit, not a completed migration.
+
+---
+
 ## VERIFIED CI #159–#170, SCANNER LOCAL SYNC BATCH CHECKPOINT — 2026-11-19
 - Latest exact CI [#170](https://github.com/vaishnavi596/volume-king/actions/runs/44459269573), commit 22e378d9c4e5df53fb84eecc89cba778b63c13bd SUCCESS **375/375**, security findings 0, source UI wiring 9/9. #169 374/375 failed only an obsolete direct Scanner `filter_evidence.rows` string check; fixed assertion in #170. #166 372/373 similarly failed one old native candle geometry string; fixed in #167 373/373. Do not rerun old failed SHAs or already-green runs.
 - #159 365/365 mobile-mock per-symbol last-good cache; #160 366/366 collector per-symbol revision contract; #161 367/367 downgrade prevention; #162 368/368 strict collector payload allowlist; #163 369/369 global authorized device-symbol union; #164 370/370 Android HTTPS visible-delta-only refresh. All green.
