@@ -287,6 +287,32 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertFalse(previous.session_active)
         self.assertTrue(incoming.session_active)
 
+    def test_keystore_login_cannot_reuse_previous_reader_as_new_session(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://v2.example.test", "A" * 32, opener=Mock())
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login", return_value=previous):
+            with self.assertRaises(FeedError) as error:
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertEqual(str(error.exception), "New signed device session required")
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+        self.assertIs(slot.active_reader(), previous)
+
+    def test_wrong_origin_alias_does_not_invalidate_previous_reader(self):
+        binding = self.bind()
+        slot = DeviceReaderSlot()
+        previous = V2ReadonlyHTTPSReader(
+            "https://earlier.example.test", "A" * 32, opener=Mock())
+        slot._reader = previous
+        with patch.object(V2P256LoginHTTPSClient, "login", return_value=previous):
+            with self.assertRaises(FeedError):
+                slot.sign_in_with_keystore(binding, "https://v2.example.test")
+        self.assertIs(slot.reader, previous)
+        self.assertTrue(previous.session_active)
+
     def test_cross_origin_signed_reader_rejected_and_scrubbed(self):
         binding = self.bind()
         slot = DeviceReaderSlot()
