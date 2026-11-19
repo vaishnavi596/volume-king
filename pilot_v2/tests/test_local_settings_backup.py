@@ -32,7 +32,7 @@ class LocalSettingsBackupTests(unittest.TestCase):
         self.assertEqual(w.groups[0], ["TCS"])
         self.assertEqual(w.groups[1], ["INFY"])
         self.assertEqual(sc, self.scanner)
-        self.assertEqual(smart, self.smart)
+        self.assertEqual(smart.saved_state(), self.smart.saved_state())
         self.assertEqual(slots.slots, self.analysis.slots)
 
     def test_wrong_schema_and_extraneous_credentials_fail_closed(self):
