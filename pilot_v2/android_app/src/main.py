@@ -294,6 +294,28 @@ def main(page: ft.Page):
                 control.update()
         return True
 
+    def apply_data_only_candle_trend_evidence(
+            symbol, timeframe, revision, evidence, *, trusted_transport=False):
+        """Update visible factor labels only after completed-bar source gating."""
+        accepted = evidence_inbox.apply_candle_trend(
+            symbol, timeframe, revision, evidence,
+            selected_equities=state.selected,
+            trusted_transport=trusted_transport)
+        if accepted:
+            refresh_visible_filter_labels(symbol, timeframe)
+        return accepted
+
+    def apply_data_only_option_factor_evidence(
+            symbol, timeframe, revision, evidence, *, trusted_transport=False):
+        """Use existing verified-expiry option gate; never calculate a signal."""
+        accepted = evidence_inbox.apply_option_factors(
+            symbol, timeframe, revision, evidence,
+            selected_equities=state.selected,
+            trusted_transport=trusted_transport)
+        if accepted:
+            refresh_visible_filter_labels(symbol, timeframe)
+        return accepted
+
     def apply_data_only_quote_snapshot(feed, payload):
         """Offline validated read-only snapshot; update mounted Text only.
 

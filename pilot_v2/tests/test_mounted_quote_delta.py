@@ -70,6 +70,24 @@ class MountedQuoteDeltaTests(unittest.TestCase):
         self.assertIn("filter_labels.clear()", self.source)
         self.assertIn('context["rows"]', fragment)
 
+    def test_filter_evidence_wrappers_require_original_trust_gates(self):
+        for method, guarded in (
+            ("apply_data_only_candle_trend_evidence", "evidence_inbox.apply_candle_trend("),
+            ("apply_data_only_option_factor_evidence", "evidence_inbox.apply_option_factors("),
+        ):
+            with self.subTest(method=method):
+                callback = next(n for n in ast.walk(self.tree)
+                                if isinstance(n, ast.FunctionDef) and n.name == method)
+                fragment = ast.get_source_segment(self.source, callback)
+                self.assertIn(guarded, fragment)
+                self.assertIn("trusted_transport=trusted_transport", fragment)
+                self.assertIn("selected_equities=state.selected", fragment)
+                self.assertIn("if accepted:", fragment)
+                self.assertIn("refresh_visible_filter_labels(symbol, timeframe)", fragment)
+                for forbidden in ("render()", "page.update()", "trusted_transport=True",
+                                  "requests.", "httpx.", "submit_order("):
+                    self.assertNotIn(forbidden, fragment)
+
     def test_no_unverified_feed_pretends_to_be_live_transport(self):
         self.assertNotIn("submit_order(", self.source)
         self.assertNotIn("ServerAngelFeed(", self.source)
