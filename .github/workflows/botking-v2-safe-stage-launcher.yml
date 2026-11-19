@@ -1,0 +1,57 @@
+name: BOT KING V2 Safe Stage - One Click (No Activation)
+run-name: V2 safe staging only - pinned CI 379
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: botking-v2-oracle-ops
+  cancel-in-progress: false
+jobs:
+  stage-v2:
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 63ee3e4f7607aad1617af67508d1fbe7484a0db7
+          persist-credentials: false
+      - name: Verify exact reviewed V2 source
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "63ee3e4f7607aad1617af67508d1fbe7484a0db7"
+      - name: Test source and safely stage on Oracle
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+          SHA: 63ee3e4f7607aad1617af67508d1fbe7484a0db7
+        run: |
+          set -euo pipefail
+          python -m compileall -q pilot_v2
+          python pilot_v2/tools/one_click_migration_gate.py
+          test -n "$ORACLE_HOST" && test -n "$ORACLE_SSH_KEY" && test -n "$ORACLE_KNOWN_HOSTS"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/botking_oracle
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts /tmp/botking-v2-source.tgz' EXIT
+          # Only source: no credentials, Android artifacts, or production writes.
+          # Remote stage requires the two protected activation/enrollment tools
+          # inside the verified archive; staging remains NON-ACTIVATING.
+          tar -czf /tmp/botking-v2-source.tgz -C pilot_v2 -- $(cd pilot_v2 && ls *.py) \
+            tools/v2_activation_gate.py tools/provision_oracle_master.py
+          HASH="$(sha256sum /tmp/botking-v2-source.tgz | cut -d' ' -f1)"
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+            'test ! -L /home/opc/botking-v2-staging && install -d -m 700 /home/opc/botking-v2-staging && test "$(stat -c %a /home/opc/botking-v2-staging)" = 700'
+          scp -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            /tmp/botking-v2-source.tgz pilot_v2/tools/remote_stage_archive.py \
+            "opc@$ORACLE_HOST:/home/opc/botking-v2-staging/"
+          # A failed stage must not leave transferred temporary files behind.
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+            "trap 'rm -f /home/opc/botking-v2-staging/botking-v2-source.tgz /home/opc/botking-v2-staging/remote_stage_archive.py' EXIT; python3 /home/opc/botking-v2-staging/remote_stage_archive.py --archive /home/opc/botking-v2-staging/botking-v2-source.tgz --sha ${SHA} --checksum ${HASH} --root /home/opc/botking-v2-staging"
+          ssh -i ~/.ssh/botking_oracle -o StrictHostKeyChecking=yes -o BatchMode=yes "opc@$ORACLE_HOST" \
+            'test "$(systemctl is-active bot-king.service)" = active && test "$(curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)" = 200'
