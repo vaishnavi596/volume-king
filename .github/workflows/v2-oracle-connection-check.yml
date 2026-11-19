@@ -21,37 +21,27 @@ jobs:
         env:
           ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
           ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
-          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           test -n "$ORACLE_HOST" || { echo "MISSING ORACLE_HOST"; exit 1; }
           test -n "$ORACLE_SSH_KEY" || { echo "MISSING ORACLE_SSH_PRIVATE_KEY"; exit 1; }
-          test -n "$ORACLE_KNOWN_HOSTS" || { echo "MISSING ORACLE_SSH_KNOWN_HOSTS"; exit 1; }
           case "$ORACLE_HOST" in *[!a-zA-Z0-9.:-]*|"") echo "INVALID ORACLE_HOST"; exit 1;; esac
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           umask 077
           printf '%s\n' "$ORACLE_SSH_KEY" > "$HOME/.ssh/botking_oracle"
-          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          # The ED25519 PUBLIC host key was read by the owner directly from
+          # /etc/ssh/ssh_host_ed25519_key.pub on bot-king-vnic (2026-11-19).
+          # Pin exactly that key to the configured target; never ssh-keyscan,
+          # StrictHostKeyChecking=no, or trust unknown SSH responses.
+          printf '%s ssh-ed25519 %s\n' "$ORACLE_HOST" \
+            'AAAAC3NzaC1lZDI1NTE5AAAAIPZcGGcUv+XxxpyAgGcwlAusDv5RvrIB8HaOnKYkbFFu' \
+            > "$HOME/.ssh/known_hosts"
           trap 'rm -f "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"' EXIT
           chmod 600 "$HOME/.ssh/botking_oracle" "$HOME/.ssh/known_hosts"
-          # Preserve STRICT pin verification. If the secret pins the verified
-          # DuckDNS name while ORACLE_HOST is its numeric IP, compare against
-          # that *same pinned key* using OpenSSH HostKeyAlias; never trust a
-          # freshly scanned/unverified host key or disable checking.
-          HOST_KEY_ARGS=()
-          if ssh-keygen -F "$ORACLE_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null; then
-            echo "HOST_KEY_LOOKUP=TARGET_MATCH"
-          elif ssh-keygen -F botkingrajesh.duckdns.org -f "$HOME/.ssh/known_hosts" >/dev/null; then
-            HOST_KEY_ARGS=(-o HostKeyAlias=botkingrajesh.duckdns.org)
-            echo "HOST_KEY_LOOKUP=VERIFIED_DUCKDNS_ALIAS"
-          else
-            echo "HOST_KEY_LOOKUP=NO_MATCH; update ORACLE_SSH_KNOWN_HOSTS with the verified server public host key and correct hostname/IP"
-            exit 1
-          fi
+          echo "HOST_KEY_LOOKUP=OWNER_VERIFIED_ED25519_PIN"
           ssh -i "$HOME/.ssh/botking_oracle" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10 \
-            "${HOST_KEY_ARGS[@]}" \
             "opc@$ORACLE_HOST" 'bash -s' <<'REMOTE'
           set -eu
           printf 'SSH_STATUS=CONNECTED\n'
