@@ -1,3 +1,13 @@
+## CURRENT CONSOLIDATED JOURNAL / OWNER HANDOFF — 2026-11-19
+
+**Read this first:** [V2_SESSION_CONSOLIDATED_JOURNAL_20261119.md](V2_SESSION_CONSOLIDATED_JOURNAL_20261119.md) contains ALL confirmed work and failures/fixes from the current migration session, completed vs pending features, GitHub commit chain, acceptance boundaries, owner rules and **NEXT EXACT WORK**. This note preserves all prior category entries below.
+
+**Latest verified executable:** `f4d91e0c35d45d693add39599e7da200174a464c`, [V2 CI #110](https://github.com/vaishnavi596/volume-king/actions/runs/44437755242) **305/305 offline tests PASS**. #103, #106 and #109 are *historical failures fixed by* #104, #107 and #110 respectively. Journal-only HEAD after CI is not additional test evidence. No live Oracle link or APK validated.
+
+**Next:** Complete consolidated authenticated evidence/app-device-session contract and full V1 feature reachability, test as one coherent V2-only batch. **Do not stop merely after reporting; continue next concrete segment.** No V1 edits, Oracle production modifications, APK build, Yahoo/Angel fallback or live orders until owner authorizes later phases.
+
+---
+
 
 ## VERIFIED — JOINT HTTPS QUOTE REFRESH BRIDGE, CI #110 (2026-11-19)
 - Exact tested code `f4d91e0c35d45d693add39599e7da200174a464c`: [BOT KING V2 Pilot Contract Tests #110](https://github.com/vaishnavi596/volume-king/actions/runs/44437755242) **SUCCESS, 305/305 offline regression tests**, compile, gap-report and uploaded artifact successful.

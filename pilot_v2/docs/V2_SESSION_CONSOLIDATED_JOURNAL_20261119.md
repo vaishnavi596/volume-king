@@ -1,0 +1,44 @@
+# BOT KING Version 2 — 19 November 2026 Consolidated Session Journal / Handoff
+
+**Authoritative scope:** V2 branch `pilot/botking-v2-smart-gateway-20261118`; repo `vaishnavi596/volume-king`. V1 is a read-only reference. This document consolidates work and does not claim V1→V2 complete.
+
+## Final verified status at handoff
+- Last *tested executable* SHA: `f4d91e0c35d45d693add39599e7da200174a464c`; BOT KING V2 Pilot Contract Tests [CI #110](https://github.com/vaishnavi596/volume-king/actions/runs/44437755242) **SUCCESS, 305/305** offline tests plus compile and one-run migration gap-report.
+- Branch HEAD before this journal consolidation: `5f658e31f3610e80f5165f24efd794dafc4d14bc` (docs-only CI #110 handoff note). No new live/data/device tests implied by documentation.
+- CI chronology confirmed from Actions: #99, #100, #101, #102 SUCCESS; #103 FAILED corrected by #104 SUCCESS; #105 SUCCESS **294 tests**; #106 FAILED corrected by #107 SUCCESS **298 tests**; #108 SUCCESS **301 tests**; #109 FAILED corrected by #110 SUCCESS **305 tests**.
+- #103 test assertion incorrectly searched `COMPLETE` substring inside correct `NOT COMPLETE` report; fixed `f6ad846`. #106 `main.py` callback indentation/line-break syntax error; fixed `4ff96a7`. #109 8 failures due to cross-test `smart_data` module identity/import ordering after existing test reload; fixture imports deferred to test setup in `f4d91e0`; production validation NOT weakened. Don't rerun old failed SHAs.
+
+## Verified change register — this conversation
+| Segment / source commit | Implementation and proof | Acceptance boundary |
+| --- | --- | --- |
+| Consolidated migration workflow `4e9c12f` then `f6ad846` | One pilot CI runs compile, complete offline regression, factual V1/V2 delta audit, upload report; CI #104 PASS | Audit checks source-level reachability and lists mandatory external gates; never claims automatic full migration |
+| Five-timeframe completed segment `576fb377` | Scanner choice/save+restore and candle/filter/option gates accept **1m, 3m, 5m, 15m, 30m**. Direct validated historical cache preferred; otherwise complete NSE-session aligned cached-1m resampling; missing/unfinished buckets rejected. Watchlist 3m, Scanner and Super Five historical shortlist use shared view. CI #105 294/294 PASS | Historical `HIST` / unavailable `WAIT`, not live source; Watchlist default 3m, index 1m, sixth filter blank |
+| Operational V1→V2 app parity `a590630`, syntax correction `4ff96a7` | Watchlist + Settings reach same app-owned manual **plan-only** callback, zero network requests. Five PAPER risk-plan slots retain separate manual session-only simulation ledger, explicit confirmation, manual exit, hypothetical P&L; no orders. CI #107 298/298 PASS | No paper broker order execution, no live fills or provider price alerts; no real refresh yet |
+| Unified data readiness `cabda452` | Single app-owned selected-roster/readiness snapshot across Dashboard and Settings: 0/5/70 equity demand, independent three indices, 1/3/5/15/30m, quote/candle status, 5 factors, blank sixth, expiry, CE/PE status and Super Five WAIT. CI #108 301/301 PASS | `HIST/WAIT`; zero app network requests, no authenticated Oracle session in Flet main |
+| Secure read-only quote bridge `dce24bb`, corrected fixture `f4d91e0` | Reuses preexisting bounded `V2ReadonlyHTTPSReader` and `RefreshIntent`, exact selected-only roster, independent index & equity quote lanes, skips empty equity demand, stale context rejected and last good quote retained on network errors. Mock HTTPS injected; CI #110 305/305 PASS | **NOT wired to live Flet main** pending authorized, revocable Master device login; no production Oracle verification |
+| Journal milestones `145b8c0`, `1acbe8c`, `5f658e3` | Compact work order, one combined V2 workflow, up-to-date verified CI journal records | Documentation only; no functional or production acceptance evidence |
+
+## Existing V2 app functionality confirmed at source level
+- Dashboard three index cards (NIFTY, BANKNIFTY, SENSEX), shared historical scanner/analysis panels, only Dashboard / Watchlist / Settings bottom navigation; detailed Error Doctor in Settings.
+- Up to **70 unique equities globally**, three dashboard indices separate. **Current V2 implementation has five watchlists**, while legacy owner UI discussion mentions three: reconcile against final owner requirement *without destroying saved selections*. Do not silently shrink or migrate saved data.
+- 1m index, 3m Watchlist, 1/3/5/15/30m Scanner/history; last-good historical candles and quote retention, pure local indicators; Super Five historical shortlist is NOT independently verified live Super Five rank.
+- Five active source-gated filter slots (OI support, OI resistance, Max Pain, PCR, candle trend), sixth deliberately blank. App displays `WAIT` when provenance/freshness unavailable; no fabricated direction or probability.
+- Trusted-evidence consumers for expiry, metrics, seven ATM±3 CE/PE strikes, options factors, candle trend, quote/equity separation. **Receiving and verifying actual live producer evidence not done.**
+- Smart Data local refresh settings (180/300/600s), session policy 09:10–15:45 IST with explicit confirmed-session gate; after-hours manual plan can be previewed but does not fetch.
+- Local paper planning slots, manual nonexecuting simulation ledger, local session notices, Help Doctor and backup/restore of whitelisted local preferences. V1 fully matched chart/WebView and market alerts are NOT yet certified.
+
+## Mandatory unfinished work — do not mark migration COMPLETE
+1. **App-side full V1 parity:** compare V1 screen controls/functions, chart WebView/Android packaging, every analysis/scanner dependency and UI callbacks. Resolve exact Watchlist tab target, preserve saved data. Complete in one coherent candidate, not isolated micro-fixes.
+2. **Trusted source data integration (app-side contract first):** verified Master+3 enrollment and revocable session; feed consumers for completed candles, available expiries, CE/PE strike windows, Dhan-only option observations, five directional factors and verified Super Five. Native app currently offline: `main.py` does not invoke quote HTTPS adapter. A bearer/string or boolean is not login proof.
+3. **Smart Data real policy:** actual selected-demand bounded refresh, shared index lane, rate limits/429 cooldown, no HTTP fanout across screens/devices, cache and after-market safeguards. Align the frozen app contract with server only after app-side batch ready.
+4. **V1 PAPER/alerts/news/futures/AI:** decide and implement remaining source-safe local parity and actual trusted evidence later; never substitute technical-history votes for five-filter verified factors or fabricate market news.
+5. **Production phase deferred by owner guard:** no new Oracle deployment/server changes, no APK build yet. After app-side acceptance: server backup/controlled Dhan→Oracle→V2 deployment, authenticated live data verification, separate signed V2 APK/version bump and physical Android regression; live broker orders remain disabled.
+
+## Workflow and security constraints — binding owner preferences
+- `ok` / `One` / continue means **perform next concrete job**, not report then stop. At most one consolidated commit for an entire coherent segment where possible, one combined CI per candidate, correct only failures; avoid needless reruns of already verified SHA.
+- Each new session read V2 General Framework + this consolidated handoff + latest V2 Work Log/Head/CI **before edits**. Maintain V2 Master Journal / Work Log / Handoff / Live Status. Do not use old Bot One/V1 journal for new V2 work.
+- V1 and unrelated paths read-only; no Angel One/Yahoo silent fallback in V2; no Dhan token, Oracle access key, password or sensitive bearer in logs, docs, commits or app storage. Dhan is sole planned data source; Oracle secure delivery gateway, not source of app settings. Single authorized Master generates token; other devices delegated, server role verification compulsory.
+- 5 filters + one blank, selected equity cap 70 and three indices separate, five timeframes, no false LIVE/HIST promotion. App settings remain app-owned. Production/Android gates NOT implied by green offline CI.
+- One-run audit `pilot_v2/tools/one_click_migration_gate.py` is a source-safety diagnostic; report-only default and strict external acceptance fail-closed. **Never call it an end-to-end migration engine.**
+
+**NEXT EXACT WORK SEGMENT:** complete a joint authenticated evidence-delivery consumer/app-side device session contract (candles + expiries + CE/PE + options metrics + five factors + Super Five), with one consolidated regression, preserving offline WAIT before authorization. Then finish source-to-UI V1 parity/audit, still NO Oracle production modification or APK build under existing guard.
