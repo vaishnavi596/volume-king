@@ -542,6 +542,23 @@ def main(page: ft.Page):
         render()
         page.update()
 
+    def sync_master_selected_roster(e):
+        """Only a real signed Master bearer can change Oracle equity demand."""
+        reader = device_session_slot.reader
+        if reader is None or not reader.session_active:
+            status.value = local_connection_state(reader)["label"]
+        else:
+            try:
+                count = reader.sync_master_roster(state.selected)
+            except FeedError:
+                status.value = ("V2 Master roster sync denied/unavailable · "
+                                "local watchlist preserved")
+            else:
+                status.value = (f"{count} selected equities synchronized to Oracle"
+                                " · quote freshness still unverified")
+        if status.page is not None:
+            status.update()
+
     def preview_manual_refresh(e):
         """Prepare request intent only; NEVER fetch or redraw remotely."""
         try:
@@ -1242,6 +1259,8 @@ def main(page: ft.Page):
                 ft.Text(manual_refresh_plan[0], color=MUTED),
                 ft.Text("Master Device Control", size=16, color=GOLD,
                         weight=ft.FontWeight.BOLD),
+                ft.OutlinedButton("Sync selected Watchlist to Oracle (Master only)",
+                                  on_click=sync_master_selected_roster),
                 ft.Text("4-phone target: 1 Master + 3 delegated · offline policy only"),
                 ft.Text("Enable / Disable / Revoke require verified device login"),
                 ft.Text("Dhan token renewal only via authorized Master workflow"),

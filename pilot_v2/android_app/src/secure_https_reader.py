@@ -115,6 +115,51 @@ class V2ReadonlyHTTPSReader:
             raise FeedError("Remote V2 session revocation unverified") from None
         return True
 
+    def sync_master_roster(self, selected_equities):
+        """Master-approved server roster sync; never market fetch or local role claim."""
+        if type(selected_equities) not in (list, tuple):
+            raise FeedError("Invalid Master equity selection")
+        selected = tuple(selected_equities)
+        if (len(selected) > 70 or len(set(selected)) != len(selected)
+                or any(not valid_symbol(s) or s in INDEXES for s in selected)):
+            raise FeedError("Invalid Master equity selection")
+        with self._session_lock:
+            bearer = self._bearer
+        if bearer is None:
+            raise FeedError("Verified Master sign-in required")
+        url = self._origin + "/v2-pilot/master/roster"
+        body = json.dumps({"symbols": list(selected)}, separators=(",", ":")).encode()
+        if len(body) > 4096:
+            raise FeedError("Master roster request too large")
+        request = Request(url, data=body, method="POST", headers={
+            "Authorization": "Bearer " + bearer,
+            "Content-Type": "application/json", "Accept": "application/json"})
+        try:
+            with self._opener.open(request, timeout=self._timeout) as response:
+                if response.status != 200 or response.geturl() != url:
+                    raise FeedError("Master roster sync unavailable")
+                if response.headers.get_content_type() != "application/json":
+                    raise FeedError("Master roster response untrusted")
+                raw = response.read(1025)
+                if len(raw) > 1024:
+                    raise FeedError("Master roster response oversized")
+                result = json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code == 401:
+                self.invalidate()
+                raise FeedError("V2 device sign-in required") from None
+            if exc.code == 403:
+                raise FeedError("Verified Master authorization required") from None
+            raise FeedError("Master roster sync unavailable") from None
+        except (URLError, OSError, ValueError, UnicodeError):
+            raise FeedError("Master roster sync unavailable") from None
+        if type(result) is not dict or result != {"selected_equities": len(selected)}:
+            raise FeedError("Untrusted Master roster acknowledgment")
+        with self._session_lock:
+            if self._bearer != bearer:
+                raise FeedError("Master session changed during roster sync")
+        return len(selected)
+
     def refresh(self, inbox, feed, *, selected_equities=(), manual=False):
         if not isinstance(inbox, DeviceFeedInbox) or type(feed) is not str or feed not in (
                 "quotes", "indices"):

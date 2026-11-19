@@ -117,6 +117,30 @@ class HTTPSReaderTests(unittest.TestCase):
         self.assertFalse(self.reader.sign_out_remote())
         self.assertEqual(len(self.opener.calls), 1)
 
+    def test_master_roster_sync_validates_and_preserves_local_session(self):
+        url = ORIGIN + "/v2-pilot/master/roster"
+        self.opener.next_response = FakeResponse(url, {"selected_equities": 2})
+        self.assertEqual(self.reader.sync_master_roster(("TCS", "INFY")), 2)
+        req = self.opener.calls[0][0]
+        self.assertEqual(req.get_method(), "POST")
+        self.assertEqual(req.full_url, url)
+        self.assertEqual(json.loads(req.data), {"symbols": ["TCS", "INFY"]})
+        self.assertTrue(self.reader.session_active)
+        with self.assertRaises(FeedError):
+            self.reader.sync_master_roster(("TCS", "TCS"))
+        self.assertEqual(len(self.opener.calls), 1)
+
+    def test_delegate_roster_403_not_mistaken_for_bearer_revocation(self):
+        url = ORIGIN + "/v2-pilot/master/roster"
+        self.opener.fail = HTTPError(url, 403, "Master required", {}, None)
+        with self.assertRaisesRegex(FeedError, "Master authorization required"):
+            self.reader.sync_master_roster(("TCS",))
+        self.assertTrue(self.reader.session_active)
+        self.opener.fail = HTTPError(url, 401, "Expired bearer", {}, None)
+        with self.assertRaisesRegex(FeedError, "sign-in required"):
+            self.reader.sync_master_roster(("TCS",))
+        self.assertFalse(self.reader.session_active)
+
     def test_denied_http_and_redirect_preserve_last_good_without_secret_leak(self):
         self.offer("quotes", 1, "TCS", 100)
         self.reader.refresh(self.inbox, "quotes", selected_equities=("TCS",))
