@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from pilot_v2.durable_device_sessions import DurableDeviceSessions
 from pilot_v2.device_sessions import VerifiedDevice
 from pilot_v2.private_backup_vault import (
-    PrivateBackupDenied, ServerBackupVault, inspect_envelope,
+    PrivateBackupDenied, VaultStorageDenied, ServerBackupVault, inspect_envelope,
     seal_local_preferences, unseal_local_preferences, create_private_backup_router,
 )
 
