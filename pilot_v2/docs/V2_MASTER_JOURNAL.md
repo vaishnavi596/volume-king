@@ -1,3 +1,13 @@
+## NEXT V2 APP-ONLY CACHE SAFETY BATCH — 2026-11-19
+- Continued immediately after source UI parity gate (commits 35b55bb3, fa344f23, 7038a3de); no claim of fresh CI green without reading results.
+- Reviewed active `quote_view.py`, `feed_inbox.py`, `refresh_intent.py`, `smart_data.py`. Found that a newer global read-only feed envelope could contain an older per-symbol revision and replace the last-good quote for that symbol. Fixed `quote_view.py` to preserve the prior row when incoming per-symbol revision is older while still allowing other fresh symbols to advance. Existing empty/partial response retention and independent index/equity revisions remain in force. Commit `53b06d2222e502e148836361d121d4662f5fbef9`.
+- `feed_inbox.py` now validates equity roster item types before creating a set (malformed unhashable items previously produced TypeError instead of safe FeedError), rejects index contamination, duplicates and >70 equity selection. Commit `273141b304ea67bc92047984a304a2316f59ef9d`.
+- Added single offline regression `test_feed_last_good_isolation.py` for mixed fresh/stale symbol revisions, zero/invalid quote data, malformed rosters, index independence, and removal retention. Commit `1de5e419543e7cee3d471a72875900ef224fb5d4`.
+- This is source-only V2 cache hardening, not authenticated real delivery, LIVE status, real feed refresh, verified market data, Oracle update or Android acceptance. Latest exact-source CI: PENDING until run inspected. No APK, no server, no broker orders and no Yahoo/Angel fallback.
+- NEXT ACTION: inspect exact CI for this batch once; on failure fix and continue. Then implement local data-only redraw decision using changed revisions rather than full-page refresh, preserving WAIT and last-good on missing upstream evidence.
+
+---
+
 ## V2 CONTINUOUS NEXT-WORK: LOCAL UI MIGRATION REGRESSION GATE — 2026-11-19
 - Followed current branch head after prior #106 syntax failure: that failure is historical, fixed in current main.py; do not replay or overwrite. #125 documented 343/343 PASS; later source control-parity audit commit 2b49f800 already exists with 5 local UI controls wired and 3 live/WebView capabilities explicitly pending.
 - NEXT IMPLEMENTED, V2-only: `35b55bb3a0624b0718c441ffd37a33cab67222a9` strengthens the existing one-run migration gate so a missing V1 source baseline or a regression in any of the five already-migrated, local UI controls is a CI failure. It intentionally does NOT fail solely because rich WebView, live visible chart sync or automatic market refresh are still pending. `fa344f23bbd1f70e8e8c4f21c3ef79cbace02ab2` adds positive and injected-negative regression tests for that distinction.
