@@ -277,7 +277,7 @@ jobs:
           import re,sys
           config=sys.stdin.read()
           config=re.sub(r"(?m)#.*$", "", config)
-          location=re.compile(r"location\\s+(?:\\^~\\s+)?(?:=\\s+)?/v2-pilot/\\s*\\{")
+          location=re.compile(r"location\s+(?:\^~\s+)?(?:=\s+)?/v2-pilot/\s*\{")
           for match in location.finditer(config):
               depth=1
               i=match.end()
@@ -287,7 +287,7 @@ jobs:
                   i+=1
               if depth: continue
               block=config[match.end():i-1]
-              if re.search(r"\\bproxy_pass\\s+http://127\\.0\\.0\\.1:8001\\s*;", block) and not re.search(r"\\brewrite\\s",block):
+              if re.search(r"\bproxy_pass\s+http://127\.0\.0\.1:8001\s*;", block) and not re.search(r"\brewrite\s",block):
                   sys.exit(0)
           sys.exit(1)
           '; then
@@ -309,8 +309,18 @@ jobs:
           }
           TMP_UNIT="$(mktemp /tmp/bot-king-v2-unit.XXXXXXXX)"
           cleanup_unit() { rm -f "$TMP_UNIT"; }
-          trap cleanup_unit EXIT
-          trap rollback ERR
+          rollback_on_exit() {
+            rc=$?
+            trap - EXIT ERR INT TERM
+            if [ "$rc" -ne 0 ]; then
+              rollback
+            fi
+            cleanup_unit
+            exit "$rc"
+          }
+          trap rollback_on_exit EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
           # No V1 files or Nginx configuration are written.
           cat > "$TMP_UNIT" <<'UNITFILE'
           [Unit]
@@ -346,7 +356,6 @@ jobs:
             test "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$ORIGIN/v2-pilot/orders")" = 404
           done
           test "$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:8000/health)" = 200
-          trap - ERR
           echo "V2_GATEWAY_TRANSPORT=ACTIVE; V1=HEALTHY; LIVE_DHAN_QUOTES=NOT_VERIFIED; PHONE_SIGNED_LOGIN=NOT_VERIFIED"
           ACTIVATE
             echo "V2_ONE_CLICK_ACTIVATION=COMPLETE; SIGNED_PHONE_AND_LIVE_DHAN_ACCEPTANCE=PENDING"
