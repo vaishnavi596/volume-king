@@ -163,6 +163,19 @@ class NativeKeystoreContractTests(unittest.TestCase):
         self.assertIn("Android Keystore native runtime not installed", source)
         self.assertNotIn("import jnius\n", (SRC / "main.py").read_text())
 
+    def test_public_spki_enrollment_export_never_persists_private_material(self):
+        source = (SRC / "main.py").read_text(encoding="utf-8")
+        ast.parse(source)
+        self.assertIn('device_public_spki_b64 = [""]', source)
+        self.assertIn("binding.public_spki_for_owner_enrollment()", source)
+        self.assertIn("base64.b64encode(", source)
+        self.assertIn('on_click=copy_public_enrollment_spki', source)
+        self.assertIn("page.set_clipboard(device_public_spki_b64[0])", source)
+        self.assertIn("device_fingerprint_label.update()", source)
+        self.assertNotIn("page.client_storage.set(device_public_spki_b64", source)
+        self.assertNotIn("page.set_clipboard(provider.", source)
+        self.assertNotIn("getPrivate().getEncoded(", source)
+
     def test_flet_settings_actions_are_real_but_no_automatic_login(self):
         source = (SRC / "main.py").read_text(encoding="utf-8")
         ast.parse(source)
