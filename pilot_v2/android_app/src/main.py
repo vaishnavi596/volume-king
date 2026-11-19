@@ -173,6 +173,14 @@ def main(page: ft.Page):
     paper_confirm = [False]
     paper_exit = [""]
 
+    def open_local_notices(e):
+        """Open existing Settings notice center, not a provider alert feed."""
+        current[0] = 2
+        page.navigation_bar.selected_index = 2
+        status.value = f"{notices.unread} unread local notices · market alerts unavailable"
+        render()
+        page.update()
+
     def open_help(topic):
         """Jump to app-owned Settings Help, without a server request."""
         help_topic[0] = topic
@@ -892,7 +900,7 @@ def main(page: ft.Page):
                              ft.Text(help_for(help_topic[0]), color=WHITE)]),
                 ft.Text("Local preferences backup / restore", color=GOLD,
                         weight=ft.FontWeight.BOLD),
-                ft.Text("Watchlists, Scanner, Smart Data, 3 analysis slots only. "
+                ft.Text("Watchlists, Scanner, chart style, Smart Data and 3 analysis slots. "
                         "No broker credentials, orders or server settings.",
                         color=MUTED, size=14),
                 ft.TextButton("Prepare local backup", on_click=prepare_local_backup),
@@ -922,7 +930,8 @@ def main(page: ft.Page):
             ft.NavigationDestination(icon=ft.icons.LIST_ALT_OUTLINED, label="Watchlist"),
             ft.NavigationDestination(icon=ft.icons.SETTINGS_OUTLINED, label="Settings"),
         ])
-    page.add(v1_header(ft, APP_VERSION_NAME), status, ft.Divider(), content)
+    page.add(v1_header(ft, APP_VERSION_NAME, on_notices_click=open_local_notices),
+             status, ft.Divider(), content)
     render()
     page.update()
 

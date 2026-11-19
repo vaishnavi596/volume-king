@@ -1,4 +1,13 @@
 
+## V2 DASHBOARD BELL → SETTINGS LOCAL NOTICE CENTER — 2026-11-19
+- Immediately following completed [CI #119](https://github.com/vaishnavi596/volume-king/actions/runs/44442219567) **333/333 PASS** at `21339fc1b22fefeabb927e508b5845c59a51825d`, inspected V2 header and main. Before this batch the gold bell was a decorative `ft.Icon` and Settings already had bounded session-only notices.
+- Finished one safe V1→V2 header callback segment: `v1_header` bell is now a clickable `ft.IconButton` with optional callback, preserving trophy/title/version and three bottom navigation tabs. Clicking navigates directly to existing Settings local-notice center; displays unread local event count with clear `market alerts unavailable` message. No new provider, polling, invented market alert, persistent notification or push integration.
+- Corrected Settings local backup caption to mention the already-supported chart style setting. Added offline regression `test_v2_local_notice_bell.py` covering actual header callback and V2 source route/no live orders. CI on new exact SHA PENDING until checked.
+- Remaining V1 parity includes richer WebView/visible live chart sync, authenticated Master/Oracle Android connection, actual source-gated five filters and real market-alert policy; no APK, V1, Oracle production or real orders touched.
+
+---
+
+
 ## NEXT V2 LOCAL ACTION ALERTS / NOTICES PARITY — 2026-11-19
 - Latest executable `4bd814a0c13005bfad1f1ad512b2d7bb9adabc58` [CI #118](https://github.com/vaishnavi596/volume-king/actions/runs/44441859427) **330/330 PASS**, including read-only cached Scanner EMA20/50, RSI14, ATR14, support/resistance panel. Previous #116 FAIL was repaired with #117 327/327 PASS; no reruns needed.
 - Complete next **app-only local-notice** segment: V2 `LocalNoticeCenter` now allowlists `PAPER_SIM_OPENED`, `PAPER_SIM_CLOSED`, `CHART_STYLE_CHANGED`; in Flet main notices are recorded **after** successful manual PAPER entry/exit or strict chart-style choice. Existing bounded 20-session notice list, mark-read and clear operations preserved. No free text, broker order, market signal, price-trigger or external push notifications; market alerts remain PENDING actual authenticated live feed and explicit policy acceptance.

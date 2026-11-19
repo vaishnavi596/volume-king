@@ -48,13 +48,15 @@ def v1_card(ft, children, *, expand=False):
         border=ft.border.all(1, BORDER), expand=expand)
 
 
-def v1_header(ft, version):
+def v1_header(ft, version, *, on_notices_click=None):
     """Matches V1 trophy / title / visible version / bell chrome."""
     return ft.Container(content=ft.Row([
         ft.Icon(ft.Icons.EMOJI_EVENTS, color=GOLD, size=24),
         ft.Row([v1_text(ft, "BOT KING", size=HEADER_SIZE, color=GOLD, bold=True),
                 v1_text(ft, "v" + str(version), color=MUTED)], spacing=8, wrap=True),
         ft.Container(expand=True),
-        ft.Icon(ft.Icons.NOTIFICATIONS_NONE, color=GOLD, size=24),
+        ft.IconButton(icon=ft.Icons.NOTIFICATIONS_NONE, icon_color=GOLD,
+                      tooltip="Open local notices (not market alerts)",
+                      on_click=on_notices_click),
     ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.padding.only(left=12, right=12, top=8, bottom=5), bgcolor=BG)
