@@ -312,6 +312,23 @@ jobs:
           cd "$ROOT"
           "$ROOT/.venv/bin/python" -m pilot_v2.tools.v2_activation_gate --private-env-file "$PRIVATE"
           echo "V2_REAL_MASTER_AND_PAIRING=APPROVED_BY_LOCAL_GATE"
+          # Do not activate a V2 gateway whose requested internal Dhan routes
+          # cannot be served by the running V1 contract. GET OpenAPI is local-only,
+          # no user key or Dhan token is sent.
+          if ! curl -fsS --max-time 8 http://127.0.0.1:8000/openapi.json | python3 -c '
+          import json,sys
+          try:
+              api=json.load(sys.stdin)
+              paths=api.get("paths",{})
+              required=("/dhan/index-ltp-batch", "/dhan/selected-ltp-batch")
+              if not all("post" in paths.get(path,{}) for path in required):
+                  sys.exit(1)
+          except (ValueError,TypeError,AttributeError):
+              sys.exit(1)
+          '; then
+            echo "V2_ACTIVATION=BLOCKED_UPSTREAM_DHAN_BATCH_CONTRACT_MISSING"; exit 1
+          fi
+          echo "V2_REQUIRED_DHAN_BATCH_ENDPOINTS=VERIFIED"
           # Never assume a new HTTPS location is safe to inject into the existing V1 virtual host.
           sudo -n nginx -t >/dev/null 2>&1
           # Static string presence is not proof of the correct proxy target.
