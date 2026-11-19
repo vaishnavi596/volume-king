@@ -101,6 +101,34 @@ class ApprovedQuoteRefreshTests(unittest.TestCase):
                                                    w.selected)["status"], "HIST")
                 self.assertEqual(inbox.visible("EQ099", w.selected)["status"], "WAIT")
 
+    def test_global_revision_only_does_not_claim_new_visible_prices(self):
+        w, intent = intent_for(5)
+        reader, opener = self.make_reader(5)
+        inbox = DeviceFeedInbox()
+        first = apply_approved_quote_intent(intent, reader, inbox, w.selected)
+        self.assertEqual(first["indexes"], "HIST")
+        self.assertEqual(first["quotes"], "HIST")
+        old_price = inbox.visible("EQ000", w.selected)["price"]
+        # Both envelopes advance, but every included per-symbol revision stays
+        # at 1. Neither lane has fresh visible observations.
+        opener.payloads["indices"] = payload(2, {"NIFTY": 1})
+        opener.payloads["indices"]["quotes"]["NIFTY"]["revision"] = 1
+        opener.payloads["quotes"] = payload(2, {"EQ000": 1})
+        opener.payloads["quotes"]["quotes"]["EQ000"]["revision"] = 1
+        second = apply_approved_quote_intent(intent, reader, inbox, w.selected)
+        self.assertEqual(second["status"], "COMPLETED")
+        self.assertEqual(second["indexes"], "UNCHANGED")
+        self.assertEqual(second["quotes"], "UNCHANGED")
+        self.assertEqual(inbox.revision_for("indices"), 2)
+        self.assertEqual(inbox.revision_for("quotes"), 2)
+        self.assertEqual(inbox.visible("EQ000", w.selected)["price"], old_price)
+        self.assertEqual(inbox.visible("NIFTY", ())["price"], 20000)
+        opener.payloads["quotes"] = payload(3, {"EQ000": 155})
+        third = apply_approved_quote_intent(intent, reader, inbox, w.selected)
+        self.assertEqual(third["indexes"], "UNCHANGED")
+        self.assertEqual(third["quotes"], "HIST")
+        self.assertEqual(inbox.visible("EQ000", w.selected)["price"], 155)
+
     def test_failed_equity_lane_retains_previous_and_index_continues(self):
         w, intent = intent_for(5)
         reader, opener = self.make_reader(5)

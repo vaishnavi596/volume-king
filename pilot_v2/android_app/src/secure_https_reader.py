@@ -88,6 +88,9 @@ class V2ReadonlyHTTPSReader:
             raise FeedError("V2 HTTPS feed unavailable; cached data retained") from None
         # Only a successful HTTPS response from the configured origin and
         # protected endpoint can enter the independent app-owned lane.
-        return deliver_readonly_response(
+        accepted = deliver_readonly_response(
             inbox, feed, 200, payload, selected_equities=selected_equities,
             authenticated_session=True)
+        # Advancing a global envelope without any newer per-symbol row is not
+        # a visible data refresh. Do not report HIST or trigger a visual update.
+        return bool(accepted and inbox.changed_for(feed))
