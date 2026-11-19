@@ -303,6 +303,40 @@ class UnifiedGatewayAcceptance(unittest.TestCase):
             with self.subTest(bad=repr(bad)[:80]), self.assertRaises(ValueError):
                 validate_evidence_envelope(bad)
 
+    def test_evidence_provider_nested_bounds_and_expected_io_fail_closed(self):
+        from pilot_v2.evidence_contract import validate_evidence_envelope
+        good = {"events": [{"kind": "expiries", "symbol": "NIFTY",
+                            "revision": 1, "available": ["2026-11-26"]}]}
+        self.assertEqual(validate_evidence_envelope(good), good)
+        for nested in (
+            {"unexpected": [[[[[[[[[[[[[0]]]]]]]]]]]]]},
+            {"broker_token": "should-not-leak"},
+            {"live_verified": True},
+            {"available": ["x" * 1025]},
+            {"tags": {str(i): i for i in range(33)}},
+            {"values": [0] * 2001},
+            {"unserializable": object()},
+        ):
+            candidate = {"events": [{"kind": "expiries", "symbol": "NIFTY",
+                        "revision": 1, "available": ["2026-11-26"], **{}}]}
+            candidate["events"][0]["available"] = ["2026-11-26", nested]
+            with self.subTest(nested=str(nested)[:75]), self.assertRaises(ValueError):
+                validate_evidence_envelope(candidate)
+
+        bearer = self.signed_bearer()
+        headers = {"Authorization": "Bearer " + bearer}
+        for failure in (OSError("private Dhan endpoint"), TimeoutError(),
+                        LookupError("provider mapping unavailable")):
+            def fail(_device, exc=failure):
+                raise exc
+            client = TestClient(create_v2_unified_app(
+                verified_login=self.login, data_pipeline=self.pipeline,
+                evidence_provider=fail))
+            response = client.get("/v2-pilot/evidence", headers=headers)
+            self.assertEqual(response.status_code, 503)
+            self.assertNotIn("private Dhan endpoint", response.text)
+        self.assertEqual(self.calls, [])
+
     def test_factory_fail_closed(self):
         with self.assertRaises(ValueError):
             create_v2_unified_app(verified_login=None, data_pipeline=self.pipeline)
