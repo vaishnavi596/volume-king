@@ -7,7 +7,7 @@ The server independently checks device proof and scope on each read.
 from threading import Lock
 from app_p256_login import V2P256LoginHTTPSClient
 from app_keystore_login_binding import AndroidKeystoreLoginBinding
-from secure_https_reader import FeedError, V2ReadonlyHTTPSReader
+from secure_https_reader import FeedError, V2ReadonlyHTTPSReader, _checked_origin
 
 
 class DeviceReaderSlot:
@@ -70,9 +70,15 @@ class DeviceReaderSlot:
         """
         if type(binding) is not AndroidKeystoreLoginBinding:
             raise FeedError("Approved Android Keystore login binding required")
+        # Reject static caller mistakes without evicting a usable session.
+        # The native public key check itself remains behind the generation
+        # reservation so clear() can cancel a slow platform callback.
+        trusted_origin = _checked_origin(approved_https_origin)
+        if type(timeout) not in (int, float) or not 1 <= timeout <= 30:
+            raise FeedError("Invalid login request timeout")
         attempt = self._begin_sign_in()
         client = binding.login_client(
-            approved_https_origin, opener=opener, timeout=timeout)
+            trusted_origin, opener=opener, timeout=timeout)
         return self._complete_sign_in(client, attempt)
 
     def active_reader(self):
