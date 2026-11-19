@@ -31,6 +31,10 @@ class PrivateBackupDenied(ValueError):
     pass
 
 
+class MasterAccessDenied(PrivateBackupDenied):
+    pass
+
+
 def _b64(data):
     return base64.b64encode(data).decode("ascii")
 
@@ -165,9 +169,9 @@ class ServerBackupVault:
         try:
             owner = self._master_owner(token)
         except Exception:
-            raise PrivateBackupDenied("Verified Master session required") from None
+            raise MasterAccessDenied("Verified Master session required") from None
         if not valid_id(owner):
-            raise PrivateBackupDenied("Verified Master session required")
+            raise MasterAccessDenied("Verified Master session required")
         return owner
 
     def read(self, token):
@@ -254,6 +258,8 @@ def create_private_backup_router(vault):
         try:
             revision = vault.replace(token, data["encrypted_envelope"],
                                      expected_revision=data["expected_revision"])
+        except MasterAccessDenied:
+            raise HTTPException(403, "Master access denied") from None
         except PrivateBackupDenied as exc:
             if str(exc) == "Backup changed; restore or reconcile first":
                 raise HTTPException(409, "Backup revision conflict") from None
