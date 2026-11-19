@@ -51,6 +51,21 @@ class ActivationGateTests(unittest.TestCase):
         with patch("pilot_v2.tools.v2_activation_gate.SAFE_PREFIX",str(self.root)+"/"):
             self.assertTrue(verify_configuration(parse_private_environment(str(self.conf))))
 
+    def test_operator_optional_roster_checked_by_activation(self):
+        enroll_master(directory=self.root, device_id=self.device,
+                      public_path=self.public, approved_fingerprint=self.fingerprint)
+        roster = self.root / "selected.json"
+        roster.write_text('["TCS","RELIANCE"]')
+        roster.chmod(0o600)
+        self.conf.write_text(self.conf.read_text() +
+            f"BOTKING_V2_SELECTED_EQUITIES_PATH={roster}\n")
+        with patch("pilot_v2.tools.v2_activation_gate.SAFE_PREFIX", str(self.root) + "/"):
+            self.assertTrue(verify_configuration(parse_private_environment(str(self.conf))))
+        roster.write_text('["TCS","TCS"]')
+        with patch("pilot_v2.tools.v2_activation_gate.SAFE_PREFIX", str(self.root) + "/"):
+            with self.assertRaises(ValueError):
+                verify_configuration(parse_private_environment(str(self.conf)))
+
     def test_world_readable_env_denied(self):
         self.conf.chmod(0o644)
         with self.assertRaises(ValueError):
