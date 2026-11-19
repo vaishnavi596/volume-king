@@ -32,6 +32,17 @@ class DeviceReaderSlot:
             if reader is not None:
                 reader.invalidate()
 
+    def detach_for_remote_sign_out(self):
+        """Atomically cancel login and detach bearer owner before network I/O.
+
+        Only the returned reader may POST sign-out; no token string is exposed.
+        A late signed-login response cannot install itself after detachment.
+        """
+        with self._lock:
+            self._generation += 1
+            previous, self._reader = self._reader, None
+            return previous
+
     def _begin_sign_in(self, *, preserve_previous=False):
         """Reserve a cancellable attempt before any platform/network work.
 
