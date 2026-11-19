@@ -1,3 +1,9 @@
+## 2026-11-19 — UNIFIED V2 429 FEEDBACK EXACT-SHA CI PASS
+- GitHub [BOT KING V2 Unified Pipeline run #44504682891](https://github.com/vaishnavi596/volume-king/actions/runs/44504682891) at code+test commit `dd1556f1a72e0fc84b4c37a155243aad41bb3232` status completed, conclusion SUCCESS. It verifies new two rate-limit feedback tests in the common offline V2 suite. Documentation commits after this code SHA are [skip ci] only.
+- **Not real Dhan 429 evidence:** tests use an injected exception; actual authenticated read-only Dhan HTTP adapter and correct 429 mapping are still an explicit blocker before server activation. One workflow and V2 branch remain; no V1 edit, Oracle deploy, or APK.
+
+---
+
 ## 2026-11-19 — ONE COMPRESSED V2 GATE: REAL 429 FEEDBACK CONNECTED TO SHARED BUDGET
 - Owner `ok`: continue same V2 branch and ONE Unified CI, no new deployment or pipelines. Starting HEAD `a9da9afefe1d33cb14d0234db87975bb6ac5bb09` docs-only, verified prior shared quota CI [44503089687](https://github.com/vaishnavi596/volume-king/actions/runs/44503089687) SUCCESS at `3100a55`. Inspected quota, single port and unified pipeline together.
 - **Three-file related fix:** `pilot_v2/internal_dhan_read_port.py` commit `f5f0ae49825fd67b40e6180fe0e975406995a8a5` distinguishes trusted `DhanRateLimited` from generic transport errors; `pilot_v2/unified_data_pipeline.py` commit `a706c262663e1a4dd1f850d13f72a093f3ad90da` calls the ONE injected `SharedReadBudget.throttle()` only on that rate-limit signal, then raises safe `PipelineUnavailable` (do not leak secrets or pretend live); `pilot_v2/tests/test_shared_read_budget.py` commit `dd1556f1a72e0fc84b4c37a155243aad41bb3232` adds 2 checks: 429 immediately sets shared 30s cooldown blocking other lanes/manual, generic transport failure does not misclassify as 429.
