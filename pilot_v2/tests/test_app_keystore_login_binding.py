@@ -79,6 +79,37 @@ class KeystoreBindingTests(unittest.TestCase):
         self.assertNotIn("native-secret-alias", str(error.exception))
         self.assertEqual(self.calls, [])
 
+    def test_rotated_public_key_denied_before_old_signer_is_invoked(self):
+        second_key = ec.generate_private_key(ec.SECP256R1())
+        rotated_public = second_key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo)
+        current = [self.public]
+        binding = AndroidKeystoreLoginBinding(
+            MASTER, lambda: current[0], self.signer)
+        original_fingerprint = binding.public_key_fingerprint_sha256()
+        current[0] = rotated_public
+        message = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(32)
+        with self.assertRaises(FeedError) as error:
+            binding.sign_login_challenge(message)
+        self.assertNotIn("private", str(error.exception))
+        self.assertEqual(self.calls, [])
+        self.assertEqual(binding.public_key_fingerprint_sha256(), original_fingerprint)
+
+    def test_native_public_recheck_failure_denied_without_signing(self):
+        calls = [0]
+        def export():
+            calls[0] += 1
+            if calls[0] > 1:
+                raise RuntimeError("sensitive platform key alias")
+            return self.public
+        binding = AndroidKeystoreLoginBinding(MASTER, export, self.signer)
+        message = LOGIN_CONTEXT + MASTER.encode("ascii") + b"\x00" + bytes(32)
+        with self.assertRaises(FeedError) as error:
+            binding.sign_login_challenge(message)
+        self.assertNotIn("sensitive", str(error.exception))
+        self.assertEqual(self.calls, [])
+
     def test_login_client_enforces_approved_https_origin_before_network(self):
         binding = self.bind()
         with self.assertRaises(FeedError):
