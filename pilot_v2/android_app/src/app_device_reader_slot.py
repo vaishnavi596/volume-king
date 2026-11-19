@@ -76,6 +76,15 @@ class DeviceReaderSlot:
         trusted_origin = _checked_origin(approved_https_origin)
         if type(timeout) not in (int, float) or not 1 <= timeout <= 30:
             raise FeedError("Invalid login request timeout")
+        # Validate an injected HTTPS opener before disrupting a valid reader.
+        # Runtime production uses the client's own TLS-verifying opener.
+        if opener is not None:
+            try:
+                valid_opener = callable(getattr(opener, "open", None))
+            except Exception:
+                valid_opener = False
+            if not valid_opener:
+                raise FeedError("Invalid verified HTTPS login opener")
         attempt = self._begin_sign_in()
         client = binding.login_client(
             trusted_origin, opener=opener, timeout=timeout)
