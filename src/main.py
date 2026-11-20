@@ -2355,7 +2355,7 @@ def app_main(page:ft.Page):
                 note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed")]),
             watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
-    timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m") if prefs.get("chart_timeframe","5m") in ("1m","5m","15m","1h") else "5m",options=[ft.dropdown.Option(x) for x in ["1m","5m","15m","1h"]],width=120)
+    timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m") if prefs.get("chart_timeframe","5m") in ("1m","2m","3m","5m","15m","1h") else "5m",options=[ft.dropdown.Option(x) for x in ["1m","2m","3m","5m","15m","1h"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
     vwap=ft.Switch(label="VWAP",value=bool(prefs.get("chart_vwap",True)),active_color=GREEN)
     rsi=ft.Switch(label="RSI",value=bool(prefs.get("chart_rsi",False)),active_color=GREEN)
