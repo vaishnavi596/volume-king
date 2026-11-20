@@ -1553,3 +1553,7 @@
 [WATCHLIST LOGIN BOOTSTRAP APK GATED BUILD][2026-11-20]
 - Targeted B1 timeframe #44759090700, B2 priority #44759090456, Adapter Joint #44759090543 all SUCCESS for source accc1ef90467a44b7a756fed4728f4f0509c9a96.
 - Full offline regression #44759107036 still in progress when checked. APK workflow commit 88ac119518b9c26a6548893a234ad464965417f2 started run #44759201146; APK workflow has independent full offline test gate before signing/build/upload. Do not claim APK artifact ready until run SUCCESS and artifact confirmed.
+
+[WATCHLIST ONE-SHOT LOGIN BOOTSTRAP PHONE APK VERIFIED][2026-11-20]
+- Full offline regression #44759107036 SUCCESS. Android APK workflow #44759201146 SUCCESS at source SHA 88ac119518b9c26a6548893a234ad464965417f2. Artifact id 14640484344 name BOT-KING-B3-DHAN-BROWSER-LOGIN-2.3.134-PHONE-APK size 65,821,976 bytes, digest sha256:fb247a13c387b8ecb2c8004575b1c1fd12a40309664318288eb7fc8abbdc715d, expires 2026-12-04. GitHub https://github.com/vaishnavi596/volume-king/actions/runs/44759201146
+- APK built and uploaded; real-phone one-shot 51-equity candle coverage, latency, ADX behavior, and Dhan cooldown behavior NOT yet verified. Do not claim successful phone runtime acceptance until user test.
