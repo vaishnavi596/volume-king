@@ -387,9 +387,8 @@ def app_main(page:ft.Page):
         now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
         return now.weekday()<5 and (9,10)<=(now.hour,now.minute)<(15,45)
     def session_caption():
-        return ("BOT KING refresh window • exchange live signals separately gated"
-                if refresh_hours() else
-                "Outside refresh window (09:10–15:45 IST) • automatic refresh paused")
+        return ("STALE • exchange timestamps unverified" if regular_hours() else
+                "OFF • last available prices (not live)")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
@@ -1945,8 +1944,8 @@ def app_main(page:ft.Page):
             dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{total_symbols} valid prices returned"
                                  if received<total_symbols else None)
             if dhan_feed.connected:
-                connection_status.value=(f"Dhan connected • {received}/{total_symbols} valid equity LTP prices returned • "
-                                         "timestamps unverified")
+                connection_status.value=(f"Dhan connected • {received}/{total_symbols} LTP • "
+                                         + session_caption())
                 connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
             # Snapshot age is the Oracle collection age, not an exchange timestamp.
             snapshot_ages=[item.get("snapshot_age_seconds") for item in batch.values()
@@ -3402,7 +3401,7 @@ def app_main(page:ft.Page):
                         connection_status.color=GOLD
                     else:
                         connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
-                            " equity LTP quotes returned • timestamps unverified"+
+                            " LTP • "+session_caption()+
                             (" • PARTIAL" if dhan_batch_issue[0] else ""))
                         connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
                     # Historical scan must run even if the independent LTP batch fails.
@@ -4413,7 +4412,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Clone browser Dhan consent requires separate approved Clone callback on Oracle. Complete Dhan mobile login, then use Clone SSK to verify a real read-only quote. Original V1 routes and live trading remain untouched.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
