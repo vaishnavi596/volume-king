@@ -38,6 +38,51 @@ class CloneV2Gateway:
 
 
 
+    def start_dhan_browser_login(self, endpoint, access_key):
+        """Request Clone-only browser consent; return trusted official Dhan URL."""
+        from urllib.parse import urlsplit, parse_qs
+        origin = server_origin(endpoint)
+        key = checked_pairing_key(access_key)
+        url = origin + "/clone-v2/dhan/start"
+        request = Request(url, data=b"", method="POST",
+                          headers={"X-BotKing-Key": key,
+                                   "Accept": "application/json",
+                                   "Cache-Control": "no-store"})
+        try:
+            with (self._opener or direct_https_opener()).open(request, timeout=16) as response:
+                if (response.status != 200 or response.geturl() != url or
+                        response.headers.get_content_type() != "application/json"):
+                    raise FeedError("Clone Dhan consent response not trusted")
+                raw = response.read(8193)
+                if len(raw) > 8192:
+                    raise FeedError("Clone Dhan consent response too large")
+                result = json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise FeedError("Clone SSK access denied; check server key") from None
+            if exc.code == 409:
+                raise FeedError("Clone Dhan browser login already pending") from None
+            if exc.code == 429:
+                raise FeedError("Clone Dhan consent cooldown; retry later") from None
+            if exc.code == 503:
+                raise FeedError("Clone Dhan browser login not configured on Oracle") from None
+            raise FeedError("Clone Dhan browser login HTTP " + str(exc.code)) from None
+        except (OSError, URLError, TimeoutError, ValueError, UnicodeError):
+            raise FeedError("Clone Dhan browser authorization unavailable") from None
+        if not isinstance(result, dict) or result.get("live_orders_enabled") is not False:
+            raise FeedError("Clone Dhan browser response invalid")
+        link = result.get("login_url")
+        if not isinstance(link, str) or len(link) > 1000:
+            raise FeedError("Clone Dhan login link invalid")
+        parsed = urlsplit(link)
+        params = parse_qs(parsed.query)
+        if (parsed.scheme != "https" or parsed.hostname != "auth.dhan.co" or
+                parsed.path != "/login/consentApp-login" or parsed.username or
+                parsed.password or parsed.port or parsed.fragment or
+                set(params) != {"consentAppId"} or len(params["consentAppId"]) != 1):
+            raise FeedError("Clone Dhan login link not trusted")
+        return link
+
     def post_market(self, route, selection):
         if not self.connected:
             raise FeedError("Clone SSK connection required")
