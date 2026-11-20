@@ -127,12 +127,15 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     def clone_oauth_config():
         if consent_config_factory is not None:
             return consent_config_factory()
+        # Owner has retired V1 as a target app. Reuse its registered Dhan OAuth
+        # redirect under an EXPLICIT Clone-only cutover setting. Changing the
+        # broker developer-app callback or generating another app is unnecessary.
         if os.environ.get("BOTKING_CLONE_DHAN_CALLBACK_APPROVED") != "1":
-            raise HTTPException(503, "Clone Dhan callback not approved")
+            raise HTTPException(503, "Clone Dhan callback handoff not approved")
         callback = os.environ.get("BOTKING_CLONE_DHAN_CALLBACK_URL", "")
-        expected = ("https://botkingrajesh.duckdns.org/clone-v2/dhan/callback")
+        expected = "https://botkingrajesh.duckdns.org/dhan/callback"
         if callback != expected:
-            raise HTTPException(503, "Clone Dhan callback URL not configured")
+            raise HTTPException(503, "Registered V1 callback handoff not configured")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
         app_id = os.environ.get("BOTKING_CLONE_DHAN_APP_ID", "").strip()
         secret = os.environ.get("BOTKING_CLONE_DHAN_APP_SECRET", "").strip()
@@ -201,6 +204,9 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             {"login_url": login_url, "expires_in": 300,
              "live_orders_enabled": False}, headers={"Cache-Control": "no-store"})
 
+    # Exact legacy Dhan redirect accepted by Clone only after HTTPS cutover.
+    # Nginx exact-match /dhan/callback must route here, NOT V1 port 8000.
+    @app.get("/dhan/callback", response_class=HTMLResponse)
     @app.get("/clone-v2/dhan/callback", response_class=HTMLResponse)
     def clone_dhan_callback(tokenId: Optional[str] = None):
         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
