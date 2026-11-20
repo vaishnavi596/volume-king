@@ -1,0 +1,23 @@
+# BOT KING — V1 shell clone with V2 secure gateway (2026-11-20)
+
+## Owner's revised priority (supersedes prior Angel/Yahoo removal plan)
+Use a direct, independently isolated V1 clone as the starting UI/feature shell instead of rebuilding V1 screen by screen inside the current V2 offline app. For this exploratory clone **retain Angel One and Yahoo settings/code for now**; remove only the *legacy V1 server-controlled settings* and replace its connection path with the authenticated V2 Oracle gateway already under development. Do not change the V1 production branch or its running app. All events and outcomes must also be recorded in the pilot V2 master journal.
+
+## Baseline inspection and clone
+- Branch `pilot/v1-clone-v2-pipe-20261120` created from existing `pilot/botking-v2-smart-gateway-20261118`, which already contains the V1 `src/main.py` (7,074 lines) plus independent `pilot_v2/` sources and contract tests. This is a **source branch clone**, not a compiled independent Android application yet.
+- V1 UI sections still contain the original compact dashboard, bottom navigation and full Options/Scanner/Watchlist/Chart flows. They also contain old server-oriented fields and broker transport: `src/main.py` around lines 3107–3110 defines `api_url`, `server_access`, `server_trust`; around 3160ff and 3350ff contains old `dhan_feed` authentication/session and Angel One connection logic; source imports `ServerAngelFeed` and `ServerDhanReadOnly`. These are important cross-cutting dependencies, not a single safe delete.
+- Current V1 UI has a **Dhan-only selectable broker dropdown** even though Angel One credential handlers and Yahoo data logic still exist. Keeping their code does **not** mean they have been verified usable; owner says preserve these at this stage.
+- Existing separate V2 Android pilot is `com.botking.bot_king_v2`, version 2.0.100 and remains untouched in this branch at start.
+
+## Clone migration contract
+1. Keep V1 visual shell and feature navigation intact; do not paste large V1 chunks into the existing V2 pilot main. Create a distinct clone application entrypoint/build identity before any APK packaging. Keep existing V1 installation and V2 pilot installation untouched.
+2. Preserve old Angel One and Yahoo logic/settings in the *clone working source* for now, but never forward their login tokens, API keys, MPIN, TOTP, secrets, or Yahoo requests through the Dhan-only V2 pipe. Their network paths may remain disabled until verified and explicitly authorized; do not claim provider live support.
+3. Eliminate only V1 *server-controlled app preferences* (`api_url` editing, server access key UI, old server trust and legacy server-pairing/session logic) from **clone UI and persistence**, but maintain secure necessary gateway origin, TLS/auth, device enrolment and upstream broker quota enforcement. Gateway host is not a user-editable app settings field.
+4. Implement a *single audited clone-side data adapter* to the existing V2 Android/Oracle read-only gateway and map verified index/equity/candle/option envelopes to V1 view models. It may not bypass Android Keystore or device enrolment. V2 pilot handset currently shows `Android Keystore unavailable · device not enrolled` and `Oracle not connected`: these remain hard blockers for real authenticated data.
+5. Preserve freshness/provenance labels (cached history not LIVE), five evidence-gated filters plus inert sixth, no trading order execution and market closed safety. Restore 1m Dashboard/Super Five and 3m Watchlist semantics without fabricating candles.
+6. Verify static source after each consolidated change, then combined CI, then unique signed clone APK/handset acceptance. Do not overwrite V1/V2 package IDs or install over either existing app.
+
+## Current status
+- **DONE:** separate clone source branch; source-based identification of old server UI/connection dependency points; revised migration contract.
+- **NOT DONE:** executable server-setting removal, gateway adapter wiring, independent app ID/signing, CI PASS on the resulting clone, live phone acceptance or a new APK.
+- Any future code patch should be atomic, targeted to the clone source, with tests and journal records. No Oracle production restart, credentials or orders in this document-only move.
