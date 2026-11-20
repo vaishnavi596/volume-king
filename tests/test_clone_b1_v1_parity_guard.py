@@ -41,6 +41,16 @@ class OriginalV1FeaturePreservation(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, MAIN)
 
+    def test_index_dropdown_order_does_not_change_identity_mapping(self):
+        # Shared selector used by Options, Scanner and search menus.
+        section = MAIN.split("    def selection_symbols():", 1)[1].split(
+            "    def sync_symbol_choices():", 1)[0]
+        self.assertIn('["NIFTY","BANKNIFTY","SENSEX","FINNIFTY"]', section)
+        self.assertIn("dict.fromkeys(", section)
+        # The selected underlying is carried by its symbol, never dropdown index.
+        self.assertIn('value=prefs.get("option_symbol","NIFTY")', MAIN)
+        self.assertIn("dhan_feed.option_expiries,sym", MAIN)
+
     def test_option_expiry_remains_broker_verified(self):
         section = MAIN.split("    def refresh_option_expiry(", 1)[1].split(
             "    def add_option_symbol(", 1)[0]
