@@ -1732,3 +1732,7 @@
 [SAFE CLONE ERROR TEST ADJUSTED FOR EXISTING REDACTION 2026-11-20]
 - B1 targeted CI #44772269773 on new secure adapter diagnostic test commit 70bdd3e1 FAILED 1/22 tests: test_arbitrary_sensitive_exception_remains_redacted incorrectly demanded one fallback literal while existing safe_error() already sanitizes any FeedError containing HTTP 502 to "Dhan upstream temporarily unavailable; retry later". No secrets leaked; this is a test expectation gap, not a runtime security defect.
 - Corrected test to accept either vetted generic safe message while always asserting injected secret token is absent, commit d23ec067e940293ce4e004181e6deb47b26d28b2. Automatic targeted B1 CI #44772430645 in_progress at check, no PASS claim until completion. Preserve security fail closed and no Oracle/V1/Watchlist changes. 
+
+
+[B1 SAFE ADAPTER DIAGNOSTIC EXACT TEST PASS 2026-11-20]
+- Targeted B1 CI #44772430645 for final diagnostic regression test SHA d23ec067e940293ce4e004181e6deb47b26d28b2 completed SUCCESS. Source diagnostic classifier SHA b1af633c and security redaction tests are within that tested commit. This verifies code-level error classification and redaction, not actual Dhan response, Manual Scanner signal or SENSEX. Latest full combined suite and phone APK not run for these new changes. https://github.com/vaishnavi596/volume-king/actions/runs/44772430645
