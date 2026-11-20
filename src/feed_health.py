@@ -54,6 +54,24 @@ def safe_error(exc):
             return "Dhan API rate limited (HTTP 429); wait before retry"
         if detail.startswith("/dhan/") and " cooldown: retry in " in detail:
             return "Dhan API cooldown active; wait before retry"
+        # Only exact, locally generated Clone adapter messages; never echo
+        # raw upstream response, URL, access key, or arbitrary provider text.
+        clone_diagnostics = {
+            "Clone Dhan candles unavailable": "Clone candle gateway unavailable; check Oracle/Dhan route",
+            "Clone Dhan candles HTTP 424": "Dhan authorization required for Clone candles",
+            "Clone Dhan candles HTTP 429": "Clone candle provider cooldown; retry later",
+            "Clone Dhan candles HTTP 422": "Clone candle symbol, interval or date rejected (HTTP 422)",
+            "Clone Dhan candles HTTP 502": "Clone candle upstream unavailable (HTTP 502)",
+            "Clone Dhan candles HTTP 503": "Clone candle upstream unavailable (HTTP 503)",
+            "Clone candle response not verified": "Clone returned invalid candle data contract",
+            "Clone unsupported candle interval": "Clone candle timeframe unsupported",
+            "Clone listed option expiries invalid": "Clone option expiry response invalid",
+            "Clone option evidence unavailable": "Clone option-chain metrics unavailable",
+            "Clone Dhan options/expiries unavailable": "Clone option expiry gateway unavailable",
+            "Clone Dhan options/chain unavailable": "Clone option-chain gateway unavailable",
+        }
+        if detail in clone_diagnostics:
+            return clone_diagnostics[detail]
         if "HTTP 422" in detail:
             return "Dhan request rejected (HTTP 422); verify symbol and date range"
         if "Dhan candle instrument or interval not verified" in detail:
