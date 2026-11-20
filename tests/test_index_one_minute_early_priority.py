@@ -162,9 +162,9 @@ class EarlyIndexOneMinuteTests(unittest.TestCase):
         s,calls,_,_,_,_,_=self.fixture()
         s["get_market_data"]=lambda *args:{"source":"Yahoo Finance","bars":[]}
         self.assertEqual(self.invoke(s),0)
-        # A malformed response for one index must not suppress the other two.
-        self.assertEqual([entry[1][0] for entry in self.histories(calls)],
-                         ["NIFTY","BANKNIFTY","SENSEX"])
+        # A wrong-source response is a systemic provider-integrity failure.
+        # Fail closed on the first index; never fan out to other index requests.
+        self.assertEqual([entry[1][0] for entry in self.histories(calls)],["NIFTY"])
         self.assertEqual(s["chart_snapshots"],{})
         self.assertFalse(s["index_one_minute_busy"][0])
 
