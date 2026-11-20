@@ -4549,7 +4549,8 @@ def app_main(page:ft.Page):
             filter_selected.remove(name)
             filter_feedback.value="Removed "+name+" • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
             store_filters()
-            select(current[0])
+            # Defer expensive full scanner tree reconstruction outside tap handler.
+            request_view_refresh(current[0])
             if not scan_busy[0]:trigger_scan()
     def add_filter_slot(name):
         if name not in filter_names:
@@ -4563,7 +4564,8 @@ def app_main(page:ft.Page):
             filter_selected.append(name)
             filter_feedback.value="Added "+name+" • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active • "+filter_availability(name)
             store_filters()
-            select(current[0])
+            # Defer expensive full scanner tree reconstruction outside tap handler.
+            request_view_refresh(current[0])
             if not scan_busy[0]:trigger_scan()
     filter_query=ft.TextField(label="Find indicator",dense=True)
     filter_choice=ft.Dropdown(label="Select filter",options=[ft.dropdown.Option(x) for x in filter_names],dense=True)
