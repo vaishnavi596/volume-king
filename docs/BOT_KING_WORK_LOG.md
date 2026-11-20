@@ -1557,3 +1557,8 @@
 [WATCHLIST ONE-SHOT LOGIN BOOTSTRAP PHONE APK VERIFIED][2026-11-20]
 - Full offline regression #44759107036 SUCCESS. Android APK workflow #44759201146 SUCCESS at source SHA 88ac119518b9c26a6548893a234ad464965417f2. Artifact id 14640484344 name BOT-KING-B3-DHAN-BROWSER-LOGIN-2.3.134-PHONE-APK size 65,821,976 bytes, digest sha256:fb247a13c387b8ecb2c8004575b1c1fd12a40309664318288eb7fc8abbdc715d, expires 2026-12-04. GitHub https://github.com/vaishnavi596/volume-king/actions/runs/44759201146
 - APK built and uploaded; real-phone one-shot 51-equity candle coverage, latency, ADX behavior, and Dhan cooldown behavior NOT yet verified. Do not claim successful phone runtime acceptance until user test.
+
+[WATCHLIST FIRST-LOGIN PHONE ACCEPTANCE FAILED][2026-11-20]
+- User installed one-shot bootstrap APK #44759201146. Without manual Refresh, RELIANCE red/green candle appeared; HDFC Bank showed price around INR 886 but no red/green candle; other Watchlist rows mostly only T HIST, no candles. This confirms LTP delivery does not imply 3m candle completion.
+- Source audit: watch_login_candle_bootstrap sets watch_login_bootstrap_generation=generation before processing, then breaks on Dhan /dhan/intraday cooldown, source mismatch, lifecycle interruption or generation change. The same generation is never resumed by this one-shot task. This is a concrete retry/resume design defect; exact phone cause remains unconfirmed without runtime telemetry.
+- Acceptance NOT PASS. Next fix: persistent cursor/per-symbol progress and bounded retry after cooldown, clear errors, no false LIVE labels, Dhan rate-limit adherence; test before rebuilding. No APK built in this journal entry.
