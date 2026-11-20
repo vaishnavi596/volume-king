@@ -1507,7 +1507,9 @@ def app_main(page:ft.Page):
         # Three independent persisted slots; restrict selections to the verified
         # blue-chip universe plus supported/requested indexes.
         choices=list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+watch_symbols))
-        defaults=("NIFTY","RELIANCE","HDFCBANK")
+        # Three index slots default to the user's intended index-only dashboard;
+        # explicitly saved per-slot selections are preserved.
+        defaults=("NIFTY","BANKNIFTY","SENSEX")
         for slot in range(3):
             key="dashboard_analysis_slot_"+str(slot+1)
             sym=prefs.get(key,defaults[slot])
@@ -1616,7 +1618,7 @@ def app_main(page:ft.Page):
         return [
             dashboard_market_indices(),
             dashboard_index_analysis(),
-            note('Viewing: ' + (scan_symbol.value or 'NIFTY') + ' • ' + (scan_tf.value or '5m')),
+            note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
             section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
                                note(scan_shared['basis'])], spacing=4)),
@@ -2064,6 +2066,13 @@ def app_main(page:ft.Page):
                         or dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0):
                     break
                 try:
+                    # Oracle Clone quote gateway enforces 1.05s global pacing.
+                    # An immediate missing-index retry always receives 429.
+                    # Wait one bounded spacing interval; never dispatch in parallel.
+                    await asyncio.sleep(1.1)
+                    if (not app_active[0] or generation!=provider_generation[0]
+                            or dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0):
+                        break
                     independent=await asyncio.wait_for(
                         asyncio.to_thread(dhan_feed.quote,missing_symbol),timeout=20)
                     if (generation==provider_generation[0] and app_active[0]
@@ -2110,7 +2119,17 @@ def app_main(page:ft.Page):
                    and snapshots[key]["price"]>0 and snapshots[key].get("source")=="Dhan"
                    for key in ("NIFTY","BANKNIFTY","SENSEX")):
                 display_failures.pop("dhan_index_ltp_batch",None)
-            else:display_failures["dhan_index_ltp_batch"]="Incomplete index quotes"
+            else:
+                unavailable=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
+                             if not isinstance(snapshots.get(sym),dict)
+                             or snapshots[sym].get("source")!="Dhan"
+                             or not isinstance(snapshots[sym].get("price"),(int,float))
+                             or isinstance(snapshots[sym].get("price"),bool)
+                             or not math.isfinite(snapshots[sym]["price"])
+                             or snapshots[sym]["price"]<=0]
+                display_failures["dhan_index_ltp_batch"]=(
+                    "Dhan index LTP unavailable: "+", ".join(unavailable)+
+                    " • source response incomplete; not a timeframe setting")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
