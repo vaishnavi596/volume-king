@@ -7,10 +7,16 @@ market quote/candle endpoints or broker trading orders are added here.
 from __future__ import annotations
 
 import hmac
+import json
+import math
+import re
+import threading
+import time
 import os
 import stat
 from pathlib import Path
 from typing import Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -35,7 +41,38 @@ def private_ssk(path):
     return key
 
 
-def create_app(*, key_bytes=None):
+
+class MarketRequest(BaseModel):
+    symbols: list
+
+
+def load_equity_registry(path):
+    """Validate independently; never trust app-supplied security IDs."""
+    try:
+        target = Path(path)
+        if target.is_symlink() or target.stat().st_size > 4_000_000:
+            return {}
+        obj = json.loads(target.read_text(encoding="utf-8"))
+        entries = obj["equities"]
+        if (obj.get("schema_version") != 1 or obj.get("source") != "dhan_instrument_master"
+                or not isinstance(entries, dict) or not 300 <= len(entries) <= 10000
+                or obj.get("equity_count") != len(entries)):
+            return {}
+        out, used = {}, set()
+        for symbol, row in entries.items():
+            sid = row.get("security_id") if isinstance(row, dict) else None
+            if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9&_-]{1,32}", symbol)
+                    or row.get("segment") != "NSE_EQ" or row.get("instrument") != "EQUITY"
+                    or type(sid) is not int or sid <= 0 or sid in used):
+                return {}
+            used.add(sid)
+            out[symbol] = ("NSE_EQ", sid)
+        return out
+    except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+        return {}
+
+
+def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None):
     """Fail closed at startup if owner has not provisioned a protected key."""
     if key_bytes is None:
         key_bytes = private_ssk(os.environ.get(KEY_ENV))
@@ -43,6 +80,40 @@ def create_app(*, key_bytes=None):
             or any(c < 33 or c > 126 for c in key_bytes)):
         raise ValueError("Approved Clone V2 SSK required")
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+
+    indices = {"NIFTY": ("IDX_I", 13), "BANKNIFTY": ("IDX_I", 25),
+               "SENSEX": ("BSE_I", 51)}
+    registry = (market_registry if market_registry is not None else
+                load_equity_registry(os.environ.get("BOTKING_CLONE_DHAN_REGISTRY",
+                "/opt/bot-king-backups/registry-audit/dhan_equity_registry.json")))
+    known = dict(registry)
+    known.update(indices)
+    market_lock = threading.Lock()
+    market_cache = {}
+    last_request = [0.0]
+
+    def authorized(key):
+        if (not isinstance(key, str) or len(key) > 1024
+                or not hmac.compare_digest(key.encode("utf-8"), key_bytes)):
+            raise HTTPException(403, "Clone V2 server access denied")
+
+    def provider():
+        if market_feed_factory is not None:
+            return market_feed_factory()
+        from dhan_feed import DhanFeed
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        location = os.environ.get("BOTKING_CLONE_DHAN_TOKEN_FILE", "")
+        if not client or not location.startswith("/home/opc/"):
+            raise HTTPException(503, "Clone Dhan credentials unavailable")
+        target = Path(location)
+        if (target.is_symlink() or not target.is_file()
+                or stat.S_IMODE(target.stat().st_mode) & 0o077):
+            raise HTTPException(503, "Clone Dhan token file unavailable")
+        token = target.read_text(encoding="utf-8").strip()
+        if not token:
+            raise HTTPException(503, "Clone Dhan token unavailable")
+        return DhanFeed(client, token)
 
     @app.get("/clone-v2/status")
     def status(x_botking_key: Optional[str] = Header(default=None)):
@@ -65,5 +136,54 @@ def create_app(*, key_bytes=None):
             {"status": "gateway_process_ready", "live_data_verified": False,
              "live_orders_enabled": False},
             headers={"Cache-Control": "no-store"})
+
+
+    @app.post("/clone-v2/market/quotes")
+    def market_quotes(body: MarketRequest,
+                      x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        symbols = body.symbols
+        if (not isinstance(symbols, list) or not 1 <= len(symbols) <= 73
+                or len(symbols) != len(set(s for s in symbols if isinstance(s, str)))
+                or any(not isinstance(s, str) or s not in known for s in symbols)
+                or sum(s not in indices for s in symbols) > 70):
+            raise HTTPException(422, "Invalid or duplicate clone selection")
+        selection = tuple(sorted(symbols))
+        with market_lock:
+            now = time.monotonic()
+            cache = market_cache.get(selection)
+            if cache and 0 <= now - cache[0] < 20:
+                return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})
+            if now - last_request[0] < 1.05:
+                raise HTTPException(429, "Clone quote lane paced",
+                                    headers={"Retry-After": "2"})
+            last_request[0] = now
+            try:
+                result = provider().batch_ltp([known[s] for s in symbols])
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(502, "Clone read-only Dhan quote unavailable") from None
+            if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
+                raise HTTPException(502, "Invalid clone Dhan quote response")
+            quotes = {}
+            for symbol in symbols:
+                seg, sid = known[symbol]
+                try:
+                    raw = result["data"][seg][str(sid)]["last_price"]
+                    if type(raw) not in (int, float) or not math.isfinite(raw) or raw <= 0:
+                        continue
+                    quotes[symbol] = {"symbol": symbol, "ltp": float(raw),
+                                      "source": "dhan", "freshness": "unverified"}
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    pass
+            if not quotes:
+                raise HTTPException(502, "No validated clone quotes")
+            payload = {"source": "dhan", "quotes": quotes,
+                       "unavailable": [s for s in symbols if s not in quotes],
+                       "freshness": "unverified", "live_orders_enabled": False}
+            market_cache.clear()
+            market_cache[selection] = (time.monotonic(), payload)
+            return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
     return app
