@@ -141,3 +141,5 @@ jobs:
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
+
+# Phone-test build after B3 scanner options safety full gate 2026-11-20
