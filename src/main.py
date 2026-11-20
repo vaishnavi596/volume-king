@@ -5388,8 +5388,9 @@ console.log('BOT KING Lightweight Charts ready');
         prefs["filter_modes"]=dict(filter_modes);save()
         scan_generation[0]+=1
         mark_ranking_historical()
-        refresh_shared_analysis()
-        select(current[0])
+        # Recompute on the local scanner tick; do not synchronously analyze
+        # all selected symbols or rebuild the whole page from a dropdown tap.
+        request_view_refresh(current[0])
         if not scan_busy[0]:trigger_scan()
     def filter_mode_control(name):
         choices=["Analysis","Chart","Both"] if name=="EMA 9/21" else ["Analysis"]
