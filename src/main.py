@@ -2278,12 +2278,14 @@ def app_main(page:ft.Page):
                 continue
             try:
                 visible=tuple(watch_groups[active_watch[0]])
+                # Reuse the same analyzed 3m result across signatures and row repaint.
+                tick_signals={sym:watch_three_minute_signal(sym) for sym in visible}
                 signature=(active_watch[0],watch_filter[0],search.value,
                     tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                            (quotes.get(sym) or {}).get("price"),
                            (quotes.get(sym) or {}).get("change"),
-                           watch_three_minute_signal(sym).get("timestamp"),
-                           repr(watch_three_minute_signal(sym).get("votes")),
+                           tick_signals[sym].get("timestamp"),
+                           repr(tick_signals[sym].get("votes")),
                            id(five_engine_snapshots.get(sym)),
                            (oracle_assessment_cache.get(
                                (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
@@ -2314,7 +2316,7 @@ def app_main(page:ft.Page):
                     cells=watch_row_cells.get(sym)
                     if not cells:continue
                     q=quotes.get(sym) or {}
-                    signal_row=watch_three_minute_signal(sym)
+                    signal_row=tick_signals[sym]
                     symbol_signature=(q.get("fetched_at"),q.get("price"),q.get("change"),
                                       q.get("freshness"),q.get("source"),
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
@@ -2336,7 +2338,7 @@ def app_main(page:ft.Page):
                         if cell.value!=val or cell.color!=col:
                             cell.value=val;cell.color=col
                             if cell.page is not None:cell.update()
-                    row=watch_three_minute_signal(sym)
+                    row=signal_row
                     stamp=row.get("timestamp")
                     counts=signal_percentages(row)
                     available=(row.get("timeframe")=="3m" and row.get("source")==expected and counts is not None
