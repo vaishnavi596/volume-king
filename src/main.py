@@ -7054,6 +7054,93 @@ console.log('BOT KING Lightweight Charts ready');
                 raise
             except Exception as exc:
                 log_error("watch_three_minute_scheduler",exc)
+    # One-shot Watchlist 3m candle bootstrap after each authenticated login.
+    # Unlike periodic warmup, it has no 3-per-180s application budget. Still
+    # serializes Dhan calls, respects provider 429/cooldown, and never runs
+    # indefinitely after close. Data is always HIST until exchange verified.
+    watch_login_bootstrap_generation=[None]
+    async def watch_login_candle_bootstrap():
+        while True:
+            await asyncio.sleep(2)
+            try:
+                generation=provider_generation[0]
+                if (watch_login_bootstrap_generation[0]==generation
+                        or not app_active[0] or lifecycle_background[0]
+                        or prefs.get("source")!="Dhan" or not dhan_feed.connected):
+                    continue
+                watch_login_bootstrap_generation[0]=generation
+                selected=list(dict.fromkeys(sym for group in watch_groups
+                    for sym in group if sym in DHAN_VERIFIED_SYMBOLS
+                    and sym not in ("NIFTY","BANKNIFTY","SENSEX")))[:70]
+                total=len(selected)
+                completed=0
+                for sym in selected:
+                    if (generation!=provider_generation[0] or not app_active[0]
+                            or lifecycle_background[0] or not dhan_feed.connected
+                            or prefs.get("source")!="Dhan"):
+                        break
+                    prior=shared_history(sym,"3m")
+                    if valid_candle_history(prior.get("bars")):
+                        completed+=1
+                        continue
+                    # Do not race the 5m scanner, index worker or manual fetch.
+                    while (dhan_history_scan_active[0] or index_one_minute_busy[0]
+                            or watch_three_minute_warm_busy[0]):
+                        await asyncio.sleep(2)
+                        if (generation!=provider_generation[0] or not app_active[0]
+                                or lifecycle_background[0] or not dhan_feed.connected):
+                            break
+                    if (generation!=provider_generation[0] or not app_active[0]
+                            or lifecycle_background[0] or not dhan_feed.connected):
+                        break
+                    cooldown=dhan_feed.cooldown_remaining("/dhan/intraday")
+                    if cooldown>0:
+                        watch_batch_status[0]=(
+                            f"Watchlist candle bootstrap paused at {completed}/{total}"
+                            f" • Dhan cooldown {cooldown:.0f}s")
+                        request_view_refresh(4)
+                        break
+                    watch_three_minute_warm_busy[0]=True
+                    try:
+                        await asyncio.sleep(1.5)
+                        if (generation!=provider_generation[0] or not app_active[0]
+                                or lifecycle_background[0] or not dhan_feed.connected):
+                            break
+                        data=await asyncio.wait_for(asyncio.to_thread(
+                            get_market_data,sym,"1m","2d"),timeout=25)
+                        if (generation!=provider_generation[0]
+                                or data.get("source")!="Dhan"):
+                            break
+                        data=retain_candle_history(data,shared_history(sym,"1m"),provider="Dhan")
+                        if valid_candle_history(data.get("bars")):
+                            chart_snapshots[(sym,"1m",generation)]=dict(
+                                data,_scanner_timeframe="1m",historical=True,
+                                live_verified=False,freshness="historical_unverified")
+                            completed+=1
+                        watch_batch_status[0]=(
+                            f"Watchlist candle bootstrap {completed}/{total} HIST"
+                            " • sequential Dhan 1m to 3m")
+                        request_view_refresh(4)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        log_error("watch_login_candle_bootstrap",exc)
+                        remember_candle_failure(sym,"1m","login Watchlist bootstrap",exc)
+                        if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                            break
+                    finally:
+                        watch_three_minute_warm_busy[0]=False
+                if generation==provider_generation[0]:
+                    watch_batch_status[0]=(
+                        f"Watchlist candle bootstrap {completed}/{total} HIST"
+                        " • incomplete rows remain WAIT" if completed<total else
+                        f"Watchlist candle bootstrap {completed}/{total} HIST complete")
+                    request_view_refresh(4)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("watch_login_candle_bootstrap_worker",exc)
+    page.run_task(watch_login_candle_bootstrap)
     page.run_task(watch_three_minute_warmup)
     page.run_task(dhan_index_candle_poll)
     page.run_task(watch_visible_tick)
