@@ -65,6 +65,21 @@ with TestClient(app) as client:
 print('CLONE_B2_LOCAL_AUTH_NEGATIVE_TEST=PASS')
 PY
 
+# Oracle SELinux in Enforcing mode refuses init_t execution of user_home_t
+# console scripts. Label only this isolated uvicorn console script executable.
+# Never weaken SELinux globally or relabel the private SSK.
+if [ "$(getenforce 2>/dev/null || true)" = Enforcing ]; then
+  LABEL_RULE='/home/opc/botking-clone-v2-runtime/\\.venv/bin/uvicorn'
+  command -v semanage >/dev/null || { echo 'BLOCKED: SELinux semanage unavailable'; exit 1; }
+  if ! sudo -n semanage fcontext -l -C | grep -Fq "$LABEL_RULE"; then
+    sudo -n semanage fcontext -a -t bin_t "$LABEL_RULE"
+  fi
+  sudo -n restorecon -v "$ROOT/.venv/bin/uvicorn"
+  test "$(stat -c %C "$ROOT/.venv/bin/uvicorn" | cut -d: -f3)" = bin_t || {
+    echo 'BLOCKED: scoped executable SELinux label not applied'; exit 1;
+  }
+fi
+
 TMP_UNIT="$(mktemp)"
 trap 'rm -f "$TMP_UNIT"' EXIT
 cat > "$TMP_UNIT" <<'UNIT'
@@ -78,7 +93,7 @@ User=opc
 Group=opc
 WorkingDirectory=/home/opc/botking-clone-v2-runtime
 Environment=BOTKING_CLONE_V2_SSK_FILE=/home/opc/botking-clone-v2-private/ssk
-ExecStart=/home/opc/botking-clone-v2-runtime/.venv/bin/python -m uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
+ExecStart=/home/opc/botking-clone-v2-runtime/.venv/bin/uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -88,11 +103,20 @@ ProtectSystem=full
 WantedBy=multi-user.target
 UNIT
 sudo -n install -o root -g root -m 0644 "$TMP_UNIT" /etc/systemd/system/botking-clone-v2.service
+sudo -n restorecon /etc/systemd/system/botking-clone-v2.service
 sudo -n systemctl daemon-reload
 sudo -n systemctl enable --now botking-clone-v2.service >/dev/null
-if [ "$(systemctl is-active botking-clone-v2.service)" != "active" ] || \
-   [ "$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8002/clone-v2/health)" != "200" ] || \
-   [ "$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8002/clone-v2/status)" != "403" ]; then
+B2_READY=NO
+for attempt in $(seq 1 20); do
+  if [ "$(curl -s -o /dev/null --max-time 2 -w '%{http_code}' http://127.0.0.1:8002/clone-v2/health || true)" = 200 ]; then
+    B2_READY=YES
+    break
+  fi
+  sleep 1
+done
+if [ "$B2_READY" != YES ] || \
+   [ "$(systemctl is-active botking-clone-v2.service)" != active ] || \
+   [ "$(curl -s -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8002/clone-v2/status || true)" != 403 ]; then
   sudo -n systemctl stop botking-clone-v2.service || true
   sudo -n systemctl disable botking-clone-v2.service || true
   echo 'BLOCKED: clone service validation failed; stopped for review'; exit 1
