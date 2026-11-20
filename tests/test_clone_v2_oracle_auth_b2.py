@@ -105,8 +105,10 @@ class CloneOracleAuthTests(unittest.TestCase):
 
 
     def test_clone_b3_registry_candles_and_options_are_ssk_protected(self):
-        from datetime import date
-        today = date.today().isoformat()
+        from datetime import datetime, timedelta, timezone
+        # Dhan-listed expiries are validated using India exchange calendar day.
+        # GitHub's UTC date can be yesterday during 00:00–05:29 IST.
+        today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date().isoformat()
         class FakeProvider:
             def intraday(self, args):
                 self.assert_args = args
