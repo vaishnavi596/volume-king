@@ -750,7 +750,7 @@ def app_main(page:ft.Page):
         # Defense in depth: never persist pairing or broker secrets, even if
         # a future UI path accidentally inserts one into prefs.
         secret_fields={"api_key","api_secret","access_token","password","totp",
-                       "pairing_key","server_access_key","server_access",
+                       "pairing_key","server_access_key","server_access","api_url",
                        "botking_pairing_key","dhan_token","client_secret"}
         safe={k:v for k,v in prefs.items() if k not in secret_fields}
         result=preference_writer.save(safe)
@@ -3123,9 +3123,13 @@ def app_main(page:ft.Page):
     source=ft.Dropdown(label="Data provider",dense=True,value="Dhan",options=[ft.dropdown.Option("Dhan")])
     broker_names=["Dhan"]
     broker=ft.Dropdown(label="Select Indian API broker",value="Dhan",options=[ft.dropdown.Option("Dhan")])
-    api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
-    server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
-    server_trust=ft.Checkbox(label="Dhan credentials remain on the server",value=False)
+    # Clone acceptance: old server configuration is not an app setting.
+    # Private inert placeholders keep the original V1 handlers importable;
+    # secured V2 gateway enrollment is deliberately NOT added in this phase.
+    prefs.pop("api_url", None)
+    api_url=ft.TextField(value="")
+    server_access=ft.TextField(value="", password=True)
+    server_trust=ft.Checkbox(value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={
         "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
@@ -4251,7 +4255,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
@@ -5746,7 +5750,7 @@ console.log('BOT KING Lightweight Charts ready');
             else:status.value="Invalid value — not saved. Fix the field below.";status.color=RED
             page.update()
         control.on_change=changed
-    bindings=[(mode,"mode"),(source,"source"),(broker,"broker"),(api_url,"api_url"),
+    bindings=[(mode,"mode"),(source,"source"),(broker,"broker"),
         (sl,"stop_loss"),(target,"target"),(limit,"max_trades"),(conf,"confidence"),
         (bot_symbol,"bot_symbol"),(bot_custom,"bot_custom"),(bot_type,"bot_type"),(bot_strike,"bot_strike"),
         (bot_expiry,"bot_expiry"),(bot_expiry_mode,"bot_expiry_mode"),(bot_lots,"bot_lots"),(bot_lot_size,"bot_lot_size"),(bot_premium,"bot_premium"),
