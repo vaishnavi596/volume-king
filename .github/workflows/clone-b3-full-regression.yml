@@ -54,3 +54,5 @@ jobs:
 # B3 joint V1-reference review: run exact-head full regression after seven coordinated repairs 2026-11-21
 
 # Exact-head verification after wrong-provider fail-closed index batch fix 2026-11-21
+
+# Verify final provider-integrity test contract after third gate 2026-11-21
