@@ -162,7 +162,9 @@ class EarlyIndexOneMinuteTests(unittest.TestCase):
         s,calls,_,_,_,_,_=self.fixture()
         s["get_market_data"]=lambda *args:{"source":"Yahoo Finance","bars":[]}
         self.assertEqual(self.invoke(s),0)
-        self.assertEqual(len(self.histories(calls)),1)
+        # A malformed response for one index must not suppress the other two.
+        self.assertEqual([entry[1][0] for entry in self.histories(calls)],
+                         ["NIFTY","BANKNIFTY","SENSEX"])
         self.assertEqual(s["chart_snapshots"],{})
         self.assertFalse(s["index_one_minute_busy"][0])
 
