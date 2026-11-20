@@ -5972,7 +5972,9 @@ console.log('BOT KING Lightweight Charts ready');
                 if tv_view[0] is not None:
                     page.run_task(sync_visible_chart)
             elif current[0] in (0,3):
-                select(current[0])
+                # Keep scan completion off the synchronous Android navigation path.
+                # Coalesce results and avoid a full page rebuild in this worker.
+                request_view_refresh(current[0])
     def bind_saved(control,key):
         field_bindings.append((control,key))
         if key in prefs:control.value=str(prefs[key]) if isinstance(control,(ft.TextField,ft.Dropdown)) else prefs[key]
@@ -6161,6 +6163,10 @@ console.log('BOT KING Lightweight Charts ready');
                 tv_booted[0]=True
                 tv_last_html_load[0]=time.monotonic()
                 page.run_task(tv_load_widget)
+        if changed and i==3 and scan_live.value and not scan_busy[0]:
+            # Opening Scanner starts the selected timeframe immediately instead
+            # of waiting for the previous symbol's auto-refresh deadline.
+            scan_next_refresh[0]=None
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
     # Keep the app chrome inside Android system insets, including cutouts.
