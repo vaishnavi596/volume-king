@@ -1661,3 +1661,10 @@
 
 [SCANNER AUTO CACHE MISS EXACT TEST SHA CI PASS 2026-11-20]
 - Fresh exact test-commit B1 Timeframe Targeted CI #44768690164 at SHA 09b06b1746f4706e87201f3ea54092fc6b894a70 completed SUCCESS. Previous source-commit B1 #44768658074, B2 #44768657727, Adapter #44768657731 all completed SUCCESS at SHA fbe9510eac. No duplicate rerun. This confirms code/test-level fix for after-hours cache-only auto Scanner false ValueError, not manual broker fetch success or a phone-installed APK. Full joint regression/Oracle market proof remains open. https://github.com/vaishnavi596/volume-king/actions/runs/44768690164
+
+
+[SCANNER 2M + CACHE-ONLY WAIT JOINT FULL REGRESSION GATE 2026-11-20]
+- After owner OK, checked latest branch HEAD ea63e2c7 and most recent targeted CI; B1 exact test SHA 09b06b #44768690164 SUCCESS and source-commit B1 #44768658074, B2 #44768657727, Adapter #44768657731 all SUCCESS. No duplicate identical tests.
+- Reviewed src/main.py manual Run Scan path: run_scan() invokes scan_market() with default allow_network=True; get_market_data -> src/server_feed.py intraday; existing after-hours selection change only applies when allow_network=False. Hence new cache-only WAIT fix does NOT establish success for an actual manual /dhan/intraday fetch; genuine failures and SENSEX quote require separately verified runtime Oracle provider responses. No guessing at SENSEX BSE_I/51 or quote values.
+- Triggered ONE existing B3 full offline gate through workflow-only comment in .github/workflows/clone-b3-full-regression.yml commit b786ba720c40157848e37d96a757e351f23e6eaa. GitHub Full Regression run #44769030879 verified in_progress at first check. https://github.com/vaishnavi596/volume-king/actions/runs/44769030879
+- Phone 51-equity HIST success unchanged. No APK started, no server/SSK/V1 changes. Do not call new scanner source full-pass or SENSEX root-cause fixed until CI and read-only Oracle runtime evidence establish it.
