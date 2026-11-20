@@ -6117,6 +6117,8 @@ console.log('BOT KING Lightweight Charts ready');
             while 0<=time.monotonic()-last_scroll_monotonic[0]<1.0:
                 await asyncio.sleep(.25)
         target=refresh_target[0];refresh_pending[0]=False;refresh_target[0]=None
+        # Navigation can invalidate the queued target before this task wakes.
+        if target is None or target!=current[0]:return
         if target==4 and current[0]==4 and watch_list.page is not None:
             # Quotes and filters are repainted by watch_visible_tick in-place.
             # Do not reconstruct page chrome or scrolling rows on data refresh.
