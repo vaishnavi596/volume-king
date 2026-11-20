@@ -44,13 +44,15 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
                             for t in node.targets)]
         self.assertEqual(len(selected), 1)
         expr = selected[0].value
-        self.assertIsInstance(expr, ast.ListComp)
-        values = expr.generators[0].iter
-        self.assertIsInstance(values, ast.Tuple)
-        self.assertEqual(
-            tuple(item.value for item in values.elts),
-            ("NIFTY", "BANKNIFTY", "SENSEX"))
-        self.assertIn('selected.extend(', self.block)
+        self.assertIsInstance(expr, ast.Call)
+        self.assertIsInstance(expr.func, ast.Name)
+        self.assertEqual(expr.func.id,"focused_contexts")
+        indices=next(k.value for k in expr.keywords if k.arg=="indices")
+        self.assertIsInstance(indices,ast.Tuple)
+        self.assertEqual(tuple(item.value for item in indices.elts),
+                         ("NIFTY","BANKNIFTY","SENSEX"))
+        self.assertIn('current[0]', self.block)
+        self.assertNotIn('selected.extend(',self.block)
         self.assertIn('now-oracle_assessment_attempts[key]<180', self.block)
         self.assertIn('dhan_feed.assessment,sym,timeframe=tf,expiry=selected_expiry',
                       self.block)
