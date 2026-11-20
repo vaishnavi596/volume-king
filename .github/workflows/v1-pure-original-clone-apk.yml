@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: Clone index-order corrected phone APK 2.3.137
+run-name: Clone B3 full regression phone APK 2.3.137
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
@@ -127,7 +127,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='137' versionName='2\\.3\\.136'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='137' versionName='2\\.3\\.137'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING B3 DATA CLONE'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
