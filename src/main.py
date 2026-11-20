@@ -2310,10 +2310,21 @@ def app_main(page:ft.Page):
                 if watch_filter[0]!="All":
                     # Only rebuild filtered rows when actual membership changes.
                     # Quote/age changes still repaint existing mounted cells below.
-                    membership=tuple(sym for sym in visible if (
-                        "Bullish" if (counts:=signal_percentages(tick_signals[sym])) is not None and counts[0]>counts[1]
-                        else "Bearish" if counts is not None and counts[1]>counts[0]
-                        else "Neutral") == watch_filter[0])
+                    expected_source={"Broker API":"Angel One","Dhan":"Dhan",
+                                     "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
+                    def filtered_member(sym):
+                        if search.value and search.value.upper() not in sym:return False
+                        signal=tick_signals[sym]
+                        counts=signal_percentages(signal)
+                        stamp=signal.get("timestamp")
+                        valid=(signal.get("timeframe")=="3m" and
+                               signal.get("source")==expected_source and
+                               isinstance(stamp,(int,float)) and not isinstance(stamp,bool) and
+                               math.isfinite(stamp) and stamp>0 and counts is not None)
+                        direction=("Bullish" if counts[0]>counts[1] else
+                                   "Bearish" if counts[1]>counts[0] else "Neutral") if valid else "Neutral"
+                        return direction==watch_filter[0]
+                    membership=tuple(sym for sym in visible if filtered_member(sym))
                     if membership!=last_filtered_membership[0]:
                         last_filtered_membership[0]=membership
                         fill_watch()
@@ -4844,9 +4855,7 @@ console.log('BOT KING Lightweight Charts ready');
         elif not refresh_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
         elif scan_busy[0]:next_text="checking history now"
-        elif prefs.get("source")=="Dhan" and scan_tf.value=="5m":
-            next_text="Automatic • shared candle feed • local check every 2s"
-        elif scan_next_refresh[0] is None:next_text="waiting"
+        elif scan_next_refresh[0] is None:next_text="waiting for selected candle scan"
         else:next_text=str(max(0,int(scan_next_refresh[0]-now)))+" sec"
         scan_age_display.value="Last scan: "+last+" • Candle age: "+candle+"\n"+next_text
     async def scan_age_clock():
