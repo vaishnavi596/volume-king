@@ -1,5 +1,5 @@
 name: BOT KING B3 Two-Way Dhan Clone APK
-run-name: B3 Dhan to Oracle to Android 2.3.133 phone acceptance
+run-name: B3 Dhan to Oracle to Android 2.3.133 full regression and phone APK
 on:
   push:
     branches:
