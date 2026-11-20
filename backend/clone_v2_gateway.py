@@ -113,6 +113,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 "/opt/bot-king-backups/registry-audit/dhan_equity_registry.json")))
     known = dict(registry)
     known.update(indices)
+    # FINNIFTY is an options underlying (Dhan IDX_I/27), not a fourth
+    # dashboard index. Keep it out of the three-index quote/candle lanes.
+    option_known = dict(known)
+    option_known["FINNIFTY"] = ("IDX_I", 27)
     market_lock = threading.Lock()
     market_cache = {}
     last_request = [0.0]
@@ -474,10 +478,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     def market_option_expiries(body: MarketUnderlying,
                                x_botking_key: Optional[str] = Header(default=None)):
         authorized(x_botking_key)
-        if body.symbol not in known or known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
+        if body.symbol not in option_known or option_known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
             raise HTTPException(422, "Unmapped Clone option underlying")
         try:
-            dates = provider().option_expiries(*known[body.symbol])
+            dates = provider().option_expiries(*option_known[body.symbol])
         except HTTPException:
             raise
         except Exception as exc:
@@ -492,8 +496,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     def market_option_chain(body: MarketOptionChain,
                             x_botking_key: Optional[str] = Header(default=None)):
         authorized(x_botking_key)
-        if (body.symbol not in known or
-                known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ") or
+        if (body.symbol not in option_known or
+                option_known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ") or
                 body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
             raise HTTPException(422, "Invalid Clone option underlying or expiry")
         try:
@@ -503,7 +507,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             except ImportError:
                 from dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
                                                  OptionMetricsUnavailable)
-            raw = provider().option_chain(*known[body.symbol], body.expiry.isoformat())
+            raw = provider().option_chain(*option_known[body.symbol], body.expiry.isoformat())
             metrics = calculate_option_metrics(raw)
             raw_data = raw.get("data", {})
             spot = raw_data.get("last_price") if isinstance(raw_data, dict) else None
