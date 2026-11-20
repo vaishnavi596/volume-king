@@ -63,6 +63,9 @@ jobs:
           bash -n ops/provision_clone_dhan_oauth_env.sh
           bash -n ops/provision_clone_from_existing_dhan_oauth.sh
           bash -n ops/audit_v1_dhan_to_clone_handoff.sh
+          bash -n ops/cutover_clone_primary_existing_dhan.sh
+          test -s ops/clone_primary_legacy_dhan_callback_nginx.conf
+          grep -Fq 'location = /dhan/callback' ops/clone_primary_legacy_dhan_callback_nginx.conf
           python3 - <<'PY'
           import ast,pathlib
           gateway=pathlib.Path("backend/clone_v2_gateway.py").read_text()
