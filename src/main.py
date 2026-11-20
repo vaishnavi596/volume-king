@@ -700,7 +700,8 @@ def app_main(page:ft.Page):
         return result
     def timeframe_spec(interval):
         specs={
-            "1m":(60,375,"3–10 minutes"),"3m":(180,125,"6–20 minutes"),
+            "1m":(60,375,"3–10 minutes"),"2m":(120,187.5,"4–15 minutes"),
+            "3m":(180,125,"6–20 minutes"),
             "5m":(300,75,"10–30 minutes"),"15m":(900,25,"30–60 minutes"),
             "30m":(1800,12.5,"1–2 hours"),"1h":(3600,7,"1–3 hours"),
             "1d":(86400,1,"1 trading day")}
