@@ -23,6 +23,10 @@ class CloneB1StatusContract(unittest.TestCase):
         self.assertIn('f"Dhan connected • {received}/{total_symbols} LTP • "', self.source)
         self.assertIn('" LTP • "+session_caption()+', self.source)
 
+    def test_chart_timeframe_selector_matches_derivation(self):
+        self.assertIn('["1m","2m","3m","5m","15m","1h"]', self.source)
+        self.assertIn('source_interval="1m" if interval in ("2m","3m")', self.source)
+
     def test_watchlist_updates_in_place_and_no_fake_live(self):
         self.assertIn('async def watch_visible_tick()', self.source)
         self.assertIn('if current[0]!=4 or not app_active[0]:', self.source)
