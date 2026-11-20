@@ -58,11 +58,11 @@ def safe_error(exc):
         # raw upstream response, URL, access key, or arbitrary provider text.
         clone_diagnostics = {
             "Clone Dhan candles unavailable": "Clone candle gateway unavailable; check Oracle/Dhan route",
-            "Clone Dhan candles HTTP 424": "Dhan authorization required for Clone candles",
-            "Clone Dhan candles HTTP 429": "Clone candle provider cooldown; retry later",
-            "Clone Dhan candles HTTP 422": "Clone candle symbol, interval or date rejected (HTTP 422)",
-            "Clone Dhan candles HTTP 502": "Clone candle upstream unavailable (HTTP 502)",
-            "Clone Dhan candles HTTP 503": "Clone candle upstream unavailable (HTTP 503)",
+            "Clone market candles HTTP 424": "Dhan authorization required for Clone candles",
+            "Clone market candles HTTP 429": "Clone candle provider cooldown; retry later",
+            "Clone market candles HTTP 422": "Clone candle symbol, interval or date rejected (HTTP 422)",
+            "Clone market candles HTTP 502": "Clone candle upstream unavailable (HTTP 502)",
+            "Clone market candles HTTP 503": "Clone candle upstream unavailable (HTTP 503)",
             "Clone candle response not verified": "Clone returned invalid candle data contract",
             "Clone unsupported candle interval": "Clone candle timeframe unsupported",
             "Clone listed option expiries invalid": "Clone option expiry response invalid",
