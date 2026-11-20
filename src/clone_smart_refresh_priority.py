@@ -29,3 +29,23 @@ def focused_contexts(page, *, indices, scanner=None, option=None,
             result.append((surface, sym))
             seen.add((surface, sym))
     return result
+
+
+def priority_equity_batch(watch_symbols, position_symbols, *, verified, limit=70):
+    """One deduplicated <=70 equity roster; open paper positions first.
+
+    A reserved position can displace a watch-only quote when the combined
+    selection exceeds Dhan's maximum. All names must be registry verified;
+    index quotes use their separate existing lane.
+    """
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise ValueError("Invalid equity request budget")
+    permitted = set(verified) - {"NIFTY", "BANKNIFTY", "SENSEX"}
+    result, seen = [], set()
+    for symbol in tuple(position_symbols) + tuple(watch_symbols):
+        if symbol in permitted and symbol not in seen:
+            seen.add(symbol)
+            result.append(symbol)
+            if len(result) >= limit:
+                break
+    return result
