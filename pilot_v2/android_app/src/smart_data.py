@@ -1,9 +1,8 @@
 """Flet V2 app-owned Smart Data policy; computes intent, never polls Dhan."""
 from dataclasses import dataclass
-from datetime import datetime, time
-from zoneinfo import ZoneInfo
+from datetime import datetime, time, timedelta, timezone
 
-IST = ZoneInfo("Asia/Kolkata")
+IST = timezone(timedelta(hours=5, minutes=30), name="IST")
 MARKET_START = time(9, 10)
 MARKET_END = time(15, 45)
 INTERVALS = (180, 300, 600)

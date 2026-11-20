@@ -2,10 +2,9 @@
 import flet as ft
 import base64
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from app_identity import APP_VERSION_NAME, APP_VERSION_CODE
 from app_state import LocalWatchlists, SelectionError
-from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan
+from smart_data import SmartDataSettings, SmartDataError, selected_equity_plan, IST
 from refresh_intent import make_refresh_intent
 from scanner_state import ScannerSelection, ScannerError, selectable_symbols, choose, for_visible_roster
 from feed_inbox import DeviceFeedInbox, FeedError
@@ -728,7 +727,7 @@ def main(page: ft.Page):
         """Prepare request intent only; NEVER fetch or redraw remotely."""
         try:
             intent = make_refresh_intent(
-                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
+                state, smart[0], datetime.now(IST),
                 manual=True, confirmed_session=False)
             manual_refresh_plan[0] = (
                 f"Manual plan · {len(intent.equities)} selected equities"
@@ -755,7 +754,7 @@ def main(page: ft.Page):
             return
         try:
             intent = make_refresh_intent(
-                state, smart[0], datetime.now(ZoneInfo("Asia/Kolkata")),
+                state, smart[0], datetime.now(IST),
                 manual=True, confirmed_session=False)
         except (SmartDataError, ValueError, TypeError):
             status.value = "Manual read-only request unavailable"

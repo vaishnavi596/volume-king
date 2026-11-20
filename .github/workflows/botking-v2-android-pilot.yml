@@ -7,6 +7,9 @@ on:
     paths:
       - .github/workflows/botking-v2-android-pilot.yml
       - 'pilot_v2/tests/test_v2_android_pilot_workflow.py'
+      - 'pilot_v2/tests/test_android_timezone_boot.py'
+      - 'pilot_v2/android_app/src/main.py'
+      - 'pilot_v2/android_app/src/smart_data.py'
   workflow_dispatch:
 permissions:
   contents: read
