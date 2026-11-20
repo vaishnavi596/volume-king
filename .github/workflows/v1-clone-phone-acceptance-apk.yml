@@ -1,0 +1,107 @@
+name: BOT KING V1 Shell Clone Phone Acceptance APK
+run-name: V1 exact shell clone - server settings hidden - phone UI test
+on:
+  push:
+    branches:
+      - pilot/v1-exact-clone-server-settings-only-20261120
+    paths:
+      - .github/workflows/v1-clone-phone-acceptance-apk.yml
+      - src/main.py
+      - pyproject.toml
+      - tests/test_v1_clone_baseline.py
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v1-shell-clone-phone-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  clone-phone-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Flutter 3.24.5 for Flet 0.25
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Check clone source, provider preservation, old settings exclusion
+        run: |
+          set -euo pipefail
+          python -m py_compile src/main.py
+          python -m unittest tests/test_v1_clone_baseline.py -v
+          python - <<'PY'
+          from pathlib import Path
+          import tomllib
+          c=tomllib.loads(Path("pyproject.toml").read_text())
+          assert c["project"]["name"]=="bot-king-v1-clone"
+          assert c["project"]["version"]=="2.3.131"
+          assert c["tool"]["flet"]["org"]=="com.botking.clone"
+          # The original V1 shell still contains its older provider paths.
+          s=Path("src/main.py").read_text()
+          assert "get_yahoo(" in s and "ServerAngelFeed" in s
+          # Never silently enable broker orders in the acceptance APK.
+          assert "Live broker orders OFF" in s or "Live orders OFF" in s
+          print("V1 clone-only gate passed")
+          PY
+      - name: Make independent ephemeral clone test signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v1-clone"
+          PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASS"
+          printf '%s' "$PASS" > "$RUNNER_TEMP/v1-clone/sign-pass"
+          chmod 600 "$RUNNER_TEMP/v1-clone/sign-pass"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v1-clone/test.jks" -storetype PKCS12 -alias v1_clone_test -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V1 CLONE NONPRODUCTION" -storepass "$PASS" -keypass "$PASS"
+      - name: Build distinct V1-shell clone with Flet 0.25.2
+        shell: bash
+        env:
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v1-clone/test.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: v1_clone_test
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-clone/sign-pass")"
+          export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
+          mkdir -p "$GITHUB_WORKSPACE/dist/clone-phone"
+          flet build apk --project bot_king_v1_clone --org com.botking.clone --product 'BOT KING V2 CLONE' --build-number 131 --build-version 2.3.131 --output "$GITHUB_WORKSPACE/dist/clone-phone" --verbose
+      - name: Verify real APK has separate identity and valid signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/clone-phone -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -type f -name apksigner -print | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.botking.clone.bot_king_v1_clone'"
+          printf '%s\n' "$BADGING" | grep -F "application-label:'BOT KING V2 CLONE'"
+          "$SIGNER" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+          echo "CLONE ONLY: no live V2 security or gateway integration is asserted"
+      - name: Upload independent clone phone-acceptance APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V1-SHELL-CLONE-2.3.131-PHONE-TEST
+          path: dist/clone-phone/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/v1-clone"
