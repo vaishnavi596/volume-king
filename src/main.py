@@ -1896,8 +1896,15 @@ def app_main(page:ft.Page):
             watch_batch_status[0]="Dhan reconnect required in Settings"
             request_view_refresh(4)
             return
-        if not all_watch_symbols():
-            # Empty Watchlist: zero equity requests; index lane is separate.
+        from clone_smart_refresh_priority import priority_equity_batch
+        positions=(prefs.get("paper_positions") or {})
+        active_paper=[sym for sym,p in positions.items()
+                      if isinstance(p,dict) and p.get("side") in ("BUY","SELL")]
+        requested_symbols=priority_equity_batch(
+            all_watch_symbols(), active_paper, verified=DHAN_VERIFIED_SYMBOLS)
+        if not requested_symbols:
+            # Empty Watchlist AND no open paper equity: zero requests.
+            # Index lane remains separate.
             selected_batch_issue[0]=""
             dhan_batch_issue[0]=None
             watch_batch_status[0]="No Watchlist equities selected • Dhan equity fetch skipped"
@@ -1913,7 +1920,7 @@ def app_main(page:ft.Page):
         watch_batch_status[0]="Fetching Dhan equity LTP..."
         request_view_refresh(4)
         try:
-            batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())
+            batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,requested_symbols)
             selected_batch_issue[0]=(
                 "Selected batch route unavailable; using legacy 51-equity snapshot"
                 if dhan_feed._selected_batch_missing else "")
@@ -1926,14 +1933,14 @@ def app_main(page:ft.Page):
             # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
             # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
-                if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]) and snapshot["price"]>0:
+                if ticker in requested_symbols and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]) and snapshot["price"]>0:
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
                         candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time())
             # Missing symbols retain their last Dhan price, but must not retain
             # a previously verified-live freshness label after a partial poll.
-            for ticker in all_watch_symbols():
+            for ticker in requested_symbols:
                 snapshot=batch.get(ticker)
                 valid=(isinstance(snapshot,dict) and snapshot.get("source")=="Dhan"
                        and isinstance(snapshot.get("price"),(int,float))
@@ -1941,9 +1948,9 @@ def app_main(page:ft.Page):
                        and math.isfinite(snapshot["price"]) and snapshot["price"]>0)
                 if not valid and (old:=quotes.get(ticker)) and old.get("source")=="Dhan":
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
-            total_symbols=len(all_watch_symbols())
+            total_symbols=len(requested_symbols)
             # A partial batch is not a complete refresh even if older quotes remain cached.
-            received=sum(1 for ticker in all_watch_symbols() if
+            received=sum(1 for ticker in requested_symbols if
                          (snapshot:=batch.get(ticker)) and snapshot.get("source")=="Dhan"
                          and isinstance(snapshot.get("price"),(int,float))
                          and not isinstance(snapshot.get("price"),bool)
