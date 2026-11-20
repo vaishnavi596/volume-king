@@ -16,6 +16,7 @@ SYNC_UNIT=/etc/systemd/system/botking-clone-v2-dhan-sync.service
 SYNC_TIMER=/etc/systemd/system/botking-clone-v2-dhan-sync.timer
 TOKEN_SRC=/etc/bot-king/dhan-token
 TOKEN_DST="$PRIVATE/dhan-token"
+OAUTH_ENV=/etc/bot-king/clone-dhan-oauth.env
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP="$PRIVATE/b3-backup-$STAMP"
 STAGE="$PRIVATE/b3-candidate-$STAMP"
@@ -39,6 +40,31 @@ wait_health() {
 health http://127.0.0.1:8000/health || fail "V1 HTTP"
 health http://127.0.0.1:8002/clone-v2/health || fail "Clone HTTP"
 [[ -f "$PRIVATE/ssk" && -s "$TOKEN_SRC" ]] || fail "SSK or source Dhan token missing"
+# Separate Clone Dhan API app must be registered with its own OAuth callback.
+# Never alter original V1 Dhan developer-app redirect.
+[[ -s "$OAUTH_ENV" && ! -L "$OAUTH_ENV" ]] || fail "Clone OAuth credentials/callback not provisioned"
+[[ "$(stat -c %a "$OAUTH_ENV")" == 600 ]] || fail "Clone OAuth file must be mode 0600"
+[[ "$(stat -c %u "$OAUTH_ENV")" == 0 ]] || fail "Clone OAuth file must be root-owned"
+python3 - "$OAUTH_ENV" <<'PY'
+import sys
+from pathlib import Path
+allowed={"BOTKING_CLONE_DHAN_APP_ID","BOTKING_CLONE_DHAN_APP_SECRET",
+         "BOTKING_CLONE_DHAN_CALLBACK_URL","BOTKING_CLONE_DHAN_CALLBACK_APPROVED"}
+values={}
+for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+    if not line.strip() or line.lstrip().startswith("#"):
+        continue
+    if "=" not in line: raise SystemExit("B3_BLOCKED: Invalid OAuth env line")
+    k,v=line.split("=",1)
+    if k not in allowed or not v or k in values or "\n" in v:
+        raise SystemExit("B3_BLOCKED: Invalid Clone OAuth settings")
+    values[k]=v
+if set(values)!=allowed or values["BOTKING_CLONE_DHAN_CALLBACK_APPROVED"]!="1" or \
+   values["BOTKING_CLONE_DHAN_CALLBACK_URL"]!= \
+   "https://botkingrajesh.duckdns.org/clone-v2/dhan/callback":
+    raise SystemExit("B3_BLOCKED: Clone OAuth callback not approved")
+print("B3_CLONE_OAUTH_SEPARATE_CALLBACK=APPROVED")
+PY
 for target in "$DROP" "$ENVFILE" "$SYNC" "$SYNC_UNIT" "$SYNC_TIMER"; do
   [[ ! -e "$target" ]] || fail "B3 already installed; review existing files"
 done
@@ -112,7 +138,9 @@ set -euo pipefail
 source_file=/etc/bot-king/dhan-token
 dest_file=/home/opc/botking-clone-v2-private/dhan-token
 test -s "$source_file"
-if ! cmp -s "$source_file" "$dest_file"; then
+# Clone Dhan browser-consent token is authoritative after callback.
+# Legacy file is only an initial seed, NEVER overwrite a newer consent token.
+if [[ ! -s "$dest_file" ]]; then
   install -o opc -g opc -m 0600 "$source_file" "$dest_file"
 fi
 EOS
@@ -140,6 +168,7 @@ EOS
 cat > "$DROP" <<'EOS'
 [Service]
 EnvironmentFile=/etc/bot-king/clone-v2-dhan-client.env
+EnvironmentFile=/etc/bot-king/clone-dhan-oauth.env
 Environment=BOTKING_CLONE_DHAN_TOKEN_FILE=/home/opc/botking-clone-v2-private/dhan-token
 EOS
 restorecon "$ROOT/"clone_v2_gateway.py "$ROOT/"dhan_feed.py "$ROOT/"dhan_option_metrics.py "$DROP" "$ENVFILE" "$TOKEN_DST" 2>/dev/null || true
@@ -150,8 +179,9 @@ wait_health http://127.0.0.1:8002/clone-v2/health 25 || fail "Clone B3 failed re
 health http://127.0.0.1:8000/health
 [[ "$(systemctl is-active bot-king.service)" == active ]] || fail "V1 status changed"
 [[ "$(systemctl is-active botking-clone-v2.service)" == active ]] || fail "B3 service inactive"
+set +e
 python3 - <<'PY'
-import http.client,json,math
+import http.client,json,math,sys
 from pathlib import Path
 key=Path("/home/opc/botking-clone-v2-private/ssk").read_text().strip()
 def probe(method,path,data=None,secret=None):
@@ -169,14 +199,10 @@ assert probe("GET","/clone-v2/status",secret="wrong")[0]==403
 assert probe("GET","/clone-v2/status",secret=key)[0]==200
 status,body=probe("POST","/clone-v2/market/quotes",{"symbols":["NIFTY"]},key)
 print("B3_NIFTY_UPSTREAM_HTTP="+str(status))
+if status==424:
+    print("B3_DHAN_BROWSER_REAUTH_REQUIRED=YES")
+    sys.exit(24)
 if status!=200:
-    # Only the backend-owned fixed, allowlisted error detail is printed.
-    # Never echo Dhan raw responses, HTTP headers, tokens or client IDs.
-    conn=http.client.HTTPConnection("127.0.0.1",8002,timeout=8)
-    conn.request("GET","/clone-v2/health")
-    ready=conn.getresponse().status
-    conn.close()
-    print("B3_GATEWAY_PROCESS_HTTP="+str(ready))
     raise RuntimeError("No verified Dhan provider response; rollback required")
 row=body.get("quotes",{}).get("NIFTY")
 price=row.get("ltp") if isinstance(row,dict) else None
@@ -185,9 +211,22 @@ assert (body.get("source")=="dhan" and body.get("live_orders_enabled") is False
 print("B3_DHAN_TWO_WAY_QUOTE=PASS")
 print("B3_SSK_NEGATIVE_POSITIVE=PASS")
 PY
+RESULT=$?
+set -e
+if [[ "$RESULT" == 24 ]]; then
+  # Authentication needed is expected while owner completes Dhan login.
+  # Gateway is running but real provider-data acceptance is PENDING.
+  echo "B3_ORACLE_GATEWAY=AUTH_REQUIRED"
+  echo "B3_DHAN_REAL_QUOTES=PENDING"
+elif [[ "$RESULT" == 0 ]]; then
+  echo "B3_ORACLE_GATEWAY=PASS"
+  echo "B3_DHAN_REAL_QUOTES=PASS"
+else
+  # A broken gateway or a non-auth upstream failure is a hard rollback gate.
+  false
+fi
 trap - ERR
 echo "B3_ORACLE_SOURCE_COMMIT=$SHA"
-echo "B3_DHAN_ORACLE_GATEWAY=PASS"
 echo "B3_V1_UNCHANGED=PASS"
-echo "B3_TOKEN_SYNC_TIMER=ENABLED"
+echo "B3_TOKEN_SYNC_TIMER=INITIAL_SEED_ONLY"
 echo "B3_PHONE_DATA_ACCEPTANCE=PENDING"
