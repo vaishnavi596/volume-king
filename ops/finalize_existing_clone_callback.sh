@@ -59,10 +59,10 @@ for p in files:
 if len(targets)!=1:
     raise SystemExit("CALLBACK_BLOCKED=EXPECTED_ONE_EXISTING_HOST_CALLBACK_FOUND_"+str(len(targets)))
 p,s,start,end,block=targets[0]
-proxy=re.findall(r'(?m)^\s*proxy_pass\s+(http://127\.0\.0\.1:(?:8000|8002))\s*;',block)
+proxy=re.findall(r'(?m)^\s*proxy_pass\s+(http://127\.0\.0\.1:(?:8000|8002)(?:/dhan/callback)?)\s*;',block)
 if len(proxy)!=1:
     raise SystemExit("CALLBACK_BLOCKED=UNRECOGNIZED_CALLBACK_PROXY")
-if proxy[0].endswith(":8002"):
+if re.match(r"^http://127\.0\.0\.1:8002(?:/dhan/callback)?$", proxy[0]):
     print("CALLBACK_ROUTE_ALREADY_CLONE=YES")
 else:
     newblock=block.replace("http://127.0.0.1:8000","http://127.0.0.1:8002")
