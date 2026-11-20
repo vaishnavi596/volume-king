@@ -144,6 +144,8 @@ class CloneV2Gateway:
             if exc.code in (401, 403):
                 self.disconnect()
                 raise FeedError("Clone market session rejected; reconnect") from None
+            if exc.code == 424:
+                raise FeedError("Dhan authorization required. Use Authorize Dhan in Browser (Clone), then SSK Connect") from None
             if exc.code == 429:
                 raise FeedError("Clone Dhan quote lane paced; retry later") from None
             raise FeedError("Clone market route not ready (HTTP " + str(exc.code) + ")") from None
