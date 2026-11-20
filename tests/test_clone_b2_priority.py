@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from clone_smart_refresh_priority import focused_contexts
+from clone_smart_refresh_priority import focused_contexts, priority_equity_batch
 
 
 class TestB2Priority(unittest.TestCase):
@@ -35,6 +35,23 @@ class TestB2Priority(unittest.TestCase):
         self.assertIn('if current[0]!=3:', source)
         self.assertIn('scan_next_refresh[0]=None', source)
         self.assertIn('await asyncio.sleep(2 if app_active[0] and current[0] in (0,3) else 30)',source)
+
+    def test_priority_quotes_include_positions_even_outside_watchlist(self):
+        self.assertEqual(
+            priority_equity_batch(["HDFCBANK","RELIANCE"], ["TCS","RELIANCE"],
+                                  verified={"TCS","RELIANCE","HDFCBANK","NIFTY"}),
+            ["TCS","RELIANCE","HDFCBANK"])
+        self.assertEqual(priority_equity_batch([],[],verified={"RELIANCE"}),[])
+
+    def test_quote_budget_dedup_indices_and_cap(self):
+        self.assertEqual(priority_equity_batch(["RELIANCE","HDFCBANK"],
+                                               ["NIFTY","TCS","TCS"],
+                                               verified={"NIFTY","TCS","RELIANCE","HDFCBANK"},
+                                               limit=2),["TCS","RELIANCE"])
+        source=(ROOT/"src/main.py").read_text()
+        self.assertIn('requested_symbols=priority_equity_batch(',source)
+        self.assertIn('dhan_feed.equity_quotes_for_watchlist,requested_symbols',source)
+        self.assertIn('if not requested_symbols:',source)
 
     def test_chart_only_assessment_skipped_no_wrong_timeframe(self):
         source=(ROOT/"src/main.py").read_text()
