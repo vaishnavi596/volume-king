@@ -315,6 +315,7 @@ def app_main(page:ft.Page):
     oracle_assessment_cache_generation=[provider_generation[0]]
     oracle_assessment_closed_bootstrap_generation=[None]
     oracle_assessment_watch_cursor=[0]  # One selected equity per poll cycle.
+    oracle_assessment_closed_watch_attempts={}  # Bounded 3m reads, per login generation.
 
     def oracle_assessment_context(symbol,surface="overview"):
         """Keep source context tied to the rendering surface, never a global scanner."""
@@ -7070,10 +7071,16 @@ console.log('BOT KING Lightweight Charts ready');
                     # login generation; no continuing 180s post-close polling.
                     market_window=refresh_hours()
                     if not market_window:
-                        if oracle_assessment_closed_bootstrap_generation[0]==generation:
+                        bootstrap_done=(oracle_assessment_closed_bootstrap_generation[0]==generation)
+                        # Bootstrap may have happened on Home before Watchlist opened.
+                        # Permit at most three distinct Watchlist 3m reads per login;
+                        # never restore perpetual closed-market polling.
+                        if bootstrap_done and (current[0]!=4 or
+                                len(oracle_assessment_closed_watch_attempts.get(generation,set()))>=3):
                             await asyncio.sleep(15)
                             continue
-                        oracle_assessment_closed_bootstrap_generation[0]=generation
+                        if not bootstrap_done:
+                            oracle_assessment_closed_bootstrap_generation[0]=generation
                     # Only a handful of selected symbols; preserve per-view context
                     # without fanout to every Watchlist equity or extra Dhan history.
                     # Dashboard indexes need their own 1m Assessment context,
@@ -7128,6 +7135,13 @@ console.log('BOT KING Lightweight Charts ready');
                                 and now-oracle_assessment_attempts[key]<180):
                             continue
                         oracle_assessment_attempts[key]=now
+                        if not market_window and current[0]==4 and tf=="3m":
+                            tried=oracle_assessment_closed_watch_attempts.setdefault(generation,set())
+                            if sym in tried or len(tried)>=3:
+                                continue
+                            tried.add(sym)
+                        elif not market_window and bootstrap_done:
+                            continue  # Late Watchlist recovery cannot poll other lanes.
                         try:
                             data=await asyncio.to_thread(
                                 dhan_feed.assessment,sym,timeframe=tf,expiry=selected_expiry)
