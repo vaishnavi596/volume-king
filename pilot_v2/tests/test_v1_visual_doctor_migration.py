@@ -28,6 +28,40 @@ class V1VisualDoctorMigration(unittest.TestCase):
             self.assertNotIn("Yahoo", source)
             self.assertNotIn("Angel One", source)
 
+    def test_v1_clone_preflight_excludes_three_legacy_settings_families(self):
+        """Do not copy V1 Angel/Yahoo/server-controlled settings into V2.
+
+        The authenticated Oracle data transport is deliberately NOT blocked:
+        only legacy UI/provider settings and direct broker connectors are.
+        """
+        for name in ("main.py", "v1_visual_style.py", "local_help_doctor.py"):
+            source = (ROOT / name).read_text(encoding="utf-8")
+            tree = ast.parse(source, filename=name)
+            imports = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imports.extend(alias.name.lower() for alias in node.names)
+                elif isinstance(node, ast.ImportFrom):
+                    imports.append((node.module or "").lower())
+            for banned in ("market_feed", "server_feed", "yfinance",
+                           "yahoo_fin", "angel_one", "smartapi",
+                           "secure_credentials"):
+                self.assertFalse(any(banned in item for item in imports),
+                                 (name, banned))
+            # Check the executable source, not historical comments or
+            # unrelated descriptions of the intentionally absent features.
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name):
+                    self.assertNotIn(node.id.lower(),
+                                     {"serverangelfeed", "get_yahoo",
+                                      "angelone", "yfinance",
+                                      "server_settings", "server_base_url"},
+                                     (name, node.id))
+        main_source = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertNotRegex(main_source, r"(?i)\\b(?:angel|yahoo|yfinance)\\b")
+        self.assertIn("SmartDataSettings", main_source)
+        self.assertIn("LocalWatchlists", main_source)
+
     def test_v1_color_tokens_and_readable_size(self):
         self.assertEqual(style.BG, "#080F18")
         self.assertEqual(style.GOLD, "#E9B949")
