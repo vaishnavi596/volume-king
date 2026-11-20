@@ -5664,13 +5664,19 @@ console.log('BOT KING Lightweight Charts ready');
             sym=scan_symbol.value or "NIFTY"
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
-            # Intraday history depends on the connected broker feed.
-            if interval in ("1m","2m","3m") and period!="7d":
-                raise ValueError("Broker 1m history may be limited. Select 7d.")
-            if interval=="5m" and period=="3mo":
-                raise ValueError("Broker 5m candles may not cover 3 months. Choose 7d or 1mo.")
-            if interval in ("5m","15m","30m") and period=="3mo":
-                raise ValueError("Broker intraday history may be limited. Choose 7d or 1mo.")
+            # Normalize legacy scanner period preferences before the request.
+            # Dhan intraday uses a bounded recent history window regardless of
+            # old 1mo/3mo labels; a stale preference must not throw ValueError
+            # and prevent an otherwise valid 1m/2m/3m candle fetch.
+            if prefs.get("source")=="Dhan" and interval in ("1m","2m","3m"):
+                if period!="7d":
+                    period="7d"
+                    scan_period.value=period
+                    prefs["scanner_period"]=period
+            elif prefs.get("source")=="Dhan" and interval in ("5m","15m","30m") and period=="3mo":
+                period="7d"
+                scan_period.value=period
+                prefs["scanner_period"]=period
             stage="candle fetch"
             if not allow_network and prefs.get("source")=="Dhan":
                 # Explicit after-hours selection reuses cached same-symbol and
