@@ -4592,6 +4592,9 @@ def app_main(page:ft.Page):
     tv_context=[None];tv_ready=[False];tv_js_view=[None];tv_history=[[]];tv_pending=[None];tv_limit=[300]
     tv_last_html_load=[0.0];tv_mount_retries=[0]
     tv_native_fallback=[False]  # Native chart remains usable if WebView is blank.
+    # flet-webview control is not registered on the observed Android runtime.
+    # Do not instantiate it until an APK packaging smoke test proves support.
+    embedded_lightweight_supported=False
     def lightweight_payload(bars):
         import math
         rows={}
@@ -5427,7 +5430,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
-            if chart_provider[0]=="TradingView Lightweight" and not tv_native_fallback[0] and False:
+            if chart_provider[0]=="TradingView Lightweight" and embedded_lightweight_supported and not tv_native_fallback[0]:
                 # Keep detailed overlay guidance in Central filters / help.
                 # On the Scanner screen the chart should take priority over captions.
                 parts.append(note("OHLC history • EMA 9/21 overlay • other filters: analysis only"))
@@ -5443,6 +5446,9 @@ console.log('BOT KING Lightweight Charts ready');
                 parts.append(ft.Row([ft.TextButton("Retry chart",on_click=tv_retry),ft.TextButton("Open in browser",on_click=lambda e: page.launch_url(tradingview_url(sym)))],wrap=True))
                 parts.append(note("If chart loading fails, select BOT KING / Broker from Chart provider."))
                 return section("LIGHTWEIGHT CHART • "+sym,ft.Column(parts,spacing=4))
+            if chart_provider[0]=="TradingView Lightweight" and not embedded_lightweight_supported:
+                parts.append(note("Embedded TradingView unavailable in this Android build • native Dhan candles shown instead"))
+                parts.append(ft.TextButton("Open TradingView in browser",on_click=lambda e:page.launch_url(tradingview_url(sym))))
             if tv_native_fallback[0]:
                 parts.append(note("Android WebView unavailable • native candles restored from same Dhan history"))
                 parts.append(ft.TextButton("Retry Lightweight chart",on_click=tv_retry))
