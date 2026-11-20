@@ -37,7 +37,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BASE="$(git rev-parse HEAD~2)"
+          git fetch --no-tags origin fix/botking-joint-audit-70-15-20261115
+          BASE="$(git rev-parse FETCH_HEAD)"
           test "$(git hash-object src/main.py)" = "2cb4fa2421af117742aa1db3f04ecf22af33a4f8"
           mapfile -t MODIFIED < <(git diff --name-only "$BASE" HEAD)
           printf 'Files changed from original V1 base:\n%s\n' "${MODIFIED[*]}"
