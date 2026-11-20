@@ -57,9 +57,9 @@ jobs:
           python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
           python3 -m unittest discover -s tests -p 'test_clone_v2_oracle_auth_b2.py' -v
           python3 -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
+          python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           python3 -m unittest discover -s tests -p 'test_remaining_filter_batch.py' -v
           bash -n ops/install_clone_v2_b3_oracle.sh
-          python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           python3 -m unittest discover -s tests -v
           echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
 
