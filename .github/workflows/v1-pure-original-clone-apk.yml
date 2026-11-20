@@ -1,5 +1,5 @@
-name: BOT KING B2 SSK Clone Phone APK
-run-name: B2 SSK Clone 2.3.132 phone acceptance
+name: BOT KING B3 Two-Way Dhan Clone APK
+run-name: B3 Dhan to Oracle to Android 2.3.133 phone acceptance
 on:
   push:
     branches:
@@ -33,7 +33,7 @@ jobs:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
-      - name: Validate exact Clone B2 login contract and unchanged V1 server
+      - name: Validate B2 SSK and B3 Dhan two-way data contract before APK
         shell: bash
         run: |
           set -euo pipefail
@@ -44,19 +44,22 @@ jobs:
           backend=pathlib.Path("backend/clone_v2_gateway.py").read_text()
           for p in ("src/main.py","src/clone_v2_gateway.py","backend/clone_v2_gateway.py"):
               ast.parse(pathlib.Path(p).read_text(),filename=p)
-          for marker in ("CloneV2Gateway", "Connect Clone V2 (SSK)", "Disconnect Clone V2"):
+          for marker in ("CloneV2Gateway", "Connect Clone V2 (SSK)", "Disconnect Clone V2", "CloneDhanReadOnly", "dhan_feed.activate_with_quote", "Check Clone B3 Dhan Quotes"):
               assert marker in main, marker
-          for marker in ('/clone-v2/status', 'X-BotKing-Key', 'botking-clone-v2'):
+          for marker in ('/clone-v2/status', 'X-BotKing-Key', 'botking-clone-v2', '/clone-v2/market/quotes', '/clone-v2/market/'):
               assert marker in client, marker
-          for marker in ('/clone-v2/status', '/clone-v2/health', 'live_orders_enabled'):
+          for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
               assert marker in backend, marker
           p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          assert p["project"]["version"] == "2.3.132"
-          print("CLONE_B2_SOURCE_CONTRACT=PASS")
+          assert p["project"]["version"] == "2.3.133"
+          print("CLONE_B3_SOURCE_CONTRACT=PASS")
           PY
           python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
           python3 -m unittest discover -s tests -p 'test_clone_v2_oracle_auth_b2.py' -v
           python3 -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
+          python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+          python3 -m unittest discover -s tests -v
+          echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
 
       - name: Create isolated phone-test signing certificate
         shell: bash
@@ -66,7 +69,7 @@ jobs:
           SIGN_PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$SIGN_PASS"
           printf "%s" "$SIGN_PASS" > "$RUNNER_TEMP/v1-pure-sign/password"
-          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v1-pure-sign/clone.jks" -storetype PKCS12 -alias v1_pure -keyalg RSA -keysize 3072 -validity 180 -dname "CN=BOT KING B2 CLONE TEST" -storepass "$SIGN_PASS" -keypass "$SIGN_PASS"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v1-pure-sign/clone.jks" -storetype PKCS12 -alias v1_pure -keyalg RSA -keysize 3072 -validity 180 -dname "CN=BOT KING B3 CLONE TEST" -storepass "$SIGN_PASS" -keypass "$SIGN_PASS"
       - name: Build separate Android identity with original full V1 application
         env:
           FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v1-pure-sign/clone.jks
@@ -77,9 +80,9 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-pure-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.132'\n" > src/_build_version.py
+          printf "BUILD_VERSION = '2.3.133'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
-          flet build apk --project bot_king_v1_pure_clone --org com.botking.clone --product "BOT KING B2 SSK CLONE" --build-number 132 --build-version 2.3.132 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.clone --product "BOT KING B3 DATA CLONE" --build-number 133 --build-version 2.3.133 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -91,17 +94,17 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='132' versionName='2\\.3\\.132'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING B2 SSK CLONE'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='133' versionName='2\\.3\\.132'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING B3 DATA CLONE'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
       - name: Remove ephemeral signer material
         if: always()
         run: rm -rf "$RUNNER_TEMP/v1-pure-sign"
-      - name: Upload B2 SSK clone phone-test APK
+      - name: Upload B3 Dhan two-way clone phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-B2-SSK-CLONE-2.3.132-PHONE-APK
+          name: BOT-KING-B3-DHAN-DATA-CLONE-2.3.133-PHONE-APK
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
