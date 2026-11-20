@@ -328,9 +328,13 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 raise
             except Exception as exc:
                 try:
-                    from .dhan_feed import DhanRateLimitError
+                    from .dhan_feed import DhanRateLimitError, DhanFeedError
                 except ImportError:
-                    from dhan_feed import DhanRateLimitError
+                    from dhan_feed import DhanRateLimitError, DhanFeedError
+                if (isinstance(exc, DhanFeedError) and
+                        "token expired or data access not entitled" in str(exc)):
+                    raise HTTPException(
+                        424, "Dhan browser authorization or data permission required") from None
                 if isinstance(exc, DhanRateLimitError):
                     provider_cooldown_until[0] = time.monotonic() + 30
                     raise HTTPException(429, "Clone Dhan quota cooldown",
