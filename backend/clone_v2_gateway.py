@@ -95,7 +95,8 @@ def load_equity_registry(path):
         return {}
 
 
-def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None):
+def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None,
+               consent_config_factory=None):
     """Fail closed at startup if owner has not provisioned a protected key."""
     if key_bytes is None:
         key_bytes = private_ssk(os.environ.get(KEY_ENV))
@@ -124,6 +125,14 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     consent_cooldown_until = [0.0]
 
     def clone_oauth_config():
+        if consent_config_factory is not None:
+            return consent_config_factory()
+        if os.environ.get("BOTKING_CLONE_DHAN_CALLBACK_APPROVED") != "1":
+            raise HTTPException(503, "Clone Dhan callback not approved")
+        callback = os.environ.get("BOTKING_CLONE_DHAN_CALLBACK_URL", "")
+        expected = ("https://botkingrajesh.duckdns.org/clone-v2/dhan/callback")
+        if callback != expected:
+            raise HTTPException(503, "Clone Dhan callback URL not configured")
         client = os.environ.get("DHAN_CLIENT_ID", "").strip()
         app_id = os.environ.get("BOTKING_CLONE_DHAN_APP_ID", "").strip()
         secret = os.environ.get("BOTKING_CLONE_DHAN_APP_SECRET", "").strip()
