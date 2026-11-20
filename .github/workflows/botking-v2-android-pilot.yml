@@ -1,5 +1,5 @@
 name: BOT KING V2 Isolated Android Pilot APK
-run-name: V2 offline pilot APK (separate package, no server activation)
+run-name: V2 isolated APK build and real-binary proof (non-live)
 on:
   push:
     branches:
@@ -72,9 +72,10 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/botking-v2-only/sign-pass")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           mkdir -p "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate"
+          flet --version
           cd pilot_v2/android_app
           # Explicit --project, not old project.name, controls Android applicationId.
-          flet build apk --project bot_king_v2 --org com.botking --product 'BOT KING V2' --build-number 100 --build-version 2.0.100 --output "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate" --yes
+          flet build apk --project bot_king_v2 --org com.botking --product 'BOT KING V2' --build-number 100 --build-version 2.0.100 --output "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate" --yes --verbose
       - name: Inspect real Android APK metadata and signer before publishing
         shell: bash
         run: |
