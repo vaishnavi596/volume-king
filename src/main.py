@@ -4557,7 +4557,7 @@ def app_main(page:ft.Page):
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
             return ("Dhan listed option-chain context required for Scanner symbol; "
-                    "unverified OI/Max Pain is display-only, never a directional vote")
+                    "unverified OI/Max Pain is display-only and never vote")
         if name=="News Headlines":
             return "News context ON when selected • cached headlines only; no directional vote"
         if name in ("Volume","VWAP"):
