@@ -1,0 +1,28 @@
+name: BOT KING CLONE B2 Smart Priority Tests
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/clone-b2-smart-priority-tests.yml
+      - src/main.py
+      - src/clone_smart_refresh_priority.py
+      - tests/test_clone_b2_priority.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  b2-priority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile source and priority tests
+        run: |
+          python -m py_compile src/main.py src/clone_smart_refresh_priority.py tests/test_clone_b2_priority.py
+      - name: Run B2 focus contract regression
+        run: |
+          python -m unittest discover -s tests -p 'test_clone_b2_*.py' -v
