@@ -48,6 +48,12 @@ class OriginalV1FeaturePreservation(unittest.TestCase):
         self.assertIn("refresh_selected_options", section)
         self.assertNotIn("option_dates(chain_symbol.value)", section)
 
+    def test_option_source_caption_matches_verified_entitlements(self):
+        self.assertIn("broker-listed option metrics only for verified, entitled underlyings", MAIN)
+        self.assertNotIn("and NIFTY option metrics. Option freshness", MAIN)
+        self.assertIn('dhan_feed.option_expiries,sym', MAIN)
+        self.assertIn('dhan_feed.option_chain_metrics,sym,chosen', MAIN)
+
     def test_historical_data_not_labeled_live(self):
         self.assertIn('freshness="historical_unverified"', MAIN)
         self.assertIn("live_verified=False", MAIN)
