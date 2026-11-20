@@ -11,8 +11,11 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
     def setup_app(self):
         page, v = start({"source": "Dhan", "scanner_symbol": "TCS",
                          "scanner_timeframe": "5m", "scanner_live": True})
-        v["dhan_feed"]._origin = "https://example.invalid"
-        v["dhan_feed"]._pairing_key = "test-only"
+        # Synthetic offline Clone B3 authorization evidence. Neither SSK nor
+        # provider is contacted; runtime tests exercise local UI calculations.
+        v["clone_v2_gateway"]._origin = "https://example.invalid"
+        v["clone_v2_gateway"]._key = "test-only"
+        v["dhan_feed"].activate_with_quote({"NIFTY": 100.0})
         end = int(time.time()) // 300 * 300 - 300
         bars = [[end-(59-i)*300,100+i,102+i,99+i,101+i,1000] for i in range(60)]
         for sym in DHAN_VERIFIED_SYMBOLS:
