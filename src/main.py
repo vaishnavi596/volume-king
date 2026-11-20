@@ -5259,7 +5259,7 @@ console.log('BOT KING Lightweight Charts ready');
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
-        while (scan_live.value or prefs.get("source")=="Dhan") and generation==scan_auto_generation[0]:
+        while scan_live.value and generation==scan_auto_generation[0]:
             # Dhan already has one shared historical scan scheduler (refresh_market).
             # Never run a second automatic selected-symbol scanner alongside it.
             if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):
