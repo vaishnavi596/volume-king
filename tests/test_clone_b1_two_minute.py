@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from dhan_two_minute import completed_two_minute_bars
+from scanner_engine import analyze
 
 IST = timezone(timedelta(hours=5, minutes=30))
 START = int(datetime(2026, 11, 20, 9, 15, tzinfo=IST).timestamp())
@@ -39,6 +40,23 @@ class TwoMinuteContract(unittest.TestCase):
                                                    now_epoch=START+240), [])
         self.assertEqual(completed_two_minute_bars([minute(374), minute(375)],
                                                    now_epoch=START+380*60), [])
+
+    def test_completed_two_minute_series_reaches_scanner_analysis(self):
+        candles = [minute(i) for i in range(80)]
+        derived = completed_two_minute_bars(candles, now_epoch=START + 80*60)
+        self.assertEqual(len(derived), 40)
+        result = analyze(derived, selected=["EMA 9/21", "RSI 14", "MACD", "Supertrend"], timeframe="2m")
+        self.assertEqual(result["timeframe"], "2m")
+        self.assertEqual(result["count"], 40)
+        self.assertNotEqual(result["reason"], "Unsupported candle timeframe")
+        self.assertEqual(result["timestamp"], derived[-1][0])
+
+    def test_two_minute_spacing_gap_fails_closed(self):
+        derived = completed_two_minute_bars([minute(i) for i in range(80)], now_epoch=START + 80*60)
+        gap = derived[:15] + derived[16:]
+        result = analyze(gap, selected=["EMA 9/21"], timeframe="2m")
+        self.assertEqual(result["bias"], "WAIT")
+        self.assertEqual(result["reason"], "Irregular candle spacing within trading session")
 
     def test_scanner_routes_2m_via_1m_and_separate_timeframe_cache(self):
         source=Path(__file__).resolve().parents[1].joinpath("src/main.py").read_text()
