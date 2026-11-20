@@ -48,7 +48,9 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
                "scan_last_success":[2],"scan_last_candle":[5],
                "selected_report_identity":["old"],"scan_filter_ready":[True],
                "scan_shared":{},"scan_busy":[False],
-               "watch_signal_cache":{},"save":lambda:actions.append("save"),
+               "watch_signal_cache":{},
+               "request_view_refresh":lambda tab:actions.append(("view_refresh",tab)),
+               "save":lambda:actions.append("save"),
                "card":lambda obj:obj,"note":lambda msg:msg,
                "select":lambda tab:actions.append(("select",tab)),
                "scan_market":market,"refresh_hours":lambda:True}
