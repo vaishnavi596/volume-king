@@ -13,6 +13,7 @@ class V2AndroidPilotBuildContractTests(unittest.TestCase):
                          "com.botking", "com.botking.bot_king_v2",
                          "versionCode='100'", "versionName='2\\.0\\.100'",
                          "flet==0.25.2", "flet-cli==0.25.2",
+                         "subosito/flutter-action@v2", "flutter-version: '3.24.5'",
                          "python -m unittest discover", "apksigner",
                          "aapt", "upload-artifact@v4",
                          "bot-king-v2-offline-pilot-apk-2.0.100"):
