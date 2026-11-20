@@ -4567,7 +4567,10 @@ def app_main(page:ft.Page):
             filter_selected.remove(name)
             filter_feedback.value="Removed "+name+" • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
             store_filters()
-            # Defer expensive full scanner tree reconstruction outside tap handler.
+            # Update only the mounted picker immediately; the expensive page
+            # reconstruction stays deferred. Removed filters must be selectable.
+            filter_choice.options=[ft.dropdown.Option(x) for x in filter_names if x not in filter_selected]
+            if filter_choice.page is not None:filter_choice.update()
             request_view_refresh(current[0])
             if not scan_busy[0]:trigger_scan()
     def add_filter_slot(name):
