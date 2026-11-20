@@ -1,0 +1,87 @@
+name: BOT KING V1 Pure Original Clone APK
+run-name: Pure original V1 clone 2.3.132 phone test
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v1-pure-original-clone-apk.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v1-pure-original-clone-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Prove whole original V1 source tree unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$(git rev-parse HEAD~2)"
+          test "$(git hash-object src/main.py)" = "2cb4fa2421af117742aa1db3f04ecf22af33a4f8"
+          mapfile -t MODIFIED < <(git diff --name-only "$BASE" HEAD)
+          printf 'Files changed from original V1 base:\n%s\n' "${MODIFIED[*]}"
+          test "${#MODIFIED[@]}" -eq 2
+          test "${MODIFIED[0]}" = ".github/workflows/v1-pure-original-clone-apk.yml"
+          test "${MODIFIED[1]}" = "pyproject.toml"
+          python - <<'PY'
+          import ast,tomllib,pathlib
+          p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          assert p["project"]["name"]=="bot-king"
+          assert p["project"]["version"]=="2.3.132"
+          s=pathlib.Path("src/main.py").read_text()
+          ast.parse(s)
+          for x in ("ServerAngelFeed", "ServerDhanReadOnly", "get_yahoo(", "server_access=ft.TextField(", "api_url=ft.TextField(", "server_trust=ft.Checkbox(", "def watchlist():", "def super_five_card():"):
+              assert x in s,x
+          print("PASS: Original V1 code/feature tree unchanged; only clone version and build workflow differ")
+          PY
+      - name: Build separate Android identity with original full V1 application
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          printf "BUILD_VERSION = '2.3.132'\n" > src/_build_version.py
+          mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.clone --product "BOT KING V1 PURE CLONE" --build-number 132 --build-version 2.3.132 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+      - name: Inspect actual resulting signed Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v1-pure -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='132' versionName='2\\.3\\.132'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V1 PURE CLONE'"
+          "$SIGNER" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+      - name: Upload fresh V1 original source clone phone APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V1-PURE-ORIGINAL-CLONE-2.3.132-PHONE-APK
+          path: dist/v1-pure/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
