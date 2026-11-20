@@ -140,3 +140,101 @@ class CloneV2Gateway:
             raise FeedError("Clone V2 gateway authorization not verified")
         self._origin, self._key = origin, key
         return {"status": "connected_read_only", "live_market_data_verified": False}
+
+
+class CloneDhanReadOnly:
+    """B3 market-data bridge. No legacy /dhan or /v2 endpoint ever contacted."""
+
+    def __init__(self, gateway):
+        self.gateway = gateway
+        self._verified_dynamic_equities = set()
+        self._selected_batch_missing = False
+        self._historical_only = False
+        self._cooldowns = {}
+
+    @property
+    def connected(self):
+        return self.gateway.connected and getattr(self, "_market_verified", False)
+
+    @property
+    def historical_only(self):
+        return self.connected and self._historical_only
+
+    def disconnect(self):
+        self._market_verified = False
+        self.gateway.disconnect()
+
+    def activate_with_quote(self, quote):
+        if not self.gateway.connected or type(quote) is not dict or not quote:
+            raise FeedError("Clone Dhan quote proof missing")
+        self._market_verified = True
+
+    def cooldown_remaining(self, path):
+        import time
+        return max(0, self._cooldowns.get(path, 0.0) - time.monotonic())
+
+    def _fetch(self, symbols):
+        import time
+        try:
+            return self.gateway.market_quotes(list(symbols))
+        except FeedError as exc:
+            if "paced" in str(exc):
+                self._cooldowns["/dhan/selected-ltp-batch"] = time.monotonic() + 2
+                self._cooldowns["/dhan/index-ltp-batch"] = time.monotonic() + 2
+            raise
+
+    def quote(self, symbol):
+        result = self._fetch([symbol])
+        if symbol not in result:
+            raise FeedError("Verified Clone Dhan symbol unavailable")
+        return {"symbol": symbol, "price": result[symbol],
+                "source": "Dhan", "freshness": "unverified", "quote_timestamp": None}
+
+    def index_batch_quotes(self):
+        names = ("NIFTY", "BANKNIFTY", "SENSEX")
+        prices = self._fetch(names)
+        return {s: {"symbol": s, "price": p, "source": "Dhan",
+                    "quote_timestamp": None, "freshness": "unverified",
+                    "live_verified": False}
+                for s, p in prices.items() if s in names}
+
+    def selected_equity_quotes(self, symbols):
+        if (not isinstance(symbols, (list, tuple)) or not 1 <= len(symbols) <= 70
+                or any(not isinstance(x, str) or x in ("NIFTY", "BANKNIFTY", "SENSEX")
+                       for x in symbols) or len(set(symbols)) != len(symbols)):
+            raise FeedError("Invalid Clone selected equity symbols")
+        prices = self._fetch(symbols)
+        return {s: {"symbol": s, "price": p, "source": "Dhan",
+                    "quote_timestamp": None, "freshness": "unverified",
+                    "live_verified": False}
+                for s, p in prices.items()}
+
+    def equity_quotes_for_watchlist(self, symbols):
+        if not symbols:
+            return {}
+        return self.selected_equity_quotes(symbols)
+
+    def verified_equity_symbol(self, symbol):
+        # Dynamic symbols MUST be established by a separate trusted registry
+        # endpoint; do not claim verification merely from local app spelling.
+        raise FeedError("Clone instrument registry verification not connected")
+
+    def batch_quotes(self):
+        raise FeedError("Clone snapshot API not configured; use selected roster")
+
+    def intraday(self, symbol, interval, from_date, to_date):
+        raise FeedError("Clone Dhan historical candle API not connected")
+
+    def assessment(self, symbol, *, timeframe=None, expiry=None):
+        raise FeedError("Clone assessment evidence API not connected")
+
+    def option_expiries(self, symbol):
+        raise FeedError("Clone Dhan option expiry API not connected")
+
+    def option_chain_metrics(self, symbol, expiry):
+        raise FeedError("Clone Dhan option chain API not connected")
+
+    def server_readiness(self):
+        return {"orders": {"broker_submission_allowed": False,
+                           "live_orders_enabled": False},
+                "live_orders_enabled": False}
