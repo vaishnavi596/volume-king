@@ -1,5 +1,5 @@
-name: BOT KING B3 Clone Dhan Browser Consent APK
-run-name: B3 isolated browser-consent full regression and signed phone APK 2.3.134
+name: BOT KING CLONE Adapter-Fixed Phone APK
+run-name: Clone adapter-audit patched phone APK 2.3.134
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
