@@ -2050,6 +2050,10 @@ def app_main(page:ft.Page):
         index_refresh_generation[0]=generation
         try:
             snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)
+            # A malformed/empty gateway batch is not a reason to crash the
+            # index worker: retry missing symbols through the paced quote path.
+            if not isinstance(snapshots,dict):
+                snapshots={}
             if not app_active[0] or generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
             # Some index batch responses omit BANKNIFTY or SENSEX even when
