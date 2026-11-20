@@ -50,7 +50,10 @@ class TwoMinuteContract(unittest.TestCase):
         self.assertIn('"2m":(120,187.5,', source)
         self.assertIn('if tf not in ("1m","2m","3m","5m","15m","1h"):', source)
         self.assertIn('if scan_tf.value in ("1m","2m","3m"):', source)
-        self.assertIn('if interval in ("1m","2m","3m") and period!="7d":', source)
+        self.assertIn('if prefs.get("source")=="Dhan" and interval in ("1m","2m","3m"):', source)
+        self.assertIn('scan_period.value=period', source)
+        self.assertIn('prefs["scanner_period"]=period', source)
+        self.assertIn('period="7d"', source)
         self.assertIn('for v in scanner_intervals', source)
 
 
