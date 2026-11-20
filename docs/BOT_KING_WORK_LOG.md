@@ -1602,3 +1602,9 @@
 - B1 #44763525884 SUCCESS after updating obsolete static scanner 2m guard expectation. Joint full offline regression #44763575660 SUCCESS on commit 75e18635453506fc2b31dfd2337ebf62d7c74ed0, covering scanner period normalization and index after-hours history bootstrap. Earlier #44763420804 failed before B1 test update and is superseded, not ignored.
 - APK workflow triggered by commit c7ffe930bfd0fbbc6ecfa24c1bbd429ffd5fab83, run #44764057322 in progress at first check; await SUCCESS and artifact verification before distributing. Phone runtime scanner success and index candle completion unverified.
 - SENSEX Dhan index quote FeedError remains unresolved; build is explicitly a partial phone test, not final B3 acceptance.
+
+
+[JOINT SCANNER+INDEX APK BUILD STATUS RECHECK][2026-11-20]
+- Reconciled earlier chat/handoff with canonical V2/Clone journal. Existing entries already cover scanner period normalization commit 8e2da9c79474501a6d4b4cf6e45cbbafd36d1187, targeted B1 #44763525884 SUCCESS, and combined offline regression #44763575660 SUCCESS; no repeat test or redundant code patch.
+- Fresh GitHub Actions recheck of phone-test APK run #44764057322 at SHA c7ffe930bfd0fbbc6ecfa24c1bbd429ffd5fab83: workflow in_progress; Android build step "Build separate Android identity with original full V1 application" in_progress; signing/upload completion NOT YET VERIFIED; workflow artifacts returned [] at check time. https://github.com/vaishnavi596/volume-king/actions/runs/44764057322
+- Do not declare APK ready or assert phone success until completed SUCCESS, signer/artifact verification and phone testing. SENSEX LTP batch/fallback FeedError remains unresolved; NIFTY/BANKNIFTY 1m index HIST signal and Scanner candle-feed acceptance unverified. Existing 51-equity Watchlist HIST success unchanged. Oracle Dhan provider/phone LIVE end-to-end not yet accepted; no Oracle/V1 mutation and no new CI triggered by this journal-only checkpoint.
