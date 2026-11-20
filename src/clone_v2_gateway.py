@@ -212,7 +212,7 @@ class CloneDhanReadOnly:
         try:
             return self.gateway.market_quotes(list(symbols))
         except FeedError as exc:
-            if "paced" in str(exc):
+            if "paced" in str(exc) or "rate limit" in str(exc):
                 self._cooldowns["/dhan/selected-ltp-batch"] = time.monotonic() + 2
                 self._cooldowns["/dhan/index-ltp-batch"] = time.monotonic() + 2
             raise
@@ -261,7 +261,15 @@ class CloneDhanReadOnly:
         return True
 
     def batch_quotes(self):
-        raise FeedError("Clone snapshot API not configured; use selected roster")
+        from server_feed import DHAN_VERIFIED_EQUITY_SYMBOLS
+        return self.selected_equity_quotes(sorted(DHAN_VERIFIED_EQUITY_SYMBOLS))
+
+    def equity_quotes_with_bootstrap(self):
+        return self.batch_quotes()
+
+    def _call(self, path, payload=None):
+        # Hard stop: no Clone B3 request may fall back to V1 or old pilot.
+        raise FeedError("Unsupported Clone B3 market request")
 
     def intraday(self, symbol, interval, from_date, to_date):
         if interval not in (1, 5, 15, 25, 60):
@@ -277,7 +285,28 @@ class CloneDhanReadOnly:
         return response
 
     def assessment(self, symbol, *, timeframe=None, expiry=None):
-        raise FeedError("Clone assessment evidence API not connected")
+        import re
+        if (not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9&-]{1,40}", symbol)
+                or timeframe not in (None, "1m", "3m", "5m")):
+            raise FeedError("Invalid Clone assessment selection")
+        if expiry is not None:
+            from datetime import date
+            try:
+                if date.fromisoformat(expiry).isoformat() != expiry:
+                    raise ValueError()
+            except (ValueError, TypeError):
+                raise FeedError("Invalid Clone assessment expiry") from None
+        # No directional score until independent time/expiry evidence is verified.
+        return {
+            "symbol": symbol, "source": "dhan", "timeframe": timeframe,
+            "expiry": expiry, "collection_status": "not_configured",
+            "freshness": "unverified", "assessment_filters": [
+                {"id": key, "status": "unavailable", "reason": "not_configured"}
+                for key in ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")],
+            "factors": {key: {"status": "unavailable", "bullish": None, "bearish": None}
+                        for key in ("news", "futures", "options", "candle")},
+            "bullish_score": None, "bearish_score": None,
+            "signal_eligible": False, "live_orders_enabled": False}
 
     def option_expiries(self, symbol):
         response = self.gateway.post_market("options/expiries", {"symbol": symbol})
