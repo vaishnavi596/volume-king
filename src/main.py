@@ -1206,14 +1206,16 @@ def app_main(page:ft.Page):
                     break
                 if row["symbol"] in {item["symbol"] for item in chosen}:
                     continue
-                chosen.append(dict(row,bias="WAIT",score=0,historical=True,
+                chosen.append(dict(row,bias=(row.get("bias") if row.get("bias") in ("BULLISH","BEARISH") else "WAIT"),
+                                   score=0,historical=True,live_verified=False,
                                    reason=str(row.get("reason",""))+
                                    " • Historical/unverified; no live signal"))
             used={row.get("symbol") for row in chosen}
             for row in previous+saved_ranking.get("rows",[]):
                 if len(chosen)>=5:break
                 if row.get("source")!="Dhan" or row.get("symbol") not in selected_equities or row["symbol"] in used:continue
-                chosen.append(dict(row,bias="WAIT",score=0,historical=True,
+                chosen.append(dict(row,bias=(row.get("bias") if row.get("bias") in ("BULLISH","BEARISH") else "WAIT"),
+                                   score=0,historical=True,live_verified=False,
                                    reason="Last saved Dhan ranking • Historical/unverified; no live signal"))
                 used.add(row["symbol"])
             top5_candidates[:]=chosen
@@ -1471,9 +1473,10 @@ def app_main(page:ft.Page):
             color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
             # Rendering is the final safety gate: a restored ranking can predate
             # the current provider verification or market session.
-            direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
-                       else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
-                       else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
+            direction=("HISTORICAL "+row["bias"]+" • NOT LIVE"
+                       if historical and row["bias"] in ("BULLISH","BEARISH")
+                       else "NO LIVE SIGNAL" if historical else
+                       "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
@@ -5888,6 +5891,11 @@ console.log('BOT KING Lightweight Charts ready');
                 and dhan_feed.cooldown_remaining("/v2/snapshot")==0
                 and dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0):
             page.run_task(refresh_watch_batch)
+        # Prime the visible 3m Watchlist using the existing bounded 1m candle lane.
+        # No 5m borrowing and no extra 51-equity bulk request.
+        if (changed and i==4 and refresh_hours() and prefs.get("source")=="Dhan"
+                and dhan_feed.connected and not watch_three_minute_warm_busy[0]):
+            page.run_task(warm_selected_watch_three_minute_early,provider_generation[0])
         if changed and i==5 and not chart_load_busy[0]:
             # A watchlist quote may carry 5m bars, but it is not necessarily
             # a loaded chart for the selected timeframe. Check the actual
