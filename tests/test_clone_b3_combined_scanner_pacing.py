@@ -37,6 +37,14 @@ class ScannerBatchGuards(unittest.TestCase):
         self.assertIn("if not isinstance(snapshots,dict):",index)
         self.assertIn("snapshots={}",index)
         self.assertIn('("NIFTY","BANKNIFTY","SENSEX")',SOURCE)
+    def test_option_metrics_reject_nonfinite_and_boolean_values(self):
+        options=SOURCE.split("    def scanner_option_context():",1)[1].split("    def scanner():",1)[0]
+        for check in ('isinstance(data.get("pcr"),bool)',
+                      'math.isfinite(data["pcr"])',
+                      'isinstance(data.get("max_pain"),bool)',
+                      'math.isfinite(data["max_pain"])',
+                      'data.get("signal_eligible") is not False'):
+            self.assertIn(check,options)
     def test_auto_off_and_stale_refresh_guards(self):
         self.assertIn("if scan_live.value:\n        page.run_task(auto_scan_loop",SOURCE)
         self.assertIn("if target is None or target!=current[0]:return",SOURCE)
