@@ -5966,15 +5966,14 @@ console.log('BOT KING Lightweight Charts ready');
             refresh_scan_age()
             if generation!=scan_generation[0]:
                 page.run_task(restart_latest_scan,allow_network)
-            if current[0]==3 and chart_provider[0]=="TradingView Lightweight":
-                # Preserve the native chart and deliver new same-context history.
-                page.update()
-                if tv_view[0] is not None:
-                    page.run_task(sync_visible_chart)
-            elif current[0] in (0,3):
-                # Keep scan completion off the synchronous Android navigation path.
-                # Coalesce results and avoid a full page rebuild in this worker.
+            if current[0] in (0,3):
+                # Both embedded and native chart results use the same coalesced
+                # refresh; a synchronous page.update here froze Android on 5m.
                 request_view_refresh(current[0])
+                if (current[0]==3 and tv_view[0] is not None
+                        and embedded_lightweight_supported
+                        and chart_provider[0]=="TradingView Lightweight"):
+                    page.run_task(sync_visible_chart)
     def bind_saved(control,key):
         field_bindings.append((control,key))
         if key in prefs:control.value=str(prefs[key]) if isinstance(control,(ft.TextField,ft.Dropdown)) else prefs[key]
