@@ -60,3 +60,5 @@ jobs:
 # Recheck B3 off-hours Scanner cache and option metrics diagnostic source guards 2026-11-21
 
 # Verify three-issue focus: visible scanner auto-refresh controls; unchanged source safety 2026-11-21
+
+# Recheck 1398 tests after restoring literal OI never-vote contract 2026-11-21
