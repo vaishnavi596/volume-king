@@ -60,6 +60,27 @@ class CloneAdapterAudit(unittest.TestCase):
         self.assertIn('now-index_last_attempt[0]<60',market)
         self.assertNotIn('asyncio.gather(',market)
 
+    def test_gateway_provider_errors_keep_throttle_and_auth_distinct(self):
+        gateway_tree=ast.parse(GATEWAY)
+        helpers=[n for n in ast.walk(gateway_tree)
+                 if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))
+                 and n.name=="provider_read_error"]
+        self.assertEqual(len(helpers),1)
+        helper=ast.get_source_segment(GATEWAY,helpers[0])
+        self.assertIn("isinstance(exc, DhanRateLimitError)",helper)
+        self.assertIn('"Retry-After": "30"',helper)
+        self.assertIn("HTTPException(\n                429",helper)
+        self.assertIn("HTTPException(\n                424",helper)
+        self.assertIn("HTTPException(502, unavailable_message)",helper)
+        for route,reason in (("market_candles","Clone Dhan candles unavailable"),
+                             ("market_option_expiries","Clone Dhan option expiry unavailable"),
+                             ("market_option_chain","Clone Dhan option chain unavailable")):
+            nodes=[n for n in ast.walk(gateway_tree)
+                   if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==route]
+            self.assertEqual(len(nodes),1)
+            source=ast.get_source_segment(GATEWAY,nodes[0])
+            self.assertIn('provider_read_error(exc, "'+reason+'")',source)
+
     def test_scroll_is_not_network_poll_or_page_navigation(self):
         callback=block("    def remember_scroll(e):","    body=ft.Column(")
         self.assertIn('last_scroll_monotonic[0]=time.monotonic()',callback)
