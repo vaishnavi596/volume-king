@@ -79,15 +79,16 @@ class UiPaperTests(unittest.TestCase):
         self.assertEqual(page.client_storage.get('bot_king_preferences')['paper_risk_pct'],2)
         self.assertTrue(field.error_text)
 
-    def test_chart_reuses_view_until_context_changes(self):
+    def test_unsupported_embedded_chart_uses_native_fallback_safely(self):
+        # The Android build cannot register its WebView control yet.
+        # Never create a false WebView or assert a fake JS-ready event.
         _,v=start(dict(scanner_live=False,chart_provider='TradingView Lightweight',scanner_native_chart_migrated_23118=True))
-        v['scanner_compact_chart']();first=v['tv_view'][0]
-        v['scanner_compact_chart']();self.assertIs(v['tv_view'][0],first)
-        v['scan_tf'].value='15m';v['scanner_compact_chart']();self.assertIsNot(v['tv_view'][0],first)
-        view=v['tv_view'][0]
-        e=type('Event',(),dict(control=view,message='BOT KING Lightweight Charts ready'))()
-        v['chart_console'](e);self.assertTrue(v['tv_ready'][0])
-        self.assertIn('Chart ready',v['tradingview_status'].value)
+        self.assertIsNotNone(v['scanner_compact_chart']())
+        self.assertIsNone(v['tv_view'][0])
+        v['scan_tf'].value='15m'
+        self.assertIsNotNone(v['scanner_compact_chart']())
+        self.assertIsNone(v['tv_view'][0])
+        self.assertFalse(v['tv_ready'][0])
     def test_manual_tick_target_exit_and_reentry_cooldown(self):
         _,v=start(dict(scanner_live=False,auto_reentry=True))
         v['bot_paper_action']('BUY');v['paper_run']('Start');v['paper_mark'].value='84';v['paper_tick']()
