@@ -1,13 +1,13 @@
 
 [project]
-name = "bot-king"
-version = "2.3.130" # App-Oracle route parity, validated shared cache and 120s age guard
+name = "bot-king-v1-clone"
+version = "2.3.131" # Independent V1 exact-visual clone, legacy server settings hidden
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
 [tool.flet]
-product = "BOT KING"
-org = "com.botking"
+product = "BOT KING V2 CLONE"
+org = "com.botking.clone"
 company = "BOT KING"
 
 [tool.flet.app]
