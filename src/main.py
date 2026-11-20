@@ -323,6 +323,10 @@ def app_main(page:ft.Page):
             # Oracle Assessment supports only 1m/3m/5m; never relabel
             # a selected 15m/30m/1h chart as 1m assessment evidence.
             timeframe=scan_tf.value if scan_tf.value in ("1m","3m","5m") else None
+        if surface=="chart":
+            # Chart has its independent candle cache; do not request a 3m
+            # assessment without evidence of the selected chart timeframe.
+            timeframe=None
         selected=(expiry.value if surface=="options" and symbol==chain_symbol.value
                   and isinstance(expiry.value,str) else None)
         try:
