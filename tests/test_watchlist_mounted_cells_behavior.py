@@ -11,8 +11,9 @@ class WatchlistMountedCellBehavior(unittest.TestCase):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
         v["select"](4)
         # Fake in-memory connection: no outbound network or credentials.
-        v["dhan_feed"]._origin="https://offline.invalid"
-        v["dhan_feed"]._pairing_key="offline-test-only"
+        v["clone_v2_gateway"]._origin="https://offline.invalid"
+        v["clone_v2_gateway"]._key="offline-test-only"
+        v["dhan_feed"].activate_with_quote({"NIFTY":100.0})
         symbols=list(v["watch_row_cells"])
         self.assertTrue(symbols,"Expected at least one saved watchlist row")
         sym=symbols[0]
