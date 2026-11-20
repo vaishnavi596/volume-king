@@ -1,0 +1,83 @@
+"""Clone-only B2: fail-closed, key-authenticated Oracle gateway connection probe.
+
+This is a NEW clone V2 endpoint contract, not an alias of legacy /dhan routes
+or any previous V2 pilot. No Dhan token or trading order is handled by phone.
+The server must independently implement and authorize /clone-v2/status before
+the clone may claim it is connected. No fallback to original V1 server paths.
+"""
+from __future__ import annotations
+
+import json
+from urllib.error import HTTPError, URLError
+from urllib.request import Request
+
+from server_feed import FeedError, server_origin, checked_pairing_key, direct_https_opener
+
+STATUS_PATH = "/clone-v2/status"
+EXPECTED_PROTOCOL = "botking-clone-v2"
+MAX_STATUS_BYTES = 2048
+
+
+class CloneV2Gateway:
+    """One validated read-only handshake; key stays in memory, not preferences."""
+
+    def __init__(self, *, opener=None):
+        self._opener = opener
+        self._origin = ""
+        self._key = ""
+
+    @property
+    def connected(self):
+        return bool(self._origin and self._key)
+
+    def disconnect(self):
+        self._origin = ""
+        self._key = ""
+
+    def connect(self, endpoint, access_key):
+        """Fail closed unless the NEW gateway proves its authenticated contract.
+
+        An HTTP 200 from /health or /dhan/status never establishes clone-V2
+        authorization. No market-data read, fallback or auto-login occurs here.
+        """
+        self.disconnect()
+        origin = server_origin(endpoint)
+        key = checked_pairing_key(access_key)
+        url = origin + STATUS_PATH
+        request = Request(url, method="GET", headers={
+            "X-BotKing-Key": key,
+            "Accept": "application/json",
+            "Cache-Control": "no-store",
+        })
+        try:
+            with (self._opener or direct_https_opener()).open(request, timeout=12) as response:
+                if response.status != 200 or response.geturl() != url:
+                    raise FeedError("Clone V2 gateway response not trusted")
+                if response.headers.get_content_type() != "application/json":
+                    raise FeedError("Clone V2 gateway response type invalid")
+                raw = response.read(MAX_STATUS_BYTES + 1)
+                if len(raw) > MAX_STATUS_BYTES:
+                    raise FeedError("Clone V2 gateway response too large")
+                status = json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code == 404:
+                raise FeedError("Clone V2 gateway not deployed (HTTP 404)") from None
+            if exc.code in (401, 403):
+                raise FeedError("Clone V2 server access denied") from None
+            if exc.code == 429:
+                raise FeedError("Clone V2 gateway rate limited; do not retry immediately") from None
+            raise FeedError("Clone V2 gateway unavailable") from None
+        except (URLError, OSError, TimeoutError, ValueError, UnicodeError):
+            raise FeedError("Clone V2 gateway connection failed") from None
+        if (type(status) is not dict or
+                set(status) != {"protocol", "authenticated", "read_only",
+                                "live_orders_enabled", "pipeline", "status"} or
+                status["protocol"] != EXPECTED_PROTOCOL or
+                status["authenticated"] is not True or
+                status["read_only"] is not True or
+                status["live_orders_enabled"] is not False or
+                status["pipeline"] != "dhan-oracle-clone" or
+                status["status"] != "ready"):
+            raise FeedError("Clone V2 gateway authorization not verified")
+        self._origin, self._key = origin, key
+        return {"status": "connected_read_only", "live_market_data_verified": False}
