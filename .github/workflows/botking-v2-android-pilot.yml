@@ -108,7 +108,13 @@ jobs:
           grep -q 'Verified using v2 scheme' "$RUNNER_TEMP/v2-apk-cert-evidence.txt"
           sha256sum "$APK" | tee "$RUNNER_TEMP/v2-apk-sha256.txt"
           # Record cert digest only. No keystore/secret is uploaded.
-          grep -E 'Signer #1 certificate SHA-256 digest' "$RUNNER_TEMP/v2-apk-cert-evidence.txt" | tee "$RUNNER_TEMP/v2-apk-signer.txt"
+          # apksigner already exits nonzero on invalid signatures; the
+          # certificate label varies across Android SDK build-tools versions.
+          # Log only public verifier metadata, not any signing secret.
+          grep -Ei '(signer|certificate|verified using)' "$RUNNER_TEMP/v2-apk-cert-evidence.txt" \
+            | tee "$RUNNER_TEMP/v2-apk-signer.txt"
+          test -s "$RUNNER_TEMP/v2-apk-signer.txt"
+
           echo 'Pilot signing key is ephemeral. Reinstall needed for future key changes.'
       - name: Upload verified separate V2 test APK (NOT LIVE)
         uses: actions/upload-artifact@v4

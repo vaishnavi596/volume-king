@@ -29,6 +29,7 @@ class V2AndroidPilotBuildContractTests(unittest.TestCase):
         self.assertIn("NONPRODUCTION TEST", text)
         self.assertIn("Reinstall needed", text)
         self.assertIn("sha256sum", text)
+        self.assertNotIn("grep -E 'Signer #1 certificate SHA-256 digest'", text)
         self.assertIn("Remove temporary pilot signer", text)
         self.assertIn("retention-days: 7", text)
         self.assertNotIn("path: $RUNNER_TEMP/botking-v2-only", text)
