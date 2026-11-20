@@ -86,7 +86,10 @@ class CloneV2Gateway:
             if type(price) not in (int, float) or not math.isfinite(price) or price <= 0:
                 raise FeedError("Clone market invalid quote")
             validated[name] = float(price)
-        if not validated or any(x not in symbols for x in payload["unavailable"]):
+        if (not validated or len(payload["unavailable"]) != len(set(payload["unavailable"]))
+                or any(not isinstance(x, str) or x not in symbols for x in payload["unavailable"])
+                or set(validated).intersection(payload["unavailable"])
+                or set(validated).union(payload["unavailable"]) != set(symbols)):
             raise FeedError("Clone market no validated quotes")
         return validated
 
