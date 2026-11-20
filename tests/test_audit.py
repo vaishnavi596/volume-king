@@ -593,7 +593,8 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(complete),51)
         self.assertIsNone(v['dhan_batch_issue'][0])
         self.assertIn('Dhan connected • 51/51',v['connection_status'].value)
-        self.assertIn('valid equity LTP prices returned',v['connection_status'].value)
+        self.assertIn('51/51 LTP • ',v['connection_status'].value)
+        self.assertNotIn('LIVE',v['connection_status'].value)
         self.assertNotIn('batch failed',v['connection_status'].value)
 
     def test_partial_dhan_batch_is_not_reported_as_complete(self):
