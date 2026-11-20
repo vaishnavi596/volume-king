@@ -62,3 +62,5 @@ jobs:
 # Verify three-issue focus: visible scanner auto-refresh controls; unchanged source safety 2026-11-21
 
 # Recheck 1398 tests after restoring literal OI never-vote contract 2026-11-21
+
+# FINNIFTY option-only IDX_I 27 mapping and existing three-index isolation regression 2026-11-21
