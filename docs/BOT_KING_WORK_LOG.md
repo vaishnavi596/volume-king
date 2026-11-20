@@ -1534,3 +1534,8 @@
 - Full offline regression rerun #44754598676 at commit beec824a9213ac21ab85dbad8f71a5bddf572880 completed SUCCESS, after correcting two legacy after-hours AST test assumptions; market-hours weekday IST 09:10-15:45 and bounded after-hours Watchlist 3m recovery included.
 - Phone-test APK workflow triggered by workflow-only commit a30180d7be67263dd28e265e5eebacbd2a0f94d4; run #44754951832 queued at verification. Workflow performs its own full offline gate before building/signing/uploading APK. Do not claim APK ready until workflow success and artifact verified.
 - No Oracle deployment, no V1/V2 changes, no LIVE claim. 51 default equity LTP and five evidence filter completeness still require phone runtime acceptance.
+
+[WATCHLIST PHONE APK BUILD VERIFIED][2026-11-20]
+- GitHub Actions run #44754951832 at SHA a30180d7be67263dd28e265e5eebacbd2a0f94d4 completed SUCCESS, after full prebuild tests, Android compilation, signed APK inspection and artifact upload.
+- Artifact id 14639126151 name BOT-KING-B3-DHAN-BROWSER-LOGIN-2.3.134-PHONE-APK, ZIP artifact size 65,820,875 bytes, archive digest sha256:2d2df53130e0b18aadf68d0ceb885c10edc6cc10d52dd1cf9a62ca566893dc17, expires 2026-12-04. Run https://github.com/vaishnavi596/volume-king/actions/runs/44754951832
+- Build is verified; actual phone installation, 51/51 Watchlist quote and five evidence filters are NOT YET runtime verified. No Oracle deploy.
