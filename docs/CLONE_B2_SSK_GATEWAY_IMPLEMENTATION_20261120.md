@@ -46,3 +46,9 @@ New server operator-owned Clone V2 service must independently expose the authori
 
 ## Hard constraints
 No V1 server changes; no prior V2 pilot code/data; no key values committed or printed. No feature-refactor, LIVE label, APK, test PASS or server activation claimed without actual evidence. New client-only B2 groundwork is **PARTIAL**, B2 full production integration **OPEN**.
+
+## 2026-11-20 — [B2][ORACLE][INSTALLER] Local SSK smoke missing environment — focused repair
+- Operator actually staged Clone B2 and executed `cd /home/opc/botking-clone-v2-b2-source && bash ops/install_clone_v2_b2_oracle.sh`. Installer prompted for approved private SSK then failed during local Python TestClient preflight: `ValueError: Clone V2 private SSK path required` at `private_ssk(os.environ.get(KEY_ENV))`. Service activation code had not been reached. This is NOT evidence of a wrong SSK or failed production service.
+- Root cause: systemd unit includes `BOTKING_CLONE_V2_SSK_FILE`, but installer inline local auth smoke omitted that variable. Minimal canonical installer fix at commit `823d72c7d98c2a23af0bae0f5fa98bffd34f4bc7` scopes the private path to the Python smoke process. No credential contents, old V1/V2 source, Nginx or Dhan calls changed.
+- Existing already-staged installer can resume without restaging by running `BOTKING_CLONE_V2_SSK_FILE=/home/opc/botking-clone-v2-private/ssk bash ops/install_clone_v2_b2_oracle.sh` from the staged source directory, after verifying SSK file exists with mode 600. This invokes existing preflight and postflight; no SSK needs posting to chat.
+- STATUS: **FIX COMMITTED; ORACLE RE-RUN AND LOCAL 8002 SERVICE VERIFICATION PENDING**. Exact new GitHub CI not observed. NEXT: inspect actual installer terminal result (`CLONE_B2_LOCAL_SERVICE=ACTIVE` and `ORIGINAL_V1=HEALTHY_UNCHANGED`) and only then owner-reviewed HTTPS reverse proxy. No APK/phone LIVE or authenticated market data claim.
