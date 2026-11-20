@@ -1278,7 +1278,9 @@ def app_main(page:ft.Page):
         while True:
             await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)
             try:
-                if not app_active[0]:
+                if not app_active[0] or current[0]!=0:
+                    # Dashboard/Super Five local rankings only when visible;
+                    # no separate Dhan call occurs in this local observer.
                     last_fingerprint=None
                     continue
                 generation=provider_generation[0]
@@ -5218,13 +5220,15 @@ console.log('BOT KING Lightweight Charts ready');
                 # Market-closed: do not recalculate 51 symbols repeatedly.
                 # Still render a selected symbol's SAVED chart on demand,
                 # including its bounded local WebView recovery.
-                if regular_hours():
-                    refresh_shared_analysis()
+                if regular_hours() and app_active[0] and current[0] in (0,3):
+                    # Do not recompute the entire shared 5m universe for
+                    # inactive dashboard/scanner pages every 2 seconds.
+                    refresh_shared_analysis(only=scan_symbol.value if current[0]==3 else None)
                 if current[0]==3 and app_active[0]:
                     await sync_visible_chart()
             except Exception as exc:
                 log_error("scanner_fast_signal",exc)
-            await asyncio.sleep(2 if (refresh_hours() or (current[0]==3 and app_active[0])) else 30)
+            await asyncio.sleep(2 if app_active[0] and current[0] in (0,3) else 30)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
         initial=True
@@ -5244,6 +5248,12 @@ console.log('BOT KING Lightweight Charts ready');
             if not app_active[0]:
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5);continue
+            if current[0]!=3:
+                # Scanner is not visible: suspend independent automatic
+                # candle scans. An explicit manual Run remains available.
+                scan_next_refresh[0]=None
+                await asyncio.sleep(2)
+                continue
             if not refresh_hours():
                 # Even the first automatic scan must not poll after hours.
                 scan_next_refresh[0]=None
