@@ -50,7 +50,7 @@ python3 -m py_compile "$ROOT/clone_v2_gateway.py"
 python3 -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/python" -m pip install --disable-pip-version-check --no-input -q \
   'fastapi==0.115.12' 'uvicorn==0.34.2' 'httpx==0.28.1'
-"$ROOT/.venv/bin/python" - <<'PY'
+BOTKING_CLONE_V2_SSK_FILE="$PRIVATE/ssk" "$ROOT/.venv/bin/python" - <<'PY'
 from pathlib import Path
 import sys
 sys.path.insert(0, '/home/opc/botking-clone-v2-runtime')
