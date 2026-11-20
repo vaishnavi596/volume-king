@@ -601,7 +601,7 @@ def app_main(page:ft.Page):
                     raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
                 if ticker not in DHAN_VERIFIED_SYMBOLS:
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
-                if interval not in ("1m","3m","5m","15m","1h"):
+                if interval not in ("1m","2m","3m","5m","15m","1h"):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
                 from datetime import timedelta
                 today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
@@ -609,9 +609,12 @@ def app_main(page:ft.Page):
                 # Dhan provides a verified 1m candle input. Derive 3m only
                 # from three consecutive, completed 1m rows; do not request
                 # a fictitious 3m provider interval or use Yahoo fallback.
-                source_interval="1m" if interval=="3m" else interval
+                source_interval="1m" if interval in ("2m","3m") else interval
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[source_interval],start,today)
-                if interval=="3m":
+                if interval=="2m":
+                    from dhan_two_minute import completed_two_minute_bars
+                    bars=completed_two_minute_bars(candle_result["bars"],now_epoch=time.time())
+                elif interval=="3m":
                     from dhan_three_minute import completed_three_minute_bars
                     bars=completed_three_minute_bars(candle_result["bars"],now_epoch=time.time())
                 else:
@@ -4444,7 +4447,7 @@ def app_main(page:ft.Page):
     scan_max=ft.TextField(label="Custom maximum (₹)",value=str(prefs.get("scanner_max","500")),keyboard_type=ft.KeyboardType.NUMBER)
     scan_period=ft.Dropdown(label="Period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
     # Only expose intervals that the active Dhan gateway can actually fetch.
-    scanner_intervals=(["1m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
+    scanner_intervals=(["1m","2m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
                        else ["1m","3m","5m","15m","30m","1h","1d"])
     saved_scanner_tf=prefs.get("scanner_timeframe","1m")
     if saved_scanner_tf not in scanner_intervals:
