@@ -12,6 +12,7 @@ import math
 import re
 import threading
 import time
+from datetime import date, datetime, timedelta, timezone
 import os
 import stat
 from pathlib import Path
@@ -40,6 +41,23 @@ def private_ssk(path):
         raise ValueError("Clone V2 SSK format invalid")
     return key
 
+
+
+
+class MarketCandles(BaseModel):
+    symbol: str
+    interval: int
+    from_date: date
+    to_date: date
+
+
+class MarketUnderlying(BaseModel):
+    symbol: str
+
+
+class MarketOptionChain(BaseModel):
+    symbol: str
+    expiry: date
 
 
 class MarketRequest(BaseModel):
@@ -185,5 +203,118 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             market_cache.clear()
             market_cache[selection] = (time.monotonic(), payload)
             return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+
+    @app.post("/clone-v2/market/verify")
+    def market_verify(body: MarketUnderlying,
+                      x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if body.symbol not in registry:
+            raise HTTPException(422, "Clone equity mapping not verified")
+        return JSONResponse({"symbol": body.symbol, "source": "dhan_registry",
+                             "verified": True, "live_orders_enabled": False},
+                            headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/market/candles")
+    def market_candles(body: MarketCandles,
+                       x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if (body.symbol not in known or body.interval not in (1, 5, 15, 25, 60)
+                or body.from_date > body.to_date
+                or (body.to_date - body.from_date).days > 5
+                or body.to_date > datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
+            raise HTTPException(422, "Invalid Clone Dhan candle selection")
+        segment, sid = known[body.symbol]
+        instrument = "INDEX" if body.symbol in indices else "EQUITY"
+        args = {"securityId": str(sid), "exchangeSegment": segment,
+                "instrument": instrument, "interval": str(body.interval),
+                "fromDate": body.from_date.isoformat() + " 09:15:00",
+                "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
+        try:
+            result = provider().intraday(args)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(502, "Clone Dhan candles unavailable") from None
+        try:
+            fields = ["timestamp", "open", "high", "low", "close", "volume"]
+            arrays = [result[key] for key in fields]
+            if (result.get("status") == "failure" or
+                    any(not isinstance(v, list) for v in arrays) or
+                    any(len(a) != len(arrays[0]) for a in arrays) or
+                    len(arrays[0]) > 5000):
+                raise ValueError()
+            bars = []
+            for ts, op, high, low, close, vol in zip(*arrays):
+                if any(type(v) not in (int, float) for v in (ts, op, high, low, close, vol)):
+                    raise ValueError()
+                vals = (float(ts), float(op), float(high), float(low), float(close), float(vol))
+                if (not all(math.isfinite(v) for v in vals) or ts <= 0
+                        or min(op, high, low, close) <= 0 or vol < 0
+                        or high < max(op, low, close) or low > min(op, high, close)):
+                    raise ValueError()
+                bars.append([int(ts), float(op), float(high), float(low),
+                             float(close), float(vol)])
+            if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars)-1)):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError, OverflowError):
+            raise HTTPException(502, "Clone Dhan candle response invalid") from None
+        return JSONResponse({
+            "source": "dhan", "symbol": body.symbol,
+            "interval": str(body.interval) + "m", "bars": bars,
+            "last_candle_timestamp": bars[-1][0] if bars else None,
+            "freshness": "historical_unverified" if bars else "no_candles_available",
+            "live_orders_enabled": False}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/market/options/expiries")
+    def market_option_expiries(body: MarketUnderlying,
+                               x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if body.symbol not in known or known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
+            raise HTTPException(422, "Unmapped Clone option underlying")
+        try:
+            dates = provider().option_expiries(*known[body.symbol])
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(502, "Clone Dhan option expiry unavailable") from None
+        if not isinstance(dates, list) or not dates:
+            raise HTTPException(422, "No verified Clone listed expiry")
+        return JSONResponse({"source": "dhan", "symbol": body.symbol,
+                             "expiries": dates, "live_orders_enabled": False},
+                            headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/market/options/chain")
+    def market_option_chain(body: MarketOptionChain,
+                            x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if (body.symbol not in known or
+                known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ") or
+                body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
+            raise HTTPException(422, "Invalid Clone option underlying or expiry")
+        try:
+            from dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
+                                            OptionMetricsUnavailable)
+            raw = provider().option_chain(*known[body.symbol], body.expiry.isoformat())
+            metrics = calculate_option_metrics(raw)
+            raw_data = raw.get("data", {})
+            spot = raw_data.get("last_price") if isinstance(raw_data, dict) else None
+            window, window_status = None, "underlying_spot_unavailable"
+            if type(spot) in (int, float) and math.isfinite(spot) and spot > 0:
+                window_status = "listed_window_unavailable"
+                try:
+                    window = listed_atm_window(raw, spot=spot)
+                    window_status = "available"
+                except OptionMetricsUnavailable:
+                    pass
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(502, "Clone Dhan option chain unavailable") from None
+        return JSONResponse({"source": "dhan", "symbol": body.symbol,
+                             "expiry": body.expiry.isoformat(), **metrics,
+                             "atm_window": window, "atm_window_status": window_status,
+                             "live_orders_enabled": False},
+                            headers={"Cache-Control": "no-store"})
 
     return app
