@@ -109,5 +109,39 @@ class CloneV2GatewayB2Tests(unittest.TestCase):
                 self.assertFalse(gateway.connected)
 
 
+    def test_clone_b3_market_request_response_never_fake_data(self):
+        class QuoteOpener:
+            def __init__(self, result):
+                self.result = result
+                self.requests = []
+            def open(self, req, timeout):
+                self.requests.append(req)
+                return Response(self.result, req.full_url)
+        good_quotes = {"source": "dhan", "live_orders_enabled": False,
+                       "freshness": "unverified", "unavailable": [],
+                       "quotes": {"NIFTY": {"symbol": "NIFTY", "ltp": 25876.0,
+                                            "source": "dhan", "freshness": "unverified"}}}
+        opener = QuoteOpener(good_quotes)
+        gateway = CloneV2Gateway(opener=opener)
+        gateway._origin, gateway._key = "https://example.org", "private-in-memory"
+        quotes = gateway.market_quotes(["NIFTY"])
+        self.assertEqual(quotes, {"NIFTY": 25876.0})
+        self.assertEqual(opener.requests[0].get_method(), "POST")
+        self.assertEqual(opener.requests[0].full_url,
+                         "https://example.org/clone-v2/market/quotes")
+        self.assertEqual(json.loads(opener.requests[0].data), {"symbols": ["NIFTY"]})
+        self.assertEqual(opener.requests[0].get_header("X-botking-key"), "private-in-memory")
+        for body in ({**good_quotes, "live_orders_enabled": True},
+                     {**good_quotes, "source": "legacy-v1"},
+                     {**good_quotes, "quotes": {"NIFTY": {**good_quotes["quotes"]["NIFTY"], "ltp": -1}}},
+                     {**good_quotes, "quotes": {}}):
+            gateway._opener = QuoteOpener(body)
+            with self.assertRaises(FeedError):
+                gateway.market_quotes(["NIFTY"])
+        gateway.disconnect()
+        with self.assertRaises(FeedError):
+            gateway.market_quotes(["NIFTY"])
+
+
 if __name__ == "__main__":
     unittest.main()
