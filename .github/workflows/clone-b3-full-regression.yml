@@ -42,3 +42,5 @@ jobs:
 # Scanner stale intraday period normalization joint index regression 2026-11-20
 
 # Rerun joint regression after scanner B1 contract update 2026-11-20
+
+# Scanner cache-only WAIT + 2m engine exact-head combined regression 2026-11-20
