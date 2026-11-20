@@ -37,6 +37,40 @@ class CloneV2Gateway:
         self._key = ""
 
 
+
+    def post_market(self, route, selection):
+        if not self.connected:
+            raise FeedError("Clone SSK connection required")
+        if route not in ("candles", "verify", "options/expiries", "options/chain"):
+            raise FeedError("Unsupported Clone Dhan read-only route")
+        url = self._origin + "/clone-v2/market/" + route
+        req = Request(url, data=json.dumps(selection, allow_nan=False).encode("utf-8"),
+                      headers={"X-BotKing-Key": self._key,
+                               "Content-Type": "application/json",
+                               "Accept": "application/json",
+                               "Cache-Control": "no-store"}, method="POST")
+        try:
+            with (self._opener or direct_https_opener()).open(req, timeout=25) as resp:
+                if (resp.status != 200 or resp.geturl() != url or
+                        resp.headers.get_content_type() != "application/json"):
+                    raise FeedError("Clone market route response untrusted")
+                content = resp.read(2000001)
+                if len(content) > 2000000:
+                    raise FeedError("Clone market response too large")
+                output = json.loads(content.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                self.disconnect()
+                raise FeedError("Clone SSK authorization expired") from None
+            if exc.code == 429:
+                raise FeedError("Clone Dhan rate limit; retry later") from None
+            raise FeedError("Clone market " + route + " HTTP " + str(exc.code)) from None
+        except (OSError, URLError, TimeoutError, ValueError, UnicodeError):
+            raise FeedError("Clone Dhan " + route + " unavailable") from None
+        if (not isinstance(output, dict) or output.get("live_orders_enabled") is not False):
+            raise FeedError("Unsafe Clone Dhan response")
+        return output
+
     def market_quotes(self, symbols):
         """Phone→Clone→Dhan read-only request; never accepts fake broker quotes."""
         if not self.connected:
@@ -217,22 +251,56 @@ class CloneDhanReadOnly:
     def verified_equity_symbol(self, symbol):
         # Dynamic symbols MUST be established by a separate trusted registry
         # endpoint; do not claim verification merely from local app spelling.
-        raise FeedError("Clone instrument registry verification not connected")
+        if not isinstance(symbol, str):
+            raise FeedError("Invalid Clone equity symbol")
+        result = self.gateway.post_market("verify", {"symbol": symbol})
+        if (result.get("source") != "dhan_registry" or
+                result.get("symbol") != symbol or result.get("verified") is not True):
+            raise FeedError("Clone equity symbol registry unverified")
+        self._verified_dynamic_equities.add(symbol)
+        return True
 
     def batch_quotes(self):
         raise FeedError("Clone snapshot API not configured; use selected roster")
 
     def intraday(self, symbol, interval, from_date, to_date):
-        raise FeedError("Clone Dhan historical candle API not connected")
+        if interval not in (1, 5, 15, 25, 60):
+            raise FeedError("Clone unsupported candle interval")
+        response = self.gateway.post_market("candles", {
+            "symbol": symbol, "interval": interval,
+            "from_date": str(from_date), "to_date": str(to_date)})
+        if (response.get("source") != "dhan" or response.get("symbol") != symbol or
+                response.get("interval") != str(interval) + "m" or
+                not isinstance(response.get("bars"), list) or
+                response.get("freshness") not in ("historical_unverified", "no_candles_available")):
+            raise FeedError("Clone candle response not verified")
+        return response
 
     def assessment(self, symbol, *, timeframe=None, expiry=None):
         raise FeedError("Clone assessment evidence API not connected")
 
     def option_expiries(self, symbol):
-        raise FeedError("Clone Dhan option expiry API not connected")
+        response = self.gateway.post_market("options/expiries", {"symbol": symbol})
+        dates = response.get("expiries")
+        if (response.get("source") != "dhan" or response.get("symbol") != symbol or
+                not isinstance(dates, list) or not dates or
+                any(not isinstance(d, str) or len(d) != 10 for d in dates) or
+                dates != sorted(set(dates))):
+            raise FeedError("Clone listed option expiries invalid")
+        return dates
 
     def option_chain_metrics(self, symbol, expiry):
-        raise FeedError("Clone Dhan option chain API not connected")
+        response = self.gateway.post_market("options/chain", {
+            "symbol": symbol, "expiry": expiry})
+        if (response.get("source") != "dhan" or response.get("symbol") != symbol or
+                response.get("expiry") != expiry or
+                response.get("freshness") != "unverified" or
+                response.get("signal_eligible") is not False or
+                any(type(response.get(k)) not in (int, float) for k in ("pcr", "max_pain")) or
+                not math.isfinite(response["pcr"]) or response["pcr"] < 0 or
+                not math.isfinite(response["max_pain"]) or response["max_pain"] <= 0):
+            raise FeedError("Clone option evidence unavailable")
+        return response
 
     def server_readiness(self):
         return {"orders": {"broker_submission_allowed": False,
