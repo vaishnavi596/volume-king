@@ -11,7 +11,7 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         watch=text[start:end]
         self.assertNotIn("quotes.pop(ticker,None)",watch)
         self.assertIn("previous quotes retained",watch)
-        self.assertIn('received=sum(1 for ticker in all_watch_symbols()',watch)
+        self.assertIn('received=sum(1 for ticker in requested_symbols',watch)
         self.assertIn('snapshot.get("source")=="Dhan"',watch)
         self.assertIn('math.isfinite(snapshot["price"])',watch)
         self.assertIn("received<total_symbols",watch)
@@ -124,7 +124,7 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         guard='isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"])'
         self.assertGreaterEqual(text.count(guard),2)
-        self.assertIn('if ticker in all_watch_symbols() and snapshot.get("source")=="Dhan" and '+guard+' and snapshot["price"]>0:',text)
+        self.assertIn('if ticker in requested_symbols and snapshot.get("source")=="Dhan" and '+guard+' and snapshot["price"]>0:',text)
         self.assertIn('if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan" and '+guard+':',text)
 
     def test_dhan_history_cooldown_does_not_rank_unattempted_symbols(self):
