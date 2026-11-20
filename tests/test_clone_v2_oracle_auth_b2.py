@@ -63,5 +63,46 @@ class CloneOracleAuthTests(unittest.TestCase):
                 private_ssk(str(path))
 
 
+    def test_clone_b3_market_quotes_symmetric_request_response(self):
+        seen = []
+        class FakeProvider:
+            def batch_ltp(self, instruments):
+                seen.append(instruments)
+                return {"status": "success", "data": {
+                    "NSE_EQ": {"2885": {"last_price": 1440.5}},
+                    "IDX_I": {"13": {"last_price": 25950.25}}}}
+        app = create_app(key_bytes=self.key, market_feed_factory=FakeProvider,
+                         market_registry={"RELIANCE": ("NSE_EQ", 2885)})
+        http = TestClient(app)
+        url = "/clone-v2/market/quotes"
+        payload = {"symbols": ["RELIANCE", "NIFTY"]}
+        self.assertEqual(http.post(url, json=payload).status_code, 403)
+        self.assertEqual(http.post(url, headers={"X-BotKing-Key": "z" * 40},
+                                   json=payload).status_code, 403)
+        good = http.post(url, headers={"X-BotKing-Key": self.key.decode()}, json=payload)
+        self.assertEqual(good.status_code, 200)
+        self.assertEqual(good.headers["cache-control"], "no-store")
+        body = good.json()
+        self.assertEqual(body["quotes"]["RELIANCE"]["ltp"], 1440.5)
+        self.assertEqual(body["quotes"]["NIFTY"]["ltp"], 25950.25)
+        self.assertIs(body["live_orders_enabled"], False)
+        self.assertEqual(body["freshness"], "unverified")
+        self.assertEqual(len(seen), 1)
+        again = http.post(url, headers={"X-BotKing-Key": self.key.decode()}, json=payload)
+        self.assertEqual(again.status_code, 200)
+        self.assertEqual(len(seen), 1, "same app request must share cache")
+
+    def test_clone_b3_rejects_duplicate_unknown_and_unbounded_requests(self):
+        http = TestClient(create_app(key_bytes=self.key, market_registry={"RELIANCE": ("NSE_EQ", 2885)},
+                                     market_feed_factory=lambda: None))
+        key = {"X-BotKing-Key": self.key.decode()}
+        for symbols in ([], ["RELIANCE", "RELIANCE"], ["UNKNOWN"], ["NIFTY"] * 74,
+                        ["RELIANCE", {"unhashable": True}]):
+            with self.subTest(symbols=symbols):
+                res = http.post("/clone-v2/market/quotes", headers=key, json={"symbols": symbols})
+                self.assertEqual(res.status_code, 422)
+        self.assertEqual(http.post("/clone-v2/orders", headers=key, json={}).status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
