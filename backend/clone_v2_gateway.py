@@ -185,7 +185,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             except HTTPException:
                 raise
             except Exception as exc:
-                from dhan_feed import DhanRateLimitError
+                try:
+                    from .dhan_feed import DhanRateLimitError
+                except ImportError:
+                    from dhan_feed import DhanRateLimitError
                 if isinstance(exc, DhanRateLimitError):
                     provider_cooldown_until[0] = time.monotonic() + 30
                     raise HTTPException(429, "Clone Dhan quota cooldown",
@@ -304,8 +307,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 body.expiry < datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
             raise HTTPException(422, "Invalid Clone option underlying or expiry")
         try:
-            from dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
-                                            OptionMetricsUnavailable)
+            try:
+                from .dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
+                                                  OptionMetricsUnavailable)
+            except ImportError:
+                from dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
+                                                 OptionMetricsUnavailable)
             raw = provider().option_chain(*known[body.symbol], body.expiry.isoformat())
             metrics = calculate_option_metrics(raw)
             raw_data = raw.get("data", {})
