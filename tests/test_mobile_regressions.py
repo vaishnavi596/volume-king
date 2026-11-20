@@ -25,7 +25,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_scanner_fast_signal_is_cache_only_and_api_scan_keeps_30_second_floor(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         fast = source.split("    def refresh_cached_scanner_signal():", 1)[1].split("    async def auto_scan_loop(generation):", 1)[0]
-        self.assertIn('await asyncio.sleep(2 if (refresh_hours()', fast)
+        self.assertIn('await asyncio.sleep(2 if app_active[0] and current[0] in (0,3)', fast)
         self.assertIn('else 30)', fast)
         self.assertIn('snapshot=candles.get("scanner_chart_"+sym)', fast)
         self.assertIn('snapshot.get("cached")', fast)
@@ -439,7 +439,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_dhan_scanner_offers_only_supported_candle_intervals(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('scanner_intervals=(["1m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
+        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
         self.assertIn('if saved_scanner_tf not in scanner_intervals:', source)
         self.assertIn('saved_scanner_tf="1m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
@@ -676,6 +676,8 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_auto_scan_schedules_short_ticks_and_sets_next_due_time(self):
         _,v=start({"scanner_live":True,"scanner_refresh":"60","source":"Yahoo Finance"})
+        # Auto Scanner operates only when Scanner is the visible page.
+        v["current"][0]=3
         class Clock(datetime):
             @classmethod
             def now(cls,tz=None):
