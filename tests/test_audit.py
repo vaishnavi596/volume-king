@@ -568,8 +568,9 @@ class AuditTests(unittest.TestCase):
     def test_empty_dhan_batch_does_not_clear_active_failure(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         feed=v['dhan_feed']
-        feed._origin='https://example.invalid'
-        feed._pairing_key='test-only'
+        v['clone_v2_gateway']._origin='https://example.invalid'
+        v['clone_v2_gateway']._key='test-only'
+        feed.activate_with_quote({'NIFTY':100.0})
         with patch.object(feed,'equity_quotes_for_watchlist',return_value={}):
             asyncio.run(v['refresh_watch_batch']())
         self.assertEqual(v['dhan_batch_issue'][0],
@@ -580,8 +581,9 @@ class AuditTests(unittest.TestCase):
     def test_successful_dhan_watchlist_retry_clears_settings_error(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         feed=v['dhan_feed']
-        feed._origin='https://example.invalid'
-        feed._pairing_key='test-only'
+        v['clone_v2_gateway']._origin='https://example.invalid'
+        v['clone_v2_gateway']._key='test-only'
+        feed.activate_with_quote({'NIFTY':100.0})
         v['dhan_batch_issue'][0]='Data request failed (FeedError)'
         v['connection_status'].value='Dhan connected; watchlist batch failed'
         complete={symbol:{'source':'Dhan','price':1234.5,'symbol':symbol}
@@ -597,8 +599,9 @@ class AuditTests(unittest.TestCase):
     def test_partial_dhan_batch_is_not_reported_as_complete(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         feed=v['dhan_feed']
-        feed._origin='https://example.invalid'
-        feed._pairing_key='test-only'
+        v['clone_v2_gateway']._origin='https://example.invalid'
+        v['clone_v2_gateway']._key='test-only'
+        feed.activate_with_quote({'NIFTY':100.0})
         with patch.object(feed,'equity_quotes_for_watchlist',return_value={
                 'RELIANCE':{'source':'Dhan','price':1234.5,'symbol':'RELIANCE'}}):
             asyncio.run(v['refresh_watch_batch']())
@@ -608,8 +611,9 @@ class AuditTests(unittest.TestCase):
 
     def test_nifty_retry_failure_surfaces_despite_complete_equity_scan(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
-        v['dhan_feed']._origin='https://example.invalid'
-        v['dhan_feed']._pairing_key='test-only'
+        v['clone_v2_gateway']._origin='https://example.invalid'
+        v['clone_v2_gateway']._key='test-only'
+        v['dhan_feed'].activate_with_quote({'NIFTY':100.0})
         v['scan_progress'].update(total=51,valid=51,checked=51,failed=0,state='Complete')
         v['failed_symbols']['NIFTY']='Dhan upstream temporarily unavailable; retry later'
         def text_values(control):
