@@ -1597,3 +1597,8 @@
 - Source commit 8e2da9c79474501a6d4b4cf6e45cbbafd36d1187: normalize stale scanner Dhan 1m/2m/3m period to 7d instead of throwing pre-fetch ValueError; 5m/15m/30m with 3mo likewise normalized. This is a proven code-path correction, not proof of phone root cause.
 - Initial targeted B1 run #44763408301 FAILED because old static test expected literal guard raising ValueError. B2 #44763408312 and Adapter #44763408350 PASS. Updated B1 contract test commit ae5ff302c5fabb3b7900ca2be17430942651776f to assert period normalization and 2m source identity. Full regression #44763420804 launched for combined index and scanner changes; verify outcome before APK.
 - SENSEX LTP FeedError still unresolved. Do not claim full Scanner phone success until retest.
+
+[JOINT SCANNER+INDEX PHONE BUILD STARTED][2026-11-20]
+- B1 #44763525884 SUCCESS after updating obsolete static scanner 2m guard expectation. Joint full offline regression #44763575660 SUCCESS on commit 75e18635453506fc2b31dfd2337ebf62d7c74ed0, covering scanner period normalization and index after-hours history bootstrap. Earlier #44763420804 failed before B1 test update and is superseded, not ignored.
+- APK workflow triggered by commit c7ffe930bfd0fbbc6ecfa24c1bbd429ffd5fab83, run #44764057322 in progress at first check; await SUCCESS and artifact verification before distributing. Phone runtime scanner success and index candle completion unverified.
+- SENSEX Dhan index quote FeedError remains unresolved; build is explicitly a partial phone test, not final B3 acceptance.
