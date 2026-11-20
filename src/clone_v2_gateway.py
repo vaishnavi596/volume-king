@@ -8,6 +8,8 @@ the clone may claim it is connected. No fallback to original V1 server paths.
 from __future__ import annotations
 
 import json
+import math
+import urllib.error
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -33,6 +35,60 @@ class CloneV2Gateway:
     def disconnect(self):
         self._origin = ""
         self._key = ""
+
+
+    def market_quotes(self, symbols):
+        """Phone→Clone→Dhan read-only request; never accepts fake broker quotes."""
+        if not self.connected:
+            raise FeedError("Clone SSK connection required")
+        if (not isinstance(symbols, list) or not 1 <= len(symbols) <= 73
+                or any(not isinstance(s, str) or not s or len(s) > 32 for s in symbols)
+                or len(set(symbols)) != len(symbols)):
+            raise FeedError("Invalid Clone market symbol selection")
+        url = self._origin + "/clone-v2/market/quotes"
+        req = Request(url, data=json.dumps({"symbols": symbols}).encode("utf-8"),
+                      headers={"X-BotKing-Key": self._key,
+                               "Accept": "application/json",
+                               "Content-Type": "application/json",
+                               "Cache-Control": "no-store"}, method="POST")
+        try:
+            with (self._opener or direct_https_opener()).open(req, timeout=20) as response:
+                if response.status != 200 or response.geturl() != url:
+                    raise FeedError("Clone market response not trusted")
+                if response.headers.get_content_type() != "application/json":
+                    raise FeedError("Clone market response type invalid")
+                raw = response.read(1000001)
+                if len(raw) > 1000000:
+                    raise FeedError("Clone market response too large")
+                payload = json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                self.disconnect()
+                raise FeedError("Clone market session rejected; reconnect") from None
+            if exc.code == 429:
+                raise FeedError("Clone Dhan quote lane paced; retry later") from None
+            raise FeedError("Clone market route not ready (HTTP " + str(exc.code) + ")") from None
+        except (URLError, OSError, TimeoutError, ValueError, UnicodeError):
+            raise FeedError("Clone market data unavailable") from None
+        if (not isinstance(payload, dict) or payload.get("source") != "dhan"
+                or payload.get("live_orders_enabled") is not False
+                or payload.get("freshness") != "unverified"
+                or not isinstance(payload.get("quotes"), dict)
+                or not isinstance(payload.get("unavailable"), list)):
+            raise FeedError("Clone market contract invalid")
+        validated = {}
+        for name, item in payload["quotes"].items():
+            if (name not in symbols or not isinstance(item, dict)
+                    or item.get("symbol") != name or item.get("source") != "dhan"
+                    or item.get("freshness") != "unverified"):
+                raise FeedError("Clone market symbol/source mismatch")
+            price = item.get("ltp")
+            if type(price) not in (int, float) or not math.isfinite(price) or price <= 0:
+                raise FeedError("Clone market invalid quote")
+            validated[name] = float(price)
+        if not validated or any(x not in symbols for x in payload["unavailable"]):
+            raise FeedError("Clone market no validated quotes")
+        return validated
 
     def connect(self, endpoint, access_key):
         """Fail closed unless the NEW gateway proves its authenticated contract.
