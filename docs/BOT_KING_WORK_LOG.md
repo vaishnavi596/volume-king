@@ -1851,3 +1851,9 @@
 
 [B3 FOURTH FULL GATE START — 2026-11-21 IST]
 - Exact trigger workflow SHA 1ca5902e4b1f09480bc4ff8755f3e55437ee5496; Run #44796420171 https://github.com/vaishnavi596/volume-king/actions/runs/44796420171 first observed in_progress. The source fix and test now agree: wrong provider index 1m aborts batch after NIFTY, retains last-good data, no false snapshot. Await complete full-suite evidence before declaring success or building APK.
+
+
+[B3 FULL OFFLINE REGRESSION GATE PASS — 2026-11-21 IST]
+- Exact test/workflow SHA 1ca5902e4b1f09480bc4ff8755f3e55437ee5496, GitHub Actions Run #44796420171 (job 136497021217) completed SUCCESS. Full `python -m unittest discover -s tests -v`: Ran 1395 tests in 111.698s, OK, zero failures and zero errors. https://github.com/vaishnavi596/volume-king/actions/runs/44796420171
+- This resolves the previous 8 failures + 2 errors in the offline suite through coordinated Clone-only test-harness/contract updates and source safety changes; previous failing #44793705564, #44795168819, #44795793508 were correctly NOT called passing. Source change dfef80c fail-closed on wrong-provider index 1m result, test update 319ace2 validates it; source change d84f7cf immediate available-filter picker refresh. Original V1 mapping remains NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51.
+- Gate scope: full offline tests, source compilation, shell syntax. NOT live Dhan data verification, phone Scanner, SENSEX LTP/1m candle proof, Watchlist 3m candle end-to-end proof, WebView Android compatibility, or Oracle integration. No Oracle deployment and no APK build from this regression job. Preserve installed Clone APK until signed artifact/update compatibility is verified. Proceed to bounded phone-test build/field validation only through separate controlled build workflow; record exact artifact and run evidence.
