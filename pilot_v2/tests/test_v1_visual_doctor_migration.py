@@ -58,7 +58,7 @@ class V1VisualDoctorMigration(unittest.TestCase):
                                       "server_settings", "server_base_url"},
                                      (name, node.id))
         main_source = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertNotRegex(main_source, r"(?i)\\b(?:angel|yahoo|yfinance)\\b")
+        self.assertNotRegex(main_source, r"(?i)\b(?:angel|yahoo|yfinance)\b")
         self.assertIn("SmartDataSettings", main_source)
         self.assertIn("LocalWatchlists", main_source)
 
