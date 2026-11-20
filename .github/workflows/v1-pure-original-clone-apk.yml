@@ -61,6 +61,27 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_remaining_filter_batch.py' -v
           bash -n ops/install_clone_v2_b3_oracle.sh
           bash -n ops/provision_clone_dhan_oauth_env.sh
+          python3 - <<'PY'
+          import ast,pathlib
+          gateway=pathlib.Path("backend/clone_v2_gateway.py").read_text()
+          phone=pathlib.Path("src/clone_v2_gateway.py").read_text()
+          app=pathlib.Path("src/main.py").read_text()
+          installer=pathlib.Path("ops/install_clone_v2_b3_oracle.sh").read_text()
+          for path in ("backend/clone_v2_gateway.py","src/clone_v2_gateway.py","src/main.py"):
+              ast.parse(pathlib.Path(path).read_text(),filename=path)
+          for marker in ("NoBrokerRedirect", 'out.write(new_token+chr(10))',
+                         '/clone-v2/dhan/start','/clone-v2/dhan/callback',
+                         'BOTKING_CLONE_DHAN_CALLBACK_APPROVED'):
+              assert marker in gateway,marker
+          for marker in ("start_dhan_browser_login", "exc.code == 424"):
+              assert marker in phone, marker
+          assert "Authorize Dhan in Browser (Clone)" in app
+          for marker in ("B3_DHAN_BROWSER_REAUTH_REQUIRED=YES",
+                         'B3_ORACLE_GATEWAY=AUTH_REQUIRED',
+                         'EnvironmentFile=/etc/bot-king/clone-dhan-oauth.env'):
+              assert marker in installer, marker
+          print("CLONE_DHAN_BROWSER_LATEST_SECURITY_CONTRACT=PASS")
+          PY
           python3 -m unittest discover -s tests -p 'test_clone_v2_dhan_browser_consent_b3.py' -v
           python3 -m unittest discover -s tests -v
           echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
