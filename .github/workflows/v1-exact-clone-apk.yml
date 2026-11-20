@@ -6,6 +6,8 @@ on:
       - pilot/v1-untouched-clone-apk-20261120
     paths:
       - .github/workflows/v1-exact-clone-apk.yml
+      - src/main.py
+      - tests/test_v1_clone_watch_superfive.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,10 +35,10 @@ jobs:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
-      - name: Guarantee untouched V1 application sources and only version bump
+      - name: Verify only two scoped V1 clone fixes and unchanged login/providers
         run: |
           set -euo pipefail
-          test "$(git hash-object src/main.py)" = "2cb4fa2421af117742aa1db3f04ecf22af33a4f8"
+          test "$(git hash-object src/main.py)" = "40856f5677af06baafc4d6b22c4bbeacf7cfe2ad"
           git diff --quiet HEAD -- src
           python - <<'PY'
           from pathlib import Path
@@ -48,8 +50,12 @@ jobs:
           ast.parse(s)
           for required in ("ServerAngelFeed", "ServerDhanReadOnly", "get_yahoo(", 'server_access=ft.TextField', 'api_url=ft.TextField', 'server_trust=ft.Checkbox'):
               assert required in s, f"Original V1 feature unexpectedly missing: {required}"
-          print("V1 source untouched; clone version 2.3.131; server key login UI retained")
+          print("V1 clone: only Watchlist 3m and Super Five historical presentation changed; server key login UI retained")
           PY
+      - name: Run focused clone Watchlist/Super Five regression
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p "test_v1_clone_watch_superfive.py" -v
       - name: Set up independent test-only APK signer
         shell: bash
         run: |
