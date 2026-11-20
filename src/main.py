@@ -2920,7 +2920,7 @@ def app_main(page:ft.Page):
         chooser.on_change=changed
         sym=chain_symbol.value if (current[0] if page_id is None else page_id)==1 else (scan_symbol.value or "NIFTY")
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
-            note("Dhan read-only quotes, candles and NIFTY option metrics. Option freshness unverified; signals and live orders OFF.")],
+            note("Dhan read-only quotes and candles; broker-listed option metrics only for verified, entitled underlyings. Availability and freshness unverified; signals and live orders OFF.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
     async def refresh_selected_options():
         # Dhan-only read-only option metrics. No Angel One fallback.
