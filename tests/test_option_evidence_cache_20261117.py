@@ -7,7 +7,8 @@ from backend.option_evidence_cache import OptionEvidenceCache
 class OptionEvidenceCacheTests(unittest.TestCase):
     def test_symbol_isolation_expiry_and_no_mutation(self):
         clock = [100.0]
-        cache = OptionEvidenceCache(ttl_seconds=10, clock=lambda: clock[0])
+        cache = OptionEvidenceCache(ttl_seconds=10, clock=lambda: clock[0],
+                                    today=lambda: date(2026, 11, 19))
         metrics = {"pcr": 0.8, "freshness": "unverified", "signal_eligible": False}
         self.assertTrue(cache.put("NIFTY", "2026-11-19", metrics))
         metrics["pcr"] = 99
@@ -43,7 +44,8 @@ class OptionEvidenceCacheTests(unittest.TestCase):
         self.assertEqual(cache.latest("NIFTY")["source"], "dhan")
 
     def test_reject_unverified_eligibility_and_bound_capacity(self):
-        cache = OptionEvidenceCache(max_entries=1)
+        cache = OptionEvidenceCache(max_entries=1,
+                                    today=lambda: date(2026, 11, 19))
         self.assertFalse(cache.put("A", "2026-11-19", {"signal_eligible": True,
                                                        "freshness": "unverified"}))
         self.assertFalse(cache.put("A", "2026-11-19", {"signal_eligible": False,
