@@ -17,7 +17,8 @@ class V2AndroidPilotBuildContractTests(unittest.TestCase):
                          "aapt", "upload-artifact@v4",
                          "bot-king-v2-offline-pilot-apk-2.0.100"):
             self.assertIn(required, text)
-        self.assertNotIn("--yes", text)  # Flet 0.25.2 rejects --yes (runs #1/#2).\n        for banned in ("systemctl restart", "systemctl stop", "sudo systemctl",
+        self.assertNotIn("--yes", text)  # Flet 0.25.2 rejects --yes (runs #1/#2).
+        for banned in ("systemctl restart", "systemctl stop", "sudo systemctl",
                        "/opt/bot-king-server", "live_orders_enabled = true",
                        "actions/checkout@v3"):
             self.assertNotIn(banned, text)
