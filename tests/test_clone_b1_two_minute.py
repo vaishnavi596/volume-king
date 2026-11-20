@@ -48,6 +48,10 @@ class TwoMinuteContract(unittest.TestCase):
         self.assertIn('completed_two_minute_bars(candle_result["bars"]', source)
         self.assertIn('ticker,interval,range_', source)
         self.assertIn('"2m":(120,187.5,', source)
+        self.assertIn('if tf not in ("1m","2m","3m","5m","15m","1h"):', source)
+        self.assertIn('if scan_tf.value in ("1m","2m","3m"):', source)
+        self.assertIn('if interval in ("1m","2m","3m") and period!="7d":', source)
+        self.assertIn('for v in scanner_intervals', source)
 
 
 if __name__ == "__main__":
