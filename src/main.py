@@ -7031,25 +7031,32 @@ console.log('BOT KING Lightweight Charts ready');
                     # Dashboard indexes need their own 1m Assessment context,
                     # independent of Scanner/Options/Paper selections. These are
                     # local read-only Assessment GETs, not extra Dhan history.
-                    selected=[("overview",index_symbol)
-                              for index_symbol in ("NIFTY","BANKNIFTY","SENSEX")]
-                    selected.extend([("scanner",scan_symbol.value),
-                                     ("options",chain_symbol.value),
-                                     ("overview",bot_symbol.value)])
-                    # Round-robin one visible equity per cycle, not all 51/70.
-                    # A selection change uses the new matching roster immediately.
+                    from clone_smart_refresh_priority import focused_contexts
+                    matching_watch=[]
                     if current[0]==4:
                         matching_watch=[sym for sym in watch_groups[active_watch[0]]
                                         if isinstance(sym,str) and
                                         (not isinstance(search.value,str) or
                                          not search.value or search.value.upper() in sym)]
-                        if matching_watch:
-                            watch_index=oracle_assessment_watch_cursor[0]%len(matching_watch)
-                            oracle_assessment_watch_cursor[0]+=1
-                            selected.append(("watchlist",matching_watch[watch_index]))
-                    for sym in (scan_symbol.value,chain_symbol.value,bot_symbol.value):
-                        if isinstance(sym,str):
-                            selected.append(("overview",sym))
+                    selected_watch=None
+                    if matching_watch:
+                        watch_index=oracle_assessment_watch_cursor[0]%len(matching_watch)
+                        oracle_assessment_watch_cursor[0]+=1
+                        selected_watch=matching_watch[watch_index]
+                    # Position evidence is prioritized even when its trading page
+                    # is not visible; never imply Android off-screen guaranteed risk stops.
+                    active_trading=[]
+                    for sym,p in (prefs.get("paper_positions") or {}).items():
+                        if isinstance(p,dict) and p.get("side") in ("BUY","SELL"):
+                            active_trading.append(sym)
+                    active_bot=prefs.get("bot_position") or {}
+                    if isinstance(active_bot,dict) and active_bot.get("side") in ("BUY","SELL"):
+                        active_trading.append(bot_symbol.value)
+                    selected=focused_contexts(
+                        current[0], indices=("NIFTY","BANKNIFTY","SENSEX"),
+                        scanner=scan_symbol.value,option=chain_symbol.value,
+                        chart=symbol.value,watch=selected_watch,
+                        trading=active_trading)
                     contexts=[]
                     seen=set()
                     for surface,sym in selected:
