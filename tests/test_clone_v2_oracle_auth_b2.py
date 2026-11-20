@@ -18,6 +18,30 @@ class CloneOracleAuthTests(unittest.TestCase):
         self.key = b"k" * 40
         self.http = TestClient(create_app(key_bytes=self.key))
 
+    def test_finnifty_option_only_underlying_mapping(self):
+        class Provider:
+            def option_expiries(self, segment, sid):
+                self.expiry_args = (segment, sid)
+                return ["2099-12-31"]
+            def option_chain(self, segment, sid, expiry):
+                self.chain_args = (segment, sid, expiry)
+                return {"status": "success", "data": {"last_price": 25000.0, "oc": {
+                    "24950.0": {"ce": {"oi": 100}, "pe": {"oi": 120}},
+                    "25000.0": {"ce": {"oi": 150}, "pe": {"oi": 90}}
+                }}}
+        feed = Provider()
+        http = TestClient(create_app(key_bytes=self.key,market_feed_factory=lambda:feed,
+                                     market_registry={"RELIANCE":("NSE_EQ",2885)}))
+        headers={"X-BotKing-Key": self.key.decode()}
+        res=http.post("/clone-v2/market/options/expiries",
+                      headers=headers,json={"symbol":"FINNIFTY"})
+        self.assertEqual(res.status_code,200,res.text)
+        self.assertEqual(feed.expiry_args,("IDX_I",27))
+        self.assertEqual(res.json()["expiries"],["2099-12-31"])
+        # Option-only mapping must not silently add a fourth dashboard quote slot.
+        self.assertEqual(http.post("/clone-v2/market/quotes",headers=headers,
+                                   json={"symbols":["FINNIFTY"]}).status_code,422)
+
     def test_no_key_fails_closed(self):
         res = self.http.get("/clone-v2/status")
         self.assertEqual(res.status_code, 403)
