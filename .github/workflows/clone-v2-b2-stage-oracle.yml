@@ -28,6 +28,7 @@ jobs:
           python3 -m py_compile backend/clone_v2_gateway.py src/clone_v2_gateway.py
           python3 -m pip install --disable-pip-version-check --no-input -q 'fastapi==0.115.12' 'httpx==0.28.1'
           python3 -m unittest discover -s tests -p 'test_clone_v2_oracle_auth_b2.py' -v
+          python3 -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
           test -s ops/install_clone_v2_b2_oracle.sh
           test -s tests/test_clone_v2_oracle_auth_b2.py
           echo "CLONE_SOURCE_COMMIT=$(git rev-parse HEAD)"
