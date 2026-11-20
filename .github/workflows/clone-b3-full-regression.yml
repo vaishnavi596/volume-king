@@ -64,3 +64,5 @@ jobs:
 # Recheck 1398 tests after restoring literal OI never-vote contract 2026-11-21
 
 # FINNIFTY option-only IDX_I 27 mapping and existing three-index isolation regression 2026-11-21
+
+# Gate phone regression: Run Scan/Filters controls and FINNIFTY legacy predicate checks 2026-11-21
