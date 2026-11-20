@@ -1811,3 +1811,17 @@
 - Failure 8: tests/test_watchlist_three_minute_vote_contract.py expects literal 'signal_row=watch_three_minute_signal(sym)' but implementation caches per-visible-symbol 'tick_signals' and reuses it; preserve 3m semantics and avoid duplicate work.
 - Previous nearby scoped B1 #44791010171, B2 #44791010194 and Adapter #44791010156 passed at source commit 9a8dab4; they are not a full-suite PASS. Existing continuation docs/BOT_KING_CLONE_20261120_HANDOFF_CONTINUATION.md confirms NIFTY IDX_I/13, BANKNIFTY IDX_I/25, SENSEX BSE_I/51 and unresolved real-phone provider issues; do not alter mapping by inference.
 - Classification: test-harness/legacy textual expectations vs real regressions NOT YET RESOLVED. Next do one combined review of the 10 failing tests and relevant latest source, apply minimal contract-correct repairs once, run targeted tests and then one full-suite gate. No Oracle changes, no V1/V2 edits, no APK build, no live Dhan requests in this triage. No PASS assertion for failed gate.
+
+
+[B3 V1-REFERENCE JOINT TRIAGE PATCH — 2026-11-21 IST]
+- Original V1 read-only reference: branch botking-b1-index-mapping-20261114, src/main.py inspected auto_scan_loop, scanner_compact_chart, filter editor. Original V1 may be used for contract comparison only. No V1, V2 or Oracle writes.
+- Working Clone branch pilot/v1-pure-original-clone-phone-20261120; previous full run #44793705564 FAILED 1395 tests (8 failures, 2 errors). Work performed in one reasoned contract review rather than reapplying earlier PASS fixes.
+- tests/test_watchlist_three_minute_vote_contract.py commit c8b190e: verify 3m visible tick computes one symbol signal per cycle and reuses tick_signals, not obsolete literal repeated calls.
+- tests/test_dhan_index_refresh_regression.py commit 51f4295: shared-queue guard checks actual dhan_history_scan_active condition, not blanket disable for 5m scanner.
+- tests/test_scanner_selected_source_safety.py commit 07074b0: supply request_view_refresh stub to extracted trigger_scan harness, preserving exact after-hours cache-only selection expectation.
+- tests/test_clone_v2_oracle_auth_b2.py commit 551b9ad: expiry fixture now based on IST exchange day, not GitHub runner UTC date (UTC yesterday during IST 00:00-05:29); preserve expiry security check.
+- tests/test_scanner_refresh_batch2.py commit 692a533: scanner_live false means no automatic provider polls across Dhan source switching; updated obsolete test expectations, preserving explicit user Auto OFF control.
+- tests/test_paper_engine.py commit f96ee3d: embedded Lightweight WebView unsupported in observed Android runtime; verify safe native fallback, no fabricated JS-ready event.
+- src/main.py commit d84f7cf: removed central analysis filter returns immediately to dropdown options without expensive whole-page rebuild; guard mount before control.update(). Filter calculation and source data policies unchanged.
+- Genuine unknowns remaining: wrong-provider index history call-count (3 vs 1) and whether any newly failing runtime assertions arise. Do not assume a green regression without new exact-head run. Source controls for 51 equity historical retention, BSE_I/51 SENSEX mapping, Dhan pacing, five evidence slots and sixth inert slot must remain protected.
+- Next: one new full offline workflow run on current exact head; inspect only its failures and changed relevant files, commit further fixes and journal outcomes; no APK/Oracle release unless full gate passes and phone validation is separately completed.
