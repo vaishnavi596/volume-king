@@ -260,8 +260,11 @@ class CloneDhanReadOnly:
             return self.gateway.market_quotes(list(symbols))
         except FeedError as exc:
             if "paced" in str(exc) or "rate limit" in str(exc):
-                self._cooldowns["/dhan/selected-ltp-batch"] = time.monotonic() + 2
-                self._cooldowns["/dhan/index-ltp-batch"] = time.monotonic() + 2
+                # Gateway 429 can represent a 30s Dhan quota cooldown,
+                # not just the 1.05s quote pacing floor. Fail safe.
+                until = time.monotonic() + 30
+                for route in ("/dhan/selected-ltp-batch", "/dhan/index-ltp-batch"):
+                    self._cooldowns[route] = max(self._cooldowns.get(route, 0.0), until)
             raise
 
     def quote(self, symbol):
