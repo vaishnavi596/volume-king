@@ -84,6 +84,22 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
         self.assertIn(("run",ctx["scan_market"],False),actions)
         self.assertEqual(ctx["scan_shared"]["symbol"],"TCS")
 
+    def test_off_hours_scanner_entry_hydrates_cache_without_network(self):
+        # Entering the Scanner after-hours must not require Settings > Retry.
+        # This is a cache-only task and cannot call the Dhan broker.
+        nav=function_source("render_page")
+        self.assertIn('if changed and i==3 and scan_live.value and not scan_busy[0]:',nav)
+        self.assertIn('dhan_feed.connected and not refresh_hours()',nav)
+        self.assertIn('page.run_task(scan_market,False)',nav)
+        self.assertNotIn('page.run_task(scan_market,True)',nav)
+
+    def test_scanner_oi_context_explains_connection_and_expiry(self):
+        view=function_source("scanner_option_context")
+        self.assertIn('Dhan session not connected',view)
+        self.assertIn('differs from Options',view)
+        self.assertIn('auto-refresh pauses after market hours',view)
+        self.assertIn('use explicit Retry Data',view)
+
     def test_one_minute_default_preserves_saved_timeframe(self):
         self.assertIn('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',SOURCE)
         self.assertIn('        saved_scanner_tf="1m"',SOURCE)
