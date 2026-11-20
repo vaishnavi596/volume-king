@@ -78,7 +78,7 @@ User=opc
 Group=opc
 WorkingDirectory=/home/opc/botking-clone-v2-runtime
 Environment=BOTKING_CLONE_V2_SSK_FILE=/home/opc/botking-clone-v2-private/ssk
-ExecStart=/home/opc/botking-clone-v2-runtime/.venv/bin/uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
+ExecStart=/home/opc/botking-clone-v2-runtime/.venv/bin/python -m uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
