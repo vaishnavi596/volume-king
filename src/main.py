@@ -2986,8 +2986,9 @@ def app_main(page:ft.Page):
         option_feed_status[0]="Loading broker-listed Dhan expiries..."
         option_stage="broker-listed expiries"
         try:
-            if sym not in DHAN_VERIFIED_OPTION_SYMBOLS:
-                raise FeedError("No mapped Dhan underlying for "+sym)
+            if sym not in DHAN_VERIFIED_SYMBOLS:
+                if sym!="FINNIFTY":
+                    raise FeedError("No mapped Dhan underlying for "+sym)
             dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value:return
             if choice=="Manual":
@@ -3070,7 +3071,8 @@ def app_main(page:ft.Page):
             # scanner and dashboard already consume the same Dhan candle cache.
             if (current[0] in (0,1,3) and refresh_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS and not option_feed_busy[0]
+                    and (chain_symbol.value in DHAN_VERIFIED_SYMBOLS or chain_symbol.value=="FINNIFTY")
+                    and not option_feed_busy[0]
                     and (dhan_option_last_attempt[0]<=0
                          or time.monotonic()-dhan_option_last_attempt[0]>=60)
                     and time.monotonic()>=option_retry_until.get(
@@ -5653,7 +5655,11 @@ console.log('BOT KING Lightweight Charts ready');
             ft.ExpansionTile(title=txt("Premium simulation settings",14,GOLD),controls=[
                 ft.ResponsiveRow([scan_budget,scan_expiry,scan_min,scan_max],spacing=6,run_spacing=6),
                 note("Illustrative premiums and days only; not actual exchange contracts or expiry.")]),
-            ft.TextButton("Filters: "+str(len(filter_selected))+" selected • Settings",on_click=open_filter_settings),
+            ft.Row([
+                ft.ElevatedButton("Run Scan",icon=ft.Icons.PLAY_ARROW,on_click=run_scan),
+                ft.OutlinedButton("Filters • Settings",icon=ft.Icons.TUNE,on_click=open_filter_settings),
+            ],wrap=True,spacing=8,run_spacing=5),
+            note(str(len(filter_selected))+" saved filters • unavailable evidence remains WAIT"),
             ft.Row([scan_live,scan_refresh],wrap=True,spacing=10,run_spacing=5),
             note("Auto Scan runs only while Scanner is visible, Dhan is connected and market is open. Off-hours: saved candles only."),
             scan_status,scan_age_display,
