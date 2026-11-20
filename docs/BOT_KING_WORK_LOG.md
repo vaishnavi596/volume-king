@@ -1900,3 +1900,8 @@
 
 [B3 THREE-ISSUE SCANNER AUTO-CONTROL CI — 2026-11-21 IST]
 - Source SHA 4b0c59b targeted B1 #44801591204, B2 #44801591235, Adapter #44801591661 completed SUCCESS. Current added source guard test SHA 544c887 is not yet proven by those source-triggered runs. Full offline workflow triggered with comment-only workflow commit 64aceaae725dda2706053c70f8dc95b99642c86b; at latest GitHub runs listing this new full gate had not yet been surfaced, so no run ID or PASS/FAIL inferred. Avoid repeat triggering. Distinguish upcoming exact-head gate from earlier PASS #44801182922. Phone and Oracle live data unverified; owner three-issue focus remains locked.
+
+
+[B3 OWNER READ-ONLY ORACLE SERVICE HEALTH CONFIRMED — 2026-11-21 IST]
+- Owner provided live terminal results: GET http://127.0.0.1:8002/clone-v2/health => HTTP 200; systemctl is-active botking-clone-v2.service => active; systemctl is-active bot-king.service => active. Earlier 8000/clone-v2/health HTTP 404 was wrong service port; deployment script confirms Clone uses 8002 while original V1 uses 8000. Do not interpret 404 as Clone failure.
+- Owner's prior last-hour Clone journal logs confirmed read-only /clone-v2/market/quotes and /clone-v2/market/candles HTTP 502, but /clone-v2/market/options/expiries and /clone-v2/market/options/chain HTTP 200. Gateway process health and service state do not establish Dhan upstream payload validity, SENSEX mapping response, or scanner option symbol/expiry parity. No credentials/tokens collected, no provider requests/restarts/deployment performed. Three-issue focus remains SENSEX, Scanner Auto Refresh UI, Scanner OI/PCR/Max Pain.
