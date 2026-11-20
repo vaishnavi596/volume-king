@@ -2325,8 +2325,8 @@ def app_main(page:ft.Page):
                     valid=(same and not dhan_offline() and age is not None and 0<=age<=60
                            and isinstance(q.get("price"),(int,float)) and not isinstance(q.get("price"),bool)
                            and math.isfinite(q["price"]) and q["price"]>0)
-                    label=("LTP time unverified" if valid else "LTP cached • not live")+(
-                        " • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else "")
+                    label=("OFF" if not regular_hours() else "STALE")+(
+                        " • ERROR" if watch_batch_status[0].startswith("Dhan batch failed:") else "")
                     if freshness.value!=label:
                         freshness.value=label
                         if freshness.page is not None:freshness.update()
