@@ -5535,7 +5535,11 @@ console.log('BOT KING Lightweight Charts ready');
               or data.get("source")!="dhan" or data.get("expiry")!=expiry.value):
             message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • select the symbol in Options; auto-refresh will request listed data"
         elif (not isinstance(data.get("pcr"), (int, float))
+              or isinstance(data.get("pcr"),bool)
+              or not math.isfinite(data["pcr"]) or data["pcr"]<0
               or not isinstance(data.get("max_pain"), (int, float))
+              or isinstance(data.get("max_pain"),bool)
+              or not math.isfinite(data["max_pain"]) or data["max_pain"]<=0
               or data.get("freshness") != "unverified"
               or data.get("signal_eligible") is not False):
             message="OI / PCR / Max Pain: Dhan option snapshot incomplete; awaiting next automatic request"
