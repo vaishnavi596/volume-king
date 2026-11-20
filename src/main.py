@@ -282,9 +282,9 @@ def app_main(page:ft.Page):
     from login_bootstrap import LoginBootstrapState
     login_bootstrap=LoginBootstrapState()
     angel_feed=ServerAngelFeed()
-    dhan_feed=ServerDhanReadOnly()
-    from clone_v2_gateway import CloneV2Gateway
-    clone_v2_gateway=CloneV2Gateway()  # Independent clone-only B2 handshake; no old feed mutation.
+    from clone_v2_gateway import CloneV2Gateway, CloneDhanReadOnly
+    clone_v2_gateway=CloneV2Gateway()  # Independent B2 SSK, never the original V1 connection.
+    dhan_feed=CloneDhanReadOnly(clone_v2_gateway)  # B3 Dhan read-only data, clone routes only.
     clone_v2_connect_busy=[False]
     broker_retry=[0.0]
     broker_failures=[0]
@@ -3183,6 +3183,10 @@ def app_main(page:ft.Page):
         nonlocal market_status
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
+            connection_status.value="Clone B3 uses Connect Clone V2 (SSK); legacy Dhan/V1 login is disabled."
+            connection_status.color=GOLD
+            page.update()
+            return
             endpoint=(api_url.value or "").strip()
             # Recheck an active in-memory session without requesting the key again.
             # Never persist the pairing key in ordinary preferences.
@@ -3577,9 +3581,26 @@ def app_main(page:ft.Page):
             result=await asyncio.to_thread(clone_v2_gateway.connect,endpoint,access_key)
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
-            connection_status.value=("Clone V2 gateway authenticated (read-only). "
-                "Market feed not verified; no LIVE signals enabled.")
-            connection_status.color=GOLD
+            # One real round-trip before exposing the Dhan provider as connected.
+            proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,
+                                          ["NIFTY","BANKNIFTY","SENSEX"])
+            if "NIFTY" not in proof:
+                raise FeedError("Clone B3 Dhan index quote unavailable; SSK-only connection")
+            dhan_feed.activate_with_quote(proof)
+            source.value="Dhan"
+            prefs["source"]="Dhan"
+            save()
+            provider_changed(None)
+            for symbol, price in proof.items():
+                if symbol in ("NIFTY","BANKNIFTY","SENSEX"):
+                    quotes[symbol]={"symbol":symbol,"price":price,"source":"Dhan",
+                                    "freshness":"unverified","quote_timestamp":None,
+                                    "live_verified":False,"fetched_at":time.time()}
+            connection_status.value=(
+                "Clone B3 Dhan→Oracle→Phone verified • "+str(len(proof))+
+                "/3 indices; timestamps unverified; live orders OFF.")
+            connection_status.color=GREEN
+            page.run_task(refresh_watch_batch)
         except FeedError as exc:
             connection_status.value="Clone V2: "+str(exc)
             connection_status.color=RED
@@ -3596,7 +3617,8 @@ def app_main(page:ft.Page):
         page.run_task(check_clone_v2_connection)
 
     def disconnect_clone_v2_gateway(e):
-        clone_v2_gateway.disconnect()
+        dhan_feed.disconnect()
+        provider_changed(None)
         server_access.value=""
         connection_status.value="Clone V2 SSK session disconnected; market feed unavailable."
         connection_status.color=GOLD
