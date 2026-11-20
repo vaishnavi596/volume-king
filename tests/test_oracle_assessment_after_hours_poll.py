@@ -21,19 +21,23 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
         self.assertIn("market_window=refresh_hours()",self.block)
         self.assertIn("oracle_assessment_closed_bootstrap_generation[0]=generation",
                       self.block)
-        guard=[node for node in ast.walk(self.poll)
-               if isinstance(node,ast.If)
-               and "oracle_assessment_closed_bootstrap_generation" in ast.unparse(node.test)]
-        self.assertEqual(len(guard),1)
+        guards=[node for node in ast.walk(self.poll)
+                if isinstance(node,ast.If)
+                and "bootstrap_done" in ast.unparse(node.test)
+                and "oracle_assessment_closed_watch_attempts" in ast.unparse(node.test)]
+        self.assertEqual(len(guards),1)
         self.assertTrue(any(isinstance(node,ast.Continue) for node in
-                            ast.walk(guard[0])))
-        expr=compile(ast.Expression(body=guard[0].test),"<closed-assessment-guard>","eval")
-        for last,current,should_skip in ((3,3,True),(3,4,False),
-                                         (None,1,False),(0,0,True)):
-            with self.subTest(previous=last,generation=current):
+                            ast.walk(guards[0])))
+        expr=compile(ast.Expression(body=guards[0].test),
+                     "<closed-assessment-guard>","eval")
+        cases=((True,0,0,True),(True,4,0,False),
+               (True,4,3,True),(False,0,0,False))
+        for done,page,used,should_skip in cases:
+            with self.subTest(bootstrap_done=done,page=page,used=used):
                 self.assertEqual(eval(expr,{},{
-                    "oracle_assessment_closed_bootstrap_generation":[last],
-                    "generation":current}),should_skip)
+                    "bootstrap_done":done,"current":[page],
+                    "oracle_assessment_closed_watch_attempts":{5:set(range(used))},
+                    "generation":5}),should_skip)
 
     def test_all_three_dashboard_indexes_use_same_bounded_assessment_lane(self):
         # Exact three-index inventory, regardless of scanner/options/paper
@@ -74,10 +78,12 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
         self.assertIn("now - fetched > max_age",ui)
 
     def test_one_after_hours_attempt_does_not_clear_last_good_cache(self):
-        # Skipping the repeated poll must preserve historical data for display.
-        guard=next(node for node in ast.walk(self.poll)
-                   if isinstance(node,ast.If)
-                   and "oracle_assessment_closed_bootstrap_generation" in ast.unparse(node.test))
+        guards=[node for node in ast.walk(self.poll)
+                if isinstance(node,ast.If)
+                and "bootstrap_done" in ast.unparse(node.test)
+                and "oracle_assessment_closed_watch_attempts" in ast.unparse(node.test)]
+        self.assertEqual(len(guards),1)
+        guard=guards[0]
         self.assertFalse(any(isinstance(node,ast.Call)
                              and isinstance(node.func,ast.Attribute)
                              and node.func.attr=="clear"
