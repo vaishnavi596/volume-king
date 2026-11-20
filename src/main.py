@@ -5300,11 +5300,11 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(2)
                 continue
             if not refresh_hours():
-                # Even the first automatic scan must not poll after hours.
+                # Closed sessions never trigger automatic Dhan requests.
                 scan_next_refresh[0]=None
                 scan_status.value=session_caption()
                 refresh_scan_age()
-                if current[0]==3:page.update()
+                if current[0]==3:request_view_refresh(3)
                 await asyncio.sleep(30)
                 continue
             initial=False
