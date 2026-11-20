@@ -56,3 +56,5 @@ jobs:
 # Exact-head verification after wrong-provider fail-closed index batch fix 2026-11-21
 
 # Verify final provider-integrity test contract after third gate 2026-11-21
+
+# Recheck B3 off-hours Scanner cache and option metrics diagnostic source guards 2026-11-21
