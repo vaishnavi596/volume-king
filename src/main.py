@@ -5682,8 +5682,8 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.gather(task,return_exceptions=True)
     async def scan_market(allow_network=True):
         nonlocal market_status
-        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
-            scan_status.value="Dhan login required • scan paused"
+        if prefs.get("source")=="Dhan" and not dhan_feed.connected and allow_network:
+            scan_status.value="Dhan login required • live scan paused"
             scan_busy[0]=False
             return
         generation=scan_generation[0]
