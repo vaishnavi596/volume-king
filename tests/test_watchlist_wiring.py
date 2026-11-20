@@ -83,7 +83,7 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
     def test_dhan_connect_settings_displays_partial_count(self):
-        self.assertIn('" equity LTP quotes returned • timestamps unverified"+',self.source)
+        self.assertIn('" LTP • "+session_caption()+',self.source)
         self.assertIn('(" • PARTIAL" if dhan_batch_issue[0] else "")',self.source)
         self.assertIn('connection_status.color=GOLD if dhan_batch_issue[0] else GREEN',self.source)
 
@@ -177,7 +177,8 @@ class WatchlistWiringTests(unittest.TestCase):
 
     def test_empty_saved_watchlist_skips_equity_fetch(self):
         refresh=ast.get_source_segment(self.source,self.functions["refresh_watch_batch"])
-        self.assertIn("if not all_watch_symbols():",refresh)
+        self.assertIn("if not requested_symbols:",refresh)
+        self.assertIn("requested_symbols=priority_equity_batch(",refresh)
         self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",0,0)',refresh)
         self.assertIn('Dhan equity fetch skipped',refresh)
         login=self.source.split("    async def connect_angel():",1)[1].split("    def clear_broker_credentials(",1)[0]
