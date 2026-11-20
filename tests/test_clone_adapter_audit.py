@@ -60,6 +60,18 @@ class CloneAdapterAudit(unittest.TestCase):
         self.assertIn('now-index_last_attempt[0]<60',market)
         self.assertNotIn('asyncio.gather(',market)
 
+    def test_equity_and_index_share_safe_provider_cooldown(self):
+        adapter=ast.parse(CLIENT)
+        nodes=[n for n in ast.walk(adapter) if isinstance(n,ast.FunctionDef)
+               and n.name=="_fetch"]
+        self.assertEqual(len(nodes),1)
+        source=ast.get_source_segment(CLIENT,nodes[0])
+        self.assertIn('time.monotonic() + 30',source)
+        self.assertIn('"/dhan/selected-ltp-batch"',source)
+        self.assertIn('"/dhan/index-ltp-batch"',source)
+        self.assertIn('max(self._cooldowns.get(route, 0.0), until)',source)
+        self.assertNotIn('time.monotonic() + 2',source)
+
     def test_gateway_provider_errors_keep_throttle_and_auth_distinct(self):
         gateway_tree=ast.parse(GATEWAY)
         helpers=[n for n in ast.walk(gateway_tree)
