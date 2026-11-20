@@ -6,6 +6,10 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/clone-b1-timeframe-tests.yml
+      - src/main.py
+      - src/dhan_two_minute.py
+      - src/dhan_three_minute.py
+      - tests/test_clone_b1_*.py
   workflow_dispatch:
 permissions:
   contents: read
