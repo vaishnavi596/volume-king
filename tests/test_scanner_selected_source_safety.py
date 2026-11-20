@@ -102,12 +102,18 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
 
     def test_finnifty_options_refresh_without_dashboard_index_expansion(self):
         self.assertIn('DHAN_VERIFIED_OPTION_SYMBOLS = DHAN_VERIFIED_SYMBOLS | {"FINNIFTY"}',SOURCE)
-        self.assertIn("chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS",
-                      function_source("option_poll"))
-        self.assertIn("sym not in DHAN_VERIFIED_OPTION_SYMBOLS",
-                      function_source("refresh_selected_options"))
+        self.assertIn('chain_symbol.value=="FINNIFTY"',function_source("option_poll"))
+        self.assertIn('if sym!="FINNIFTY":',function_source("refresh_selected_options"))
         self.assertIn("symbol not in DHAN_VERIFIED_OPTION_SYMBOLS",
                       function_source("scanner_option_context"))
+
+    def test_run_scan_and_filter_controls_restored_visibly(self):
+        controls=function_source("scanner_controls")
+        self.assertIn('ft.ElevatedButton("Run Scan"',controls)
+        self.assertIn('on_click=run_scan',controls)
+        self.assertIn('ft.OutlinedButton("Filters • Settings"',controls)
+        self.assertIn('on_click=open_filter_settings',controls)
+        self.assertIn('ft.Row([scan_live,scan_refresh]',controls)
 
     def test_auto_refresh_toggle_and_interval_are_visible_in_scanner(self):
         controls=function_source("scanner_controls")
