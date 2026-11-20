@@ -1529,3 +1529,8 @@
 - Full offline regression run https://github.com/vaishnavi596/volume-king/actions/runs/44754032678 completed FAILURE: 1362 tests, 1 failure + 1 error in legacy tests/test_oracle_assessment_after_hours_poll.py, whose AST assertions required the old one-shot guard expression; the new bounded Watchlist guard changed the expression. Source validation had passed. No APK build.
 - Updated the two legacy AST assertions to validate bounded post-bootstrap recovery, preservation of cache, and no repeated non-Watchlist poll, commit 803cfe6c4f380b70608afbaa720d35fc49e80c84. Added 09:10-15:45 IST weekday market gate assertions in new Watchlist test, commit 820c51577f3fe616646c559fa55affd664586490.
 - Rerun full offline gate triggered by workflow-only change commit beec824a9213ac21ab85dbad8f71a5bddf572880. Final CI result pending. No Oracle deployment or phone APK yet.
+
+[WATCHLIST FULL REGRESSION PASS AND PHONE BUILD][2026-11-20]
+- Full offline regression rerun #44754598676 at commit beec824a9213ac21ab85dbad8f71a5bddf572880 completed SUCCESS, after correcting two legacy after-hours AST test assumptions; market-hours weekday IST 09:10-15:45 and bounded after-hours Watchlist 3m recovery included.
+- Phone-test APK workflow triggered by workflow-only commit a30180d7be67263dd28e265e5eebacbd2a0f94d4; run #44754951832 queued at verification. Workflow performs its own full offline gate before building/signing/uploading APK. Do not claim APK ready until workflow success and artifact verified.
+- No Oracle deployment, no V1/V2 changes, no LIVE claim. 51 default equity LTP and five evidence filter completeness still require phone runtime acceptance.
