@@ -76,12 +76,13 @@ class CloneBrowserConsentTests(unittest.TestCase):
             self.assertEqual(result.headers["Cache-Control"],"no-store")
             self.assertEqual(result.json()["login_url"],"https://auth.dhan.co/login/consentApp-login?consentAppId=once-123")
             self.assertEqual(app.post("/clone-v2/dhan/start",headers={"X-BotKing-Key":self.key}).status_code,409)
-            callback=app.get("/clone-v2/dhan/callback?tokenId=one-time-code")
+            callback=app.get("/dhan/callback?tokenId=one-time-code")
             self.assertEqual(callback.status_code,200)
             self.assertIn("Dhan login successful",callback.text)
             self.assertEqual(callback.headers["Cache-Control"],"no-store")
             self.assertEqual(self.path.read_text(),"f"*40+"\n")
             self.assertEqual(app.get("/clone-v2/dhan/callback?tokenId=one-time-code").status_code,403)
+            self.assertEqual(app.get("/dhan/callback?tokenId=one-time-code").status_code,403)
         self.assertEqual(len(opener.paths),3)
         self.assertTrue(all(x.startswith("https://auth.dhan.co/app/") for x in opener.paths[:2]))
         self.assertEqual(opener.paths[2],"https://api.dhan.co/v2/profile")
@@ -92,6 +93,21 @@ class CloneBrowserConsentTests(unittest.TestCase):
             self.assertEqual(app.post("/clone-v2/dhan/start",headers={"X-BotKing-Key":self.key}).status_code,200)
             self.assertEqual(app.get("/clone-v2/dhan/callback?tokenId=bad").status_code,502)
         self.assertEqual(self.path.read_text(),"stale-token\n")
+
+    def test_existing_v1_callback_handoff_requires_approved_setting(self):
+        app, opener=self.app()
+        self.assertEqual(app.get("/dhan/callback?tokenId=unrequested").status_code,403)
+        with patch.dict(os.environ, {
+            "BOTKING_CLONE_DHAN_CALLBACK_APPROVED":"1",
+            "BOTKING_CLONE_DHAN_CALLBACK_URL":"https://botkingrajesh.duckdns.org/dhan/callback",
+            "BOTKING_CLONE_DHAN_APP_ID":"demo-app",
+            "BOTKING_CLONE_DHAN_APP_SECRET":"demo-secret",
+            "DHAN_CLIENT_ID":"owner-client",
+            "BOTKING_CLONE_DHAN_TOKEN_FILE":str(self.path),
+        }):
+            # Clone credential policy accepts original URL, not a newly generated app.
+            configured=TestClient(create_app(key_bytes=self.key.encode()))
+            self.assertEqual(configured.post("/clone-v2/dhan/start").status_code,403)
 
     def test_unrequested_callback_forbidden(self):
         app,opener=self.app()
