@@ -1,0 +1,25 @@
+name: BOT KING CLONE B1 Timeframe Targeted Tests
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/clone-b1-timeframe-tests.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  b1-timeframe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile B1 source and targeted tests
+        run: |
+          python -m py_compile src/main.py src/dhan_two_minute.py src/dhan_three_minute.py tests/test_clone_b1_two_minute.py tests/test_clone_b1_market_status_contract.py
+      - name: Run one Batch 1 targeted regression
+        run: |
+          python -m unittest discover -s tests -p 'test_clone_b1_*.py' -v
