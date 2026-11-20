@@ -47,10 +47,15 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
 
     def test_mounted_watchlist_tick_uses_three_minute_only(self):
         tick = self.functions["watch_visible_tick"]
-        self.assertIn('signal_row=watch_three_minute_signal(sym)', tick)
-        self.assertIn('row=watch_three_minute_signal(sym)', tick)
+        # The visible tick computes each 3m signal once and reuses it for
+        # signatures, filtering and mounted cells; textual repetitions waste CPU.
+        self.assertIn('tick_signals={sym:watch_three_minute_signal(sym) for sym in visible}', tick)
+        self.assertIn('signal=tick_signals[sym]', tick)
+        self.assertIn('signal_row=tick_signals[sym]', tick)
+        self.assertIn('row=signal_row', tick)
         self.assertIn('timeframe_spec("3m")', tick)
-        self.assertIn('watch_three_minute_signal(sym).get("timestamp")', tick)
+        self.assertIn('tick_signals[sym].get("timestamp")', tick)
+        self.assertNotIn('watch_signal_cache.get(sym)', tick)
 
     def test_super_five_shared_five_minute_path_remains(self):
         source = self.source
