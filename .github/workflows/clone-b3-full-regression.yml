@@ -48,3 +48,5 @@ jobs:
 # Legacy scanner contract corrections after V1 reference audit 2026-11-20
 
 # Joint scanner-options safe adapter diagnostics exact-source gate 2026-11-20
+
+# B3 final combined regression: source guards, pacing, cache and option metrics (no APK)
