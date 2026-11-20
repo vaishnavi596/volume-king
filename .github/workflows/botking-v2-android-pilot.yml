@@ -1,0 +1,109 @@
+name: BOT KING V2 Isolated Android Pilot APK
+run-name: V2 offline pilot APK (separate package, no server activation)
+on:
+  push:
+    branches:
+      - pilot/botking-v2-smart-gateway-20261118
+    paths:
+      - .github/workflows/botking-v2-android-pilot.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: botking-v2-android-pilot-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  android-pilot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Pinned Python dependencies and one unified offline safety gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'cryptography==44.0.3' 'fastapi==0.115.12' 'httpx==0.28.1'
+          python -m compileall -q pilot_v2
+          python -m unittest discover -s pilot_v2/tests -p 'test_*.py' -q
+          python pilot_v2/tools/one_click_migration_gate.py
+          python -m pilot_v2.android_build_gate --repo-root .
+      - name: Verify intended Android package and prepare non-upgradeable test signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, tomllib
+          from pathlib import Path
+          identity=json.loads(Path('pilot_v2/pilot_identity.json').read_text())
+          flet=tomllib.loads(Path('pilot_v2/android_app/pyproject.toml').read_text())
+          assert identity['android_package']=='com.botking.bot_king_v2'
+          assert identity['legacy_package']=='com.botking.bot_king'
+          assert identity['version_name']==flet['project']['version']=='2.0.100'
+          assert identity['version_code']==100
+          assert identity['live_orders_enabled'] is False
+          assert identity['gateway_enabled'] is False
+          PY
+          # Isolated pilot-only signer: never use the V1 keystore; no key upload.
+          # Its loss means later pilot upgrades require uninstall/reinstall.
+          mkdir -p "$RUNNER_TEMP/botking-v2-only"
+          PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASS"
+          printf '%s' "$PASS" > "$RUNNER_TEMP/botking-v2-only/sign-pass"
+          chmod 600 "$RUNNER_TEMP/botking-v2-only/sign-pass"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/botking-v2-only/test.jks" -storetype PKCS12 -alias botking_v2_test -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V2 NONPRODUCTION TEST" -storepass "$PASS" -keypass "$PASS"
+          chmod 600 "$RUNNER_TEMP/botking-v2-only/test.jks"
+      - name: Build isolated offline signed V2 APK with Flet 0.25.2
+        shell: bash
+        env:
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/botking-v2-only/test.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: botking_v2_test
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2'
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/botking-v2-only/sign-pass")"
+          export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
+          mkdir -p "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate"
+          cd pilot_v2/android_app
+          # Explicit --project, not old project.name, controls Android applicationId.
+          flet build apk --project bot_king_v2 --org com.botking --product 'BOT KING V2' --build-number 100 --build-version 2.0.100 --output "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate" --yes
+      - name: Inspect real Android APK metadata and signer before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find pilot_v2/dist/android-candidate -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1 || { echo "Expected precisely one APK"; exit 1; }
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -type f -name aapt -print | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -type f -name apksigner -print | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -E "^package: name='com\.botking\.bot_king_v2' versionCode='100' versionName='2\.0\.100'"
+          printf '%s\n' "$BADGING" | grep -F "application-label:'BOT KING V2'"
+          ! printf '%s\n' "$BADGING" | grep -F "package: name='com.botking.bot_king'"
+          "$SIGNER" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/v2-apk-cert-evidence.txt"
+          grep -q 'Verified using v2 scheme' "$RUNNER_TEMP/v2-apk-cert-evidence.txt"
+          sha256sum "$APK" | tee "$RUNNER_TEMP/v2-apk-sha256.txt"
+          # Record cert digest only. No keystore/secret is uploaded.
+          grep -E 'Signer #1 certificate SHA-256 digest' "$RUNNER_TEMP/v2-apk-cert-evidence.txt" | tee "$RUNNER_TEMP/v2-apk-signer.txt"
+          echo 'Pilot signing key is ephemeral. Reinstall needed for future key changes.'
+      - name: Upload verified separate V2 test APK (NOT LIVE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-king-v2-offline-pilot-apk-2.0.100
+          path: pilot_v2/dist/android-candidate/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove temporary pilot signer
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/botking-v2-only"
