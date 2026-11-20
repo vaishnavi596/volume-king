@@ -1,0 +1,60 @@
+name: BOT KING Clone V2 B2 Oracle Source Stage
+run-name: Stage isolated Clone V2 SSK gateway (owner-controlled)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: botking-clone-v2-b2-stage
+  cancel-in-progress: false
+
+jobs:
+  stage-clone:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment: oracle-v2
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reviewed clone ONLY, not previous V2 pilot
+        uses: actions/checkout@v4
+        with:
+          ref: pilot/v1-pure-original-clone-phone-20261120
+          persist-credentials: false
+      - name: Review exact clone B2 source before transport
+        run: |
+          set -euo pipefail
+          python3 -m py_compile backend/clone_v2_gateway.py src/clone_v2_gateway.py
+          test -s ops/install_clone_v2_b2_oracle.sh
+          test -s tests/test_clone_v2_oracle_auth_b2.py
+          echo "CLONE_SOURCE_COMMIT=$(git rev-parse HEAD)"
+          sha256sum backend/clone_v2_gateway.py ops/install_clone_v2_b2_oracle.sh
+      - name: Securely copy clone B2 ONLY to isolated Oracle staging
+        shell: bash
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ORACLE_HOST" && test -n "$ORACLE_SSH_KEY"
+          case "$ORACLE_HOST" in *[!a-zA-Z0-9.:-]*|"") echo "INVALID_ORACLE_HOST"; exit 1;; esac
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" | tr -d '\r' > ~/.ssh/botking_oracle
+          printf '%s ssh-ed25519 %s\n' "$ORACLE_HOST" \
+            'AAAAC3NzaC1lZDI1NTE5AAAAIPZcGGcUv+XxxpyAgGcwlAusDv5RvrIB8HaOnKYkbFFu' \
+            > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/botking_oracle ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/botking_oracle ~/.ssh/known_hosts' EXIT
+          SSH=(ssh -T -i ~/.ssh/botking_oracle -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=10)
+          SCP=(scp -i ~/.ssh/botking_oracle -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          STAGE=/home/opc/botking-clone-v2-b2-source
+          "${SSH[@]}" "opc@$ORACLE_HOST" "test \"\$(systemctl is-active bot-king.service)\" = active && test \"\$(curl -sS -o /dev/null --max-time 8 -w '%{http_code}' http://127.0.0.1:8000/health)\" = 200 && test ! -e $STAGE && install -d -m 700 $STAGE $STAGE/backend $STAGE/ops"
+          "${SCP[@]}" backend/clone_v2_gateway.py "opc@$ORACLE_HOST:$STAGE/backend/clone_v2_gateway.py"
+          "${SCP[@]}" ops/install_clone_v2_b2_oracle.sh "opc@$ORACLE_HOST:$STAGE/ops/install_clone_v2_b2_oracle.sh"
+          "${SSH[@]}" "opc@$ORACLE_HOST" "chmod 600 $STAGE/backend/clone_v2_gateway.py $STAGE/ops/install_clone_v2_b2_oracle.sh && python3 -m py_compile $STAGE/backend/clone_v2_gateway.py && sha256sum $STAGE/backend/clone_v2_gateway.py $STAGE/ops/install_clone_v2_b2_oracle.sh"
+          echo "CLONE_B2_SOURCE_STAGED=YES"
+          echo "CLONE_B2_SERVICE_ACTIVATED=NO"
+          echo "CLONE_B2_OWNER_SSK_PROVISIONING=PENDING"
+          echo "ORIGINAL_V1=HEALTHY_UNCHANGED"
