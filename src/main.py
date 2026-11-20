@@ -3602,6 +3602,42 @@ def app_main(page:ft.Page):
         connection_status.color=GOLD
         page.update()
 
+
+    async def check_clone_v2_market_quotes():
+        # Separate B3 two-way read-only smoke: no legacy V1 source switch.
+        if clone_v2_connect_busy[0] or not clone_v2_gateway.connected:
+            connection_status.value="Clone V2 SSK login required before Dhan quote request."
+            connection_status.color=GOLD
+            page.update()
+            return
+        clone_v2_connect_busy[0]=True
+        try:
+            connection_status.value="Clone B3: requesting three verified indices via Oracle → Dhan..."
+            connection_status.color=GOLD
+            page.update()
+            result=await asyncio.to_thread(
+                clone_v2_gateway.market_quotes, ["NIFTY","BANKNIFTY","SENSEX"])
+            connection_status.value=(
+                "Clone B3 • Dhan read-only returned "+str(len(result))+
+                "/3 indices • "+", ".join(
+                    symbol+" "+str(round(result[symbol],2)) for symbol in
+                    ("NIFTY","BANKNIFTY","SENSEX") if symbol in result)+
+                " • timestamps unverified; NOT live signals.")
+            connection_status.color=GREEN
+        except FeedError as exc:
+            connection_status.value="Clone B3 market data not verified: "+str(exc)
+            connection_status.color=RED
+        except Exception as exc:
+            log_error("clone_b3_market_quotes",exc)
+            connection_status.value="Clone B3 market response unavailable; no quotes promoted."
+            connection_status.color=RED
+        finally:
+            clone_v2_connect_busy[0]=False
+            page.update()
+
+    def check_clone_v2_market(e):
+        page.run_task(check_clone_v2_market_quotes)
+
     def explain_broker_connection(e):
         page.run_task(connect_angel)
 
@@ -4295,7 +4331,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway)], wrap=True), connection_status, note('Clone V2 uses its own read-only Oracle SSK gateway. Login does not itself verify market data or enable LIVE signals. Original V1 Dhan routes are not used by this Connect action.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Clone V2 uses its own read-only Oracle SSK gateway. Login does not itself verify market data or enable LIVE signals. Original V1 Dhan routes are not used by this Connect action.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
