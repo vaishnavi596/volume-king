@@ -8,6 +8,14 @@ SOURCE = (ROOT / "src" / "main.py").read_text(encoding="utf-8")
 
 
 class WatchAssessmentRecovery(unittest.TestCase):
+    def test_market_hours_gate_and_after_close_no_regular_poll(self):
+        self.assertIn('return now.weekday()<5 and (9,10)<=(now.hour,now.minute)<(15,45)', SOURCE)
+        self.assertIn('closing_bootstrap=(not refresh_hours()', SOURCE)
+        self.assertIn('app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"', SOURCE)
+        self.assertIn('or not refresh_hours() or dhan_history_scan_active[0]', SOURCE)
+        self.assertIn('One closed-session', SOURCE)
+        self.assertIn('Local 2s observation does NOT call Dhan', SOURCE)
+
     def test_main_parses(self):
         ast.parse(SOURCE)
 
