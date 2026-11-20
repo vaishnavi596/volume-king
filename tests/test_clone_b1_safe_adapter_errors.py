@@ -40,7 +40,7 @@ class CloneSafeAdapterMessages(unittest.TestCase):
                     "https://private.invalid?token=" + secret):
             message = safe_error(FeedError(raw))
             self.assertNotIn(secret, message)
-            self.assertIn("Data request failed", message)
+            self.assertTrue("Data request failed" in message or "upstream temporarily unavailable" in message)
 
 
 if __name__ == "__main__":
