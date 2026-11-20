@@ -3595,6 +3595,13 @@ def app_main(page:ft.Page):
     def check_clone_v2_gateway(e):
         page.run_task(check_clone_v2_connection)
 
+    def disconnect_clone_v2_gateway(e):
+        clone_v2_gateway.disconnect()
+        server_access.value=""
+        connection_status.value="Clone V2 SSK session disconnected; market feed unavailable."
+        connection_status.color=GOLD
+        page.update()
+
     def explain_broker_connection(e):
         page.run_task(connect_angel)
 
@@ -4288,7 +4295,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.OutlinedButton('Check Clone V2 Gateway (SSK)', on_click=check_clone_v2_gateway), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway)], wrap=True), connection_status, note('Clone V2 uses its own read-only Oracle SSK gateway. Login does not itself verify market data or enable LIVE signals. Original V1 Dhan routes are not used by this Connect action.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
