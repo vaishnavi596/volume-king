@@ -36,3 +36,5 @@ jobs:
         run: python -m unittest discover -s tests -v
 
 # One-shot login Watchlist 51-equity candle bootstrap regression gate 2026-11-20
+
+# Index after-hours historical bootstrap targeted regression 2026-11-20
