@@ -1,3 +1,5 @@
+> **2026-11-20 OWNER SUPERSEDING CORRECTION:** The original plan below is historical and its instruction to retain Yahoo is **REVOKED**. The clone must preserve the V1 visual/functional shell, **remove Yahoo integration/settings**, **remove legacy V1 server-controlled settings and pairing** and integrate the new authenticated V2 Oracle data pipe/login. Angel One's status was not resolved in the latest correction; do not activate, transmit credentials through Dhan, or delete it based on assumptions. The old independently designed V2 pilot is not accepted as visual parity. V1 remains unchanged; only clone branch changes are permitted. This design revision is a requirement, not evidence the executable changes are complete.
+
 # BOT KING — V1 shell clone with V2 secure gateway (2026-11-20)
 
 ## Owner's revised priority (supersedes prior Angel/Yahoo removal plan)
