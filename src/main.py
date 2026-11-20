@@ -6022,8 +6022,10 @@ console.log('BOT KING Lightweight Charts ready');
     pages=[dashboard,options,settings,scanner,watchlist,charts]
     icons=[ft.Icons.DASHBOARD,ft.Icons.TABLE_CHART,ft.Icons.SETTINGS,ft.Icons.SEARCH,ft.Icons.LIST,ft.Icons.CANDLESTICK_CHART]
     names=["Home","Options","Settings","Scanner","Watchlist","Chart"]
+    last_scroll_monotonic=[0.0]
     def remember_scroll(e):
         prefs.setdefault("page_scroll",{})[str(current[0])]=max(0,float(e.pixels))
+        last_scroll_monotonic[0]=time.monotonic()
     body=ft.Column(expand=True,scroll=ft.ScrollMode.AUTO,horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=12,on_scroll=remember_scroll,on_scroll_interval=750)
     navbar=ft.Row(alignment=ft.MainAxisAlignment.SPACE_EVENLY,spacing=0,expand=True)
     current=[int(prefs.get("last_page",0)) if str(prefs.get("last_page",0)).isdigit() and 0<=int(prefs.get("last_page",0))<len(pages) else 0]
@@ -6052,6 +6054,12 @@ console.log('BOT KING Lightweight Charts ready');
     refresh_target=[None]
     async def flush_view_refresh():
         await asyncio.sleep(.25)
+        # The Dashboard is a long scrollable page. Background quote/candle
+        # updates must not replace its tree during finger/trackpad scrolling.
+        # No broker request is issued from the scroll callback.
+        if refresh_target[0]==0 and current[0]==0:
+            while 0<=time.monotonic()-last_scroll_monotonic[0]<1.0:
+                await asyncio.sleep(.25)
         target=refresh_target[0];refresh_pending[0]=False;refresh_target[0]=None
         if target==4 and current[0]==4 and watch_list.page is not None:
             # Quotes and filters are repainted by watch_visible_tick in-place.
