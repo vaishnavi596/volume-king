@@ -65,20 +65,13 @@ with TestClient(app) as client:
 print('CLONE_B2_LOCAL_AUTH_NEGATIVE_TEST=PASS')
 PY
 
-# Oracle SELinux in Enforcing mode refuses init_t execution of user_home_t
-# console scripts. Label only this isolated uvicorn console script executable.
-# Never weaken SELinux globally or relabel the private SSK.
-if [ "$(getenforce 2>/dev/null || true)" = Enforcing ]; then
-  LABEL_RULE='/home/opc/botking-clone-v2-runtime/\\.venv/bin/uvicorn'
-  command -v semanage >/dev/null || { echo 'BLOCKED: SELinux semanage unavailable'; exit 1; }
-  if ! sudo -n semanage fcontext -l -C | grep -Fq "$LABEL_RULE"; then
-    sudo -n semanage fcontext -a -t bin_t "$LABEL_RULE"
-  fi
-  sudo -n restorecon -v "$ROOT/.venv/bin/uvicorn"
-  test "$(stat -c %C "$ROOT/.venv/bin/uvicorn" | cut -d: -f3)" = bin_t || {
-    echo 'BLOCKED: scoped executable SELinux label not applied'; exit 1;
-  }
-fi
+# Run the service with the OS-labeled interpreter, while importing ONLY the
+# isolated B2 virtualenv dependencies. Executing either home-directory venv
+# script (uvicorn) or its Python symlink is denied by the Oracle SELinux policy.
+# Do not relabel private source, disable SELinux, or widen host policy.
+SITE="$ROOT/.venv/lib64/python3.9/site-packages"
+test -d "$SITE" || { echo 'BLOCKED: isolated B2 site-packages missing'; exit 1; }
+PYTHONPATH="$SITE" /usr/bin/python3.9 -c 'import uvicorn, fastapi; print("B2_SYSTEM_INTERPRETER_IMPORT=PASS")'
 
 TMP_UNIT="$(mktemp)"
 trap 'rm -f "$TMP_UNIT"' EXIT
@@ -93,7 +86,8 @@ User=opc
 Group=opc
 WorkingDirectory=/home/opc/botking-clone-v2-runtime
 Environment=BOTKING_CLONE_V2_SSK_FILE=/home/opc/botking-clone-v2-private/ssk
-ExecStart=/home/opc/botking-clone-v2-runtime/.venv/bin/uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
+Environment=PYTHONPATH=/home/opc/botking-clone-v2-runtime/.venv/lib64/python3.9/site-packages
+ExecStart=/usr/bin/python3.9 -m uvicorn clone_v2_gateway:create_app --factory --host 127.0.0.1 --port 8002 --workers 1
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
