@@ -1577,3 +1577,8 @@
 - Home: NIFTY cached/unverified 25,800.60, BANKNIFTY cached/unverified 64,635.20; both T WAIT, C HIST B40/S60, 1m historical candle votes unavailable/data quality pending. SENSEX LTP unavailable (dash), T WAIT/C WAIT.
 - System Health: 2 issues; dhan_index_ltp_batch FeedError awaiting successful recovery, Candle/filter audit 1 active failure SENSEX; 54-symbol filters: 51 analyzed, 1 error, 2 insufficient, 0 pending. Error history index_ltp_fallback_SENSEX FeedError at 20:43:22 IST; dhan_index_ltp_batch FeedError at 20:44:38 and 20:45:12 IST.
 - Source inspection: periodic dhan_index_candle_poll gated by refresh_hours(), so no after-hours index 1m history polling; independent index quote fallback can throw FeedError. Need provider error diagnosis from server safe logs / Dhan response, do not infer invalid instrument ID from FeedError alone. Do not alter working equity history bootstrap.
+
+[INDEX AFTER-HOURS HISTORICAL CANDLE TARGETED FIX][2026-11-20]
+- Source commit 89710e64e0b93e7f4ca257833c8dfe0f468ce601 allows existing serialized NIFTY/BANKNIFTY/SENSEX 1m index candle worker to run one after-hours historical bootstrap after authenticated login, paced 1.5s, guarded by Dhan cooldown and other workers, with 180s retry cadence if incomplete. Mark complete only when three valid index histories returned. Explicit HIST/not-live labeling; equity 51 bootstrap unchanged.
+- Separate SENSEX LTP FeedError remains unresolved: quote endpoint batch and independent fallback both failed on user's phone. Do not fabricate a price or assume history solves quote mapping.
+- Full regression trigger 3d6f7dbcfc1db57e08e411daf447082ca7c312b2. No APK yet, wait for regression result.
