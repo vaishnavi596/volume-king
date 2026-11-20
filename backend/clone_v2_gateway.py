@@ -228,6 +228,16 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     raise ValueError()
             except (ValueError, TypeError, OverflowError):
                 raise HTTPException(502, "Dhan token expiry not verified") from None
+            # Dhan callback success alone is not verified market permission.
+            # Validate the new token against the official profile before replacing.
+            verified=broker_json(urllib.request.Request(
+                "https://api.dhan.co/v2/profile",
+                headers={"access-token":new_token, "Accept":"application/json"},
+                method="GET"))
+            if str(verified.get("dhanClientId")) != client:
+                raise HTTPException(502,"New Dhan token profile/account unverified")
+            if str(verified.get("dataPlan","")).lower() != "active":
+                raise HTTPException(424,"Dhan market-data subscription not active")
             # Atomic clone-private write; V1 token and V1 OAuth are untouched.
             temp=None
             st=target.stat()
