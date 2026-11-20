@@ -1736,3 +1736,9 @@
 
 [B1 SAFE ADAPTER DIAGNOSTIC EXACT TEST PASS 2026-11-20]
 - Targeted B1 CI #44772430645 for final diagnostic regression test SHA d23ec067e940293ce4e004181e6deb47b26d28b2 completed SUCCESS. Source diagnostic classifier SHA b1af633c and security redaction tests are within that tested commit. This verifies code-level error classification and redaction, not actual Dhan response, Manual Scanner signal or SENSEX. Latest full combined suite and phone APK not run for these new changes. https://github.com/vaishnavi596/volume-king/actions/runs/44772430645
+
+
+[JOINT SAFE ADAPTER FULL REGRESSION CHECKPOINT 2026-11-20]
+- Owner OK: proceed latest Scanner/Options safe error classification through ONE existing complete B3 offline regression. Verified previous B1 secure adapter CI #44772430645 SUCCESS on exact test SHA d23ec067e940, previous full regression #44769635970 success only on older SHA 22f16640. Did not repeat identical focused tests.
+- Triggered workflow-only update .github/workflows/clone-b3-full-regression.yml SHA 99a6135e9bd49ed264fd7f110ffb99032d8e9895. B3 Full Regression #44772693367 in_progress at first check. https://github.com/vaishnavi596/volume-king/actions/runs/44772693367
+- Gate is compileall, shell syntax and combined python unittest discover -s tests, no phone APK / Oracle deployment / secret handling. Preserve V1 unchanged and 51 equity Watchlist HIST. Phone Scanner Dhan Manual Candle Fetch, SENSEX LTP/history, and index 1m signal remain UNVERIFIED, unrelated to safe diagnostics mapping.
