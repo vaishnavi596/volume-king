@@ -5527,7 +5527,7 @@ console.log('BOT KING Lightweight Charts ready');
     def scanner_option_context():
         """Display cached Dhan option metrics without treating them as scanner votes."""
         symbol=scan_symbol.value or "NIFTY"
-        data=dhan_option_metrics
+        data=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
         if symbol not in DHAN_VERIFIED_SYMBOLS:
             message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
         elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
@@ -6356,8 +6356,13 @@ console.log('BOT KING Lightweight Charts ready');
                     data=await asyncio.wait_for(asyncio.to_thread(
                         get_market_data,index_sym,"1m","2d"),timeout=25)
                     if (generation!=provider_generation[0]
-                            or prefs.get("source")!="Dhan" or data.get("source")!="Dhan"):
+                            or prefs.get("source")!="Dhan"):
                         break
+                    if not isinstance(data,dict) or data.get("source")!="Dhan":
+                        # Invalid index history must not overwrite last-good bars.
+                        remember_candle_failure(index_sym,"1m","invalid index payload",
+                                                ValueError("Dhan index history unavailable"))
+                        continue
                     data=retain_candle_history(data,prior,provider="Dhan")
                     if valid_candle_history(data.get("bars")):
                         chart_snapshots[(index_sym,"1m",generation)]=dict(
