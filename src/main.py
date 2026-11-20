@@ -7076,7 +7076,7 @@ console.log('BOT KING Lightweight Charts ready');
                     selected=focused_contexts(
                         current[0], indices=("NIFTY","BANKNIFTY","SENSEX"),
                         scanner=scan_symbol.value,option=chain_symbol.value,
-                        chart=symbol.value,watch=selected_watch,
+                        chart=None,watch=selected_watch,
                         trading=active_trading)
                     contexts=[]
                     seen=set()
