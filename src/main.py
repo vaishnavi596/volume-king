@@ -5280,9 +5280,9 @@ console.log('BOT KING Lightweight Charts ready');
         while scan_live.value and generation==scan_auto_generation[0]:
             # Dhan already has one shared historical scan scheduler (refresh_market).
             # Never run a second automatic selected-symbol scanner alongside it.
-            if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):
-                # 5m reports follow the shared history scheduler. Other selected
-                # timeframes refresh only when that provider queue is idle.
+            if prefs.get("source")=="Dhan" and dhan_history_scan_active[0]:
+                # Do not race the shared provider history queue. Once it is idle,
+                # the selected 1m/3m/5m/15m scanner may refresh automatically.
                 scan_next_refresh[0]=None
                 await asyncio.sleep(5)
                 continue
