@@ -10,6 +10,7 @@ import hmac
 import os
 import stat
 from pathlib import Path
+from typing import Optional
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -44,7 +45,7 @@ def create_app(*, key_bytes=None):
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.get("/clone-v2/status")
-    def status(x_botking_key: str | None = Header(default=None)):
+    def status(x_botking_key: Optional[str] = Header(default=None)):
         # Constant-time authorization, including unknown or malformed keys.
         if (not isinstance(x_botking_key, str)
                 or len(x_botking_key) > 1024
