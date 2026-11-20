@@ -6898,6 +6898,7 @@ console.log('BOT KING Lightweight Charts ready');
                 log_error("dhan_index_poll",exc)
             await asyncio.sleep(10)
     page.run_task(dhan_index_poll)
+    index_closed_history_complete_generation=[None]
     async def dhan_index_candle_poll():
         # Independent 180s Dhan 1m index history cadence. Avoid competing with the
         # 51-equity scan; Dhan HTTPS requests are serialized in server_feed.
@@ -6907,7 +6908,10 @@ console.log('BOT KING Lightweight Charts ready');
                 generation=provider_generation[0]
                 if (app_active[0] and not lifecycle_background[0]
                         and prefs.get("source")=="Dhan" and dhan_feed.connected
-                        and refresh_hours()
+                        and (refresh_hours() or
+                             (index_closed_history_complete_generation[0]!=generation
+                              and watch_login_bootstrap_generation[0]==generation
+                              and not watch_three_minute_warm_busy[0]))
                         and not dhan_history_scan_active[0]
                         and not watch_three_minute_warm_busy[0]
                         and dhan_feed.cooldown_remaining("/dhan/intraday")==0
@@ -6918,6 +6922,7 @@ console.log('BOT KING Lightweight Charts ready');
                     index_candle_generation[0]=generation
                     index_candle_last_attempt[0]=time.monotonic()
                     index_one_minute_busy[0]=True
+                    index_history_ready=0
                     for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
                         if (generation!=provider_generation[0] or not app_active[0]
                                 or lifecycle_background[0] or dhan_history_scan_active[0] or
@@ -6948,7 +6953,9 @@ console.log('BOT KING Lightweight Charts ready');
                                     and valid_candle_history(data.get("bars"))
                                     and generation==provider_generation[0]):
                                 chart_snapshots[(index_sym,"1m",generation)]=dict(
-                                    data,_scanner_timeframe="1m")
+                                    data,_scanner_timeframe="1m",historical=True,
+                                    live_verified=False,freshness="historical_unverified")
+                                index_history_ready+=1
                                 # 5m Super Five/Watchlist ranking remains independent.
                                 if current[0] in (0,4,5):
                                     request_view_refresh(current[0])
@@ -6960,6 +6967,10 @@ console.log('BOT KING Lightweight Charts ready');
                                 remember_candle_failure(index_sym,"1m","index candle fetch",exc)
                             if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
                                 break
+                    # Closed-session bootstrap completes only after all three
+                    # valid index histories; partial cycles retry at 180s pace.
+                    if not refresh_hours() and index_history_ready==3:
+                        index_closed_history_complete_generation[0]=generation
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
