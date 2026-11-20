@@ -7,6 +7,11 @@ market quote/candle endpoints or broker trading orders are added here.
 from __future__ import annotations
 
 import hmac
+import secrets
+import tempfile
+import urllib.parse
+import urllib.request
+import urllib.error
 import json
 import math
 import re
@@ -19,7 +24,7 @@ from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 KEY_ENV = "BOTKING_CLONE_V2_SSK_FILE"
 PROTOCOL = "botking-clone-v2"
@@ -111,6 +116,134 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     market_cache = {}
     last_request = [0.0]
     provider_cooldown_until = [0.0]
+
+    # Clone-owned, optional browser-consent flow; NEVER borrow V1's HTTP auth.
+    # Server must have a separately approved Dhan callback pointing here.
+    consent_lock = threading.RLock()
+    consent_pending = {"until": 0.0, "active": False}
+    consent_cooldown_until = [0.0]
+
+    def clone_oauth_config():
+        client = os.environ.get("DHAN_CLIENT_ID", "").strip()
+        app_id = os.environ.get("BOTKING_CLONE_DHAN_APP_ID", "").strip()
+        secret = os.environ.get("BOTKING_CLONE_DHAN_APP_SECRET", "").strip()
+        location = os.environ.get("BOTKING_CLONE_DHAN_TOKEN_FILE", "")
+        if (not client or not app_id or not secret or
+                not location.startswith("/home/opc/")):
+            raise HTTPException(503, "Clone Dhan browser authorization not configured")
+        return client, app_id, secret, Path(location)
+
+    def clone_token_path(target):
+        if (target.is_symlink() or not target.is_file() or
+                stat.S_IMODE(target.stat().st_mode) & 0o077 or
+                target.stat().st_uid != os.geteuid()):
+            raise HTTPException(503, "Clone token storage is not secure")
+
+    def broker_json(request):
+        try:
+            with urllib.request.build_opener(
+                urllib.request.ProxyHandler({}),
+                urllib.request.HTTPSHandler()
+            ).open(request, timeout=15) as response:
+                if response.status != 200:
+                    raise ValueError("Bad broker response")
+                payload = response.read(100001)
+            if len(payload) > 100000:
+                raise ValueError("Oversized broker response")
+            data = json.loads(payload)
+            if not isinstance(data, dict):
+                raise ValueError("Invalid broker response")
+            return data
+        except (urllib.error.URLError, OSError, ValueError, UnicodeError):
+            raise HTTPException(502, "Dhan browser authorization unavailable") from None
+
+    @app.post("/clone-v2/dhan/start")
+    def clone_dhan_start(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        client, app_id, secret, target = clone_oauth_config()
+        clone_token_path(target)
+        with consent_lock:
+            now = time.monotonic()
+            if consent_pending["active"] and now < consent_pending["until"]:
+                raise HTTPException(409, "Clone Dhan login already pending")
+            if now < consent_cooldown_until[0]:
+                raise HTTPException(429, "Clone consent request paced")
+            consent_cooldown_until[0] = now + 8
+            request = urllib.request.Request(
+                "https://auth.dhan.co/app/generate-consent?"+
+                urllib.parse.urlencode({"client_id": client}),
+                headers={"app_id": app_id, "app_secret": secret,
+                         "Accept": "application/json"},
+                data=b"", method="POST")
+            result = broker_json(request)
+            consent = result.get("consentAppId")
+            if not isinstance(consent, str) or not 1 <= len(consent) <= 200:
+                raise HTTPException(502, "Dhan consent ID unavailable")
+            consent_pending.update(active=True, until=time.monotonic()+300)
+        login_url = ("https://auth.dhan.co/login/consentApp-login?"+
+                     urllib.parse.urlencode({"consentAppId": consent}))
+        return JSONResponse(
+            {"login_url": login_url, "expires_in": 300,
+             "live_orders_enabled": False}, headers={"Cache-Control": "no-store"})
+
+    @app.get("/clone-v2/dhan/callback", response_class=HTMLResponse)
+    def clone_dhan_callback(tokenId: Optional[str] = None):
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
+        with consent_lock:
+            now=time.monotonic()
+            if not consent_pending["active"] or now >= consent_pending["until"]:
+                raise HTTPException(403, "No active Clone Dhan authorization")
+            # Single use, including failure: never replay tokenIds.
+            consent_pending.update(active=False, until=0.0)
+            if not isinstance(tokenId, str) or not 1 <= len(tokenId) <= 2048:
+                raise HTTPException(400, "Invalid Dhan callback")
+            client, app_id, secret, target = clone_oauth_config()
+            clone_token_path(target)
+            url=("https://auth.dhan.co/app/consumeApp-consent?"+
+                 urllib.parse.urlencode({"tokenId": tokenId}))
+            request=urllib.request.Request(url, headers={
+                "app_id":app_id, "app_secret":secret, "Accept":"application/json"
+            }, method="GET")
+            result=broker_json(request)
+            new_token=result.get("accessToken")
+            expiry=result.get("expiryTime")
+            if (not isinstance(new_token, str) or len(new_token) < 20
+                    or str(result.get("dhanClientId")) != client):
+                raise HTTPException(502, "Dhan authenticated account mismatch")
+            try:
+                from zoneinfo import ZoneInfo
+                dt=datetime.fromisoformat(str(expiry).replace("Z","+00:00"))
+                if dt.tzinfo is None:
+                    dt=dt.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+                if dt.astimezone(timezone.utc) <= datetime.now(timezone.utc):
+                    raise ValueError()
+            except (ValueError, TypeError, OverflowError):
+                raise HTTPException(502, "Dhan token expiry not verified") from None
+            # Atomic clone-private write; V1 token and V1 OAuth are untouched.
+            temp=None
+            st=target.stat()
+            try:
+                fd,temp=tempfile.mkstemp(prefix=".clone-dhan-token-", dir=str(target.parent))
+                os.fchmod(fd, 0o600)
+                os.fchown(fd, st.st_uid, st.st_gid)
+                with os.fdopen(fd,"w",encoding="utf-8") as out:
+                    out.write(new_token+"\\n")
+                    out.flush()
+                    os.fsync(out.fileno())
+                os.replace(temp,target)
+                temp=None
+            except OSError:
+                raise HTTPException(503,"Clone private Dhan session could not be saved") from None
+            finally:
+                if temp is not None:
+                    Path(temp).unlink(missing_ok=True)
+        return HTMLResponse(
+            "<!doctype html><html><head><meta name='referrer' content='no-referrer'></head>"+
+            "<body><h2>BOT KING Clone: Dhan login successful</h2>"+
+            "<p>Return to BOT KING Clone and press Connect Clone V2 (SSK). "+
+            "Trading orders remain disabled.</p></body></html>",
+            headers=headers)
+
 
     def authorized(key):
         if (not isinstance(key, str) or len(key) > 1024
