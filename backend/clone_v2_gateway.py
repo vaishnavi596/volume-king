@@ -402,6 +402,23 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                              "verified": True, "live_orders_enabled": False},
                             headers={"Cache-Control": "no-store"})
 
+    def provider_read_error(exc, unavailable_message):
+        """Classify provider throttling without exposing credentials or responses."""
+        try:
+            from .dhan_feed import DhanRateLimitError, DhanFeedError
+        except ImportError:
+            from dhan_feed import DhanRateLimitError, DhanFeedError
+        if isinstance(exc, DhanRateLimitError):
+            raise HTTPException(
+                429, "Clone Dhan provider cooldown",
+                headers={"Retry-After": "30"}) from None
+        if (isinstance(exc, DhanFeedError) and
+                "token expired or data access not entitled" in str(exc)):
+            raise HTTPException(
+                424, "Dhan browser authorization or data permission required") from None
+        raise HTTPException(502, unavailable_message) from None
+
+
     @app.post("/clone-v2/market/candles")
     def market_candles(body: MarketCandles,
                        x_botking_key: Optional[str] = Header(default=None)):
@@ -421,8 +438,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             result = provider().intraday(args)
         except HTTPException:
             raise
-        except Exception:
-            raise HTTPException(502, "Clone Dhan candles unavailable") from None
+        except Exception as exc:
+            provider_read_error(exc, "Clone Dhan candles unavailable")
         try:
             fields = ["timestamp", "open", "high", "low", "close", "volume"]
             arrays = [result[key] for key in fields]
@@ -463,8 +480,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             dates = provider().option_expiries(*known[body.symbol])
         except HTTPException:
             raise
-        except Exception:
-            raise HTTPException(502, "Clone Dhan option expiry unavailable") from None
+        except Exception as exc:
+            provider_read_error(exc, "Clone Dhan option expiry unavailable")
         if not isinstance(dates, list) or not dates:
             raise HTTPException(422, "No verified Clone listed expiry")
         return JSONResponse({"source": "dhan", "symbol": body.symbol,
@@ -500,8 +517,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     pass
         except HTTPException:
             raise
-        except Exception:
-            raise HTTPException(502, "Clone Dhan option chain unavailable") from None
+        except Exception as exc:
+            provider_read_error(exc, "Clone Dhan option chain unavailable")
         return JSONResponse({"source": "dhan", "symbol": body.symbol,
                              "expiry": body.expiry.isoformat(), **metrics,
                              "atm_window": window, "atm_window_status": window_status,
