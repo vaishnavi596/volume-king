@@ -227,7 +227,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 os.fchmod(fd, 0o600)
                 os.fchown(fd, st.st_uid, st.st_gid)
                 with os.fdopen(fd,"w",encoding="utf-8") as out:
-                    out.write(new_token+"\\n")
+                    out.write(new_token+chr(10))
                     out.flush()
                     os.fsync(out.fileno())
                 os.replace(temp,target)
