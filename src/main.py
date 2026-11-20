@@ -2852,7 +2852,7 @@ def app_main(page:ft.Page):
         # The Dhan gateway currently supplies option-chain snapshots, not
         # strike-specific historical CE/PE candles.
         return section("Option Chart",ft.Column([
-            note("Dhan-only read-only charts/scanner and option metrics. Live orders OFF."),
+            note('Dhan-only read-only charts/scanner and option metrics. Live orders OFF.'),
             note("Dhan CE/PE premium history • not available from the current read-only gateway"),
             note("The Option Chain above can display Dhan strikes, OI and premiums when returned by the selected expiry."),
             note("Historical option candles unavailable • no simulated chart; Dhan data only."),
