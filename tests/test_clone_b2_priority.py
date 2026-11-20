@@ -26,6 +26,16 @@ class TestB2Priority(unittest.TestCase):
                                           trading=("HDFCBANK","HDFCBANK")),
                          [("scanner","HDFCBANK"),("overview","HDFCBANK")])
 
+    def test_inactive_screen_suspends_expensive_local_loops(self):
+        source=(ROOT/"src/main.py").read_text()
+        ast.parse(source)
+        self.assertIn('if not app_active[0] or current[0]!=0:',source)
+        self.assertIn('if regular_hours() and app_active[0] and current[0] in (0,3):',source)
+        self.assertIn('refresh_shared_analysis(only=scan_symbol.value if current[0]==3 else None)',source)
+        self.assertIn('if current[0]!=3:', source)
+        self.assertIn('scan_next_refresh[0]=None', source)
+        self.assertIn('await asyncio.sleep(2 if app_active[0] and current[0] in (0,3) else 30)',source)
+
     def test_chart_only_assessment_skipped_no_wrong_timeframe(self):
         source=(ROOT/"src/main.py").read_text()
         ast.parse(source)
