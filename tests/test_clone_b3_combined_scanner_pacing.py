@@ -32,6 +32,11 @@ class ScannerBatchGuards(unittest.TestCase):
                       'search.value.upper() not in sym'):
             self.assertIn(check,rows)
         self.assertIn("last_cell_signatures.clear()\n                        fill_watch()",SOURCE)
+    def test_index_batch_invalid_payload_uses_safe_fallback(self):
+        index=SOURCE.split("snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)",1)[1].split("missing_indices=",1)[0]
+        self.assertIn("if not isinstance(snapshots,dict):",index)
+        self.assertIn("snapshots={}",index)
+        self.assertIn('("NIFTY","BANKNIFTY","SENSEX")',SOURCE)
     def test_auto_off_and_stale_refresh_guards(self):
         self.assertIn("if scan_live.value:\n        page.run_task(auto_scan_loop",SOURCE)
         self.assertIn("if target is None or target!=current[0]:return",SOURCE)
