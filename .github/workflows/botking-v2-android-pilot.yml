@@ -75,7 +75,7 @@ jobs:
           flet --version
           cd pilot_v2/android_app
           # Explicit --project, not old project.name, controls Android applicationId.
-          flet build apk --project bot_king_v2 --org com.botking --product 'BOT KING V2' --build-number 100 --build-version 2.0.100 --output "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate" --yes --verbose
+          flet build apk --project bot_king_v2 --org com.botking --product 'BOT KING V2' --build-number 100 --build-version 2.0.100 --output "$GITHUB_WORKSPACE/pilot_v2/dist/android-candidate" --verbose
       - name: Inspect real Android APK metadata and signer before publishing
         shell: bash
         run: |
