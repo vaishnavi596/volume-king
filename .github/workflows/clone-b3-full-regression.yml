@@ -1,5 +1,5 @@
 name: BOT KING CLONE B3 Full Regression Gate (No APK)
-# Watchlist-only late-entry 3m assessment recovery full offline gate (no APK)
+# Watchlist market-hours 09:10-15:45 IST and late-entry assessment regression gate (no APK)
 # B3 combined rerun after consolidating 14 legacy-contract failures and active-page test coverage
 on:
   push:
