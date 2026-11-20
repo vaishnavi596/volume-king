@@ -1843,3 +1843,8 @@
 
 [B3 THIRD FULL REGRESSION STARTED — 2026-11-21 IST]
 - Source fix dfef80c: fail-closed wrong provider index warmup. Targeted B1/B2/Adapter Actions #44795726573, #44795726560, #44795726542 completed SUCCESS on source SHA dfef80c (not full regression). Exact-head full workflow trigger SHA a64507c6cf38b936e8d1aa00823e356a4c0e55de, Run #44795793508 https://github.com/vaishnavi596/volume-king/actions/runs/44795793508 initially in_progress; do not claim PASS until final log. No APK and no Oracle production change.
+
+
+[B3 THIRD GATE WRONG-PROVIDER ASSERTION RECONCILIATION — 2026-11-21 IST]
+- Full run #44795793508 commit a64507c6cf38b936e8d1aa00823e356a4c0e55de completed FAILURE: 1395 tests, 95.147s, failures=1, errors=0. Only test_index_one_minute_early_priority.py::test_wrong_provider_does_not_create_index_signal failed. It now expected NIFTY/BANKNIFTY/SENSEX history calls although scoped fail-closed source code intentionally stops after a wrong-provider first response. Runtime gave only ['NIFTY'] as intended.
+- Rechecked exact latest file and branch HEAD before modification to avoid overwriting concurrent changes. Updated tests/test_index_one_minute_early_priority.py commit 319ace2bb00f5ffbcdb29c6c9f87910bb8eeff0e: test explicitly expects one request then stop on systemic provider-integrity mismatch, no index snapshots or false signals. Distinguish wrong provider identity from isolated empty same-provider candle history. No live broker requests or Oracle writes. Full offline verification remains pending and must not be labeled PASS yet.
