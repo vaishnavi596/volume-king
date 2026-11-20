@@ -47,6 +47,7 @@ class TwoMinuteContract(unittest.TestCase):
         self.assertIn('source_interval="1m" if interval in ("2m","3m")', source)
         self.assertIn('completed_two_minute_bars(candle_result["bars"]', source)
         self.assertIn('ticker,interval,range_', source)
+        self.assertIn('"2m":(120,187.5,', source)
 
 
 if __name__ == "__main__":
