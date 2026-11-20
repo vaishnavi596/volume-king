@@ -6362,10 +6362,12 @@ console.log('BOT KING Lightweight Charts ready');
                             or prefs.get("source")!="Dhan"):
                         break
                     if not isinstance(data,dict) or data.get("source")!="Dhan":
-                        # Invalid index history must not overwrite last-good bars.
+                        # A provider mismatch is a systemic source-integrity failure.
+                        # Preserve last-good bars and stop this batch rather than
+                        # requesting the remaining indices from an untrusted feed.
                         remember_candle_failure(index_sym,"1m","invalid index payload",
                                                 ValueError("Dhan index history unavailable"))
-                        continue
+                        break
                     data=retain_candle_history(data,prior,provider="Dhan")
                     if valid_candle_history(data.get("bars")):
                         chart_snapshots[(index_sym,"1m",generation)]=dict(
