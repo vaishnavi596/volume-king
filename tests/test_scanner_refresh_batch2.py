@@ -103,16 +103,14 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
         self.assertIn("DISCONNECTED", v["scan_shared"]["basis"])
         self.assertTrue(v["scan_shared"]["historical"])
 
-    def test_legacy_auto_off_does_not_stop_dhan_selected_timeframe_loop(self):
+    def test_auto_scan_off_never_starts_a_provider_poll(self):
         _, v, _ = self.setup_app()
         v["scan_tf"].value = "1m"
         v["scan_live"].value = False
         v["scan_busy"][0] = True
-        async def stop_after_tick(delay):
-            v["scan_auto_generation"][0] += 1
-        with patch("asyncio.sleep", side_effect=stop_after_tick) as sleep:
+        with patch("asyncio.sleep", side_effect=AssertionError("auto scan must stay off")) as sleep:
             asyncio.run(v["auto_scan_loop"](v["scan_auto_generation"][0]))
-        self.assertEqual(sleep.call_count, 1)
+        sleep.assert_not_called()
 
     def test_shared_candles_update_while_optional_news_is_busy(self):
         _, v, bars = self.setup_app()
@@ -186,7 +184,7 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
         self.assertNotIn(key, v["scan_fetch_failure"])
         self.assertEqual(v["analysis_audit"].coverage(["TCS"])[1]["ANALYZED"], 1)
 
-    def test_changing_back_to_dhan_restarts_automatic_loop_with_legacy_off(self):
+    def test_changing_back_to_dhan_preserves_user_auto_scan_off(self):
         page, v, _ = self.setup_app()
         v["scan_live"].value = False
         v["source"].value = "Yahoo Finance"
@@ -195,7 +193,8 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
         v["source"].value = "Dhan"
         v["source"].on_change(event(v["source"]))
         self.assertGreater(v["scan_auto_generation"][0], old)
-        self.assertIn((v["auto_scan_loop"], (v["scan_auto_generation"][0],)), page.tasks)
+        self.assertFalse(v["scan_live"].value)
+        self.assertNotIn((v["auto_scan_loop"], (v["scan_auto_generation"][0],)), page.tasks)
 
 
 class PresentationGateTests(unittest.TestCase):
