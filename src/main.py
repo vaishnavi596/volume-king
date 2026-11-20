@@ -3581,9 +3581,12 @@ def app_main(page:ft.Page):
             result=await asyncio.to_thread(clone_v2_gateway.connect,endpoint,access_key)
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
-            # One real round-trip before exposing the Dhan provider as connected.
-            proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,
-                                          ["NIFTY","BANKNIFTY","SENSEX"])
+            # One demand-based Dhan request covers indices plus actual selected
+            # equities. No idle fanout to all 70, and no duplicate bootstrap.
+            selected_equities=list(all_watch_symbols())
+            request_symbols=list(dict.fromkeys(
+                ["NIFTY","BANKNIFTY","SENSEX"]+selected_equities))
+            proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,request_symbols)
             if "NIFTY" not in proof:
                 raise FeedError("Clone B3 Dhan index quote unavailable; SSK-only connection")
             dhan_feed.activate_with_quote(proof)
@@ -3592,15 +3595,34 @@ def app_main(page:ft.Page):
             save()
             provider_changed(None)
             for symbol, price in proof.items():
-                if symbol in ("NIFTY","BANKNIFTY","SENSEX"):
-                    quotes[symbol]={"symbol":symbol,"price":price,"source":"Dhan",
-                                    "freshness":"unverified","quote_timestamp":None,
-                                    "live_verified":False,"fetched_at":time.time()}
+                quotes[symbol]={"symbol":symbol,"price":price,"source":"Dhan",
+                                "freshness":"unverified","quote_timestamp":None,
+                                "live_verified":False,"fetched_at":time.time()}
+            selected_rows={
+                sym:quotes[sym] for sym in selected_equities if sym in quotes}
+            with dhan_batch_lock:
+                dhan_batch_cache.update(
+                    generation=provider_generation[0],
+                    updated=time.monotonic(),quotes=selected_rows)
+            found=sum(1 for sym in selected_equities if sym in selected_rows)
+            total=len(selected_equities)
+            dhan_batch_issue[0]=(
+                f"Partial Clone B3 Dhan batch: {found}/{total} validated"
+                if found<total else None)
+            watch_batch_status[0]=(
+                f"Clone B3 Dhan selected equity batch: {found}/{total} prices returned")
+            watch_batch_last_success[0]=time.monotonic()
+            watch_batch_success_generation[0]=provider_generation[0]
+            login_bootstrap.finish(provider_generation[0],"equities",found,total)
+            received_indices=sum(1 for sym in ("NIFTY","BANKNIFTY","SENSEX")
+                                 if sym in proof)
+            login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)
             connection_status.value=(
-                "Clone B3 Dhan→Oracle→Phone verified • "+str(len(proof))+
-                "/3 indices; timestamps unverified; live orders OFF.")
-            connection_status.color=GREEN
-            page.run_task(refresh_watch_batch)
+                "Clone B3 Dhan→Oracle→Phone verified • "+
+                str(received_indices)+"/3 indices • "+
+                str(found)+"/"+str(total)+
+                " selected equities; timestamps unverified; live orders OFF.")
+            connection_status.color=GREEN if not dhan_batch_issue[0] else GOLD
         except FeedError as exc:
             connection_status.value="Clone V2: "+str(exc)
             connection_status.color=RED
