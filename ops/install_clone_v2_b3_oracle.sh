@@ -73,6 +73,7 @@ PY
 [[ -s "$STAGE/client.env" ]] || fail "Dhan client ID not found"
 install -d -m 0755 "$DROP_DIR" /usr/local/libexec
 rollback() {
+  local failure_code=$?
   trap - ERR
   set +e
   echo "B3_DEPLOYMENT_FAILED: ROLLBACK_TO_WORKING_B2"
@@ -96,6 +97,8 @@ rollback() {
     echo "B2_RECOVERY=BLOCKED_REQUIRES_SYSTEMD_DIAGNOSIS"
   fi
   echo "B3_BACKUP=$BACKUP"
+  echo "B3_INSTALL_RESULT=FAIL"
+  exit "${failure_code:-1}"
 }
 trap rollback ERR
 for file in clone_v2_gateway.py dhan_feed.py dhan_option_metrics.py; do
@@ -167,6 +170,13 @@ assert probe("GET","/clone-v2/status",secret=key)[0]==200
 status,body=probe("POST","/clone-v2/market/quotes",{"symbols":["NIFTY"]},key)
 print("B3_NIFTY_UPSTREAM_HTTP="+str(status))
 if status!=200:
+    # Only the backend-owned fixed, allowlisted error detail is printed.
+    # Never echo Dhan raw responses, HTTP headers, tokens or client IDs.
+    conn=http.client.HTTPConnection("127.0.0.1",8002,timeout=8)
+    conn.request("GET","/clone-v2/health")
+    ready=conn.getresponse().status
+    conn.close()
+    print("B3_GATEWAY_PROCESS_HTTP="+str(ready))
     raise RuntimeError("No verified Dhan provider response; rollback required")
 row=body.get("quotes",{}).get("NIFTY")
 price=row.get("ltp") if isinstance(row,dict) else None
