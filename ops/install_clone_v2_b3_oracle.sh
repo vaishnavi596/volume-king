@@ -179,8 +179,10 @@ wait_health http://127.0.0.1:8002/clone-v2/health 25 || fail "Clone B3 failed re
 health http://127.0.0.1:8000/health
 [[ "$(systemctl is-active bot-king.service)" == active ]] || fail "V1 status changed"
 [[ "$(systemctl is-active botking-clone-v2.service)" == active ]] || fail "B3 service inactive"
-set +e
-python3 - <<'PY'
+# Run the live Dhan probe as a conditional: an expected exit 24 (browser
+# consent required) must NOT trigger the inherited ERR rollback trap.
+# Bash ERR traps still execute when set +e is active; if/else suppresses it.
+if python3 - <<'PY'
 import http.client,json,math,sys
 from pathlib import Path
 key=Path("/home/opc/botking-clone-v2-private/ssk").read_text().strip()
@@ -211,8 +213,11 @@ assert (body.get("source")=="dhan" and body.get("live_orders_enabled") is False
 print("B3_DHAN_TWO_WAY_QUOTE=PASS")
 print("B3_SSK_NEGATIVE_POSITIVE=PASS")
 PY
-RESULT=$?
-set -e
+then
+  RESULT=0
+else
+  RESULT=$?
+fi
 if [[ "$RESULT" == 24 ]]; then
   # Authentication needed is expected while owner completes Dhan login.
   # Gateway is running but real provider-data acceptance is PENDING.
