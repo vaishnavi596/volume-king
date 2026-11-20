@@ -1582,3 +1582,8 @@
 - Source commit 89710e64e0b93e7f4ca257833c8dfe0f468ce601 allows existing serialized NIFTY/BANKNIFTY/SENSEX 1m index candle worker to run one after-hours historical bootstrap after authenticated login, paced 1.5s, guarded by Dhan cooldown and other workers, with 180s retry cadence if incomplete. Mark complete only when three valid index histories returned. Explicit HIST/not-live labeling; equity 51 bootstrap unchanged.
 - Separate SENSEX LTP FeedError remains unresolved: quote endpoint batch and independent fallback both failed on user's phone. Do not fabricate a price or assume history solves quote mapping.
 - Full regression trigger 3d6f7dbcfc1db57e08e411daf447082ca7c312b2. No APK yet, wait for regression result.
+
+[PHONE SCANNER FEED FAILURE REPORTED][2026-11-20]
+- User additionally reports Scanner not working: feed/data unavailable, candle fetch data request failed, ValueError (wording transcribed from spoken report, exact screen line not yet screenshot-verified).
+- Existing phone screenshots independently show index LTP batch FeedError and SENSEX fallback FeedError, but scanner ValueError may have a different cause; do not conflate or assume broker rate-limit. Need exact selected scanner symbol/timeframe, traceback-safe diagnostic category, and Dhan route validation.
+- Source audit confirms Scanner and Chart use shared get_market_data paths, chart requests 5d for 1m/5m/15m and 1mo for other intervals. Distinguish scanner fetch from chart fetch; validate timeframe and provider schema before implementing fixes. Current index historical fix commit 89710e64 and regression #44762811608 remain separate. No new scanner fix or APK yet.
