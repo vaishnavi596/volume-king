@@ -1,5 +1,5 @@
-name: BOT KING B3 Two-Way Dhan Clone APK
-run-name: B3 final unified full-regression and signed phone APK 2.3.133
+name: BOT KING B3 Clone Dhan Browser Consent APK
+run-name: B3 isolated browser-consent full regression and signed phone APK 2.3.134
 on:
   push:
     branches:
@@ -51,7 +51,7 @@ jobs:
           for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
               assert marker in backend, marker
           p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          assert p["project"]["version"] == "2.3.133"
+          assert p["project"]["version"] == "2.3.134"
           print("CLONE_B3_SOURCE_CONTRACT=PASS")
           PY
           python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
@@ -60,6 +60,8 @@ jobs:
           python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           python3 -m unittest discover -s tests -p 'test_remaining_filter_batch.py' -v
           bash -n ops/install_clone_v2_b3_oracle.sh
+          bash -n ops/provision_clone_dhan_oauth_env.sh
+          python3 -m unittest discover -s tests -p 'test_clone_v2_dhan_browser_consent_b3.py' -v
           python3 -m unittest discover -s tests -v
           echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
 
@@ -82,9 +84,9 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-pure-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.133'\n" > src/_build_version.py
+          printf "BUILD_VERSION = '2.3.134'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
-          flet build apk --project bot_king_v1_pure_clone --org com.botking.clone --product "BOT KING B3 DATA CLONE" --build-number 133 --build-version 2.3.133 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.clone --product "BOT KING B3 DATA CLONE" --build-number 134 --build-version 2.3.134 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -96,7 +98,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='133' versionName='2\\.3\\.133'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='134' versionName='2\\.3\\.134'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING B3 DATA CLONE'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
@@ -106,7 +108,7 @@ jobs:
       - name: Upload B3 Dhan two-way clone phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-B3-DHAN-DATA-CLONE-2.3.133-PHONE-APK
+          name: BOT-KING-B3-DHAN-BROWSER-LOGIN-2.3.134-PHONE-APK
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
