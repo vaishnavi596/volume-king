@@ -21,6 +21,19 @@ BACKUP="$PRIVATE/b3-backup-$STAMP"
 STAGE="$PRIVATE/b3-candidate-$STAMP"
 fail() { echo "B3_BLOCKED: $*" >&2; exit 1; }
 health() { curl -fsS -o /dev/null --max-time 8 "$1"; }
+# systemctl restart returns before uvicorn has bound the HTTPS-proxied socket.
+# Probe readiness with bounded retries, not one immediate curl (which caused
+# the 2026-11-20 false B3 failure and also a misleading rollback HTTP=000).
+wait_health() {
+  local url="$1" attempts="${2:-25}" i
+  for ((i=1; i<=attempts; i++)); do
+    if curl -fsS -o /dev/null --max-time 3 "$url" 2>/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
 [[ "$(systemctl is-active bot-king.service)" == active ]] || fail "V1 inactive"
 [[ "$(systemctl is-active botking-clone-v2.service)" == active ]] || fail "Clone inactive"
 health http://127.0.0.1:8000/health || fail "V1 HTTP"
@@ -41,6 +54,11 @@ grep -q '"/clone-v2/market/options/chain"' "$STAGE/clone_v2_gateway.py" || fail 
 SITE="$ROOT/.venv/lib64/python3.9/site-packages"
 [[ -d "$SITE" ]] || fail "Clone Python environment missing"
 PYTHONPATH="$SITE" /usr/bin/python3.9 -c 'import fastapi,uvicorn,pydantic' || fail "dependencies missing"
+# Validate the exact staged modules before touching the functioning B2 process.
+if ! env PYTHONPATH="$STAGE:$SITE" /usr/bin/python3.9 -c \
+  'import clone_v2_gateway,dhan_feed,dhan_option_metrics; assert callable(clone_v2_gateway.create_app)'; then
+  fail "B3 staged module import failed before deployment"
+fi
 PID="$(systemctl show bot-king.service --property=MainPID --value)"
 [[ "$PID" =~ ^[0-9]+$ && "$PID" != 0 ]] || fail "V1 process missing"
 B3_V1_PID="$PID" B3_ENV_TEMP="$STAGE/client.env" python3 - <<'PY'
@@ -55,6 +73,8 @@ PY
 [[ -s "$STAGE/client.env" ]] || fail "Dhan client ID not found"
 install -d -m 0755 "$DROP_DIR" /usr/local/libexec
 rollback() {
+  trap - ERR
+  set +e
   echo "B3_DEPLOYMENT_FAILED: ROLLBACK_TO_WORKING_B2"
   for file in clone_v2_gateway.py dhan_feed.py dhan_option_metrics.py; do
     if [[ -f "$BACKUP/$file" ]]; then cp -a "$BACKUP/$file" "$ROOT/$file"
@@ -64,8 +84,17 @@ rollback() {
   rm -f "$DROP" "$ENVFILE" "$SYNC" "$SYNC_UNIT" "$SYNC_TIMER" "$TOKEN_DST"
   systemctl daemon-reload
   systemctl restart botking-clone-v2.service || true
-  printf 'B2_RESTORED_HTTP='
-  curl -sS -o /dev/null --max-time 8 -w '%{http_code}\n' http://127.0.0.1:8002/clone-v2/health || true
+  if wait_health http://127.0.0.1:8002/clone-v2/health 25; then
+    echo "B2_ROLLBACK_HEALTH_HTTP=200"
+    if [[ "$(systemctl is-active botking-clone-v2.service)" == active ]]; then
+      echo "B2_ROLLBACK_SERVICE=ACTIVE"
+    else
+      echo "B2_ROLLBACK_SERVICE=NOT_ACTIVE"
+    fi
+  else
+    echo "B2_ROLLBACK_HEALTH_HTTP=000"
+    echo "B2_RECOVERY=BLOCKED_REQUIRES_SYSTEMD_DIAGNOSIS"
+  fi
   echo "B3_BACKUP=$BACKUP"
 }
 trap rollback ERR
@@ -114,7 +143,7 @@ restorecon "$ROOT/"clone_v2_gateway.py "$ROOT/"dhan_feed.py "$ROOT/"dhan_option_
 systemctl daemon-reload
 systemctl enable --now botking-clone-v2-dhan-sync.timer >/dev/null
 systemctl restart botking-clone-v2.service
-health http://127.0.0.1:8002/clone-v2/health
+wait_health http://127.0.0.1:8002/clone-v2/health 25 || fail "Clone B3 failed readiness after bounded startup checks"
 health http://127.0.0.1:8000/health
 [[ "$(systemctl is-active bot-king.service)" == active ]] || fail "V1 status changed"
 [[ "$(systemctl is-active botking-clone-v2.service)" == active ]] || fail "B3 service inactive"
