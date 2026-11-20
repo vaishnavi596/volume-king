@@ -5693,7 +5693,21 @@ console.log('BOT KING Lightweight Charts ready');
                         hist=dict(saved,cached=True,live_verified=False,
                                   freshness="historical_unverified")
                     else:
-                        raise ValueError("No saved Dhan candles for this selection • use Run Scan to fetch manually")
+                        # An after-hours automatic selection is cache-only.
+                        # Missing same-timeframe history is WAIT, not a failed
+                        # Dhan fetch: no provider request was attempted here.
+                        reason=(sym+" • "+interval+
+                                " • no saved completed candles • auto scan WAIT; "
+                                "tap Run Scan for manual Dhan history")
+                        scan_status.value=reason
+                        scan_shared.update(direction="WAIT",basis=reason,tf=interval,
+                                           symbol=sym,timestamp=None)
+                        scan_result.controls=[section(
+                            "ANALYSIS BASIS • Candles & Filters",
+                            ft.Column([unavailable(reason),
+                                       note("No new signal • no automatic Dhan request made")],
+                                      spacing=4))]
+                        return
             else:
                 hist=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,interval,period),timeout=45)
             stage="candle validation"
