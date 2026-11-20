@@ -1549,3 +1549,7 @@
 - User requests one full Watchlist candle-refresh pass automatically after Dhan login, instead of manual one-equity-per-tap or 3 histories per 180s, then a phone APK for acceptance.
 - Source commit accc1ef90467a44b7a756fed4728f4f0509c9a96 adds watch_login_candle_bootstrap: once per provider generation, deduplicates selected Watchlist equities (up to 70), serial Dhan 1m/2d history requests with 1.5s inter-request delay, derives 3m from retained 1m, paints each HIST result, tracks progress, honors provider cooldown and worker busy flags. Does not remove rate-limit safeguards. After-hours automatic recurring polling remains disabled, but this explicit one-shot login pass can fetch HIST data after close. On cooldown/error may stop incomplete rather than claim complete.
 - Full regression workflow-only trigger commit 6b4afee3032b0bab0fc9a11ea90caf645ecf0703. Must verify PASS before phone APK build. No Oracle deployment or old V1/V2 changes.
+
+[WATCHLIST LOGIN BOOTSTRAP APK GATED BUILD][2026-11-20]
+- Targeted B1 timeframe #44759090700, B2 priority #44759090456, Adapter Joint #44759090543 all SUCCESS for source accc1ef90467a44b7a756fed4728f4f0509c9a96.
+- Full offline regression #44759107036 still in progress when checked. APK workflow commit 88ac119518b9c26a6548893a234ad464965417f2 started run #44759201146; APK workflow has independent full offline test gate before signing/build/upload. Do not claim APK artifact ready until run SUCCESS and artifact confirmed.
