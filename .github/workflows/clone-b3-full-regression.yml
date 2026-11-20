@@ -34,3 +34,5 @@ jobs:
         env:
           PYTHONPATH: src:tests:backend
         run: python -m unittest discover -s tests -v
+
+# One-shot login Watchlist 51-equity candle bootstrap regression gate 2026-11-20
