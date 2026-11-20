@@ -3567,6 +3567,40 @@ def app_main(page:ft.Page):
             page.update()
     def open_dhan_authorization(e):
         page.run_task(start_dhan_authorization)
+    async def start_clone_dhan_browser_login():
+        if clone_v2_connect_busy[0]:
+            return
+        clone_v2_connect_busy[0]=True
+        try:
+            connection_status.value="Requesting Dhan browser authorization via Clone SSK..."
+            connection_status.color=GOLD
+            page.update()
+            url=await asyncio.to_thread(
+                clone_v2_gateway.start_dhan_browser_login,
+                (api_url.value or "").strip(),
+                (server_access.value or "").strip())
+            connection_status.value=(
+                "Official Dhan login opened in mobile browser. Complete consent, "+
+                "return here, enter Clone SSK and press Connect Clone V2 (SSK).")
+            connection_status.color=GOLD
+            page.update()
+            page.launch_url(url)
+        except FeedError as exc:
+            connection_status.value="Clone Dhan authorization: "+str(exc)
+            connection_status.color=RED
+            log_error("clone_dhan_browser_login",exc)
+        except Exception as exc:
+            connection_status.value="Clone Dhan browser authorization unavailable."
+            connection_status.color=RED
+            log_error("clone_dhan_browser_login",exc)
+        finally:
+            server_access.value=""
+            clone_v2_connect_busy[0]=False
+            page.update()
+
+    def open_clone_dhan_browser_login(e):
+        page.run_task(start_clone_dhan_browser_login)
+
     async def check_clone_v2_connection():
         # B2 dedicated SSK flow. Original V1 session and market refresh lanes
         # remain untouched; a status handshake is not verified LIVE market data.
@@ -4376,7 +4410,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Clone V2 uses its own read-only Oracle SSK gateway. Login does not itself verify market data or enable LIVE signals. Original V1 Dhan routes are not used by this Connect action.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Clone browser Dhan consent requires separate approved Clone callback on Oracle. Complete Dhan mobile login, then use Clone SSK to verify a real read-only quote. Original V1 routes and live trading remain untouched.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
