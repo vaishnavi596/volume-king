@@ -1,0 +1,55 @@
+name: B2 Clone Oracle Gateway Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: b2-clone-oracle-gateway-audit
+  cancel-in-progress: false
+
+jobs:
+  read-only-gateway-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Validate SSH configuration (no secrets printed)
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for v in ORACLE_HOST ORACLE_USER ORACLE_SSH_KEY ORACLE_KNOWN_HOSTS; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing repository secret: $v"
+              exit 1
+            fi
+          done
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/b2_clone_key
+          chmod 600 ~/.ssh/b2_clone_key
+          printf '%s\n' "$ORACLE_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Read-only server and gateway route audit
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/b2_clone_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 "${ORACLE_USER}@${ORACLE_HOST}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo "B2_CLONE_AUDIT_BEGIN"
+          echo "HOST=$(hostname)"
+          echo "DATE_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for route in /health /v2-pilot/auth/challenge /v2-pilot/auth/login /v2-pilot/indices /v2-pilot/quotes; do
+            status=$(curl --silent --show-error --output /dev/null --max-time 8 --write-out '%{http_code}' "https://botkingrajesh.duckdns.org${route}" || true)
+            printf '%-32s HTTP=%s\n' "$route" "$status"
+          done
+          echo "NO_DEPLOY_NO_RESTART_NO_TOKEN_READ"
+          echo "B2_CLONE_AUDIT_END"
+          REMOTE
