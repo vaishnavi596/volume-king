@@ -100,6 +100,17 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
         self.assertIn('auto-refresh pauses after market hours',view)
         self.assertIn('use explicit Retry Data',view)
 
+    def test_auto_refresh_toggle_and_interval_are_visible_in_scanner(self):
+        controls=function_source("scanner_controls")
+        self.assertIn("ft.Row([scan_live,scan_refresh]",controls)
+        self.assertIn("saved candles only",controls)
+        self.assertIn('Auto Scan runs only while Scanner is visible',controls)
+        # No unbounded background provider worker is authorized by controls.
+        loop=function_source("auto_scan_loop")
+        self.assertIn("while scan_live.value and generation==scan_auto_generation[0]",loop)
+        self.assertIn("if current[0]!=3:",loop)
+        self.assertIn("if not refresh_hours():",loop)
+
     def test_one_minute_default_preserves_saved_timeframe(self):
         self.assertIn('saved_scanner_tf=prefs.get("scanner_timeframe","1m")',SOURCE)
         self.assertIn('        saved_scanner_tf="1m"',SOURCE)
