@@ -6188,7 +6188,8 @@ console.log('BOT KING Lightweight Charts ready');
     # Initialize the provider queue guard before starting scanner tasks.
     dhan_history_scan_active=[False]
     select(current[0])
-    page.run_task(auto_scan_loop,scan_auto_generation[0])
+    if scan_live.value:
+        page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
     page.run_task(scanner_fast_signal_loop)
     page.run_task(protection_clock)
