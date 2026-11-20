@@ -5533,10 +5533,17 @@ console.log('BOT KING Lightweight Charts ready');
         data=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
         if symbol not in DHAN_VERIFIED_SYMBOLS:
             message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
-        elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
-              or symbol!=chain_symbol.value or data.get("symbol")!=symbol
-              or data.get("source")!="dhan" or data.get("expiry")!=expiry.value):
-            message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • select the symbol in Options; auto-refresh will request listed data"
+        elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            message="OI / PCR / Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
+        elif symbol!=chain_symbol.value:
+            message=("OI / PCR / Max Pain: Scanner "+symbol+" differs from Options "+
+                     str(chain_symbol.value)+" • select matching underlying in Options")
+        elif (data.get("symbol")!=symbol or data.get("source")!="dhan"
+              or data.get("expiry")!=expiry.value):
+            message=("OI / PCR / Max Pain: no broker-listed expiry snapshot for "+symbol+
+                     " • Options selection is "+str(expiry.value or "not loaded")+
+                     (" • auto-refresh pauses after market hours; use explicit Retry Data"
+                      if not refresh_hours() else " • waiting for paced Dhan refresh"))
         elif (not isinstance(data.get("pcr"), (int, float))
               or isinstance(data.get("pcr"),bool)
               or not math.isfinite(data["pcr"]) or data["pcr"]<0
@@ -6190,6 +6197,12 @@ console.log('BOT KING Lightweight Charts ready');
             # Opening Scanner starts the selected timeframe immediately instead
             # of waiting for the previous symbol's auto-refresh deadline.
             scan_next_refresh[0]=None
+            if prefs.get("source")=="Dhan" and dhan_feed.connected and not refresh_hours():
+                # Off-hours automatic network polling is forbidden. Still
+                # hydrate the visible scanner from same-symbol/timeframe saved
+                # candles without requiring a trip through Settings > Retry.
+                scan_busy[0]=True
+                page.run_task(scan_market,False)
         if changed or first_render[0]:page.run_task(restore_scroll,i)
         first_render[0]=False
     # Keep the app chrome inside Android system insets, including cutouts.
