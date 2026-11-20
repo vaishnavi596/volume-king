@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: Clone Watchlist smart-hours and 3m recovery phone APK 2.3.134
+run-name: Clone Watchlist one-shot login 51-candle bootstrap phone APK 2.3.134
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
