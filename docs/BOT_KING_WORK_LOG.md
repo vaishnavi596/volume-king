@@ -1519,3 +1519,7 @@
 - Root-cause candidate for phone WAIT: oracle_assessment_poll's closed-market one-time login bootstrap could run while Home active and then suppress Watchlist 3m assessment after entering Watchlist.
 - Source fix commit 5926fabf1e5e5ee3421796fc57e9e8135a36b880: allow at most three distinct after-hours Watchlist 3m assessment reads per login generation when Watchlist is opened after bootstrap; retain per-key 180s attempt pacing, no repeated closed-market broker history, and no other lane recovery. Does NOT imply 51/51 3m or five filter verification.
 - Regression source contract test added at tests/test_clone_watch_afterhours_assessment_recovery_20261120.py, commit 7e81f1ce0d4dbe2d109e13604ddae5e22037c6f1. CI status NOT VERIFIED at journal time; no APK build, no Oracle deploy, no live-data claims.
+
+[WATCHLIST FIX CI VERIFICATION][2026-11-20]
+- Exact source fix SHA 5926fabf1e5e5ee3421796fc57e9e8135a36b880: B2 Smart Priority run 44753580976 SUCCESS, B1 Timeframe Targeted run 44753580978 SUCCESS, Adapter Joint Audit run 44753581064 SUCCESS. These runs validate the source-fix SHA, not the later test-file commit.
+- GitHub Actions query for test commit 7e81f1ce0d4dbe2d109e13604ddae5e22037c6f1 and journal commit 636a15a06b1bf8fddf75b3da952c2840f7019ab4 returned no runs. New regression test execution remains NOT VERIFIED. No APK or Oracle deploy. Next Watchlist-only acceptance: 51 equity quote coverage, 3m assessment availability, five real filters without inventing signals, after-hours historical/unverified labels.
