@@ -104,5 +104,56 @@ class CloneOracleAuthTests(unittest.TestCase):
         self.assertEqual(http.post("/clone-v2/orders", headers=key, json={}).status_code, 404)
 
 
+    def test_clone_b3_registry_candles_and_options_are_ssk_protected(self):
+        from datetime import date
+        today = date.today().isoformat()
+        class FakeProvider:
+            def intraday(self, args):
+                self.assert_args = args
+                return {"status": "success", "timestamp": [1770000000, 1770000060],
+                        "open": [100, 101], "high": [102, 103],
+                        "low": [99, 100], "close": [101, 102],
+                        "volume": [1000, 1100]}
+            def option_expiries(self, segment, sid):
+                return [today]
+            def option_chain(self, segment, sid, expiry):
+                rows = {}
+                for n in range(90, 120, 5):
+                    rows[str(n)] = {"ce": {"oi": 1000, "volume": 100},
+                                    "pe": {"oi": 1000, "volume": 100}}
+                return {"status": "success", "data": {"last_price": 102.0,
+                        "oc": rows}}
+        http = TestClient(create_app(key_bytes=self.key,
+                   market_feed_factory=FakeProvider,
+                   market_registry={"RELIANCE": ("NSE_EQ", 2885)}))
+        key = {"X-BotKing-Key": self.key.decode()}
+        candle = {"symbol": "RELIANCE", "interval": 1,
+                  "from_date": today, "to_date": today}
+        path = "/clone-v2/market/candles"
+        self.assertEqual(http.post(path, json=candle).status_code, 403)
+        response = http.post(path, headers=key, json=candle)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["bars"]), 2)
+        self.assertEqual(response.json()["freshness"], "historical_unverified")
+        self.assertIs(response.json()["live_orders_enabled"], False)
+        self.assertEqual(http.post(path, headers=key, json={**candle, "interval": 2}).status_code, 422)
+
+        path = "/clone-v2/market/verify"
+        self.assertEqual(http.post(path, headers=key, json={"symbol": "RELIANCE"}).status_code, 200)
+        self.assertEqual(http.post(path, headers=key, json={"symbol": "UNKNOWN"}).status_code, 422)
+
+        expiry_path = "/clone-v2/market/options/expiries"
+        self.assertEqual(http.post(expiry_path, json={"symbol": "NIFTY"}).status_code, 403)
+        expiries = http.post(expiry_path, headers=key, json={"symbol": "NIFTY"})
+        self.assertEqual(expiries.status_code, 200)
+        self.assertEqual(expiries.json()["expiries"], [today])
+        chain_path = "/clone-v2/market/options/chain"
+        chain = http.post(chain_path, headers=key, json={"symbol": "NIFTY", "expiry": today})
+        self.assertEqual(chain.status_code, 200)
+        self.assertIs(chain.json()["signal_eligible"], False)
+        self.assertIs(chain.json()["live_orders_enabled"], False)
+        self.assertEqual(http.post("/clone-v2/orders", headers=key, json={}).status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
