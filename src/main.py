@@ -2270,11 +2270,13 @@ def app_main(page:ft.Page):
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
         last_visible_signature=None
         last_cell_signatures={}
+        last_filtered_membership=[None]
         while True:
             await asyncio.sleep(2)
             if current[0]!=4 or not app_active[0]:
                 last_visible_signature=None
                 last_cell_signatures.clear()
+                last_filtered_membership[0]=None
                 continue
             try:
                 visible=tuple(watch_groups[active_watch[0]])
@@ -2306,10 +2308,19 @@ def app_main(page:ft.Page):
                     watch_status_text.value=status
                     if watch_status_text.page is not None:watch_status_text.update()
                 if watch_filter[0]!="All":
-                    # Direction may change filter membership; refresh only list.
-                    fill_watch()
-                    if watch_list.page is not None:watch_list.update()
-                    continue
+                    # Only rebuild filtered rows when actual membership changes.
+                    # Quote/age changes still repaint existing mounted cells below.
+                    membership=tuple(sym for sym in visible if (
+                        "Bullish" if (counts:=signal_percentages(tick_signals[sym])) is not None and counts[0]>counts[1]
+                        else "Bearish" if counts is not None and counts[1]>counts[0]
+                        else "Neutral") == watch_filter[0])
+                    if membership!=last_filtered_membership[0]:
+                        last_filtered_membership[0]=membership
+                        fill_watch()
+                        if watch_list.page is not None:watch_list.update()
+                        continue
+                else:
+                    last_filtered_membership[0]=None
                 expected={"Broker API":"Angel One","Dhan":"Dhan",
                           "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")
                 for sym in visible:
@@ -4819,7 +4830,7 @@ console.log('BOT KING Lightweight Charts ready');
         candle=(str(max(0,int(now-scan_last_candle[0])))+" sec") if scan_last_candle[0] is not None else "—"
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
             next_text="PAUSED — Dhan login required";scan_next_refresh[0]=None
-        elif not scan_live.value and prefs.get("source")!="Dhan":
+        elif not scan_live.value:
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
@@ -5416,7 +5427,7 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
-            if chart_provider[0]=="TradingView Lightweight" and not tv_native_fallback[0]:
+            if chart_provider[0]=="TradingView Lightweight" and not tv_native_fallback[0] and False:
                 # Keep detailed overlay guidance in Central filters / help.
                 # On the Scanner screen the chart should take priority over captions.
                 parts.append(note("OHLC history • EMA 9/21 overlay • other filters: analysis only"))
@@ -6029,7 +6040,7 @@ console.log('BOT KING Lightweight Charts ready');
         connection_status.value=("Dhan read-only • 51 equities mapped • "+("HISTORICAL ONLY • LIVE LTP UNAVAILABLE" if dhan_feed.historical_only else "LTP verified • quote timestamp unverified" if dhan_feed.connected else "reconnect required") if source.value=="Dhan" else "Data source: "+source.value+" • "+("Angel One connected" if angel_feed.connected else "broker disconnected"))
         scan_status.value=connection_status.value
         scan_auto_generation[0]+=1
-        if scan_live.value or prefs.get("source")=="Dhan":
+        if scan_live.value:
             page.run_task(auto_scan_loop,scan_auto_generation[0])
         select(current[0])
     broker_previous=broker.on_change
