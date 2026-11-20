@@ -4556,7 +4556,8 @@ def app_main(page:ft.Page):
             filter_feedback.value="Filter changed in this session, but saving failed • retry"
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
-            return "Dhan OI context is informational; unverified values never vote"
+            return ("Dhan listed option-chain context required for Scanner symbol; "
+                    "unverified OI/Max Pain is display-only, never a directional vote")
         if name=="News Headlines":
             return "News context ON when selected • cached headlines only; no directional vote"
         if name in ("Volume","VWAP"):
@@ -5649,6 +5650,8 @@ console.log('BOT KING Lightweight Charts ready');
                 ft.ResponsiveRow([scan_budget,scan_expiry,scan_min,scan_max],spacing=6,run_spacing=6),
                 note("Illustrative premiums and days only; not actual exchange contracts or expiry.")]),
             ft.TextButton("Filters: "+str(len(filter_selected))+" selected • Settings",on_click=open_filter_settings),
+            ft.Row([scan_live,scan_refresh],wrap=True,spacing=10,run_spacing=5),
+            note("Auto Scan runs only while Scanner is visible, Dhan is connected and market is open. Off-hours: saved candles only."),
             scan_status,scan_age_display,
         ],spacing=6,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
             padding=8,bgcolor=PANEL,border_radius=10,data="compact_group")
