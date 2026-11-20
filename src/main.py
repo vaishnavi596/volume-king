@@ -5534,6 +5534,15 @@ console.log('BOT KING Lightweight Charts ready');
             parts.append(note("Chart switches affect display only. Up to 10 saved analysis filters work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
             parts.append(note("OI / PCR / Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
+    def open_matching_scanner_options(e=None):
+        # Explicit navigation only: Scanner selection must not silently
+        # fetch derivatives or change the Options page's underlying.
+        symbol=scan_symbol.value or "NIFTY"
+        if symbol not in DHAN_VERIFIED_OPTION_SYMBOLS:return
+        chain_symbol.value=symbol
+        option_expiry_choice.value="Nearest"
+        refresh_option_expiry(type("ScannerOptionSelection",(),{})())
+
     def scanner_option_context():
         """Display cached Dhan option metrics without treating them as scanner votes."""
         symbol=scan_symbol.value or "NIFTY"
@@ -5567,9 +5576,13 @@ console.log('BOT KING Lightweight Charts ready');
             message=("Dhan "+symbol+" • expiry "+str(data.get("expiry"))
                      +" • PCR "+f'{data["pcr"]:.3f}'
                      +" • Max Pain "+f'{data["max_pain"]:,.0f}'+strike_note)
+        controls=[note(message),
+                  note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")]
+        if symbol in DHAN_VERIFIED_OPTION_SYMBOLS and symbol!=chain_symbol.value:
+            controls.append(ft.OutlinedButton(
+                "Open Options for "+symbol,on_click=open_matching_scanner_options))
         return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
-                       ft.Column([note(message),
-                                  note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")],spacing=4))
+                       ft.Column(controls,spacing=4))
     def scanner():
         # A broken scanner widget must not make the whole navigation tab inaccessible.
         try:
