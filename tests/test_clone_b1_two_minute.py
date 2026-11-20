@@ -58,6 +58,17 @@ class TwoMinuteContract(unittest.TestCase):
         self.assertEqual(result["bias"], "WAIT")
         self.assertEqual(result["reason"], "Irregular candle spacing within trading session")
 
+    def test_after_hours_auto_scanner_cache_miss_waits_without_provider_error(self):
+        source=Path(__file__).resolve().parents[1].joinpath("src/main.py").read_text()
+        auto_branch=source.split('if not allow_network and prefs.get("source")=="Dhan":',1)[1].split(
+            '            else:\n                hist=await asyncio.wait_for',1)[0]
+        self.assertIn('" • no saved completed candles • auto scan WAIT; "', auto_branch)
+        self.assertIn('scan_shared.update(direction="WAIT"', auto_branch)
+        self.assertIn('return', auto_branch)
+        self.assertNotIn('raise ValueError', auto_branch)
+        manual_branch=source.split('            else:\n                hist=await asyncio.wait_for',1)[1]
+        self.assertIn('asyncio.to_thread(get_market_data,sym,interval,period)', manual_branch)
+
     def test_scanner_routes_2m_via_1m_and_separate_timeframe_cache(self):
         source=Path(__file__).resolve().parents[1].joinpath("src/main.py").read_text()
         ast.parse(source)
