@@ -2953,6 +2953,10 @@ def app_main(page:ft.Page):
         return section("DATA SOURCE",ft.Column([chooser,note(quote_caption(sym)),
             note("Dhan read-only quotes and candles; broker-listed option metrics only for verified, entitled underlyings. Availability and freshness unverified; signals and live orders OFF.")],
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH))
+    # FINNIFTY is an option-only Dhan IDX_I/27 underlying, not one of
+    # the three Dashboard indices or the 51-equity candle scan roster.
+    DHAN_VERIFIED_OPTION_SYMBOLS = DHAN_VERIFIED_SYMBOLS | {"FINNIFTY"}
+
     async def refresh_selected_options():
         # Dhan-only read-only option metrics. No Angel One fallback.
         if option_feed_busy[0]:
@@ -2982,7 +2986,7 @@ def app_main(page:ft.Page):
         option_feed_status[0]="Loading broker-listed Dhan expiries..."
         option_stage="broker-listed expiries"
         try:
-            if sym not in DHAN_VERIFIED_SYMBOLS:
+            if sym not in DHAN_VERIFIED_OPTION_SYMBOLS:
                 raise FeedError("No mapped Dhan underlying for "+sym)
             dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value:return
@@ -3066,7 +3070,7 @@ def app_main(page:ft.Page):
             # scanner and dashboard already consume the same Dhan candle cache.
             if (current[0] in (0,1,3) and refresh_hours()
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and chain_symbol.value in DHAN_VERIFIED_SYMBOLS and not option_feed_busy[0]
+                    and chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS and not option_feed_busy[0]
                     and (dhan_option_last_attempt[0]<=0
                          or time.monotonic()-dhan_option_last_attempt[0]>=60)
                     and time.monotonic()>=option_retry_until.get(
@@ -5532,7 +5536,7 @@ console.log('BOT KING Lightweight Charts ready');
         """Display cached Dhan option metrics without treating them as scanner votes."""
         symbol=scan_symbol.value or "NIFTY"
         data=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
-        if symbol not in DHAN_VERIFIED_SYMBOLS:
+        if symbol not in DHAN_VERIFIED_OPTION_SYMBOLS:
             message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
         elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
             message="OI / PCR / Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
