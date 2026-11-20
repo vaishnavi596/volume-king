@@ -1592,3 +1592,8 @@
 - Previously pending Full Regression Gate (No APK) #44762811608 completed SUCCESS, source/workflow SHA 3d6f7dbcfc1db57e08e411daf447082ca7c312b2, for the after-hours index-history change 89710e64e0b93e7f4ca257833c8dfe0f468ce601. Existing B1 #44762796296, B2 #44762796290 and Adapter #44762796391 all SUCCESS. No duplicate run initiated.
 - Original APK workflow run #44709731267 remains FAILURE; verified later phone APK #44759201146 SUCCESS (source 88ac1195), predates index-history change. No new APK or phone validation for index fix.
 - Open blockers unchanged: SENSEX LTP batch/fallback FeedError, Scanner candle fetch ValueError/data unavailable (user report), NIFTY/BANKNIFTY 1m index votes WAIT on installed phone, authenticated Oracle/phone LIVE and token-renewal acceptance unproven. Regression PASS does not close B3.
+
+[SCANNER PERIOD VALUEERROR PREVENTION AND B1 TEST UPDATE][2026-11-20]
+- Source commit 8e2da9c79474501a6d4b4cf6e45cbbafd36d1187: normalize stale scanner Dhan 1m/2m/3m period to 7d instead of throwing pre-fetch ValueError; 5m/15m/30m with 3mo likewise normalized. This is a proven code-path correction, not proof of phone root cause.
+- Initial targeted B1 run #44763408301 FAILED because old static test expected literal guard raising ValueError. B2 #44763408312 and Adapter #44763408350 PASS. Updated B1 contract test commit ae5ff302c5fabb3b7900ca2be17430942651776f to assert period normalization and 2m source identity. Full regression #44763420804 launched for combined index and scanner changes; verify outcome before APK.
+- SENSEX LTP FeedError still unresolved. Do not claim full Scanner phone success until retest.
