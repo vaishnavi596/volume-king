@@ -1,4 +1,5 @@
 name: BOT KING CLONE B1 Timeframe Targeted Tests
+# final Batch-1 2m mapping + status regression checkpoint
 on:
   push:
     branches:
