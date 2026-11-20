@@ -169,7 +169,7 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
            assessment=lambda sym,**selectors:requested.append((sym,selectors)) or
                {"symbol":sym,"source":"dhan","freshness":"unverified"})
         scope={"app_active":[True],"lifecycle_background":[False],
-            "prefs":{"source":"Dhan"},"dhan_feed":feed,
+            "prefs":{"source":"Dhan","paper_positions":{"TCS":{"side":"BUY"}}},"dhan_feed":feed,
             "provider_generation":[0],
             "scan_symbol":SimpleNamespace(value="TCS"),
             "scan_tf":SimpleNamespace(value="3m"),
@@ -197,17 +197,15 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
             ("BANKNIFTY",{"timeframe":"1m","expiry":None}),
             ("SENSEX",{"timeframe":"1m","expiry":None}),
             ("TCS",{"timeframe":"3m","expiry":None}),
-            ("NIFTY",{"timeframe":"1m","expiry":"2026-11-26"}),
         ]
         self.assertEqual(requested,expected)
-        # Five contexts return data but only one Dashboard repaint is scheduled.
+        # Three visible indices plus independent paper position, one repaint.
         self.assertEqual(repaints,[0])
         self.assertEqual(set(cache),{
             (0,"NIFTY","1m",None),
             (0,"BANKNIFTY","1m",None),
             (0,"SENSEX","1m",None),
             (0,"TCS","3m",None),
-            (0,"NIFTY","1m","2026-11-26"),
         })
         self.assertEqual(set(attempts),set(cache))
         with self.assertRaises(FinishedOneTick):
@@ -265,12 +263,12 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
             asyncio.run(fn())
         self.assertIn(("TCS","3m",None),requested)
         self.assertEqual(sum(sym in ("TCS","INFY") for sym,tf,exp in requested),2)
-        self.assertEqual(len(requested),6)
+        self.assertEqual(len(requested),2)
         scope["search"].value=""
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertIn(("SBIN","3m",None),requested)
-        self.assertEqual(len(requested),7)
+        self.assertEqual(len(requested),3)
         self.assertEqual(sum(sym in ("TCS","INFY","SBIN") for sym,tf,exp in requested),3)
 
     def test_assessment_ui_hides_old_selection_after_timeframe_or_expiry_change(self):
@@ -413,34 +411,35 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
         self.assertEqual(requested,[
             ("NIFTY","1m",None),
             ("BANKNIFTY","1m",None),
-            ("SENSEX","1m",None),
-            ("NIFTY","5m",None),
-            ("NIFTY","1m","2026-11-26")])
+            ("SENSEX","1m",None)])
         self.assertEqual(set(cache),set(attempts))
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
-        self.assertEqual(len(requested),5)
-        # Scanner timeframe selection changes must fetch the new scoped key
-        # without overwriting the previous 5m cache or refetching index 1m.
+        self.assertEqual(len(requested),3)
+        # Switching to Scanner uses its independent 5m cache and does not
+        # refetch Dashboard's three index assessments.
+        scope["current"][0]=3
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(requested[-1],("NIFTY","5m",None))
+        self.assertEqual(len(requested),4)
         scope["scan_tf"].value="3m"
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(requested[-1],("NIFTY","3m",None))
+        self.assertEqual(len(requested),5)
+        for tf in ("1m","3m","5m"):
+            self.assertIn((0,"NIFTY",tf,None),cache)
+        # Options only requests the selected expiry while that page is active.
+        scope["current"][0]=1
+        with self.assertRaises(FinishedOneTick):
+            asyncio.run(fn())
+        self.assertEqual(requested[-1],("NIFTY","1m","2026-11-26"))
         self.assertEqual(len(requested),6)
-        self.assertIn((0,"NIFTY","5m",None),cache)
-        self.assertIn((0,"NIFTY","3m",None),cache)
-        self.assertIn((0,"NIFTY","1m",None),cache)
+        self.assertEqual(set(cache),set(attempts))
         with self.assertRaises(FinishedOneTick):
             asyncio.run(fn())
         self.assertEqual(len(requested),6)
-        # A genuinely different scanner symbol likewise gets its own 3m
-        # context, without needing any new candle history/provider call.
-        scope["scan_symbol"].value="RELIANCE"
-        scope["DHAN_VERIFIED_SYMBOLS"].add("RELIANCE")
-        with self.assertRaises(FinishedOneTick):
-            asyncio.run(fn())
-        self.assertEqual(requested[-2:], [("NIFTY","3m",None),("RELIANCE","3m",None)])
-        self.assertIn((0,"RELIANCE","3m",None),cache)
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
