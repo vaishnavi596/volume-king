@@ -1917,3 +1917,8 @@
 
 [B3 FULL GATE RERUN SOURCE/STATUS — 2026-11-21 IST]
 - Targeted B1 #44802983618, B2 #44802983607, Adapter #44802983562 on new Clone source SHA 8ac45afe63b234736b5f813b71d8351629098155 all SUCCESS. Full combined offline regression run #44803057127 on workflow SHA 22ac4c4278a4c084bf6925293a462314f0c0618f initially queued, link https://github.com/vaishnavi596/volume-king/actions/runs/44803057127 . Await 1398/1398 and zero failures before new APK; no live Dhan/Oracle verification inferred.
+
+
+[B3 THREE-ISSUE OFFLINE REGRESSION PASS — 2026-11-21 01:04 IST]
+- Exact GitHub Actions Full Regression #44803057127 on workflow SHA 22ac4c4278a4c084bf6925293a462314f0c0618f completed SUCCESS. Job 136519857408 log: `Ran 1398 tests in 99.766s`, `OK`, zero offline failures/errors. URL https://github.com/vaishnavi596/volume-king/actions/runs/44803057127. Source fix 8ac45af explicitly preserved OI filters 'never vote' safety string; previous #44802002239 had one old text-contract failure, now resolved. Targeted B1/B2/Adapter also passed on source SHA.
+- Acceptance is *offline only*. Three owner-scoped issues remain to validate live: (1) SENSEX quote and 1m candle actual Dhan payload vs status 502, (2) Scanner Auto Scan ON/OFF & 30/60/120 controls appear in NEW APK and correctly follow foreground/market-hours, (3) Scanner OI/PCR/Max Pain exactly matches connected Dhan underlying and broker-listed expiry; chain HTTP 200 is not equivalent to scanner connected. No extra Oracle requests, server changes or APK build in this step. Need privacy-safe, scoped next runtime evidence.
