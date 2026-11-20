@@ -21,6 +21,17 @@ class ScannerBatchGuards(unittest.TestCase):
         selected=SOURCE.split("    def trigger_scan(e=None):",1)[1].split("    for c in [scan_symbol",1)[0]
         self.assertIn("if current[0]==3:request_view_refresh(3)",selected)
         self.assertNotIn("if current[0]==3:select(3)",selected)
+    def test_cache_only_scan_can_run_without_dhan_login(self):
+        scan=SOURCE.split("    async def scan_market(allow_network=True):",1)[1].split("        generation=scan_generation[0]",1)[0]
+        self.assertIn('not dhan_feed.connected and allow_network',scan)
+        self.assertIn('if not allow_network and prefs.get("source")=="Dhan":',SOURCE)
+    def test_watchlist_filtered_membership_matches_row_eligibility(self):
+        rows=SOURCE.split("                    def filtered_member(sym):",1)[1].split("                    membership=",1)[0]
+        for check in ('signal.get("timeframe")=="3m"',
+                      'signal.get("source")==expected_source',
+                      'search.value.upper() not in sym'):
+            self.assertIn(check,rows)
+        self.assertIn("last_cell_signatures.clear()\n                        fill_watch()",SOURCE)
     def test_auto_off_and_stale_refresh_guards(self):
         self.assertIn("if scan_live.value:\n        page.run_task(auto_scan_loop",SOURCE)
         self.assertIn("if target is None or target!=current[0]:return",SOURCE)
