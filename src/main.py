@@ -6185,12 +6185,13 @@ console.log('BOT KING Lightweight Charts ready');
         ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
     ],expand=True,spacing=0)
     page.add(ft.SafeArea(content=app_shell,expand=True))
+    # Initialize the provider queue guard before starting scanner tasks.
+    dhan_history_scan_active=[False]
     select(current[0])
     page.run_task(auto_scan_loop,scan_auto_generation[0])
     page.run_task(scan_age_clock)
     page.run_task(scanner_fast_signal_loop)
     page.run_task(protection_clock)
-    dhan_history_scan_active=[False]
     # The long 5m ranking queue should not hold the first visible Watchlist
     # 3m input until all 51 equities finish. Share the scheduler's *same* 1m
     # request budget; this is not a second uncontrolled polling lane.
