@@ -15,6 +15,10 @@ class CloneB1StatusContract(unittest.TestCase):
         self.assertIn('OFF • last available prices (not live)', self.source)
         self.assertIn('if regular_hours() else', self.source)
 
+    def test_mounted_watchlist_compact_status(self):
+        self.assertIn('label=("OFF" if not regular_hours() else "STALE")', self.source)
+        self.assertIn('" • ERROR" if watch_batch_status[0].startswith', self.source)
+
     def test_obsolete_callback_instruction_replaced(self):
         self.assertNotIn('Clone browser Dhan consent requires separate approved Clone callback', self.source)
         self.assertIn('Existing Oracle callback: /dhan/callback', self.source)
