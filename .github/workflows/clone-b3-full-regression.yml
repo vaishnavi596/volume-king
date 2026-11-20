@@ -1,4 +1,5 @@
 name: BOT KING CLONE B3 Full Regression Gate (No APK)
+# B3 combined rerun after consolidating 14 legacy-contract failures and active-page test coverage
 on:
   push:
     branches:
