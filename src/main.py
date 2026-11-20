@@ -4851,7 +4851,7 @@ console.log('BOT KING Lightweight Charts ready');
         The default stays 5m for existing Super Five / Watchlist consumers.
         Additional 1m/3m callers cannot borrow the unlabeled 5m quote history.
         """
-        if tf not in ("1m","3m","5m","15m","1h"):
+        if tf not in ("1m","2m","3m","5m","15m","1h"):
             return {}
         expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
         candidates=[chart_snapshots.get((sym,tf,provider_generation[0])) or {}]
@@ -5274,7 +5274,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_status.value="Simulation settings saved • next scan applies • no Dhan candle request"
             if current[0]==3:page.update()
             return
-        if scan_tf.value in ("1m","3m"):
+        if scan_tf.value in ("1m","2m","3m"):
             scan_period.value="7d";prefs["scanner_period"]="7d"
         context=(scan_symbol.value,scan_tf.value,scan_period.value)
         selection_changed=context!=scan_selection_context[0]
@@ -5369,7 +5369,7 @@ console.log('BOT KING Lightweight Charts ready');
         bars=clean_bars(hist.get("bars") or [])[-35:]
         parts=[ft.Row([txt(sym+" • "+(scan_tf.value or "5m"),15,GOLD,True),ft.TextButton("Hide" if scanner_chart_visible[0] else "Show",on_click=scanner_chart_toggle)],alignment=ft.MainAxisAlignment.SPACE_BETWEEN)]
         if scanner_chart_visible[0]:
-            parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in ["1m","3m","5m","15m","30m","1h","1d"]],wrap=True,spacing=2,run_spacing=2))
+            parts.append(ft.Row([ft.TextButton(v,on_click=lambda e,t=v:choose_timeframe(t),style=ft.ButtonStyle(color=GOLD if scan_tf.value==v else MUTED)) for v in scanner_intervals],wrap=True,spacing=2,run_spacing=2))
             parts.append(note(session_caption()))
             parts.append(ft.Dropdown(label="Chart display",value=scanner_chart_style[0],options=[ft.dropdown.Option("Candlestick"),ft.dropdown.Option("Line")],on_change=scanner_chart_style_change,dense=True))
             parts.append(ft.Dropdown(label="Chart provider",value=chart_provider[0],options=[ft.dropdown.Option("TradingView Lightweight"),ft.dropdown.Option("BOT KING / Broker")],on_change=chart_provider_change,dense=True))
@@ -5624,7 +5624,7 @@ console.log('BOT KING Lightweight Charts ready');
             period=scan_period.value or "1mo"
             interval=scan_tf.value or "1d"
             # Intraday history depends on the connected broker feed.
-            if interval in ("1m","3m") and period!="7d":
+            if interval in ("1m","2m","3m") and period!="7d":
                 raise ValueError("Broker 1m history may be limited. Select 7d.")
             if interval=="5m" and period=="3mo":
                 raise ValueError("Broker 5m candles may not cover 3 months. Choose 7d or 1mo.")
