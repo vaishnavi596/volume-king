@@ -86,7 +86,10 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         fn = next(node for node in ast.walk(self.tree)
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "auto_scan_loop")
         body = ast.get_source_segment(source, fn)
-        self.assertIn('if prefs.get("source")=="Dhan" and (scan_tf.value=="5m" or dhan_history_scan_active[0]):', body)
+        # Block only while the shared historical provider queue is active.
+        # A selected 5m scan need not be permanently disabled when queue is idle.
+        self.assertIn('if prefs.get("source")=="Dhan" and dhan_history_scan_active[0]:', body)
+        self.assertNotIn('scan_tf.value=="5m" or dhan_history_scan_active[0]', body)
         self.assertIn('await asyncio.sleep(5)', body)
 
     def test_equity_and_index_poll_are_both_scheduled(self):
