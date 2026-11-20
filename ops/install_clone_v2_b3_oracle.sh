@@ -40,8 +40,8 @@ wait_health() {
 health http://127.0.0.1:8000/health || fail "V1 HTTP"
 health http://127.0.0.1:8002/clone-v2/health || fail "Clone HTTP"
 [[ -f "$PRIVATE/ssk" && -s "$TOKEN_SRC" ]] || fail "SSK or source Dhan token missing"
-# Separate Clone Dhan API app must be registered with its own OAuth callback.
-# Never alter original V1 Dhan developer-app redirect.
+# Use existing owner-approved V1 Dhan registered callback through Clone.
+# No new Dhan developer app or change to broker redirect registration.
 [[ -s "$OAUTH_ENV" && ! -L "$OAUTH_ENV" ]] || fail "Clone OAuth credentials/callback not provisioned"
 [[ "$(stat -c %a "$OAUTH_ENV")" == 600 ]] || fail "Clone OAuth file must be mode 0600"
 [[ "$(stat -c %u "$OAUTH_ENV")" == 0 ]] || fail "Clone OAuth file must be root-owned"
@@ -61,9 +61,9 @@ for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
     values[k]=v
 if set(values)!=allowed or values["BOTKING_CLONE_DHAN_CALLBACK_APPROVED"]!="1" or \
    values["BOTKING_CLONE_DHAN_CALLBACK_URL"]!= \
-   "https://botkingrajesh.duckdns.org/clone-v2/dhan/callback":
+   "https://botkingrajesh.duckdns.org/dhan/callback":
     raise SystemExit("B3_BLOCKED: Clone OAuth callback not approved")
-print("B3_CLONE_OAUTH_SEPARATE_CALLBACK=APPROVED")
+print("B3_EXISTING_DHAN_CALLBACK_HANDOFF=APPROVED")
 PY
 for target in "$DROP" "$ENVFILE" "$SYNC" "$SYNC_UNIT" "$SYNC_TIMER"; do
   [[ ! -e "$target" ]] || fail "B3 already installed; review existing files"
