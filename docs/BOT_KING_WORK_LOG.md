@@ -1825,3 +1825,6 @@
 - src/main.py commit d84f7cf: removed central analysis filter returns immediately to dropdown options without expensive whole-page rebuild; guard mount before control.update(). Filter calculation and source data policies unchanged.
 - Genuine unknowns remaining: wrong-provider index history call-count (3 vs 1) and whether any newly failing runtime assertions arise. Do not assume a green regression without new exact-head run. Source controls for 51 equity historical retention, BSE_I/51 SENSEX mapping, Dhan pacing, five evidence slots and sixth inert slot must remain protected.
 - Next: one new full offline workflow run on current exact head; inspect only its failures and changed relevant files, commit further fixes and journal outcomes; no APK/Oracle release unless full gate passes and phone validation is separately completed.
+
+[B3 POST-TRIAGE REGRESSION STARTED — 2026-11-21 IST]
+- Exact head workflow trigger commit 4d1f7bf96f92d7d2d7181ecfb3c3fd527548e8d7 (workflow comment only), Run #44795168819 https://github.com/vaishnavi596/volume-king/actions/runs/44795168819; at initial inspection in_progress, final PASS/FAIL unknown. Prior narrowly scoped Adapter/B1/B2 at source commit d84f7cf: runs #44795080611, #44795080469, #44795080447 SUCCESS (not full gate proof). Do not build APK or write Oracle on the basis of targeted PASS.
