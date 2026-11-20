@@ -2327,6 +2327,9 @@ def app_main(page:ft.Page):
                     membership=tuple(sym for sym in visible if filtered_member(sym))
                     if membership!=last_filtered_membership[0]:
                         last_filtered_membership[0]=membership
+                        # Recreated controls must receive fresh cell values even
+                        # if the underlying quote/candle signature is unchanged.
+                        last_cell_signatures.clear()
                         fill_watch()
                         if watch_list.page is not None:watch_list.update()
                         continue
