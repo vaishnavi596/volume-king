@@ -148,11 +148,17 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 target.stat().st_uid != os.geteuid()):
             raise HTTPException(503, "Clone token storage is not secure")
 
+    class NoBrokerRedirect(urllib.request.HTTPRedirectHandler):
+        # Never forward any broker app secret or access token through a redirect.
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
     def broker_json(request):
         try:
             with urllib.request.build_opener(
                 urllib.request.ProxyHandler({}),
-                urllib.request.HTTPSHandler()
+                urllib.request.HTTPSHandler(),
+                NoBrokerRedirect()
             ).open(request, timeout=15) as response:
                 if response.status != 200:
                     raise ValueError("Bad broker response")
@@ -251,6 +257,11 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     os.fsync(out.fileno())
                 os.replace(temp,target)
                 temp=None
+                directory_fd=os.open(str(target.parent),os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
             except OSError:
                 raise HTTPException(503,"Clone private Dhan session could not be saved") from None
             finally:
