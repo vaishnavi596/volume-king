@@ -1672,7 +1672,7 @@ def app_main(page:ft.Page):
             return list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
         return list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+all_watch_symbols()))
     def selection_symbols():
-        return list(dict.fromkeys(["NIFTY","BANKNIFTY","FINNIFTY","SENSEX"]+watch_symbols+all_watch_symbols()+list(prefs.get("custom_symbols",[]))))
+        return list(dict.fromkeys(["NIFTY","BANKNIFTY","SENSEX","FINNIFTY"]+watch_symbols+all_watch_symbols()+list(prefs.get("custom_symbols",[]))))
     def sync_symbol_choices():
         symbols=selection_symbols()
         for picker in (chain_symbol,scan_symbol,bot_symbol,symbol):
