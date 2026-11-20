@@ -6,6 +6,7 @@ on:
       - pilot/botking-v2-smart-gateway-20261118
     paths:
       - .github/workflows/botking-v2-android-pilot.yml
+      - 'pilot_v2/tests/test_v2_android_pilot_workflow.py'
   workflow_dispatch:
 permissions:
   contents: read
