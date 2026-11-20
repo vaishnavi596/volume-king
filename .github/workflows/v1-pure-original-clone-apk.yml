@@ -92,7 +92,7 @@ jobs:
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
           "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.clone\\.bot_king_v1_pure_clone' versionCode='132' versionName='2\\.3\\.132'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V1 PURE CLONE'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING B2 SSK CLONE'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
       - name: Remove ephemeral signer material
