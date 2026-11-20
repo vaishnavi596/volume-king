@@ -110,6 +110,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     market_lock = threading.Lock()
     market_cache = {}
     last_request = [0.0]
+    provider_cooldown_until = [0.0]
 
     def authorized(key):
         if (not isinstance(key, str) or len(key) > 1024
@@ -172,6 +173,9 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             cache = market_cache.get(selection)
             if cache and 0 <= now - cache[0] < 20:
                 return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})
+            if now < provider_cooldown_until[0]:
+                raise HTTPException(429, "Clone Dhan provider cooldown",
+                                    headers={"Retry-After": "30"})
             if now - last_request[0] < 1.05:
                 raise HTTPException(429, "Clone quote lane paced",
                                     headers={"Retry-After": "2"})
@@ -180,7 +184,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 result = provider().batch_ltp([known[s] for s in symbols])
             except HTTPException:
                 raise
-            except Exception:
+            except Exception as exc:
+                from dhan_feed import DhanRateLimitError
+                if isinstance(exc, DhanRateLimitError):
+                    provider_cooldown_until[0] = time.monotonic() + 30
+                    raise HTTPException(429, "Clone Dhan quota cooldown",
+                                        headers={"Retry-After": "30"}) from None
                 raise HTTPException(502, "Clone read-only Dhan quote unavailable") from None
             if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
                 raise HTTPException(502, "Invalid clone Dhan quote response")
@@ -200,8 +209,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             payload = {"source": "dhan", "quotes": quotes,
                        "unavailable": [s for s in symbols if s not in quotes],
                        "freshness": "unverified", "live_orders_enabled": False}
-            market_cache.clear()
             market_cache[selection] = (time.monotonic(), payload)
+            # Share repeated selections across 1–4 phones, bounded by demand.
+            if len(market_cache) > 16:
+                market_cache.pop(min(market_cache, key=lambda k: market_cache[k][0]))
             return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
