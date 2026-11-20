@@ -96,8 +96,16 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertEqual(calls,[])
         # A persisted history that is too short must fail closed as well.
         saved["bars"]=rows[:2]
-        with self.assertRaisesRegex(ValueError,"No saved Dhan candles"):
-            asyncio.run(env["select_history"](False))
+        env["scan_status"]=SimpleNamespace(value="")
+        env["scan_shared"]={}
+        env["scan_result"]=SimpleNamespace(controls=[])
+        env["section"]=lambda title, contents: (title, contents)
+        env["ft"]=SimpleNamespace(Column=lambda children,spacing: children)
+        env["unavailable"]=lambda text: text
+        env["note"]=lambda text: text
+        self.assertIsNone(asyncio.run(env["select_history"](False)))
+        self.assertIn("auto scan WAIT",env["scan_status"].value)
+        self.assertEqual(env["scan_shared"]["direction"],"WAIT")
         self.assertEqual(calls,[])
 
     def test_manual_run_scan_keeps_explicit_network_option(self):
