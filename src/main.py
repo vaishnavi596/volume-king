@@ -5288,14 +5288,14 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(2 if app_active[0] and current[0] in (0,3) else 30)
     async def auto_scan_loop(generation):
         # No background service: refresh runs only while this app/page is alive.
-        initial=True
         while scan_live.value and generation==scan_auto_generation[0]:
             # Dhan already has one shared historical scan scheduler (refresh_market).
             # Never run a second automatic selected-symbol scanner alongside it.
             if prefs.get("source")=="Dhan" and dhan_history_scan_active[0]:
                 # Do not race the shared provider history queue. Once it is idle,
                 # the selected 1m/3m/5m/15m scanner may refresh automatically.
-                scan_next_refresh[0]=None
+                # Preserve the existing deadline while the shared queue is busy;
+                # otherwise every idle gap triggers a fresh selected request.
                 await asyncio.sleep(5)
                 continue
             if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -5316,10 +5316,8 @@ console.log('BOT KING Lightweight Charts ready');
                 scan_next_refresh[0]=None
                 scan_status.value=session_caption()
                 refresh_scan_age()
-                if current[0]==3:request_view_refresh(3)
                 await asyncio.sleep(30)
                 continue
-            initial=False
             try:
                 delay=int(scan_refresh.value or "60")
             except (ValueError,TypeError):
@@ -5369,7 +5367,7 @@ console.log('BOT KING Lightweight Charts ready');
                 snapshot=shared_history(sym)
                 if snapshot.get("source")==prefs.get("source") and snapshot.get("bars"):
                     publish_selected_result(sym,"5m",display_analysis(sym,snapshot),shared_analysis_calculated.get(sym))
-            if current[0]==3:select(3)
+            if current[0]==3:request_view_refresh(3)
         if e is not None and e.control is scan_budget:
             scan_min.visible=scan_budget.value=="Custom";scan_max.visible=scan_budget.value=="Custom"
             page.update()
