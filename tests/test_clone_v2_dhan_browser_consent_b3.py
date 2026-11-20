@@ -37,6 +37,8 @@ class FakeDhanOpener:
             return DummyResponse({"accessToken":"f"*40, "dhanClientId":
                                   "other" if self.mismatch else self.client,
                                   "expiryTime":expiry})
+        if request.full_url=="https://api.dhan.co/v2/profile":
+            return DummyResponse({"dhanClientId":self.client, "dataPlan":"Active"})
         raise AssertionError("Unexpected Dhan URL")
 
 
@@ -80,8 +82,9 @@ class CloneBrowserConsentTests(unittest.TestCase):
             self.assertEqual(callback.headers["Cache-Control"],"no-store")
             self.assertEqual(self.path.read_text(),"f"*40+"\n")
             self.assertEqual(app.get("/clone-v2/dhan/callback?tokenId=one-time-code").status_code,403)
-        self.assertEqual(len(opener.paths),2)
-        self.assertTrue(all(x.startswith("https://auth.dhan.co/app/") for x in opener.paths))
+        self.assertEqual(len(opener.paths),3)
+        self.assertTrue(all(x.startswith("https://auth.dhan.co/app/") for x in opener.paths[:2]))
+        self.assertEqual(opener.paths[2],"https://api.dhan.co/v2/profile")
 
     def test_invalid_dhan_account_never_replaces_old_token(self):
         app, opener=self.app(mismatch=True)
