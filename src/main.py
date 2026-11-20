@@ -283,6 +283,9 @@ def app_main(page:ft.Page):
     login_bootstrap=LoginBootstrapState()
     angel_feed=ServerAngelFeed()
     dhan_feed=ServerDhanReadOnly()
+    from clone_v2_gateway import CloneV2Gateway
+    clone_v2_gateway=CloneV2Gateway()  # Independent clone-only B2 handshake; no old feed mutation.
+    clone_v2_connect_busy=[False]
     broker_retry=[0.0]
     broker_failures=[0]
     health=FeedHealth()
@@ -3161,6 +3164,7 @@ def app_main(page:ft.Page):
             remote_message="Local session cleared. Server unreachable; remote session expires automatically."
         broker_retry[0]=0
         dhan_feed.disconnect()
+        clone_v2_gateway.disconnect()
         option_feed.clear();option_snapshots.clear()
         provider_changed(None)
         for field in credential_inputs.values():field.value=""
@@ -3558,6 +3562,39 @@ def app_main(page:ft.Page):
             page.update()
     def open_dhan_authorization(e):
         page.run_task(start_dhan_authorization)
+    async def check_clone_v2_connection():
+        # B2 dedicated SSK flow. Original V1 session and market refresh lanes
+        # remain untouched; a status handshake is not verified LIVE market data.
+        if clone_v2_connect_busy[0] or broker_connect_busy[0]:
+            return
+        clone_v2_connect_busy[0]=True
+        endpoint=(api_url.value or "").strip()
+        access_key=(server_access.value or "").strip()
+        try:
+            connection_status.value="Checking independent Clone V2 Oracle gateway..."
+            connection_status.color=GOLD
+            page.update()
+            result=await asyncio.to_thread(clone_v2_gateway.connect,endpoint,access_key)
+            if result.get("status")!="connected_read_only":
+                raise FeedError("Clone V2 read-only authorization unavailable")
+            connection_status.value=("Clone V2 gateway authenticated (read-only). "
+                "Market feed not verified; no LIVE signals enabled.")
+            connection_status.color=GOLD
+        except FeedError as exc:
+            connection_status.value="Clone V2: "+str(exc)
+            connection_status.color=RED
+        except Exception as exc:
+            log_error("clone_v2_connect",exc)
+            connection_status.value="Clone V2 gateway connection failed; no session activated."
+            connection_status.color=RED
+        finally:
+            server_access.value=""
+            clone_v2_connect_busy[0]=False
+            page.update()
+
+    def check_clone_v2_gateway(e):
+        page.run_task(check_clone_v2_connection)
+
     def explain_broker_connection(e):
         page.run_task(connect_angel)
 
@@ -4251,7 +4288,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(central_filter_settings())
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.ElevatedButton('Dhan Login (only if server token missing)', on_click=open_dhan_authorization), ft.OutlinedButton('Check Clone V2 Gateway (SSK)', on_click=check_clone_v2_gateway), ft.Row([ft.ElevatedButton('Connect / Check', on_click=explain_broker_connection, bgcolor=GOLD, color=BG), ft.OutlinedButton('Clear / Disconnect', on_click=clear_broker_credentials)], wrap=True), connection_status, note('Dhan-only read-only charts/scanner and option metrics. Server pairing required; data timestamps may be unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
