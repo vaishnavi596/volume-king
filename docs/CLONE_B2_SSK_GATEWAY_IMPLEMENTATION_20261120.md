@@ -423,3 +423,6 @@ GitHub source commits: e1fa784 (filtered watchlist membership-only rebuild, Auto
 
 ### B3 scanner continuation (2026-11-20)
 Commit 9aafb475 removes unconditional 5m auto-scan skip but retains shared Dhan history queue guard; 6b8d520 adds static regression. Commit ee419f4 coalesces scan completion redraw via request_view_refresh and primes selected scan on entering Scanner. Source commits only; no offline tests run or Android device verification; no APK built. Follow-up: review 5m shared-cache dedupe, complete timeframe cadence, Gateway/SENSEX and derivative evidence before final authorized build.
+
+### B3 combined scanner pacing batch (2026-11-20)
+Source commit 78dd3bd: keep selected-scan deadline when Dhan shared queue is busy (prevents duplicate request on each idle gap), avoid closed-market 30-second full repaint, defer scanner symbol selection repaint, remove unused initial flag. Regression guard e68096c added for AST parse, pacing, closed-session, selection and navigation guards. Latest source inspected after commit and static conditions checked. Python unit tests and Android runtime NOT executed; no APK build or server deployment. Remaining: actual request-count telemetry, scanner filter tap runtime, Dhan/SENSEX/option evidence, final combined regression.
