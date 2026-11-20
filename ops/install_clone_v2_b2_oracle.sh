@@ -49,7 +49,7 @@ chmod 600 "$ROOT/clone_v2_gateway.py"
 python3 -m py_compile "$ROOT/clone_v2_gateway.py"
 python3 -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/python" -m pip install --disable-pip-version-check --no-input -q \
-  'fastapi==0.115.12' 'uvicorn==0.34.2'
+  'fastapi==0.115.12' 'uvicorn==0.34.2' 'httpx==0.28.1'
 "$ROOT/.venv/bin/python" - <<'PY'
 from pathlib import Path
 import sys
