@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import math
 import time
 
-FRAMES=("1m","3m","5m")
+FRAMES=("1m","3m","5m","10m","15m","30m")
 INDICES=("NIFTY","BANKNIFTY","SENSEX")
 
 @dataclass
