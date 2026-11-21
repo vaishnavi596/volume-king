@@ -44,6 +44,15 @@ class FilterFiveDoctorContract(unittest.TestCase):
             self.assertIn(blocker,panel)
         self.assertIn('"cached_news_count"',panel)
         self.assertIn('"option_pcr_present"',panel)
+        for expected in ('"freshness_gate":freshness_issue','"raw_evidence_reason"',
+                         '"evidence_age_seconds":evidence_age',
+                         '"raw_verified":raw_verified','"raw_source":str(raw_source)',
+                         '"historical_candle_balance_status"',
+                         '"index_route_diagnostic"', '"cooldown_seconds"',
+                         '"last_attempt_same_generation"', '"worker_busy"'):
+            self.assertIn(expected,panel)
+        self.assertIn('raw_snapshot=five_engine_snapshots.get(symbol)',panel)
+        self.assertIn('now_for_evidence=time.time()',panel)
         self.assertIn('"history_shape_valid"',panel)
         self.assertIn('"analysis_uses_exact_timeframe"',panel)
         self.assertIn('"CONTEXT_ONLY" if context_ready else "WAIT"',panel)
