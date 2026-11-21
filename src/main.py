@@ -4965,12 +4965,12 @@ def app_main(page:ft.Page):
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
             note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
             note("Tap REFRESH DIAGNOSTICS first: one paced explicit quote refresh through current Dhan/Oracle session. Then TEST 54/70 are cache-only; no full-page rebuild."),
+            ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST 54/70",on_click=lambda e:page.run_task(check_again,e)),
             ft.Row([
                 ft.OutlinedButton("TEST 54 (51+3)",on_click=lambda e:page.run_task(run_cached_test,e,51)),
                 ft.OutlinedButton("TEST 70 SHARES (+3 indices)",on_click=lambda e:page.run_task(run_cached_test,e,70))
             ],wrap=True),
             test_status,
-            ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST 54/70",on_click=lambda e:page.run_task(check_again,e)),
             report,
             note("Times are Python processing only; Flutter pixels and verified live option filters are not measured.")],spacing=4))
     def settings():
