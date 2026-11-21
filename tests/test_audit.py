@@ -213,53 +213,31 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(restored['filter_selected'],v['filter_selected'])
         self.assertEqual(restored['added_filters'],v['added_filters'])
 
-    def test_complete_scanner_flow_for_every_timeframe(self):
-        import time
-        def texts(controls):
-            out=[]
-            def walk(c):
-                if isinstance(c,ft.Text):out.append(str(c.value))
-                for child in c._get_children():walk(child)
-            for c in controls:walk(c)
-            return ' | '.join(out)
+    def test_disconnected_dhan_scanner_fails_closed_for_every_timeframe(self):
         for tf in ['1m','3m','5m','15m','30m','1h','1d']:
             with self.subTest(timeframe=tf):
-                page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':tf,'scanner_budget':'Any'})
-                async def run():
-                    original=asyncio.to_thread
-                    async def history(fn,*args,**kwargs):
-                        now=int(time.time());step=v['timeframe_spec'](tf)['seconds']
-                        return {'bars':[(now-(99-i)*step,24000+i*5,24006+i*5,23999+i*5,24005+i*5,1000) for i in range(100)]}
-                    asyncio.to_thread=history
-                    try:await v['scan_market']()
-                    finally:asyncio.to_thread=original
-                asyncio.run(run())
-                self.assertNotIn('Refresh failed',v['scan_status'].value)
-                rendered=texts(v['scan_result'].controls)
-                self.assertIn('TOP SETUP • SIMULATION ONLY',rendered)
-                self.assertIn('Scenario horizon: '+v['timeframe_spec'](tf)['horizon'],rendered)
-                self.assertFalse(v['diagnostics'])
+                _,v=start({'scanner_live':False,'source':'Yahoo Finance',
+                           'scanner_timeframe':tf,'scanner_budget':'Any'})
+                self.assertEqual(v['prefs']['source'],'Dhan')
+                # No legacy provider request or simulation result may appear
+                # without an authenticated Dhan feed.
+                with patch('asyncio.to_thread',side_effect=AssertionError('No unauthorized fetch')) as fetch:
+                    asyncio.run(v['scan_market']())
+                fetch.assert_not_called()
+                self.assertIn('Dhan login required',v['scan_status'].value)
+                self.assertFalse(v['scan_result'].controls)
+                self.assertFalse(v['scan_busy'][0])
 
-    def test_stale_wait_reason_is_not_sideways(self):
+    def test_stale_candles_do_not_claim_sideways_or_live_signal(self):
         import time
-        page,v=start({'scanner_live':False,'source':'Yahoo Finance','scanner_timeframe':'3m','scanner_budget':'Any'})
-        async def run():
-            original=asyncio.to_thread
-            async def history(*args,**kwargs):
-                now=int(time.time())-6*3600
-                return {'bars':[(now-(99-i)*180,24000+i*5,24006+i*5,23999+i*5,24005+i*5,1000) for i in range(100)]}
-            asyncio.to_thread=history
-            try:await v['scan_market']()
-            finally:asyncio.to_thread=original
-        asyncio.run(run())
-        values=[]
-        def walk(c):
-            if isinstance(c,ft.Text):values.append(str(c.value))
-            for child in c._get_children():walk(child)
-        for c in v['scan_result'].controls:walk(c)
-        text=' | '.join(values)
-        self.assertIn('Last candle is too old',text)
-        self.assertNotIn('Market is sideways',text)
+        _,v=start({'scanner_live':False,'source':'Dhan','scanner_timeframe':'3m'})
+        now=int(time.time())-6*3600
+        bars=[(now-(99-i)*180,24000+i*5,24006+i*5,23999+i*5,24005+i*5,1000)
+              for i in range(100)]
+        result=v['analyze_current'](bars,None,'3m')
+        self.assertEqual(result['bias'],'WAIT')
+        self.assertIn('too old',result['reason'])
+        self.assertNotIn('Market is sideways',result['reason'])
 
     def test_expiry_preview_uses_same_calendar_and_skips_closed_today(self):
         _,v=start()
