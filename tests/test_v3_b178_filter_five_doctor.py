@@ -81,6 +81,32 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"bearish_percent":bear if ready else None',panel)
         self.assertIn("FILTER + FIVE BOX DIAG (read-only)",panel)
 
+    def test_master_diagnostic_reports_all_segments_without_provider_requests(self):
+        start=APP.index("    def master_diagnostic_panel():")
+        end=APP.index("    def v3_live_building_panel():",start)
+        panel=APP[start:end]
+        for segment in ("GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
+                        "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
+                        "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION"):
+            self.assertIn('"'+segment+'"',panel)
+        for expected in ('"V3_MASTER_ALL_SEGMENTS_DOCTOR"',
+                         '"segments":sections if chosen=="ALL"',
+                         '"provider_requests":0,"orders_sent":0',
+                         '"global_equity_limit":70',
+                         '"visible_tick_seconds":2',
+                         '"warmup_floor_seconds":30',
+                         '"watchlist_default":"3m"',
+                         '"dashboard_index_default":"1m"',
+                         '"sixth_placeholder":"INERT_NOT_SCORED"',
+                         '"physical_flutter_paint_measured":False',
+                         'MASTER DIAG • ALL SEGMENTS (read-only)'):
+            self.assertIn(expected,panel)
+        for disallowed in ('dhan_feed._call(', 'dhan_feed.history(',
+                           'get_market_data(', 'dhan_feed.quote(',
+                           'refresh_all_dhan_quotes('):
+            self.assertNotIn(disallowed,panel)
+        self.assertIn('master_diagnostic_panel(),',APP[end:APP.index("    def settings():",end)])
+
     def test_panel_is_embedded_in_existing_main_error_doctor(self):
         start=APP.index("    def v3_live_building_panel():")
         end=APP.index("    def settings():",start)
