@@ -66,3 +66,5 @@ jobs:
 # FINNIFTY option-only IDX_I 27 mapping and existing three-index isolation regression 2026-11-21
 
 # Gate phone regression: Run Scan/Filters controls and FINNIFTY legacy predicate checks 2026-11-21
+
+# B3 exact-head full regression for redacted SENSEX quote/candle diagnostics and matching-options safety 2026-11-21
