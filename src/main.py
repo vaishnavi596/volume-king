@@ -5205,7 +5205,7 @@ def app_main(page:ft.Page):
                         "paper_active_slot":str(paper_bot_active[0]),
                         "paper_slot_count":len(PAPER_BOT_SLOTS),
                         "paper_saved_positions":sum(
-                            bool((prefs.get("paper_bot_positions") or {}).get(slot,{}).get("side"))
+                            bool(((prefs.get("paper_bot_positions") or {}).get(slot) or {}).get("side"))
                             for slot in PAPER_BOT_SLOTS),
                         "chart_paper_saved_positions":len(prefs.get("paper_positions") or {}),
                         "chart_paper_ledger_separate":True,
