@@ -1450,6 +1450,12 @@ def app_main(page:ft.Page):
                     counts=signal_percentages(raw)
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
+                if (not historical and sym in ("NIFTY","BANKNIFTY","SENSEX")):
+                    # Index Dashboard is 1m; never pull 5m Top Five evidence
+                    # or call the broker from this UI render.
+                    counts=historical_vote_agreement(shared_history(sym,"1m"),"1m")
+                    if counts and counts[2]>0:
+                        bull,bear=counts[:2];historical=True
             valid=(type(bull) in (int,float) and type(bear) in (int,float)
                    and math.isfinite(bull) and math.isfinite(bear)
                    and 0<=bull<=100 and 0<=bear<=100 and abs(bull+bear-100)<=1)
