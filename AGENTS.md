@@ -1,5 +1,9 @@
 # BOT KING — Permanent Working Rules (cross-chat)
 
+## SUDHAR 1 — permanent four-check and downstream-safe improvement rule (owner codeword)
+
+**Trigger phrase (new chats): "Sudhar 1 ka niyam dekh kar aage badhein" / "सुधार 1 का नियम देख कर आगे बढ़ें".** SUDHAR 1 is the user-facing canonical name of the existing BK-4G four-gate policy below, not a separate feature. Before an app/server correction, prove (1) Dhan data/validity/timeframe/freshness, (2) authenticated two-way Oracle gateway, (3) bounded app stock/cache/queue and phone compute/render capacity, and (4) full direct/transitive downstream impact. Fix all affected consumers in ONE batch, keep unrelated working modules unchanged, run focused + exact-head full regression and phone/server gates when relevant, and journal every result. Diagnosis and tests are allowed before changes; critical dependent failures block release.
+
 ## PERMANENT LAW BK-4G — Four mandatory checks BEFORE every functional fix (owner 2026-11-21)
 
 **This is an enforceable work/release procedure, not an assertion that runtime checks already passed. Applies across all future chats, Clone/B2/B3 changes, app/backend/tests/CI and server work.** At the beginning of a new chat read the Live Work Index and this law, then the latest relevant HEAD and journal. Testing and diagnosis are allowed anytime; **no final production functional correction may be applied before all four checks and a downstream-impact matrix are documented.**
