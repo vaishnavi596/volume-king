@@ -4814,6 +4814,36 @@ def app_main(page:ft.Page):
                     isinstance(bars[-1],(list,tuple)) and len(bars[-1])>=1 and
                     type(bars[-1][0]) in (int,float) and math.isfinite(bars[-1][0])
                     else None)
+                # Diagnostic-only, raw source data and fixed reason codes.
+                # Do not mutate OHLC/volume, infer broker-live freshness, or
+                # turn a doji/volume anomaly into a directional trading vote.
+                quality_rows=[list(c[:6]) for c in last_eight
+                              if isinstance(c,(list,tuple)) and len(c)>=6
+                              and all(type(v) in (int,float) and math.isfinite(v)
+                                      for v in c[:6])]
+                diagnostic_context["last_eight_raw_ohlcv"]=quality_rows
+                valid_volume_rows=[c[5] for c in bars[-20:]
+                                   if isinstance(c,(list,tuple)) and len(c)>=6
+                                   and type(c[5]) in (int,float) and
+                                   math.isfinite(c[5]) and c[5]>=0]
+                if len(valid_volume_rows)>=2:
+                    baseline=sum(valid_volume_rows[:-1])/len(valid_volume_rows[:-1])
+                    current_volume=valid_volume_rows[-1]
+                    volume_ratio=(round(current_volume/baseline,6)
+                                  if baseline>0 else None)
+                else:
+                    volume_ratio=None
+                diagnostic_context["last_volume_vs_prior_average_ratio"]=volume_ratio
+                diagnostic_context["candle_quality_flags"]=(
+                    (["DOJI_DOMINATED_LAST_EIGHT"] if len(last_eight)==8
+                     and last_bodies["doji"]>=6 else [])+
+                    (["VOLUME_RATIO_OUTLIER_REVIEW"] if volume_ratio is not None
+                     and (volume_ratio<0.1 or volume_ratio>10) else [])+
+                    (["HISTORICAL_CANDLE_AGE_REVIEW"] if
+                     diagnostic_context["last_candle_age_seconds"] is not None
+                     and diagnostic_context["last_candle_age_seconds"]>300 else []))
+                diagnostic_context["candle_quality_interpretation"]=(
+                    "READ_ONLY_REVIEW_FLAGS_NOT_BROKER_ERRORS_OR_LIVE_SIGNALS")
                 engines=[]
                 raw_snapshot=five_engine_snapshots.get(symbol)
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
