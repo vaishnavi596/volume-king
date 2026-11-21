@@ -16,6 +16,7 @@ from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_r
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
 from v3_building_doctor import BuildingDoctor
+from v3_stock_diagnostics import DiagnosticRegistry
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
@@ -266,6 +267,7 @@ def app_main(page:ft.Page):
     if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
     prefs["schema_version"]=2
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
+    stock_diagnostic_registry=DiagnosticRegistry()  # Keep recovery across Settings re-entry.
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
@@ -4516,8 +4518,6 @@ def app_main(page:ft.Page):
     def v3_live_building_panel():
         # Test actual in-memory stock, without synthetic input or provider requests.
         from v3_live_capacity_probe import benchmark_cached_capacity
-        from v3_stock_diagnostics import DiagnosticRegistry
-        stock_diagnostics=DiagnosticRegistry()
         symbols=list(all_watch_symbols())
         state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
                                      connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
@@ -4550,7 +4550,7 @@ def app_main(page:ft.Page):
                 outcome=await asyncio.to_thread(benchmark_cached_capacity,
                     chosen,stock_quotes,stock_histories,generation,count)
                 outcome["phone_snapshot_capture_ms"]=capture_ms
-                outcome["health_doctor"]=stock_diagnostics.reconcile(
+                outcome["health_doctor"]=stock_diagnostic_registry.reconcile(
                     outcome["stock_states"],generation)
                 # Already displayed stock errors become RESOLVED on the next
                 # successful stock diagnosis; there is no extra provider poll.
