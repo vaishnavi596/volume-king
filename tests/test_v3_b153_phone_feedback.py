@@ -49,15 +49,15 @@ class V3B153PhoneFeedbackTests(unittest.TestCase):
         self.assertIn('detail=safe_error(exc)',index)
         self.assertIn('display_failures["dhan_index_ltp_batch"]=',index)
         self.assertIn('Dhan index quote route failed',index)
-        self.assertIn('check SENSEX BSE_I/51 separately',index)
+        self.assertIn('check SENSEX IDX_I/51 separately',index)
 
-    def test_sensex_diagnostic_is_stage_specific_not_timeframe_guessed(self):
-        section=MAIN.split("    def sensex_full_diagnostic_panel():",1)[1].split("    # Keep the manual Diagnostics",1)[0]
-        self.assertIn('"quote_error_detail"=safe_error',section.replace('output["quote_error_detail"]=safe_error','"quote_error_detail"=safe_error'))
-        self.assertIn('output["candle_error_detail"]=safe_error(exc)',section)
-        self.assertIn('dhan_feed.quote,"SENSEX"',section)
-        self.assertIn('dhan_feed.intraday,"SENSEX",1,start,end',section)
-        self.assertIn('source_verified_live',section)
+    def test_filter_doctor_is_stage_specific_and_read_only(self):
+        section=MAIN.split("    def filter_five_diagnostic_panel():",1)[1].split(
+            "    # Keep the manual Diagnostics",1)[0]
+        self.assertIn('"errors_only":errors',section)
+        self.assertIn('"provider_requests":0',section)
+        self.assertIn('"five_boxes":engines',section)
+        self.assertNotIn('dhan_feed.quote,"SENSEX"',section)
 
     def test_timeframe_isolated_and_no_fake_ltp(self):
         history=MAIN.split("    def shared_history(sym,tf=",1)[1].split("    def ",1)[0]
@@ -66,8 +66,8 @@ class V3B153PhoneFeedbackTests(unittest.TestCase):
         self.assertIn('Restore default 17',MAIN)
         self.assertIn('chart_snapshots.get((sym,tf,provider_generation[0]))',history)
         self.assertIn('scanner_data.get("_scanner_timeframe")==tf',history)
-        sensex=MAIN.split("    def sensex_full_diagnostic_panel():",1)[1].split("    # Keep the manual Diagnostics",1)[0]
-        self.assertIn('quote_timestamp=None,freshness="unverified"',sensex)
-        self.assertIn('live_verified=False',sensex)
+        self.assertNotIn("def sensex_full_diagnostic_panel():",MAIN)
+        self.assertIn('"historical_percent":historical_percent',MAIN)
+        self.assertIn('"live_market_verified":False',MAIN)
 
 if __name__=="__main__": unittest.main()
