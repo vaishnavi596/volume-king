@@ -664,3 +664,10 @@ The word **WIRED** means a verified source-level call/cache linkage and offline 
 - Added test `test_injected_angel_login_callback_is_disabled_without_network` (commit `4b3354269ee5f099441495328df0f0d8e4dfac46`); mocks Angel.connect and urllib to ensure zero outbound calls on direct event injection.
 - Triggered new no-APK regression [run 44935900659](https://github.com/vaishnavi596/volume-king/actions/runs/44935900659) via workflow-only commit `ec6c1394619bc8fe9cd82fda785c0b86034e4db9`, QUEUED on first observation. This post-hardening suite has not yet verified PASS.
 - RELEASE HOLD: no signed APK until post-hardening full offline PASS and phone/live Clone Dhan Gateway/network verification readiness. No live orders, server or V1 changes.
+
+### 2026-11-21 — B196 post-Angel-hard-stop regression: correct active SSK singleflight test
+- [Run 44935900659](https://github.com/vaishnavi596/volume-king/actions/runs/44935900659), job 136942328217: 11/11 Market Feed, 12/12 Monitoring, 41/41 Scanner, 75/75 Mobile targeted PASS. Full 1529 tests had **1 FAIL, 0 errors** in `test_dhan_login_singleflight::test_dhan_reserves_busy_before_any_network_await`.
+- Root cause: test introspected the old `connect_angel` function's AST body position, but that compatibility callback was intentionally fail-closed before any network at commit `36882f2`. The active V3 login is `check_clone_v2_connection` with `clone_v2_connect_busy` reservation and `finally` release.
+- Updated the test to require fail-closed legacy callback and real Clone SSK duplicate-login guard + pre-await busy reservation + cleanup, commit `9bd14aea97678e23b62d4f20ce4b0929b998b6f1`. Retained other independent guard tests and no network calls.
+- New [no-APK Run 44936365696](https://github.com/vaishnavi596/volume-king/actions/runs/44936365696) triggered by workflow commit `39ef3801ed5e8f99759f5609505e0c18b1d6ffe9`. IN_PROGRESS at initial check; no post-change PASS/APP confirmation yet.
+- B196 signed APK workflow not triggered; active legacy build workflow still identifies B195, and Oracle/real phone network coverage needs separate validation.
