@@ -114,3 +114,5 @@ jobs:
 # B151 joint regression: 2–4 overlapping recent Dhan candle corrections, no fake live freshness.
 
 # B152 full regression: preserve candle_fetched_at on valid overlapping partial 2-4 candle refresh.
+
+# B153 joint gate: owner phone hangs, persistent Doctor, 17 fresh filters, 1m/3m source safety.
