@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.190" # V3 B190 single Dhan Max Pain filter migration, Android versionCode 190
+version = "2.3.191" # V3 B191 single Dhan Max Pain across Scanner, Options and Five Engine, Android versionCode 191
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
