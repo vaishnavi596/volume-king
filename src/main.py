@@ -4656,12 +4656,31 @@ def app_main(page:ft.Page):
                     bull=display.get("bullish");bear=display.get("bearish")
                     ready=(type(bull) is int and type(bear) is int and
                            0<=bull<=100 and 0<=bear<=100 and bull+bear==100)
+                    historical_percent=None
+                    if not ready and name=="technical":
+                        saved=watch_signal_cache.get(symbol) or {}
+                        if saved.get("source")=="Dhan" and saved.get("timestamp"):
+                            counts=signal_percentages(saved)
+                            if counts and counts[2]>0:
+                                historical_percent={"bullish":counts[0],
+                                                    "bearish":counts[1],
+                                                    "label":"HIST_ONLY"}
+                    elif not ready and name=="candle":
+                        candle_tf="1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"
+                        cached=shared_history(symbol,candle_tf)
+                        if cached.get("source")=="Dhan":
+                            balance=historical_candle_balance(cached.get("bars"))
+                            if balance:
+                                historical_percent={"bullish":balance["bullish"],
+                                                    "bearish":balance["bearish"],
+                                                    "label":"HIST_ONLY"}
                     engines.append({
                         "box":short,"engine":name,
                         "status":display.get("state","WAIT") if ready else "WAIT",
                         "bullish_percent":bull if ready else None,
                         "bearish_percent":bear if ready else None,
                         "stage":"VERIFIED_EVIDENCE" if ready else "SOURCE_OR_FRESHNESS",
+                        "historical_percent":historical_percent,
                         "reason":str(display.get("reason") or
                                       "No fresh verified independent Dhan evidence")[:160]})
                 errors=[row for row in filter_rows if row["status"] in ("WAIT","ERROR")]
