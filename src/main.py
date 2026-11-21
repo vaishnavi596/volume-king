@@ -2207,11 +2207,11 @@ def app_main(page:ft.Page):
             index_failure_code[0]=(
                 "GATEWAY_HTTP_429" if any(w in diagnostic for w in ("http 429","cooldown","quote lane paced","rate limit")) else
                 "AUTH_OR_ACCESS_403" if any(w in diagnostic for w in ("http 403","http 401","key rejected","session rejected","ssk connection required","authorization required")) else
+                "CLONE_MARKET_ROUTE_UNAVAILABLE" if "clone market route not ready" in diagnostic else
                 "GATEWAY_HTTP_404" if "http 404" in diagnostic else
                 "GATEWAY_HTTP_5XX" if any("http "+str(n) in diagnostic for n in (500,502,503,504)) else
                 "INDEX_BATCH_SCHEMA_REJECTED" if any(w in diagnostic for w in ("index batch","index availability","market contract invalid","symbol/source mismatch","invalid quote","no validated quotes")) else
                 "CLONE_GATEWAY_TRANSPORT_UNAVAILABLE" if any(w in diagnostic for w in ("clone market data unavailable","clone market response not trusted","clone market response type invalid","clone market response too large")) else
-                "CLONE_MARKET_ROUTE_UNAVAILABLE" if "clone market route not ready" in diagnostic else
                 "NETWORK_OR_TIMEOUT" if any(w in diagnostic for w in ("network","timeout","connection","dns")) else
                 "UNCLASSIFIED_FEED_ERROR")
             display_failures["dhan_index_ltp_batch"]=(
