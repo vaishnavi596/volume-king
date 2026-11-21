@@ -177,6 +177,17 @@ def scanner_snapshot(scan_result):
             return compose_snapshot()
         seen_filters.add(canonical_name)
         direction = vote.get("vote")
+        if direction is None:
+            # An unavailable filter is not a malformed filter. Retain valid
+            # technical evidence while never converting an OI/news/volume
+            # data gap into a bullish, bearish or neutral confirmation.
+            unavailable = {"OI Support", "OI Resistance", "OI Profile",
+                           "Max Pain", "News Headlines", "VWAP", "Volume"}
+            detail = vote.get("detail")
+            if (name.strip() not in unavailable or not isinstance(detail, str)
+                    or not detail.strip().upper().startswith(("WAIT", "UNAVAILABLE"))):
+                return compose_snapshot()
+            continue
         if type(direction) is not int or direction not in (-1, 0, 1):
             return compose_snapshot()
         if direction == 1:
