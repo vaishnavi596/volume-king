@@ -761,6 +761,9 @@ def app_main(page:ft.Page):
             result=dict(result,bias="WAIT",score=0,reason=result["reason"]+" • below saved agreement threshold")
         return result
     def get_yahoo(ticker,interval="5m",range_="1d"):
+        # V3's Yahoo network transport is retired, including direct callbacks.
+        # Do not revive it as an emergency market-data fallback.
+        raise FeedError("Yahoo Finance transport disabled in V3; Dhan-only")
         requested=interval
         if interval=="1D":interval="1d"
         if interval=="3m":interval="1m";range_="7d"
