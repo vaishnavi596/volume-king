@@ -1,6 +1,6 @@
 """Read-only benchmark of actual already cached BOT KING data on the phone.
 
-NO synthetic fixtures; no broker calls, no credential access. Missing data is WAIT.
+NO synthetic fixtures; no broker calls, no credential access. Missing data is typed ERROR (analysis stays ineligible).
 The benchmark reports Python elapsed times, never claims Flutter raster timing.
 """
 from __future__ import annotations
@@ -8,6 +8,7 @@ import math
 import time
 from chart_indicators import chart_indicators
 from scanner_engine import analyze, DEFAULT_FILTERS
+from v3_stock_diagnostics import classify_stock
 
 INDEXES=("NIFTY","BANKNIFTY","SENSEX")
 
@@ -62,6 +63,12 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
             errors.append({"symbol":symbol,"stage":"TECHNICAL","type":type(exc).__name__})
             technical_wait+=1
     after_technical=time.perf_counter()
+    # Audit each independent stock without blocking peers. Errors identify the
+    # missing/bad cache stage; they do not assert broker transport failure.
+    stock_diagnostics=[classify_stock(sym,quotes.get(sym),histories,generation)
+                       for sym in names]
+    incomplete_count=sum(row["state"]=="ERROR" for row in stock_diagnostics)
+    after_diagnostics=time.perf_counter()
     def ms(t1,t2):return round((t2-t1)*1000,3)
     return {
         "requested_equities":requested_equities,
@@ -78,11 +85,18 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         "five_live_options_filters":"NOT MEASURED — requires verified live option evidence",
         "ui_raster_ms":"UNMEASURED — Python timers cannot see Flutter frame completion",
         "errors":errors[:12],
+        "stock_error_count":incomplete_count+missing_equity_count,
+        "stock_errors":[{"symbol":row["symbol"],"codes":row["error_codes"]}
+                        for row in stock_diagnostics if row["state"]=="ERROR"][:73],
+        "stock_states":stock_diagnostics,
+        "recovery_hint":"On matching data arrival rerun local test; other symbols continue. Doctor compares active errors to resolved.",
+
         "elapsed_ms":{
             "inventory":ms(start,after_inventory),
             "cache_presence":ms(after_inventory,after_coverage),
             "real_cached_technical_compute":ms(after_coverage,after_technical),
-            "total_python":ms(start,after_technical)},
+            "stock_error_classification":ms(after_technical,after_diagnostics),
+            "total_python":ms(start,after_diagnostics)},
         "source":"existing Dhan cache only, no fake data, no network calls",
         "note":"Partial cache does not imply app failure; market may be closed or bars absent."
     }
