@@ -70,9 +70,9 @@ class CompletedThreeMinuteBarsTest(unittest.TestCase):
         # Structural check: existing Dhan gateway must fetch one-minute source,
         # not invent an unsupported native Dhan 3-minute endpoint.
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
-        self.assertIn('source_interval="1m" if interval in ("2m","3m") else interval', source)
+        self.assertIn('source_interval=("1m" if interval in ("2m","3m")', source)
         self.assertIn('bars=completed_three_minute_bars(candle_result["bars"],now_epoch=time.time())', source)
-        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","15m","1h"]', source)
+        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","10m","15m","30m","1h"]', source)
         self.assertNotIn('{"1m":1,"3m":3,"5m":5', source)
 
     def test_3m_scanner_does_not_overwrite_shared_5m_signal_contract(self):
