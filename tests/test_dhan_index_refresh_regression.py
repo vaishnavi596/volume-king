@@ -39,6 +39,10 @@ class DhanIndexRefreshRegression(unittest.TestCase):
                 self.assertIn('"' + detail + '"', source)
         self.assertIn('"UNCLASSIFIED_FEED_ERROR"', source)
         self.assertIn("diagnostic=str(exc).lower()", source)
+        # A sanitized Clone route error can include HTTP 502; preserve its
+        # specific route category instead of collapsing it to generic 5xx.
+        self.assertLess(source.index('"CLONE_MARKET_ROUTE_UNAVAILABLE" if'),
+                        source.index('"GATEWAY_HTTP_5XX" if'))
         self.assertIn("index_last_result_generation[0]=generation", source)
 
     def test_doctor_reports_actual_clone_index_route_not_legacy_path(self):
