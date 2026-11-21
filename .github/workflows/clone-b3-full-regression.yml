@@ -108,3 +108,5 @@ jobs:
 # B148 full regression after updating prior 15-filter and chart-5m assertions to active V3 contract.
 
 # B149 exact-head gate: aligned four legacy tests with 18 filter slots and 60-second analysis default; error-only refreshed diagnostics.
+
+# B150 exact-head combined regression after guarded SENSEX unverified quote cache test correction.
