@@ -3157,17 +3157,25 @@ def app_main(page:ft.Page):
         return []
     def option_metrics(kind):
         data=dhan_option_metrics
-        if (data.get("symbol")!=chain_symbol.value or data.get("expiry")!=expiry.value
-                or data.get("source")!="dhan"
-                or data.get("freshness")!="unverified"
-                or data.get("signal_eligible") is not False
-                or not isinstance(data.get("pcr"),(int,float))
-                or not isinstance(data.get("max_pain"),(int,float))):
-            return note("Dhan option metrics not ready for "+str(chain_symbol.value)+" / "+str(expiry.value or "no listed expiry")+" • "+option_feed_status[0])
+        matched=(data.get("symbol")==chain_symbol.value and data.get("expiry")==expiry.value
+                 and data.get("source")=="dhan"
+                 and data.get("freshness")=="unverified"
+                 and data.get("signal_eligible") is False)
+        if not matched:
+            return note("Dhan option metrics unavailable for "+str(chain_symbol.value)+
+                        " / "+str(expiry.value or "no listed expiry")+" • "+option_feed_status[0])
         if kind=="PCR":
-            return note("Dhan OI PCR: "+f'{data["pcr"]:.3f}'+" • UNVERIFIED • not a trading signal")
+            value=data.get("pcr")
+            if type(value) not in (int,float) or not math.isfinite(value) or value<0:
+                return note("PCR ERROR • valid Dhan option-chain PCR missing or invalid")
+            return note("Dhan OI PCR: "+f'{value:.3f}'+" • UNVERIFIED context • not a directional trading signal")
         if kind=="OI":
-            return note("Dhan Max Pain: "+f'{data["max_pain"]:,.0f}'+" • UNVERIFIED • live orders OFF")
+            value=data.get("max_pain")
+            if type(value) not in (int,float) or not math.isfinite(value) or value<=0:
+                return note("Max Pain ERROR • valid Dhan option-chain metric missing or invalid")
+            return ft.Column([
+                note("Dhan Max Pain: "+f'{value:,.0f}'+" • UNVERIFIED • live orders OFF"),
+                note("OI Support / Resistance: verified directional evidence not connected; cannot infer it from Max Pain.")])
         return note("Premium flow unavailable without verified volume and transaction direction.")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
