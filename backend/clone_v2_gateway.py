@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 import json
+import logging
 import math
 import re
 import threading
@@ -28,6 +29,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 
 KEY_ENV = "BOTKING_CLONE_V2_SSK_FILE"
 PROTOCOL = "botking-clone-v2"
+DIAGNOSTIC_LOGGER = logging.getLogger("botking.clone.market")
 
 
 def private_ssk(path):
@@ -121,6 +123,19 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     market_cache = {}
     last_request = [0.0]
     provider_cooldown_until = [0.0]
+
+    def market_diagnostic(route, symbol, stage, category):
+        """Fixed-enum, index-only observations: never emit untrusted content."""
+        if (route not in ("quotes", "candles", "option_expiries", "option_chain")
+                or symbol not in ("NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY")
+                or stage not in ("provider", "shape", "mapping", "validation", "cooldown")
+                or category not in ("missing_segment", "missing_security_id",
+                                    "invalid_price", "invalid_shape", "invalid_bars",
+                                    "rate_limited", "auth_unavailable", "upstream_error")):
+            return
+        DIAGNOSTIC_LOGGER.warning(
+            "clone_market_diagnostic route=%s symbol=%s stage=%s category=%s",
+            route, symbol, stage, category)
 
     # Clone-owned, optional browser-consent flow; NEVER borrow V1's HTTP auth.
     # Server must have a separately approved Dhan callback pointing here.
@@ -364,26 +379,43 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     from dhan_feed import DhanRateLimitError, DhanFeedError
                 if (isinstance(exc, DhanFeedError) and
                         "token expired or data access not entitled" in str(exc)):
+                    category="auth_unavailable"
+                elif isinstance(exc, DhanRateLimitError):
+                    category="rate_limited"
+                else:
+                    category="upstream_error"
+                for sym in symbols:
+                    market_diagnostic("quotes", sym, "provider", category)
+                if category=="auth_unavailable":
                     raise HTTPException(
                         424, "Dhan browser authorization or data permission required") from None
-                if isinstance(exc, DhanRateLimitError):
+                if category=="rate_limited":
                     provider_cooldown_until[0] = time.monotonic() + 30
                     raise HTTPException(429, "Clone Dhan quota cooldown",
                                         headers={"Retry-After": "30"}) from None
                 raise HTTPException(502, "Clone read-only Dhan quote unavailable") from None
             if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
+                for sym in symbols:
+                    market_diagnostic("quotes", sym, "shape", "invalid_shape")
                 raise HTTPException(502, "Invalid clone Dhan quote response")
             quotes = {}
             for symbol in symbols:
                 seg, sid = known[symbol]
+                segment_data=result["data"].get(seg)
+                if not isinstance(segment_data, dict):
+                    market_diagnostic("quotes", symbol, "mapping", "missing_segment")
+                elif not isinstance(segment_data.get(str(sid)), dict):
+                    market_diagnostic("quotes", symbol, "mapping", "missing_security_id")
                 try:
                     raw = result["data"][seg][str(sid)]["last_price"]
                     if type(raw) not in (int, float) or not math.isfinite(raw) or raw <= 0:
+                        market_diagnostic("quotes", symbol, "validation", "invalid_price")
                         continue
                     quotes[symbol] = {"symbol": symbol, "ltp": float(raw),
                                       "source": "dhan", "freshness": "unverified"}
                 except (KeyError, TypeError, ValueError, OverflowError):
-                    pass
+                    if isinstance(segment_data, dict) and isinstance(segment_data.get(str(sid)), dict):
+                        market_diagnostic("quotes", symbol, "validation", "invalid_price")
             if not quotes:
                 raise HTTPException(502, "No validated clone quotes")
             payload = {"source": "dhan", "quotes": quotes,
@@ -443,6 +475,15 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         except HTTPException:
             raise
         except Exception as exc:
+            try:
+                from .dhan_feed import DhanRateLimitError, DhanFeedError
+            except ImportError:
+                from dhan_feed import DhanRateLimitError, DhanFeedError
+            category=("rate_limited" if isinstance(exc, DhanRateLimitError)
+                      else "auth_unavailable" if isinstance(exc, DhanFeedError)
+                      and "token expired or data access not entitled" in str(exc)
+                      else "upstream_error")
+            market_diagnostic("candles", body.symbol, "provider", category)
             provider_read_error(exc, "Clone Dhan candles unavailable")
         try:
             fields = ["timestamp", "open", "high", "low", "close", "volume"]
@@ -466,6 +507,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars)-1)):
                 raise ValueError()
         except (KeyError, TypeError, ValueError, OverflowError):
+            market_diagnostic("candles", body.symbol, "validation", "invalid_bars")
             raise HTTPException(502, "Clone Dhan candle response invalid") from None
         return JSONResponse({
             "source": "dhan", "symbol": body.symbol,
