@@ -236,7 +236,8 @@ class AuditTests(unittest.TestCase):
               for i in range(100)]
         result=v['analyze_current'](bars,None,'3m')
         self.assertEqual(result['bias'],'WAIT')
-        self.assertIn('too old',result['reason'])
+        self.assertTrue(any(msg in result['reason'].lower() for msg in ('too old','stale')))
+        self.assertFalse(result['quality']['usable'])
         self.assertNotIn('Market is sideways',result['reason'])
 
     def test_expiry_preview_uses_same_calendar_and_skips_closed_today(self):
@@ -633,8 +634,8 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(any('Dhan watchlist batch:' in value for value in recovered))
 
     def test_historical_strength_widget_retains_direction_with_historical_label(self):
-        _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
-        row={'source':'Yahoo Finance','timestamp':1,'historical':True,
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        row={'source':'Dhan','timestamp':1,'historical':True,
              'votes':[{'vote':1},{'vote':-1}]}
         widget=v['strength_widget'](row,'NIFTY')
         values=[]
