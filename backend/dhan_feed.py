@@ -33,6 +33,18 @@ class DhanRateLimitError(DhanFeedError):
     """Provider throttled requests; callers must not retry immediately."""
 
 
+class DhanUpstreamError(DhanFeedError):
+    """Allowlisted upstream classification; never store raw HTTP/body/token."""
+    CATEGORIES = frozenset(("upstream_http_4xx", "upstream_http_5xx",
+                            "upstream_transport", "upstream_rejection",
+                            "upstream_payload"))
+    def __init__(self, category, message="Dhan market data unavailable"):
+        if category not in self.CATEGORIES:
+            raise ValueError("Unsafe upstream error category")
+        super().__init__(message)
+        self.category = category
+
+
 class DhanFeed:
     _rate_lock = threading.Lock()
     # Dhan Market Quote API is limited to one upstream request/second.
@@ -112,13 +124,18 @@ class DhanFeed:
                 with self._rate_lock:
                     DhanFeed._retry_after = max(DhanFeed._retry_after, time.monotonic() + self.RATE_LIMIT_COOLDOWN_SECONDS)
                 raise DhanRateLimitError("Dhan rate limit reached") from None
-            raise DhanFeedError("Dhan market data unavailable") from None
-        except (urllib.error.URLError, TimeoutError, ValueError, UnicodeError):
-            raise DhanFeedError("Dhan market data request failed") from None
+            category = ("upstream_http_5xx" if 500 <= exc.code < 600
+                        else "upstream_http_4xx")
+            raise DhanUpstreamError(category) from None
+        except (urllib.error.URLError, TimeoutError):
+            raise DhanUpstreamError("upstream_transport", "Dhan market data request failed") from None
+        except (ValueError, UnicodeError):
+            raise DhanUpstreamError("upstream_payload", "Dhan market data request failed") from None
         if not isinstance(result, dict):
-            raise DhanFeedError("Invalid Dhan response")
+            raise DhanUpstreamError("upstream_payload", "Invalid Dhan response")
         if result.get("errorCode") or result.get("errorType"):
-            raise DhanFeedError("Dhan rejected market data request; check entitlement and instrument")
+            raise DhanUpstreamError("upstream_rejection",
+                                    "Dhan rejected market data request; check entitlement and instrument")
         return result
 
     def batch_ltp(self, instruments):
