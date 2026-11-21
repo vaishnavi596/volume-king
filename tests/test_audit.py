@@ -149,7 +149,8 @@ class AuditTests(unittest.TestCase):
                 with self.assertRaises(StopLoop):await v['refresh_market']()
             finally:asyncio.to_thread=original_thread;asyncio.sleep=original_sleep
         asyncio.run(run())
-        self.assertEqual(v['prefs']['source'],'Broker API')
+        self.assertEqual(v['prefs']['source'],'Dhan')
+        self.assertEqual(v['source'].value,'Dhan')
         self.assertEqual(v['quotes'],{})
         self.assertEqual(v['top5_candidates'],[])
 
