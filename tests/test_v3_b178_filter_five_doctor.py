@@ -129,6 +129,13 @@ class FilterFiveDoctorContract(unittest.TestCase):
                                'shared_history(watch_sym,"3m")',
                                '"Materialized cache entries exclude on-demand completed 1m-to-3m histories"'):
             self.assertIn(derived_marker,panel)
+        for extra in ('"local_inspection_elapsed_ms"',
+                      '"per_index_cache_and_context":index_context',
+                      '"quote_cache_age_seconds"',
+                      '"news_headline_count"',
+                      '"index_failure_next_stage"',
+                      '"other_indices_option_context_not_inferred":True'):
+            self.assertIn(extra,panel)
         self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
