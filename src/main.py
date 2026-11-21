@@ -4944,6 +4944,26 @@ def app_main(page:ft.Page):
                             type(price) in (int,float) and math.isfinite(price) and price>0)
                 price_count=sum(quote_ok(sym) for sym in valid_equities)
                 now=time.time()
+                # Index-by-index cache provenance; never infer live prices from
+                # presence alone or assume NIFTY context belongs to other indices.
+                index_context={}
+                for index_sym in index_names:
+                    q=quotes.get(index_sym) or {}
+                    stamp=q.get("fetched_at")
+                    n=news_cache.get(index_sym) or {}
+                    index_context[index_sym]={
+                        "cached_quote_present":quote_ok(index_sym),
+                        "quote_cache_age_seconds":round(max(0,now-stamp),1)
+                            if type(stamp) in (int,float) and math.isfinite(stamp) else None,
+                        "exchange_timestamp_verified":False,
+                        "news_headline_count":len(n.get("items") or []),
+                        "news_cache_present":bool(n.get("items")),
+                        "news_direction_verified":False,
+                        "independent_futures_flow_verified":False,
+                        "independent_options_direction_verified":False,
+                        "context_not_live_signal":True}
+                # Provider requests deliberately excluded from Doctor.
+
                 candle_counts={}
                 # Index 1m, Watchlist 3m, Scanner selected frame and shared 5m.
                 for tf in ("1m","3m","5m"):
@@ -4960,6 +4980,8 @@ def app_main(page:ft.Page):
                 # Inspect only selected equities and never call a provider.
                 derived_3m_valid=0
                 three_minute_available=0
+                # Measure local derivation separately from network polling.
+                three_minute_diagnostic_started=time.perf_counter()
                 for watch_sym in valid_equities:
                     materialized=chart_snapshots.get((watch_sym,"3m",generation)) or {}
                     history_3m=shared_history(watch_sym,"3m")
@@ -4968,6 +4990,8 @@ def app_main(page:ft.Page):
                         if not (materialized.get("source")=="Dhan" and
                                 valid_candle_history(materialized.get("bars"))):
                             derived_3m_valid+=1
+                candle_counts["3m"]["local_inspection_elapsed_ms"]=round(
+                    (time.perf_counter()-three_minute_diagnostic_started)*1000,2)
                 candle_counts["3m"]["selected_equities_with_valid_effective_3m"]=three_minute_available
                 candle_counts["3m"]["valid_locally_derived_3m"]=derived_3m_valid
                 candle_counts["3m"]["meaning"]="Materialized cache entries exclude on-demand completed 1m-to-3m histories"
@@ -5022,7 +5046,14 @@ def app_main(page:ft.Page):
                         "auto_equity_floor_seconds":60,
                         "equity_seconds_since_last_attempt":round(time.monotonic()-watch_batch_last_attempt[0],1)
                             if watch_batch_last_attempt[0]>0 else None,
-                        "index_worker_observability":"RESULT_STATE_AND_GENERATION_READ_ONLY"},
+                        "index_worker_observability":"RESULT_STATE_AND_GENERATION_READ_ONLY",
+                        "index_failure_next_stage":(
+                            "ORACLE_PROVIDER_STAGE_READ_ONLY_LOG_REQUIRED"
+                            if index_failure_code[0]=="UNCLASSIFIED_FEED_ERROR"
+                            else "PHONE_INDEX_WORKER_NOT_ATTEMPTED_IN_GENERATION"
+                            if index_last_result_state[0]=="NEVER_ATTEMPTED"
+                            else "FOLLOW_CLASSIFIED_FAILURE_OR_CACHED_RESULT"),
+                        "index_attempt_same_generation":index_refresh_generation[0]==generation},
                     "WATCHLIST_54_70":{
                         "unique_selected_equities":len(unique),
                         "verified_registry_equities":len(valid_equities),
@@ -5091,6 +5122,8 @@ def app_main(page:ft.Page):
                         "quotes_present":{sym:quote_ok(sym) for sym in index_names},
                         "quotes_exchange_live_verified":False,
                         "dashboard_timeframe":"1m",
+                        "per_index_cache_and_context":index_context,
+                        "context_comparison":"Each index has an independent news/options/futures source; missing evidence stays WAIT",
                         "index_quote_failure":index_failure_code[0]},
                     "OPTIONS_NEWS_FUTURES":{
                         "option_symbol":str(chain_symbol.value or "NIFTY"),
@@ -5100,7 +5133,11 @@ def app_main(page:ft.Page):
                         "option_signal_verified_live":False,
                         "news_cached_symbols":len(news_cache),
                         "scanner_news_headlines":len((news_cache.get(scanner_sym) or {}).get("items") or []),
-                        "futures_directional_flow_verified":"NOT_ESTABLISHED"},
+                        "futures_directional_flow_verified":"NOT_ESTABLISHED",
+                        "per_index_news_headline_counts":{
+                            sym:index_context[sym]["news_headline_count"] for sym in index_names},
+                        "option_context_symbol_selected":str(chain_symbol.value or "NIFTY"),
+                        "other_indices_option_context_not_inferred":True},
                     "CHART_UI":{
                         "chart_selected_symbol":str(symbol.value or "NIFTY"),
                         "chart_selected_tf":str(timeframe.value or "1m"),
