@@ -35,10 +35,10 @@ class CloneAdapterAudit(unittest.TestCase):
         self.assertIn('rows=(\n',superfive)
 
     def test_scanner_watchlist_chart_settings_are_isolated(self):
-        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","15m","1h"]',MAIN)
+        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","10m","15m","30m","1h"]',MAIN)
         self.assertIn('watch_three_minute_signal(sym)',MAIN)
         self.assertIn('chart_snapshots[(sym,selected_tf,generation)]',MAIN)
-        self.assertIn('if tf not in ("1m","2m","3m","5m","15m","1h"):',MAIN)
+        self.assertIn('if tf not in ("1m","2m","3m","5m","10m","15m","30m","1h"):',MAIN)
         self.assertIn('def oracle_assessment_context(symbol,surface="overview"):',MAIN)
         self.assertIn('timeframe=scan_tf.value if scan_tf.value in ("1m","3m","5m") else None',MAIN)
         self.assertIn('if surface=="chart":',MAIN)
