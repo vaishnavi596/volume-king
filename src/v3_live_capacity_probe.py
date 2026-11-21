@@ -10,6 +10,7 @@ from chart_indicators import chart_indicators
 from scanner_engine import analyze, DEFAULT_FILTERS
 from v3_stock_diagnostics import classify_stock
 from dhan_three_minute import completed_three_minute_bars
+from dhan_multi_timeframe import completed_derived_bars
 
 INDEXES=("NIFTY","BANKNIFTY","SENSEX")
 
@@ -42,11 +43,27 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
                                    _scanner_timeframe="3m",historical=True,
                                    live_verified=False,freshness="historical_unverified")
             derived_3m+=1
+    # Complete all six timeframe summaries from real same-generation stock.
+    derived_higher={"10m":0,"30m":0}
+    for target,base in (("10m","5m"),("30m","15m")):
+        for sym in names:
+            key=(sym,target,generation)
+            if (histories.get(key) or {}).get("bars"):
+                continue
+            origin=histories.get((sym,base,generation)) or {}
+            if origin.get("source")!="Dhan" or origin.get("_scanner_timeframe")!=base:
+                continue
+            bars=completed_derived_bars(origin.get("bars"),target,now_epoch=time.time())
+            if len(bars)>=2:
+                histories[key]=dict(origin,bars=[list(v) for v in bars],_scanner_timeframe=target,
+                                    historical=True,live_verified=False,
+                                    freshness="historical_unverified")
+                derived_higher[target]+=1
     after_derive=time.perf_counter()
     quote_present=0
     quote_missing=[]
-    coverage={"1m":0,"3m":0,"5m":0}
-    missing_by_frame={"1m":[],"3m":[],"5m":[]}
+    coverage={frame:0 for frame in ("1m","3m","5m","10m","15m","30m")}
+    missing_by_frame={frame:[] for frame in coverage}
     for symbol in names:
         q=quotes.get(symbol) or {}
         p=q.get("price") if isinstance(q,dict) else None
@@ -105,6 +122,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         "quote_missing_sample":quote_missing[:12],
         "history_presence":coverage,
         "derived_3m_from_valid_1m":derived_3m,
+        "derived_10m_30m_from_complete_source":derived_higher,
         "history_missing_sample":{tf:missing_by_frame[tf][:6] for tf in coverage},
         "technical_chart_available":chart_available,
         "technical_scanner_analyzed":scanner_technical_available,
