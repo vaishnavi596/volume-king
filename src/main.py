@@ -4963,8 +4963,8 @@ def app_main(page:ft.Page):
         """
         segments=("ALL","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                   "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
-                  "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION",
-                  "BACKGROUND_LIFECYCLE")
+                  "OPTIONS_NEWS_FUTURES","CHART_UI","PAPER_ADAPTER_AUDIT",
+                  "ERRORS_COORDINATION","BACKGROUND_LIFECYCLE")
         selected=ft.Dropdown(label="Diagnostic segment",value="ALL",
             options=[ft.dropdown.Option(name) for name in segments],width=290)
         report=ft.Text("One-tap ALL report • current cache only • no provider calls.",
@@ -5198,6 +5198,30 @@ def app_main(page:ft.Page):
                         "chart_last_load_busy":bool(chart_load_busy[0]),
                         "chart_uses_shared_cached_history_without_provider_on_open":True,
                         "physical_flutter_paint_measured":False},
+                    "PAPER_ADAPTER_AUDIT":{
+                        "paper_bot_engine":"MANUAL_MARK_ONLY",
+                        "paper_bot_state":str(paper_bot_state[0]),
+                        "paper_mode_selected":mode.value=="Paper",
+                        "paper_active_slot":str(paper_bot_active[0]),
+                        "paper_slot_count":len(PAPER_BOT_SLOTS),
+                        "paper_saved_positions":sum(
+                            bool((prefs.get("paper_bot_positions") or {}).get(slot,{}).get("side"))
+                            for slot in PAPER_BOT_SLOTS),
+                        "chart_paper_saved_positions":len(prefs.get("paper_positions") or {}),
+                        "chart_paper_ledger_separate":True,
+                        "quick_paper_ephemeral_position":bool(paper_position.get("side")),
+                        "legacy_quick_paper_handler_mounted":False,
+                        "legacy_chart_paper_handler_mounted":False,
+                        "options_paper_buy_sell":"BLOCKED_NO_VERIFIED_OPTION_PREMIUM",
+                        "option_premium_chart_adapter":"LEGACY_ANGEL_ONLY_UNAVAILABLE_FOR_DHAN",
+                        "lightweight_webview_adapter":"UNSUPPORTED_ON_OBSERVED_ANDROID",
+                        "native_chart_available":True,
+                        "live_order_buttons_enabled":False,
+                        "alerts_delivery_connected":False,
+                        "backtest_report_connected":False,
+                        "legacy_provider_branches_present":True,
+                        "required_remedy":"Preserve saved paper ledgers; migrate old source preferences safely; no live order enablement",
+                        "provider_requests":0,"orders_sent":0},
                     "BACKGROUND_LIFECYCLE":{
                         "code_path":"src/main.py:lifecycle_changed → app_active/lifecycle_background → refresh_market/warm_selected_watch_three_minute_early",
                         "is_app_foreground":bool(app_active[0] and not lifecycle_background[0]),
@@ -5237,6 +5261,13 @@ def app_main(page:ft.Page):
                         "source":"src/main.py:lifecycle_changed",
                         "evidence":"Pause branches intentionally gate network-dependent scanner and warmup",
                         "solution":"Instrument actual Android lifecycle transitions; add native background worker before claiming continuity",
+                        "confidence":"CODE_CONFIRMED"})
+                if mode.value!="Paper":
+                    remedies.append({"segment":"PAPER_ADAPTER_AUDIT",
+                        "code":"SAVED_MODE_NOT_LIVE_ORDER_ENGINE",
+                        "source":"src/main.py:mode / paper_trading_center",
+                        "evidence":"Manual/Semi-Auto/Auto is a saved preference; live order buttons disabled",
+                        "solution":"Keep live orders locked, label non-paper modes unavailable until execution authorization",
                         "confidence":"CODE_CONFIRMED"})
                 if len(valid_equities)>70 or len(configured)!=len(unique):
                     remedies.append({"segment":"WATCHLIST_54_70",
