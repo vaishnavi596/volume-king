@@ -1,7 +1,10 @@
 """V3 Clone quote lane: offline-only 429 and minimum pacing assertions."""
 import time
 import unittest
+import pathlib
+import sys
 from unittest.mock import patch
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 from clone_v2_gateway import CloneDhanReadOnly
 from server_feed import FeedError
 
