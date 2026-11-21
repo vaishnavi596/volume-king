@@ -4503,8 +4503,39 @@ def app_main(page:ft.Page):
         save()
         select(1)
 
+    def paper_dhan_reference():
+        # Reference quote only, never an option premium, paper fill or an order.
+        instrument=(bot_custom.value or "").strip().upper() if bot_symbol.value=="Custom" else bot_symbol.value
+        row=quotes.get(instrument) or {}
+        price=row.get("price")
+        stamp=row.get("fetched_at")
+        age=round(max(0,time.time()-stamp),1) if type(stamp) in (int,float) and math.isfinite(stamp) else None
+        if (prefs.get("source")=="Dhan" and row.get("source")=="Dhan"
+                and type(price) in (int,float) and math.isfinite(price) and price>0):
+            return ("Dhan underlying reference • "+instrument+" INR "+format(price,",.2f")+
+                    " • cache age "+(str(age)+"s" if age is not None else "unknown")+
+                    " • exchange timestamp UNVERIFIED • never an option premium/fill")
+        return "Dhan underlying reference • unavailable • no broker order or synthetic premium"
+
+    def paper_mark_pnl_preview():
+        # Explicit manual paper mark is the only allowed mark for open-position P&L.
+        if not bot_position.get("side"):
+            return "Selected Paper Bot • FLAT • open a simulated position to see P&L"
+        raw=paper_mark.value
+        if raw is None or not str(raw).strip():
+            return "Paper unrealized P&L • WAIT • enter a manual price and refresh this page"
+        try:
+            mark=finite(raw,"Manual paper mark",.000001)
+            _,net=paper_pnl(bot_position["side"],bot_position["entry"],mark,
+                            bot_position["quantity"],0)
+            return ("Paper unrealized P&L INR "+format(net,"+,.2f")+
+                    " • manual mark "+format(mark,",.2f")+
+                    " • zero assumed fees; simulated only, no broker fill")
+        except (ValueError,TypeError,KeyError,OverflowError):
+            return "Paper unrealized P&L • WAIT • valid manual price and paper position required"
+
     def paper_trading_center():
-        # One panel for paper configuration. Future broker execution is separately locked.
+        # Paper and permanently locked live controls share one screen.
         rows=[]
         for item in paper_positions_summary(prefs):
             rows.append(note(item["slot"]+" • "+str(item["contract"])+
@@ -4514,9 +4545,16 @@ def app_main(page:ft.Page):
         context=[five_engine_chips(instrument),
                  dashboard_mini_candles(instrument,shared_history(instrument) or {}),
                  note(oracle_assessment_notes(instrument,"overview")[0]),
-                 note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders.")]
+                 note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders."),
+                 note(paper_dhan_reference())]
         controls=[
-            note("Paper and future Live controls share this screen, NEVER the execution gateway."),
+            note("Trading mode: PAPER simulations allowed • LIVE orders permanently OFF. Manual/Semi-Auto/Auto are saved preferences only."),
+            section("PAPER ORDER & P&L STATUS",ft.Column([
+                note("BUY/SELL/EXIT are local simulated journal events, not broker fills."),
+                note(paper_mark_pnl_preview()),
+                ft.OutlinedButton("Refresh paper P&L preview",on_click=lambda e:select(1)),
+                note("Cash: Dhan underlying quote is reference only. Options: verified option premium adapter missing; enter manual PAPER mark.")
+            ],spacing=4)),
             section("ALL PAPER BOTS",ft.Column(rows,spacing=2)),
             paper_bot_slot,mode,
             ft.OutlinedButton("Save selected paper bot settings",on_click=lambda e:(save_active_paper_slot(),save(),page.update())),
@@ -5209,6 +5247,17 @@ def app_main(page:ft.Page):
                             for slot in PAPER_BOT_SLOTS),
                         "chart_paper_saved_positions":len(prefs.get("paper_positions") or {}),
                         "chart_paper_ledger_separate":True,
+                        "paper_active_position":bool(bot_position.get("side")),
+                        "paper_manual_mark_entered":bool(str(paper_mark.value or "").strip()),
+                        "paper_unrealized_pnl_preview":paper_mark_pnl_preview(),
+                        "paper_dhan_reference":paper_dhan_reference(),
+                        "paper_portfolio_journal_events":len(prefs.get("paper_portfolio_journal") or []),
+                        "paper_simulated_order_events":sum(
+                            row.get("event") in ("BUY","SELL","EXIT","PARTIAL","ADD")
+                            and row.get("kind")=="paper_simulation"
+                            for row in (prefs.get("paper_portfolio_journal") or []) if isinstance(row,dict)),
+                        "paper_pnl_calculation":"MANUAL_MARK_ONLY_ZERO_FEES_PREVIEW",
+                        "paper_dhan_market_reference_only":True,
                         "quick_paper_ephemeral_position":bool(paper_position.get("side")),
                         "legacy_quick_paper_handler_mounted":False,
                         "legacy_chart_paper_handler_mounted":False,
