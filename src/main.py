@@ -3410,6 +3410,12 @@ def app_main(page:ft.Page):
         raw=key.encode("utf-8")
         return "Key length "+str(len(raw))+" bytes • SHA256 first 12: "+hashlib.sha256(raw).hexdigest()[:12]
     async def connect_angel():
+        # The legacy UI callback is retained for compatibility only.
+        # V3 must not attempt Angel One login, even after direct event injection.
+        connection_status.value="Angel One login disabled in V3; use Connect Clone V2 (SSK)"
+        connection_status.color=GOLD
+        page.update()
+        return
         nonlocal market_status
         if broker_connect_busy[0]:return
         if broker.value!="Angel One":
