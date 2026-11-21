@@ -4568,6 +4568,151 @@ def app_main(page:ft.Page):
             if stamp.tzinfo is None:stamp=stamp.replace(tzinfo=timezone.utc)
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
+    def sensex_full_diagnostic_panel():
+        """Opt-in, single-symbol phone probe; never transmit secrets or orders."""
+        state_text=ft.Text("SENSEX diagnostic not run • Dhan Clone login required.",
+                           size=11,selectable=True)
+        running=[False]
+
+        async def run_sensex_probe(e):
+            if running[0]:
+                return
+            running[0]=True
+            generation=provider_generation[0]
+            old=quotes.get("SENSEX") or {}
+            output={
+                "test":"SENSEX_FULL_DIAG_B143",
+                "mode":"EXPLICIT_READ_ONLY",
+                "instrument":{"symbol":"SENSEX","segment":"BSE_I","security_id":51},
+                "provider_generation":generation,
+                "clone_gateway_connected":bool(clone_v2_gateway.connected),
+                "dhan_connected":bool(dhan_feed.connected),
+                "cache_quote_source":str(old.get("source","missing")),
+                "cache_quote_present":bool(building_doctor.valid_quote(old)),
+                "cache_quote_provider_status":str(old.get("provider_status","unknown")),
+                "existing_1m_candles":bool(valid_candle_history(
+                    shared_history("SENSEX","1m").get("bars"))),
+                "existing_3m_candles":bool(valid_candle_history(
+                    shared_history("SENSEX","3m").get("bars"))),
+                "quote_probe":"NOT_ATTEMPTED",
+                "candle_1m_probe":"NOT_ATTEMPTED",
+                "source_verified_live":False,
+                "orders_sent":0,
+            }
+            state_text.value="SENSEX diagnostic running • max 1 quote + 1 candle request..."
+            state_text.update()
+            try:
+                if not clone_v2_gateway.connected or not dhan_feed.connected:
+                    output["diagnosis"]="LOGIN_REQUIRED"
+                    return
+                if prefs.get("source")!="Dhan":
+                    output["diagnosis"]="WRONG_SOURCE"
+                    return
+                if dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0:
+                    output["diagnosis"]="INDEX_QUOTE_COOLDOWN"
+                    output["quote_probe"]="SKIPPED_COOLDOWN"
+                    return
+                # Opt-in probe stays independent of a whole 51-share scan.
+                # Never overwrite last-good stock or mark historical as live.
+                try:
+                    quote=await asyncio.wait_for(
+                        asyncio.to_thread(dhan_feed.quote,"SENSEX"),timeout=25)
+                    if generation!=provider_generation[0]:
+                        output["diagnosis"]="LOGIN_CHANGED"
+                        return
+                    price=quote.get("price") if isinstance(quote,dict) else None
+                    if (isinstance(quote,dict) and quote.get("source")=="Dhan"
+                            and type(price) in (int,float)
+                            and math.isfinite(price) and price>0):
+                        output["quote_probe"]="VALID_DHAN_QUOTE_UNVERIFIED_TIME"
+                        output["quote_value"]=round(float(price),2)
+                    else:
+                        output["quote_probe"]="INVALID_QUOTE_SHAPE_OR_PRICE"
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    error=safe_error(exc)
+                    output["quote_probe"]=(
+                        "GATEWAY_RATE_LIMIT_OR_COOLDOWN" if "paced" in error.lower()
+                        or "rate limit" in error.lower() or "cooldown" in error.lower()
+                        else "AUTH_OR_PERMISSION" if "authoriz" in error.lower()
+                        or "access" in error.lower() or "session rejected" in error.lower()
+                        else "QUOTE_REQUEST_UNAVAILABLE")
+                    output["quote_error_type"]=type(exc).__name__
+                if generation!=provider_generation[0]:
+                    output["diagnosis"]="LOGIN_CHANGED"
+                    return
+                # Dhan gateway serializes histories; do not compete with a
+                # running 51-symbol scanner or index candle worker.
+                if (dhan_history_scan_active[0] or index_one_minute_busy[0]
+                        or watch_three_minute_warm_busy[0]):
+                    output["candle_1m_probe"]="SKIPPED_ACTIVE_HISTORY_WORKER"
+                    output["diagnosis"]="HISTORY_BUSY_RETRY_AFTER_WORKER"
+                    return
+                if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
+                    output["candle_1m_probe"]="SKIPPED_COOLDOWN"
+                    output["diagnosis"]="HISTORY_COOLDOWN"
+                    return
+                await asyncio.sleep(1.5)
+                if generation!=provider_generation[0]:
+                    output["diagnosis"]="LOGIN_CHANGED"
+                    return
+                try:
+                    start=(date.today()-timedelta(days=4)).isoformat()
+                    end=date.today().isoformat()
+                    history=await asyncio.wait_for(asyncio.to_thread(
+                        dhan_feed.intraday,"SENSEX",1,start,end),timeout=30)
+                    if generation!=provider_generation[0]:
+                        output["diagnosis"]="LOGIN_CHANGED"
+                        return
+                    if history.get("source")!="dhan":
+                        output["candle_1m_probe"]="INVALID_SOURCE"
+                    elif valid_candle_history(history.get("bars")):
+                        output["candle_1m_probe"]="VALID_HISTORICAL_CANDLES"
+                        output["candle_count"]=len(history["bars"])
+                    elif history.get("bars")==[]:
+                        output["candle_1m_probe"]="EMPTY_BROKER_HISTORY"
+                    else:
+                        output["candle_1m_probe"]="INVALID_CANDLE_SHAPE"
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    error=safe_error(exc)
+                    output["candle_1m_probe"]=(
+                        "GATEWAY_RATE_LIMIT_OR_COOLDOWN" if "rate limit" in error.lower()
+                        or "paced" in error.lower() or "cooldown" in error.lower()
+                        else "AUTH_OR_PERMISSION" if "authoriz" in error.lower()
+                        or "access" in error.lower()
+                        else "CANDLE_REQUEST_UNAVAILABLE")
+                    output["candle_error_type"]=type(exc).__name__
+                output["diagnosis"]=(
+                    "QUOTE_AND_HISTORY_AVAILABLE_CHECK_UI_ADAPTER" if
+                    output["quote_probe"]=="VALID_DHAN_QUOTE_UNVERIFIED_TIME" and
+                    output["candle_1m_probe"]=="VALID_HISTORICAL_CANDLES" else
+                    "QUOTE_AVAILABLE_HISTORY_MISSING" if
+                    output["quote_probe"]=="VALID_DHAN_QUOTE_UNVERIFIED_TIME" else
+                    "QUOTE_MISSING_HISTORY_AVAILABLE" if
+                    output["candle_1m_probe"]=="VALID_HISTORICAL_CANDLES" else
+                    "PROVIDER_OR_GATEWAY_EVIDENCE_INCOMPLETE")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                output["diagnosis"]="LOCAL_DIAGNOSTIC_EXCEPTION"
+                output["error_type"]=type(exc).__name__
+                log_error("sensex_full_diagnostic",exc)
+            finally:
+                state_text.value=json.dumps(output,indent=2,ensure_ascii=False)
+                if state_text.page is not None:
+                    state_text.update()
+                running[0]=False
+
+        return section("SENSEX FULL DIAGNOSTIC • PHONE B143",ft.Column([
+            note("Explicit TEST only: at most one SENSEX Quote and one 1m History request via authenticated Clone Dhan; no orders or fake prices. Run after normal scanner stops. Quote time unverified."),
+            ft.OutlinedButton("SENSEX FULL DIAG (read-only)",
+                              on_click=lambda e:page.run_task(run_sensex_probe,e)),
+            state_text,
+            note("Copy the resulting JSON into ChatGPT. A provider unavailable result is not proof that mapping is wrong.")
+        ],spacing=5))
     def v3_live_building_panel():
         # Test actual in-memory stock, without synthetic input or provider requests.
         from v3_live_capacity_probe import benchmark_cached_capacity
@@ -4707,6 +4852,7 @@ def app_main(page:ft.Page):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(v3_live_building_panel())  # Easy-access front-visible capacity test after login.
+        content.append(sensex_full_diagnostic_panel())  # B143 focused index quote/1m probe.
         content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
