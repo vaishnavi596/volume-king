@@ -3118,7 +3118,9 @@ def app_main(page:ft.Page):
             # Keep last valid metrics for historical display, never for signals.
         finally:
             option_feed_busy[0]=False
-            if current[0]==1:select(1)
+            # Never synchronously rebuild the entire Options page at the end
+            # of a broker task while the user is navigating other tabs.
+            if current[0]==1:request_view_refresh(1)
             if option_refresh_pending[0] and dhan_feed.connected:
                 option_refresh_pending[0]=False
                 async def replay_latest_option_selection():
@@ -4775,7 +4777,7 @@ def app_main(page:ft.Page):
                 # Reuse existing explicit refresh throttle and two independent
                 # Dhan routes; do not fan out 54/70 broker requests.
                 clock_before=manual_quote_last_attempt[0]
-                await refresh_all_dhan_quotes()
+                await asyncio.wait_for(refresh_all_dhan_quotes(),timeout=55)
                 if generation!=provider_generation[0] or not dhan_feed.connected:
                     test_status.value="REFRESH INVALID • session changed; login again."
                     return
@@ -4793,15 +4795,19 @@ def app_main(page:ft.Page):
                     "source_live_verified":False,
                     "orders_sent":0},indent=2,ensure_ascii=False)
                 test_status.value="REFRESH ATTEMPT COMPLETE • TEST 54/70 enabled for this login."
+            except asyncio.TimeoutError:
+                test_status.value="REFRESH TIMEOUT • quote worker exceeded 55s; recheck connection/cooldown."
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 log_error("v3_diagnostic_refresh",exc)
                 test_status.value="REFRESH FAILED • "+type(exc).__name__
             finally:
-                report.update()
-                test_status.update()
+                if refreshed[0] is None:
+                    report.value=test_status.value+" • previous report remains invalid."
                 busy[0]=False
+                if report.page is not None:report.update()
+                if test_status.page is not None:test_status.update()
         async def run_cached_test(e,count):
             if busy[0]:return
             # Do not reuse a report from an earlier login/provider generation
@@ -5033,9 +5039,11 @@ def app_main(page:ft.Page):
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
     MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
-    # One-time migration supplies ten defaults without overwriting saved user edits.
+    # New installs begin with 17 active slots; the 18th remains available.
+    # Existing saved choices (including intentional removals) are preserved.
     if not prefs.get("default_ten_migrated"):
-        prefs["scanner_filters"]=DEFAULT_FILTERS[:]
+        if not isinstance(prefs.get("scanner_filters"),(list,tuple)) or not prefs.get("scanner_filters"):
+            prefs["scanner_filters"]=ALL_FILTERS[:17]
         prefs["default_ten_migrated"]=True
     # Every supported saved filter stays selected; no forced five-slot swapping.
     # Option/OI filters remain WAIT until authenticated derivative evidence exists.
