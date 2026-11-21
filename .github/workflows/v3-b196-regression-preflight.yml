@@ -29,7 +29,10 @@ jobs:
           for path in ("src/main.py", "tests/test_market_feed.py", "tests/test_monitoring_audit.py"):
               ast.parse(pathlib.Path(path).read_text(),filename=path)
           source=pathlib.Path("src/main.py").read_text()
-          assert 'if prefs.get("source")!="Dhan":prefs["source"]="Dhan"' in source
+          # The production guard is intentionally two lines, not a single-line if.
+          assert 'if prefs.get("source")!="Dhan":' in source
+          assert 'prefs["source"]="Dhan"' in source
+          assert 'if source.value!="Dhan":source.value="Dhan"' in source
           print("V3_B196_SOURCE_GUARD=PASS")
           PY
           python -m unittest discover -s tests -p 'test_market_feed.py' -v
