@@ -1,0 +1,84 @@
+name: BOT KING V3 Building Offline Phone Capacity APK
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-building-phone-capacity-apk.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Offline diagnostic source contract
+        run: |
+          set -euo pipefail
+          python -m py_compile diagnostics/v3_building_phone_capacity.py src/clone_day2_apply_queue.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("diagnostics/v3_building_phone_capacity.py").read_text()
+          assert "SmartApplyQueue(max_pending=512)" in s
+          for n in ("10, 35, 54, 73", "180", "SCREEN VISIBLE", "flet_controls_construct_ms", "capacity_rejected"):
+              if n == "capacity_rejected": continue
+              assert n in s, n
+          for banned in ("urllib", "requests.", "httpx.", "dhan_feed", "ServerDhanReadOnly", "CloneV2Gateway"):
+              assert banned not in s, banned
+          print("OFFLINE_BUILDING_PROBE_SOURCE=PASS")
+          PY
+      - name: Create separate temporary signing certificate
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3-capacity-sign"
+          PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASS"
+          printf '%s' "$PASS" > "$RUNNER_TEMP/v3-capacity-sign/pass"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-capacity-sign/diag.jks" -storetype PKCS12 -alias v3_capacity -keyalg RSA -keysize 3072 -validity 180 -dname "CN=BOT KING V3 OFFLINE CAPACITY" -storepass "$PASS" -keypass "$PASS"
+      - name: Build isolated diagnostic Android APK
+        env:
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v3-capacity-sign/diag.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: v3_capacity
+        run: |
+          set -euo pipefail
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-capacity-sign/pass")"
+          export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          cp diagnostics/v3_building_phone_capacity.py src/main.py
+          mkdir -p dist/v3-capacity
+          flet build apk --project bot_king_v3_capacity_lab --org com.botking.v3capacity --product "BOT KING V3 CAPACITY LAB" --build-number 1 --build-version 3.0.1 --output "$GITHUB_WORKSPACE/dist/v3-capacity" --verbose
+      - name: Verify APK package identity and signing
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v3-capacity -name '*.apk' -type f)
+          test "${#apks[@]}" -eq 1
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "${apks[0]}" | grep "com.botking.v3capacity.bot_king_v3_capacity_lab"
+          "$SIGNER" verify --verbose "${apks[0]}"
+          sha256sum "${apks[0]}"
+      - name: Clear temporary signer
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/v3-capacity-sign"
+      - name: Upload standalone installable diagnostic APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V3-OFFLINE-BUILDING-CAPACITY-PHONE-APK
+          path: dist/v3-capacity/**/*.apk
+          retention-days: 14
+          if-no-files-found: error
