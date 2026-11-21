@@ -120,6 +120,39 @@ class TimeframeHistoryIsolationTests(unittest.TestCase):
                 self.assertEqual(source["bars"][-1], previous_last)
                 self.assertFalse(after["live_verified"])
 
+    def test_candle_retention_to_three_minute_display_cache_wiring(self):
+        from candle_retention import retain_candle_history
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        old_bars = [[start+i*60, 100, 104, 98, 101, 2] for i in range(36)]
+        initial = dict(history("1m"), bars=old_bars,
+                       source="Dhan",candle_fetched_at=1000)
+        charts={("NIFTY","1m",1):initial}
+        select=load_selector(charts=charts)
+        before=select("NIFTY","3m")
+        last_unchanged=list(initial["bars"][-1])
+        revised_rows=[row[:] for row in initial["bars"][-4:-2]]
+        revised_rows[0][4]=103
+        revised_rows[0][2]=105
+        merged=retain_candle_history(
+            dict(source="Dhan",bars=revised_rows,_scanner_timeframe="1m",
+                 candle_fetched_at=1000),initial)
+        self.assertTrue(merged["_candle_partial_revised"])
+        self.assertEqual(merged["bars"][-1],last_unchanged)
+        charts[("NIFTY","1m",1)]=merged
+        after=select("NIFTY","3m")
+        self.assertIsNot(before,after)
+        self.assertNotEqual(before["bars"],after["bars"])
+        self.assertTrue(after["historical"])
+        self.assertFalse(after["live_verified"])
+
+    def test_watchlist_three_minute_filter_cache_keys_last_four_bars(self):
+        source=SOURCE.read_text(encoding="utf-8")
+        area=source.split("    def watch_three_minute_signal(sym):",1)[1].split(
+            "    def remember_candle_failure(",1)[0]
+        self.assertIn("recent_three=tuple(tuple(row) for row in completed[-4:])",area)
+        self.assertIn("identity=context+(recent_three,len(completed)",area)
+
     def test_cached_wrong_provider_one_minute_never_derives_dhan_three(self):
         start = int(datetime(2025, 11, 13, 9, 15,
                              tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
