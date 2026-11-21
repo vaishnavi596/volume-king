@@ -1,0 +1,26 @@
+name: BOT KING V3 First Login 70 Equity Offline Capacity Benchmark
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-first-login-capacity-benchmark.yml
+      - tests/benchmark_v3_first_login_capacity.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  v3-offline-capacity:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Python benchmark and app module syntax
+        run: python -m py_compile tests/benchmark_v3_first_login_capacity.py src/scanner_engine.py src/analysis_quality.py src/dhan_three_minute.py src/clone_day2_apply_queue.py
+      - name: Measure actual GitHub runner Python 10 35 54 73 instruments
+        env:
+          PYTHONPATH: src
+        run: python tests/benchmark_v3_first_login_capacity.py
