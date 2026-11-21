@@ -3729,6 +3729,13 @@ def app_main(page:ft.Page):
                 ["NIFTY","BANKNIFTY","SENSEX"]+selected_equities))
             proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,request_symbols)
             building_doctor.milestone("quotes_response_received")
+            received_symbols=set(proof) if isinstance(proof,dict) else set()
+            building_doctor.login_source_coverage={
+                "expected_instruments":len(request_symbols),
+                "received_instruments":len(received_symbols.intersection(request_symbols)),
+                "missing_symbols_sample":[sym for sym in request_symbols if sym not in received_symbols][:12],
+                "quote_source":"Dhan via existing Oracle SSK gateway",
+                "exchange_timestamp_verified":False}
             if "NIFTY" not in proof:
                 raise FeedError("Clone B3 Dhan index quote unavailable; SSK-only connection")
             dhan_feed.activate_with_quote(proof)
@@ -4561,6 +4568,7 @@ def app_main(page:ft.Page):
                 # Already displayed stock errors become RESOLVED on the next
                 # successful stock diagnosis; there is no extra provider poll.
                 outcome["login_stages_seconds"]=dict(building_doctor.milestones)
+                outcome["login_quote_coverage"]=dict(building_doctor.login_source_coverage)
                 outcome["ui_refresh_python_timing_ms"]=building_doctor.report(
                     chosen,quotes,chart_snapshots,generation,dhan_feed.connected).get("timings",{})
                 outcome["test_requires_existing_login"]=True
