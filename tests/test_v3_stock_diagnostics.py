@@ -47,7 +47,8 @@ class TestTypedStockDoctor(unittest.TestCase):
         h=records()
         out=benchmark_cached_capacity(["RELIANCE"],q,h,1,70)
         self.assertEqual(out["requested_instruments"],73)
-        self.assertGreaterEqual(out["stock_error_count"],70)
+        self.assertEqual(out["stock_error_count"],3)
+        self.assertEqual(out["unconfigured_symbols_are_not_provider_errors"],69)
         self.assertTrue(any(s["symbol"]=="RELIANCE" and s["state"]=="ERROR" for s in out["stock_states"]))
         self.assertFalse(any(s["live_signal_eligible"] for s in out["stock_states"]))
 
