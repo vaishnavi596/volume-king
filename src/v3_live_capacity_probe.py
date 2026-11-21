@@ -9,6 +9,7 @@ import time
 from chart_indicators import chart_indicators
 from scanner_engine import analyze, DEFAULT_FILTERS
 from v3_stock_diagnostics import classify_stock
+from dhan_three_minute import completed_three_minute_bars
 
 INDEXES=("NIFTY","BANKNIFTY","SENSEX")
 
@@ -22,6 +23,26 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
     expected=requested_equities+3
     missing_equity_count=max(0,requested_equities-len(selected))
     after_inventory=time.perf_counter()
+    # V3 derives completed 3m Watchlist bars from Dhan 1m, rather than
+    # necessarily storing a separate chart_snapshots[(sym,"3m",gen)] record.
+    # Reproduce the same exact session-aligned 3m derivation locally; do not
+    # mislabel a missing stored 3m slot as missing actual 3m evidence.
+    histories=dict(histories)
+    derived_3m=0
+    for sym in names:
+        target=(sym,"3m",generation)
+        if target in histories and (histories[target] or {}).get("bars"):
+            continue
+        source=histories.get((sym,"1m",generation)) or {}
+        if source.get("source")!="Dhan" or source.get("_scanner_timeframe")!="1m":
+            continue
+        bars=completed_three_minute_bars(source.get("bars"),now_epoch=time.time())
+        if len(bars)>=2:
+            histories[target]=dict(source,bars=[list(row) for row in bars],
+                                   _scanner_timeframe="3m",historical=True,
+                                   live_verified=False,freshness="historical_unverified")
+            derived_3m+=1
+    after_derive=time.perf_counter()
     quote_present=0
     coverage={"1m":0,"3m":0,"5m":0}
     missing_by_frame={"1m":[],"3m":[],"5m":[]}
@@ -78,6 +99,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         "observed_instruments":len(names),
         "dhan_quote_present":quote_present,
         "history_presence":coverage,
+        "derived_3m_from_valid_1m":derived_3m,
         "history_missing_sample":{tf:missing_by_frame[tf][:6] for tf in coverage},
         "technical_chart_available":chart_available,
         "technical_scanner_analyzed":scanner_technical_available,
@@ -93,7 +115,8 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
 
         "elapsed_ms":{
             "inventory":ms(start,after_inventory),
-            "cache_presence":ms(after_inventory,after_coverage),
+            "completed_3m_derivation":ms(after_inventory,after_derive),
+            "cache_presence":ms(after_derive,after_coverage),
             "real_cached_technical_compute":ms(after_coverage,after_technical),
             "stock_error_classification":ms(after_technical,after_diagnostics),
             "total_python":ms(start,after_diagnostics)},
