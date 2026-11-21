@@ -4954,6 +4954,23 @@ def app_main(page:ft.Page):
                     candle_counts[tf]={"matching_cache_entries":len(items),
                                        "valid_histories":sum(valid_candle_history(item.get("bars"))
                                                              for _,item in items)}
+                # A zero *materialized* 3m snapshot count does not imply that
+                # Watchlist 3m is absent: shared_history derives completed 3m
+                # bars from exact-generation 1m histories on demand.
+                # Inspect only selected equities and never call a provider.
+                derived_3m_valid=0
+                three_minute_available=0
+                for watch_sym in valid_equities:
+                    materialized=chart_snapshots.get((watch_sym,"3m",generation)) or {}
+                    history_3m=shared_history(watch_sym,"3m")
+                    if history_3m.get("source")=="Dhan" and valid_candle_history(history_3m.get("bars")):
+                        three_minute_available+=1
+                        if not (materialized.get("source")=="Dhan" and
+                                valid_candle_history(materialized.get("bars"))):
+                            derived_3m_valid+=1
+                candle_counts["3m"]["selected_equities_with_valid_effective_3m"]=three_minute_available
+                candle_counts["3m"]["valid_locally_derived_3m"]=derived_3m_valid
+                candle_counts["3m"]["meaning"]="Materialized cache entries exclude on-demand completed 1m-to-3m histories"
                 displayed=list(watch_groups[active_watch[0]])
                 warm_times=[t for t in watch_three_minute_upstream_times
                             if time.monotonic()-t<180]
