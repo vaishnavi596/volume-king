@@ -22,7 +22,7 @@ class TestSinglePhoneFeatureAudit(unittest.TestCase):
             '"equity_quote_status"','"index_quote_present"',
             '"watchlist_count"','"configured_unique_equities"',
             '"scanner_status"','"scanner_progress"','"scanner_fetch_error_count"',
-            '"option_status"','"option_cached_context_count"',
+            '"option_status"','"options_cached_context_count"',
             '"chart_provider"','"chart_source_present"','"chart_webview_attached"',
             '"super_five_cached_symbols"','"watchlist_3m_signal_cache_symbols"',
             '"news_fusion_cached_context_count"','"active_analysis_filter_names"',
