@@ -44,6 +44,13 @@ class V3B153PhoneFeedbackTests(unittest.TestCase):
         self.assertIn("request_view_refresh(1)",finally_section)
         self.assertNotIn("select(1)",finally_section)
 
+    def test_index_feederror_is_sanitized_and_stage_labeled(self):
+        index=MAIN.split("    async def refresh_dhan_index_quotes(force=False):",1)[1].split("    manual_quote_last_attempt=",1)[0]
+        self.assertIn('detail=safe_error(exc)',index)
+        self.assertIn('display_failures["dhan_index_ltp_batch"]=',index)
+        self.assertIn('Dhan index quote route failed',index)
+        self.assertIn('check SENSEX BSE_I/51 separately',index)
+
     def test_sensex_diagnostic_is_stage_specific_not_timeframe_guessed(self):
         section=MAIN.split("    def sensex_full_diagnostic_panel():",1)[1].split("    # Keep the manual Diagnostics",1)[0]
         self.assertIn('"quote_error_detail"=safe_error',section.replace('output["quote_error_detail"]=safe_error','"quote_error_detail"=safe_error'))
