@@ -59,6 +59,18 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         self.assertIn('remember_candle_failure(index_sym,"1m","index candle fetch",exc)', source)
         self.assertNotIn('remember_candle_failure(index_sym,"5m","index candle fetch",exc)', source)
 
+    def test_five_engine_dashboard_uses_matching_index_one_minute_not_legacy_five(self):
+        summary=self.functions["five_engine_summary"]
+        chips=self.functions["five_engine_chips"]
+        for body in (summary,chips):
+            self.assertIn('("NIFTY","BANKNIFTY","SENSEX")',body)
+            self.assertIn('else "5m"',body)
+            self.assertIn("historical_candle_balance",body)
+        self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
+        self.assertIn('historical=True',chips)
+        self.assertIn('NOT live',chips)
+        self.assertNotIn('dhan_feed.intraday(',chips)
+
     def test_one_minute_index_histories_never_presented_live(self):
         source = self.functions["historical_vote_bar"]
         self.assertIn('vote_display(agreement,False,timeframe=tf)', source)
