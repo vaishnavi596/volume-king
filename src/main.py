@@ -4895,7 +4895,8 @@ def app_main(page:ft.Page):
         """
         segments=("ALL","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                   "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
-                  "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION")
+                  "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION",
+                  "BACKGROUND_LIFECYCLE")
         selected=ft.Dropdown(label="Diagnostic segment",value="ALL",
             options=[ft.dropdown.Option(name) for name in segments],width=290)
         report=ft.Text("One-tap ALL report • current cache only • no provider calls.",
@@ -5046,6 +5047,22 @@ def app_main(page:ft.Page):
                         "chart_provider":str(chart_provider[0]),
                         "app_mounted_screen":current[0],
                         "physical_flutter_paint_measured":False},
+                    "BACKGROUND_LIFECYCLE":{
+                        "code_path":"src/main.py:lifecycle_changed → app_active/lifecycle_background → refresh_market/warm_selected_watch_three_minute_early",
+                        "is_app_foreground":bool(app_active[0] and not lifecycle_background[0]),
+                        "background_pause_flag":bool(lifecycle_background[0]),
+                        "runtime_message":str(runtime_status.value or "")[:180],
+                        "scanner_pause_gate_present":True,
+                        "watchlist_warmup_pause_gate_present":True,
+                        "foreground_service_implemented":False,
+                        "android_workmanager_implemented":False,
+                        "screen_off_continuity_verified":False,
+                        "force_stop_continuity_supported":False,
+                        "root_cause":"Phone Python scanner and warmup intentionally stop on Android paused/hidden/detached lifecycle",
+                        "recommended_fix":"Separate Android-native, user-opt-in OS-compliant background scheduling from UI; use Oracle cache for resumable read-only continuity; never bypass Android force stop",
+                        "service_design_status":"REQUIRES_NATIVE_ANDROID_IMPLEMENTATION_AND_DEVICE_VALIDATION",
+                        "battery_os_restriction":"Doze/OEM/Android 15+ foreground service time budgets may suspend even approved background tasks",
+                        "orders_sent":0},
                     "ERRORS_COORDINATION":{
                         "active_display_failure_areas":sorted(str(k)[:48] for k in display_failures),
                         "scanner_fetch_failure_count":len(scan_fetch_failure),
@@ -5053,6 +5070,58 @@ def app_main(page:ft.Page):
                         "data_path":"Dhan → Oracle Clone Gateway → phone cache → analysis → UI",
                         "failure_inference":"Do not confuse local cache readiness with exchange-verified live data"}
                 }
+                # Fixed, allowlisted code-route/remedy catalogue. These are
+                # design diagnoses, not speculative exception traces.
+                remedies=[]
+                if lifecycle_background[0] or not app_active[0]:
+                    remedies.append({"segment":"BACKGROUND_LIFECYCLE",
+                        "code":"ANDROID_LIFECYCLE_PAUSES_PYTHON_WORK",
+                        "source":"src/main.py:lifecycle_changed / refresh_market / warm_selected_watch_three_minute_early",
+                        "evidence":"app_active false or lifecycle_background true",
+                        "solution":"Implement opt-in Android-native scheduled read-only work with durable Oracle cache, resume reconciliation and stop controls; test screen lock and other apps",
+                        "confidence":"CODE_CONFIRMED"})
+                else:
+                    remedies.append({"segment":"BACKGROUND_LIFECYCLE",
+                        "code":"BACKGROUND_CONTINUITY_NOT_PROVEN",
+                        "source":"src/main.py:lifecycle_changed",
+                        "evidence":"Pause branches intentionally gate network-dependent scanner and warmup",
+                        "solution":"Instrument actual Android lifecycle transitions; add native background worker before claiming continuity",
+                        "confidence":"CODE_CONFIRMED"})
+                if len(valid_equities)>70 or len(configured)!=len(unique):
+                    remedies.append({"segment":"WATCHLIST_54_70",
+                        "code":"WATCHLIST_CAP_OR_DUPLICATE_POLICY",
+                        "source":"src/main.py:all_watch_symbols / watchlist_policy.normalize_watchlists",
+                        "evidence":"Selected equity count or cross-list duplication",
+                        "solution":"Deduplicate watchlist ownership and apply the 70 unique-equity cap",
+                        "confidence":"CACHE_CONFIRMED"})
+                if len(warm_times)>=3:
+                    remedies.append({"segment":"WATCHLIST_54_70",
+                        "code":"3M_WARMUP_RATE_BUDGET_FULL",
+                        "source":"src/main.py:warm_selected_watch_three_minute_early",
+                        "evidence":"Three uncached provider requests in rolling 180s",
+                        "solution":"Prioritize visible equities and reuse exact 1m histories to derive completed 3m candles locally; do not increase Dhan quota blindly",
+                        "confidence":"CACHE_CONFIRMED"})
+                if index_failure_code[0] not in ("NOT_TESTED","NONE_ALL_THREE_QUOTES_PRESENT"):
+                    remedies.append({"segment":"GATEWAY_REFRESH",
+                        "code":index_failure_code[0],
+                        "source":"src/main.py:refresh_dhan_index_quotes / src/server_feed.py:index_batch_quotes",
+                        "evidence":"Sanitized index quote worker failure category; no live index quote proof",
+                        "solution":"Check clone /dhan/index-ltp-batch gateway route, provider stage and Dhan IDX_I/51 mapping in read-only logs, without touching V1",
+                        "confidence":"RUNTIME_CLASSIFIED"})
+                if scanner_calc<len(filter_names):
+                    remedies.append({"segment":"SCANNER_17",
+                        "code":"FILTERS_NOT_ALL_DIRECTIONAL",
+                        "source":"src/main.py:enrich_context_filter_rows / src/five_engine.py:scanner_snapshot",
+                        "evidence":str(scanner_calc)+" calculated out of "+str(len(filter_names))+" selected; "+str(non_directional)+" OI context only",
+                        "solution":"Keep OI/PCR/Max Pain as context until authenticated directional trade-flow evidence exists; do not invent missing votes",
+                        "confidence":"CACHE_CONFIRMED"})
+                if not all(x["verified_directional_percent_available"] for x in engine_rows):
+                    remedies.append({"segment":"SUPER_FIVE_ENGINES",
+                        "code":"INDEPENDENT_FIVE_ENGINE_EVIDENCE_NOT_READY",
+                        "source":"src/five_engine.py:scanner_snapshot / snapshot_for_display / compose_snapshot",
+                        "evidence":"Snapshot-only scanner votes cannot establish five fresh independent data engines",
+                        "solution":"Audit each engine freshness, source and measured directional strength separately; show HIST/WAIT without fabricated live percentages",
+                        "confidence":"CODE_AND_CACHE_CONFIRMED"})
                 chosen=str(selected.value or "ALL")
                 report_data={
                     "test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
@@ -5061,6 +5130,9 @@ def app_main(page:ft.Page):
                     "segment":chosen,
                     "segment_count":len(sections),
                     "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
+                    "root_cause_and_solution":remedies if chosen=="ALL" else
+                        [row for row in remedies if row["segment"]==chosen],
+                    "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
                     "capture_elapsed_ms":round((time.perf_counter()-started)*1000,2),
                     "source_live_verified":False,
                     "provider_requests":0,"orders_sent":0}
