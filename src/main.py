@@ -4606,7 +4606,7 @@ def app_main(page:ft.Page):
             tf=str(scan_tf.value or "1m")
             generation=provider_generation[0]
             try:
-                history=(stock_histories.get((symbol,tf,generation))
+                history=(chart_snapshots.get((symbol,tf,generation))
                          or shared_history(symbol,tf) or {})
                 bars=history.get("bars") if isinstance(history,dict) else None
                 names=list(filter_selected)
@@ -4704,7 +4704,9 @@ def app_main(page:ft.Page):
                 log_error("filter_five_diagnostic",exc)
                 output.value=json.dumps({"test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "status":"ERROR","stage":"LOCAL_ADAPTER",
-                    "error_type":type(exc).__name__,"provider_requests":0,
+                    "error_type":type(exc).__name__,
+                    "error_field":str(exc).split("'")[1][:60] if isinstance(exc,NameError) and "'" in str(exc) else None,
+                    "provider_requests":0,
                     "orders_sent":0},indent=2)
             if output.page is not None:
                 output.update()
