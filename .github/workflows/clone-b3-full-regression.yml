@@ -122,3 +122,5 @@ jobs:
 # B155 1508+ full gate: true available vs unavailable filter counts; SENSEX quote-stage typed evidence.
 
 # B156 full regression: current index FeedError route/stage preserved in Doctor.
+
+# B157 end-to-end wiring: 1m last-2-4 OHLCV edits → derived 3m cache → Watchlist votes.
