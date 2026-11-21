@@ -34,7 +34,7 @@ def test_selected_dashboard_slots_reuse_dhan_native_candles_without_network():
 def test_preserve_all_supported_movable_saved_slots():
     source=MAIN.read_text(encoding="utf-8")
     assert "MAX_ACTIVE_FILTERS=len(filter_names)" in source
-    assert "DEFAULT_FILTERS[:]" in source
+    assert "ALL_FILTERS[:17]" in source
     assert "[:MAX_ACTIVE_FILTERS]" in source
     assert "len(filter_selected)>=MAX_ACTIVE_FILTERS" in source
     assert 'prefs["scanner_filters"]=filter_selected[:]' in source
