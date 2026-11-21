@@ -94,11 +94,11 @@ class FiveEngineTests(unittest.TestCase):
         selected = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                     "SMC Structure", "Order Block", "Pivot Points", "FVG",
                     "Liquidity Sweep", "OI Support", "OI Resistance",
-                    "OI Profile", "Max Pain", "SMA 5/20", "Volume", "ATR 14"]
+                    "OI Profile", "Dhan Max Pain", "SMA 5/20", "Volume", "ATR 14"]
         rows = [{"name": name, "vote": (1 if i < 3 else 0), "detail": "computed"}
                 for i, name in enumerate(selected)]
         for row in rows:
-            if row["name"].startswith("OI ") or row["name"] == "Max Pain":
+            if row["name"].startswith("OI ") or row["name"] == "Dhan Max Pain":
                 row.update(vote=None, detail="No matching Dhan expiry snapshot; WAIT")
         scan = {"votes": rows, "source": "Dhan", "timestamp": 1234567890,
                 "freshness": "verified_live", "historical": False, "live_verified": True}
@@ -114,7 +114,7 @@ class FiveEngineTests(unittest.TestCase):
         base = [{"name": "Supertrend", "vote": 1},
                 {"name": "EMA 9/21", "vote": 1},
                 {"name": "RSI 14", "vote": -1}]
-        for name in ("OI Support", "OI Resistance", "OI Profile", "Max Pain",
+        for name in ("OI Support", "OI Resistance", "OI Profile", "Dhan Max Pain",
                      "News Headlines", "VWAP", "Volume"):
             with self.subTest(name=name):
                 rows = base + [{"name": name, "vote": None,
