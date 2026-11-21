@@ -7491,12 +7491,19 @@ console.log('BOT KING Lightweight Charts ready');
     # Keep completed bars; never retry all 51 on every 2s UI observation.
     watch_login_bootstrap_attempts=[0]
     watch_login_bootstrap_retry_after=[0.0]
+    def watch_bootstrap_stop_requested():
+        # Keep authenticated, rate-limited Watchlist 1m->3m bootstrap alive
+        # on HOME, WhatsApp switch and screen lock while Android schedules
+        # this app process. An OS process freeze still requires a native
+        # foreground service; this alone is not a locked-screen guarantee.
+        return not app_active[0] and not lifecycle_background[0]
+
     async def watch_login_candle_bootstrap():
         while True:
             await asyncio.sleep(2)
             try:
                 generation=provider_generation[0]
-                if (not app_active[0] or lifecycle_background[0]
+                if (watch_bootstrap_stop_requested()
                         or prefs.get("source")!="Dhan" or not dhan_feed.connected):
                     continue
                 if watch_login_bootstrap_generation[0]!=generation:
@@ -7515,7 +7522,7 @@ console.log('BOT KING Lightweight Charts ready');
                 completed=0
                 for sym in selected:
                     if (generation!=provider_generation[0] or not app_active[0]
-                            or lifecycle_background[0] or not dhan_feed.connected
+                            or watch_bootstrap_stop_requested() or not dhan_feed.connected
                             or prefs.get("source")!="Dhan"):
                         break
                     prior=shared_history(sym,"3m")
@@ -7527,10 +7534,10 @@ console.log('BOT KING Lightweight Charts ready');
                             or watch_three_minute_warm_busy[0]):
                         await asyncio.sleep(2)
                         if (generation!=provider_generation[0] or not app_active[0]
-                                or lifecycle_background[0] or not dhan_feed.connected):
+                                or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
                     if (generation!=provider_generation[0] or not app_active[0]
-                            or lifecycle_background[0] or not dhan_feed.connected):
+                            or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                         break
                     cooldown=dhan_feed.cooldown_remaining("/dhan/intraday")
                     if cooldown>0:
@@ -7543,7 +7550,7 @@ console.log('BOT KING Lightweight Charts ready');
                     try:
                         await asyncio.sleep(1.5)
                         if (generation!=provider_generation[0] or not app_active[0]
-                                or lifecycle_background[0] or not dhan_feed.connected):
+                                or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
                         data=await asyncio.wait_for(asyncio.to_thread(
                             get_market_data,sym,"1m","2d"),timeout=25)
