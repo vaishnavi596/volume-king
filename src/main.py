@@ -4676,12 +4676,27 @@ def app_main(page:ft.Page):
                     headline_items=(news_cache.get(symbol) or {}).get("items") or []
                 diagnostic_context["cached_news_count"]=len(headline_items)
                 engines=[]
+                raw_snapshot=five_engine_snapshots.get(symbol)
+                raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
+                now_for_evidence=time.time()
                 for name,short in (("technical","T"),("candle","C"),("news","N"),
-
                                    ("futures","F"),("options","O")):
                     item=(next((x for x in snap["engines"] if x.name==name),None)
                           if snap else None)
                     display=item.display() if item else {}
+                    raw_item=next((x for x in raw_engine_rows if getattr(x,"name",None)==name),None)
+                    raw_stamp=getattr(raw_item,"timestamp",None)
+                    raw_source=getattr(raw_item,"source","")
+                    raw_verified=getattr(raw_item,"verified",False) is True
+                    evidence_age=(round(now_for_evidence-raw_stamp,1)
+                        if type(raw_stamp) in (int,float) and math.isfinite(raw_stamp) else None)
+                    freshness_issue=("NO_SOURCE_SNAPSHOT" if raw_item is None else
+                        "UNVERIFIED_EVIDENCE" if not raw_verified else
+                        "SOURCE_MISMATCH" if raw_source!="Dhan" else
+                        "TIMESTAMP_MISSING" if evidence_age is None else
+                        "TIMESTAMP_IN_FUTURE" if evidence_age<0 else
+                        "EVIDENCE_STALE_GT_300S" if evidence_age>300 else
+                        "EVIDENCE_STRENGTH_OR_POLICY_INCOMPLETE")
                     bull=display.get("bullish");bear=display.get("bearish")
                     ready=(type(bull) is int and type(bear) is int and
                            0<=bull<=100 and 0<=bear<=100 and bull+bear==100)
@@ -4709,6 +4724,10 @@ def app_main(page:ft.Page):
                                                     "label":"HIST_ONLY",
                                                     "timeframe":tf,
                                                     "directional_candles":balance["count"]}
+                    if name=="candle":
+                        diagnostic_context["historical_candle_balance_status"]=(
+                            "AVAILABLE" if historical_percent is not None else
+                            "NOT_ENOUGH_DIRECTIONAL_LAST_EIGHT_OR_INVALID_CANDLE_SHAPE")
                     if ready:
                         blocker="NONE_VERIFIED"
                     elif name=="technical":
@@ -4726,6 +4745,11 @@ def app_main(page:ft.Page):
                         blocker=("OPTION_EXPIRY_CONTEXT_MISSING" if not option_context else
                                  "PCR_OI_PRESENT_NOT_VERIFIED_TRADE_DIRECTION")
                     engines.append({
+                        "raw_evidence_reason":str(getattr(raw_item,"reason","No snapshot"))[:160],
+                        "raw_verified":raw_verified,
+                        "raw_source":str(raw_source)[:20],
+                        "evidence_age_seconds":evidence_age,
+                        "freshness_gate":freshness_issue,
                         "blocker":blocker,
                         "box":short,"engine":name,
                         "status":display.get("state","WAIT") if ready else "WAIT",
@@ -4791,6 +4815,13 @@ def app_main(page:ft.Page):
                     "stage_context":diagnostic_context,
                     "cache_to_display_trace":pipeline_trace,
                     "errors_only":errors,
+                    "index_route_diagnostic":{
+                        "last_failure":str(display_failures.get("dhan_index_ltp_batch") or "none")[:180],
+                        "cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
+                        "last_attempt_same_generation":index_refresh_generation[0]==generation,
+                        "worker_busy":bool(index_refresh_busy[0]),
+                        "stage":"PHONE_INDEX_ROUTE_OR_GATEWAY_RESPONSE_NOT_VERIFIED"
+                    },
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "candle_status":cause,
                     "live_market_verified":False,
