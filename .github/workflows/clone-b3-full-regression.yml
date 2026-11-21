@@ -84,3 +84,5 @@ jobs:
 # SUDHAR 1 Day-2 single exact-head full regression gate for Watchlist evidence-delta batch, 2026-11-21
 
 # SUDHAR 1 S1: focused legacy-test contract corrections; run exact-source one-shot full regression (2026-11-21).
+
+# SUDHAR 1 S1 phone 49-of-51 historical bootstrap bounded recovery: exact-head source + regression check 2026-11-21.
