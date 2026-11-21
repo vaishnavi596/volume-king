@@ -30,10 +30,10 @@ class QuoteRetentionB145(unittest.TestCase):
         self.assertIn('await asyncio.sleep(1.1)',block)
         self.assertIn('provider_data_unavailable',block)
 
-    def test_sensex_mapping_and_diagnostic_kept(self):
-        self.assertIn('def sensex_full_diagnostic_panel():',self.source)
-        self.assertIn('"segment":"BSE_I","security_id":51',self.source)
-        self.assertIn('source_verified_live',self.source)
+    def test_old_sensex_probe_replaced_by_filter_five_box_doctor(self):
+        self.assertNotIn('def sensex_full_diagnostic_panel():',self.source)
+        self.assertIn('def filter_five_diagnostic_panel():',self.source)
+        self.assertIn('"live_market_verified":False',self.source)
 
 if __name__=="__main__":
     unittest.main()
