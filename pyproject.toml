@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.141" # V3 B161 SENSEX/filters/Dashboard unified phone test, Android versionCode 161
+version = "2.3.178" # V3 B178 17-filter and five-box main error doctor phone test, Android versionCode 178
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
