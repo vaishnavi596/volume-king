@@ -102,3 +102,5 @@ jobs:
 # B145 full regression: prevent later 5m candle fetch from erasing valid Dhan price; preserve SENSEX diagnostic.
 
 # B146 repair exact-head test updated for finite saved quote without regression in source protection; 1m default unchanged.
+
+# B147 targeted full regression after all-filter, end-to-end SENSEX and refresh-first error-only doctor changes.
