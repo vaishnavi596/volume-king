@@ -139,6 +139,18 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"Dhan Max Pain" if name=="Max Pain" else name',APP)
         self.assertIn('if name=="Dhan Max Pain"',APP)
         self.assertIn('data["max_pain"]',APP)
+        engine=(ROOT/"src"/"five_engine.py").read_text(encoding="utf-8")
+        catalog=(ROOT/"src"/"scanner_engine.py").read_text(encoding="utf-8")
+        self.assertIn('"Dhan Max Pain"',engine)
+        self.assertIn('"Dhan Max Pain"',catalog)
+        self.assertNotIn('"Max Pain"',engine)
+        self.assertNotIn('"Max Pain"',catalog)
+        for removed_label in ('OI / PCR / Max Pain:',
+                              'OI / PCR / MAX PAIN • INFORMATION ONLY',
+                              'OI Profile and Max Pain can be selected',
+                              ' • Max Pain '):
+            self.assertNotIn(removed_label,APP)
+
         self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
