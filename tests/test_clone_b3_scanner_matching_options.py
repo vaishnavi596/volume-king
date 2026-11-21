@@ -29,7 +29,7 @@ class ScannerMatchingOptionsTests(unittest.TestCase):
     def test_option_votes_remain_disabled(self):
         scanner = SOURCE.split("    def scanner_option_context():", 1)[1].split(
             "    def scanner():", 1)[0]
-        self.assertIn("no OI/PCR/Max Pain scanner vote or live trade signal", scanner)
+        self.assertIn("no OI/PCR/Dhan Max Pain scanner vote or live trade signal", scanner)
         enrichment = SOURCE.split("    def enrich_context_filter_rows(", 1)[1].split(
             "    def shared_filter_report(", 1)[0]
         self.assertIn('row["vote"]=None', enrichment)
