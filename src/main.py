@@ -4823,7 +4823,51 @@ def app_main(page:ft.Page):
                 outcome["ui_refresh_python_timing_ms"]=building_doctor.report(
                     chosen,quotes,chart_snapshots,generation,dhan_feed.connected).get("timings",{})
                 outcome["test_requires_existing_login"]=True
-                report.value=json.dumps(outcome,indent=2,ensure_ascii=False)
+                # Filter inventory is independent from the 5 verified-live
+                # engine slots: show ALL saved indicators together, not 10/15.
+                from v3_compact_doctor import compact_doctor
+                diagnostic_symbol=str(scan_symbol.value or "NIFTY")
+                diagnostic_tf=str(scan_tf.value or "1m")
+                selected_history=(stock_histories.get((diagnostic_symbol,diagnostic_tf,generation))
+                                  or shared_history(diagnostic_symbol,diagnostic_tf) or {})
+                selected_bars=selected_history.get("bars") if isinstance(selected_history,dict) else None
+                from scanner_engine import analyze as diagnostic_analyze
+                from scanner_filter_rows import complete_filter_rows as diagnostic_filter_rows
+                diagnostic_analysis=(diagnostic_analyze(selected_bars,
+                    selected=active_analysis_filters(),timeframe=diagnostic_tf)
+                    if selected_bars and diagnostic_tf in scanner_intervals
+                    else {"reason":"Selected timeframe candles unavailable","votes":[]})
+                diagnostic_rows=enrich_context_filter_rows(diagnostic_symbol,
+                    diagnostic_filter_rows(diagnostic_analysis,filter_selected,filter_modes))
+                outcome["errors_only"]=compact_doctor(
+                    outcome["stock_states"],filter_selected,diagnostic_rows,
+                    scanner_symbol=diagnostic_symbol,scanner_timeframe=diagnostic_tf,
+                    provider_connected=bool(dhan_feed.connected),
+                    quote_status=("UNAVAILABLE" if not building_doctor.valid_quote(
+                        stock_quotes.get(diagnostic_symbol)) else None),
+                    candle_status=("UNAVAILABLE" if not selected_bars else None))
+                # Show just actionable errors; retain full internal diagnostic
+                # calculation/counters without exporting healthy stock records.
+                condensed={
+                    "test":"V3_B147_COMPACT_ERRORS_ONLY",
+                    "selected_equities":outcome["selected_equities"],
+                    "observed_instruments":outcome["observed_instruments"],
+                    "dhan_quote_present":outcome["dhan_quote_present"],
+                    "quote_missing_count":outcome["quote_missing_count"],
+                    "required_history_presence":{
+                        k:outcome["history_presence"].get(k,0) for k in ("1m","3m")},
+                    "all_saved_filter_diagnostic":outcome["errors_only"],
+                    "five_verified_live_filters":outcome["five_live_options_filters"],
+                    "timeframe_default":"1m",
+                    "timeframe_options":["1m","3m","5m","10m","15m","30m"],
+                    "watchlist_timeframe":"3m unchanged",
+                    "elapsed_ms":outcome["elapsed_ms"],
+                    "phone_snapshot_capture_ms":capture_ms,
+                    "sensex_issue":next((row for row in outcome["stock_errors"]
+                        if row.get("symbol")=="SENSEX"),None),
+                    "unconfigured_equity_slots":outcome["unselected_equity_slots"],
+                    "no_provider_requests":True}
+                report.value=json.dumps(condensed,indent=2,ensure_ascii=False)
                 test_status.value=("Capacity test "+str(count)+" equities • "+str(
                     outcome["observed_instruments"])+"/"+str(outcome["requested_instruments"])+
                     " checked • "+str(outcome["stock_error_count"])+
