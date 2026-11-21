@@ -28,5 +28,7 @@ jobs:
         run: bash -n ops/update_clone_b3_gateway_diagnostics_20261121.sh
       - name: Validate guarded Clone candle cache updater syntax
         run: bash -n ops/update_clone_b3_candle_cache_20261121.sh
+      - name: Validate guarded Clone index quote cache updater syntax
+        run: bash -n ops/update_clone_b3_index_quote_cache_20261121.sh
       - name: Joint adapter context and refresh audit
         run: python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
