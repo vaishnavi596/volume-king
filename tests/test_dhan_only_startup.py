@@ -6,6 +6,8 @@ class StartupProviderTests(unittest.TestCase):
     def test_production_data_source_selector_is_dhan_only(self):
         self.assertIn('options=[ft.dropdown.Option("Dhan")]',S)
         self.assertIn('options=[ft.dropdown.Option("Dhan")]',S)
-    def test_legacy_saved_source_remains_available_for_regression_fixtures(self):
-        self.assertIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):',S)
+    def test_legacy_saved_source_is_migrated_to_dhan(self):
+        self.assertIn('if prefs.get("source")!="Dhan":',S)
+        self.assertIn('prefs["source"]="Dhan"',S)
+        self.assertNotIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):',S)
 if __name__=="__main__":unittest.main()
