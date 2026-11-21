@@ -37,3 +37,5 @@ jobs:
         run: echo V3_SIX_FRAME_FULL_FEATURE_PRE_APK_GATE=PASS
 
 # Retest current combined 54/70 feature gate after aligning cache fallback assertions.
+
+# Consolidated release gate after RSS News card link fix and live assessment Doctor.
