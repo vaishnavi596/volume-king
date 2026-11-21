@@ -658,8 +658,10 @@ class MobileRegressionTests(unittest.TestCase):
     def test_candle_analysis_survives_news_failure(self):
         _,v=start({"scanner_live":False,"source":"Dhan","scanner_timeframe":"5m"})
         # Offline authorized session mock: no actual Dhan or RSS request.
-        v["dhan_feed"]._origin="https://example.invalid"
-        v["dhan_feed"]._pairing_key="offline-test-only"
+        v["clone_v2_gateway"]._origin="https://example.invalid"
+        v["clone_v2_gateway"]._key="offline-test-only"
+        v["dhan_feed"]._market_verified=True
+        self.assertTrue(v["dhan_feed"].connected)
         end=int(time.time()//300)*300-300
         bars=[[end-(39-i)*300,100+i,103+i,99+i,102+i,100] for i in range(40)]
         async def respond(fn,*args,**kwargs):
