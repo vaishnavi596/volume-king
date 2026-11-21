@@ -17,3 +17,28 @@ GitHub offline benchmark #44870140640 SUCCESS: 73 instruments (70 equities + 3 i
 
 ## Limits and acceptance
 This is an isolated Building/queue/UI capacity diagnostic, not full production V3 tree or genuine exchange filters. On-device measured call to page.update() submits updates but is not equivalent to Flutter raster completion. Manual acknowledgment includes user response latency. No time claim until phone report. First reproduce baseline bottleneck; then propose one combined B1 fix and repeat comparable phone test. Keep timeframes unchanged until B1 acceptance.
+
+
+## 2026-11-21 IST — Real Android phone screenshots: both 54 and 73 instrument tests
+Owner supplied four phone screenshots from installed separate Capacity Lab APK. Values below are directly transcribed; no extra Android profiler was run.
+
+| Observed metric | 54 instruments (51 equity+3 indices) | 73 instruments (70 equity+3 indices) |
+|---|---:|---:|
+| generate_ms | 120.269 | 70.397 |
+| validate_stock_ms | 4.651 | 5.236 |
+| synthetic_compute_ms | 0.062 | 0.106 |
+| queue_ms | 3.351 | 5.002 |
+| total_python_ms | 128.334 | 80.740 |
+| thread_wall_ms | 129.151 | 84.303 |
+| flet_controls_construct_ms | 7.800 | 12.741 |
+| queued/applied | 512/512 | 512/512 |
+| capacity_rejected | 28/540 | 218/730 |
+| failed | 0 | 0 |
+| flet_submit_until_ack_ms | 875.278 | 1299.306 |
+| test_start_until_ack_ms | 1020.428 | 1409.014 |
+
+### Assessment
+Both screenshot reports display an ACK. Their 1.020428s and 1.409014s intervals end at a **manual tap**, so the times include human interaction/reaction and must NOT be labeled exact Flutter raster/paint. The very small synthetic_compute_ms is dummy price-direction calculation, NOT real five-filter/technical scanner computation. The isolated apply queue rejected 28 and 218 updates because its current max_pending=512, even though Flet rows are independently created for all 54 or 73 stock records. Thus this is a **test queue failure, not proven production missing UI rows**. No live feed or server involved. Different generation_ms with larger sample is expected from one-shot timing variability; no p95 inferred.
+
+### Next action
+B1 first: preserve full authoritative per-symbol/per-timeframe candle stock independent of UI hint queue; stage backlog/backpressure or drain batches without losing completed candles; test exact 540/730 key acceptance/application, revisions, completion, error retry, and 1–4 device offline runs before production integration. B2 timeframe implementation deferred. Do not claim V3 Building capacity is 1.409s as a full production UI benchmark.
