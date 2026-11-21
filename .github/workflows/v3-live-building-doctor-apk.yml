@@ -1,5 +1,5 @@
 name: BOT KING V3 Full Live Doctor Phone APK
-run-name: V3 full real-cache 54 and 70 share Phone Doctor B141
+run-name: V3 full real-cache stock ERROR Doctor Phone APK B142
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
@@ -9,6 +9,8 @@ on:
       - .github/workflows/v3-live-building-doctor-apk.yml
       - src/main.py
       - src/v3_live_capacity_probe.py
+      - src/v3_stock_diagnostics.py
+      - tests/test_v3_stock_diagnostics.py
       - src/v3_building_doctor.py
       - tests/test_v3_live_capacity_probe.py
   workflow_dispatch:
@@ -102,8 +104,9 @@ jobs:
         env:
           PYTHONPATH: src
         run: |
-          python -m py_compile src/main.py src/v3_building_doctor.py src/v3_live_capacity_probe.py src/clone_day2_apply_queue.py
+          python -m py_compile src/main.py src/v3_building_doctor.py src/v3_live_capacity_probe.py src/v3_stock_diagnostics.py src/clone_day2_apply_queue.py
           python -m unittest discover -s tests -p 'test_v3_live_capacity_probe.py' -v
+          python -m unittest discover -s tests -p 'test_v3_stock_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_v3_live_building_doctor.py' -v
           python -m unittest discover -s tests -p 'test_v3_b1_bounded_burst.py' -v
       - name: Create isolated phone-test signing certificate
@@ -127,7 +130,7 @@ jobs:
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
           printf "BUILD_VERSION = '2.3.138'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v3-live-doctor"
-          flet build apk --project bot_king_v3_doctor --org com.botking.v3live --product "BOT KING V3 LIVE DOCTOR TEST" --build-number 141 --build-version 2.3.138 --output "$GITHUB_WORKSPACE/dist/v3-live-doctor" --verbose
+          flet build apk --project bot_king_v3_doctor --org com.botking.v3live --product "BOT KING V3 LIVE DOCTOR TEST" --build-number 142 --build-version 2.3.138 --output "$GITHUB_WORKSPACE/dist/v3-live-doctor" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -139,7 +142,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3live\\.bot_king_v3_doctor' versionCode='141' versionName='2\\.3\\.138'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3live\\.bot_king_v3_doctor' versionCode='142' versionName='2\\.3\\.138'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 LIVE DOCTOR TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
@@ -149,7 +152,7 @@ jobs:
       - name: Upload V3 full live Building Doctor phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-V3-REAL-CACHE-54-70-LIVE-DOCTOR-B141-APK
+          name: BOT-KING-V3-REAL-CACHE-54-70-LIVE-DOCTOR-B142-APK
           path: dist/v3-live-doctor/**/*.apk
           if-no-files-found: error
           retention-days: 14
