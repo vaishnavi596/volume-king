@@ -615,7 +615,7 @@ def app_main(page:ft.Page):
                     raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
                 if ticker not in DHAN_VERIFIED_SYMBOLS:
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
-                if interval not in ("1m","2m","3m","5m","15m","1h"):
+                if interval not in ("1m","2m","3m","5m","10m","15m","30m","1h"):
                     raise FeedError("Dhan chart interval not verified: "+str(interval))
                 from datetime import timedelta
                 today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
@@ -623,7 +623,7 @@ def app_main(page:ft.Page):
                 # Dhan provides a verified 1m candle input. Derive 3m only
                 # from three consecutive, completed 1m rows; do not request
                 # a fictitious 3m provider interval or use Yahoo fallback.
-                source_interval="1m" if interval in ("2m","3m") else interval
+                source_interval=("1m" if interval in ("2m","3m") else "5m" if interval=="10m" else "15m" if interval=="30m" else interval)
                 candle_result=dhan_feed.intraday(ticker,{"1m":1,"5m":5,"15m":15,"1h":60}[source_interval],start,today)
                 if interval=="2m":
                     from dhan_two_minute import completed_two_minute_bars
@@ -631,6 +631,9 @@ def app_main(page:ft.Page):
                 elif interval=="3m":
                     from dhan_three_minute import completed_three_minute_bars
                     bars=completed_three_minute_bars(candle_result["bars"],now_epoch=time.time())
+                elif interval in ("10m","30m"):
+                    from dhan_multi_timeframe import completed_derived_bars
+                    bars=completed_derived_bars(candle_result["bars"],interval,now_epoch=time.time())
                 else:
                     bars=clean_bars(candle_result["bars"])
                 if not bars:raise FeedError("Dhan returned no verified completed "+str(interval)+" candles")
@@ -717,7 +720,7 @@ def app_main(page:ft.Page):
         specs={
             "1m":(60,375,"3–10 minutes"),"2m":(120,187.5,"4–15 minutes"),
             "3m":(180,125,"6–20 minutes"),
-            "5m":(300,75,"10–30 minutes"),"15m":(900,25,"30–60 minutes"),
+            "5m":(300,75,"10–30 minutes"),"10m":(600,37.5,"20–60 minutes"),"15m":(900,25,"30–60 minutes"),
             "30m":(1800,12.5,"1–2 hours"),"1h":(3600,7,"1–3 hours"),
             "1d":(86400,1,"1 trading day")}
         seconds,bars_per_day,horizon=specs[interval]
@@ -2451,7 +2454,7 @@ def app_main(page:ft.Page):
                 note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed")]),
             watch_list]
     symbol=ft.Dropdown(label="Symbol",value=prefs.get("chart_symbol","NIFTY"),options=[ft.dropdown.Option(x) for x in selection_symbols()],expand=True)
-    timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m") if prefs.get("chart_timeframe","5m") in ("1m","2m","3m","5m","15m","1h") else "5m",options=[ft.dropdown.Option(x) for x in ["1m","2m","3m","5m","15m","1h"]],width=120)
+    timeframe=ft.Dropdown(label="Timeframe",value=prefs.get("chart_timeframe","5m") if prefs.get("chart_timeframe","5m") in ("1m","2m","3m","5m","10m","15m","30m","1h") else "5m",options=[ft.dropdown.Option(x) for x in ["1m","2m","3m","5m","10m","15m","30m","1h"]],width=120)
     ema=ft.Switch(label="EMA 20 / 50",value=bool(prefs.get("chart_ema",True)),active_color=GREEN)
     vwap=ft.Switch(label="VWAP",value=bool(prefs.get("chart_vwap",True)),active_color=GREEN)
     rsi=ft.Switch(label="RSI",value=bool(prefs.get("chart_rsi",False)),active_color=GREEN)
@@ -4636,8 +4639,8 @@ def app_main(page:ft.Page):
     scan_max=ft.TextField(label="Custom maximum (₹)",value=str(prefs.get("scanner_max","500")),keyboard_type=ft.KeyboardType.NUMBER)
     scan_period=ft.Dropdown(label="Period",value=prefs.get("scanner_period","7d"),options=[ft.dropdown.Option(v) for v in ["7d","1mo","3mo"]])
     # Only expose intervals that the active Dhan gateway can actually fetch.
-    scanner_intervals=(["1m","2m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"
-                       else ["1m","3m","5m","15m","30m","1h","1d"])
+    scanner_intervals=(["1m","2m","3m","5m","10m","15m","30m","1h"] if prefs.get("source","Dhan")=="Dhan"
+                       else ["1m","3m","5m","10m","15m","30m","1h","1d"])
     saved_scanner_tf=prefs.get("scanner_timeframe","1m")
     if saved_scanner_tf not in scanner_intervals:
         saved_scanner_tf="1m"
@@ -5047,7 +5050,7 @@ console.log('BOT KING Lightweight Charts ready');
         The default stays 5m for existing Super Five / Watchlist consumers.
         Additional 1m/3m callers cannot borrow the unlabeled 5m quote history.
         """
-        if tf not in ("1m","2m","3m","5m","15m","1h"):
+        if tf not in ("1m","2m","3m","5m","10m","15m","30m","1h"):
             return {}
         expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
         candidates=[chart_snapshots.get((sym,tf,provider_generation[0])) or {}]
@@ -5114,6 +5117,24 @@ console.log('BOT KING Lightweight Charts ready');
                         saved[1],historical=True,live_verified=False,
                         freshness="historical_unverified",cached=True,
                         _candle_retained=True))
+        # 10m and 30m are built only from their exact existing 5m/15m
+        # matching-generation Dhan histories; no hidden broker requests.
+        if tf in ("10m","30m") and not candidates and expected=="Dhan":
+            base_tf="5m" if tf=="10m" else "15m"
+            sources=[chart_snapshots.get((sym,base_tf,provider_generation[0])) or {}]
+            if (scanner_data.get("_scanner_generation")==scan_generation[0]
+                    and scanner_data.get("_scanner_timeframe")==base_tf):
+                sources.append(scanner_data)
+            sources=[item for item in sources if item.get("source")=="Dhan"
+                     and item.get("_scanner_timeframe")==base_tf and item.get("bars")]
+            if sources:
+                from dhan_multi_timeframe import completed_derived_bars
+                source=max(sources,key=lambda item:len(item.get("bars") or []))
+                completed=completed_derived_bars(source["bars"],tf,now_epoch=time.time())
+                if completed:
+                    candidates.append(dict(source,bars=[list(row) for row in completed],
+                                           _scanner_timeframe=tf,historical=True,
+                                           live_verified=False,freshness="historical_unverified"))
         def revision_order(item):
             bars=item.get("bars") or []
             last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
