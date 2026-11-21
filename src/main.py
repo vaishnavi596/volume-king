@@ -4713,7 +4713,7 @@ def app_main(page:ft.Page):
                         or "access" in error.lower()
                         else "CANDLE_REQUEST_UNAVAILABLE")
                     output["candle_error_type"]=type(exc).__name__
-                    output["candle_error_code"]=output["candle_1m_probe"
+                    output["candle_error_code"]=output["candle_1m_probe"]
                 output["stages"]["quote"]=output["quote_probe"]
                 output["stages"]["history"]=output["candle_1m_probe"]
                 if current[0] in (0,3,4,5):
@@ -4752,16 +4752,65 @@ def app_main(page:ft.Page):
         symbols=list(all_watch_symbols())
         state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
                                      connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
-        report=ft.Text(json.dumps(state,indent=2,ensure_ascii=False),size=10,selectable=True)
-        test_status=ft.Text("Login first; choose a cache-only 54 or 70-share test.",size=11,color=GOLD)
+        report=ft.Text("Refresh Diagnostics first • no stale pre-login report.",size=10,selectable=True)
+        test_status=ft.Text("Login, then tap REFRESH DIAGNOSTICS before TEST 54/70.",size=11,color=GOLD)
         busy=[False]
-        def check_again(e):
-            updated=building_doctor.report(list(all_watch_symbols()),quotes,chart_snapshots,provider_generation[0],
-                                           connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
-            report.value=json.dumps(updated,indent=2,ensure_ascii=False)
+        refreshed=[None]
+        async def check_again(e):
+            if busy[0]:return
+            busy[0]=True
+            refreshed[0]=None
+            generation=provider_generation[0]
+            report.value="REFRESH IN PROGRESS • previous diagnostic result invalidated."
+            test_status.value="Checking current Dhan session, quote routes and cooldown..."
             report.update()
+            test_status.update()
+            try:
+                if not dhan_feed.connected or prefs.get("source")!="Dhan":
+                    test_status.value="REFRESH BLOCKED • current Dhan login required."
+                    return
+                if (watch_batch_busy[0] or index_refresh_busy[0]):
+                    test_status.value="REFRESH BLOCKED • active quote worker; retry when idle."
+                    return
+                # Reuse existing explicit refresh throttle and two independent
+                # Dhan routes; do not fan out 54/70 broker requests.
+                clock_before=manual_quote_last_attempt[0]
+                await refresh_all_dhan_quotes()
+                if generation!=provider_generation[0] or not dhan_feed.connected:
+                    test_status.value="REFRESH INVALID • session changed; login again."
+                    return
+                if manual_quote_last_attempt[0]==clock_before:
+                    test_status.value="REFRESH DEFERRED • provider cooldown; retry later."
+                    return
+                refreshed[0]=(generation,time.monotonic())
+                report.value=json.dumps({
+                    "test":"V3_B147_REFRESH_READY",
+                    "quote_path":"Dhan → Oracle Clone Gateway → phone cache",
+                    "quote_status":str(watch_batch_status[0])[:160],
+                    "index_status":str(display_failures.get("dhan_index_ltp_batch","") or "NO_ACTIVE_ERROR")[:160],
+                    "refresh_source":"EXPLICIT_USER_TAP",
+                    "next_step":"Now run TEST 54 or TEST 70 • local cache only",
+                    "source_live_verified":False,
+                    "orders_sent":0},indent=2,ensure_ascii=False)
+                test_status.value="REFRESH ATTEMPT COMPLETE • TEST 54/70 enabled for this login."
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("v3_diagnostic_refresh",exc)
+                test_status.value="REFRESH FAILED • "+type(exc).__name__
+            finally:
+                report.update()
+                test_status.update()
+                busy[0]=False
         async def run_cached_test(e,count):
             if busy[0]:return
+            # Do not reuse a report from an earlier login/provider generation
+            # or from before the user explicitly pressed Diagnostics Refresh.
+            if (refreshed[0] is None or refreshed[0][0]!=provider_generation[0]
+                    or not dhan_feed.connected or prefs.get("source")!="Dhan"):
+                test_status.value="Tap REFRESH DIAGNOSTICS after Dhan login before TEST 54/70."
+                test_status.update()
+                return
             busy[0]=True
             building_doctor.milestone("cached_test_clicked")
             test_status.value="Measuring existing cache for "+str(count)+" equities • no Dhan request..."
@@ -4915,13 +4964,13 @@ def app_main(page:ft.Page):
                 busy[0]=False
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
             note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
-            note("These buttons inspect existing cache and run real chart/scanner technical code. No new Dhan requests, orders or full-page rebuild."),
+            note("Tap REFRESH DIAGNOSTICS first: one paced explicit quote refresh through current Dhan/Oracle session. Then TEST 54/70 are cache-only; no full-page rebuild."),
             ft.Row([
                 ft.OutlinedButton("TEST 54 (51+3)",on_click=lambda e:page.run_task(run_cached_test,e,51)),
                 ft.OutlinedButton("TEST 70 SHARES (+3 indices)",on_click=lambda e:page.run_task(run_cached_test,e,70))
             ],wrap=True),
             test_status,
-            ft.OutlinedButton("Refresh Building Doctor (local only)",on_click=check_again),
+            ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST 54/70",on_click=lambda e:page.run_task(check_again,e)),
             report,
             note("Times are Python processing only; Flutter pixels and verified live option filters are not measured.")],spacing=4))
     def settings():
