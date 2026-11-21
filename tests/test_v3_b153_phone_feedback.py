@@ -27,7 +27,7 @@ class V3B153PhoneFeedbackTests(unittest.TestCase):
         saved=["EMA 9/21","PCR"] if "PCR" in ALL_FILTERS else ["EMA 9/21","Max Pain"]
         _,v=start({"scanner_live":False,"scanner_filters":saved,
                    "default_ten_migrated":True})
-        self.assertEqual(v["filter_selected"],saved)
+        self.assertEqual(v["filter_selected"],["Dhan Max Pain" if name=="Max Pain" else name for name in saved])
 
     def test_doctor_refresh_state_persists_and_has_timeout(self):
         area=MAIN.split("    def v3_live_building_panel():",1)[1].split("    def settings():",1)[0]
