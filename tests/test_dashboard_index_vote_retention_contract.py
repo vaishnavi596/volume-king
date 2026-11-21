@@ -75,7 +75,7 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         body=self.functions["filter_coverage_panel"]
         self.assertIn('len(filter_selected)',body)
         self.assertIn('"OI Support","OI Resistance","OI Profile"',body)
-        self.assertIn('"Max Pain","News Headlines"',body)
+        self.assertIn('"Dhan Max Pain","News Headlines"',body)
         self.assertIn('external evidence WAIT ',body)
         self.assertIn("indexes 1m / equities 5m",body)
 
