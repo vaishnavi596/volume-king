@@ -2361,6 +2361,7 @@ def app_main(page:ft.Page):
                               now_epoch-e.timestamp>300) for e in engines)
         return quote_stale,signal_stale,five_stale
 
+    watch_3m_tick_profile={"sample_count":0,"last_ms":None,"max_ms":None,"last_symbols":0}
     async def watch_visible_tick():
         # Local 2s observation does NOT call Dhan or reconstruct the entire page.
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
@@ -2380,7 +2381,14 @@ def app_main(page:ft.Page):
             try:
                 visible=tuple(watch_groups[active_watch[0]])
                 # Reuse the same analyzed 3m result across signatures and row repaint.
+                tick_started=time.perf_counter()
                 tick_signals={sym:watch_three_minute_signal(sym) for sym in visible}
+                signal_ms=round((time.perf_counter()-tick_started)*1000,2)
+                watch_3m_tick_profile["sample_count"]+=1
+                watch_3m_tick_profile["last_ms"]=signal_ms
+                watch_3m_tick_profile["max_ms"]=max(
+                    signal_ms,watch_3m_tick_profile["max_ms"] or 0)
+                watch_3m_tick_profile["last_symbols"]=len(visible)
                 signature=(active_watch[0],watch_filter[0],search.value,
                     tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                            (quotes.get(sym) or {}).get("price"),
@@ -5075,7 +5083,9 @@ def app_main(page:ft.Page):
                         "warmup_busy":bool(watch_three_minute_warm_busy[0]),
                         "refresh_speed_diagnosis":"3m source candle waits for bounded warmup; 2s UI tick is not 2s provider polling",
                         "data_priority":"Only selected/current list should be prioritized; do not fan out 70",
-                        "ui_signal_reuse":"A single 3m analysis per symbol per 2s tick; price and age flags reuse the analyzed result"},
+                        "ui_signal_reuse":"A single 3m analysis per symbol per 2s tick; price and age flags reuse the analyzed result",
+                        "mounted_3m_signal_tick_performance":dict(watch_3m_tick_profile),
+                        "performance_scope":"Local 3m signal selection/analysis only; not Dhan request latency or Flutter repaint"},
 
                     "CANDLE_TIMEFRAMES":{
                         "cache_by_timeframe":candle_counts,
