@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.193" # V3 B193 app-wide adapter Doctor, Paper PnL, last Chart filters/cache, Android versionCode 193
+version = "2.3.194" # V3 B194 unified Paper/Live-locked selector and adapter Doctor, Android versionCode 194
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
