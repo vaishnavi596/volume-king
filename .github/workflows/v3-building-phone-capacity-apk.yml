@@ -5,6 +5,8 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-building-phone-capacity-apk.yml
+      - src/clone_day2_apply_queue.py
+      - diagnostics/v3_building_phone_capacity.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,7 +62,7 @@ jobs:
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
           cp diagnostics/v3_building_phone_capacity.py src/main.py
           mkdir -p dist/v3-capacity
-          flet build apk --project bot_king_v3_capacity_lab --org com.botking.v3capacity --product "BOT KING V3 CAPACITY LAB" --build-number 1 --build-version 3.0.1 --output "$GITHUB_WORKSPACE/dist/v3-capacity" --verbose
+          flet build apk --project bot_king_v3_capacity_lab --org com.botking.v3capacity --product "BOT KING V3 CAPACITY LAB" --build-number 2 --build-version 3.0.2 --output "$GITHUB_WORKSPACE/dist/v3-capacity" --verbose
       - name: Verify APK package identity and signing
         run: |
           set -euo pipefail
@@ -78,7 +80,7 @@ jobs:
       - name: Upload standalone installable diagnostic APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-V3-OFFLINE-BUILDING-CAPACITY-PHONE-APK
+          name: BOT-KING-V3-B1-BOUNDED-QUEUE-CAPACITY-PHONE-APK
           path: dist/v3-capacity/**/*.apk
           retention-days: 14
           if-no-files-found: error
