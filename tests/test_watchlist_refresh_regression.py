@@ -97,7 +97,8 @@ class WatchlistRefreshRegression(unittest.TestCase):
         # high, low or volume; a timestamp-only identity would retain stale votes.
         body=self.source.split("    def watch_three_minute_signal(sym):",1)[1].split(
             "    def refresh_shared_analysis(",1)[0]
-        self.assertIn("tuple(completed[-1]),len(completed)",body)
+        self.assertIn("recent_three=tuple(tuple(row) for row in completed[-4:])",body)
+        self.assertIn("identity=context+(recent_three,len(completed)",body)
         self.assertNotIn('completed[-1][0],len(completed),data.get("candle_fetched_at")',body)
         self.assertIn('result=analyze(quality["bars"],selected,"3m")',body)
 
