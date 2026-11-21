@@ -36,7 +36,8 @@ class HelpQualityTests(unittest.TestCase):
         v['angel_feed'].key='test';v['angel_feed'].token='test'
         self.assertIn('उपलब्ध नहीं',v['help_status']('OI Analysis'))
         v['option_feed'].update(symbol=v['chain_symbol'].value,expiry=v['expiry'].value,rows=[{'timestamp':1}])
-        self.assertIn('पुराने',v['help_status']('OI Analysis'))
+        # Legacy Angel snapshot must never be treated as verified Dhan option evidence.
+        self.assertIn('Verified option डेटा अभी उपलब्ध नहीं',v['help_status']('OI Analysis'))
         self.assertIn('9',describe('PCR'))
     def test_wrap_fields_have_bounded_help_wrappers(self):
         _,v=start({'scanner_live':False})
