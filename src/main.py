@@ -4832,7 +4832,7 @@ def app_main(page:ft.Page):
                                   or shared_history(diagnostic_symbol,diagnostic_tf) or {})
                 selected_bars=selected_history.get("bars") if isinstance(selected_history,dict) else None
                 from scanner_engine import analyze as diagnostic_analyze
-                from scanner_filter_rows import complete_filter_rows as diagnostic_filter_rows
+                diagnostic_filter_rows=complete_filter_rows
                 diagnostic_analysis=(diagnostic_analyze(selected_bars,
                     selected=active_analysis_filters(),timeframe=diagnostic_tf)
                     if selected_bars and diagnostic_tf in scanner_intervals
