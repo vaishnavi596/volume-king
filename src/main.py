@@ -5428,6 +5428,7 @@ console.log('BOT KING Lightweight Charts ready');
         active=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
         if (active.get("symbol")==sym and active.get("source")=="dhan"
                 and active.get("expiry")==expiry.value
+                and (generation,sym,expiry.value) in dhan_option_context_cache
                 and active.get("signal_eligible") is False):
             return active
         for (gen,underlying,listed),data in reversed(list(dhan_option_context_cache.items())):
