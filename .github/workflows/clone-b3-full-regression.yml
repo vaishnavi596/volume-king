@@ -126,3 +126,5 @@ jobs:
 # B157 end-to-end wiring: 1m last-2-4 OHLCV edits → derived 3m cache → Watchlist votes.
 
 # B158 full wiring gate: update prior final-only Watchlist identity assertion to last-four OHLCV.
+
+# B159: Dhan upstream exact safe category carried to Clone quote/candle stage logs, no secrets.
