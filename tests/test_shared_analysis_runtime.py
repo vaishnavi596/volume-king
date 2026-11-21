@@ -31,7 +31,7 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
             self.assertTrue(all(row["symbol"] in v["watch_symbols"] for row in v["top5_candidates"]))
             rows, counts = v["analysis_audit"].coverage(DHAN_VERIFIED_SYMBOLS)
             self.assertEqual(counts["ANALYZED"], 54)
-            self.assertTrue(all(r["available_filters"] == 10 for r in rows))
+            self.assertTrue(all(r["available_filters"] == 17 for r in rows))
             self.assertTrue(all(r["historical"] for r in v["watch_signal_cache"].values()))
             before = {r["symbol"]: r["received_at"] for r in rows}
             v["refresh_shared_analysis"]()
