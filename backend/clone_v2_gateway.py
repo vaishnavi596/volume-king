@@ -138,7 +138,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 or stage not in ("provider", "shape", "mapping", "validation", "cooldown")
                 or category not in ("missing_segment", "missing_security_id",
                                     "invalid_price", "invalid_shape", "invalid_bars",
-                                    "rate_limited", "auth_unavailable", "upstream_error")):
+                                    "rate_limited", "auth_unavailable", "upstream_error",
+                                    "upstream_http_4xx", "upstream_http_5xx",
+                                    "upstream_transport", "upstream_payload",
+                                    "upstream_rejection")):
             return
         DIAGNOSTIC_LOGGER.warning(
             "clone_market_diagnostic route=%s symbol=%s stage=%s category=%s",
@@ -399,7 +402,11 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 elif isinstance(exc, DhanRateLimitError):
                     category="rate_limited"
                 else:
-                    category="upstream_error"
+                    category=getattr(exc, "category", "upstream_error")
+                    if category not in ("upstream_http_4xx", "upstream_http_5xx",
+                                        "upstream_transport", "upstream_payload",
+                                        "upstream_rejection", "upstream_error"):
+                        category="upstream_error"
                 for sym in symbols:
                     market_diagnostic("quotes", sym, "provider", category)
                 if category=="auth_unavailable":
@@ -507,7 +514,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 category=("rate_limited" if isinstance(exc, DhanRateLimitError)
                           else "auth_unavailable" if isinstance(exc, DhanFeedError)
                           and "token expired or data access not entitled" in str(exc)
-                          else "upstream_error")
+                          else getattr(exc, "category", "upstream_error"))
+                if category not in ("rate_limited", "auth_unavailable",
+                                    "upstream_http_4xx", "upstream_http_5xx",
+                                    "upstream_transport", "upstream_payload",
+                                    "upstream_rejection", "upstream_error"):
+                    category="upstream_error"
                 market_diagnostic("candles", body.symbol, "provider", category)
                 provider_read_error(exc, "Clone Dhan candles unavailable")
             try:
