@@ -4581,7 +4581,7 @@ def app_main(page:ft.Page):
             generation=provider_generation[0]
             old=quotes.get("SENSEX") or {}
             output={
-                "test":"SENSEX_FULL_DIAG_B143",
+                "test":"SENSEX_END_TO_END_B147",
                 "mode":"EXPLICIT_READ_ONLY",
                 "instrument":{"symbol":"SENSEX","segment":"BSE_I","security_id":51},
                 "provider_generation":generation,
@@ -4596,6 +4596,10 @@ def app_main(page:ft.Page):
                     shared_history("SENSEX","3m").get("bars"))),
                 "quote_probe":"NOT_ATTEMPTED",
                 "candle_1m_probe":"NOT_ATTEMPTED",
+                "stages":{"mapping":"BSE_I/51 CONFIGURED",
+                          "gateway":"CONNECTED" if clone_v2_gateway.connected else "DISCONNECTED",
+                          "quote":"NOT_ATTEMPTED","history":"NOT_ATTEMPTED",
+                          "phone_cache":"NOT_ATTEMPTED"},
                 "source_verified_live":False,
                 "orders_sent":0,
             }
@@ -4615,8 +4619,10 @@ def app_main(page:ft.Page):
                 # Opt-in probe stays independent of a whole 51-share scan.
                 # Never overwrite last-good stock or mark historical as live.
                 try:
+                    quote_started=time.perf_counter()
                     quote=await asyncio.wait_for(
                         asyncio.to_thread(dhan_feed.quote,"SENSEX"),timeout=25)
+                    output["quote_request_ms"]=round((time.perf_counter()-quote_started)*1000,2)
                     if generation!=provider_generation[0]:
                         output["diagnosis"]="LOGIN_CHANGED"
                         return
@@ -4626,6 +4632,14 @@ def app_main(page:ft.Page):
                             and math.isfinite(price) and price>0):
                         output["quote_probe"]="VALID_DHAN_QUOTE_UNVERIFIED_TIME"
                         output["quote_value"]=round(float(price),2)
+                        # Repair the verified same-session PHONE cache when the
+                        # special SENSEX quote path succeeds; never fake an LTP.
+                        previous=quotes.get("SENSEX") or {}
+                        quotes["SENSEX"]=dict(quote,price=float(price),source="Dhan",
+                            bars=previous.get("bars",[]),fetched_at=time.time(),
+                            quote_timestamp=None,freshness="unverified",
+                            live_verified=False)
+                        output["stages"]["phone_cache"]="SENSEX_QUOTE_PUBLISHED_UNVERIFIED"
                     else:
                         output["quote_probe"]="INVALID_QUOTE_SHAPE_OR_PRICE"
                 except asyncio.CancelledError:
@@ -4639,6 +4653,7 @@ def app_main(page:ft.Page):
                         or "access" in error.lower() or "session rejected" in error.lower()
                         else "QUOTE_REQUEST_UNAVAILABLE")
                     output["quote_error_type"]=type(exc).__name__
+                    output["quote_error_code"]=output["quote_probe"]
                 if generation!=provider_generation[0]:
                     output["diagnosis"]="LOGIN_CHANGED"
                     return
@@ -4658,10 +4673,13 @@ def app_main(page:ft.Page):
                     output["diagnosis"]="LOGIN_CHANGED"
                     return
                 try:
-                    start=(date.today()-timedelta(days=4)).isoformat()
-                    end=date.today().isoformat()
+                    ist_today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
+                    start=(ist_today-timedelta(days=4)).isoformat()
+                    end=ist_today.isoformat()
+                    history_started=time.perf_counter()
                     history=await asyncio.wait_for(asyncio.to_thread(
                         dhan_feed.intraday,"SENSEX",1,start,end),timeout=30)
+                    output["candle_request_ms"]=round((time.perf_counter()-history_started)*1000,2)
                     if generation!=provider_generation[0]:
                         output["diagnosis"]="LOGIN_CHANGED"
                         return
@@ -4670,6 +4688,16 @@ def app_main(page:ft.Page):
                     elif valid_candle_history(history.get("bars")):
                         output["candle_1m_probe"]="VALID_HISTORICAL_CANDLES"
                         output["candle_count"]=len(history["bars"])
+                        # Publish only source-validated historical 1m candles,
+                        # retaining independently sourced index quote unchanged.
+                        prior=shared_history("SENSEX","1m")
+                        valid=dict(source="Dhan",bars=clean_bars(history["bars"]),
+                            _scanner_timeframe="1m",candle_fetched_at=time.time(),
+                            fetched_at=time.time(),freshness="historical_unverified",
+                            historical=True,live_verified=False)
+                        kept=retain_candle_history(valid,prior,provider="Dhan")
+                        chart_snapshots[("SENSEX","1m",generation)]=kept
+                        output["stages"]["phone_cache"]="SENSEX_HISTORY_1M_PUBLISHED_HISTORICAL"
                     elif history.get("bars")==[]:
                         output["candle_1m_probe"]="EMPTY_BROKER_HISTORY"
                     else:
@@ -4685,6 +4713,11 @@ def app_main(page:ft.Page):
                         or "access" in error.lower()
                         else "CANDLE_REQUEST_UNAVAILABLE")
                     output["candle_error_type"]=type(exc).__name__
+                    output["candle_error_code"]=output["candle_1m_probe"
+                output["stages"]["quote"]=output["quote_probe"]
+                output["stages"]["history"]=output["candle_1m_probe"]
+                if current[0] in (0,3,4,5):
+                    request_view_refresh(current[0])
                 output["diagnosis"]=(
                     "QUOTE_AND_HISTORY_AVAILABLE_CHECK_UI_ADAPTER" if
                     output["quote_probe"]=="VALID_DHAN_QUOTE_UNVERIFIED_TIME" and
