@@ -74,6 +74,26 @@ class SmartApplyQueueTests(unittest.TestCase):
         self.assertEqual(len(applied), 70)
         self.assertEqual(q.health()["pending"], 0)
 
+    def test_priority_fifo_inside_same_section(self):
+        q = SmartApplyQueue()
+        for sym in ("AAA", "BBB", "CCC"):
+            self.assertTrue(q.receive(self.sample(symbol=sym)))
+        self.assertEqual([u.symbol for u in q.apply_tick(3).applied],
+                         ["AAA", "BBB", "CCC"])
+
+    def test_diagnostics_are_bounded(self):
+        q = SmartApplyQueue(max_pending=1)
+        q.receive(self.sample())
+        for i in range(180):
+            self.assertFalse(q.receive(self.sample(symbol=f"OTHER{i}")))
+        self.assertLessEqual(len(q.diagnostics), 100)
+        self.assertEqual(q.health()["pending"], 1)
+
+    def test_boolean_revision_is_invalid(self):
+        q = SmartApplyQueue()
+        self.assertFalse(q.receive(self.sample(revision=True)))
+        self.assertEqual(q.health()["issues"][-1]["code"], "INVALID_UPDATE")
+
     def test_zero_budget_does_not_apply(self):
         q = SmartApplyQueue()
         q.receive(self.sample())
