@@ -1,6 +1,10 @@
 # BOT KING — Documentation & Journal Category Index
 
-**First for new chats:** [BOT_KING_LIVE_WORK_INDEX.md](BOT_KING_LIVE_WORK_INDEX.md) — concise previous work, current task, next safe step and latest evidence. Keep one Live Index and one chronological Work Log, not duplicate full reports.\n\n**Canonical entry point:** This index groups BOT KING reports by purpose, not by date. As-of 2026-11-18. Use the newest evidence in the active journal over historical checkpoints. This index is a navigation/consolidation pass, **not permission to delete historical CI, rollback, auth or test evidence**.
+**First for new chats:** [BOT_KING_LIVE_WORK_INDEX.md](BOT_KING_LIVE_WORK_INDEX.md) — concise previous work, current task, next safe step and latest evidence. Keep one Live Index and one chronological Work Log, not duplicate full reports.
+
+**SUDHAR 1 three permanent rules:** [AGENTS.md](../AGENTS.md) (four-gate DATA/PIPE/STOCK/IMPACT, all affected downstream repairs and segment Test APK, mandatory canonical logbook). The [Live Work Index](BOT_KING_LIVE_WORK_INDEX.md) contains only the active handoff; the historical full index remains at [immutable 542468d revision](https://github.com/vaishnavi596/volume-king/blob/542468d888d9badc97f520941b56f8236163ea1b/docs/BOT_KING_LIVE_WORK_INDEX.md).
+
+**Canonical entry point:** This index groups BOT KING reports by purpose, not by date. As-of 2026-11-18. Use the newest evidence in the active journal over historical checkpoints. This index is a navigation/consolidation pass, **not permission to delete historical CI, rollback, auth or test evidence**.
 
 ## Workflow: where new evidence must go
 
