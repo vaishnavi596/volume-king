@@ -183,9 +183,10 @@ def scanner_snapshot(scan_result):
             # data gap into a bullish, bearish or neutral confirmation.
             unavailable = {"OI Support", "OI Resistance", "OI Profile",
                            "Max Pain", "News Headlines", "VWAP", "Volume"}
-            detail = vote.get("detail")
-            if (name.strip() not in unavailable or not isinstance(detail, str)
-                    or not detail.strip().upper().startswith(("WAIT", "UNAVAILABLE"))):
+            # Context enrichment can replace the literal WAIT text with
+            # Dhan expiry/OI details. Only an explicitly known data-dependent
+            # filter may remain unavailable; never infer its direction.
+            if name.strip() not in unavailable:
                 return compose_snapshot()
             continue
         if type(direction) is not int or direction not in (-1, 0, 1):
