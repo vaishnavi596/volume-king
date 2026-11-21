@@ -118,3 +118,5 @@ jobs:
 # B153 joint gate: owner phone hangs, persistent Doctor, 17 fresh filters, 1m/3m source safety.
 
 # B154 full offline check: 17 initial filters + 18th available, 1m boot, Doctor/Options navigation.
+
+# B155 1508+ full gate: true available vs unavailable filter counts; SENSEX quote-stage typed evidence.
