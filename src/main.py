@@ -4822,6 +4822,17 @@ def app_main(page:ft.Page):
                               and all(type(v) in (int,float) and math.isfinite(v)
                                       for v in c[:6])]
                 diagnostic_context["last_eight_raw_ohlcv"]=quality_rows
+                # Exact eight-bar nonzero constant-volume pattern is unusual
+                # enough to review, but NOT proof of source corruption.
+                quality_timestamps=[int(c[0]) for c in quality_rows]
+                constant_volume_last_eight=(
+                    len(last_eight)==8 and len(quality_rows)==8 and
+                    all(c[5]==quality_rows[0][5] for c in quality_rows) and
+                    quality_rows[0][5]>0 and
+                    all(quality_timestamps[i]<quality_timestamps[i+1]
+                        for i in range(7)))
+                diagnostic_context["last_eight_constant_nonzero_volume"]=(
+                    constant_volume_last_eight)
                 valid_volume_rows=[c[5] for c in bars[-20:]
                                    if isinstance(c,(list,tuple)) and len(c)>=6
                                    and type(c[5]) in (int,float) and
@@ -4837,6 +4848,8 @@ def app_main(page:ft.Page):
                 diagnostic_context["candle_quality_flags"]=(
                     (["DOJI_DOMINATED_LAST_EIGHT"] if len(last_eight)==8
                      and last_bodies["doji"]>=6 else [])+
+                    (["CONSTANT_NONZERO_VOLUME_LAST_EIGHT_REVIEW"] if
+                     constant_volume_last_eight else [])+
                     (["VOLUME_RATIO_OUTLIER_REVIEW"] if volume_ratio is not None
                      and (volume_ratio<0.1 or volume_ratio>10) else [])+
                     (["HISTORICAL_CANDLE_AGE_REVIEW"] if
