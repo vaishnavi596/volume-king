@@ -37,7 +37,7 @@ def classify_stock(symbol, quote, histories, generation):
         faults.append("DATA_INCOMPLETE")
     elif quote.get("source")!="Dhan" or type(p) not in (int,float) or not math.isfinite(p) or p<=0:
         faults.append("DATA_INCOMPLETE")
-    for frame in ("1m","3m","5m"):
+    for frame in ("1m","3m","5m","10m","15m","30m"):
         fault=_candle_fault(histories.get((symbol,frame,generation)),frame)
         if fault:
             faults.append(fault)
