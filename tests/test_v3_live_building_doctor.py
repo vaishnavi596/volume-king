@@ -31,7 +31,7 @@ class TestBuildingDoctor(unittest.TestCase):
         self.assertTrue(got["cache_complete_presence"])
         self.assertEqual(got["state"],"FULL_STOCK_OBSERVED_UNVERIFIED")
         self.assertFalse(got["source_quality_verified_live"])
-        self.assertEqual(got["candle_presence_by_frame"],{"1m":4,"3m":4,"5m":4})
+        self.assertEqual(got["candle_presence_by_frame"],{tf:4 for tf in FRAMES})
         self.assertFalse(d.report(["EQ01"],q,h,3)["cache_complete_presence"])
 
     def test_cross_timeframe_not_promoted(self):
