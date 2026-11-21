@@ -19,7 +19,7 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
     def headers(self):
         return {"X-BotKing-Key": self.KEY.decode()}
 
-    def test_missing_sensex_segment_redacted_partial_response(self):
+    def test_missing_sensex_security_id_redacted_partial_response(self):
         class Provider:
             def batch_ltp(self, instruments):
                 return {"status": "success", "data": {
@@ -32,15 +32,15 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["unavailable"], ["SENSEX"])
         entries = [call.args[1:] for call in log.call_args_list]
-        self.assertEqual(entries, [("quotes", "SENSEX", "mapping", "missing_segment")])
+        self.assertEqual(entries, [("quotes", "SENSEX", "mapping", "missing_security_id")])
         self.assertNotIn(self.KEY.decode(), repr(entries))
 
     def test_invalid_sensex_price_no_false_quote(self):
         class Provider:
             def batch_ltp(self, instruments):
                 return {"status": "success", "data": {
-                    "IDX_I": {"13": {"last_price": 25000.0}},
-                    "BSE_I": {"51": {"last_price": 0}}}}
+                    "IDX_I": {"13": {"last_price": 25000.0},
+                              "51": {"last_price": 0}}}}
         with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning") as log:
             res = self.client(Provider()).post(
                 "/clone-v2/market/quotes", headers=self.headers(),
@@ -70,8 +70,8 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         class Provider:
             def batch_ltp(self, instruments):
                 return {"status": "success", "data": {
-                    "IDX_I": {"13": {"last_price": 25000.0}},
-                    "BSE_I": {"51": {"last_price": 70000.0}}}}
+                    "IDX_I": {"13": {"last_price": 25000.0},
+                              "51": {"last_price": 70000.0}}}}
         http = self.client(Provider())
         first = http.post("/clone-v2/market/quotes", headers=self.headers(),
                           json={"symbols": ["NIFTY"]})
