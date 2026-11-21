@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **SUDHAR 1 S1 gated APK checkpoint (2026-11-21):** Existing APK workflow updated at commit [1f159b99](https://github.com/vaishnavi596/volume-king/commit/1f159b992c0b18338cf2cdc01b8a516f86897073), staged diagnostic **buildCode 139**, artifact `BOT-KING-SUDHAR-1-S1-DIAGNOSTIC-B139-APK`. Full offline tests must PASS within workflow before signing/build/upload. **Actual run ID, terminal PASS/FAIL and artifact not yet verified**; no claim of installed/working phone. Prior S1 source changed only Watchlist quote vs evidence child UI repaint and remount invalidation; Oracle, V1 and live orders unchanged. Next verify workflow outcome, fix any failing downstream assertions in one batch, then obtain phone Help Doctor evidence; S2 Data Stock adaptive queue pending.
+
 > **SUDHAR 1 STAGED APK rule (2026-11-21):** हर पूर्ण संयुक्त सुधार-सेगमेंट के बाद जब मोबाइल प्रमाण आवश्यक हो, exact-head offline PASS होने पर अलग पहचान वाला diagnostic TEST APK बनाया जा सकता है; फिर Help Doctor screenshot/trace से इसी segment का RECEIVE→CACHE→COMPUTE→QUEUE→APPLY/RENDER और सभी प्रभावित downstream functions जाँचें। Failure उसी segment में ठीक करें, फिर अगला segment। V1/production safe; live orders OFF; no premature release. Full rule in root AGENTS.md.
 
 
