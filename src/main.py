@@ -4792,7 +4792,7 @@ def app_main(page:ft.Page):
                     "chart_timeframe":str(timeframe.value or "5m"),
                     "chart_source_present":bool(stock_histories.get((
                         str(symbol.value or "NIFTY"),str(timeframe.value or "5m"),generation))),
-                    "active_analysis_filter_names":[str(name) for name in filter_selected[:15]],
+                    "active_analysis_filter_names":[str(name) for name in filter_selected],
                     "filter_count":len(filter_selected),
                     "five_verified_live_filters":"NOT VERIFIED — source/expiry evidence required",
                     "sixth_filter_slot":"NOT AUTOMATICALLY SCORED",
@@ -4897,7 +4897,7 @@ def app_main(page:ft.Page):
     scan_expiry=ft.Dropdown(label="Days (simulation)",value=str(prefs.get("scanner_expiry","14")),options=[ft.dropdown.Option(v) for v in ["1","3","7","14","21","30"]])
     scan_auto=ft.Switch(label="Trend filter (simulation)",value=bool(prefs.get("scanner_trend",True)),active_color=GREEN)
     scan_live=ft.Switch(label="Auto Scan (while app is open)",value=bool(prefs.get("scanner_live",True)),active_color=GREEN)
-    scan_refresh=ft.Dropdown(label="Auto refresh interval",value=str(prefs.get("scanner_refresh","30")),options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
+    scan_refresh=ft.Dropdown(label="Auto analysis target (seconds)",value=str(prefs.get("scanner_refresh","60")) if str(prefs.get("scanner_refresh","60")) in ("30","60","120") else "60",options=[ft.dropdown.Option(v) for v in ["30","60","120"]])
     scan_status=ft.Text("source candle history • automatic refresh follows saved preference",size=14,color=MUTED)
     if prefs.get("source")=="Dhan":scan_status.value="Automatic analysis • awaiting candle data"
     elif not scan_live.value:scan_status.value="Auto Scan OFF • saved preference"
@@ -4906,12 +4906,12 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
-    MAX_ACTIVE_FILTERS=15  # 10 defaults + 5 extra movable slots.
+    MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
     # One-time migration supplies ten defaults without overwriting saved user edits.
     if not prefs.get("default_ten_migrated"):
         prefs["scanner_filters"]=DEFAULT_FILTERS[:]
         prefs["default_ten_migrated"]=True
-    # Fifteen movable saved filters, with removed defaults returning to the available pool.
+    # Every supported saved filter stays selected; no forced five-slot swapping.
     # Option/OI filters remain WAIT until authenticated derivative evidence exists.
     saved_filters=prefs.get("scanner_filters",DEFAULT_FILTERS)
     if not isinstance(saved_filters,(list,tuple)):
@@ -6023,7 +6023,7 @@ console.log('BOT KING Lightweight Charts ready');
             ],spacing=3),padding=8,bgcolor=PANEL2,border_radius=8)
             for name in filter_selected]
         if not filter_selected:
-            filter_checklist.controls=[note("No active filters • choose up to 10 from the available list below.")]
+            filter_checklist.controls=[note("No active filters • choose from all supported filters below.")]
         added_filter_list.controls=[
             ft.Container(content=ft.Row([
                 ft.Container(content=ft.Column([
@@ -6040,10 +6040,10 @@ console.log('BOT KING Lightweight Charts ready');
             filter_choice.value=None
         filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten default plus five extra saved slots; remove an active filter to add another."),
+            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten defaults and all extra supported slots can remain saved together."),
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
-                ft.Column([note("Fifteen movable filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
+                ft.Column([note("All supported filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
                            filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
