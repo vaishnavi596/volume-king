@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.197" # V3 B197 quote pacing and index Doctor hardening; Android versionCode 197
+version = "2.3.198" # V3 B198 read-only candle quality Doctor and Index error classification; Android versionCode 198
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
