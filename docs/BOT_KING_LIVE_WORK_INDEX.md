@@ -18,19 +18,21 @@
 - **S1 scoped app source:** Watchlist quote-only updates skip rebuilding unchanged five-filter chips, assessment and 3m candle UI; new Search/Membership rows invalidate mounted-cell signatures. Relevant commits `24b659be`, `0e9a17fa`; tests supplemented at `8f9b16fd`, `9aa12fde`. No broker or server behavior changed by this patch.
 - **S1 CI results:** failed [Full #44861408348](https://github.com/vaishnavi596/volume-king/actions/runs/44861408348) and [APK #44861726366](https://github.com/vaishnavi596/volume-king/actions/runs/44861726366) each had 2 stale test assertions of 1438. Corrected related tests at `9feedad3` and `58af5d8c`; verified [Full Regression #44862631496](https://github.com/vaishnavi596/volume-king/actions/runs/44862631496) **1438/1438 PASS** at SHA `4483a4f`. New isolated S1 [APK run #44862873176](https://github.com/vaishnavi596/volume-king/actions/runs/44862873176) at `a2925581`, **SUCCESS (all 1438 tests, signed manifest and artifact verified)**. BuildCode 139, versionName 2.3.138, separate `com.botking.sudhar1` app identity; artifact and phone/Help Doctor acceptance pending.
 
-## 3. CURRENT WORK / BLOCKER — do not silently advance
+## 3. CURRENT WORK / VERIFIED S1 RELEASE GATE
 
-**S1 = CODE PATCHED; full regression #44862631496 = 1438/1438 PASS; diagnostic APK #44862873176 = SUCCESS, signed artifact ID 14690089703 verified. PHONE INSTALL + HELP DOCTOR = NOT YET TESTED.**
-- Actual push-run IDs and failing job logs are now verified via GitHub Actions run collection and job logs. Previous CI visibility blocker CLOSED; keep APK artifact and phone status separate.
-- The S1 changes are not proof Watchlist opens rapidly on actual phone. The full mobile capacity and downstream timeframes/filters remain pending. No current Oracle or original V1 runtime deployment was made in this S1 batch.
-- Last logged continuation: [Day-2 Journal](BOT_KING_CLONE_DAY_2_SPEED_CAPACITY_JOURNAL_20261121.md); all tasks, code commits, CI visibility blockers and current user rules have chronological entries in [Main Work Log](BOT_KING_WORK_LOG.md).
+**S1 SOURCE + FULL OFFLINE TESTS PASS; SIGNED DIAGNOSTIC APK BUILT; PHONE TEST PENDING.**
+- Earlier two Actions failures had the same **two stale source-string assertions**, corrected in `tests/test_clone_b3_combined_scanner_pacing.py` and `tests/test_watchlist_refresh_regression.py`, preserving two-cache clear and all three generation-scoped 3m Assessment gates. Prior red runs [#44861408348](https://github.com/vaishnavi596/volume-king/actions/runs/44861408348) and [#44861726366](https://github.com/vaishnavi596/volume-king/actions/runs/44861726366) remain historical FAIL.
+- **Full regression:** [Actions #44862631496](https://github.com/vaishnavi596/volume-king/actions/runs/44862631496) **SUCCESS** at `4483a4f`.
+- **Signed S1 phone-test APK:** [Actions #44862873176](https://github.com/vaishnavi596/volume-king/actions/runs/44862873176) **SUCCESS** at `a2925581`: **1438 tests PASS** within APK gate, buildCode 139, versionName 2.3.138, **separate package** `com.botking.sudhar1.bot_king_v1_pure_clone`, label `BOT KING SUDHAR 1 S1 TEST`, artifact `BOT-KING-SUDHAR-1-S1-DIAGNOSTIC-B139-APK` (ID 14690089703), APK SHA256 `2cabb504aed38be778e5cc68a4f690fc0f48787cf08bddae0cc4aa1b7c082712`. Full evidence in [Work Log](BOT_KING_WORK_LOG.md).
+- A redundant S1 build [#44863738181](https://github.com/vaishnavi596/volume-king/actions/runs/44863738181) was triggered before the prior success became visible; at last check **IN_PROGRESS**. Do not trigger another build or conflate its later artifact/hash with the known successful one.
+- **Phone installation/Help Doctor 3m candles, actual live Dhan quotes, performance/CPU/RAM and Oracle deployed service checks remain PENDING**; no production/V1 change. S2 queue integration is not yet deployed.
 
-## 4. NEXT SAFE ACTIONS — in order, no repeated micro-approval
+## 4. NEXT SAFE ACTIONS — in order, no unnecessary repeated builds
 
-1. **COMPLETE:** actual S1 Full Regression #44862631496 1438/1438 PASS and signed diagnostic APK #44862873176 SUCCESS with artifact ID 14690089703. Both earlier runs failed with two stale test contracts; exact corrections and retries in Work Log.
-2. **NEXT PHONE ACTION:** Download diagnostic APK artifact ZIP from run #44862873176; extract `app-release.apk` and install alongside prior app. Inspect S1 on phone; inspect 3m candles, five filters, Price-only delta behavior, Search, Scanner, Dashboard, Super Five, Options, Charts and Help Doctor. Record segment-specific screenshot plus safe timings/errors.
-3. Close S1 as PHONE PASS only after actual evidence; otherwise fix/rollback inside S1. Then S2: wire bounded Data Stock/Smart Apply Queue with per-control dirty updates and CPU/RAM/frame budget, plus joint regression 5/20/40/70 equities and 1–4 phones. Treat 20–25s bootstrap as a test target, not a promise.
-4. If a real server fault is proved, apply backed-up Oracle-only fix and regression without touching V1. Nothing in current source audit proves Dhan/Oracle processing is universally fast or all filters work.
+1. Use the **already successful** [S1 test APK artifact](https://github.com/vaishnavi596/volume-king/actions/runs/44862873176) for phone installation (separate package). Verify checksum if downloaded; test Watchlist quote-only repaint, 3m bullish/bearish and five filters, Search/Scanner/Dashboard/Super Five, Options, Chart, and capture Help Doctor screenshot/timing. Any failure belongs to S1 joint repair.
+2. Inspect the redundant run #44863738181 and record terminal result; **do not trigger a third duplicate**. Preserve exact source SHA/artifact identity for each variant.
+3. Only after S1 phone evidence is reconciled, begin **S2** bounded phone Data Stock/Smart Apply Queue with impact mapping, CPU/RAM/frame budget, 5/20/40/70 equities and 1–4 devices. Source-only prototype is not production-wired.
+4. Oracle-only fixes if separately verified, backup/gate; old V1 untouched and live broker orders OFF.
 
 ## 5. JOURNAL ROUTING / ARCHIVE HYGIENE
 
