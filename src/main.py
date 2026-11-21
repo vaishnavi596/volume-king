@@ -4887,6 +4887,195 @@ def app_main(page:ft.Page):
     v3_diag_refreshed=[None]
     v3_diag_report=["Refresh Diagnostics first • no stale pre-login report."]
     v3_diag_status=["Login, then tap REFRESH DIAGNOSTICS before TEST 54/70."]
+    def master_diagnostic_panel():
+        """One-cache-capture master report across independent feature segments.
+
+        Read only: no provider calls, no broker orders, no synthetic market data.
+        Segment filters change only the returned JSON, not the measurement.
+        """
+        segments=("ALL","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
+                  "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
+                  "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION")
+        selected=ft.Dropdown(label="Diagnostic segment",value="ALL",
+            options=[ft.dropdown.Option(name) for name in segments],width=290)
+        report=ft.Text("One-tap ALL report • current cache only • no provider calls.",
+            size=10,selectable=True)
+        status=ft.Text("No master diagnostic run yet",size=11,color=MUTED)
+        def inspect(_):
+            started=time.perf_counter()
+            generation=provider_generation[0]
+            try:
+                configured=list(all_watch_symbols())
+                unique=list(dict.fromkeys(configured))
+                valid_equities=[sym for sym in unique if sym in DHAN_VERIFIED_SYMBOLS
+                                and sym not in ("NIFTY","BANKNIFTY","SENSEX")]
+                index_names=("NIFTY","BANKNIFTY","SENSEX")
+                def quote_ok(sym):
+                    row=quotes.get(sym) or {}
+                    price=row.get("price")
+                    return (row.get("source")=="Dhan" and
+                            type(price) in (int,float) and math.isfinite(price) and price>0)
+                price_count=sum(quote_ok(sym) for sym in valid_equities)
+                now=time.time()
+                candle_counts={}
+                # Index 1m, Watchlist 3m, Scanner selected frame and shared 5m.
+                for tf in ("1m","3m","5m"):
+                    items=[(key,val) for key,val in chart_snapshots.items()
+                           if isinstance(key,tuple) and len(key)==3 and
+                           key[1]==tf and key[2]==generation and
+                           isinstance(val,dict) and val.get("source")=="Dhan" and val.get("bars")]
+                    candle_counts[tf]={"matching_cache_entries":len(items),
+                                       "valid_histories":sum(valid_candle_history(item.get("bars"))
+                                                             for _,item in items)}
+                displayed=list(watch_groups[active_watch[0]])
+                warm_times=[t for t in watch_three_minute_upstream_times
+                            if time.monotonic()-t<180]
+                filter_names=list(filter_selected)
+                scanner_sym=str(scan_symbol.value or "NIFTY")
+                scanner_tf=str(scan_tf.value or "1m")
+                scanner_data=shared_history(scanner_sym,scanner_tf)
+                scanner_bars=scanner_data.get("bars") or []
+                scanner_valid=bool(scanner_bars and valid_candle_history(scanner_bars))
+                scanner_rows=complete_filter_rows(
+                    analyze(scanner_bars,selected=active_analysis_filters(),
+                            timeframe=scanner_tf) if scanner_valid else {"votes":[]},
+                    filter_names,filter_modes)
+                scanner_rows=enrich_context_filter_rows(scanner_sym,scanner_rows)
+                non_directional=sum(row.get("name") in OPTION_FILTERS and
+                    row.get("vote") is None and "unverified" in str(row.get("detail",""))
+                    for row in scanner_rows)
+                scanner_calc=sum(type(row.get("vote")) is int and
+                                 row.get("vote") in (-1,0,1) for row in scanner_rows)
+                from five_engine import snapshot_for_display
+                snap=(snapshot_for_display(five_engine_snapshots.get(scanner_sym),now=now)
+                      if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                engine_rows=[]
+                for name in ("technical","candle","news","futures","options"):
+                    raw=(next((row for row in (five_engine_snapshots.get(scanner_sym) or {}).get("engines",())
+                               if getattr(row,"name",None)==name),None))
+                    shown=(next((row for row in snap["engines"] if row.name==name),None)
+                           if snap else None)
+                    disp=shown.display() if shown else {}
+                    engine_rows.append({"engine":name,
+                        "verified_directional_percent_available":disp.get("bullish") is not None,
+                        "raw_verified":getattr(raw,"verified",False) is True,
+                        "reason":str(getattr(raw,"reason","no snapshot"))[:120]})
+                sections={
+                    "GATEWAY_REFRESH":{
+                        "dhan_connected":bool(dhan_feed.connected),
+                        "oracle_connected":bool(clone_v2_gateway.connected),
+                        "equity_status":str(watch_batch_status[0])[:200],
+                        "equity_busy":bool(watch_batch_busy[0]),
+                        "index_busy":bool(index_refresh_busy[0]),
+                        "index_last_failure":str(display_failures.get("dhan_index_ltp_batch") or "")[:180],
+                        "index_failure_code":index_failure_code[0],
+                        "index_cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
+                        "manual_refresh_floor_seconds":30,
+                        "auto_equity_floor_seconds":60,
+                        "equity_seconds_since_last_attempt":round(time.monotonic()-watch_batch_last_attempt[0],1)
+                            if watch_batch_last_attempt[0]>0 else None},
+                    "WATCHLIST_54_70":{
+                        "unique_selected_equities":len(unique),
+                        "verified_registry_equities":len(valid_equities),
+                        "global_equity_limit":70,
+                        "legacy_54_roster_composition":"51 equities + 3 indices",
+                        "capacity_test_54":"AVAILABLE_SEPARATELY_NO_SYNTHETIC_QUOTES",
+                        "capacity_test_70":"AVAILABLE_SEPARATELY_NO_SYNTHETIC_QUOTES",
+                        "duplicate_assignments":len(configured)-len(unique),
+                        "watchlist_groups":len(watch_groups),
+                        "active_list":active_watch[0]+1,
+                        "active_list_symbols":len(displayed),
+                        "active_list_valid_dhan_prices":sum(quote_ok(sym) for sym in displayed),
+                        "selected_valid_dhan_prices":price_count,
+                        "visible_tick_seconds":2,
+                        "warmup_max_uncached_requests_per_180s":3,
+                        "warmup_floor_seconds":30,
+                        "recent_uncached_requests_in_180s":len(warm_times),
+                        "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
+                        "warmup_busy":bool(watch_three_minute_warm_busy[0])},
+                    "CANDLE_TIMEFRAMES":{
+                        "cache_by_timeframe":candle_counts,
+                        "dashboard_index_default":"1m",
+                        "watchlist_default":"3m",
+                        "scanner_selected":scanner_tf,
+                        "scanner_matching_history":scanner_valid,
+                        "selected_scanner_history_bars":len(scanner_bars),
+                        "history_scan_busy":bool(dhan_history_scan_active[0])},
+                    "SCANNER_17":{
+                        "symbol":scanner_sym,"timeframe":scanner_tf,
+                        "selected_filters":len(filter_names),
+                        "calculated":scanner_calc,
+                        "oi_context_only":non_directional,
+                        "remaining_unavailable":max(0,len(filter_names)-scanner_calc-non_directional),
+                        "scan_busy":bool(scan_busy[0]),
+                        "scan_status":str(scan_status.value or "")[:160],
+                        "scanner_progress":{k:scan_progress.get(k) for k in
+                            ("checked","total","valid","failed","cached","state")}},
+                    "SUPER_FIVE_ENGINES":{
+                        "selected_symbol":scanner_sym,
+                        "five_box_status":engine_rows,
+                        "verified_boxes":sum(x["verified_directional_percent_available"] for x in engine_rows),
+                        "cached_engine_snapshots":len(five_engine_snapshots),
+                        "sixth_placeholder":"INERT_NOT_SCORED",
+                        "policy":"Unverified HIST, PCR, headlines and OI cannot become LIVE votes"},
+                    "DASHBOARD_INDICES":{
+                        "slots":list(index_names),
+                        "quotes_present":{sym:quote_ok(sym) for sym in index_names},
+                        "quotes_exchange_live_verified":False,
+                        "dashboard_timeframe":"1m",
+                        "index_quote_failure":index_failure_code[0]},
+                    "OPTIONS_NEWS_FUTURES":{
+                        "option_symbol":str(chain_symbol.value or "NIFTY"),
+                        "option_expiry":str(expiry.value or ""),
+                        "option_busy":bool(option_feed_busy[0]),
+                        "option_context_cache_entries":len(dhan_option_context_cache),
+                        "option_signal_verified_live":False,
+                        "news_cached_symbols":len(news_cache),
+                        "scanner_news_headlines":len((news_cache.get(scanner_sym) or {}).get("items") or []),
+                        "futures_directional_flow_verified":"NOT_ESTABLISHED"},
+                    "CHART_UI":{
+                        "chart_selected_symbol":str(symbol.value or "NIFTY"),
+                        "chart_selected_tf":str(timeframe.value or "1m"),
+                        "chart_webview_attached":bool(tv_view[0] is not None),
+                        "chart_provider":str(chart_provider[0]),
+                        "app_mounted_screen":current[0],
+                        "physical_flutter_paint_measured":False},
+                    "ERRORS_COORDINATION":{
+                        "active_display_failure_areas":sorted(str(k)[:48] for k in display_failures),
+                        "scanner_fetch_failure_count":len(scan_fetch_failure),
+                        "recent_error_count":len(diagnostics[-30:]),
+                        "data_path":"Dhan → Oracle Clone Gateway → phone cache → analysis → UI",
+                        "failure_inference":"Do not confuse local cache readiness with exchange-verified live data"}
+                }
+                chosen=str(selected.value or "ALL")
+                report_data={
+                    "test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
+                    "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
+                    "provider_generation":generation,
+                    "segment":chosen,
+                    "segment_count":len(sections),
+                    "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
+                    "capture_elapsed_ms":round((time.perf_counter()-started)*1000,2),
+                    "source_live_verified":False,
+                    "provider_requests":0,"orders_sent":0}
+                report.value=json.dumps(report_data,indent=2,ensure_ascii=False)
+                status.value=("Master Doctor complete • "+str(len(report_data["segments"]))+
+                              " segment(s) • zero provider requests")
+            except Exception as exc:
+                log_error("v3_master_diagnostic",exc)
+                report.value=json.dumps({"test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
+                    "status":"ERROR","stage":"LOCAL_CACHE_OR_ADAPTER",
+                    "error_type":type(exc).__name__,"provider_requests":0,
+                    "orders_sent":0},indent=2)
+                status.value="Master Doctor failed • inspect error type"
+            if report.page is not None:report.update()
+            if status.page is not None:status.update()
+        return ft.Column([
+            note("All segments in one JSON, or select one segment. Current cache only; does not refresh Dhan."),
+            ft.Row([selected,ft.OutlinedButton("MASTER DIAG • ALL SEGMENTS (read-only)",
+                on_click=inspect)],wrap=True),
+            status,report],spacing=4)
+
     def v3_live_building_panel():
         # Test actual in-memory stock, without synthetic input or provider requests.
         from v3_live_capacity_probe import benchmark_cached_capacity
@@ -5122,6 +5311,7 @@ def app_main(page:ft.Page):
             test_status,
             report,
             filter_five_diagnostic_panel(),
+            master_diagnostic_panel(),
             note("Times are Python processing only; Flutter pixels and verified live option filters are not measured.")],spacing=4))
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
