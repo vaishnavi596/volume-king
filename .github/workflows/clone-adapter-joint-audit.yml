@@ -24,5 +24,7 @@ jobs:
       - name: Compile adapters
         run: |
           python -m py_compile src/main.py src/clone_v2_gateway.py backend/clone_v2_gateway.py tests/test_clone_adapter_audit.py
+      - name: Validate guarded Clone-only diagnostic updater syntax
+        run: bash -n ops/update_clone_b3_gateway_diagnostics_20261121.sh
       - name: Joint adapter context and refresh audit
         run: python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
