@@ -5582,7 +5582,10 @@ console.log('BOT KING Lightweight Charts ready');
                    and len(bar)>=6 and type(bar[0]) in (int,float)
                    and math.isfinite(bar[0]) and bar[0]+180<=now]
         if not completed:return historical_or_wait("No completed 3m candles")
-        identity=context+(tuple(completed[-1]),len(completed),data.get("candle_fetched_at"))
+        # Propagate recent 3m OHLCV revisions to the Watchlist signal cache,
+        # even if the final timestamp/last row did not change.
+        recent_three=tuple(tuple(row) for row in completed[-4:])
+        identity=context+(recent_three,len(completed),data.get("candle_fetched_at"))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
         try:
