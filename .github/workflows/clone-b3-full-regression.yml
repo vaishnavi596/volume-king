@@ -68,3 +68,5 @@ jobs:
 # Gate phone regression: Run Scan/Filters controls and FINNIFTY legacy predicate checks 2026-11-21
 
 # B3 exact-head full regression for redacted SENSEX quote/candle diagnostics and matching-options safety 2026-11-21
+
+# Exact-head joint regression for independent 180s Clone candle singleflight and six scoped guards 2026-11-21
