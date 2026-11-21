@@ -366,7 +366,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         with market_lock:
             now = time.monotonic()
             cache = market_cache.get(selection)
-            if cache and 0 <= now - cache[0] < 20:
+            # Only a COMPLETE three-index batch gets V1-parity 60s reuse.
+            # Incomplete SENSEX/BANKNIFTY/NIFTY batches keep 20s recovery.
+            full_index_batch = selection == tuple(sorted(indices))
+            cache_ttl = (60 if full_index_batch and cache
+                         and not cache[1].get("unavailable") else 20)
+            if cache and 0 <= now - cache[0] < cache_ttl:
                 return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})
             if now < provider_cooldown_until[0]:
                 for sym in symbols:
