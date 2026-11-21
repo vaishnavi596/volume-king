@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.196" # V3 B196 repair B193/B194 regression: canonical Dhan Max Pain and safe backup restore, Android versionCode 196
+version = "2.3.197" # V3 B197 quote pacing and index Doctor hardening; Android versionCode 197
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
