@@ -76,7 +76,7 @@ if command -v journalctl >/dev/null 2>&1; then
 import re,sys
 allowed={"quotes","candles"}
 stages={"provider","shape","mapping","validation","cooldown"}
-categories={"missing_segment","missing_security_id","invalid_price","invalid_shape","invalid_bars","rate_limited","auth_unavailable","upstream_error"}
+categories={"missing_segment","missing_security_id","invalid_price","invalid_shape","invalid_bars","rate_limited","auth_unavailable","upstream_error","upstream_http_4xx","upstream_http_5xx","upstream_transport","upstream_payload","upstream_rejection"}
 items=[]
 regex=re.compile(r"clone_market_diagnostic route=(\w+) symbol=SENSEX stage=(\w+) category=(\w+)")
 for line in sys.stdin:
