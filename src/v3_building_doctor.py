@@ -17,6 +17,16 @@ class BuildingDoctor:
     counters: dict=field(default_factory=lambda: {"page_updates":0,"mounted_refreshes":0,"unchanged_skips":0})
     samples: dict=field(default_factory=dict)
     error_types: deque=field(default_factory=lambda: deque(maxlen=12))
+    login_clock: float | None=None
+    milestones: dict=field(default_factory=dict)
+
+    def start_login(self):
+        self.login_clock=time.monotonic()
+        self.milestones={"login_clicked_s":0.0}
+
+    def milestone(self,name):
+        if self.login_clock is not None:
+            self.milestones[name]=round(time.monotonic()-self.login_clock,3)
 
     def observe(self,name,duration_ms):
         if type(duration_ms) not in (float,int) or not math.isfinite(duration_ms) or duration_ms<0:return
@@ -57,5 +67,6 @@ class BuildingDoctor:
                 "elapsed_session_s":round(time.monotonic()-self.started,2),
                 "refresh_gap_dashboard_s":self.adaptive_gap("dashboard"),
                 "refresh_gap_scanner_s":self.adaptive_gap("scanner"),
-                "counters":dict(self.counters),"timings":timings,"errors":list(self.error_types),
+                "counters":dict(self.counters),"timings":timings,"login_milestones_seconds":dict(self.milestones),
+                "errors":list(self.error_types),
                 "disclaimer":"Cache presence only; not full exchange-verified candles, live five-filter score, network arrival duration or Flutter pixels."}
