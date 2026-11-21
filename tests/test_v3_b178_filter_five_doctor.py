@@ -181,6 +181,10 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('initial_trading_mode="Paper" if prefs.get("mode")=="Paper" else "Live (locked)"',APP)
         self.assertIn('ft.dropdown.Option("Live (locked)","Live trading • permanently disabled")',APP)
         self.assertNotIn('for x in ["Paper","Manual","Semi-Auto","Auto"]',APP)
+        self.assertIn('if prefs.get("source")!="Dhan":',APP)
+        self.assertIn('prefs["source"]="Dhan"',APP)
+        self.assertNotIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan")',APP)
+
         for paper_marker in ('def paper_dhan_reference():',
                              'def paper_mark_pnl_preview():',
                              '"paper_simulated_order_events":sum(',
