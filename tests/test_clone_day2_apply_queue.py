@@ -100,6 +100,8 @@ class SmartApplyQueueTests(unittest.TestCase):
         self.assertIn("last_evidence_signatures={}", tick)
         self.assertIn("last_evidence_signatures.clear()", tick)
         self.assertIn("evidence_signature=(", tick)
+        self.assertIn('symbol_signature=(id(cells),', tick)
+        self.assertIn('id(cells),signal_row.get("timestamp")', tick)
         self.assertIn("if last_evidence_signatures.get(sym)!=evidence_signature:", tick)
         gated = tick.split("if last_evidence_signatures.get(sym)!=evidence_signature:", 1)[1]
         self.assertIn("five.content=five_engine_chips(sym)", gated)
