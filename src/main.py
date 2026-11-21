@@ -516,8 +516,18 @@ def app_main(page:ft.Page):
                  "published_at":x.get("published"), "symbols":[symbol]}
                 for x in local_news.get("items",[]) if isinstance(x,dict) and
                 isinstance(x.get("title"),str) and matches(x["title"])]
-        items=[{"title":x["title"], "source":x["publisher"], "published":x["published_at"]}
-               for x in deduplicate_news_context(tagged,symbol=symbol,now=now,max_age_seconds=86400)]
+        # Keep the vetted HTTPS article URL when promoting deduplicated RSS
+        # headlines into the News/Event button. Previously URL was dropped
+        # here, so tapping the visible headline raised KeyError in news_event_overview.
+        matching_urls={" ".join(row.get("title","").split()).casefold():row.get("url","")
+                       for row in local_news.get("items",[]) if isinstance(row,dict)
+                       and isinstance(row.get("title"),str)
+                       and isinstance(row.get("url"),str) and row["url"].startswith("https://")}
+        items=[{"title":x["title"], "source":x["publisher"],
+                "published":x["published_at"],
+                "url":matching_urls.get(" ".join(x["title"].split()).casefold(),"")}
+               for x in deduplicate_news_context(tagged,symbol=symbol,now=now,max_age_seconds=86400)
+               if matching_urls.get(" ".join(x["title"].split()).casefold(),"").startswith("https://")]
         cues=headline_signal(items);options=option_component(symbol,interval)
         candle_age=now-(candle.get("timestamp") or 0)
         candle_valid=not candle.get("historical") and not candle.get("cached") and 0<=candle_age<=timeframe_spec(interval)["fresh_seconds"] and candle.get("bias") in ("BULLISH","BEARISH")
