@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.185" # V3 B185 nine-segment master diagnostic, Android versionCode 185
+version = "2.3.186" # V3 B186 root-cause and Android background lifecycle diagnosis, Android versionCode 186
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
