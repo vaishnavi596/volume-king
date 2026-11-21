@@ -2082,6 +2082,9 @@ def app_main(page:ft.Page):
     index_last_attempt=[0.0]
     index_refresh_generation=[None]
     index_failure_code=["NOT_TESTED"]
+    index_last_result_at=[None]
+    index_last_result_generation=[None]
+    index_last_result_state=["NEVER_ATTEMPTED"]
     async def refresh_dhan_index_quotes(force=False):
         """One serialized three-index cycle, independently throttled from equity snapshots."""
         if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
@@ -2095,6 +2098,9 @@ def app_main(page:ft.Page):
             if login_bootstrap.generation==provider_generation[0]:
                 login_bootstrap.finish(provider_generation[0],"indices",0,3,error="cooldown")
             index_failure_code[0]="COOLDOWN_ACTIVE"
+            index_last_result_at[0]=time.time()
+            index_last_result_generation[0]=provider_generation[0]
+            index_last_result_state[0]="DEFERRED_COOLDOWN"
             display_failures["dhan_index_ltp_batch"]=f"Cooling down {index_cooldown:.0f}s • last good indices retained"
             if current[0] in (0,4,5):
                 request_view_refresh(current[0])
@@ -2188,8 +2194,10 @@ def app_main(page:ft.Page):
                    for key in ("NIFTY","BANKNIFTY","SENSEX")):
                 display_failures.pop("dhan_index_ltp_batch",None)
                 index_failure_code[0]="NONE_ALL_THREE_QUOTES_PRESENT"
+                index_last_result_state[0]="RESPONSE_VALID_ALL_THREE_UNVERIFIED_LIVE"
             else:
                 index_failure_code[0]="PARTIAL_OR_INVALID_INDEX_BATCH"
+                index_last_result_state[0]="PARTIAL_RESPONSE"
                 unavailable=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
                              if not isinstance(snapshots.get(sym),dict)
                              or snapshots[sym].get("source")!="Dhan"
@@ -2209,6 +2217,7 @@ def app_main(page:ft.Page):
             # Fixed-enum only. Do not expose arbitrary exception text,
             # upstream response bodies, private URLs, or authentication keys.
             diagnostic=str(exc).lower()
+            index_last_result_state[0]="FAILED"
             index_failure_code[0]=(
                 "GATEWAY_HTTP_429" if "http 429" in diagnostic or "cooldown" in diagnostic else
                 "AUTH_OR_ACCESS_403" if "http 403" in diagnostic or "key rejected" in diagnostic else
@@ -2226,6 +2235,8 @@ def app_main(page:ft.Page):
                 if isinstance(old,dict) and old.get("source")=="Dhan":
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
         finally:
+            index_last_result_at[0]=time.time()
+            index_last_result_generation[0]=generation
             index_refresh_busy[0]=False
             if current[0] in (0,4,5):
                 request_view_refresh(current[0])
@@ -2331,12 +2342,12 @@ def app_main(page:ft.Page):
 
     # The Watchlist observes changed quote/filter signatures at 2s UI cadence.
     # No on-screen 60s countdown: the broker poll rate and UI paint rate differ.
-    def watch_cell_age_flags(sym,now_epoch=None):
+    def watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None):
         # Crossing the stale threshold must repaint labels even if price is
         # unchanged. Purely local: no upstream quote/candle request.
         now_epoch=now_epoch if now_epoch is not None else time.time()
         quote=quotes.get(sym) or {}
-        signal=watch_three_minute_signal(sym)
+        signal=precomputed_signal if precomputed_signal is not None else watch_three_minute_signal(sym)
         quote_at=quote.get("fetched_at")
         signal_at=signal.get("timestamp")
         quote_stale=(isinstance(quote_at,(int,float)) and not isinstance(quote_at,bool)
@@ -2379,7 +2390,7 @@ def app_main(page:ft.Page):
                            id(five_engine_snapshots.get(sym)),
                            (oracle_assessment_cache.get(
                                (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
-                           watch_cell_age_flags(sym)) for sym in visible))
+                           watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])) for sym in visible))
                 button=watch_refresh_button[0]
                 if button is not None:
                     should_disable=(watch_batch_busy[0] or index_refresh_busy[0]
@@ -2439,7 +2450,7 @@ def app_main(page:ft.Page):
                                       id(five_engine_snapshots.get(sym)),
                                       (oracle_assessment_cache.get(
                                           (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
-                                      watch_cell_age_flags(sym),watch_batch_status[0])
+                                      watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym]),watch_batch_status[0])
                     if last_cell_signatures.get(sym)==symbol_signature:
                         continue
                     last_cell_signatures[sym]=symbol_signature
@@ -2475,7 +2486,7 @@ def app_main(page:ft.Page):
                         id(five_engine_snapshots.get(sym)),
                         (oracle_assessment_cache.get(
                             (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
-                        watch_cell_age_flags(sym),watch_batch_status[0],
+                        watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym]),watch_batch_status[0],
                         provider_generation[0],tuple(filter_selected),
                         tuple(sorted(filter_modes.items())))
                     if last_evidence_signatures.get(sym)!=evidence_signature:
@@ -4855,6 +4866,10 @@ def app_main(page:ft.Page):
                     "index_route_diagnostic":{
                         "last_failure":str(display_failures.get("dhan_index_ltp_batch") or "none")[:180],
                         "failure_code":index_failure_code[0],
+                        "last_result_state":index_last_result_state[0],
+                        "last_result_generation_matches":index_last_result_generation[0]==generation,
+                        "last_result_age_seconds":round(time.time()-index_last_result_at[0],1)
+                            if index_last_result_at[0] is not None else None,
                         "route":"/dhan/index-ltp-batch",
                         "next_check":"REVIEW_ORACLE_ROUTE_LOGS_IF_UNCLASSIFIED" if index_failure_code[0]=="UNCLASSIFIED_FEED_ERROR" else "FOLLOW_FAILURE_CODE",
                         "cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
@@ -4970,6 +4985,10 @@ def app_main(page:ft.Page):
                         "index_busy":bool(index_refresh_busy[0]),
                         "index_last_failure":str(display_failures.get("dhan_index_ltp_batch") or "")[:180],
                         "index_failure_code":index_failure_code[0],
+                        "index_last_result_state":index_last_result_state[0],
+                        "index_last_result_generation_matches":index_last_result_generation[0]==generation,
+                        "index_result_age_seconds":round(now-index_last_result_at[0],1)
+                            if index_last_result_at[0] is not None else None,
                         "index_cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
                         "manual_refresh_floor_seconds":30,
                         "auto_equity_floor_seconds":60,
@@ -5196,6 +5215,11 @@ def app_main(page:ft.Page):
                     "quote_path":"Dhan → Oracle Clone Gateway → phone cache",
                     "quote_status":str(watch_batch_status[0])[:160],
                     "index_status":str(display_failures.get("dhan_index_ltp_batch","") or "NO_ACTIVE_ERROR")[:160],
+                    "index_failure_code":index_failure_code[0],
+                    "index_result_state":index_last_result_state[0],
+                    "index_result_age_seconds":round(time.time()-index_last_result_at[0],1)
+                        if index_last_result_at[0] is not None else None,
+                    "index_same_generation":index_last_result_generation[0]==generation,
                     "refresh_source":"EXPLICIT_USER_TAP",
                     "next_step":"Now run TEST 54 or TEST 70 • local cache only",
                     "source_live_verified":False,
