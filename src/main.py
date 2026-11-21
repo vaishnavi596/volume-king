@@ -3162,7 +3162,7 @@ def app_main(page:ft.Page):
                  and data.get("freshness")=="unverified"
                  and data.get("signal_eligible") is False)
         if not matched:
-            return note("Dhan option metrics unavailable for "+str(chain_symbol.value)+
+            return note("Dhan option metrics not ready for "+str(chain_symbol.value)+
                         " / "+str(expiry.value or "no listed expiry")+" • "+option_feed_status[0])
         if kind=="PCR":
             value=data.get("pcr")
