@@ -98,3 +98,5 @@ jobs:
 # B143 index-only focused diagnostic source regression and full offline suite; no live Dhan calls in CI.
 
 # B144 final fix: restore missing-cache Options mismatch diagnostic and include SENSEX targeted tester.
+
+# B145 full regression: prevent later 5m candle fetch from erasing valid Dhan price; preserve SENSEX diagnostic.
