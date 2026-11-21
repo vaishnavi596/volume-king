@@ -35,6 +35,21 @@ class FeedTests(unittest.TestCase):
         self.assertFalse(feed.key);self.assertFalse(feed.token)
         with self.assertRaises(FeedError):feed.connect('','','','')
 
+    def test_injected_legacy_provider_never_reaches_internet(self):
+        # A legacy setting or an unexpected callback must not bypass the
+        # V3 Dhan-only network boundary, even without UI normalization.
+        for provider in ('Yahoo Finance','Broker API','Unknown'):
+            with self.subTest(provider=provider):
+                _,v=start({'scanner_live':False,'source':'Dhan'})
+                v['prefs']['source']=provider
+                with patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected outbound HTTP')) as network, patch.dict(
+                    v['fetch_market_data_uncached'].__globals__,
+                    {'get_yahoo':lambda *args:(_ for _ in ()).throw(AssertionError('Yahoo transport invoked'))}
+                ):
+                    with self.assertRaisesRegex(FeedError,'Dhan-only provider required'):
+                        v['fetch_market_data_uncached']('NIFTY','1m','7d')
+                network.assert_not_called()
+
     def test_dhan_option_metrics_never_reuse_legacy_angel_window(self):
         _,v=start({'source':'Dhan','scanner_live':False})
         rows=[{'strike':24000,'side':side,'premium':100,'oi':oi,'timestamp':time.time()}
