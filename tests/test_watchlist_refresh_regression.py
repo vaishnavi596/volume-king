@@ -46,6 +46,29 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertNotIn('asyncio.gather(',body)
         self.assertNotIn('get_market_data,sym,"3m"',body)
 
+    def test_incomplete_login_watchlist_bootstrap_retries_only_bounded(self):
+        source=self.source
+        block=source.split("    async def watch_login_candle_bootstrap():",1)[1].split(
+            "    page.run_task(watch_login_candle_bootstrap)",1)[0]
+        self.assertIn("watch_login_bootstrap_attempts[0]+=1",block)
+        self.assertIn("watch_login_bootstrap_attempts[0]>=3",block)
+        self.assertIn("watch_login_bootstrap_retry_after[0]=time.monotonic()+180",block)
+        self.assertIn("time.monotonic()<watch_login_bootstrap_retry_after[0]",block)
+        self.assertIn("if watch_login_bootstrap_generation[0]!=generation:",block)
+        self.assertIn("watch_login_bootstrap_attempts[0]=0",block)
+        self.assertIn("if completed==total:",block)
+        self.assertIn("watch_login_bootstrap_attempts[0]=3",block)
+        # Retry must skip cached valid 3m histories and retain last-good 1m.
+        self.assertIn('prior=shared_history(sym,"3m")',block)
+        self.assertIn('if valid_candle_history(prior.get("bars")):',block)
+        self.assertIn('data=retain_candle_history(data,shared_history(sym,"1m"),provider="Dhan")',block)
+        # Retain cooldown, single-symbol, and foreground protection.
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")',block)
+        self.assertIn('await asyncio.sleep(1.5)',block)
+        self.assertNotIn('asyncio.gather(',block)
+        self.assertIn('lifecycle_background[0]',block)
+        self.assertIn('incomplete rows remain WAIT',block)
+
     def test_index_one_minute_yields_to_bounded_watchlist_warmup(self):
         body=self.source.split("    async def dhan_index_candle_poll():",1)[1].split(
             "    page.run_task(dhan_index_candle_poll)",1)[0]
