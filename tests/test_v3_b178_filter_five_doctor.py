@@ -26,6 +26,17 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"errors_only":errors',panel)
         self.assertIn('"filter_results":filter_rows',panel)
         self.assertIn('"five_boxes":engines',panel)
+        self.assertIn('"stage_context":diagnostic_context',panel)
+        for blocker in ("CANDLE_HISTORY_MISSING", "TECHNICAL_VOTES_OR_FRESHNESS_UNVERIFIED",
+                        "INDEPENDENT_CANDLE_EVIDENCE_UNVERIFIED",
+                        "HEADLINES_PRESENT_DIRECTION_UNVERIFIED",
+                        "VERIFIED_FUTURES_FLOW_OR_MAPPING_MISSING",
+                        "OPTION_EXPIRY_CONTEXT_MISSING",
+                        "PCR_OI_PRESENT_NOT_VERIFIED_TRADE_DIRECTION"):
+            self.assertIn(blocker,panel)
+        self.assertIn('"cached_news_count"',panel)
+        self.assertIn('"option_pcr_present"',panel)
+        self.assertIn('"history_shape_valid"',panel)
         self.assertIn('"provider_requests":0',panel)
         self.assertIn('chart_snapshots.get((symbol,tf,generation))',panel)
         self.assertNotIn('stock_histories.get((symbol,tf,generation))',panel)
