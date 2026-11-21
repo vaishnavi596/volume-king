@@ -29,15 +29,33 @@ class DhanLoginSingleflightTests(unittest.TestCase):
                                and ast.unparse(n.test) == "broker.value != 'Angel One'")
 
     def test_dhan_reserves_busy_before_any_network_await(self):
-        branch = self.dhan_branch
-        set_busy = [n for n in ast.walk(branch)
-                    if subscript_assignment(n, True)]
+        # This legacy function is permanently fail-closed in V3; the actual
+        # Clone V2 SSK login owns the singleflight connection contract.
+        self.assertIsInstance(self.method.body[3], ast.Return)
+        self.assertFalse(any(isinstance(node, ast.Await)
+                             for node in self.method.body[:4]))
+        clone = next(n for n in ast.walk(TREE) if isinstance(n, ast.AsyncFunctionDef)
+                     and n.name == "check_clone_v2_connection")
+        branch = clone.body
+        busy_checks = [n for n in branch if isinstance(n, ast.If)
+                       and "clone_v2_connect_busy[0]" in ast.unparse(n.test)
+                       and "broker_connect_busy[0]" in ast.unparse(n.test)]
+        self.assertTrue(busy_checks)
+        set_busy = [n for n in branch if isinstance(n, ast.Assign)
+                    and any(isinstance(t, ast.Subscript) and
+                            ast.unparse(t) == "clone_v2_connect_busy[0]"
+                            for t in n.targets) and
+                    isinstance(n.value, ast.Constant) and n.value.value is True]
         self.assertEqual(len(set_busy), 1)
-        awaits = [n for n in ast.walk(branch) if isinstance(n, ast.Await)]
+        awaits = [n for n in ast.walk(clone) if isinstance(n, ast.Await)]
         self.assertTrue(awaits)
         self.assertLess(set_busy[0].lineno, min(n.lineno for n in awaits))
-        # Existing top-of-function guard must see the same shared busy flag.
-        self.assertIn("if broker_connect_busy[0]:", ast.unparse(self.method.body[1]))
+        finally_clear = [n for n in ast.walk(clone) if isinstance(n, ast.Assign)
+                         and any(isinstance(t, ast.Subscript) and
+                                 ast.unparse(t) == "clone_v2_connect_busy[0]"
+                                 for t in n.targets) and
+                         isinstance(n.value, ast.Constant) and n.value.value is False]
+        self.assertTrue(finally_clear)
 
     def test_dhan_always_releases_busy_even_on_network_failure(self):
         tries = [n for n in self.dhan_branch.body if isinstance(n, ast.Try)]
