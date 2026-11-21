@@ -46,7 +46,7 @@ class CloneAdapterAudit(unittest.TestCase):
         self.assertIn('value="Dhan"',MAIN)
 
     def test_sensex_source_mapped_but_provider_can_omit_price(self):
-        self.assertIn('"SENSEX": ("BSE_I", 51)',GATEWAY)
+        self.assertIn('"SENSEX": ("IDX_I", 51)',GATEWAY)
         self.assertIn('"unavailable": [s for s in symbols if s not in quotes]',GATEWAY)
         self.assertIn('names = ("NIFTY", "BANKNIFTY", "SENSEX")',CLIENT)
         market=block("    async def refresh_dhan_index_quotes(force=False):",
