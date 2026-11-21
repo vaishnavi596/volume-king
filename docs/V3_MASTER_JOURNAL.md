@@ -869,3 +869,7 @@ The word **WIRED** means a verified source-level call/cache linkage and offline 
 
 ### 2026-11-22 — B198 constant volume regression run 44947591315
 - GitHub Actions collection identified the exact new [NO APK Run 44947591315](https://github.com/vaishnavi596/volume-king/actions/runs/44947591315) on commit `fe6a1ed4d264a1565953ead63e406bb5b38d141c`; at check `status=in_progress`, `conclusion=null`. Do not claim regression PASS before completion. No extra APK build; signed B198 artifact remains unchanged.
+
+### 2026-11-22 — B198 constant-volume NO-APK regression completion (read-only verification)
+- Exact GitHub Actions run [44947591315](https://github.com/vaishnavi596/volume-king/actions/runs/44947591315), workflow `V3 B198 Constant Volume Quality Full Regression • NO APK`, head `fe6a1ed4d264a1565953ead63e406bb5b38d141c`, completed **SUCCESS** (GitHub updated 2026-11-21 20:44:25 UTC). This resolves the preceding in-progress status and verifies the offline regression gate on that commit; no APK was built by this run.
+- The signed B198 artifact predates the new constant-nonzero-volume Doctor flag, so this offline PASS does not put that flag on the existing phone APK. Actual Dhan→Oracle→phone raw OHLCV equivalence, exchange freshness, SENSEX and expiry-specific OI evidence, 429 pacing, background worker and 1–4 phone end-to-end gates remain OPEN. No provider request, Oracle/V1 change, deployment, keys, or live trading proof in this check.
