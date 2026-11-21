@@ -63,7 +63,7 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
                 merged[old_index[row[0]]]=list(row)
             revised=dict(new,bars=merged,historical=True,live_verified=False,
                          freshness="historical_unverified",
-                         candle_fetched_at=new.get("candle_fetched_at",0),
+                         candle_fetched_at=new.get("candle_fetched_at") or prior.get("candle_fetched_at",0),
                          _candle_partial_revised=True)
             return revised
     if _valid_bars(new_bars):
