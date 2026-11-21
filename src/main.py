@@ -761,34 +761,9 @@ def app_main(page:ft.Page):
             result=dict(result,bias="WAIT",score=0,reason=result["reason"]+" • below saved agreement threshold")
         return result
     def get_yahoo(ticker,interval="5m",range_="1d"):
-        # V3's Yahoo network transport is retired, including direct callbacks.
-        # Do not revive it as an emergency market-data fallback.
+        # Compatibility stub only: Yahoo HTTP/chart endpoints have been
+        # removed from the V3 phone. Never fallback from Dhan.
         raise FeedError("Yahoo Finance transport disabled in V3; Dhan-only")
-        requested=interval
-        if interval=="1D":interval="1d"
-        if interval=="3m":interval="1m";range_="7d"
-        if interval=="1m":range_="7d"
-        code=symbols_yahoo.get(ticker,ticker+".NS")
-        url="https://query1.finance.yahoo.com/v8/finance/chart/"+urllib.parse.quote(code,safe="")+"?interval="+interval+"&range="+range_
-        request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (BOT KING Market Preview)","Accept":"application/json"})
-        try:
-            with urllib.request.urlopen(request,timeout=9) as response:
-                data=json.load(response)["chart"]["result"][0]
-        except Exception:
-            request=urllib.request.Request(url.replace("query1.finance.yahoo.com","query2.finance.yahoo.com"),headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-            with urllib.request.urlopen(request,timeout=9) as response:
-                data=json.load(response)["chart"]["result"][0]
-        meta=data["meta"]
-        vals=data["indicators"]["quote"][0]
-        timestamps=data.get("timestamp",[])
-        bars=[(t,o,h,l,cl,v) for t,o,h,l,cl,v in zip(timestamps,vals["open"],vals["high"],vals["low"],vals["close"],vals["volume"]) if None not in (o,h,l,cl)]
-        bars=clean_bars(bars)
-        if requested=="3m":bars=aggregate_3m(bars)
-        price=meta.get("regularMarketPrice")
-        # chartPreviousClose can be the start of a multi-day range, not yesterday.
-        previous=meta.get("previousClose") or meta.get("regularMarketPreviousClose") or meta.get("chartPreviousClose")
-        change=((price/previous-1)*100) if price is not None and previous else None
-        return {"price":price,"change":change,"high":meta.get("regularMarketDayHigh"),"low":meta.get("regularMarketDayLow"),"bars":bars,"time":datetime.now().strftime("%H:%M"),"source":"Yahoo Finance","quote_timestamp":meta.get("regularMarketTime"),"fetched_at":datetime.now(timezone.utc).timestamp()}
     preference_writer=PreferenceWriter(page,STATE,int(prefs.get("_prefs_revision",0)),lambda exc:log_error("preferences",exc))
     def save():
         # Never call synchronous native clientStorage RPC from async refresh tasks.
