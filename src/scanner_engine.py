@@ -22,7 +22,7 @@ def analyze(bars, selected=None, timeframe="5m"):
     if not selected or len(set(selected)) != len(selected) or any(name not in ALL_FILTERS for name in selected):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Invalid indicator selection",
                 "count":0,"timeframe":timeframe,"timestamp":None}
-    if timeframe not in ("1m", "2m", "3m", "5m", "15m", "30m", "1h", "1d"):
+    if timeframe not in ("1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "1d"):
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Unsupported candle timeframe",
                 "count":0,"timeframe":timeframe,"timestamp":None}
     if not isinstance(bars, (list, tuple)):
@@ -46,7 +46,7 @@ def analyze(bars, selected=None, timeframe="5m"):
                 "count":len(clean),"timeframe":timeframe,"timestamp":None}
     # Detect missing bars only inside the same NSE session; overnight gaps are normal.
     market_tz = timezone(timedelta(hours=5, minutes=30))
-    interval_seconds = {"1m":60, "2m":120, "3m":180, "5m":300, "15m":900, "30m":1800, "1h":3600}.get(timeframe)
+    interval_seconds = {"1m":60, "2m":120, "3m":180, "5m":300, "10m":600, "15m":900, "30m":1800, "1h":3600}.get(timeframe)
     if interval_seconds is not None:
         for previous, current in zip(clean, clean[1:]):
             same_session = (datetime.fromtimestamp(previous[0], market_tz).date() ==
