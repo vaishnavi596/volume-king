@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.183" # V3 B183 raw five-engine evidence and index route diagnostic, Android versionCode 183
+version = "2.3.184" # V3 B184 stronger granular index and candle failure diagnosis, Android versionCode 184
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
