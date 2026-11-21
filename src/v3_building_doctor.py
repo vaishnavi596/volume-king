@@ -19,10 +19,12 @@ class BuildingDoctor:
     error_types: deque=field(default_factory=lambda: deque(maxlen=12))
     login_clock: float | None=None
     milestones: dict=field(default_factory=dict)
+    login_source_coverage: dict=field(default_factory=dict)
 
     def start_login(self):
         self.login_clock=time.monotonic()
         self.milestones={"login_clicked_s":0.0}
+        self.login_source_coverage={}
 
     def milestone(self,name):
         if self.login_clock is not None:
@@ -69,4 +71,5 @@ class BuildingDoctor:
                 "refresh_gap_scanner_s":self.adaptive_gap("scanner"),
                 "counters":dict(self.counters),"timings":timings,"login_milestones_seconds":dict(self.milestones),
                 "errors":list(self.error_types),
+                "login_source_coverage":dict(self.login_source_coverage),
                 "disclaimer":"Cache presence only; not full exchange-verified candles, live five-filter score, network arrival duration or Flutter pixels."}
