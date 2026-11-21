@@ -4579,6 +4579,7 @@ def app_main(page:ft.Page):
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
+        content.append(v3_live_building_panel())  # Easy-access front-visible capacity test after login.
         content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
@@ -4592,7 +4593,6 @@ def app_main(page:ft.Page):
             note("Live broker orders OFF")
         ])
         content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Live orders OFF")))
-        content.append(v3_live_building_panel())  # B1 live phone front-visible read-only timings.
         content.append(data_overview())  # Unified System Health + Error Doctor at Settings bottom.
         content.append(section("ERROR HISTORY",txt(error_history_text(),10,MUTED)))
         return content
