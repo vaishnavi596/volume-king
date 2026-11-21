@@ -113,7 +113,7 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-pure-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.138'\n" > src/_build_version.py
+          printf "BUILD_VERSION = '2.3.139'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
           flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B156 TEST" --build-number 156 --build-version 2.3.139 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
@@ -127,7 +127,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='149' versionName='2\\.3\\.138'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='156' versionName='2\\.3\\.139'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B156 TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
