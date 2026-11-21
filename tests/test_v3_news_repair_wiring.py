@@ -26,7 +26,7 @@ class TestNewsRepair(unittest.TestCase):
         self.assertIn('if kind=="PCR":',body)
         self.assertIn('if kind=="OI":',body)
         self.assertIn('math.isfinite(value)',body)
-        self.assertIn('OI Support / Resistance: verified directional evidence not connected',body)
+        self.assertIn('OI Support/Resistance directional evidence not connected',body)
         self.assertIn('PCR ERROR',body)
         self.assertIn('Max Pain ERROR',body)
 
