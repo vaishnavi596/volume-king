@@ -40,7 +40,14 @@ class SensexFullDiagnosticB143(unittest.TestCase):
                       'PROVIDER_OR_GATEWAY_EVIDENCE_INCOMPLETE',
                       '"source_verified_live":False','"orders_sent":0'):
             self.assertIn(token,p)
-        self.assertNotIn('quotes["SENSEX"]=',p)
+        # Valid same-session Dhan quotes may repair SENSEX cache, but must
+        # remain unverified rather than being presented as live prices.
+        self.assertIn('quotes["SENSEX"]=dict(quote,price=float(price),source="Dhan",',p)
+        self.assertIn('math.isfinite(price) and price>0',p)
+        self.assertIn('generation!=provider_generation[0]',p)
+        self.assertIn('quote_timestamp=None,freshness="unverified"',p)
+        self.assertIn('live_verified=False',p)
+        self.assertIn('SENSEX_QUOTE_PUBLISHED_UNVERIFIED',p)
         self.assertNotIn('live_verified=True',p)
         self.assertNotIn('order_place(',p)
         self.assertIn('content.append(sensex_full_diagnostic_panel())',self.app)
