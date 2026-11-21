@@ -2077,3 +2077,9 @@
 
 [B3 CANDLE GUARDED UPDATER CI RESULT — 2026-11-21 IST]
 - Verified Adapter Joint Audit run #44854451185 on commit 4ef179a0984d00af25e843ee04e9844c0661a0ca completed SUCCESS; this includes bash syntax-gate for ops/update_clone_b3_candle_cache_20261121.sh and existing Adapter Audit. Script Git blob 981cc4ed8ff81162649c92e491ce92c418488389. Ready for explicit owner-operated first runtime update; automated deployment has not happened.
+
+
+[B3 ORACLE CLONE CANDLE CACHE GUARDED DEPLOY SUCCESS — OWNER OUTPUT 2026-11-21 IST]
+- Owner independently verified rollout script Git blob 981cc4ed8ff81162649c92e491ce92c418488389 (CANDLE_UPDATE_SCRIPT_VERIFIED=YES), then executed ops/update_clone_b3_candle_cache_20261121.sh as opc. Output confirmed CURRENT_CLONE_GATEWAY_BLOB=VERIFIED, CANDIDATE_BLOB=VERIFIED, BACKUP_CREATED=YES, SOURCE_VERIFIED=YES, ONLY_CLONE_GATEWAY_FILE=YES, CLONE_GATEWAY_UPDATED=YES.
+- Clone health HTTP=200 and V1 unchanged health HTTP=200. FINNIFTY_MAPPING_CODE=PRESENT, SENSEX_DIAGNOSTIC_CODE=PRESENT and CLONE_CANDLE_SINGLEFLIGHT_CACHE=PRESENT. Backup directory: /home/opc/botking-clone-v2-private/b3-gateway-patch.XHTjoCBv. NO_MARKET_REQUEST_SENT. No APK build and no real broker/candle response validation.
+- Confirmed gateway code deployment, not proof of live SENSEX LTP/candles, 429 improvement, multi-device real-world request coalescing or FINNIFTY chain readiness. Next V1-versus-Clone index quote lane source comparison and offline tests. Preserve installed server and V1 until targeted evidence supports further change.
