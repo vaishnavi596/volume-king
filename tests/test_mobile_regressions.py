@@ -439,7 +439,7 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_dhan_scanner_offers_only_supported_candle_intervals(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","15m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
+        self.assertIn('scanner_intervals=(["1m","2m","3m","5m","10m","15m","30m","1h"] if prefs.get("source","Dhan")=="Dhan"', source)
         self.assertIn('if saved_scanner_tf not in scanner_intervals:', source)
         self.assertIn('saved_scanner_tf="1m"', source)
         self.assertIn('options=[ft.dropdown.Option(v) for v in scanner_intervals]', source)
