@@ -1997,3 +1997,10 @@
 - Last-24h route counts: /clone-v2/market/candles HTTP 200=1158, 502=120; /clone-v2/market/options/chain HTTP 200=32; /clone-v2/market/options/expiries HTTP 200=32, 502=3; /clone-v2/market/quotes HTTP 200=58, 404=4, 424=4, 429=27, 502=14. No other response codes were counted by the supplied regex output. These are request counts, not symbol-specific outcomes or data freshness proof.
 - Working Clone health and successful HTTP 200 routes show that the gateway is operating, while quote HTTP 429 indicates pacing/cooldown events and 424 is consistent with auth/entitlement classification; HTTP 404/502 need route/symbol-scoped evidence before attribution. Candle HTTP 502 cannot be assigned to SENSEX from route counts. Option-chain 32 HTTP 200 cannot prove FINNIFTY availability or matching expiry.
 - Next evidence: bounded, read-only, sanitized SENSEX-vs-NIFTY/BANKNIFTY backend quote result and separate SENSEX candle validation outcome by request/status classification; avoid raw credentials, full provider payloads, repeated 24h test loops, service restarts, speculative BSE_I/51 mapping changes. No deploy or APK build.
+
+
+[B3 CLONE ORACLE SYMBOL LOG DIAGNOSTIC — OWNER READ-ONLY OUTPUT, 2026-11-21 IST]
+- Operator executed read-only journalctl classifier for last 24h Clone service logs; SENSEX, NIFTY, BANKNIFTY, FINNIFTY each returned REFERENCES=0, without printing raw log lines or requesting Dhan market data.
+- This is evidence that the sampled log text did not contain these literal symbol names, NOT evidence that requests for those symbols never occurred or that Dhan returned no data. Prior route-level 502/429/424 counts remain unassigned to symbols.
+- Next safe engineering change: design Clone-only sanitized per-symbol diagnostic events (route, symbol from allowlist, coarse validation stage and error category, no secrets/broker payload). Validate offline before any optional guarded Oracle deployment; do not relabel runtime defect as solved based only on added logging.
+- No live data requests, runtime changes, server restarts or APK builds in this operator observation.
