@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.187" # V3 B187 Watchlist duplicate-compute fix and index/candle QA, Android versionCode 187
+version = "2.3.188" # V3 B188 effective Watchlist 3m diagnostic, Android versionCode 188
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
