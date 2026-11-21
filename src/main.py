@@ -7065,17 +7065,31 @@ console.log('BOT KING Lightweight Charts ready');
                             previous_quote=quotes.get(sym) or {}
                             previous_stamp=previous_quote.get("fetched_at")
                             data_stamp=data.get("fetched_at") if isinstance(data,dict) else None
-                            if (prefs.get("source")=="Dhan"
-                                    and previous_quote.get("source")=="Dhan"
-                                    and isinstance(previous_stamp,(int,float))
-                                    and (not isinstance(data_stamp,(int,float)) or previous_stamp>data_stamp)
-                                    and isinstance(previous_quote.get("price"),(int,float))
-                                    and not isinstance(previous_quote.get("price"),bool)
-                                    and math.isfinite(previous_quote["price"]) and previous_quote["price"]>0):
-                                quotes[sym]=dict(data,price=previous_quote["price"],
+                            incoming_price=data.get("price") if isinstance(data,dict) else None
+                            incoming_has_quote=(
+                                isinstance(data,dict) and data.get("source")=="Dhan"
+                                and type(incoming_price) in (int,float)
+                                and math.isfinite(incoming_price) and incoming_price>0
+                                and data.get("freshness")=="unverified")
+                            saved_price=previous_quote.get("price")
+                            saved_has_quote=(
+                                previous_quote.get("source")=="Dhan"
+                                and type(saved_price) in (int,float)
+                                and math.isfinite(saved_price) and saved_price>0)
+                            # A newer candle fetch timestamp is NOT a newer
+                            # exchange LTP timestamp. Historical-only responses
+                            # can arrive after quote batch TTL and must never
+                            # erase an independently fetched last-good Dhan price.
+                            if (prefs.get("source")=="Dhan" and saved_has_quote
+                                    and (not incoming_has_quote
+                                         or (isinstance(previous_stamp,(int,float))
+                                             and (not isinstance(data_stamp,(int,float))
+                                                  or previous_stamp>data_stamp)))):
+                                quotes[sym]=dict(data,price=saved_price,
                                                  fetched_at=previous_stamp,source="Dhan",
                                                  quote_timestamp=previous_quote.get("quote_timestamp"),
-                                                 freshness=previous_quote.get("freshness","unverified"),
+                                                 freshness="unverified",
+                                                 live_verified=False,
                                                  change=previous_quote.get("change"))
                             else:
                                 quotes[sym]=data
