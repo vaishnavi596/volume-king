@@ -1,5 +1,13 @@
 # BOT KING — Permanent Working Rules (cross-chat)
 
+## BOT KING VERSION 3 — official app name + First Bootstrap / Delta Apply building contract (owner 2026-11-21)
+
+**Official current app/project name in future conversations and journals: BOT KING Version 3 (BOT KING V3).** Former "Clone", "B3" and "v2.3.138" remain as GitHub branch, technical version/build and historical identifiers; changing the display name does **not** rename Android package, GitHub branch or current APK without an independently gated, explicit app release.
+
+**SUDHAR 1 building law:** First login/first successful data generation progressively VALIDATES Dhan→Oracle input, stocks bounded last-good snapshots by generation/symbol/timeframe/expiry/source/revision, computes eligible 1m/3m/5m bars and five filters, and mounts each visible screen once in device-sized slices. Subsequent data updates must use **DELTA APPLY**, not full-page rebuilds: quote price-only→price/change; completed or revised candle→candle + affected bullish/bearish/filter votes; option chain changes→specific option/assessment consumers; scanner-only changes→scanner cards. Keep unchanged UI controls, scroll position, navigation, stable row identity and chart history intact. Rebuild structural layout only on genuine membership/search/layout/navigation changes. Never drop candle-close evidence or mark HIST/STALE/WAIT as LIVE. The 6th filter remains inert.
+
+**Implementation gates:** actual source/pipe/stock/impact map → benchmark small/medium/current 51 equities/70 equities, index lane independently, 1–4 phones and warm/cold cases → bounded coalescing latest-price queue keyed by generation/timeframe/expiry and guaranteed candle-close retention → off-UI compute and measured per-frame apply budgets → Help Doctor RECEIVE/CACHE/COMPUTE/QUEUE/RENDER evidence → combined regression → isolated Test APK → real phone acceptance. Existing `src/clone_day2_apply_queue.py` is a prototype, NOT production-wired; `src/main.py::watch_visible_tick` has scoped dirty controls, but `refresh_mounted_data_sections` can rebuild all mounted Dashboard/Scanner dynamic sections. Do not claim this architecture has been delivered simply because its rule was recorded.
+
 ## SUDHAR 1 — three mandatory permanent rules (new-chat first read, 2026-11-21)
 
 **New chat phrase:** “SUDHAR 1 का नियम पढ़ें, वर्तमान जर्नल/लॉगबुक देख कर उसी हिसाब से बिना बार-बार रुके आगे बढ़ें।” **These are THREE requirements, not three competing policies.** The detailed authoritative rules are the following BK-4G, downstream impact, test-APK and ledger sections.
