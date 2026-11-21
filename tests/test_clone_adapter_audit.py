@@ -108,7 +108,7 @@ class CloneAdapterAudit(unittest.TestCase):
     def test_old_settings_preserved_not_mislabelled(self):
         self.assertIn('sym=prefs.get(key,defaults[slot])',MAIN)
         self.assertIn('last_page',MAIN)
-        self.assertIn('prefs.get("chart_timeframe","5m")',MAIN)
+        self.assertIn('prefs.get("chart_timeframe","1m")',MAIN)
         self.assertIn('scan_tf=ft.Dropdown(',MAIN)
         self.assertNotIn("SENSEX price=0",MAIN)
 
