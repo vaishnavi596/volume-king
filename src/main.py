@@ -1121,11 +1121,31 @@ def app_main(page:ft.Page):
             ft.TextButton("Retry data",on_click=lambda e:page.run_task(retry_selected_data))
         ],spacing=2))
     def news_event_overview():
-        data=fusion_cache.get((scan_symbol.value or "NIFTY")+":"+(scan_tf.value or "5m")) or {}
+        # News must not depend on Scanner's fusion calculation having run.
+        # The separate RSS bootstrap may already have populated news_cache.
+        selected_sym=scan_symbol.value or "NIFTY"
+        data=fusion_cache.get(selected_sym+":"+(scan_tf.value or "5m")) or {}
+        candidates=list(data.get("headlines",[]))+list(data.get("global_headlines",[]))
+        if not candidates:
+            for key in (selected_sym,"GLOBAL"):
+                stored=news_cache.get(key) or {}
+                candidates.extend(stored.get("items",[]) if isinstance(stored,dict) else [])
         rows=[note("Company/global headlines are context; earnings and exchange calendar are not connected.")]
-        for item in (data.get("headlines",[])+data.get("global_headlines",[]))[:3]:
-            rows.append(ft.TextButton(content=ft.Text(item["source"]+" • "+item["title"],size=12,color=WHITE),on_click=lambda e,url=item["url"]:page.launch_url(url)))
-        if len(rows)==1:rows.append(note("No news loaded for the selected symbol yet. Open Scanner and refresh."))
+        seen=set()
+        for item in candidates:
+            if not isinstance(item,dict):continue
+            url=item.get("url")
+            title=item.get("title")
+            if (not isinstance(url,str) or not url.startswith("https://")
+                    or not isinstance(title,str) or not title.strip()):continue
+            key=(title.casefold(),url)
+            if key in seen:continue
+            seen.add(key)
+            rows.append(ft.TextButton(
+                content=ft.Text(str(item.get("source","RSS"))[:70]+" • "+title[:160],size=12,color=WHITE),
+                on_click=lambda e,article=url:page.launch_url(article)))
+            if len(seen)>=3:break
+        if len(rows)==1:rows.append(note("No current RSS news cached. News feeds may be unavailable; check News diagnostics."))
         return section("NEWS & EVENT CONTEXT",ft.Column(rows,spacing=4))
     def audit_context():
         context=(provider_generation[0],prefs.get("source"),tuple(filter_selected),
