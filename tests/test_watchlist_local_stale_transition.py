@@ -36,6 +36,7 @@ class WatchlistAgeTransitionTests(unittest.TestCase):
     def test_visible_watchlist_signatures_include_age_transition(self):
         block=SRC.split("    async def watch_visible_tick():",1)[1].split(
             "    def watchlist():",1)[0]
-        self.assertGreaterEqual(block.count("watch_cell_age_flags(sym)"),2)
+        self.assertGreaterEqual(block.count("watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])"),2)
+        self.assertNotIn("watch_cell_age_flags(sym)",block)
         self.assertNotIn("dhan_feed.batch_quotes(",block)
         self.assertNotIn("request_view_refresh(4)",block)
