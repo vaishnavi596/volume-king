@@ -20,7 +20,7 @@ class CloneIndexBatchCacheParityTests(unittest.TestCase):
                                   "25": {"last_price": 60000.0}},
                         "NSE_EQ": {"2885": {"last_price": 1500.0}}}
                 if not omit_sensex:
-                    data["BSE_I"] = {"51": {"last_price": 80000.0}}
+                    data["IDX_I"] = {"51": {"last_price": 80000.0}}
                 return {"status": "success", "data": data}
         feed = FakeDhan()
         client = TestClient(create_app(
