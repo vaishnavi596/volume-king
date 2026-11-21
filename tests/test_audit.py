@@ -194,17 +194,19 @@ class AuditTests(unittest.TestCase):
         page,v=start({'scanner_live':False})
         v['select'](2)
         v['scan_busy'][0]=True
-        self.assertEqual(len(v['filter_selected']),10)
-        for name in ('OI Support','OI Resistance','Max Pain','OI Profile','Volume'):
-            v['add_filter_slot'](name)
-        self.assertEqual(len(v['filter_selected']),15)
-        self.assertEqual(len(v['added_filters']),5)
-        v['add_filter_slot']('ATR 14')
-        self.assertEqual(len(v['filter_selected']),16)
+        from scanner_engine import ALL_FILTERS
+        self.assertEqual(v['filter_selected'],ALL_FILTERS[:17])
+        v['add_filter_slot'](ALL_FILTERS[17])
+        self.assertEqual(len(v['filter_selected']),18)
+        self.assertEqual(len(v['added_filters']),8)
+        v['add_filter_slot']('Max Pain')  # duplicate must stay rejected
+        self.assertEqual(len(v['filter_selected']),18)
         v['remove_added_filter']('Max Pain')
-        self.assertEqual(len(v['filter_selected']),15)
+        self.assertEqual(len(v['filter_selected']),17)
+        v['central_filter_settings']()
+        self.assertIn('Max Pain',[item.key for item in v['filter_choice'].options])
         v['add_filter_slot']('Max Pain')
-        self.assertEqual(len(v['filter_selected']),16)
+        self.assertEqual(len(v['filter_selected']),18)
         self.assertEqual(page.client_storage.get('bot_king_preferences')['scanner_filters'],v['filter_selected'])
         _,restored=start(page.client_storage.get('bot_king_preferences'))
         self.assertEqual(restored['filter_selected'],v['filter_selected'])
