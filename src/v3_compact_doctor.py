@@ -14,8 +14,13 @@ def compact_doctor(stock_states, selected_filters, filter_rows, *,
     good=0
     for state in stock_states:
         if state.get("state")=="ERROR":
-            failures.append({"area":"stock","symbol":state.get("symbol"),
-                             "codes":state.get("error_codes",[])})
+            symbol=state.get("symbol")
+            failures.append({"area":"stock","symbol":symbol,
+                             "codes":state.get("error_codes",[]),
+                             "start":"Dhan API",
+                             "endpoint":"Oracle Clone Gateway → Dhan quote/history → app cache",
+                             "blocked_at":"required Dhan price or selected candle cache",
+                             "next_action":"Check current session quote and 1m/3m history stage"})
         else:
             good+=1
     filters=[]
@@ -36,11 +41,24 @@ def compact_doctor(stock_states, selected_filters, filter_rows, *,
                         "timeframe":scanner_timeframe,
                         "directional_live_verified":False})
         if status=="WAIT":
-            failures.append({"area":"filter","name":name,"code":code})
+            failures.append({"area":"filter","name":name,"code":code,
+                             "start":"Dhan candle/option data",
+                             "endpoint":"Oracle Gateway → per-symbol cache → Scanner filter vote",
+                             "blocked_at":"verified directional evidence" if context
+                                          else "selected timeframe technical candle analysis",
+                             "next_action":"Inspect exact underlying/expiry and evidence provenance" if context
+                                           else "Check completed candle count and timeframe"})
     if quote_status in ("ERROR","UNAVAILABLE"):
-        failures.append({"area":"quote","symbol":scanner_symbol,"code":quote_status})
+        failures.append({"area":"quote","symbol":scanner_symbol,"code":quote_status,
+                         "start":"Dhan quote endpoint","endpoint":"Gateway index/equity LTP → phone Price",
+                         "blocked_at":"valid source-checked quote in current session",
+                         "next_action":"Run focused source/segment/security-id quote probe"})
     if candle_status in ("ERROR","UNAVAILABLE"):
-        failures.append({"area":"candle","symbol":scanner_symbol,"code":candle_status})
+        failures.append({"area":"candle","symbol":scanner_symbol,"code":candle_status,
+                         "start":"Dhan intraday candle endpoint",
+                         "endpoint":"Oracle historical adapter → timeframe cache → Scanner",
+                         "blocked_at":"completed selected-timeframe OHLC",
+                         "next_action":"Check data range, source, validity and upstream error category"})
     return {"mode":"ERRORS_ONLY","scanner_symbol":scanner_symbol,
             "scanner_timeframe":scanner_timeframe,
             "selected_filter_count":len(active),
