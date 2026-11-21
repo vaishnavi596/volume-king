@@ -1617,8 +1617,8 @@ def app_main(page:ft.Page):
         # made ordinary card taps look like an implicit refresh action.
         # Diagnostics and news data remain available in their dedicated views.
         return [
-            wrap_delta_section("dashboard_indices",dashboard_market_indices),
-            wrap_delta_section("dashboard_analysis",dashboard_index_analysis),
+            wrap_delta_section("dashboard_indices",lambda:dashboard_market_indices()),
+            wrap_delta_section("dashboard_analysis",lambda:dashboard_index_analysis()),
             note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
             wrap_delta_section("dashboard_scan",lambda:section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
