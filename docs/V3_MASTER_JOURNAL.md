@@ -588,3 +588,8 @@ The word **WIRED** means a verified source-level call/cache linkage and offline 
 - Updated `tests/test_monitoring_audit.py` commit `12d1e500e2c4be5526c347cb74849e484a739326`: health must record the effective Dhan source instead of a removed Broker API preference.
 - Added isolated no-APK workflow `.github/workflows/v3-b196-regression-preflight.yml` commit `0e10faa4bda19af5f8b1a6f39e27739bb1dd2617`: validates B196 source, targeted tests and full offline suite. It makes no production/server changes and does not create or sign an APK.
 - External run result NOT VERIFIED at journal write time. Remaining B195 errors including scanner render/tick, offline historical cache reconstruction, UI and paper backup must be validated, not masked by weakening assertions. Do not trigger Android signing until full gate PASS; avoid live orders, V1/Oracle mutation, and synthetic market claims.
+
+### 2026-11-21 — B196 false source-guard CI failure repaired; offline run started
+- Run 44932091170/job 136930725584 failed at source guard before tests. The preflight expected the Dhan normalization as one text line; actual `src/main.py` safely uses a two-line conditional + assignment. This was an erroneous textual CI assertion, not a proven runtime failure or authorization issue.
+- Updated the isolated no-APK workflow in commit `46c019e3256351b9802e78c1ed855a0b80751598`: assert two-line startup normalization plus source-change clamp. Source and production server were not modified.
+- Automatic workflow run [44932344171](https://github.com/vaishnavi596/volume-king/actions/runs/44932344171) triggered by that workflow-only change. At initial inspection job `136931494358` was IN_PROGRESS, dependencies being installed. No claim of tests passing, no signing or APK.
