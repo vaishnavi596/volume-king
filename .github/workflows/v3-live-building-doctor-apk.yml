@@ -1,0 +1,160 @@
+name: BOT KING V3 Full Live Doctor Phone APK
+run-name: V3 full live staged phone APK B140
+# Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-live-building-doctor-apk.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v1-pure-original-clone-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Validate B2 SSK and B3 Dhan two-way data contract before APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast, pathlib, tomllib
+          main=pathlib.Path("src/main.py").read_text()
+          client=pathlib.Path("src/clone_v2_gateway.py").read_text()
+          backend=pathlib.Path("backend/clone_v2_gateway.py").read_text()
+          for p in ("src/main.py","src/clone_v2_gateway.py","backend/clone_v2_gateway.py"):
+              ast.parse(pathlib.Path(p).read_text(),filename=p)
+          for marker in ("CloneV2Gateway", "Connect Clone V2 (SSK)", "Disconnect Clone V2", "CloneDhanReadOnly", "dhan_feed.activate_with_quote", "Check Clone B3 Dhan Quotes"):
+              assert marker in main, marker
+          for marker in ('/clone-v2/status', 'X-BotKing-Key', 'botking-clone-v2', '/clone-v2/market/quotes', '/clone-v2/market/'):
+              assert marker in client, marker
+          for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
+              assert marker in backend, marker
+          p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          assert p["project"]["version"] == "2.3.138"
+          print("CLONE_B3_SOURCE_CONTRACT=PASS")
+          PY
+          python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
+          python3 -m unittest discover -s tests -p 'test_clone_v2_oracle_auth_b2.py' -v
+          python3 -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
+          python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+          python3 -m unittest discover -s tests -p 'test_remaining_filter_batch.py' -v
+          bash -n ops/install_clone_v2_b3_oracle.sh
+          bash -n ops/provision_clone_dhan_oauth_env.sh
+          bash -n ops/provision_clone_from_existing_dhan_oauth.sh
+          bash -n ops/audit_v1_dhan_to_clone_handoff.sh
+          bash -n ops/cutover_clone_primary_existing_dhan.sh
+          test -s ops/clone_primary_legacy_dhan_callback_nginx.conf
+          grep -Fq 'location = /dhan/callback' ops/clone_primary_legacy_dhan_callback_nginx.conf
+          python3 - <<'PY'
+          import ast,pathlib
+          gateway=pathlib.Path("backend/clone_v2_gateway.py").read_text()
+          phone=pathlib.Path("src/clone_v2_gateway.py").read_text()
+          app=pathlib.Path("src/main.py").read_text()
+          installer=pathlib.Path("ops/install_clone_v2_b3_oracle.sh").read_text()
+          for path in ("backend/clone_v2_gateway.py","src/clone_v2_gateway.py","src/main.py"):
+              ast.parse(pathlib.Path(path).read_text(),filename=path)
+          assert "https://botkingrajesh.duckdns.org/dhan/callback" in gateway
+          assert '@app.get("/dhan/callback"' in gateway
+          for marker in ("NoBrokerRedirect", 'out.write(new_token+chr(10))',
+                         '/clone-v2/dhan/start','/clone-v2/dhan/callback',
+                         'BOTKING_CLONE_DHAN_CALLBACK_APPROVED'):
+              assert marker in gateway,marker
+          for marker in ("start_dhan_browser_login", "exc.code == 424"):
+              assert marker in phone, marker
+          assert "Authorize Dhan in Browser (Clone)" in app
+          for marker in ("B3_DHAN_BROWSER_REAUTH_REQUIRED=YES",
+                         'B3_ORACLE_GATEWAY=AUTH_REQUIRED',
+                         'EnvironmentFile=/etc/bot-king/clone-dhan-oauth.env'):
+              assert marker in installer, marker
+          print("CLONE_DHAN_BROWSER_LATEST_SECURITY_CONTRACT=PASS")
+          PY
+          python3 -m unittest discover -s tests -p 'test_clone_v2_dhan_browser_consent_b3.py' -v
+          python3 -m unittest discover -s tests -v
+          echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
+
+      - name: V3 B1 B2 guarded live Building Doctor tests
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m py_compile src/main.py src/v3_building_doctor.py src/clone_day2_apply_queue.py
+          python -m unittest discover -s tests -p 'test_v3_live_building_doctor.py' -v
+          python -m unittest discover -s tests -p 'test_v3_b1_bounded_burst.py' -v
+      - name: Create isolated phone-test signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3-doctor-sign"
+          SIGN_PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$SIGN_PASS"
+          printf "%s" "$SIGN_PASS" > "$RUNNER_TEMP/v3-doctor-sign/password"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-doctor-sign/doctor.jks" -storetype PKCS12 -alias v3_doctor -keyalg RSA -keysize 3072 -validity 180 -dname "CN=BOT KING V3 LIVE DOCTOR TEST" -storepass "$SIGN_PASS" -keypass "$SIGN_PASS"
+      - name: Build separate Android identity with original full V1 application
+        env:
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v3-doctor-sign/doctor.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: v3_doctor
+        shell: bash
+        run: |
+          set -euo pipefail
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-doctor-sign/password")"
+          export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          printf "BUILD_VERSION = '2.3.138'\n" > src/_build_version.py
+          mkdir -p "$GITHUB_WORKSPACE/dist/v3-live-doctor"
+          flet build apk --project bot_king_v3_doctor --org com.botking.v3live --product "BOT KING V3 LIVE DOCTOR TEST" --build-number 140 --build-version 2.3.138 --output "$GITHUB_WORKSPACE/dist/v3-live-doctor" --verbose
+      - name: Inspect actual resulting signed Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v3-live-doctor -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v3_doctor' versionCode='140' versionName='2\\.3\\.138'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 LIVE DOCTOR TEST'"
+          "$SIGNER" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+      - name: Remove ephemeral signer material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/v3-doctor-sign"
+      - name: Upload V3 full live Building Doctor phone-test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V3-FULL-LIVE-DOCTOR-B140-APK
+          path: dist/v3-live-doctor/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+# Phone-test build after B3 scanner options safety full gate 2026-11-20
+
+# SUDHAR 1 S1 staged diagnostic build 2026-11-21: full offline tests run before signing/build.
+# Do not treat artifact SUCCESS as Android phone acceptance; Help Doctor runtime pending.
+
+# SUDHAR 1 S1 corrected source 1438/1438 offline PASS: https://github.com/vaishnavi596/volume-king/actions/runs/44862631496
+# Keep S1 test APK side-by-side with installed Clone/V1 by using separate com.botking.v3live package identity.
+
+# SUDHAR 1 S1 corrected two-contract tests verified by full regression run 44862631496 at 4483a4f; gated diagnostic APK build139, 2026-11-21.
