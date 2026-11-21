@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.192" # V3 B192 Dhan Max Pain cleanup and measured Watchlist 3m tick, Android versionCode 192
+version = "2.3.193" # V3 B193 app-wide adapter Doctor, Paper PnL, last Chart filters/cache, Android versionCode 193
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
