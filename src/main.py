@@ -1168,7 +1168,7 @@ def app_main(page:ft.Page):
                      RED if row["status"]=="ERROR" else MUTED) for row in rows]
         ready_from_candles=[x for x in filter_selected
                             if x not in ("OI Support","OI Resistance","OI Profile",
-                                         "Max Pain","News Headlines")]
+                                         "Dhan Max Pain","News Headlines")]
         external_wait=[x for x in filter_selected if x not in ready_from_candles]
         return ft.ExpansionTile(title=txt("54-symbol filter audit • indexes 1m / equities 5m",14,GOLD),
             subtitle=note(summary),controls=[
@@ -5553,6 +5553,16 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
+    # Legacy standalone label now resolves to the single Dhan-backed filter.
+    # Preserve previously selected filters and modes, with no duplicate slot.
+    if isinstance(prefs.get("scanner_filters"),(list,tuple)):
+        prefs["scanner_filters"]=list(dict.fromkeys(
+            "Dhan Max Pain" if name=="Max Pain" else name
+            for name in prefs["scanner_filters"]))
+    if isinstance(prefs.get("scanner_filter_modes"),dict):
+        old_modes=prefs["scanner_filter_modes"]
+        if "Max Pain" in old_modes:
+            old_modes["Dhan Max Pain"]=old_modes.pop("Max Pain")
     MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
     # New installs begin with 17 active slots; the 18th remains available.
     # Existing saved choices (including intentional removals) are preserved.
@@ -5581,7 +5591,7 @@ def app_main(page:ft.Page):
         if saved is False:
             filter_feedback.value="Filter changed in this session, but saving failed • retry"
     def filter_availability(name):
-        if name in ("OI Support","OI Resistance","OI Profile","Max Pain"):
+        if name in ("OI Support","OI Resistance","OI Profile","Dhan Max Pain"):
             return ("Dhan listed option-chain context required for Scanner symbol; "
                     "unverified OI/Max Pain is display-only and never vote")
         if name=="News Headlines":
@@ -6258,7 +6268,7 @@ console.log('BOT KING Lightweight Charts ready');
                 data=matching_option_context_for_symbol(sym)
                 if data:
                     context=option_chain_display_context(data)
-                    if name=="Max Pain" and isinstance(data.get("max_pain"),(int,float)):
+                    if name=="Dhan Max Pain" and isinstance(data.get("max_pain"),(int,float)):
                         row["detail"]="Dhan Max Pain "+format(data["max_pain"],",.0f")+" • unverified, display only"
                     elif name=="OI Profile" and context.get("available"):
                         row["detail"]="Dhan ATM ±3 listed strikes available • unverified, display only"
