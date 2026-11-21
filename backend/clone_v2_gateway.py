@@ -109,7 +109,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
 
 
     indices = {"NIFTY": ("IDX_I", 13), "BANKNIFTY": ("IDX_I", 25),
-               "SENSEX": ("BSE_I", 51)}
+               "SENSEX": ("IDX_I", 51)}
     registry = (market_registry if market_registry is not None else
                 load_equity_registry(os.environ.get("BOTKING_CLONE_DHAN_REGISTRY",
                 "/opt/bot-king-backups/registry-audit/dhan_equity_registry.json")))
