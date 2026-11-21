@@ -2204,7 +2204,7 @@ def app_main(page:ft.Page):
             detail=safe_error(exc)
             display_failures["dhan_index_ltp_batch"]=(
                 "Dhan index quote route failed • "+detail+
-                " • existing prices unverified; check SENSEX BSE_I/51 separately")
+                " • existing prices unverified; check SENSEX IDX_I/51 separately")
             login_bootstrap.finish(generation,"indices",0,3,error=detail)
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 old=quotes.get(ticker)
