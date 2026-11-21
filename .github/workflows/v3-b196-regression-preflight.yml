@@ -1,0 +1,40 @@
+name: BOT KING V3 B196 Offline Regression Preflight (No APK)
+run-name: V3 B196 Dhan-only regression gate • NO APK
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-b196-regression-preflight.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+      - name: Verify V3 B196 source and target tests
+        run: |
+          python - <<'PY'
+          import ast, pathlib, tomllib
+          assert tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"] == "2.3.196"
+          for path in ("src/main.py", "tests/test_market_feed.py", "tests/test_monitoring_audit.py"):
+              ast.parse(pathlib.Path(path).read_text(),filename=path)
+          source=pathlib.Path("src/main.py").read_text()
+          assert 'if prefs.get("source")!="Dhan":prefs["source"]="Dhan"' in source
+          print("V3_B196_SOURCE_GUARD=PASS")
+          PY
+          python -m unittest discover -s tests -p 'test_market_feed.py' -v
+          python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
+      - name: Full offline regression (no APK, no server write)
+        run: |
+          python -m unittest discover -s tests -v
+          echo V3_B196_FULL_OFFLINE_GATE=PASS
