@@ -5485,9 +5485,12 @@ console.log('BOT KING Lightweight Charts ready');
                 # Same list and length can still have revised last-minute
                 # OHLCV. Invalidate derived 3m on a changed last row, not
                 # only on append or the next 3-minute clock boundary.
-                last_minute=tuple(bars_1m[-1]) if isinstance(bars_1m[-1],(list,tuple)) else None
+                # The Dhan source can correct any of the last 2–4 1m bars
+                # without changing the final row or fetched_at. All four
+                # overlapping rows must invalidate the derived 3m cache.
+                recent_ohlcv=tuple(tuple(row) for row in bars_1m[-4:])
                 identity=(provider_generation[0],id(bars_1m),len(bars_1m),
-                          last_minute,source_1m.get("candle_fetched_at"),
+                          recent_ohlcv,source_1m.get("candle_fetched_at"),
                           source_1m.get("fetched_at"),int(now_epoch//180))
                 saved=derived_three_minute_cache.get(sym)
                 if not saved or saved[0]!=identity:
