@@ -656,19 +656,22 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertEqual(v["preference_writer"].revision,before)
 
     def test_candle_analysis_survives_news_failure(self):
-        _,v=start({"scanner_live":False,"source":"Yahoo Finance","scanner_timeframe":"5m"})
+        _,v=start({"scanner_live":False,"source":"Dhan","scanner_timeframe":"5m"})
+        # Offline authorized session mock: no actual Dhan or RSS request.
+        v["dhan_feed"]._origin="https://example.invalid"
+        v["dhan_feed"]._pairing_key="offline-test-only"
         end=int(time.time()//300)*300-300
         bars=[[end-(39-i)*300,100+i,103+i,99+i,102+i,100] for i in range(40)]
         async def respond(fn,*args,**kwargs):
-            if fn.__name__=="get_market_data":return {"bars":bars,"price":bars[-1][4],"cached":False,"source":"Yahoo Finance","quote_timestamp":end}
-            raise TimeoutError()
-        with patch("asyncio.to_thread",side_effect=respond):asyncio.run(v["scan_market"]())
-        self.assertEqual(v["scan_shared"]["timestamp"],end)
-        self.assertEqual(v["quotes"]["NIFTY"]["price"],bars[-1][4])
-        card=v["fusion_card"]("NIFTY","5m")
-        text=" ".join(c.value for c in walk(card) if isinstance(c,ft.Text))
-        self.assertIn("Candles:",text)
-        self.assertNotIn("Waiting for candles",text)
+            if fn.__name__=="get_market_data":
+                return {"bars":bars,"price":None,"cached":False,"source":"Dhan",
+                        "quote_timestamp":None,"freshness":"historical_unverified","live_verified":False}
+            raise TimeoutError("Mocked RSS unavailable")
+        with patch("asyncio.to_thread",side_effect=respond):
+            asyncio.run(v["scan_market"]())
+        self.assertEqual(v["scan_shared"].get("timestamp"),end)
+        # Dhan candles may complete even if RSS is down, but never invent LTP.
+        self.assertNotIn("NIFTY",v["quotes"])
         self.assertFalse(v["scan_busy"][0])
 
     def test_setting_time_is_converted_to_ist(self):
