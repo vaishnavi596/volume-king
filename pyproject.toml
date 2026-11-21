@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.138" # Clone B3 1398 offline regression passed; three-issue phone test pending
+version = "2.3.139" # V3 B156 new phone diagnostic, versionCode 156; phone acceptance pending
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
