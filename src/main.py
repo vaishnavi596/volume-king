@@ -1617,8 +1617,8 @@ def app_main(page:ft.Page):
         # made ordinary card taps look like an implicit refresh action.
         # Diagnostics and news data remain available in their dedicated views.
         return [
-            wrap_delta_section("dashboard_indices",lambda:dashboard_market_indices()),
-            wrap_delta_section("dashboard_analysis",lambda:dashboard_index_analysis()),
+            wrap_delta_section("dashboard_indices",dashboard_market_indices(),dashboard_market_indices),
+            wrap_delta_section("dashboard_analysis",dashboard_index_analysis(),dashboard_index_analysis),
             note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
             wrap_delta_section("dashboard_scan",lambda:section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
@@ -6150,9 +6150,12 @@ console.log('BOT KING Lightweight Charts ready');
     first_render=[True]
     # Mounted data sections survive ordinary refreshes. No page-tree replacement.
     delta_hosts={}
-    def wrap_delta_section(name, factory):
-        host=ft.Container(content=factory())
-        delta_hosts[name]=(host,factory)
+    def wrap_delta_section(name, control_or_factory, factory=None):
+        # Initial build can retain legacy direct builder calls verbatim.
+        builder=factory if factory is not None else control_or_factory
+        first_content=control_or_factory if factory is not None else builder()
+        host=ft.Container(content=first_content)
+        delta_hosts[name]=(host,builder)
         return host
     def refresh_mounted_data_sections(target):
         if target==0:
