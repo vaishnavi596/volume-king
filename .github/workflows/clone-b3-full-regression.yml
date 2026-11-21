@@ -104,3 +104,5 @@ jobs:
 # B146 repair exact-head test updated for finite saved quote without regression in source protection; 1m default unchanged.
 
 # B147 targeted full regression after all-filter, end-to-end SENSEX and refresh-first error-only doctor changes.
+
+# B148 full regression after updating prior 15-filter and chart-5m assertions to active V3 contract.
