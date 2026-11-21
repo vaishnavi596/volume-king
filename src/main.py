@@ -1617,16 +1617,16 @@ def app_main(page:ft.Page):
         # made ordinary card taps look like an implicit refresh action.
         # Diagnostics and news data remain available in their dedicated views.
         return [
-            dashboard_market_indices(),
-            dashboard_index_analysis(),
+            wrap_delta_section("dashboard_indices",dashboard_market_indices),
+            wrap_delta_section("dashboard_analysis",dashboard_index_analysis),
             note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
-            section('CANDLE ANALYSIS • ' + scan_shared['direction'],
+            wrap_delta_section("dashboard_scan",lambda:section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
-                               note(scan_shared['basis'])], spacing=4)),
-            section('OPTIONS DATA • '+str(chain_symbol.value),
-                    ft.Column([note(option_feed_status[0]), option_metrics('OI')])),
-            super_five_card(),
-            risk_overview(),
+                               note(scan_shared['basis'])], spacing=4))),
+            wrap_delta_section("dashboard_options",lambda:section('OPTIONS DATA • '+str(chain_symbol.value),
+                    ft.Column([note(option_feed_status[0]), option_metrics('OI')]))),
+            wrap_delta_section("dashboard_super_five",super_five_card),
+            wrap_delta_section("dashboard_risk",risk_overview),
         ]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
@@ -5686,9 +5686,9 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY")),
-            safe_scanner_widget("Options",scanner_option_context),
-            safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:five_engine_summary(scan_symbol.value or "NIFTY"))),
+            wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
+            wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
         if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -6148,6 +6148,36 @@ console.log('BOT KING Lightweight Charts ready');
         navbar.controls.append(ft.Container(content=button,expand=1))
         nav_items.append((icon,label))
     first_render=[True]
+    # Mounted data sections survive ordinary refreshes. No page-tree replacement.
+    delta_hosts={}
+    def wrap_delta_section(name, factory):
+        host=ft.Container(content=factory())
+        delta_hosts[name]=(host,factory)
+        return host
+    def refresh_mounted_data_sections(target):
+        if target==0:
+            names=("dashboard_indices", "dashboard_analysis", "dashboard_scan",
+                   "dashboard_options", "dashboard_super_five", "dashboard_risk")
+        elif target==3:
+            # Scanner control/search/auto timer and chart WebView stay mounted.
+            # scan_result, scan_status and chart bars are updated by their owners.
+            names=("scanner_five", "scanner_options", "scanner_assessment")
+        else:
+            return False
+        if not names or not all(name in delta_hosts for name in names):
+            return False
+        for name in names:
+            host,factory=delta_hosts[name]
+            if host.page is None:
+                return False  # Navigation/layout transition needs a normal build.
+        for name in names:
+            host,factory=delta_hosts[name]
+            try:
+                host.content=factory()
+                host.update()
+            except (AssertionError,RuntimeError) as exc:
+                log_error("delta_refresh_"+name,exc)
+        return True
     refresh_pending=[False]
     refresh_target=[None]
     async def flush_view_refresh():
@@ -6163,7 +6193,9 @@ console.log('BOT KING Lightweight Charts ready');
         if target is None or target!=current[0]:return
         if target==4 and current[0]==4 and watch_list.page is not None:
             # Quotes and filters are repainted by watch_visible_tick in-place.
-            # Do not reconstruct page chrome or scrolling rows on data refresh.
+            return
+        if target in (0,3) and refresh_mounted_data_sections(target):
+            # Preserve persistent Controls, scroll offset and scanner/chart state.
             return
         select(target,refresh_only=True)
     def request_view_refresh(i):
@@ -6190,6 +6222,16 @@ console.log('BOT KING Lightweight Charts ready');
         current[0]=i
         if changed:prefs["last_page"]=i;save()
         body.controls[:]=controls
+        # Drop detached page-host entries; only the newly built view is kept.
+        delta_hosts_keys=(
+            ("dashboard_indices","dashboard_analysis","dashboard_scan",
+             "dashboard_options","dashboard_super_five","dashboard_risk")
+            if i==0 else
+            ("scanner_five","scanner_options","scanner_assessment")
+            if i==3 else ())
+        for old_key in tuple(delta_hosts):
+            if old_key not in delta_hosts_keys:
+                delta_hosts.pop(old_key,None)
         # Navigation must not trigger a duplicate Oracle snapshot request.
         if (changed and i==4 and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected
                 and not watch_batch_busy[0]
