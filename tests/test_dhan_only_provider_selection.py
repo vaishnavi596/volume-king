@@ -17,7 +17,9 @@ class DhanOnlyProviderSelectionTests(unittest.TestCase):
         self.assertNotIn('options=[ft.dropdown.Option("Yahoo Finance"),ft.dropdown.Option("Broker API"),ft.dropdown.Option("Dhan")])', SOURCE)
 
     def test_saved_unknown_provider_defaults_to_dhan(self):
-        self.assertIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"', SOURCE)
+        self.assertIn('if prefs.get("source")!="Dhan":', SOURCE)
+        self.assertIn('prefs["source"]="Dhan"', SOURCE)
+        self.assertNotIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan")', SOURCE)
 
     def test_legacy_provider_callbacks_remain_for_regression_compatibility(self):
         block = SOURCE.split('    def source_change(e):', 1)[1].split('    source.on_change=source_change', 1)[0]
