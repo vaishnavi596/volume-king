@@ -4630,12 +4630,17 @@ def app_main(page:ft.Page):
                     mode=filter_modes.get(name,"Analysis")
                     vote=row.get("vote")
                     detail=str(row.get("detail") or cause)[:180]
+                    context_ready=(name in OPTION_FILTERS and
+                                   "unverified" in detail and
+                                   not ("incomplete" in detail or "No matching" in detail))
                     state=("CHART_ONLY" if mode=="Chart" else
                            "BULLISH" if vote==1 else
                            "BEARISH" if vote==-1 else
-                           "NEUTRAL" if vote==0 else "WAIT")
+                           "NEUTRAL" if vote==0 else
+                           "CONTEXT_ONLY" if context_ready else "WAIT")
                     filter_rows.append({"filter":name,"status":state,
                                         "stage":("DISPLAY" if state=="CHART_ONLY" else
+                                                 "OI_CONTEXT_NO_DIRECTIONAL_VOTE" if state=="CONTEXT_ONLY" else
                                                  "SOURCE_OR_CALCULATION" if state=="WAIT" else
                                                  "CALCULATED"),
                                         "detail":detail})
@@ -4656,6 +4661,7 @@ def app_main(page:ft.Page):
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "history_present":bool(bars),
                     "history_shape_valid":bool(bars and valid_candle_history(bars)),
+                    "analysis_uses_exact_timeframe":str(history.get("_scanner_timeframe"))==tf if isinstance(history,dict) else False,
                     "analysis_reason":cause,
                     "engine_snapshot_present":symbol in five_engine_snapshots,
                     "provider_connected":bool(dhan_feed.connected),
@@ -4681,22 +4687,28 @@ def app_main(page:ft.Page):
                            0<=bull<=100 and 0<=bear<=100 and bull+bear==100)
                     historical_percent=None
                     if not ready and name=="technical":
-                        saved=watch_signal_cache.get(symbol) or {}
-                        if saved.get("source")=="Dhan" and saved.get("timestamp"):
-                            counts=signal_percentages(saved)
-                            if counts and counts[2]>0:
-                                historical_percent={"bullish":counts[0],
-                                                    "bearish":counts[1],
-                                                    "label":"HIST_ONLY"}
+                        # The Doctor reports the SELECTED exact timeframe, not
+                        # an unrelated legacy 5m watchlist vote snapshot.
+                        counts=historical_vote_agreement(history,tf)
+                        if counts and counts[2]>0:
+                            historical_percent={"bullish":counts[0],
+                                                "bearish":counts[1],
+                                                "label":"HIST_ONLY",
+                                                "timeframe":tf,
+                                                "directional_votes":counts[2]}
                     elif not ready and name=="candle":
-                        candle_tf="1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"
-                        cached=shared_history(symbol,candle_tf)
-                        if cached.get("source")=="Dhan":
-                            balance=historical_candle_balance(cached.get("bars"))
+                        # Completed/validated bars from the same selected
+                        # timeframe: price-action context, not an eligible
+                        # independent live evidence vote.
+                        if (history.get("source")=="Dhan" and
+                                diagnostic_context["history_shape_valid"]):
+                            balance=historical_candle_balance(bars)
                             if balance:
                                 historical_percent={"bullish":balance["bullish"],
                                                     "bearish":balance["bearish"],
-                                                    "label":"HIST_ONLY"}
+                                                    "label":"HIST_ONLY",
+                                                    "timeframe":tf,
+                                                    "directional_candles":balance["count"]}
                     if ready:
                         blocker="NONE_VERIFIED"
                     elif name=="technical":
@@ -4753,7 +4765,8 @@ def app_main(page:ft.Page):
                      "reason":cause},
                     {"stage":"FILTER_ANALYSIS","status":"COMPUTED" if computed else "WAIT",
                      "selected":len(names),"calculated":len(computed),
-                     "waiting":sum(row["status"]=="WAIT" for row in filter_rows)},
+                     "waiting":sum(row["status"]=="WAIT" for row in filter_rows),
+                     "context_only":sum(row["status"]=="CONTEXT_ONLY" for row in filter_rows)},
                     {"stage":"FIVE_ENGINE_ADAPTER","status":
                      "PRESENT" if prepared_snapshot else "MISSING",
                      "verified_display_boxes":display_ready,
