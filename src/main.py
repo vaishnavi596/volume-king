@@ -1625,8 +1625,8 @@ def app_main(page:ft.Page):
                                note(scan_shared['basis'])], spacing=4))),
             wrap_delta_section("dashboard_options",lambda:section('OPTIONS DATA • '+str(chain_symbol.value),
                     ft.Column([note(option_feed_status[0]), option_metrics('OI')]))),
-            wrap_delta_section("dashboard_super_five",super_five_card),
-            wrap_delta_section("dashboard_risk",risk_overview),
+            wrap_delta_section("dashboard_super_five",super_five_card(),super_five_card),
+            wrap_delta_section("dashboard_risk",risk_overview(),risk_overview),
         ]
 
     search=ft.TextField(label="Search in selected list",hint_text="e.g. RELIANCE",expand=True,border_color=BORDER,color=WHITE,bgcolor=PANEL2)
