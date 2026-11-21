@@ -181,6 +181,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('initial_trading_mode="Paper" if prefs.get("mode")=="Paper" else "Live (locked)"',APP)
         self.assertIn('ft.dropdown.Option("Live (locked)","Live trading • permanently disabled")',APP)
         self.assertNotIn('for x in ["Paper","Manual","Semi-Auto","Auto"]',APP)
+        self.assertIn('if key=="mode" and value in ("Manual","Semi-Auto","Auto","Live (locked)"):',APP)
         self.assertIn('if prefs.get("source")!="Dhan":',APP)
         self.assertIn('prefs["source"]="Dhan"',APP)
         self.assertNotIn('if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan")',APP)
