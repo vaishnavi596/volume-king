@@ -106,8 +106,10 @@ class AuditTests(unittest.TestCase):
     def test_superseded_scan_cannot_publish(self):
         page,v=start({'scanner_live':False,'source':'Dhan'})
         # Local fake authorized session: network is mocked, no secrets stored.
-        v['dhan_feed']._origin='https://example.invalid'
-        v['dhan_feed']._pairing_key='offline-test-only'
+        v['clone_v2_gateway']._origin='https://example.invalid'
+        v['clone_v2_gateway']._key='offline-test-only'
+        v['dhan_feed']._market_verified=True
+        self.assertTrue(v['dhan_feed'].connected)
         before=list(v['scan_result'].controls)
         original_generation=v['scan_generation'][0]
         async def delayed(fn,*args,**kwargs):
