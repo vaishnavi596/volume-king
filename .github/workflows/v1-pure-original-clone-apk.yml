@@ -149,3 +149,5 @@ jobs:
 
 # SUDHAR 1 S1 corrected source 1438/1438 offline PASS: https://github.com/vaishnavi596/volume-king/actions/runs/44862631496
 # Keep S1 test APK side-by-side with installed Clone/V1 by using separate com.botking.sudhar1 package identity.
+
+# SUDHAR 1 S1 corrected two-contract tests verified by full regression run 44862631496 at 4483a4f; gated diagnostic APK build139, 2026-11-21.
