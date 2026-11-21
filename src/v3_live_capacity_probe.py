@@ -44,6 +44,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
             derived_3m+=1
     after_derive=time.perf_counter()
     quote_present=0
+    quote_missing=[]
     coverage={"1m":0,"3m":0,"5m":0}
     missing_by_frame={"1m":[],"3m":[],"5m":[]}
     for symbol in names:
@@ -51,6 +52,8 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         p=q.get("price") if isinstance(q,dict) else None
         if isinstance(q,dict) and q.get("source")=="Dhan" and type(p) in (float,int) and math.isfinite(p) and p>0:
             quote_present+=1
+        else:
+            quote_missing.append(symbol)
         for frame in coverage:
             h=histories.get((symbol,frame,generation)) or {}
             bars=h.get("bars") if isinstance(h,dict) else None
@@ -98,6 +101,8 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         "unselected_equity_slots":missing_equity_count,
         "observed_instruments":len(names),
         "dhan_quote_present":quote_present,
+        "quote_missing_count":len(quote_missing)+missing_equity_count,
+        "quote_missing_sample":quote_missing[:12],
         "history_presence":coverage,
         "derived_3m_from_valid_1m":derived_3m,
         "history_missing_sample":{tf:missing_by_frame[tf][:6] for tf in coverage},
