@@ -2274,12 +2274,15 @@ def app_main(page:ft.Page):
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
         last_visible_signature=None
         last_cell_signatures={}
+        # Price-only updates must not rebuild expensive signal/evidence children.
+        last_evidence_signatures={}
         last_filtered_membership=[None]
         while True:
             await asyncio.sleep(2)
             if current[0]!=4 or not app_active[0]:
                 last_visible_signature=None
                 last_cell_signatures.clear()
+                last_evidence_signatures.clear()
                 last_filtered_membership[0]=None
                 continue
             try:
@@ -2334,6 +2337,7 @@ def app_main(page:ft.Page):
                         # Recreated controls must receive fresh cell values even
                         # if the underlying quote/candle signature is unchanged.
                         last_cell_signatures.clear()
+                        last_evidence_signatures.clear()
                         fill_watch()
                         if watch_list.page is not None:watch_list.update()
                         continue
@@ -2378,13 +2382,29 @@ def app_main(page:ft.Page):
                             row.get("live_verified") is True and
                             row.get("freshness") in ("verified_live","live_verified")))
                         and 0<=time.time()-stamp<=timeframe_spec("3m")["fresh_seconds"])
-                    # Replace child content inside persistent mounted containers,
-                    # not the static symbol, containing Row or whole Watchlist page.
-                    five.content=five_engine_chips(sym)
-                    assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
-                    signal.content=compact_watch_signal(row,available,fresh)
-                    for cell in (five,assessment,signal):
-                        if cell.page is not None:cell.update()
+                    # A new LTP by itself is NOT a new candle/filter/assessment.
+                    # Keep evidence children mounted until their actual inputs change.
+                    # Include current freshness state and provider status so HIST/WAIT
+                    # labels can still transition without a new price.
+                    evidence_signature=(
+                        signal_row.get("timestamp"),repr(signal_row.get("votes")),
+                        signal_row.get("live_verified"),signal_row.get("freshness"),
+                        bool(signal_row.get("historical")),available,fresh,
+                        id(five_engine_snapshots.get(sym)),
+                        (oracle_assessment_cache.get(
+                            (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
+                        watch_cell_age_flags(sym),watch_batch_status[0],
+                        provider_generation[0],tuple(filter_selected),
+                        tuple(sorted(filter_modes.items())))
+                    if last_evidence_signatures.get(sym)!=evidence_signature:
+                        last_evidence_signatures[sym]=evidence_signature
+                        # Replace child content inside persistent mounted containers,
+                        # not the symbol label/row or the whole Watchlist page.
+                        five.content=five_engine_chips(sym)
+                        assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
+                        signal.content=compact_watch_signal(row,available,fresh)
+                        for cell in (five,assessment,signal):
+                            if cell.page is not None:cell.update()
                     age=time.time()-q.get("fetched_at",0) if isinstance(q.get("fetched_at"),(int,float)) else None
                     valid=(same and not dhan_offline() and age is not None and 0<=age<=60
                            and isinstance(q.get("price"),(int,float)) and not isinstance(q.get("price"),bool)
