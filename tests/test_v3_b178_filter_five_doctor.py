@@ -136,6 +136,9 @@ class FilterFiveDoctorContract(unittest.TestCase):
                       '"index_failure_next_stage"',
                       '"other_indices_option_context_not_inferred":True'):
             self.assertIn(extra,panel)
+        self.assertIn('"Dhan Max Pain" if name=="Max Pain" else name',APP)
+        self.assertIn('if name=="Dhan Max Pain"',APP)
+        self.assertIn('data["max_pain"]',APP)
         self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
