@@ -124,6 +124,43 @@ class SmartApplyQueue:
         result.deferred = len(self.pending)
         return result
 
+
+    def ingest_burst(self, updates, apply=None, batch_size: int = 128) -> ApplyReport:
+        """Stream a finite burst through the bounded queue without capacity drops.
+
+        Drain BEFORE a new distinct key reaches the limit. A failed callback
+        remains pending; if there is no progress, stop and fail closed rather
+        than discard the remaining items. This is a test/prototype API, not
+        a UI-frame scheduling or durable-storage implementation.
+        """
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        combined = ApplyReport()
+        for update in updates:
+            if not isinstance(update, Update):
+                raise ValueError("invalid burst update")
+            key = self.key(update)
+            while key not in self.pending and len(self.pending) >= self.max_pending:
+                report = self.apply_tick(min(batch_size, self.max_pending), apply=apply)
+                combined.applied.extend(report.applied)
+                combined.errors.extend(report.errors)
+                if not report.applied:
+                    raise RuntimeError("Queue blocked by failing apply; retry before resuming burst")
+            if not self.receive(update):
+                # Stale revisions are safely ignored by receive(). Other
+                # failures must not be reported as successful ingestion.
+                if self.key(update) not in self.applied_revisions and self.key(update) not in self.pending:
+                    raise ValueError("burst update rejected")
+        while self.pending:
+            report = self.apply_tick(min(batch_size, self.max_pending), apply=apply)
+            combined.applied.extend(report.applied)
+            combined.errors.extend(report.errors)
+            if not report.applied:
+                raise RuntimeError("Queue blocked by failing apply; retry before resuming burst")
+        combined.queue_length = len(self.pending)
+        combined.deferred = len(self.pending)
+        return combined
+
     def health(self) -> dict[str, Any]:
         return {"counts": dict(self.counts), "pending": len(self.pending),
                 "issues": list(self.diagnostics[-20:]),
