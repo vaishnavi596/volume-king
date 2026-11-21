@@ -63,6 +63,7 @@ def safe_error(exc):
             "Clone market candles HTTP 422": "Clone candle symbol, interval or date rejected (HTTP 422)",
             "Clone market candles HTTP 502": "Clone candle upstream unavailable (HTTP 502)",
             "Clone market candles HTTP 503": "Clone candle upstream unavailable (HTTP 503)",
+            "Verified Clone Dhan symbol unavailable": "Clone quote route returned no verified quote for requested index; check Dhan index response",
             "Clone candle response not verified": "Clone returned invalid candle data contract",
             "Clone unsupported candle interval": "Clone candle timeframe unsupported",
             "Clone listed option expiries invalid": "Clone option expiry response invalid",
