@@ -62,12 +62,22 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertIn('prior=shared_history(sym,"3m")',block)
         self.assertIn('if valid_candle_history(prior.get("bars")):',block)
         self.assertIn('data=retain_candle_history(data,shared_history(sym,"1m"),provider="Dhan")',block)
-        # Retain cooldown, single-symbol, and foreground protection.
+        # Preserve source, session, pacing, and cache protections. Android
+        # background lifecycle alone must no longer interrupt first hydration.
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/intraday")',block)
         self.assertIn('await asyncio.sleep(1.5)',block)
         self.assertNotIn('asyncio.gather(',block)
-        self.assertIn('lifecycle_background[0]',block)
+        self.assertIn('watch_bootstrap_stop_requested()',block)
+        self.assertNotIn('or not app_active[0]',block)
+        self.assertNotIn('lifecycle_background[0]',block)
         self.assertIn('incomplete rows remain WAIT',block)
+
+    def test_background_bootstrap_stop_policy_keeps_process_running_but_not_unknown_inactive(self):
+        helper=self.source.split("    def watch_bootstrap_stop_requested():",1)[1].split(
+            "    async def watch_login_candle_bootstrap():",1)[0]
+        self.assertIn("return not app_active[0] and not lifecycle_background[0]",helper)
+        self.assertIn("An OS process freeze still requires a native",helper)
+
 
     def test_index_one_minute_yields_to_bounded_watchlist_warmup(self):
         body=self.source.split("    async def dhan_index_candle_poll():",1)[1].split(
