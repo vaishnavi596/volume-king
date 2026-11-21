@@ -88,3 +88,5 @@ jobs:
 # SUDHAR 1 S1 phone 49-of-51 historical bootstrap bounded recovery: exact-head source + regression check 2026-11-21.
 
 # 2026-11-21 focused background Watchlist bootstrap regression gate; APK only after result review.
+
+# 2026-11-21 exact-head B140 retry: repair 4 app-active guards and stale Watchlist regression assertion.
