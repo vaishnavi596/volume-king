@@ -85,7 +85,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         start=APP.index("    def master_diagnostic_panel():")
         end=APP.index("    def v3_live_building_panel():",start)
         panel=APP[start:end]
-        for segment in ("GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
+        for segment in ("PAPER_ADAPTER_AUDIT","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                         "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
                         "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION",
                         "BACKGROUND_LIFECYCLE"):
@@ -155,6 +155,18 @@ class FilterFiveDoctorContract(unittest.TestCase):
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
         self.assertIn('"mounted_3m_signal_tick_performance":dict(watch_3m_tick_profile)',APP)
+        for audit_field in ('"paper_bot_engine":"MANUAL_MARK_ONLY"',
+                            '"legacy_chart_paper_handler_mounted":False',
+                            '"option_premium_chart_adapter":"LEGACY_ANGEL_ONLY_UNAVAILABLE_FOR_DHAN"',
+                            '"live_order_buttons_enabled":False',
+                            '"chart_local_filter_profile":dict(chart_filter_profile)',
+                            '"chart_exact_timeframe_cache_present"',
+                            '"chart_uses_shared_cached_history_without_provider_on_open":True',
+                            'content.append(chart_filter_evidence())'):
+            self.assertIn(audit_field,APP)
+        self.assertIn('def chart_filter_evidence():',APP)
+        self.assertIn('chart_snapshots[chart_key]=dict(existing,',APP)
+
         self.assertIn('tick_started=time.perf_counter()',APP)
         self.assertIn('watch_3m_tick_profile["last_symbols"]=len(visible)',APP)
         self.assertIn('"index_result_state":index_last_result_state[0]',APP)
