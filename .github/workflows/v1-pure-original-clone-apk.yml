@@ -185,3 +185,5 @@ jobs:
 # B178 17 filter + five engine cache-only Doctor phone build: removed old SENSEX-only tool; full offline tests gate before signing.
 
 # B178 release gate retry: project metadata now matches APK 2.3.178; previous run failed only version assertion before testing.
+
+# B178 consolidated retry: 8 legacy offline assertions reconciled to removed old SENSEX probe and deployed IDX_I registry; full gate remains mandatory.
