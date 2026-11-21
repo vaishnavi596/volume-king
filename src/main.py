@@ -6150,7 +6150,7 @@ console.log('BOT KING Lightweight Charts ready');
             next_text="OFF";scan_next_refresh[0]=None
         elif not app_active[0]:
             next_text="PAUSED — app in background"
-        elif prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
+        elif prefs.get("source")!="Dhan":
             next_text="PAUSED — select a market feed";scan_next_refresh[0]=None
         elif not refresh_hours():
             next_text="PAUSED — outside regular session hours";scan_next_refresh[0]=None
