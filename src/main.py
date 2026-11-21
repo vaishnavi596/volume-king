@@ -5002,7 +5002,7 @@ def app_main(page:ft.Page):
         segments=("ALL","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                   "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
                   "OPTIONS_NEWS_FUTURES","CHART_UI","PAPER_ADAPTER_AUDIT",
-                  "ERRORS_COORDINATION","BACKGROUND_LIFECYCLE")
+                  "ADAPTER_CONNECTION_MAP","ERRORS_COORDINATION","BACKGROUND_LIFECYCLE")
         selected=ft.Dropdown(label="Diagnostic segment",value="ALL",
             options=[ft.dropdown.Option(name) for name in segments],width=290)
         report=ft.Text("One-tap ALL report • current cache only • no provider calls.",
@@ -5294,6 +5294,109 @@ def app_main(page:ft.Page):
                         "data_path":"Dhan → Oracle Clone Gateway → phone cache → analysis → UI",
                         "failure_inference":"Do not confuse local cache readiness with exchange-verified live data"}
                 }
+                # Runtime + source-contract evidence in one place. These rows are
+                # explicitly READ ONLY and never call a provider or broker.
+                # A connected transport is not proof of exchange-live signals.
+                def adapter_row(state,code,stage,next_check,**extra):
+                    return dict(state=state,code=code,stage=stage,
+                                next_check=next_check,**extra)
+                active_paper_position=bool(bot_position.get("side"))
+                paper_events=(prefs.get("paper_portfolio_journal") or [])
+                if not isinstance(paper_events,list):
+                    paper_events=[]
+                paper_count=sum(isinstance(item,dict) and
+                                item.get("kind")=="paper_simulation" for item in paper_events)
+                adapter_map={
+                    "DHAN_TRANSPORT":adapter_row(
+                        "CONNECTED" if dhan_feed.connected else "DISCONNECTED",
+                        "CONNECTED_NOT_LIVE_VERIFIED" if dhan_feed.connected else "DHAN_NOT_CONNECTED",
+                        "AUTH_AND_PHONE_FEED","Check Dhan SSK and Oracle session; no live timestamp inference"),
+                    "ORACLE_CLONE_GATEWAY":adapter_row(
+                        "CONNECTED" if clone_v2_gateway.connected else "DISCONNECTED",
+                        "CONNECTED_NOT_SOURCE_VERIFIED" if clone_v2_gateway.connected else "SSK_NOT_CONNECTED",
+                        "CLONE_PIPE","Check Clone session, then independently validate price routes"),
+                    "EQUITY_QUOTES":adapter_row(
+                        "CACHED" if price_count else "WAIT",
+                        "EQUITY_CACHE_NOT_EXCHANGE_VERIFIED" if price_count else "EQUITY_CACHE_EMPTY",
+                        "Dhan → Oracle → phone price cache",
+                        "Check market session timestamp; reuse selected-only quote batching",
+                        selected= len(valid_equities),cached=price_count),
+                    "INDEX_BATCH":adapter_row(
+                        index_last_result_state[0],index_failure_code[0],
+                        "/dhan/index-ltp-batch",
+                        sections["GATEWAY_REFRESH"]["index_failure_next_stage"],
+                        same_generation=index_last_result_generation[0]==generation),
+                    "WATCHLIST_3M":adapter_row(
+                        "CACHE_AVAILABLE" if three_minute_available==len(valid_equities) else "PARTIAL_OR_WAIT",
+                        "DERIVED_3M_UNVERIFIED_LIVE",
+                        "exact-generation 1m → completed 3m",
+                        "Compare mounted 3m tick latency and cache miss count",
+                        selected=len(valid_equities),effective_3m=three_minute_available,
+                        local_inspection_ms=candle_counts["3m"]["local_inspection_elapsed_ms"]),
+                    "SCANNER":adapter_row(
+                        "HIST_CALCULATED" if scanner_calc else "WAIT",
+                        "HIST_ONLY_NOT_LIVE_VERIFIED",
+                        "selected-timeframe Dhan candles → Scanner filters",
+                        "Inspect exact timeframe/source and 13+4 filter voting",
+                        calculated=scanner_calc,context_only=non_directional),
+                    "FIVE_ENGINE":adapter_row(
+                        "VERIFIED" if sections["SUPER_FIVE_ENGINES"]["verified_boxes"]==5 else "WAIT",
+                        "INDEPENDENT_LIVE_EVIDENCE_UNAVAILABLE",
+                        "technical/candle/news/futures/options",
+                        "Check independently timestamped and verified inputs for every box",
+                        verified=sections["SUPER_FIVE_ENGINES"]["verified_boxes"]),
+                    "DHAN_OPTION_CONTEXT":adapter_row(
+                        "CACHED" if dhan_option_context_cache else "WAIT",
+                        "CONTEXT_ONLY_NO_VERIFIED_PREMIUM" if dhan_option_context_cache else "OPTION_CONTEXT_EMPTY",
+                        "Dhan option-chain context",
+                        "Verify exact symbol/expiry; never reuse underlying LTP as option premium",
+                        entries=len(dhan_option_context_cache)),
+                    "NEWS_CONTEXT":adapter_row(
+                        "CACHED" if news_cache else "WAIT",
+                        "HEADLINES_NOT_VERIFIED_DIRECTION" if news_cache else "HEADLINE_CACHE_EMPTY",
+                        "cached headline context","Check per-index symbol matching and timestamps",
+                        symbols=len(news_cache)),
+                    "CHART_LAST_TAB":adapter_row(
+                        "CACHED" if sections["CHART_UI"]["chart_exact_timeframe_cache_present"] else "WAIT",
+                        "SAME_TIMEFRAME_HIST_ONLY" if sections["CHART_UI"]["chart_exact_timeframe_cache_present"] else "CHART_CACHE_MISSING",
+                        "last Chart tab + Scanner selected filters",
+                        "Open Chart, select Signals and inspect chart_local_filter_profile",
+                        symbol=str(symbol.value),timeframe=str(timeframe.value),
+                        chart_filter_ms=chart_filter_profile["last_ms"]),
+                    "PAPER_BOT":adapter_row(
+                        "MANUAL_SIMULATION" if mode.value=="Paper" else "PAPER_MODE_OFF",
+                        "MANUAL_MARK_REQUIRED" if active_paper_position and not str(paper_mark.value or "").strip()
+                        else "SIMULATION_ONLY_NO_BROKER_ORDER",
+                        "Paper Bot 1-5 → local journal/P&L",
+                        "Enter manual mark, run simulated BUY/SELL, then inspect journal and P&L",
+                        selected_slot=str(paper_bot_active[0]),
+                        open_position=active_paper_position,
+                        simulated_events=paper_count),
+                    "OPTION_PREMIUM_CHART":adapter_row(
+                        "UNAVAILABLE","LEGACY_ANGEL_CHART_DHAN_ONLY",
+                        "historic Angel-only option candle adapter",
+                        "Keep blocked until independently verified Dhan option contract history exists"),
+                    "LIGHTWEIGHT_WEBVIEW":adapter_row(
+                        "UNAVAILABLE","ANDROID_EMBEDDED_WEBVIEW_UNSUPPORTED",
+                        "TradingView Lightweight widget",
+                        "Use native broker chart unless Android WebView package verified"),
+                    "LIVE_ORDER":adapter_row(
+                        "DISABLED","PERMANENTLY_LOCKED",
+                        "broker execution API",
+                        "Never enable or place real orders; Paper only"),
+                    "ALERTS":adapter_row(
+                        "UNAVAILABLE","DELIVERY_ADAPTER_NOT_CONNECTED",
+                        "notification delivery","Do not claim alerts are operating"),
+                    "BACKTEST":adapter_row(
+                        "UNAVAILABLE","BACKTEST_ENGINE_NOT_CONNECTED",
+                        "strategy evaluation","Require historical validation before use")
+                }
+                sections["ADAPTER_CONNECTION_MAP"]={
+                    "type":"READ_ONLY_SOURCE_AND_RUNTIME_STATUS",
+                    "adapter_count":len(adapter_map),
+                    "adapters":adapter_map,
+                    "interpretation":"CACHED/HIST does not mean broker-live; UNAVAILABLE is not an observed network error",
+                    "provider_requests":0,"orders_sent":0}
                 # Fixed, allowlisted code-route/remedy catalogue. These are
                 # design diagnoses, not speculative exception traces.
                 remedies=[]
