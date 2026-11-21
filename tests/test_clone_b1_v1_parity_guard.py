@@ -30,8 +30,8 @@ class OriginalV1FeaturePreservation(unittest.TestCase):
 
     def test_good_b1_b2_safety_extensions_not_reverted(self):
         for fragment in ("MAX_ACTIVE_FILTERS=15",
-                         '["1m","2m","3m","5m","15m","1h"]',
-                         'source_interval="1m" if interval in ("2m","3m")',
+                         '["1m","2m","3m","5m","10m","15m","30m","1h"]',
+                         'source_interval=("1m" if interval in ("2m","3m")',
                          "completed_two_minute_bars(", "completed_three_minute_bars(",
                          "MAX_WATCHLIST_EQUITIES=70",
                          'if not allow_network and prefs.get("source")=="Dhan":',
