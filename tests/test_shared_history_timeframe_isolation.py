@@ -100,6 +100,26 @@ class TimeframeHistoryIsolationTests(unittest.TestCase):
         self.assertIsNot(revised, old)
         self.assertFalse(revised["live_verified"])
 
+    def test_previous_two_to_four_one_minute_revisions_rebuild_three_minute(self):
+        start = int(datetime(2025, 11, 13, 9, 15,
+                             tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
+        for offset in (2, 3, 4):
+            with self.subTest(candles_back=offset):
+                source = history("1m")
+                source["bars"] = [[start+i*60, 100, 104, 98, 101, 1] for i in range(12)]
+                select = load_selector(charts={("NIFTY", "1m", 1): source})
+                before = select("NIFTY", "3m")
+                self.assertEqual(len(before["bars"]), 4)
+                previous_last = list(source["bars"][-1])
+                changed = source["bars"][-offset]
+                changed[4] = 102
+                changed[2] = 105
+                after = select("NIFTY", "3m")
+                self.assertIsNot(after, before)
+                self.assertNotEqual(after["bars"], before["bars"])
+                self.assertEqual(source["bars"][-1], previous_last)
+                self.assertFalse(after["live_verified"])
+
     def test_cached_wrong_provider_one_minute_never_derives_dhan_three(self):
         start = int(datetime(2025, 11, 13, 9, 15,
                              tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp())
