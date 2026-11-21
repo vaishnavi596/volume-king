@@ -27,6 +27,14 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"filter_results":filter_rows',panel)
         self.assertIn('"five_boxes":engines',panel)
         self.assertIn('"stage_context":diagnostic_context',panel)
+        self.assertIn('"cache_to_display_trace":pipeline_trace',panel)
+        for stage in ("CACHE_INPUT", "TIMEFRAME_AND_SOURCE", "CANDLE_VALIDATION",
+                      "FILTER_ANALYSIS", "FIVE_ENGINE_ADAPTER", "DASHBOARD_UI_INPUT"):
+            self.assertIn(stage,panel)
+        self.assertIn('chart_snapshots.get((symbol,tf,generation))',panel)
+        self.assertIn('scanner_cache_exact_match',panel)
+        self.assertIn('verified_display_boxes',panel)
+        self.assertIn('Flutter pixels not measured',panel)
         for blocker in ("CANDLE_HISTORY_MISSING", "TECHNICAL_VOTES_OR_FRESHNESS_UNVERIFIED",
                         "INDEPENDENT_CANDLE_EVIDENCE_UNVERIFIED",
                         "HEADLINES_PRESENT_DIRECTION_UNVERIFIED",
