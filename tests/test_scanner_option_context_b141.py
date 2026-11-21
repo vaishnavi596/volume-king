@@ -33,7 +33,7 @@ class ScannerOptionContextRegression(unittest.TestCase):
                            "    def shared_filter_report(sym,tf,result):")
         self.assertIn("data=matching_option_context_for_symbol(sym)", block)
         self.assertIn('row["vote"]=None', block)
-        self.assertIn("if name==\"Max Pain\"", block)
+        self.assertIn("if name==\"Dhan Max Pain\"", block)
         self.assertIn('row["detail"]="No matching Dhan expiry snapshot for "+sym+" • WAIT"', block)
         self.assertNotIn('row["vote"]=1', block)
         self.assertNotIn('row["vote"]=-1', block)
@@ -43,7 +43,7 @@ class ScannerOptionContextRegression(unittest.TestCase):
         self.assertIn("data=matching_option_context_for_symbol(symbol)", block)
         self.assertIn('str(data.get("expiry"))', block)
         self.assertNotIn('data.get("expiry")!=expiry.value', block)
-        self.assertIn("no OI/PCR/Max Pain scanner vote", block)
+        self.assertIn("no OI/PCR/Dhan Max Pain scanner vote", block)
 
 
 if __name__ == "__main__":
