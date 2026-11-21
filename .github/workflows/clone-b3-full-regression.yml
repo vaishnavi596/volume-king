@@ -100,3 +100,5 @@ jobs:
 # B144 final fix: restore missing-cache Options mismatch diagnostic and include SENSEX targeted tester.
 
 # B145 full regression: prevent later 5m candle fetch from erasing valid Dhan price; preserve SENSEX diagnostic.
+
+# B146 repair exact-head test updated for finite saved quote without regression in source protection; 1m default unchanged.
