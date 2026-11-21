@@ -2754,6 +2754,39 @@ def app_main(page:ft.Page):
         if kind=="Market Levels":
             return section(kind,ft.Column([txt("20-candle rolling support ₹"+fmt("support"),14,GREEN),txt("20-candle rolling resistance ₹"+fmt("resistance"),14,RED),note("ATR14 ₹"+fmt("atr14")+" • calculated zones, not verified exchange levels"),provenance],spacing=5))
         return section(kind,ft.Column([txt("Candle analysis: "+result["bias"],16,GOLD,True),note("EMA20 ₹"+fmt("ema20")+" • EMA50 ₹"+fmt("ema50")+" • RSI14 "+fmt("rsi14")),note(result["reason"]+" • not an order recommendation"),provenance],spacing=5))
+    def chart_filter_evidence():
+        # Reuse the selected chart's exact-timeframe Dhan bars. Never issue
+        # provider requests or treat OI/news context as a direction vote.
+        snapshot=chart_snapshot(symbol.value)
+        bars=snapshot.get("bars") or []
+        if snapshot.get("source")!="Dhan" or not valid_candle_history(bars):
+            return section("Selected Scanner Filters",note("WAIT • matching Dhan chart candles unavailable"))
+        selected=active_analysis_filters()
+        if not selected:
+            return section("Selected Scanner Filters",note("No analysis filters selected in Settings"))
+        started=time.perf_counter()
+        result=analyze(bars,selected=selected,timeframe=timeframe.value)
+        chart_filter_profile["last_ms"]=round((time.perf_counter()-started)*1000,2)
+        chart_filter_profile["last_symbol"]=symbol.value
+        chart_filter_profile["last_timeframe"]=timeframe.value
+        chart_filter_profile["last_count"]=len(selected)
+        votes=result.get("votes") or []
+        rows=[]
+        for vote in votes:
+            name=str(vote.get("name","Unknown"))
+            direction=vote.get("vote")
+            label=("BULLISH" if direction==1 else "BEARISH" if direction==-1
+                   else "NEUTRAL" if direction==0 else "WAIT / CONTEXT")
+            rows.append(note(name+" • "+label+" • "+str(vote.get("detail",""))[:85]))
+        for name in selected:
+            if not any(v.get("name")==name for v in votes):
+                rows.append(note(name+" • WAIT / CONTEXT ONLY (no authenticated directional data)"))
+        return section("Selected Scanner Filters • "+timeframe.value,
+            ft.Column([note("Historical Dhan candles only • not LIVE confirmation • source: Scanner filter settings"),
+                       *rows,note("Local filter calculation "+str(chart_filter_profile["last_ms"])+" ms")],
+                      spacing=4))
+
+    chart_filter_profile={"last_ms":None,"last_symbol":None,"last_timeframe":None,"last_count":0}
     def charts():
         content=[heading("Charts • Technical Analysis"),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:choose_chart_tab(v),style=ft.ButtonStyle(color=GOLD if chart_tab[0]==n else MUTED)) for n in ["Chart","Indicators","Drawing","Compare","Levels","Signals"]],scroll=ft.ScrollMode.AUTO),ft.Row([symbol,timeframe]),ft.ElevatedButton("Apply / Refresh",on_click=lambda e:page.run_task(load_chart),bgcolor=GOLD,color=BG)]
         if chart_tab[0]=="Chart":
@@ -2820,6 +2853,7 @@ def app_main(page:ft.Page):
             content.append(chart_analysis_panel("Market Levels"))
         else:
             content.append(chart_analysis_panel("Signals"))
+            content.append(chart_filter_evidence())
         return content
     chart_load_busy=[False]
     chart_load_pending=[False]
@@ -5154,6 +5188,15 @@ def app_main(page:ft.Page):
                         "chart_webview_attached":bool(tv_view[0] is not None),
                         "chart_provider":str(chart_provider[0]),
                         "app_mounted_screen":current[0],
+                        "chart_exact_timeframe_cache_present":bool(
+                            chart_snapshot(symbol.value).get("source")=="Dhan" and
+                            valid_candle_history(chart_snapshot(symbol.value).get("bars"))),
+                        "chart_local_filter_profile":dict(chart_filter_profile),
+                        "shared_scanner_filter_count":len(active_analysis_filters()),
+                        "chart_webview_supported":bool(embedded_lightweight_supported),
+                        "chart_indicator_overlays_supported":False,
+                        "chart_last_load_busy":bool(chart_load_busy[0]),
+                        "chart_uses_shared_cached_history_without_provider_on_open":True,
                         "physical_flutter_paint_measured":False},
                     "BACKGROUND_LIFECYCLE":{
                         "code_path":"src/main.py:lifecycle_changed → app_active/lifecycle_background → refresh_market/warm_selected_watch_three_minute_early",
@@ -7311,6 +7354,18 @@ console.log('BOT KING Lightweight Charts ready');
     def render_page(i):
         changed=current[0]!=i
         try:
+            # Open Chart immediately from exact-generation, same-timeframe cached
+            # candles when present; explicit Apply/Refresh still fetches as usual.
+            # No Dhan request here and no 5m-to-1m/3m relabeling.
+            if i==5 and prefs.get("source")=="Dhan":
+                chart_key=(symbol.value,timeframe.value,provider_generation[0])
+                cached_chart=chart_snapshots.get(chart_key) or {}
+                if not cached_chart.get("bars"):
+                    existing=shared_history(symbol.value,timeframe.value)
+                    if existing.get("source")=="Dhan" and valid_candle_history(existing.get("bars")):
+                        chart_snapshots[chart_key]=dict(existing,
+                            _scanner_timeframe=timeframe.value,historical=True,
+                            live_verified=False,freshness="historical_unverified")
             # Construct the new page first; a builder error must not erase the old page.
             controls=([language_panel()] if i==2 else [note(quote_caption(chain_symbol.value if i==1 else (scan_symbol.value or "NIFTY")))])+[decorate_help(c) for c in pages[i]()]
         except Exception as exc:
