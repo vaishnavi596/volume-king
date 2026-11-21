@@ -44,6 +44,14 @@ class V3B153PhoneFeedbackTests(unittest.TestCase):
         self.assertIn("request_view_refresh(1)",finally_section)
         self.assertNotIn("select(1)",finally_section)
 
+    def test_sensex_diagnostic_is_stage_specific_not_timeframe_guessed(self):
+        section=MAIN.split("    def sensex_full_diagnostic_panel():",1)[1].split("    # Keep the manual Diagnostics",1)[0]
+        self.assertIn('"quote_error_detail"=safe_error',section.replace('output["quote_error_detail"]=safe_error','"quote_error_detail"=safe_error'))
+        self.assertIn('output["candle_error_detail"]=safe_error(exc)',section)
+        self.assertIn('dhan_feed.quote,"SENSEX"',section)
+        self.assertIn('dhan_feed.intraday,"SENSEX",1,start,end',section)
+        self.assertIn('source_verified_live',section)
+
     def test_timeframe_isolated_and_no_fake_ltp(self):
         history=MAIN.split("    def shared_history(sym,tf=",1)[1].split("    def ",1)[0]
         self.assertIn('prefs.get("scanner_timeframe","1m")',MAIN)
