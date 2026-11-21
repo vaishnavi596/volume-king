@@ -182,7 +182,7 @@ def scanner_snapshot(scan_result):
             # technical evidence while never converting an OI/news/volume
             # data gap into a bullish, bearish or neutral confirmation.
             unavailable = {"OI Support", "OI Resistance", "OI Profile",
-                           "Max Pain", "News Headlines", "VWAP", "Volume"}
+                           "Dhan Max Pain", "News Headlines", "VWAP", "Volume"}
             # Context enrichment can replace the literal WAIT text with
             # Dhan expiry/OI details. Only an explicitly known data-dependent
             # filter may remain unavailable; never infer its direction.
