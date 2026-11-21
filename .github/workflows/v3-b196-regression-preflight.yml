@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B197 Index Route Error Classification Full Regression • NO APK
+run-name: V3 B197 Candle Quality Doctor Full Offline Regression • NO APK
 on:
   push:
     branches:
