@@ -1,5 +1,16 @@
 # BOT KING — Permanent Working Rules (cross-chat)
 
+## SUDHAR 1 — three mandatory permanent rules (new-chat first read, 2026-11-21)
+
+**New chat phrase:** “SUDHAR 1 का नियम पढ़ें, वर्तमान जर्नल/लॉगबुक देख कर उसी हिसाब से बिना बार-बार रुके आगे बढ़ें।” **These are THREE requirements, not three competing policies.** The detailed authoritative rules are the following BK-4G, downstream impact, test-APK and ledger sections.
+
+1. **SUDHAR 1 Four-Gate Check BEFORE a functional fix:** Verify actual Dhan DATA (source/timeframe/freshness), Oracle PIPE (auth/rate/cache/response), bounded phone DATA STOCK/CACHE/QUEUE and actual compute/UI capacity, then direct and transitive downstream IMPACT (including candle→five filters→signals→watchlist/scanner/dashboard/Super Five/options/charts/paper-bot/Doctor). Record evidence and unknowns; do not mistake source audit for live proof.
+2. **JOINT REPAIR + SEGMENT TEST:** Fix upstream source plus *all affected consumers together*; preserve unaffected functions; use focused and exact-head full offline regression. At a complete segment boundary, when mobile results matter, run an isolated identifiable **diagnostic Test APK** and record Help Doctor screenshot+timing/feature verdict before advancing. Failed affected tests → same segment correction or HOLD/rollback. Do not wait for 20 unvalidated patches.
+3. **CANONICAL JOURNAL / LOGBOOK:** Before editing consult this file, current active branch/HEAD, [Live Work Index](docs/BOT_KING_LIVE_WORK_INDEX.md), latest verified CI and related historic Work Log/Day-2. After EVERY meaningful diagnosis, code/test/workflow edit, CI status, Oracle action and device result, append exact SHA, run ID where available, PASS/FAIL/PENDING, dependency matrix and next step to **one chronological** `docs/BOT_KING_WORK_LOG.md`; update the **short** Live Work Index (previous/current/next) and active Day-2 journal only with task-specific evidence. Do not duplicate full historical reports or erase authentic prior failures. New chat begins from Live Index, never old V2 historical “CURRENT” labels.
+
+**Absolute release distinction:** source code changed ≠ tests passed ≠ APK built ≠ APK installed ≠ market/Oracle phone PASS. Keep V1 and production Clone safe, Dhan-only, live orders OFF. For a blocked GitHub Actions push run, record UNKNOWN and get actual run/artifact proof instead of inventing it.
+
+
 ## SUDHAR 1 — staged diagnostic Test APK gate (owner amendment, 2026-11-21)
 
 **Owner explicitly authorizes intermediate, isolated Android TEST APK builds per coherent completed improvement segment** when the device/Help Doctor result is required to identify real runtime effects. This supersedes any blanket reading of "only one APK at the end", but does NOT bypass safety, exact-head tests, application identity separation, V1 preservation or controlled production release. Do not ask again after each coherent segment; proceed to the next evidenced safe gate without micro-pauses.
@@ -11,10 +22,6 @@
 - Compare the TEST APK to its exact baseline on the same phone and synthetic/source-safe scenario: first login, Watchlist responsiveness, scanner, bullish/bearish candle, five filters + inert sixth, Dashboard, Super Five, Options, Charts, Paper Bot simulation gating, memory/CPU/render jank. Diagnose failures **at this segment** and repair the affected downstream set together before S2. Preserve unaffected consumers.
 - Track **S1 FIXED/TESTED/PHONE PASS** distinctly from source-only PASS, APK build SUCCESS and server readiness. An APK may be built in stages, but only a fully integrated verified version may be released as the final normal app. Record every APK/run/artifact/hash, Health Doctor result, screenshot finding and rollback in Work Log, Day-2 and Live Work Index.
 - If a diagnostic TEST APK is not safe or CI/tests are pending, HOLD and report the actual blocker; never claim it was built or tested.
-
-## SUDHAR 1 — permanent four-check and downstream-safe improvement rule (owner codeword)
-
-**Trigger phrase (new chats): "Sudhar 1 ka niyam dekh kar aage badhein" / "सुधार 1 का नियम देख कर आगे बढ़ें".** SUDHAR 1 is the user-facing canonical name of the existing BK-4G four-gate policy below, not a separate feature. Before an app/server correction, prove (1) Dhan data/validity/timeframe/freshness, (2) authenticated two-way Oracle gateway, (3) bounded app stock/cache/queue and phone compute/render capacity, and (4) full direct/transitive downstream impact. Fix all affected consumers in ONE batch, keep unrelated working modules unchanged, run focused + exact-head full regression and phone/server gates when relevant, and journal every result. Diagnosis and tests are allowed before changes; critical dependent failures block release.
 
 ## PERMANENT LAW BK-4G — Four mandatory checks BEFORE every functional fix (owner 2026-11-21)
 
