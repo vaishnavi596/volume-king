@@ -232,6 +232,11 @@ class CloneDhanReadOnly:
         self._selected_batch_missing = False
         self._historical_only = False
         self._cooldowns = {}
+        # All phone quote lanes share one serialized gate. Oracle needs >=1.05s
+        # between provider misses; allow headroom without increasing fanout.
+        import threading
+        self._quote_lane_lock = threading.Lock()
+        self._quote_lane_last_attempt = 0.0
 
     @property
     def connected(self):
@@ -256,16 +261,28 @@ class CloneDhanReadOnly:
 
     def _fetch(self, symbols):
         import time
-        try:
-            return self.gateway.market_quotes(list(symbols))
-        except FeedError as exc:
-            if "paced" in str(exc) or "rate limit" in str(exc):
-                # Gateway 429 can represent a 30s Dhan quota cooldown,
-                # not just the 1.05s quote pacing floor. Fail safe.
-                until = time.monotonic() + 30
-                for route in ("/dhan/selected-ltp-batch", "/dhan/index-ltp-batch"):
-                    self._cooldowns[route] = max(self._cooldowns.get(route, 0.0), until)
-            raise
+        # Serialize index/equity/individual quotes within this phone, including
+        # asyncio.to_thread callers. Never launch a queued request during a
+        # previously observed provider-wide 429 cooldown.
+        with self._quote_lane_lock:
+            cooldown = max((self.cooldown_remaining(route) for route in
+                ("/dhan/selected-ltp-batch", "/dhan/index-ltp-batch")), default=0)
+            if cooldown > 0:
+                raise FeedError("Clone Dhan quote cooldown active; retry later")
+            delay = 1.15 - (time.monotonic() - self._quote_lane_last_attempt)
+            if self._quote_lane_last_attempt > 0 and delay > 0:
+                time.sleep(delay)
+            self._quote_lane_last_attempt = time.monotonic()
+            try:
+                return self.gateway.market_quotes(list(symbols))
+            except FeedError as exc:
+                if "paced" in str(exc) or "rate limit" in str(exc):
+                    # Preserve the 30s broker quota guard; a 2s gateway pace
+                    # failure also backs off safely instead of a retry burst.
+                    until = time.monotonic() + 30
+                    for route in ("/dhan/selected-ltp-batch", "/dhan/index-ltp-batch"):
+                        self._cooldowns[route] = max(self._cooldowns.get(route, 0.0), until)
+                raise
 
     def quote(self, symbol):
         result = self._fetch([symbol])
