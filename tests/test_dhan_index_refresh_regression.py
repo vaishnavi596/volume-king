@@ -41,6 +41,15 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn("diagnostic=str(exc).lower()", source)
         self.assertIn("index_last_result_generation[0]=generation", source)
 
+    def test_doctor_reports_actual_clone_index_route_not_legacy_path(self):
+        # Do not direct an operator to the obsolete V1 /dhan index HTTP path.
+        self.assertIn('"route":"/clone-v2/market/quotes"', self.source)
+        self.assertIn('"/clone-v2/market/quotes",', self.source)
+        self.assertIn('src/clone_v2_gateway.py:CloneDhanReadOnly.index_batch_quotes', self.source)
+        self.assertIn('actual /clone-v2/market/quotes three-index request', self.source)
+        # Legacy cooldown keys can remain internal for compatibility.
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")', self.source)
+
     def test_index_poll_is_not_blocked_by_equity_snapshot(self):
         fn = next(node for node in ast.walk(self.tree)
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_quote_poll")
