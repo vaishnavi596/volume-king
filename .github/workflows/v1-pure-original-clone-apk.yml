@@ -153,3 +153,5 @@ jobs:
 # SUDHAR 1 S1 corrected two-contract tests verified by full regression run 44862631496 at 4483a4f; gated diagnostic APK build139, 2026-11-21.
 
 # 2026-11-21 B140 staged build after background Watchlist lifecycle source correction. Full offline gate inside build; no screen-off service guarantee.
+
+# 2026-11-21 B140 retry with corrected lifecycle guard and refreshed regression contract (full offline gate before signing).
