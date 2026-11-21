@@ -1414,7 +1414,7 @@ def app_main(page:ft.Page):
                 and math.isfinite(data["pcr"]) and math.isfinite(data["max_pain"])):
             context=option_chain_display_context(data)
             pieces[-1]=("Options WAIT • Dhan PCR "+format(data.get("pcr",0),".3f")+
-                        " • Max Pain "+format(data.get("max_pain",0),",.0f")+
+                        " • Dhan Max Pain "+format(data.get("max_pain",0),",.0f")+
                         (" • 7 strikes displayed" if context.get("available")
                          else " • ATM strikes unavailable")+
                         " • unverified context, not a directional vote")
@@ -3121,7 +3121,7 @@ def app_main(page:ft.Page):
             # never overwrite a newer quote snapshot.
             previous=quotes.get(sym) or {}
             # No history request is needed for option metrics.
-            option_feed_status[0]="Loading Dhan read-only PCR and Max Pain..."
+            option_feed_status[0]="Loading Dhan read-only PCR and Dhan Max Pain..."
             # Dhan expiry-list and option-chain share a three-second pacing gate.
             # Wait asynchronously so the UI stays responsive.
             await asyncio.sleep(3.25)
@@ -3223,7 +3223,7 @@ def app_main(page:ft.Page):
         if kind=="OI":
             value=data.get("max_pain")
             if type(value) not in (int,float) or not math.isfinite(value) or value<=0:
-                return note("Max Pain ERROR • valid Dhan option-chain metric missing or invalid")
+                return note("Dhan Max Pain ERROR • valid Dhan option-chain metric missing or invalid")
             return note("Dhan Max Pain: "+f'{value:,.0f}'+
                         " • UNVERIFIED • live orders OFF • OI Support/Resistance directional evidence not connected")
         return note("Premium flow unavailable without verified volume and transaction direction.")
@@ -3296,7 +3296,7 @@ def app_main(page:ft.Page):
             note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
-            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option-chain snapshot pending • Dhan automatically loads PCR and Max Pain when a listed expiry is available; CE/PE premiums not verified."),
+            note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option-chain snapshot pending • Dhan automatically loads PCR and Dhan Max Pain when a listed expiry is available; CE/PE premiums not verified."),
             note(quote_caption(chain_symbol.value)),
             note("Option quote times (IST): "+", ".join(sorted({datetime.fromtimestamp(r["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S") for r in rows if r.get("timestamp")}))) if rows else note("No option quote timestamps yet"),
             note(option_feed_status[0]),
@@ -5211,7 +5211,7 @@ def app_main(page:ft.Page):
                         "code":"FILTERS_NOT_ALL_DIRECTIONAL",
                         "source":"src/main.py:enrich_context_filter_rows / src/five_engine.py:scanner_snapshot",
                         "evidence":str(scanner_calc)+" calculated out of "+str(len(filter_names))+" selected; "+str(non_directional)+" OI context only",
-                        "solution":"Keep OI/PCR/Max Pain as context until authenticated directional trade-flow evidence exists; do not invent missing votes",
+                        "solution":"Keep OI/PCR/Dhan Max Pain as context until authenticated directional trade-flow evidence exists; do not invent missing votes",
                         "confidence":"CACHE_CONFIRMED"})
                 if not all(x["verified_directional_percent_available"] for x in engine_rows):
                     remedies.append({"segment":"SUPER_FIVE_ENGINES",
@@ -5596,7 +5596,7 @@ def app_main(page:ft.Page):
     def filter_availability(name):
         if name in ("OI Support","OI Resistance","OI Profile","Dhan Max Pain"):
             return ("Dhan listed option-chain context required for Scanner symbol; "
-                    "unverified OI/Max Pain is display-only and never vote")
+                    "unverified OI/Dhan Max Pain is display-only and never vote")
         if name=="News Headlines":
             return "News context ON when selected • cached headlines only; no directional vote"
         if name in ("Volume","VWAP"):
@@ -6609,7 +6609,7 @@ console.log('BOT KING Lightweight Charts ready');
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
             parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
             parts.append(note("Chart switches affect display only. Up to 10 saved analysis filters work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
-            parts.append(note("OI / PCR / Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
+            parts.append(note("OI / PCR / Dhan Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
     def open_matching_scanner_options(e=None):
         # Explicit navigation only: Scanner selection must not silently
@@ -6625,15 +6625,15 @@ console.log('BOT KING Lightweight Charts ready');
         symbol=scan_symbol.value or "NIFTY"
         data=matching_option_context_for_symbol(symbol)
         if symbol not in DHAN_VERIFIED_OPTION_SYMBOLS:
-            message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
+            message="OI / PCR / Dhan Max Pain: no verified Dhan underlying mapping for "+symbol
         elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
-            message="OI / PCR / Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
+            message="OI / PCR / Dhan Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
         elif not data and symbol!=chain_symbol.value:
-            message=("OI / PCR / Max Pain: Scanner "+symbol+" differs from Options "+
+            message=("OI / PCR / Dhan Max Pain: Scanner "+symbol+" differs from Options "+
                      str(chain_symbol.value)+" • no cached matching Dhan expiry; open Options for "+symbol)
         elif (data.get("symbol")!=symbol or data.get("source")!="dhan"
               or not data.get("expiry")):
-            message=("OI / PCR / Max Pain: no broker-listed expiry snapshot for "+symbol+
+            message=("OI / PCR / Dhan Max Pain: no broker-listed expiry snapshot for "+symbol+
                      " • latest Options selection is "+str(expiry.value or "not loaded")+
                      (" • auto-refresh pauses after market hours; use explicit Retry Data"
                       if not refresh_hours() else " • waiting for paced Dhan refresh"))
@@ -6645,20 +6645,20 @@ console.log('BOT KING Lightweight Charts ready');
               or not math.isfinite(data["max_pain"]) or data["max_pain"]<=0
               or data.get("freshness") != "unverified"
               or data.get("signal_eligible") is not False):
-            message="OI / PCR / Max Pain: Dhan option snapshot incomplete; awaiting next automatic request"
+            message="OI / PCR / Dhan Max Pain: Dhan option snapshot incomplete; awaiting next automatic request"
         else:
             context=option_chain_display_context(data)
             strike_note=(" • ATM ±3 listed strikes available" if context.get("available")
                          else " • listed strikes unavailable")
             message=("Dhan "+symbol+" • expiry "+str(data.get("expiry"))
                      +" • PCR "+f'{data["pcr"]:.3f}'
-                     +" • Max Pain "+f'{data["max_pain"]:,.0f}'+strike_note)
+                     +" • Dhan Max Pain "+f'{data["max_pain"]:,.0f}'+strike_note)
         controls=[note(message),
-                  note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")]
+                  note("Freshness UNVERIFIED • no OI/PCR/Dhan Max Pain scanner vote or live trade signal")]
         if symbol in DHAN_VERIFIED_OPTION_SYMBOLS and symbol!=chain_symbol.value:
             controls.append(ft.OutlinedButton(
                 "Open Options for "+symbol,on_click=open_matching_scanner_options))
-        return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
+        return section("OI / PCR / DHAN MAX PAIN • INFORMATION ONLY",
                        ft.Column(controls,spacing=4))
     def scanner():
         # A broken scanner widget must not make the whole navigation tab inaccessible.
@@ -6715,7 +6715,7 @@ console.log('BOT KING Lightweight Charts ready');
                            filter_checklist,ft.OutlinedButton("Restore default 17",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
-                           note("OI Support, OI Resistance, OI Profile and Max Pain can be selected and saved; unverified derivatives never become directional votes.")],spacing=4)),
+                           note("OI Support, OI Resistance, OI Profile and Dhan Max Pain can be selected and saved; unverified derivatives never become directional votes.")],spacing=4)),
             section("FIND & ADD FILTER",ft.Column([
                 filter_query,filter_choice,ft.Row([
                     ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True),
@@ -7006,7 +7006,7 @@ console.log('BOT KING Lightweight Charts ready');
                     note("Unverified strike/expiry • check broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
             age_warning=("HISTORICAL / STALE for selected timeframe" if hist.get("cached") or age_hours*3600>timeframe_spec(interval)["fresh_seconds"] or age_hours<0 else "source candle history; confirm with broker.")
-            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Analysis uses completed candles only; chart may show a forming candle."),note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Analysis uses completed candles only; chart may show a forming candle."),note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Dhan Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
                 txt("Underlying historical close: ₹"+scan_num(price),15),
                 txt(hist.get("source","Source")+" candle (IST): "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M"),12),
                 txt("Data age: "+f"{max(0,age_hours):.1f}"+" hours • "+age_warning,12,RED if age_hours>24 else GOLD),
