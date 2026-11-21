@@ -4656,6 +4656,10 @@ def app_main(page:ft.Page):
             for control,key in field_bindings:
                 if key=="api_url" or key not in data:continue
                 value=data[key]
+                # Legacy backup modes never authorize live execution; safely
+                # restore them as Paper while keeping all saved paper journals.
+                if key=="mode" and value in ("Manual","Semi-Auto","Auto","Live (locked)"):
+                    value="Paper"
                 if isinstance(control,ft.Dropdown) and str(value) not in [str(x.key) for x in control.options]:raise ValueError("Unknown selection: "+key)
                 if isinstance(control,(ft.Switch,ft.Checkbox)) and not isinstance(value,bool):raise ValueError("Invalid toggle: "+key)
                 value=validate_field(control,key,value);changes.append((control,key,value))
