@@ -4647,8 +4647,31 @@ def app_main(page:ft.Page):
                                             "detail":"Selected filter missing from diagnostic rows"})
                 snap=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
                       if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                # Separate healthy calculation, missing input and evidence policy:
+                # a grey box is not automatically a runtime exception.
+                candle_count=len(bars) if isinstance(bars,(tuple,list)) else 0
+                diagnostic_context={
+                    "candle_count":candle_count,
+                    "candle_timeframe":tf,
+                    "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
+                    "history_present":bool(bars),
+                    "history_shape_valid":bool(bars and valid_candle_history(bars)),
+                    "analysis_reason":cause,
+                    "engine_snapshot_present":symbol in five_engine_snapshots,
+                    "provider_connected":bool(dhan_feed.connected),
+                }
+                option_context=matching_option_context_for_symbol(symbol)
+                diagnostic_context["option_context_present"]=bool(option_context)
+                diagnostic_context["option_expiry"]=str(option_context.get("expiry") or "missing")
+                diagnostic_context["option_signal_eligible"]=option_context.get("signal_eligible") is True
+                diagnostic_context["option_pcr_present"]=(type(option_context.get("pcr")) in (int,float)
+                    and math.isfinite(option_context["pcr"]) and option_context["pcr"]>=0)
+                with news_lock:
+                    headline_items=(news_cache.get(symbol) or {}).get("items") or []
+                diagnostic_context["cached_news_count"]=len(headline_items)
                 engines=[]
                 for name,short in (("technical","T"),("candle","C"),("news","N"),
+
                                    ("futures","F"),("options","O")):
                     item=(next((x for x in snap["engines"] if x.name==name),None)
                           if snap else None)
@@ -4674,7 +4697,24 @@ def app_main(page:ft.Page):
                                 historical_percent={"bullish":balance["bullish"],
                                                     "bearish":balance["bearish"],
                                                     "label":"HIST_ONLY"}
+                    if ready:
+                        blocker="NONE_VERIFIED"
+                    elif name=="technical":
+                        blocker=("CANDLE_HISTORY_MISSING" if not bars else
+                                 "TECHNICAL_VOTES_OR_FRESHNESS_UNVERIFIED")
+                    elif name=="candle":
+                        blocker=("CANDLE_HISTORY_MISSING" if not bars else
+                                 "INDEPENDENT_CANDLE_EVIDENCE_UNVERIFIED")
+                    elif name=="news":
+                        blocker=("HEADLINES_MISSING" if not headline_items else
+                                 "HEADLINES_PRESENT_DIRECTION_UNVERIFIED")
+                    elif name=="futures":
+                        blocker="VERIFIED_FUTURES_FLOW_OR_MAPPING_MISSING"
+                    else:
+                        blocker=("OPTION_EXPIRY_CONTEXT_MISSING" if not option_context else
+                                 "PCR_OI_PRESENT_NOT_VERIFIED_TRADE_DIRECTION")
                     engines.append({
+                        "blocker":blocker,
                         "box":short,"engine":name,
                         "status":display.get("state","WAIT") if ready else "WAIT",
                         "bullish_percent":bull if ready else None,
@@ -4694,6 +4734,7 @@ def app_main(page:ft.Page):
                     "selected_filters":len(names),
                     "filter_results":filter_rows,
                     "five_boxes":engines,
+                    "stage_context":diagnostic_context,
                     "errors_only":errors,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "candle_status":cause,
