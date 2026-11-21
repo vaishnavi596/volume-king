@@ -3,6 +3,17 @@ import unittest
 from v3_building_doctor import BuildingDoctor,FRAMES,INDICES
 
 class TestBuildingDoctor(unittest.TestCase):
+    def test_login_milestones_are_monotonic_and_no_secrets(self):
+        d=BuildingDoctor()
+        d.start_login()
+        d.milestone("gateway_authorized")
+        d.milestone("quotes_response_received")
+        d.milestone("quotes_applied_to_phone_stock")
+        milestones=d.report([],{}, {},0)["login_milestones_seconds"]
+        self.assertLessEqual(milestones["gateway_authorized"],milestones["quotes_response_received"])
+        self.assertLessEqual(milestones["quotes_response_received"],milestones["quotes_applied_to_phone_stock"])
+        self.assertNotIn("token",str(milestones).lower())
+
     def test_partial_never_called_live(self):
         d=BuildingDoctor()
         got=d.report(["EQ01"],{}, {},1,connected=False)
