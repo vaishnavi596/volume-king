@@ -85,7 +85,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         start=APP.index("    def master_diagnostic_panel():")
         end=APP.index("    def v3_live_building_panel():",start)
         panel=APP[start:end]
-        for segment in ("PAPER_ADAPTER_AUDIT","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
+        for segment in ("ADAPTER_CONNECTION_MAP","PAPER_ADAPTER_AUDIT","GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                         "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
                         "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION",
                         "BACKGROUND_LIFECYCLE"):
@@ -165,6 +165,19 @@ class FilterFiveDoctorContract(unittest.TestCase):
                             'content.append(chart_filter_evidence())'):
             self.assertIn(audit_field,APP)
         self.assertIn('def chart_filter_evidence():',APP)
+        for readiness_marker in ('"ADAPTER_CONNECTION_MAP"',
+                                 '"DHAN_TRANSPORT":adapter_row(',
+                                 '"ORACLE_CLONE_GATEWAY":adapter_row(',
+                                 '"INDEX_BATCH":adapter_row(',
+                                 '"WATCHLIST_3M":adapter_row(',
+                                 '"CHART_LAST_TAB":adapter_row(',
+                                 '"PAPER_BOT":adapter_row(',
+                                 '"LIVE_ORDER":adapter_row(',
+                                 '"PERMANENTLY_LOCKED"',
+                                 '"adapter_count":len(adapter_map)',
+                                 '"provider_requests":0,"orders_sent":0'):
+            self.assertIn(readiness_marker,APP)
+
         for paper_marker in ('def paper_dhan_reference():',
                              'def paper_mark_pnl_preview():',
                              '"paper_simulated_order_events":sum(',
