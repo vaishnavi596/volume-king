@@ -34,7 +34,11 @@ class DhanPartialBatchFreshnessTests(unittest.TestCase):
     def test_scanner_merge_preserves_only_positive_last_quote(self):
         source=SOURCE
         merge=source.split("previous_quote=quotes.get(sym) or {}",1)[1].split("market_completed[0]+=1",1)[0]
-        self.assertIn('math.isfinite(previous_quote["price"]) and previous_quote["price"]>0',merge)
+        self.assertIn('saved_price=previous_quote.get("price")',merge)
+        self.assertIn('type(saved_price) in (int,float)',merge)
+        self.assertIn('math.isfinite(saved_price) and saved_price>0',merge)
+        self.assertIn('not incoming_has_quote',merge)
+        self.assertIn('quotes[sym]=dict(data,price=saved_price',merge)
 
     def test_last_price_is_not_blank(self):
         self.assertNotIn('quotes.pop(ticker)',self.body)
