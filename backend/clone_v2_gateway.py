@@ -362,9 +362,13 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             if cache and 0 <= now - cache[0] < 20:
                 return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})
             if now < provider_cooldown_until[0]:
+                for sym in symbols:
+                    market_diagnostic("quotes", sym, "cooldown", "rate_limited")
                 raise HTTPException(429, "Clone Dhan provider cooldown",
                                     headers={"Retry-After": "30"})
             if now - last_request[0] < 1.05:
+                for sym in symbols:
+                    market_diagnostic("quotes", sym, "cooldown", "rate_limited")
                 raise HTTPException(429, "Clone quote lane paced",
                                     headers={"Retry-After": "2"})
             last_request[0] = now
