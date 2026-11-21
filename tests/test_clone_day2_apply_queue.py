@@ -111,7 +111,8 @@ class SmartApplyQueueTests(unittest.TestCase):
         self.assertNotIn('q.get("price")', inputs)
         self.assertIn('signal_row.get("timestamp")', inputs)
         self.assertIn('provider_generation[0]', inputs)
-        self.assertIn('watch_cell_age_flags(sym)', inputs)
+        self.assertIn('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])', inputs)
+        self.assertNotIn('watch_cell_age_flags(sym)', inputs)
 
     def test_watchlist_price_cells_still_update_independently(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
