@@ -69,3 +69,8 @@
 - Source and published build evidence as of audit: B150 signed APK SUCCESS; B152 full regression SUCCESS; B152 corresponding signed phone APK **not yet verified/built**.
 - No V3 runtime code changed by this journal normalization. Continue app improvements ONLY on current V3 branch, then record exact CI before APK.
 
+
+### 2026-11-21 — Verified V2 archive separation
+- Full former V2 Master Journal archived on V2 branch to `pilot_v2/docs/archive/V2_MASTER_JOURNAL_ARCHIVE_THROUGH_20261121.md`, archive commit `e090c081a37524de7a38623c89081296aa2cafb2`; verified archived file blob SHA `915f1de740dc047bd532dc574f8b47b10a7a7ca3` equals the original V2 Master Journal blob before replacement. Thus the complete historical contents were preserved.
+- Former `pilot_v2/docs/V2_MASTER_JOURNAL.md` replaced by a compact archived-history index and V3 pointer, commit `c71835a8465042b9e0060744eb5981bee3690b7f`. Existing `V2_WORK_LOG.md` and `V2_HANDOFF.md` are left as historical evidence; they are not V3 release authorities.
+- Current V3 canonical journal creation commit `8bf3d29a9182bfa1e9c030a6e355d4ad3f421a81`. Normalization changes documentation only. All future V3/Clone engineering work must append here; do not duplicate current V3 updates into the archived V2 Master Journal.
