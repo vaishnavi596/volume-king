@@ -15,6 +15,7 @@ from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
 from chart_indicators import chart_indicators
+from v3_building_doctor import BuildingDoctor
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
@@ -264,12 +265,18 @@ def app_main(page:ft.Page):
     prefs.update(load_preferences(STATE,page.client_storage))
     if prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):prefs["source"]="Dhan"
     prefs["schema_version"]=2
+    building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
-        with view_lock:
-            for root in page.controls:localize_tree(root,prefs.get("language","English"))
-            return original_page_update(*args,**kwargs)
+        started=time.perf_counter()
+        try:
+            with view_lock:
+                for root in page.controls:localize_tree(root,prefs.get("language","English"))
+                return original_page_update(*args,**kwargs)
+        finally:
+            building_doctor.counters["page_updates"]+=1
+            building_doctor.observe("page_submit_python_ms",(time.perf_counter()-started)*1000)
     page.update=localized_update
     diagnostics=[]
     display_failures={}  # Safe operation names/types only; never response bodies.
@@ -374,6 +381,7 @@ def app_main(page:ft.Page):
         suffix=" [missing "+missing+"]" if missing in known_fields else ""
         if area in ("chart","load_chart","dhan_index_ltp_batch"):
             display_failures[area]=type(exc).__name__
+        building_doctor.error(area,type(exc).__name__)
         diagnostics.append(datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")+" "+area+": "+type(exc).__name__+suffix)
         del diagnostics[:-30]
     def error_history_text():
@@ -4499,6 +4507,22 @@ def app_main(page:ft.Page):
             if stamp.tzinfo is None:stamp=stamp.replace(tzinfo=timezone.utc)
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
+    def v3_live_building_panel():
+        symbols=[s for group in watch_groups for s in group]
+        state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
+                                     connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
+        # No real-time Dhan call and no sensitive URL/token in this JSON.
+        report=ft.Text(json.dumps(state,indent=2,ensure_ascii=False),size=10,selectable=True)
+        def check_again(e):
+            updated=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
+                                           connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
+            report.value=json.dumps(updated,indent=2,ensure_ascii=False)
+            report.update()
+        return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
+            note("LIVE APP diagnostic • source data is never fabricated • PARTIAL/WAIT is not an error"),
+            note("Network delivery, cache presence, technical analysis and Flutter pixels are different stages."),
+            ft.OutlinedButton("Refresh Building Doctor (local only)",on_click=check_again),
+            report],spacing=4))
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
@@ -4516,6 +4540,7 @@ def app_main(page:ft.Page):
             note("Live broker orders OFF")
         ])
         content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Live orders OFF")))
+        content.append(v3_live_building_panel())  # B1 live phone front-visible read-only timings.
         content.append(data_overview())  # Unified System Health + Error Doctor at Settings bottom.
         content.append(section("ERROR HISTORY",txt(error_history_text(),10,MUTED)))
         return content
@@ -6179,6 +6204,7 @@ console.log('BOT KING Lightweight Charts ready');
         delta_hosts[name]=(host,builder)
         return host
     def refresh_mounted_data_sections(target):
+        start_refresh=time.perf_counter()
         if target==0:
             names=("dashboard_indices", "dashboard_analysis", "dashboard_scan",
                    "dashboard_options", "dashboard_super_five", "dashboard_risk")
@@ -6201,11 +6227,16 @@ console.log('BOT KING Lightweight Charts ready');
                 host.update()
             except (AssertionError,RuntimeError) as exc:
                 log_error("delta_refresh_"+name,exc)
+        building_doctor.counters["mounted_refreshes"]+=1
+        building_doctor.observe("mounted_refresh_ms",(time.perf_counter()-start_refresh)*1000)
         return True
     refresh_pending=[False]
     refresh_target=[None]
     async def flush_view_refresh():
-        await asyncio.sleep(.25)
+        # Adaptive UI pacing, based on measured Python refresh cost only;
+        # do not alter Dhan rates, candle 1m/3m/5m or scanner selected timeframe.
+        await asyncio.sleep(building_doctor.adaptive_gap(
+            "dashboard" if refresh_target[0]==0 else "scanner"))
         # The Dashboard is a long scrollable page. Background quote/candle
         # updates must not replace its tree during finger/trackpad scrolling.
         # No broker request is issued from the scroll callback.
