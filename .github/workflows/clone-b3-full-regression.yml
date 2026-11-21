@@ -82,3 +82,5 @@ jobs:
 # Final legacy Super Five builder source contract check for mounted delta page 2026-11-21
 
 # SUDHAR 1 Day-2 single exact-head full regression gate for Watchlist evidence-delta batch, 2026-11-21
+
+# SUDHAR 1 S1: focused legacy-test contract corrections; run exact-source one-shot full regression (2026-11-21).
