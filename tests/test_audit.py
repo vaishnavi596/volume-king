@@ -104,19 +104,22 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(result['bias'],'WAIT')
 
     def test_superseded_scan_cannot_publish(self):
-        page,v=start({'scanner_live':False,'source':'Yahoo Finance'})
+        page,v=start({'scanner_live':False,'source':'Dhan'})
+        # Local fake authorized session: network is mocked, no secrets stored.
+        v['dhan_feed']._origin='https://example.invalid'
+        v['dhan_feed']._pairing_key='offline-test-only'
         before=list(v['scan_result'].controls)
-        async def run():
-            original=asyncio.to_thread
-            async def delayed(fn,*args,**kwargs):
-                v['scan_generation'][0]+=1
-                return {'bars':[(1700000000+i*300,100,101,99,100,100) for i in range(40)]}
-            asyncio.to_thread=delayed
-            try:await v['scan_market']()
-            finally:asyncio.to_thread=original
-        asyncio.run(run())
+        original_generation=v['scan_generation'][0]
+        async def delayed(fn,*args,**kwargs):
+            v['scan_generation'][0]+=1
+            return {'source':'Dhan','bars':[(1700000000+i*300,100,101,99,100,100) for i in range(40)]}
+        with patch('asyncio.to_thread',side_effect=delayed) as network_stub:
+            asyncio.run(v['scan_market']())
+        network_stub.assert_awaited_once()
+        self.assertGreater(v['scan_generation'][0],original_generation)
         self.assertEqual(v['scan_result'].controls,before)
-        self.assertTrue(any(fn.__name__=='restart_latest_scan' for fn,args in page.tasks))
+        self.assertNotIn('timestamp',v['scan_shared'])
+        self.assertFalse(v['scan_busy'][0])
 
     def test_derived_expiry_persists_after_mode_change(self):
         page,v=start({'bot_expiry_mode':'Manual','bot_expiry':'2099-12-01'})
