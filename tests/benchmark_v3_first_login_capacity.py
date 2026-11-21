@@ -121,7 +121,8 @@ def main():
     for item in results:
         print("V3_OFFLINE_BENCHMARK "+json.dumps(item,sort_keys=True))
     assert all(x["instruments"]==x["equities"]+3 for x in results)
-    assert results[-1]["queue_rejected"]>0\n    assert all(x["python_applied"]==min(x["expected_ui_updates"],512) for x in results)
+    assert results[-1]["queue_rejected"]>0
+    assert all(x["python_applied"]==min(x["expected_ui_updates"],512) for x in results)
     assert all(x["python_applied"]==x["queue_admitted"] for x in results)
     print("V3_OFFLINE_BENCHMARK_DONE: Python-only; Flet/Flutter device throughput UNVERIFIED")
 if __name__=="__main__":main()
