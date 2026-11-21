@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 Clone 429 Shared Quote Lane Verified • NO APK
+run-name: V3 B197 Index Route Error Classification Full Regression • NO APK
 on:
   push:
     branches:
@@ -25,7 +25,7 @@ jobs:
         run: |
           python - <<'PY'
           import ast, pathlib, tomllib
-          assert tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"] == "2.3.196"
+          assert tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"] == "2.3.197"
           for path in ("src/main.py", "tests/test_market_feed.py", "tests/test_monitoring_audit.py"):
               ast.parse(pathlib.Path(path).read_text(),filename=path)
           source=pathlib.Path("src/main.py").read_text()
@@ -35,7 +35,7 @@ jobs:
           assert 'if source.value!="Dhan":source.value="Dhan"' in source
           assert 'if selected!="Dhan":' in source
           assert 'V3 Dhan-only provider required' in source
-          print("V3_B196_SOURCE_GUARD=PASS")
+          print("V3_B197_SOURCE_GUARD=PASS")
           PY
           python -m unittest discover -s tests -p 'test_market_feed.py' -v
           python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
@@ -46,4 +46,4 @@ jobs:
       - name: Full offline regression (no APK, no server write)
         run: |
           python -m unittest discover -s tests -v
-          echo V3_B196_FULL_OFFLINE_GATE=PASS
+          echo V3_B197_FULL_OFFLINE_GATE=PASS
