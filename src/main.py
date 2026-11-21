@@ -5960,6 +5960,9 @@ console.log('BOT KING Lightweight Charts ready');
             message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
         elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
             message="OI / PCR / Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
+        elif not data and symbol!=chain_symbol.value:
+            message=("OI / PCR / Max Pain: Scanner "+symbol+" differs from Options "+
+                     str(chain_symbol.value)+" • no cached matching Dhan expiry; open Options for "+symbol)
         elif (data.get("symbol")!=symbol or data.get("source")!="dhan"
               or not data.get("expiry")):
             message=("OI / PCR / Max Pain: no broker-listed expiry snapshot for "+symbol+
