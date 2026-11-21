@@ -53,6 +53,16 @@ class FilterFiveDoctorContract(unittest.TestCase):
             self.assertIn(expected,panel)
         self.assertIn('raw_snapshot=five_engine_snapshots.get(symbol)',panel)
         self.assertIn('now_for_evidence=time.time()',panel)
+        for token in ('"failure_code":index_failure_code[0]',
+                      '"last_eight_candle_ohlc_diagnostics"',
+                      '"candle_balance_min_directional_bodies"',
+                      '"DOJI_DOMINATED_LT_FIVE_DIRECTIONAL"',
+                      '"MALFORMED_LAST_EIGHT"'):
+            self.assertIn(token,panel)
+        for token in ('"NETWORK_OR_TIMEOUT"', '"INDEX_BATCH_SCHEMA_REJECTED"',
+                      '"GATEWAY_HTTP_429"',
+                      'index_failure_code[0]="NONE_ALL_THREE_QUOTES_PRESENT"'):
+            self.assertIn(token,APP)
         self.assertIn('"history_shape_valid"',panel)
         self.assertIn('"analysis_uses_exact_timeframe"',panel)
         self.assertIn('"CONTEXT_ONLY" if context_ready else "WAIT"',panel)
