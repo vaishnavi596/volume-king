@@ -2182,7 +2182,12 @@ def app_main(page:ft.Page):
             raise
         except Exception as exc:
             log_error("dhan_index_ltp_batch",exc)
-            login_bootstrap.finish(generation,"indices",0,3,error=safe_error(exc))
+            # Persist a sanitized route/stage error rather than a bare FeedError.
+            detail=safe_error(exc)
+            display_failures["dhan_index_ltp_batch"]=(
+                "Dhan index quote route failed • "+detail+
+                " • existing prices unverified; check SENSEX BSE_I/51 separately")
+            login_bootstrap.finish(generation,"indices",0,3,error=detail)
             for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
                 old=quotes.get(ticker)
                 if isinstance(old,dict) and old.get("source")=="Dhan":
