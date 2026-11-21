@@ -46,6 +46,24 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     old_bars=prior.get("bars")
     if not _valid_bars(old_bars):
         return dict(new)
+    # A recent Dhan refresh may contain just 2–4 completed candles. Revise
+    # matching timestamps inside the last four retained bars without dropping
+    # earlier valid history. Never accept isolated/gapped or cross-TF rows.
+    if (isinstance(new_bars,(list,tuple)) and 2<=len(new_bars)<=4
+            and _valid_bars(new_bars,minimum=2)
+            and new.get("_scanner_timeframe")==prior.get("_scanner_timeframe")):
+        old_index={row[0]:i for i,row in enumerate(old_bars)}
+        recent={row[0] for row in old_bars[-4:]}
+        incoming_ts={row[0] for row in new_bars}
+        if incoming_ts.issubset(recent) and len(incoming_ts)==len(new_bars):
+            merged=[list(row) for row in old_bars]
+            for row in new_bars:
+                merged[old_index[row[0]]]=list(row)
+            revised=dict(new,bars=merged,historical=True,live_verified=False,
+                         freshness="historical_unverified",
+                         candle_fetched_at=new.get("candle_fetched_at",0),
+                         _candle_partial_revised=True)
+            return revised
     if _valid_bars(new_bars):
         if new_bars[-1][0]>=old_bars[-1][0]:
             return dict(new)
