@@ -187,3 +187,5 @@ jobs:
 # B178 release gate retry: project metadata now matches APK 2.3.178; previous run failed only version assertion before testing.
 
 # B178 consolidated retry: 8 legacy offline assertions reconciled to removed old SENSEX probe and deployed IDX_I registry; full gate remains mandatory.
+
+# B178 final parity fixture repair: retain IDX_I 13, 25, 51 in one broker mock response. Full gate retained.
