@@ -29,7 +29,7 @@ class OriginalV1FeaturePreservation(unittest.TestCase):
                 self.assertIn(key, MAIN)
 
     def test_good_b1_b2_safety_extensions_not_reverted(self):
-        for fragment in ("MAX_ACTIVE_FILTERS=15",
+        for fragment in ("MAX_ACTIVE_FILTERS=len(filter_names)",
                          '["1m","2m","3m","5m","10m","15m","30m","1h"]',
                          'source_interval=("1m" if interval in ("2m","3m")',
                          "completed_two_minute_bars(", "completed_three_minute_bars(",
