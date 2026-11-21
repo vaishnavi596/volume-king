@@ -21,6 +21,15 @@ class TestNewsRepair(unittest.TestCase):
         self.assertIn('page.launch_url(article)',body)
         self.assertIn('url.startswith("https://")',body)
         self.assertIn('len(seen)>=3',body)
+    def test_pcr_maxpain_render_independently_and_oi_not_faked(self):
+        body=FNS["option_metrics"]
+        self.assertIn('if kind=="PCR":',body)
+        self.assertIn('if kind=="OI":',body)
+        self.assertIn('math.isfinite(value)',body)
+        self.assertIn('OI Support / Resistance: verified directional evidence not connected',body)
+        self.assertIn('PCR ERROR',body)
+        self.assertIn('Max Pain ERROR',body)
+
     def test_news_context_never_counts_as_trading_vote(self):
         body=FNS["combine_analysis"]
         self.assertIn("news_bias=None",body)
