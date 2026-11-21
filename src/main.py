@@ -5417,6 +5417,27 @@ console.log('BOT KING Lightweight Charts ready');
             # existing 51-equity universe.
             publish_partial_ranking({sym:row for sym,row in watch_signal_cache.items() if sym in watch_symbols})
             if current[0] in (0,3,4):request_view_refresh(current[0])
+    def matching_option_context_for_symbol(sym):
+        """Use exact-generation and underlying option evidence, never another symbol.
+        
+        Historical Dhan option metrics are display-only and cannot vote.
+        Preserve the previous listed expiry snapshot when Options UI moves to
+        another underlying; do not issue broker requests from Scanner.
+        """
+        generation=provider_generation[0]
+        active=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
+        if (active.get("symbol")==sym and active.get("source")=="dhan"
+                and active.get("expiry")==expiry.value
+                and active.get("signal_eligible") is False):
+            return active
+        for (gen,underlying,listed),data in reversed(list(dhan_option_context_cache.items())):
+            if (gen==generation and underlying==sym and isinstance(data,dict)
+                    and data.get("symbol")==sym and data.get("expiry")==listed
+                    and data.get("source")=="dhan"
+                    and data.get("signal_eligible") is False):
+                return data
+        return {}
+
     def enrich_context_filter_rows(sym,rows):
         # Dhan OI and cached headlines are display-only; never a directional vote.
         for row in rows:
@@ -5432,10 +5453,8 @@ console.log('BOT KING Lightweight Charts ready');
                     row["detail"]="No cached headlines • open News context/refresh • WAIT"
                 row["vote"]=None
             elif name in OPTION_FILTERS:
-                data=dhan_option_metrics
-                if (sym==chain_symbol.value and data.get("source")=="dhan"
-                        and data.get("symbol")==sym and data.get("expiry")==expiry.value
-                        and data.get("signal_eligible") is False):
+                data=matching_option_context_for_symbol(sym)
+                if data:
                     context=option_chain_display_context(data)
                     if name=="Max Pain" and isinstance(data.get("max_pain"),(int,float)):
                         row["detail"]="Dhan Max Pain "+format(data["max_pain"],",.0f")+" • unverified, display only"
@@ -5448,7 +5467,7 @@ console.log('BOT KING Lightweight Charts ready');
                     else:
                         row["detail"]="Dhan option data incomplete • WAIT"
                 else:
-                    row["detail"]="No matching Dhan expiry snapshot • WAIT"
+                    row["detail"]="No matching Dhan expiry snapshot for "+sym+" • WAIT"
                 row["vote"]=None
         return rows
     def shared_filter_report(sym,tf,result):
