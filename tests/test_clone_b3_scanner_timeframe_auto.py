@@ -15,7 +15,7 @@ class SelectedTimeframeAutoScan(unittest.TestCase):
         self.assertIn("current[0]!=3",body)
         self.assertIn("while scan_live.value",body)
     def test_timeframe_options_cover_user_choices(self):
-        self.assertIn('["1m","2m","3m","5m","15m","1h"]',SOURCE)
+        self.assertIn('["1m","2m","3m","5m","10m","15m","30m","1h"]',SOURCE)
         ast.parse(SOURCE)
 
 if __name__=="__main__":
