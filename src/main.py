@@ -2350,7 +2350,8 @@ def app_main(page:ft.Page):
                     if not cells:continue
                     q=quotes.get(sym) or {}
                     signal_row=tick_signals[sym]
-                    symbol_signature=(q.get("fetched_at"),q.get("price"),q.get("change"),
+                    # Rebuilt search/membership rows must not inherit old mounted-cell signatures.
+                    symbol_signature=(id(cells),q.get("fetched_at"),q.get("price"),q.get("change"),
                                       q.get("freshness"),q.get("source"),
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
                                       signal_row.get("live_verified"),signal_row.get("freshness"),
@@ -2387,7 +2388,7 @@ def app_main(page:ft.Page):
                     # Include current freshness state and provider status so HIST/WAIT
                     # labels can still transition without a new price.
                     evidence_signature=(
-                        signal_row.get("timestamp"),repr(signal_row.get("votes")),
+                        id(cells),signal_row.get("timestamp"),repr(signal_row.get("votes")),
                         signal_row.get("live_verified"),signal_row.get("freshness"),
                         bool(signal_row.get("historical")),available,fresh,
                         id(five_engine_snapshots.get(sym)),
