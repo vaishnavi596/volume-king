@@ -29,7 +29,7 @@ def millis(s):return round(s*1000,3)
 def bars_for(n):
     base=1100+4*n
     return [[START+i*60,base+i*.06,base+i*.06+.8,base+i*.06-.8,
-             base+i*.06+.12,10000+i*2] for i in range(90)]
+             base+i*.06+.12,10000+i*2] for i in range(180)]
 
 def five_minute_bars(rows):
     out=[]
@@ -121,7 +121,7 @@ def main():
     for item in results:
         print("V3_OFFLINE_BENCHMARK "+json.dumps(item,sort_keys=True))
     assert all(x["instruments"]==x["equities"]+3 for x in results)
-    assert results[-1]["queue_rejected"]>0
+    assert results[-1]["queue_rejected"]>0\n    assert all(x["python_applied"]==min(x["expected_ui_updates"],512) for x in results)
     assert all(x["python_applied"]==x["queue_admitted"] for x in results)
     print("V3_OFFLINE_BENCHMARK_DONE: Python-only; Flet/Flutter device throughput UNVERIFIED")
 if __name__=="__main__":main()
