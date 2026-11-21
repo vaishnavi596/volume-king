@@ -3709,6 +3709,7 @@ def app_main(page:ft.Page):
         if clone_v2_connect_busy[0] or broker_connect_busy[0]:
             return
         clone_v2_connect_busy[0]=True
+        building_doctor.start_login()
         endpoint=(api_url.value or "").strip()
         access_key=(server_access.value or "").strip()
         try:
@@ -3718,12 +3719,14 @@ def app_main(page:ft.Page):
             result=await asyncio.to_thread(clone_v2_gateway.connect,endpoint,access_key)
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
+            building_doctor.milestone("gateway_authorized")
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
             selected_equities=list(all_watch_symbols())
             request_symbols=list(dict.fromkeys(
                 ["NIFTY","BANKNIFTY","SENSEX"]+selected_equities))
             proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,request_symbols)
+            building_doctor.milestone("quotes_response_received")
             if "NIFTY" not in proof:
                 raise FeedError("Clone B3 Dhan index quote unavailable; SSK-only connection")
             dhan_feed.activate_with_quote(proof)
@@ -3754,6 +3757,7 @@ def app_main(page:ft.Page):
             received_indices=sum(1 for sym in ("NIFTY","BANKNIFTY","SENSEX")
                                  if sym in proof)
             login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)
+            building_doctor.milestone("quotes_applied_to_phone_stock")
             connection_status.value=(
                 "Clone B3 Dhan→Oracle→Phone verified • "+
                 str(received_indices)+"/3 indices • "+
@@ -3761,9 +3765,11 @@ def app_main(page:ft.Page):
                 " selected equities; timestamps unverified; live orders OFF.")
             connection_status.color=GREEN if not dhan_batch_issue[0] else GOLD
         except FeedError as exc:
+            building_doctor.milestone("login_failed")
             connection_status.value="Clone V2: "+str(exc)
             connection_status.color=RED
         except Exception as exc:
+            building_doctor.milestone("login_failed")
             log_error("clone_v2_connect",exc)
             connection_status.value="Clone V2 gateway connection failed; no session activated."
             connection_status.color=RED
@@ -6344,6 +6350,7 @@ console.log('BOT KING Lightweight Charts ready');
         ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
     ],expand=True,spacing=0)
     page.add(ft.SafeArea(content=app_shell,expand=True))
+    building_doctor.milestone("app_shell_submitted")
     # Initialize the provider queue guard before starting scanner tasks.
     dhan_history_scan_active=[False]
     select(current[0])
