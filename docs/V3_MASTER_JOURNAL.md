@@ -636,3 +636,9 @@ The word **WIRED** means a verified source-level call/cache linkage and offline 
 - `tests/test_mobile_regressions.py` now mocks authorized Dhan candles and RSS timeout, without inventing LTP, commit `2000d2ef0794201e7ceb0ab0dec7cd1552f91ddf`.
 - To reduce unnecessary GitHub Actions execution, targeted audit/mobile tests run before entire suite in `.github/workflows/v3-b196-regression-preflight.yml`, commit `733480a8dcfcbe2f3b52e8561bff8dc6f3933ad4`. New [run 44934551462](https://github.com/vaishnavi596/volume-king/actions/runs/44934551462) IN_PROGRESS at first check; result NOT yet confirmed.
 - Extended `docs/V3_B196_PROVIDER_INTERNET_QUALITY_AUDIT.md` commit `9b9fe093a1a2b26e2689dc392379ca703041fc39`. Release HOLD remains. No signing/APK, Oracle/V1 mutation or live trading.
+
+### 2026-11-21 — B196 post-Yahoo-removal targeted diagnostic
+- Run [44934551462](https://github.com/vaishnavi596/volume-king/actions/runs/44934551462) (job 136938222452): 10/10 market feed PASS, 12/12 monitoring PASS; 41 scanner audit tests with one failure at `test_superseded_scan_cannot_publish`: the injected coroutine test expected one `asyncio.to_thread` fetch but **zero were awaited**. The full regression was intentionally skipped. No APK.
+- Updated the scanner generation test to log non-secret local status, connection boolean and generation at failure, commit `277084d55541b265582f4ea1730d23f1bf66ecb9`; this is diagnosis only and is not considered a runtime fix.
+- New targeted [run 44934704624](https://github.com/vaishnavi596/volume-king/actions/runs/44934704624) started by workflow commit `1ba97fa7f41e27a78f303185d82fcdd571243962` to identify prefetch block, was IN_PROGRESS at journal write. Do not presume PASS or rerun full until failure is resolved.
+- Earlier security hardening and Yahoo transport removal remain committed; keep separate independent Dhan connectivity and RSS verification as release requirements. V1/Oracle untouched and live trading disabled.
