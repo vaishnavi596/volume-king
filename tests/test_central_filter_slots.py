@@ -39,7 +39,7 @@ class CentralFilterSlotsTests(unittest.TestCase):
         v["remove_added_filter"]("VWAP")
         v["central_filter_settings"]()
         self.assertIn("VWAP",[opt.key for opt in v["filter_choice"].options])
-        v["add_filter_slot"]("ATR 14")
+        v["add_filter_slot"]("SMA 5/20")
         self.assertEqual(len(v["filter_selected"]),16)
         self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"])
 
