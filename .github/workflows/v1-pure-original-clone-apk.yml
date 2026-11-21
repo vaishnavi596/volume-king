@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: SUDHAR 1 Watchlist Background Diagnostic APK 2.3.138 build 140
+run-name: SUDHAR 1 Option Context Diagnostic APK 2.3.138 build 141
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
@@ -115,7 +115,7 @@ jobs:
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
           printf "BUILD_VERSION = '2.3.138'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
-          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING SUDHAR 1 B140 TEST" --build-number 140 --build-version 2.3.138 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING SUDHAR 1 B141 TEST" --build-number 141 --build-version 2.3.138 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -127,8 +127,8 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='140' versionName='2\\.3\\.138'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING SUDHAR 1 B140 TEST'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='141' versionName='2\\.3\\.138'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING SUDHAR 1 B141 TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
       - name: Remove ephemeral signer material
@@ -137,7 +137,7 @@ jobs:
       - name: Upload B3 Dhan two-way clone phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-SUDHAR-1-BACKGROUND-DIAGNOSTIC-B140-APK
+          name: BOT-KING-SUDHAR-1-OPTION-CONTEXT-DIAGNOSTIC-B141-APK
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
@@ -155,3 +155,5 @@ jobs:
 # 2026-11-21 B140 staged build after background Watchlist lifecycle source correction. Full offline gate inside build; no screen-off service guarantee.
 
 # 2026-11-21 B140 retry with corrected lifecycle guard and refreshed regression contract (full offline gate before signing).
+
+# B141 phone-diagnostic only: exact-symbol/expiry cached OI-PCR-MaxPain display repair; no verified live five-filter votes or background service yet.
