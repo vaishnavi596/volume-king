@@ -20,7 +20,7 @@ class TestPhoneStartup(unittest.TestCase):
         self.assertIn("shared_history(sym,interval)",body)
         self.assertIn('if not allow_network and prefs.get("source")=="Dhan"',body)
         self.assertIn("valid_candle_history(shared.get",body)
-        self.assertIn("saved=market_store.get",body) # fallback only
+        self.assertIn("market_store.get(",body) # guarded fallback after same-timeframe shared history
 
     def test_default_options_refresh_after_successful_ssk_login(self):
         body=self.functions["check_clone_v2_connection"]
