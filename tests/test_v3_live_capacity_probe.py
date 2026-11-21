@@ -29,11 +29,19 @@ class TestRealCapacity(unittest.TestCase):
         h={("NIFTY","1m",3):{"source":"Dhan","_scanner_timeframe":"1m","bars":frames["1m"]}}
         res=benchmark_cached_capacity([],q,h,3,51)
         self.assertEqual(res["history_presence"]["1m"],1)
-        self.assertEqual(res["history_presence"]["3m"],0)
+        self.assertEqual(res["history_presence"]["3m"],1)
+        self.assertEqual(res["derived_3m_from_valid_1m"],1)
         self.assertEqual(res["dhan_quote_present"],1)
         self.assertEqual(res["technical_chart_available"],1)
         self.assertEqual(res["technical_scanner_analyzed"],1)
         self.assertEqual(res["five_live_options_filters"][:12],"NOT MEASURED")
+    def test_derived_3m_rejects_incomplete_minute_groups(self):
+        bad=sample_bars()[:2] + sample_bars()[3:5]
+        h={("NIFTY","1m",2):{"source":"Dhan","_scanner_timeframe":"1m","bars":bad}}
+        res=benchmark_cached_capacity([],{},h,2,51)
+        self.assertEqual(res["history_presence"]["3m"],0)
+        self.assertEqual(res["derived_3m_from_valid_1m"],0)
+
     def test_cross_generation_and_frame_not_borrowed(self):
         h={("NIFTY","3m",1):{"source":"Dhan","_scanner_timeframe":"1m","bars":sample_bars()}}
         res=benchmark_cached_capacity([],{},h,1,51)
