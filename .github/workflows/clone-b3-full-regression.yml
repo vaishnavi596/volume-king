@@ -70,3 +70,5 @@ jobs:
 # B3 exact-head full regression for redacted SENSEX quote/candle diagnostics and matching-options safety 2026-11-21
 
 # Exact-head joint regression for independent 180s Clone candle singleflight and six scoped guards 2026-11-21
+
+# Exact-head V1 quote lane parity: complete three-index 60s, partial/equity 20s 2026-11-21
