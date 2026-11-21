@@ -47,15 +47,16 @@ def prepare(count):
                            "last": record["1m"][-1]["c"], "filters": record["filters"]}
     t3 = time.perf_counter()
     queue = SmartApplyQueue(max_pending=512)
+    incoming = []
     for symbol, record in stock.items():
         specs = [("quote", "", record["price"])]
         specs += [("candle", frame, len(record[frame])) for frame in ("1m", "3m", "5m")]
         specs += [("filter_" + name, "", "WAIT") for name in FILTERS]
         specs.append(("assessment", "", metrics[symbol]["direction"]))
         for kind, frame, value in specs:
-            queue.receive(Update("watchlist", symbol, kind, 1, value,
-                                 timeframe=frame, completed=(kind == "candle")))
-    r = queue.apply_tick(9999)
+            incoming.append(Update("watchlist", symbol, kind, 1, value,
+                                   timeframe=frame, completed=(kind == "candle")))
+    r = queue.ingest_burst(incoming, batch_size=128)
     t4 = time.perf_counter()
     times = {"generate_ms": (t1-t0)*1000, "validate_stock_ms": (t2-t1)*1000,
              "synthetic_compute_ms": (t3-t2)*1000,
