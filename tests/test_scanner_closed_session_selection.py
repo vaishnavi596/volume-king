@@ -71,7 +71,8 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
              "period":"7d","candles":{"scanner_chart_RELIANCE":selected},
              "market_store":SimpleNamespace(get=lambda *args:{}),
              "valid_candle_history":valid_candle_history,
-             "get_market_data":deny_fetch,"asyncio":asyncio}
+             "get_market_data":deny_fetch,"asyncio":asyncio,
+             "shared_history":lambda sym,tf:{} }
         exec(compile(module,"<scanner-history-branch>","exec"),env)
         result=asyncio.run(env["select_history"](False))
         self.assertEqual(result["bars"],rows)
