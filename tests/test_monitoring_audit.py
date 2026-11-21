@@ -32,13 +32,15 @@ class MonitoringAuditTests(unittest.TestCase):
         result=v['analyze_current'](bars,None,'1m')
         self.assertEqual(result['bias'],'WAIT')
         self.assertIn('too old',result['reason'])
-    def test_partial_super_five_updates_preserve_five_rows(self):
+    def test_partial_super_five_rejects_unselected_legacy_rankings(self):
         _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
-        result={'bias':'BULLISH','score':90,'timestamp':time.time()-300,'source':'Yahoo Finance','reason':'trend','historical':False}
+        self.assertEqual(v['prefs']['source'],'Dhan')
+        result={'bias':'BULLISH','score':90,'timestamp':time.time()-300,
+                'source':'Yahoo Finance','reason':'legacy trend','historical':False}
         v['publish_partial_ranking']({'TEST':result})
-        self.assertEqual(len(v['top5_candidates']),5)
-        self.assertEqual(v['top5_candidates'][0]['symbol'],'TEST')
-        self.assertEqual(v['top5_candidates'][0]['bias'],'BULLISH')
+        self.assertFalse(v['top5_candidates'])
+        card=v['super_five_card']()
+        self.assertIn('CONNECTION REQUIRED',card.content.controls[0].value)
     def test_fresh_neutral_is_not_mislabeled_as_old(self):
         _,v=start({'scanner_live':False})
         end=int(time.time()//300)*300-300
