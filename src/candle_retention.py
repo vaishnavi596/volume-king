@@ -55,7 +55,9 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
         old_index={row[0]:i for i,row in enumerate(old_bars)}
         recent={row[0] for row in old_bars[-4:]}
         incoming_ts={row[0] for row in new_bars}
-        if incoming_ts.issubset(recent) and len(incoming_ts)==len(new_bars):
+        if (incoming_ts.issubset(recent) and len(incoming_ts)==len(new_bars)
+                and [old_index[row[0]] for row in new_bars]
+                ==list(range(old_index[new_bars[0][0]],old_index[new_bars[0][0]]+len(new_bars)))):
             merged=[list(row) for row in old_bars]
             for row in new_bars:
                 merged[old_index[row[0]]]=list(row)
