@@ -132,3 +132,5 @@ jobs:
 # B160: end-to-end B159 upstream classes + guarded Clone-only deploy script syntax and V1 isolation.
 
 # B160 combined SENSEX safe upstream classes + 17 filter readiness + Dashboard T/C index 1m wiring.
+
+# B161 full source-head gate: corrected Doctor WAIT label assertion, 3-track B160 safety.
