@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B196 Scanner auth and stale candle regression • NO APK
+run-name: V3 B196 Provider Internet Boundary Quality Gate • NO APK
 on:
   push:
     branches:
@@ -33,6 +33,8 @@ jobs:
           assert 'if prefs.get("source")!="Dhan":' in source
           assert 'prefs["source"]="Dhan"' in source
           assert 'if source.value!="Dhan":source.value="Dhan"' in source
+          assert 'if selected!="Dhan":' in source
+          assert 'V3 Dhan-only provider required' in source
           print("V3_B196_SOURCE_GUARD=PASS")
           PY
           python -m unittest discover -s tests -p 'test_market_feed.py' -v
