@@ -1,0 +1,27 @@
+name: BOT KING V3 B1 Bounded Burst Queue Gate
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-b1-bounded-queue-gate.yml
+      - src/clone_day2_apply_queue.py
+      - tests/test_v3_b1_bounded_burst.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-b1:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check source syntax
+        run: python -m py_compile src/clone_day2_apply_queue.py diagnostics/v3_building_phone_capacity.py tests/test_v3_b1_bounded_burst.py
+      - name: Test lossless bounded burst and failure retry
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -p test_v3_b1_bounded_burst.py -v
