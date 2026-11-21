@@ -4965,7 +4965,8 @@ def app_main(page:ft.Page):
                         "last_result_generation_matches":index_last_result_generation[0]==generation,
                         "last_result_age_seconds":round(time.time()-index_last_result_at[0],1)
                             if index_last_result_at[0] is not None else None,
-                        "route":"/dhan/index-ltp-batch",
+                        "route":"/clone-v2/market/quotes",
+                        "route_note":"Active Clone V2 three-index batch; legacy cooldown key is internal only",
                         "next_check":"REVIEW_ORACLE_ROUTE_LOGS_IF_UNCLASSIFIED" if index_failure_code[0]=="UNCLASSIFIED_FEED_ERROR" else "FOLLOW_FAILURE_CODE",
                         "cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
                         "last_attempt_same_generation":index_refresh_generation[0]==generation,
@@ -5327,7 +5328,7 @@ def app_main(page:ft.Page):
                         selected= len(valid_equities),cached=price_count),
                     "INDEX_BATCH":adapter_row(
                         index_last_result_state[0],index_failure_code[0],
-                        "/dhan/index-ltp-batch",
+                        "/clone-v2/market/quotes",
                         sections["GATEWAY_REFRESH"]["index_failure_next_stage"],
                         same_generation=index_last_result_generation[0]==generation),
                     "WATCHLIST_3M":adapter_row(
@@ -5442,9 +5443,9 @@ def app_main(page:ft.Page):
                 if index_failure_code[0] not in ("NOT_TESTED","NONE_ALL_THREE_QUOTES_PRESENT"):
                     remedies.append({"segment":"GATEWAY_REFRESH",
                         "code":index_failure_code[0],
-                        "source":"src/main.py:refresh_dhan_index_quotes / src/server_feed.py:index_batch_quotes",
+                        "source":"src/main.py:refresh_dhan_index_quotes / src/clone_v2_gateway.py:CloneDhanReadOnly.index_batch_quotes",
                         "evidence":"Sanitized index quote worker failure category; no live index quote proof",
-                        "solution":"Check clone /dhan/index-ltp-batch gateway route, provider stage and Dhan IDX_I/51 mapping in read-only logs, without touching V1",
+                        "solution":"Check actual /clone-v2/market/quotes three-index request, provider stage and Dhan IDX_I/51 mapping in read-only logs, without touching V1",
                         "confidence":"RUNTIME_CLASSIFIED"})
                 if scanner_calc<len(filter_names):
                     remedies.append({"segment":"SCANNER_17",
