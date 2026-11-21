@@ -66,6 +66,23 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertEqual([call.args[1:] for call in log.call_args_list],
                          [("candles", "SENSEX", "validation", "invalid_bars")])
 
+    def test_paced_index_retry_has_sanitized_429_category(self):
+        class Provider:
+            def batch_ltp(self, instruments):
+                return {"status": "success", "data": {
+                    "IDX_I": {"13": {"last_price": 25000.0}},
+                    "BSE_I": {"51": {"last_price": 70000.0}}}}
+        http = self.client(Provider())
+        first = http.post("/clone-v2/market/quotes", headers=self.headers(),
+                          json={"symbols": ["NIFTY"]})
+        self.assertEqual(first.status_code, 200)
+        with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning") as log:
+            second = http.post("/clone-v2/market/quotes", headers=self.headers(),
+                               json={"symbols": ["SENSEX"]})
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual([call.args[1:] for call in log.call_args_list],
+                         [("quotes", "SENSEX", "cooldown", "rate_limited")])
+
     def test_unauthorized_call_never_logs_symbol(self):
         class Provider:
             def batch_ltp(self, instruments):
