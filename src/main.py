@@ -4656,6 +4656,8 @@ def app_main(page:ft.Page):
                         else "QUOTE_REQUEST_UNAVAILABLE")
                     output["quote_error_type"]=type(exc).__name__
                     output["quote_error_code"]=output["quote_probe"]
+                    output["quote_error_detail"]=safe_error(exc)
+                    output["quote_route"]="Clone index quote gateway → Dhan /market/quotes"
                 if generation!=provider_generation[0]:
                     output["diagnosis"]="LOGIN_CHANGED"
                     return
@@ -4716,6 +4718,8 @@ def app_main(page:ft.Page):
                         else "CANDLE_REQUEST_UNAVAILABLE")
                     output["candle_error_type"]=type(exc).__name__
                     output["candle_error_code"]=output["candle_1m_probe"]
+                    output["candle_error_detail"]=safe_error(exc)
+                    output["candle_route"]="Clone candle gateway → Dhan /market/candles (1m)"
                 output["stages"]["quote"]=output["quote_probe"]
                 output["stages"]["history"]=output["candle_1m_probe"]
                 if current[0] in (0,3,4,5):
