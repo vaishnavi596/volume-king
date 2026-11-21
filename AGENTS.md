@@ -1,5 +1,17 @@
 # BOT KING — Permanent Working Rules (cross-chat)
 
+## Mandatory downstream-impact gate for EVERY change — owner rule, 2026-11-21
+
+**A one-function fix is NOT complete until all affected downstream consumers are accounted for.** This is a prewrite/release gate for Clone/V2/B3 work, especially timeframe, Dhan/Oracle adapter, data stock/cache, candle formation, five filters, signals, bullish/bearish candles, Super Five, Watchlist, Dashboard, Scanner, Options, paper-bot, chart, diagnostics and future business-barrier interfaces. Never make an isolated upstream change and leave known downstream defects for follow-up commits.
+
+1. **Map before editing:** for each changed source, identify direct callers, indirect consumers, state/cache keys, schema, timeframe, expiry, source freshness, lifecycle and UI. Write a compact dependency/impact matrix: upstream field/function → downstream modules/screens → expected effect → touched/untouched → test evidence. Inspect only latest relevant changed files and necessary real consumers; do not blindly traverse arbitrary historical commits.
+2. **Respect contracts:** differentiate candle interval vs fetch cadence vs UI repaint; 1m/3m/5m must not borrow each other's bars; track completed/current candle, generation and expiry; last-good HIST/STALE/WAIT cannot become LIVE without source proof. Filter votes require valid data, with five active and sixth blank. Paper-bot decisions must not consume incomplete/wrong-timeframe evidence. Live broker order capabilities remain OFF.
+3. **Repair the entire affected set in ONE batch:** if one upstream fix breaks or reveals 10 dependent consumers among 50, fix those 10 together as part of the same scoped batch. Do not churn the 40 unaffected working consumers, but establish their invariants with existing test evidence. No weakening tests to hide broken behavior.
+4. **Test forward and backward:** add focused source/contract tests for the changed producer, representative direct consumers, and transitive user-facing features (bullish/bearish candle, filters, scanner, Watchlist, Super Five, chart, Options, paper-bot gating). Include wrong-timeframe, stale, missing, partial, duplicate, current candle and cache recovery cases. Reuse already-passing tests; run one coherent affected regression set, then one exact-head full offline release gate, and phone/Oracle acceptance only when the touched path requires it.
+5. **Stop/rollback on unexpected propagation:** record every failed consumer by feature, input, reason and expected contract in Help Doctor/journal. Never declare a fix complete if any dependent critical consumer fails, or if CI is green but live/phone evidence is still missing. Roll back the scoped change if safe repair cannot be established in the same batch.
+6. **Journal acceptance:** record the impact matrix, affected/unaffected coverage, code commits, exact run IDs, PASS/FAIL/PENDING, deployment/phone state and what remains unverified in `docs/BOT_KING_WORK_LOG.md` and the active Day-2 journal. Do not treat source inspection as runtime PASS.
+
+
 **Applies to:** BOT KING development on `vaishnavi596/volume-king`. On every new chat, **FIRST** read `docs/BOT_KING_LIVE_WORK_INDEX.md` (previous/current/next), then this file, `BOT_KING_HANDOFF.md`, and the latest relevant CI. Consult `docs/README.md` for categories and the Work Log, Test Matrix and result tracker for details only as required. Check the actual current branch/HEAD; historical snapshots may be stale.
 
 
