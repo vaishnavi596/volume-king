@@ -7445,7 +7445,10 @@ console.log('BOT KING Lightweight Charts ready');
     broker.on_change=broker_changed
     source_previous=source.on_change
     def source_change(e):
-        prefs["source"]=source.value
+        # Even programmatically injected/legacy dropdown events cannot switch
+        # the V3 phone data pipeline away from the sole Dhan provider.
+        if source.value!="Dhan":source.value="Dhan"
+        prefs["source"]="Dhan"
         source_previous(e);provider_changed(e)
     source.on_change=source_change
     pages=[dashboard,options,settings,scanner,watchlist,charts]
