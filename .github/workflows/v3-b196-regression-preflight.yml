@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B196 Yahoo Removed and Dhan Scanner Quality • NO APK
+run-name: V3 B196 Scanner Prefetch Diagnostic • NO APK
 on:
   push:
     branches:
