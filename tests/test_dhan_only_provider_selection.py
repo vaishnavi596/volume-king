@@ -23,7 +23,8 @@ class DhanOnlyProviderSelectionTests(unittest.TestCase):
 
     def test_legacy_provider_callbacks_remain_for_regression_compatibility(self):
         block = SOURCE.split('    def source_change(e):', 1)[1].split('    source.on_change=source_change', 1)[0]
-        self.assertIn('prefs["source"]=source.value', block)
+        self.assertIn('if source.value!="Dhan":source.value="Dhan"', block)
+        self.assertIn('prefs["source"]="Dhan"', block)
 
 if __name__ == "__main__":
     unittest.main()
