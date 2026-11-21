@@ -92,3 +92,5 @@ jobs:
 # 2026-11-21 exact-head B140 retry: repair 4 app-active guards and stale Watchlist regression assertion.
 
 # B141 exact-head full regression: per-symbol option cache and five-filter fail-closed diagnostic, 2026-11-21
+
+# B142 exact-head security gate: provider-generation-only active option context.
