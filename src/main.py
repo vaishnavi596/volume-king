@@ -4569,6 +4569,19 @@ def app_main(page:ft.Page):
                 # One-pass full-app status, read from existing mounted session.
                 # These checks do not issue any broker requests or imply
                 # successful exchange-live five-filter evidence.
+                from v3_max_feature_audit import audit_features
+                # Inspect already-cached RSS, Dhan chain and Oracle assessment:
+                # these diagnostics do not fetch any new headline/market request.
+                outcome["news_pcr_maxpain_oi_diagnostic"]=audit_features(
+                    news_cache=dict(news_cache),
+                    option_metrics=dict(dhan_option_metrics),
+                    assessment_cache=dict(oracle_assessment_cache),
+                    selected_symbol=str(chain_symbol.value or "NIFTY"),
+                    selected_expiry=str(expiry.value or ""),
+                    generation=generation,
+                    scanner_symbol=str(scan_symbol.value or "NIFTY"),
+                    scanner_timeframe=str(scan_tf.value or "1m"),
+                    active_filters=list(active_analysis_filters()))
                 outcome["full_app_feature_audit"]={
                     "dhan_connected":bool(dhan_feed.connected),
                     "oracle_gateway_connected":bool(clone_v2_gateway.connected),
