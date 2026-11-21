@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: BOT KING V3 B161 Combined Phone Test • v2.3.141 (161)
+run-name: BOT KING V3 B178 Combined Phone Test • v2.3.178 (178)
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
@@ -52,7 +52,7 @@ jobs:
           for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
               assert marker in backend, marker
           p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          assert p["project"]["version"] == "2.3.141"
+          assert p["project"]["version"] == "2.3.178"
           print("CLONE_B3_SOURCE_CONTRACT=PASS")
           PY
           python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
@@ -113,9 +113,9 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-pure-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.141'\n" > src/_build_version.py
+          printf "BUILD_VERSION = '2.3.178'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
-          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B161 TEST" --build-number 161 --build-version 2.3.141 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B178 TEST" --build-number 178 --build-version 2.3.178 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -127,8 +127,8 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='161' versionName='2\\.3\\.141'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B161 TEST'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='178' versionName='2\\.3\\.141'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B178 TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
       - name: Remove ephemeral signer material
@@ -137,7 +137,7 @@ jobs:
       - name: Upload B3 Dhan two-way clone phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-V3-B161-v2.3.141-APK
+          name: BOT-KING-V3-B178-v2.3.178-APK
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
@@ -181,3 +181,5 @@ jobs:
 # B158 uniquely versioned APK after 1513-test full regression success 44896777343; correct 1m→3m→Watchlist wiring.
 
 # B161 Phone-Test combined safety: all offline 3-track tests must pass before aapt and signer checks.
+
+# B178 17 filter + five engine cache-only Doctor phone build: removed old SENSEX-only tool; full offline tests gate before signing.
