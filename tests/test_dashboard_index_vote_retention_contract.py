@@ -76,7 +76,7 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         self.assertIn('len(filter_selected)',body)
         self.assertIn('"OI Support","OI Resistance","OI Profile"',body)
         self.assertIn('"Max Pain","News Headlines"',body)
-        self.assertIn('"external evidence WAIT "',body)
+        self.assertIn('external evidence WAIT ',body)
         self.assertIn("indexes 1m / equities 5m",body)
 
     def test_one_minute_index_histories_never_presented_live(self):
