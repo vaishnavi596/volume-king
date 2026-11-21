@@ -42,16 +42,15 @@ class B147ArchitectureTests(unittest.TestCase):
         self.assertIn('def watch_three_minute_signal(sym):',self.main)
         self.assertIn('["1m","3m","5m","10m","15m","30m"]',self.main)
 
-    def test_sensex_probe_remains_opt_in_and_stages_real_ltp(self):
-        p=self.main.split("    def sensex_full_diagnostic_panel():",1)[1].split(
-            "    def v3_live_building_panel():",1)[0]
-        self.assertIn('dhan_feed.quote,"SENSEX"',p)
-        self.assertIn('dhan_feed.intraday,"SENSEX",1,start,end',p)
-        self.assertIn('quotes["SENSEX"]=dict(quote,price=float(price)',p)
-        self.assertIn('chart_snapshots[("SENSEX","1m",generation)]=kept',p)
-        self.assertIn('"quote_request_ms"',p)
-        self.assertIn('"candle_request_ms"',p)
-        self.assertIn('live_verified=False',p)
-        self.assertNotIn('market_orders(',p)
+    def test_filter_and_five_box_diagnostic_replaces_old_sensex_probe(self):
+        self.assertNotIn("def sensex_full_diagnostic_panel():",self.main)
+        p=self.main.split("    def filter_five_diagnostic_panel():",1)[1].split(
+            "    # Keep the manual Diagnostics gate",1)[0]
+        self.assertIn('names=list(filter_selected)',p)
+        self.assertIn('"five_boxes":engines',p)
+        self.assertIn('"provider_requests":0',p)
+        self.assertIn("FILTER + FIVE BOX DIAG (read-only)",p)
+        self.assertNotIn('dhan_feed.quote,"SENSEX"',p)
+        self.assertNotIn("market_orders(",p)
 
 if __name__=="__main__": unittest.main()
