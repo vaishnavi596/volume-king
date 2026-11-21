@@ -931,7 +931,7 @@ def app_main(page:ft.Page):
         elif isinstance(control,ft.Container) and control.content is not None:
             control.content=decorate_help(control.content)
         return control
-    scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","5m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
+    scan_shared=market_store.get("analysis",prefs.get("scanner_symbol","NIFTY"),prefs.get("scanner_timeframe","1m")) or {"direction":"WAIT","basis":"Awaiting automatic scan","tf":"—","symbol":"NIFTY"}
     if scan_shared.get("timestamp"):scan_shared["basis"]="HISTORICAL • "+age_label(scan_shared["timestamp"])+" • "+scan_shared["basis"]
     saved_ranking=market_store.get("ranking","configured51") or market_store.get("ranking","configured50") or {}
     top5_candidates=[dict(row,historical=True) for row in saved_ranking.get("rows",[]) if isinstance(row,dict) and row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))][:5]
@@ -5352,7 +5352,7 @@ console.log('BOT KING Lightweight Charts ready');
         select(3)
     filter_checklist=ft.Column(spacing=0)
     def reset_default_filters(e):
-        filter_selected[:]=DEFAULT_FILTERS[:10]
+        filter_selected[:]=ALL_FILTERS[:17]
         scanner_chart_indicators[:]=chart_filter_names[:]
         prefs["scanner_chart_indicators"]=scanner_chart_indicators[:]
         store_filters();select(current[0])
@@ -5443,7 +5443,7 @@ console.log('BOT KING Lightweight Charts ready');
     def shared_history(sym,tf="5m"):
         """Newest verified-source *matching timeframe* candle series, never LTP age.
 
-        The default stays 5m for existing Super Five / Watchlist consumers.
+        Legacy unnamed callers may request 5m; Dashboard and Watchlist explicitly select 1m/3m.
         Additional 1m/3m callers cannot borrow the unlabeled 5m quote history.
         """
         if tf not in ("1m","2m","3m","5m","10m","15m","30m","1h"):
@@ -6191,7 +6191,7 @@ console.log('BOT KING Lightweight Charts ready');
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
                 ft.Column([note("All supported filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
-                           filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters)],spacing=4)),
+                           filter_checklist,ft.OutlinedButton("Restore default 17",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
                            note("OI Support, OI Resistance, OI Profile and Max Pain can be selected and saved; unverified derivatives never become directional votes.")],spacing=4)),
