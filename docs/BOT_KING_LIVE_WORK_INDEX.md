@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नया चैट शुरू करने के लिए)
 
+> **SUDHAR 1 STAGED APK rule (2026-11-21):** हर पूर्ण संयुक्त सुधार-सेगमेंट के बाद जब मोबाइल प्रमाण आवश्यक हो, exact-head offline PASS होने पर अलग पहचान वाला diagnostic TEST APK बनाया जा सकता है; फिर Help Doctor screenshot/trace से इसी segment का RECEIVE→CACHE→COMPUTE→QUEUE→APPLY/RENDER और सभी प्रभावित downstream functions जाँचें। Failure उसी segment में ठीक करें, फिर अगला segment। V1/production safe; live orders OFF; no premature release. Full rule in root AGENTS.md.
+
 
 > **SUDHAR 1 Day-2 active batch (2026-11-21):** Source-level Watchlist quote-only UI delta optimization applied to Clone branch `src/main.py`; separate evidence signature avoids expensive five-filter/candle/assessment child rebuilding when only LTP changes, while Search/Membership row remount invalidates signatures. Existing Day-2 tests gained 2 guards. **Exact-head full offline CI and Android 5/20/40/70-equity performance NOT VERIFIED; no APK/Oracle changes.** See Day-2 journal for four-gate impact matrix. Next: one full regression, then measured device capacity and remaining queue integration before declaring the building complete.
 
