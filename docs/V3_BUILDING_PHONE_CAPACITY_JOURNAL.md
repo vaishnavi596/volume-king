@@ -50,3 +50,27 @@ After owner Android screenshots (54: 28 rejected; 73: 218 rejected), inspected e
 **B1 patch:** `src/clone_day2_apply_queue.py` gained `ingest_burst(updates, apply, batch_size=128)` that drains before hitting 512 slots and refuses to proceed if callbacks cannot make progress, instead of silently losing newly received keys. This is a bounded in-memory batch-passing policy for a finite list; NOT a persistent stock/cache and NOT yet a frame-budget UI scheduler. The original `receive` cap and exception/health behavior remain unchanged. Diagnostic source now sends its 10 updates per instrument through the new method. Exact target is 540/540 and 730/730, 0 capacity rejected; no assertion of PASS until CI completes.
 
 **GitHub changes:** `65a545df` queue prototype; `c4531c8b` diagnostic B1 queue plumbing; `cfa5561e` test for 10/35/54/73 instruments, 1m/3m/5m key separation, callback failure backpressure and invalid candle timeframe; `d2bfe81e` standalone .github/workflows/v3-b1-bounded-queue-gate.yml CI. Workflow status and outcome to verify from GitHub run. No Android APK built in this step; phone has baseline APK which still shows the old queue behavior. Production app, Oracle, broker and B2 timeframe unchanged.
+
+
+## 2026-11-21 IST — B1 second Android capacity APK: owner-phone PASS, isolated synthetic scope
+
+Owner uploaded four new screenshots from Android B1 bounded-queue Capacity Lab after build2 workflow `#44872027777` (do not infer exact Flutter raster/paint).
+
+| Metric | 54 instruments (51 equities+3 indices) | 73 instruments (70 equities+3 indices) |
+|---|---:|---:|
+| generate_ms | 47.227 | 52.248 |
+| validate_stock_ms | 3.694 | 5.646 |
+| synthetic_compute_ms | 0.068 | 0.108 |
+| queue_ms | 3.763 | 4.821 |
+| total_python_ms | 54.753 | 62.824 |
+| thread_wall_ms | 56.608 | 64.132 |
+| flet_controls_construct_ms | 7.934 | 11.164 |
+| received/queued/applied | 540/540/540 | 730/730/730 |
+| capacity_rejected | 0 | 0 |
+| failed | 0 | 0 |
+| flet_submit_until_ack_ms | 2054.926 | 911.652 |
+| test_start_until_ack_ms | 2128.349 | 998.177 |
+
+**Comparison:** Prior phone baseline had 28/540 and 218/730 capacity rejects respectively; after bounded-burst drain both cases show zero rejected and zero apply failures. PASS limited to finite synthetic burst processing in isolated queue prototype and simplistic Flet rows. These screenshots do not certify complete V3 production data/cache integration, five live filter computation, Android raster timing, actual last-row visibility, real options evidence, or production latency. ACK includes human reaction and varies across trials; single-run 2.128s vs 0.998s does NOT establish relative device performance. The displayed filter slots remain WAIT (sixth absent).
+
+**Next B1 checks:** Keep Dhan/Oracle and timeframe work untouched. Verify authoritative stock/last-good retention, candle completion/revision behavior, actual scanner/five-filter calculations, connection to production Flet screens, and real Android frame-stage timings; use controlled combined offline tests before any production app edit/next APK. No new test APK or server change initiated by this journal entry.
