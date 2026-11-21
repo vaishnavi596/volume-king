@@ -10,7 +10,7 @@ def bars():
 
 def records(symbol="NIFTY",generation=1):
     return {(symbol,frame,generation):{"source":"Dhan","_scanner_timeframe":frame,"bars":bars()}
-            for frame in ("1m","3m","5m")}
+            for frame in ("1m","3m","5m","10m","15m","30m")}
 
 class TestTypedStockDoctor(unittest.TestCase):
     def test_missing_data_is_typed_error_never_direction(self):
