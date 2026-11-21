@@ -4,7 +4,7 @@
 Input must be a SANITIZED JSON file holding only either:
   {"quotes":{"NIFTY":{"ltp":1},"BANKNIFTY":{"ltp":1}},"unavailable":["SENSEX"]}
 or:
-  {"status":"success","data":{"IDX_I":{"13":{"last_price":1},"25":{"last_price":1}},"BSE_I":{}}}
+  {"status":"success","data":{"IDX_I":{"13":{"last_price":1},"25":{"last_price":1}},"IDX_I":{}}}
 Never feed raw broker logs, authorization headers, tokens, SSK or full snapshots.
 No requests, imports of runtime modules, environment access or secret output.
 """
@@ -13,7 +13,7 @@ import json
 import math
 from pathlib import Path
 
-MAPPING = {"NIFTY": ("IDX_I", "13"), "BANKNIFTY": ("IDX_I", "25"), "SENSEX": ("BSE_I", "51")}
+MAPPING = {"NIFTY": ("IDX_I", "13"), "BANKNIFTY": ("IDX_I", "25"), "SENSEX": ("IDX_I", "51")}
 
 
 def valid(value):
