@@ -622,6 +622,10 @@ def app_main(page:ft.Page):
         request_id=health.begin(health_key)
         fallback_reason=""
         try:
+            # V3 hard network boundary: even a corrupted/injected preference
+            # cannot reach the retained legacy Yahoo/Angel transport branches.
+            if selected!="Dhan":
+                raise FeedError("V3 Dhan-only provider required; reconnect Dhan in Settings")
             if selected=="Yahoo Finance":
                 result=get_yahoo(ticker,interval,range_)
             elif selected=="Dhan":
