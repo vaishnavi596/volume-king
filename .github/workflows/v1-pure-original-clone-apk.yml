@@ -183,3 +183,5 @@ jobs:
 # B161 Phone-Test combined safety: all offline 3-track tests must pass before aapt and signer checks.
 
 # B178 17 filter + five engine cache-only Doctor phone build: removed old SENSEX-only tool; full offline tests gate before signing.
+
+# B178 release gate retry: project metadata now matches APK 2.3.178; previous run failed only version assertion before testing.
