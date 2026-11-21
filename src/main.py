@@ -4723,6 +4723,47 @@ def app_main(page:ft.Page):
                         "historical_percent":historical_percent,
                         "reason":str(display.get("reason") or
                                       "No fresh verified independent Dhan evidence")[:160]})
+                # Trace the already-cached data to the same adapter inputs
+                # used by Dashboard/Scanner, without provider I/O or pretending
+                # to observe Flutter pixels.
+                exact_cache=chart_snapshots.get((symbol,tf,generation)) or {}
+                scanner_cache=candles.get("scanner_chart_"+symbol) or {}
+                scanner_cache_matches=(
+                    scanner_cache.get("_scanner_timeframe")==tf and
+                    scanner_cache.get("_scanner_generation")==scan_generation[0])
+                source_ok=(isinstance(history,dict) and history.get("source")=="Dhan")
+                matching_tf=(isinstance(history,dict) and
+                             history.get("_scanner_timeframe")==tf)
+                computed=[row for row in filter_rows
+                          if row["status"] in ("BULLISH","BEARISH","NEUTRAL")]
+                prepared_snapshot=five_engine_snapshots.get(symbol)
+                display_ready=sum(row.get("bullish_percent") is not None for row in engines)
+                dashboard_tf="1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"
+                pipeline_trace=[
+                    {"stage":"CACHE_INPUT","status":"PRESENT" if bars else "MISSING",
+                     "count":candle_count,"source":diagnostic_context["candle_source"],
+                     "exact_key_found":bool(exact_cache),
+                     "scanner_cache_exact_match":scanner_cache_matches},
+                    {"stage":"TIMEFRAME_AND_SOURCE","status":
+                     "MATCH" if source_ok and matching_tf else "MISMATCH_OR_UNVERIFIED",
+                     "requested":tf,"cached":history.get("_scanner_timeframe") if isinstance(history,dict) else None,
+                     "generation":generation},
+                    {"stage":"CANDLE_VALIDATION","status":
+                     "PASS" if diagnostic_context["history_shape_valid"] else "WAIT",
+                     "reason":cause},
+                    {"stage":"FILTER_ANALYSIS","status":"COMPUTED" if computed else "WAIT",
+                     "selected":len(names),"calculated":len(computed),
+                     "waiting":sum(row["status"]=="WAIT" for row in filter_rows)},
+                    {"stage":"FIVE_ENGINE_ADAPTER","status":
+                     "PRESENT" if prepared_snapshot else "MISSING",
+                     "verified_display_boxes":display_ready,
+                     "wait_boxes":sum(row["status"]=="WAIT" for row in engines)},
+                    {"stage":"DASHBOARD_UI_INPUT","status":
+                     "SAME_TIMEFRAME" if tf==dashboard_tf else "DIFFERENT_TIMEFRAME",
+                     "dashboard_timeframe":dashboard_tf,
+                     "diagnosed_timeframe":tf,
+                     "note":"Cache/adapter trace only; rendered Flutter pixels not measured"}
+                ]
                 errors=[row for row in filter_rows if row["status"] in ("WAIT","ERROR")]
                 errors.extend({"box":row["box"],"status":"WAIT","stage":row["stage"],
                                "detail":row["reason"]} for row in engines
@@ -4735,6 +4776,7 @@ def app_main(page:ft.Page):
                     "filter_results":filter_rows,
                     "five_boxes":engines,
                     "stage_context":diagnostic_context,
+                    "cache_to_display_trace":pipeline_trace,
                     "errors_only":errors,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "candle_status":cause,
