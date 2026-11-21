@@ -23,7 +23,8 @@ class TestTypedStockDoctor(unittest.TestCase):
         h=records()
         h[("NIFTY","3m",1)]["_scanner_timeframe"]="1m"
         h[("NIFTY","5m",1)]["bars"]=[[1,10,9,11,10,1],[2,10,11,9,10,1]]
-        result=classify_stock("NIFTY",{"source":"Dhan","price":100},h,1)
+        result=classify_stock("NIFTY",{"source":"Dhan","price":100},h,1,
+                                required_frames=("1m","3m","5m","10m","15m","30m"))
         self.assertIn("TIMEFRAME_MISMATCH",result["error_codes"])
         self.assertIn("CANDLE_INVALID",result["error_codes"])
         self.assertEqual(result["state"],"ERROR")
