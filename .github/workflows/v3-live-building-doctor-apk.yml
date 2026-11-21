@@ -2,17 +2,6 @@ name: BOT KING V3 Full Live Doctor Phone APK
 run-name: V3 full real-cache stock ERROR Doctor Phone APK B142
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
-  push:
-    branches:
-      - pilot/v1-pure-original-clone-phone-20261120
-    paths:
-      - .github/workflows/v3-live-building-doctor-apk.yml
-      - src/main.py
-      - src/v3_live_capacity_probe.py
-      - src/v3_stock_diagnostics.py
-      - tests/test_v3_stock_diagnostics.py
-      - src/v3_building_doctor.py
-      - tests/test_v3_live_capacity_probe.py
   workflow_dispatch:
 permissions:
   contents: read
