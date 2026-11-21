@@ -47,13 +47,19 @@ class SnapshotTests(unittest.TestCase):
         self.assertIn('10 days',age_label(1000,now=1000+864000))
         self.assertEqual(age_label(None),'Time unavailable')
         self.assertEqual(age_label(1001,now=1000),'Invalid future time')
-    def test_five_rows_visible_before_first_fetch(self):
+    def test_super_five_requires_dhan_connection_before_first_fetch(self):
         _,v=start({'scanner_live':False,'source':'Yahoo Finance'})
+        self.assertEqual(v['prefs']['source'],'Dhan')
         card=v['super_five_card']()
+        self.assertFalse(v['top5_candidates'])
         import flet as ft
-        rows=[c for c in card.content.controls[1].controls if isinstance(c,ft.Container)]
-        self.assertEqual(len(rows),5)
-        self.assertTrue(all('DATA UNAVAILABLE' in row.content.controls[0].value for row in rows))
+        texts=[]
+        def walk(c):
+            if isinstance(c,ft.Text):texts.append(str(c.value))
+            for child in c._get_children():walk(child)
+        walk(card)
+        self.assertTrue(any('Dhan disconnected' in text for text in texts))
+        self.assertTrue(any('no live signal' in text for text in texts))
     def test_restart_keeps_historical_snapshot_but_broker_failure_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'cache.json'
@@ -61,12 +67,15 @@ class SnapshotTests(unittest.TestCase):
             historical=dict(self.market(),source='Angel One')
             v['market_store'].put('market',('Broker API','NIFTY','5m','7d'),historical)
             _,restored=start({'scanner_live':False,'source':'Broker API'},cache_path=path)
-            self.assertEqual(restored['quotes']['NIFTY']['price'],100)
-            self.assertTrue(restored['quotes']['NIFTY']['cached'])
-            with patch('urllib.request.urlopen',side_effect=AssertionError('Yahoo must not run')):
-                with self.assertRaisesRegex(RuntimeError,'Broker API not connected'):
+            self.assertEqual(restored['prefs']['source'],'Dhan')
+            # The legacy Angel snapshot stays on disk, but must not leak into
+            # the active Dhan-only quote cache or appear as a verified quote.
+            self.assertIsNotNone(restored['market_store'].get('market','Broker API','NIFTY','5m','7d'))
+            self.assertNotIn('NIFTY',restored['quotes'])
+            with patch('urllib.request.urlopen',side_effect=AssertionError('Legacy provider must not run')):
+                with self.assertRaisesRegex(Exception,'Dhan disconnected'):
                     restored['get_market_data']('NIFTY','5m','7d')
-            self.assertIn('Last saved',restored['quote_caption']('NIFTY'))
+            self.assertIn('Dhan disconnected',restored['quote_caption']('NIFTY'))
 
     def test_ranked_directions_survive_restart_as_historical(self):
         with tempfile.TemporaryDirectory() as d:
@@ -74,9 +83,10 @@ class SnapshotTests(unittest.TestCase):
             rows=[{'symbol':s,'bias':'BULLISH','timestamp':1000,'score':80,'reason':'old trend','source':'Yahoo Finance'} for s in ['A','B','C','D','E']]
             SnapshotStore(path).put('ranking',('configured50',),{'rows':rows,'checked_at':'old'})
             _,v=start({'scanner_live':False,'source':'Yahoo Finance'},cache_path=path)
-            self.assertEqual(len(v['top5_candidates']),5)
-            self.assertTrue(all(r['historical'] for r in v['top5_candidates']))
-            self.assertTrue(all(r['bias']=='BULLISH' for r in v['top5_candidates']))
+            self.assertEqual(v['prefs']['source'],'Dhan')
+            self.assertFalse(v['top5_candidates'])
+            # Saved Yahoo rankings must not be promoted as Dhan signals.
+            self.assertIsNotNone(v['market_store'].get('ranking','configured50'))
     def test_cached_recent_candles_do_not_publish_new_live_signal(self):
         _,v=start({'scanner_live':False,'scanner_timeframe':'5m','scanner_period':'7d'})
         end=int(time.time()//300)*300-300
