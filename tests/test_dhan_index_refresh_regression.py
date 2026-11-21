@@ -45,6 +45,20 @@ class DhanIndexRefreshRegression(unittest.TestCase):
                         source.index('"GATEWAY_HTTP_5XX" if'))
         self.assertIn("index_last_result_generation[0]=generation", source)
 
+    def test_five_box_doctor_ohlcv_quality_is_read_only_and_flagged(self):
+        # Diagnosis must retain raw data and must not infer broker-live prices.
+        source = self.source
+        for key in ("last_eight_raw_ohlcv", "last_volume_vs_prior_average_ratio",
+                    "candle_quality_flags", "candle_quality_interpretation"):
+            self.assertIn('diagnostic_context["' + key + '"]', source)
+        for fixed_flag in ("DOJI_DOMINATED_LAST_EIGHT",
+                           "VOLUME_RATIO_OUTLIER_REVIEW",
+                           "HISTORICAL_CANDLE_AGE_REVIEW"):
+            self.assertIn('"' + fixed_flag + '"', source)
+        self.assertIn("READ_ONLY_REVIEW_FLAGS_NOT_BROKER_ERRORS_OR_LIVE_SIGNALS", source)
+        self.assertIn("last_bodies[\"doji\"]>=6", source)
+        self.assertIn("volume_ratio<0.1 or volume_ratio>10", source)
+
     def test_doctor_reports_actual_clone_index_route_not_legacy_path(self):
         # Do not direct an operator to the obsolete V1 /dhan index HTTP path.
         self.assertIn('"route":"/clone-v2/market/quotes"', self.source)
