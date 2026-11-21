@@ -1412,7 +1412,9 @@ def app_main(page:ft.Page):
         else:
             pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
-        candle_history=shared_history(symbol)
+        # Dashboard indexes use 1m; never read legacy 5m for their C engine.
+        candle_tf=("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m")
+        candle_history=shared_history(symbol,candle_tf)
         if candle_history.get("source")=="Dhan":
             balance=historical_candle_balance(candle_history.get("bars"))
             if balance and snapshot["engines"][1].display()["state"]=="WAIT":
@@ -1468,7 +1470,8 @@ def app_main(page:ft.Page):
                             and isinstance(data.get("pcr"),(int,float))):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
                 elif name=="candle" and prefs.get("source")=="Dhan":
-                    candle_history=shared_history(sym)
+                    candle_tf=("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m")
+                    candle_history=shared_history(sym,candle_tf)
                     if candle_history.get("source")=="Dhan":
                         balance=historical_candle_balance(candle_history.get("bars"))
                         if balance:
