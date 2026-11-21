@@ -115,7 +115,10 @@ class AuditTests(unittest.TestCase):
             return {'source':'Dhan','bars':[(1700000000+i*300,100,101,99,100,100) for i in range(40)]}
         with patch('asyncio.to_thread',side_effect=delayed) as network_stub:
             asyncio.run(v['scan_market']())
-        network_stub.assert_awaited_once()
+        self.assertEqual(network_stub.await_count,1,
+                         "scan status: "+str(v['scan_status'].value)+
+                         " • connected="+str(v['dhan_feed'].connected)+
+                         " • generation="+str(v['scan_generation'][0]))
         self.assertGreater(v['scan_generation'][0],original_generation)
         self.assertEqual(v['scan_result'].controls,before)
         self.assertNotIn('timestamp',v['scan_shared'])
