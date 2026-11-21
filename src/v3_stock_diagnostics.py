@@ -29,22 +29,31 @@ def _candle_fault(record,frame):
         previous=t
     return None
 
-def classify_stock(symbol, quote, histories, generation):
-    """Make an independent, typed, sanitized assessment for one real stock."""
+def classify_stock(symbol, quote, histories, generation, required_frames=("1m","3m")):
+    """Diagnose required 1m/3m; report optional 5/10/15/30 separately.
+
+    A missing optional chart frame must not mark a valid watchlist 3m stock
+    as ERROR. This says nothing about verified option filters or freshness.
+    """
     faults=[]
     p=quote.get("price") if isinstance(quote,dict) else None
     if not isinstance(quote,dict) or not quote or p is None:
         faults.append("DATA_INCOMPLETE")
     elif quote.get("source")!="Dhan" or type(p) not in (int,float) or not math.isfinite(p) or p<=0:
         faults.append("DATA_INCOMPLETE")
+    frame_checks={}
     for frame in ("1m","3m","5m","10m","15m","30m"):
         fault=_candle_fault(histories.get((symbol,frame,generation)),frame)
-        if fault:
+        frame_checks[frame]="PRESENT_UNVERIFIED" if fault is None else fault
+        if fault and frame in required_frames:
             faults.append(fault)
     # Five option-evidence filters are deliberately not considered complete
     # without trusted expiry-scoped feed evidence. The sixth slot stays inert.
     return {"symbol":symbol,"state":"ERROR" if faults else "CACHE_PRESENT_UNVERIFIED",
             "error_codes":list(dict.fromkeys(faults)),
+            "required_frames":list(required_frames),"frame_checks":frame_checks,
+            "optional_frames_missing":[tf for tf in frame_checks
+                if tf not in required_frames and frame_checks[tf]!="PRESENT_UNVERIFIED"],
             "analysis_eligible":False,
             "live_signal_eligible":False,
             "cause":"; ".join(dict.fromkeys(faults)) if faults else "Data presence only; verify five filter evidence separately"}
