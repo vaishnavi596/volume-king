@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.181" # V3 B181 six-stage cache-to-display diagnostic, Android versionCode 181
+version = "2.3.182" # V3 B182 context-only OI and matching 1m historical T/C diagnostics, Android versionCode 182
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
