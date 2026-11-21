@@ -4548,6 +4548,7 @@ def app_main(page:ft.Page):
         async def run_cached_test(e,count):
             if busy[0]:return
             busy[0]=True
+            building_doctor.milestone("cached_test_clicked")
             test_status.value="Measuring existing cache for "+str(count)+" equities • no Dhan request..."
             test_status.update()
             try:
@@ -4604,7 +4605,9 @@ def app_main(page:ft.Page):
                     "feed_health_issue_count":len(display_failures),
                     "manual_retry_required_by_user":False,
                     "status_interpretation":"Read-only diagnostic; availability is not proof of a live trading signal"}
+                building_doctor.milestone("cached_test_calculation_complete")
                 outcome["phone_snapshot_capture_ms"]=capture_ms
+                outcome["test_elapsed_since_login_seconds"]=dict(building_doctor.milestones)
                 outcome["health_doctor"]=stock_diagnostic_registry.reconcile(
                     outcome["stock_states"],generation)
                 # Already displayed stock errors become RESOLVED on the next
