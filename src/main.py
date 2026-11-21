@@ -4565,6 +4565,45 @@ def app_main(page:ft.Page):
                 capture_ms=round((time.perf_counter()-stage0)*1000,3)
                 outcome=await asyncio.to_thread(benchmark_cached_capacity,
                     chosen,stock_quotes,stock_histories,generation,count)
+                # One-pass full-app status, read from existing mounted session.
+                # These checks do not issue any broker requests or imply
+                # successful exchange-live five-filter evidence.
+                outcome["full_app_feature_audit"]={
+                    "dhan_connected":bool(dhan_feed.connected),
+                    "oracle_gateway_connected":bool(clone_v2_gateway.connected),
+                    "login_stage":dict(building_doctor.milestones),
+                    "equity_quote_status":str(watch_batch_status[0])[:180],
+                    "index_quote_present":sum(bool(building_doctor.valid_quote(quotes.get(sym)))
+                        for sym in ("NIFTY","BANKNIFTY","SENSEX")),
+                    "watchlist_count":len(watch_groups),
+                    "configured_unique_equities":len(set(all_watch_symbols())),
+                    "watchlist_active_index":active_watch[0]+1,
+                    "scanner_symbol":str(scan_symbol.value or "NIFTY"),
+                    "scanner_timeframe":str(scan_tf.value or "1m"),
+                    "scanner_auto_enabled":bool(scan_live.value),
+                    "scanner_busy":bool(scan_busy[0]),
+                    "scanner_status":str(scan_status.value or "")[:180],
+                    "scanner_last_candle_present":scan_last_candle[0] is not None,
+                    "scanner_analysis_direction":str(scan_shared.get("direction","UNAVAILABLE"))[:18],
+                    "scanner_progress":{k:scan_progress.get(k) for k in
+                        ("checked","total","valid","failed","cached","state")},
+                    "option_symbol":str(chain_symbol.value or "NIFTY"),
+                    "option_selected_expiry":str(expiry.value or "NOT_AVAILABLE"),
+                    "option_busy":bool(option_feed_busy[0]),
+                    "option_status":str(option_feed_status[0])[:180],
+                    "option_verified_live_signal":False,
+                    "chart_symbol":str(symbol.value or "NIFTY"),
+                    "chart_timeframe":str(timeframe.value or "5m"),
+                    "chart_source_present":bool(stock_histories.get((
+                        str(symbol.value or "NIFTY"),str(timeframe.value or "5m"),generation))),
+                    "active_analysis_filter_names":[str(name) for name in filter_selected[:15]],
+                    "filter_count":len(filter_selected),
+                    "five_verified_live_filters":"NOT VERIFIED — source/expiry evidence required",
+                    "sixth_filter_slot":"NOT AUTOMATICALLY SCORED",
+                    "refresh_ui_counters":dict(building_doctor.counters),
+                    "feed_health_issue_count":len(display_failures),
+                    "manual_retry_required_by_user":False,
+                    "status_interpretation":"Read-only diagnostic; availability is not proof of a live trading signal"}
                 outcome["phone_snapshot_capture_ms"]=capture_ms
                 outcome["health_doctor"]=stock_diagnostic_registry.reconcile(
                     outcome["stock_states"],generation)
