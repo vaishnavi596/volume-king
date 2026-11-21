@@ -96,3 +96,5 @@ jobs:
 # B142 exact-head security gate: provider-generation-only active option context.
 
 # B143 index-only focused diagnostic source regression and full offline suite; no live Dhan calls in CI.
+
+# B144 final fix: restore missing-cache Options mismatch diagnostic and include SENSEX targeted tester.
