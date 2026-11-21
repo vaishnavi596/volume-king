@@ -106,7 +106,8 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
     after_technical=time.perf_counter()
     # Audit each independent stock without blocking peers. Errors identify the
     # missing/bad cache stage; they do not assert broker transport failure.
-    stock_diagnostics=[classify_stock(sym,quotes.get(sym),histories,generation)
+    stock_diagnostics=[classify_stock(sym,quotes.get(sym),histories,generation,
+                        required_frames=("1m",) if sym in INDEXES else ("3m",))
                        for sym in names]
     incomplete_count=sum(row["state"]=="ERROR" for row in stock_diagnostics)
     after_diagnostics=time.perf_counter()
