@@ -2491,3 +2491,5 @@ Owner-approved execution order: **BATCH-1 BUILDING/STRUCTURE → BATCH-2 TIMEFRA
 ## 2026-11-21 IST — B150 FULL REGRESSION PASS → PHONE APK TRIGGER
 - B150 exact-head combined full regression run 44892201231, commit 7ed022a4cffaf32588d4016219dadfaef45a8425, GitHub Actions completed SUCCESS. Previous B149 APK preflight (run 44891993648) failed only stale B143 SENSEX `assertNotIn` test, repaired by B150 commit 89c6e2be. No fake live quote or provider call in this fix.
 - After PASS, new isolated signed phone APK workflow trigger committed 1d5927e75e7166f9644ed290ece3e265c70e3ddf (.github/workflows/v1-pure-original-clone-apk.yml), run-name B150, version 2.3.138; full offline regression is also a pre-sign gate inside APK workflow. Run ID/signing/artifact not confirmed at journal write; DO NOT claim APK ready until actual build SUCCESS and artifact present. No production server changes.
+
+- GitHub confirmed B150 signed phone APK run https://github.com/vaishnavi596/volume-king/actions/runs/44892473796, trigger head 1d5927e7, status IN_PROGRESS when checked. Pre-sign gate, signing, uploaded artifact and install validation remain pending; no APK PASS claim yet.
