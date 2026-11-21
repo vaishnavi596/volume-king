@@ -119,6 +119,18 @@ class FilterFiveDoctorContract(unittest.TestCase):
                            'refresh_all_dhan_quotes('):
             self.assertNotIn(disallowed,panel)
         self.assertIn('master_diagnostic_panel(),',APP[end:APP.index("    def settings():",end)])
+        for field in ('"index_last_result_state"', '"index_last_result_generation_matches"',
+                      '"index_result_age_seconds"', '"ui_signal_reuse"',
+                      '"last_eight_ohlc_body_counts"', '"volume_scale_review_required"',
+                      '"rsi_extreme_review_required"'):
+            self.assertIn(field,panel)
+        self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
+        tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
+        self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
+        self.assertIn('"index_result_state":index_last_result_state[0]',APP)
+        self.assertIn('"index_same_generation":index_last_result_generation[0]==generation',APP)
+        self.assertIn('"last_eight_distinct_timestamps"',APP)
+        self.assertIn('"last_candle_age_seconds"',APP)
 
     def test_panel_is_embedded_in_existing_main_error_doctor(self):
         start=APP.index("    def v3_live_building_panel():")
