@@ -58,6 +58,10 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn("READ_ONLY_REVIEW_FLAGS_NOT_BROKER_ERRORS_OR_LIVE_SIGNALS", source)
         self.assertIn("last_bodies[\"doji\"]>=6", source)
         self.assertIn("volume_ratio<0.1 or volume_ratio>10", source)
+        self.assertIn('diagnostic_context["last_eight_constant_nonzero_volume"]', source)
+        self.assertIn('"CONSTANT_NONZERO_VOLUME_LAST_EIGHT_REVIEW"', source)
+        self.assertIn("quality_rows[0][5]>0", source)
+        self.assertIn("for i in range(7)", source)
 
     def test_doctor_reports_actual_clone_index_route_not_legacy_path(self):
         # Do not direct an operator to the obsolete V1 /dhan index HTTP path.
