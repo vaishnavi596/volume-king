@@ -10,18 +10,18 @@ class CentralFilterSlotsTests(unittest.TestCase):
         _, v = start({"source":"Dhan","scanner_live":False,"last_page":2})
         self.assertEqual(len(v["filter_selected"]),17)
         removed=DEFAULT_FILTERS[:3]
-        for name in (*removed,"OI Support","OI Resistance","Max Pain"):
+        for name in (*removed,"OI Support","OI Resistance","Dhan Max Pain"):
             v["remove_added_filter"](name)
         self.assertEqual(len(v["filter_selected"]),11)
         page=v["central_filter_settings"]()
         self.assertIsNotNone(page)
         self.assertEqual(len(v["filter_checklist"].controls),11)
         self.assertIn("OI Support",[opt.key for opt in v["filter_choice"].options])
-        for name in ("OI Support","OI Resistance","Max Pain"):
+        for name in ("OI Support","OI Resistance","Dhan Max Pain"):
             v["add_filter_slot"](name)
         self.assertEqual(len(v["filter_selected"]),14)
         self.assertTrue(set(removed).isdisjoint(v["filter_selected"]))
-        self.assertTrue({"OI Support","OI Resistance","Max Pain"}.issubset(v["filter_selected"]))
+        self.assertTrue({"OI Support","OI Resistance","Dhan Max Pain"}.issubset(v["filter_selected"]))
         self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"])
         _,restored=start({"source":"Dhan","scanner_live":False,"last_page":2,
                           "scanner_filters":v["prefs"]["scanner_filters"],
@@ -46,9 +46,9 @@ class CentralFilterSlotsTests(unittest.TestCase):
 
     def test_option_filters_remain_saved_but_not_verified_vote(self):
         _,v=start({"source":"Dhan","scanner_live":False,"last_page":2,
-                   "scanner_filters":["EMA 9/21","OI Support","OI Resistance","Max Pain"],
+                   "scanner_filters":["EMA 9/21","OI Support","OI Resistance","Dhan Max Pain"],
                    "default_ten_migrated":True})
-        self.assertEqual(v["filter_selected"],["EMA 9/21","OI Support","OI Resistance","Max Pain"])
+        self.assertEqual(v["filter_selected"],["EMA 9/21","OI Support","OI Resistance","Dhan Max Pain"])
         for name in OPTION_FILTERS:
             self.assertIn("never vote",v["filter_availability"](name))
         self.assertEqual(v["prefs"]["scanner_filters"],v["filter_selected"])
