@@ -1,0 +1,33 @@
+name: BOT KING V3 One Pass Final Offline Gate
+run-name: V3 six-frame full-feature offline acceptance
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-six-frame-final-offline-gate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile current phone source and complete grouped Timeframe segment
+        run: |
+          python -m py_compile src/main.py src/scanner_engine.py src/v3_live_capacity_probe.py src/v3_stock_diagnostics.py src/v3_building_doctor.py src/dhan_multi_timeframe.py
+      - name: Run ALL V3 capacity and recovery regression tests in one go
+        run: python -m unittest discover -s tests -p 'test_v3_*.py' -v
+      - name: Run ALL Clone B1 timeframe regression tests
+        run: python -m unittest discover -s tests -p 'test_clone_b1_*.py' -v
+      - name: Run Adapter context regression
+        run: python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
+      - name: Record single release gate
+        run: echo V3_SIX_FRAME_FULL_FEATURE_PRE_APK_GATE=PASS
