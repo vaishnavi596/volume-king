@@ -4516,6 +4516,8 @@ def app_main(page:ft.Page):
     def v3_live_building_panel():
         # Test actual in-memory stock, without synthetic input or provider requests.
         from v3_live_capacity_probe import benchmark_cached_capacity
+        from v3_stock_diagnostics import DiagnosticRegistry
+        stock_diagnostics=DiagnosticRegistry()
         symbols=list(all_watch_symbols())
         state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
                                      connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
@@ -4548,14 +4550,19 @@ def app_main(page:ft.Page):
                 outcome=await asyncio.to_thread(benchmark_cached_capacity,
                     chosen,stock_quotes,stock_histories,generation,count)
                 outcome["phone_snapshot_capture_ms"]=capture_ms
+                outcome["health_doctor"]=stock_diagnostics.reconcile(
+                    outcome["stock_states"],generation)
+                # Already displayed stock errors become RESOLVED on the next
+                # successful stock diagnosis; there is no extra provider poll.
                 outcome["login_stages_seconds"]=dict(building_doctor.milestones)
                 outcome["ui_refresh_python_timing_ms"]=building_doctor.report(
                     chosen,quotes,chart_snapshots,generation,dhan_feed.connected).get("timings",{})
                 outcome["test_requires_existing_login"]=True
                 report.value=json.dumps(outcome,indent=2,ensure_ascii=False)
-                test_status.value=("Cache-only "+str(count)+" EQUITIES test finished • "+str(
+                test_status.value=("Capacity test "+str(count)+" equities • "+str(
                     outcome["observed_instruments"])+"/"+str(outcome["requested_instruments"])+
-                    " instruments observed. Read WAIT / missing data below.")
+                    " checked • "+str(outcome["stock_error_count"])+
+                    " stock errors. Inspect ERROR codes and Health Doctor below.")
                 report.update()
                 test_status.update()
             except Exception as exc:
@@ -4565,7 +4572,7 @@ def app_main(page:ft.Page):
             finally:
                 busy[0]=False
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
-            note("Login with existing Clone SSK first. No fake LIVE data; missing equities/candles stay WAIT."),
+            note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
             note("These buttons inspect existing cache and run real chart/scanner technical code. No new Dhan requests, orders or full-page rebuild."),
             ft.Row([
                 ft.OutlinedButton("TEST 54 (51+3)",on_click=lambda e:page.run_task(run_cached_test,e,51)),
