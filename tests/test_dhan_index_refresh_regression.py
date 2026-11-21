@@ -21,6 +21,26 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('freshness="unverified"', source)
         self.assertIn("generation!=provider_generation[0]", source)
 
+    def test_clone_gateway_index_errors_have_distinct_sanitized_codes(self):
+        # The phone must report which Clone stage failed without exposing
+        # secret keys, request URLs or arbitrarily supplied upstream bodies.
+        fn = next(node for node in ast.walk(self.tree)
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == "refresh_dhan_index_quotes")
+        source = ast.get_source_segment(self.source, fn)
+        for code, detail in (
+            ("GATEWAY_HTTP_429", "quote lane paced"),
+            ("AUTH_OR_ACCESS_403", "session rejected"),
+            ("INDEX_BATCH_SCHEMA_REJECTED", "no validated quotes"),
+            ("CLONE_GATEWAY_TRANSPORT_UNAVAILABLE", "clone market data unavailable"),
+            ("CLONE_MARKET_ROUTE_UNAVAILABLE", "clone market route not ready"),
+        ):
+            with self.subTest(code=code):
+                self.assertIn('"' + code + '"', source)
+                self.assertIn('"' + detail + '"', source)
+        self.assertIn('"UNCLASSIFIED_FEED_ERROR"', source)
+        self.assertIn("diagnostic=str(exc).lower()", source)
+        self.assertIn("index_last_result_generation[0]=generation", source)
+
     def test_index_poll_is_not_blocked_by_equity_snapshot(self):
         fn = next(node for node in ast.walk(self.tree)
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == "dhan_quote_poll")
