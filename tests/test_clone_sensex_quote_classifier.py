@@ -18,15 +18,15 @@ class SensexQuoteClassifierTests(unittest.TestCase):
         self.assertEqual(got["indices"]["SENSEX"], "PROVIDER_UNAVAILABLE_OR_REJECTED")
         self.assertFalse(got["provider_root_cause_proven"])
 
-    def test_missing_bse_segment(self):
+    def test_missing_sensex_security_id_in_idx_segment(self):
         got = module.classify({"status": "success", "data": {
             "IDX_I": {"13": {"last_price": 25800.60},
                       "25": {"last_price": 64635.20}}}})
-        self.assertEqual(got["indices"]["SENSEX"], "SEGMENT_MISSING")
+        self.assertEqual(got["indices"]["SENSEX"], "SECURITY_ID_MISSING")
 
     def test_invalid_price_does_not_turn_live(self):
         got = module.classify({"status": "success", "data": {
-            "BSE_I": {"51": {"last_price": 0}}}})
+            "IDX_I": {"51": {"last_price": 0}}}})
         self.assertEqual(got["indices"]["SENSEX"], "INVALID_LAST_PRICE")
         self.assertFalse(got["provider_root_cause_proven"])
 
