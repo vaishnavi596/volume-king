@@ -695,7 +695,10 @@ class MobileRegressionTests(unittest.TestCase):
             ticks.append(delay);v["scan_live"].value=False
         with patch("asyncio.to_thread",side_effect=respond),patch("asyncio.sleep",side_effect=tick):
             asyncio.run(v["auto_scan_loop"](v["scan_auto_generation"][0]))
-        self.assertEqual(ticks,[1])
-        self.assertIsNotNone(v["scan_last_success"][0])
-        self.assertGreater(v["scan_next_refresh"][0],Clock.now().timestamp())
+        # Migrated Yahoo settings must never bypass the Dhan connection gate.
+        self.assertEqual(v["prefs"]["source"],"Dhan")
+        self.assertEqual(ticks,[5])
+        self.assertIsNone(v["scan_last_success"][0])
+        self.assertIsNone(v["scan_next_refresh"][0])
+        self.assertIn("Dhan login required",v["scan_status"].value)
 
