@@ -7254,16 +7254,27 @@ console.log('BOT KING Lightweight Charts ready');
     # serializes Dhan calls, respects provider 429/cooldown, and never runs
     # indefinitely after close. Data is always HIST until exchange verified.
     watch_login_bootstrap_generation=[None]
+    # Limit incomplete history recovery to three serialized attempts/session.
+    # Keep completed bars; never retry all 51 on every 2s UI observation.
+    watch_login_bootstrap_attempts=[0]
+    watch_login_bootstrap_retry_after=[0.0]
     async def watch_login_candle_bootstrap():
         while True:
             await asyncio.sleep(2)
             try:
                 generation=provider_generation[0]
-                if (watch_login_bootstrap_generation[0]==generation
-                        or not app_active[0] or lifecycle_background[0]
+                if (not app_active[0] or lifecycle_background[0]
                         or prefs.get("source")!="Dhan" or not dhan_feed.connected):
                     continue
+                if watch_login_bootstrap_generation[0]!=generation:
+                    watch_login_bootstrap_attempts[0]=0
+                    watch_login_bootstrap_retry_after[0]=0.0
+                elif (watch_login_bootstrap_attempts[0]>=3
+                      or time.monotonic()<watch_login_bootstrap_retry_after[0]):
+                    continue
                 watch_login_bootstrap_generation[0]=generation
+                watch_login_bootstrap_attempts[0]+=1
+                watch_login_bootstrap_retry_after[0]=time.monotonic()+180
                 selected=list(dict.fromkeys(sym for group in watch_groups
                     for sym in group if sym in DHAN_VERIFIED_SYMBOLS
                     and sym not in ("NIFTY","BANKNIFTY","SENSEX")))[:70]
@@ -7326,6 +7337,10 @@ console.log('BOT KING Lightweight Charts ready');
                     finally:
                         watch_three_minute_warm_busy[0]=False
                 if generation==provider_generation[0]:
+                    # Successful cached histories do not trigger repeat Dhan
+                    # requests. Mark completed bootstrap terminal this session.
+                    if completed==total:
+                        watch_login_bootstrap_attempts[0]=3
                     watch_batch_status[0]=(
                         f"Watchlist candle bootstrap {completed}/{total} HIST"
                         " • incomplete rows remain WAIT" if completed<total else
