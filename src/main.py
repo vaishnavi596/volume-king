@@ -1166,8 +1166,17 @@ def app_main(page:ft.Page):
         summary=" • ".join(str(counts[key])+" "+key.lower() for key in counts)
         details=[txt(row["symbol"]+" • "+row["status"]+" • "+row["stage"],14,
                      RED if row["status"]=="ERROR" else MUTED) for row in rows]
-        return ft.ExpansionTile(title=txt("54-symbol filter audit • 5m",14,GOLD),
-            subtitle=note(summary),controls=[note("Technical/candle coverage only; not proof of verified News, Futures or Options. Tap a symbol in Scanner for filter details."),
+        ready_from_candles=[x for x in filter_selected
+                            if x not in ("OI Support","OI Resistance","OI Profile",
+                                         "Max Pain","News Headlines")]
+        external_wait=[x for x in filter_selected if x not in ready_from_candles]
+        return ft.ExpansionTile(title=txt("54-symbol filter audit • indexes 1m / equities 5m",14,GOLD),
+            subtitle=note(summary),controls=[
+                note("Selected "+str(len(filter_selected))+"/18 • candle-computable "+
+                     str(len(ready_from_candles))+" • external evidence WAIT "+
+                     str(len(external_wait))+" ("+", ".join(external_wait)+")"),
+                note("A selected filter is not a verified live signal. Technical/candle coverage is separate from News, Futures, OI and Options data."),
+
             *[ft.Column([details[i],note(row["reason"]),
                 note("Candles "+str(row.get("candle_count",0))+" • local calculation "+
                      (f'{row["elapsed"]:.3f}s' if row.get("elapsed") is not None else "not measured"))],spacing=2)
