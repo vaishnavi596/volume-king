@@ -2145,3 +2145,15 @@
 [B3 TOKEN PIPE AUDIT SCRIPT SYNTAX CORRECTION — 2026-11-21 IST]
 - User's first attempt to run the previously supplied Oracle read-only unit metadata probe failed *before executing any probe* with Python SyntaxError at `args += ["-p", field for field in []] if False else []`. This line came from the assistant's incorrect script. SSH session then closed; this is a command syntax failure, NOT evidence of an Oracle/service/renewal failure or security incident. No provider requests or server configuration mutations occurred from the failed script.
 - Issued a corrected, simpler operator-side Python-only read-only probe: `systemctl show UNIT --no-pager -p Type -p ActiveState -p SubState -p Result -p UnitFileState` for the two app services and five associated renewal/sync services/timers. Uses subprocess with a 10-second timeout, prints only selected metadata fields; does not read secrets, environment, ExecStart, unit files, token paths or token bytes. Token-file metadata check deliberately deferred pending confirmed exact file locations. Await operator output before inferring Clone token dependencies. V1 and Clone services untouched.
+
+
+[B3 ORACLE TOKEN PIPE UNIT METADATA CONFIRMED — 2026-11-21 IST]
+- Owner ran corrected, approved read-only unit metadata probe (NO_SECRETS_READ, NO_PROVIDER_REQUEST_SENT, READ_ONLY_COMPLETE).
+- bot-king.service: Type=simple ActiveState=active SubState=running Result=success UnitFileState=enabled.
+- botking-clone-v2.service: Type=simple ActiveState=active SubState=running Result=success UnitFileState=enabled.
+- bot-king-totp-renewal.service: Type=oneshot ActiveState=failed SubState=failed Result=exit-code UnitFileState=static.
+- botking-dhan-renewal.service: Type=oneshot ActiveState=failed SubState=failed Result=exit-code UnitFileState=static.
+- botking-clone-v2-dhan-sync.service: Type=oneshot ActiveState=inactive SubState=dead Result=success UnitFileState=static.
+- botking-clone-v2-dhan-sync.timer: ActiveState=active SubState=waiting Result=success UnitFileState=enabled; Type=? is the service-oriented property of a timer, not a demonstrated fault.
+- botking-dhan-renewal.timer: ActiveState=inactive SubState=dead Result=success UnitFileState=disabled.
+- Scoped conclusion: V1/Clone remain running and Clone sync timer is scheduled; last botking-clone-v2-dhan-sync.service recorded Result=success. These metadata are not proof of Dhan token validity/renewal, synced timestamp, market entitlement or real index quote. Legacy renewal failures are confirmed exit-code, but source/dependency and failure root cause unknown. Do NOT activate disabled legacy timer/reset failures or restart services. Next bounded read-only audit: systemctl show for Clone sync timer Unit/NextElapseUSecRealtime/LastTriggerUSec, Clone sync service ExecMainStatus/ExecMainCode/InactiveEnterTimestamp, carefully sanitized only; inspect relevant GitHub source/scripts separately. Avoid journalctl content, unit ExecStart/Environment and token bytes/secrets.
