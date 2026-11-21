@@ -4514,21 +4514,67 @@ def app_main(page:ft.Page):
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
     def v3_live_building_panel():
-        symbols=[s for group in watch_groups for s in group]
+        # Test actual in-memory stock, without synthetic input or provider requests.
+        from v3_live_capacity_probe import benchmark_cached_capacity
+        symbols=list(all_watch_symbols())
         state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
                                      connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
-        # No real-time Dhan call and no sensitive URL/token in this JSON.
         report=ft.Text(json.dumps(state,indent=2,ensure_ascii=False),size=10,selectable=True)
+        test_status=ft.Text("Login first; choose a cache-only 54 or 70-share test.",size=11,color=GOLD)
+        busy=[False]
         def check_again(e):
-            updated=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
+            updated=building_doctor.report(list(all_watch_symbols()),quotes,chart_snapshots,provider_generation[0],
                                            connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
             report.value=json.dumps(updated,indent=2,ensure_ascii=False)
             report.update()
+        async def run_cached_test(e,count):
+            if busy[0]:return
+            busy[0]=True
+            test_status.value="Measuring existing cache for "+str(count)+" equities • no Dhan request..."
+            test_status.update()
+            try:
+                import copy
+                stage0=time.perf_counter()
+                chosen=list(dict.fromkeys(all_watch_symbols()))[:count]
+                names=("NIFTY","BANKNIFTY","SENSEX",*chosen)
+                generation=provider_generation[0]
+                # Materialize one consistent snapshot on UI thread; do not use
+                # mutable live dictionaries inside background calculations.
+                stock_quotes=copy.deepcopy({sym:quotes.get(sym) for sym in names})
+                stock_histories=copy.deepcopy({key:value for key,value in chart_snapshots.items()
+                    if isinstance(key,tuple) and len(key)==3
+                    and key[0] in names and key[1] in ("1m","3m","5m") and key[2]==generation})
+                capture_ms=round((time.perf_counter()-stage0)*1000,3)
+                outcome=await asyncio.to_thread(benchmark_cached_capacity,
+                    chosen,stock_quotes,stock_histories,generation,count)
+                outcome["phone_snapshot_capture_ms"]=capture_ms
+                outcome["login_stages_seconds"]=dict(building_doctor.milestones)
+                outcome["ui_refresh_python_timing_ms"]=building_doctor.report(
+                    chosen,quotes,chart_snapshots,generation,dhan_feed.connected).get("timings",{})
+                outcome["test_requires_existing_login"]=True
+                report.value=json.dumps(outcome,indent=2,ensure_ascii=False)
+                test_status.value=("Cache-only "+str(count)+" EQUITIES test finished • "+str(
+                    outcome["observed_instruments"])+"/"+str(outcome["requested_instruments"])+
+                    " instruments observed. Read WAIT / missing data below.")
+                report.update()
+                test_status.update()
+            except Exception as exc:
+                log_error("v3_capacity_benchmark",exc)
+                test_status.value="Building Doctor Error: "+type(exc).__name__
+                test_status.update()
+            finally:
+                busy[0]=False
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
-            note("LIVE APP diagnostic • source data is never fabricated • PARTIAL/WAIT is not an error"),
-            note("Network delivery, cache presence, technical analysis and Flutter pixels are different stages."),
+            note("Login with existing Clone SSK first. No fake LIVE data; missing equities/candles stay WAIT."),
+            note("These buttons inspect existing cache and run real chart/scanner technical code. No new Dhan requests, orders or full-page rebuild."),
+            ft.Row([
+                ft.OutlinedButton("TEST 54 (51+3)",on_click=lambda e:page.run_task(run_cached_test,e,51)),
+                ft.OutlinedButton("TEST 70 SHARES (+3 indices)",on_click=lambda e:page.run_task(run_cached_test,e,70))
+            ],wrap=True),
+            test_status,
             ft.OutlinedButton("Refresh Building Doctor (local only)",on_click=check_again),
-            report],spacing=4))
+            report,
+            note("Times are Python processing only; Flutter pixels and verified live option filters are not measured.")],spacing=4))
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
