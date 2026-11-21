@@ -134,7 +134,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v3_doctor' versionCode='140' versionName='2\\.3\\.138'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3live\\.bot_king_v3_doctor' versionCode='140' versionName='2\\.3\\.138'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 LIVE DOCTOR TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
