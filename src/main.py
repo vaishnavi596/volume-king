@@ -3760,6 +3760,12 @@ def app_main(page:ft.Page):
                                  if sym in proof)
             login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)
             building_doctor.milestone("quotes_applied_to_phone_stock")
+            # A default NIFTY selection does not emit on_change. Explicitly
+            # start one existing paced options refresh on successful login,
+            # preserving the same Dhan rate-limit and market-close policy.
+            if (app_active[0] and dhan_feed.connected and prefs.get("source")=="Dhan"
+                    and chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS):
+                page.run_task(refresh_selected_options)
             connection_status.value=(
                 "Clone B3 Dhan→Oracle→Phone verified • "+
                 str(received_indices)+"/3 indices • "+
@@ -5869,7 +5875,11 @@ console.log('BOT KING Lightweight Charts ready');
                     hist=dict(selected,cached=True,live_verified=False,
                               freshness="historical_unverified")
                 else:
-                    saved=market_store.get("market","Dhan",sym,interval,period) or {}
+                    # Scanner must see the already validated shared same-timeframe
+                    # stock, including completed 3m derived from 1m. No Dhan call.
+                    shared=shared_history(sym,interval)
+                    saved=shared if valid_candle_history(shared.get("bars")) else (
+                        market_store.get("market","Dhan",sym,interval,period) or {})
                     if (saved.get("source")=="Dhan" and valid_candle_history(saved.get("bars"))):
                         hist=dict(saved,cached=True,live_verified=False,
                                   freshness="historical_unverified")
