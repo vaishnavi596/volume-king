@@ -7521,7 +7521,7 @@ console.log('BOT KING Lightweight Charts ready');
                 total=len(selected)
                 completed=0
                 for sym in selected:
-                    if (generation!=provider_generation[0] or not app_active[0]
+                    if (generation!=provider_generation[0]
                             or watch_bootstrap_stop_requested() or not dhan_feed.connected
                             or prefs.get("source")!="Dhan"):
                         break
@@ -7533,10 +7533,10 @@ console.log('BOT KING Lightweight Charts ready');
                     while (dhan_history_scan_active[0] or index_one_minute_busy[0]
                             or watch_three_minute_warm_busy[0]):
                         await asyncio.sleep(2)
-                        if (generation!=provider_generation[0] or not app_active[0]
+                        if (generation!=provider_generation[0]
                                 or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
-                    if (generation!=provider_generation[0] or not app_active[0]
+                    if (generation!=provider_generation[0]
                             or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                         break
                     cooldown=dhan_feed.cooldown_remaining("/dhan/intraday")
@@ -7549,7 +7549,7 @@ console.log('BOT KING Lightweight Charts ready');
                     watch_three_minute_warm_busy[0]=True
                     try:
                         await asyncio.sleep(1.5)
-                        if (generation!=provider_generation[0] or not app_active[0]
+                        if (generation!=provider_generation[0]
                                 or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
                         data=await asyncio.wait_for(asyncio.to_thread(
