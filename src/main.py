@@ -5808,18 +5808,15 @@ console.log('BOT KING Lightweight Charts ready');
     def scanner_option_context():
         """Display cached Dhan option metrics without treating them as scanner votes."""
         symbol=scan_symbol.value or "NIFTY"
-        data=dhan_option_metrics if isinstance(dhan_option_metrics,dict) else {}
+        data=matching_option_context_for_symbol(symbol)
         if symbol not in DHAN_VERIFIED_OPTION_SYMBOLS:
             message="OI / PCR / Max Pain: no verified Dhan underlying mapping for "+symbol
         elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
             message="OI / PCR / Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
-        elif symbol!=chain_symbol.value:
-            message=("OI / PCR / Max Pain: Scanner "+symbol+" differs from Options "+
-                     str(chain_symbol.value)+" • select matching underlying in Options")
         elif (data.get("symbol")!=symbol or data.get("source")!="dhan"
-              or data.get("expiry")!=expiry.value):
+              or not data.get("expiry")):
             message=("OI / PCR / Max Pain: no broker-listed expiry snapshot for "+symbol+
-                     " • Options selection is "+str(expiry.value or "not loaded")+
+                     " • latest Options selection is "+str(expiry.value or "not loaded")+
                      (" • auto-refresh pauses after market hours; use explicit Retry Data"
                       if not refresh_hours() else " • waiting for paced Dhan refresh"))
         elif (not isinstance(data.get("pcr"), (int, float))
