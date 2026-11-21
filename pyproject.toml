@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.188" # V3 B188 effective Watchlist 3m diagnostic, Android versionCode 188
+version = "2.3.189" # V3 B189 index-specific cache Doctor and measured local 3m latency, Android versionCode 189
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
