@@ -1,6 +1,6 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: BOT KING V3 B194 Combined Phone Test • v2.3.194 (194)
-# B194 Dhan Max Pain cleanup + measured 3m Watchlist timing • full regression
+run-name: BOT KING V3 B195 Combined Phone Test • v2.3.195 (195)
+# B195 Dhan Max Pain cleanup + measured 3m Watchlist timing • full regression
 on:
   push:
     branches:
@@ -52,7 +52,7 @@ jobs:
           for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
               assert marker in backend, marker
           p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
-          assert p["project"]["version"] == "2.3.194"
+          assert p["project"]["version"] == "2.3.195"
           print("CLONE_B3_SOURCE_CONTRACT=PASS")
           PY
           python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
@@ -102,7 +102,7 @@ jobs:
           SIGN_PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$SIGN_PASS"
           printf "%s" "$SIGN_PASS" > "$RUNNER_TEMP/v1-pure-sign/password"
-          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v1-pure-sign/clone.jks" -storetype PKCS12 -alias v1_pure -keyalg RSA -keysize 3072 -validity 194 -dname "CN=BOT KING B3 CLONE TEST" -storepass "$SIGN_PASS" -keypass "$SIGN_PASS"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v1-pure-sign/clone.jks" -storetype PKCS12 -alias v1_pure -keyalg RSA -keysize 3072 -validity 195 -dname "CN=BOT KING B3 CLONE TEST" -storepass "$SIGN_PASS" -keypass "$SIGN_PASS"
       - name: Build separate Android identity with original full V1 application
         env:
           FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v1-pure-sign/clone.jks
@@ -113,9 +113,9 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v1-pure-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.194'\n" > src/_build_version.py
+          printf "BUILD_VERSION = '2.3.195'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
-          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B194 TEST" --build-number 194 --build-version 2.3.194 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B195 TEST" --build-number 195 --build-version 2.3.195 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
       - name: Inspect actual resulting signed Android APK
         shell: bash
         run: |
@@ -127,8 +127,8 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='194' versionName='2\\.3\\.194'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B194 TEST'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='195' versionName='2\\.3\\.195'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B195 TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
       - name: Remove ephemeral signer material
@@ -137,7 +137,7 @@ jobs:
       - name: Upload B3 Dhan two-way clone phone-test APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-V3-B194-v2.3.194-APK
+          name: BOT-KING-V3-B195-v2.3.195-APK
           path: dist/v1-pure/**/*.apk
           if-no-files-found: error
           retention-days: 14
@@ -223,3 +223,5 @@ jobs:
 # B193 full offline regression then signed APK: unified adapter Doctor, Paper PnL and Chart Signals.
 
 # B194 regression-gated signed APK with Paper/Live (locked) single selector.
+
+# B195 exact Dhan-only persisted source migration, full regression before signed phone APK.
