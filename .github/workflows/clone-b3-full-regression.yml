@@ -110,3 +110,5 @@ jobs:
 # B149 exact-head gate: aligned four legacy tests with 18 filter slots and 60-second analysis default; error-only refreshed diagnostics.
 
 # B150 exact-head combined regression after guarded SENSEX unverified quote cache test correction.
+
+# B151 joint regression: 2–4 overlapping recent Dhan candle corrections, no fake live freshness.
