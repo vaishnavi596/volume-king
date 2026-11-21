@@ -124,6 +124,11 @@ class FilterFiveDoctorContract(unittest.TestCase):
                       '"last_eight_ohlc_body_counts"', '"volume_scale_review_required"',
                       '"rsi_extreme_review_required"'):
             self.assertIn(field,panel)
+        for derived_marker in ('"selected_equities_with_valid_effective_3m"',
+                               '"valid_locally_derived_3m"',
+                               'shared_history(watch_sym,"3m")',
+                               '"Materialized cache entries exclude on-demand completed 1m-to-3m histories"'):
+            self.assertIn(derived_marker,panel)
         self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
