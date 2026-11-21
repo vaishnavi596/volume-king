@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: SUDHAR 1 SENSEX Full Diagnostic APK 2.3.138 build 149
+run-name: SUDHAR 1 SENSEX Full Diagnostic APK 2.3.138 build 150
 # Final Clone B1+B2 combined acceptance: all 1350 offline tests before one phone APK
 on:
   push:
@@ -173,3 +173,5 @@ jobs:
 # B148 final updated test contract for 17/18 saved indicators and explicit refresh-first compact errors.
 
 # B149 full offline gate then signed APK, with all 18 slots, 1m defaults, error-only refresh-gated diagnosis.
+
+# B150 signed phone APK after B150 exact-head 1501-test full regression PASS run 44892201231; safe SENSEX unverified quote-cache guard.
