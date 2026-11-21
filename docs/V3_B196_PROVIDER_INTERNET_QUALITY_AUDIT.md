@@ -25,3 +25,11 @@ Scope: source + GitHub Actions evidence ONLY. No physical phone, live network/Dh
 
 ## Quality verdict
 **Static code audit incomplete for full reachability; real Internet/connectivity unverified; last full regression FAIL.** No claims of release readiness. This report is a release blocker, not evidence of a finished app.
+
+## Follow-up safety hardening and quality verification
+- Initial boundary audit [run 44934211213](https://github.com/vaishnavi596/volume-king/actions/runs/44934211213) checked 1528 tests: targeted 10 market feed and 12 monitoring PASS, full suite 3 failures + 1 error. This was pre-removal and must not be counted as post-removal regression proof.
+- The V3 phone Yahoo HTTP **implementation** has now been removed from `get_yahoo` in `src/main.py`, leaving only a disabled compatibility stub: commit `cd7d0297092a11209928f239b6d449f59eab2930`. Retained Yahoo symbols or old migration text must not be interpreted as an active host connection. Legacy Angel adapter remains present and must be assessed separately.
+- `tests/test_audit.py` now distinguishes old Yahoo row rejection from properly labeled historical Dhan rows, demands WAIT on stale candle quality, and simulates an authorized Dhan in-flight selection-generation swap to assert no stale publication: commits `2fd551730a99eefe160dde4465efe187e3040ee6` and `33cedfa84455055990b4876834b9ac882af75d80`.
+- `tests/test_mobile_regressions.py` no longer uses a legacy Yahoo session to validate missing-news behavior. Its local Dhan session and network stubs test candle analysis independent of RSS timeouts, without treating historical candles as LTP: commit `2000d2ef0794201e7ceb0ab0dec7cd1552f91ddf`.
+- No-APK preflight now executes Market Feed, Monitoring, Scanner and Mobile suites **before** the complete regression, to avoid a slow full run when targeted regressions fail: workflow commit `733480a8dcfcbe2f3b52e8561bff8dc6f3933ad4`. Full result not yet confirmed.
+- Release HOLD remains until post-change targeted and full regression both PASS and actual phone Dhan/Oracle/RSS connection validation. A successful offline test is only evidence of mocked logic, not real Internet.
