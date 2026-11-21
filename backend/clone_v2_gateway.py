@@ -123,6 +123,13 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     market_cache = {}
     last_request = [0.0]
     provider_cooldown_until = [0.0]
+    # Clone-owned candle single-flight and validated, date-scoped history cache.
+    # Kept independent of V1 server and files; only successful nonempty bars.
+    candle_cache = {}
+    candle_cache_lock = threading.RLock()
+    candle_miss_locks = tuple(threading.RLock() for _ in range(32))
+    candle_cache_ttl_seconds = 180
+    candle_cache_max_entries = 100
 
     def market_diagnostic(route, symbol, stage, category):
         """Fixed-enum, index-only observations: never emit untrusted content."""
@@ -468,57 +475,72 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 or (body.to_date - body.from_date).days > 5
                 or body.to_date > datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
             raise HTTPException(422, "Invalid Clone Dhan candle selection")
-        segment, sid = known[body.symbol]
-        instrument = "INDEX" if body.symbol in indices else "EQUITY"
-        args = {"securityId": str(sid), "exchangeSegment": segment,
-                "instrument": instrument, "interval": str(body.interval),
-                "fromDate": body.from_date.isoformat() + " 09:15:00",
-                "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
-        try:
-            result = provider().intraday(args)
-        except HTTPException:
-            raise
-        except Exception as exc:
+        cache_key = (body.symbol, body.interval, body.from_date, body.to_date)
+        # A lock stripe coalesces concurrent same-request misses across 1–4 phones.
+        # Recheck inside lock so only one provider fetch runs for a matching key.
+        miss_lock = candle_miss_locks[hash(cache_key) % len(candle_miss_locks)]
+        with miss_lock:
+            with candle_cache_lock:
+                cached = candle_cache.get(cache_key)
+                if cached and 0 <= time.monotonic() - cached[0] < candle_cache_ttl_seconds:
+                    return JSONResponse(cached[1], headers={"Cache-Control": "no-store"})
+            segment, sid = known[body.symbol]
+            instrument = "INDEX" if body.symbol in indices else "EQUITY"
+            args = {"securityId": str(sid), "exchangeSegment": segment,
+                    "instrument": instrument, "interval": str(body.interval),
+                    "fromDate": body.from_date.isoformat() + " 09:15:00",
+                    "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
             try:
-                from .dhan_feed import DhanRateLimitError, DhanFeedError
-            except ImportError:
-                from dhan_feed import DhanRateLimitError, DhanFeedError
-            category=("rate_limited" if isinstance(exc, DhanRateLimitError)
-                      else "auth_unavailable" if isinstance(exc, DhanFeedError)
-                      and "token expired or data access not entitled" in str(exc)
-                      else "upstream_error")
-            market_diagnostic("candles", body.symbol, "provider", category)
-            provider_read_error(exc, "Clone Dhan candles unavailable")
-        try:
-            fields = ["timestamp", "open", "high", "low", "close", "volume"]
-            arrays = [result[key] for key in fields]
-            if (result.get("status") == "failure" or
-                    any(not isinstance(v, list) for v in arrays) or
-                    any(len(a) != len(arrays[0]) for a in arrays) or
-                    len(arrays[0]) > 5000):
-                raise ValueError()
-            bars = []
-            for ts, op, high, low, close, vol in zip(*arrays):
-                if any(type(v) not in (int, float) for v in (ts, op, high, low, close, vol)):
+                result = provider().intraday(args)
+            except HTTPException:
+                raise
+            except Exception as exc:
+                try:
+                    from .dhan_feed import DhanRateLimitError, DhanFeedError
+                except ImportError:
+                    from dhan_feed import DhanRateLimitError, DhanFeedError
+                category=("rate_limited" if isinstance(exc, DhanRateLimitError)
+                          else "auth_unavailable" if isinstance(exc, DhanFeedError)
+                          and "token expired or data access not entitled" in str(exc)
+                          else "upstream_error")
+                market_diagnostic("candles", body.symbol, "provider", category)
+                provider_read_error(exc, "Clone Dhan candles unavailable")
+            try:
+                fields = ["timestamp", "open", "high", "low", "close", "volume"]
+                arrays = [result[key] for key in fields]
+                if (result.get("status") == "failure" or
+                        any(not isinstance(v, list) for v in arrays) or
+                        any(len(a) != len(arrays[0]) for a in arrays) or
+                        len(arrays[0]) > 5000):
                     raise ValueError()
-                vals = (float(ts), float(op), float(high), float(low), float(close), float(vol))
-                if (not all(math.isfinite(v) for v in vals) or ts <= 0
-                        or min(op, high, low, close) <= 0 or vol < 0
-                        or high < max(op, low, close) or low > min(op, high, close)):
+                bars = []
+                for ts, op, high, low, close, vol in zip(*arrays):
+                    if any(type(v) not in (int, float) for v in (ts, op, high, low, close, vol)):
+                        raise ValueError()
+                    vals = (float(ts), float(op), float(high), float(low), float(close), float(vol))
+                    if (not all(math.isfinite(v) for v in vals) or ts <= 0
+                            or min(op, high, low, close) <= 0 or vol < 0
+                            or high < max(op, low, close) or low > min(op, high, close)):
+                        raise ValueError()
+                    bars.append([int(ts), float(op), float(high), float(low),
+                                 float(close), float(vol)])
+                if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars)-1)):
                     raise ValueError()
-                bars.append([int(ts), float(op), float(high), float(low),
-                             float(close), float(vol)])
-            if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars)-1)):
-                raise ValueError()
-        except (KeyError, TypeError, ValueError, OverflowError):
-            market_diagnostic("candles", body.symbol, "validation", "invalid_bars")
-            raise HTTPException(502, "Clone Dhan candle response invalid") from None
-        return JSONResponse({
-            "source": "dhan", "symbol": body.symbol,
-            "interval": str(body.interval) + "m", "bars": bars,
-            "last_candle_timestamp": bars[-1][0] if bars else None,
-            "freshness": "historical_unverified" if bars else "no_candles_available",
-            "live_orders_enabled": False}, headers={"Cache-Control": "no-store"})
+            except (KeyError, TypeError, ValueError, OverflowError):
+                market_diagnostic("candles", body.symbol, "validation", "invalid_bars")
+                raise HTTPException(502, "Clone Dhan candle response invalid") from None
+            payload = {
+                "source": "dhan", "symbol": body.symbol,
+                "interval": str(body.interval) + "m", "bars": bars,
+                "last_candle_timestamp": bars[-1][0] if bars else None,
+                "freshness": "historical_unverified" if bars else "no_candles_available",
+                "live_orders_enabled": False}
+            if bars:
+                with candle_cache_lock:
+                    candle_cache[cache_key] = (time.monotonic(), payload)
+                    if len(candle_cache) > candle_cache_max_entries:
+                        candle_cache.pop(min(candle_cache, key=lambda k: candle_cache[k][0]))
+            return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
     @app.post("/clone-v2/market/options/expiries")
     def market_option_expiries(body: MarketUnderlying,
