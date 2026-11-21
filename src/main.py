@@ -4992,7 +4992,10 @@ def app_main(page:ft.Page):
                         "warmup_floor_seconds":30,
                         "recent_uncached_requests_in_180s":len(warm_times),
                         "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
-                        "warmup_busy":bool(watch_three_minute_warm_busy[0])},
+                        "warmup_busy":bool(watch_three_minute_warm_busy[0]),
+                        "refresh_speed_diagnosis":"3m source candle waits for bounded warmup; 2s UI tick is not 2s provider polling",
+                        "data_priority":"Only selected/current list should be prioritized; do not fan out 70"},
+
                     "CANDLE_TIMEFRAMES":{
                         "cache_by_timeframe":candle_counts,
                         "dashboard_index_default":"1m",
@@ -5016,6 +5019,9 @@ def app_main(page:ft.Page):
                         "five_box_status":engine_rows,
                         "verified_boxes":sum(x["verified_directional_percent_available"] for x in engine_rows),
                         "cached_engine_snapshots":len(five_engine_snapshots),
+                        "top_five_cached_candidate_count":len(top5_candidates),
+                        "top_five_selected_symbols":[str(row.get("symbol",""))[:32] for row in top5_candidates[:5]
+                            if isinstance(row,dict)],
                         "sixth_placeholder":"INERT_NOT_SCORED",
                         "policy":"Unverified HIST, PCR, headlines and OI cannot become LIVE votes"},
                     "DASHBOARD_INDICES":{
