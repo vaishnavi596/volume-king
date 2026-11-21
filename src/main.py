@@ -4603,7 +4603,18 @@ def app_main(page:ft.Page):
                     "sixth_filter_slot":"NOT AUTOMATICALLY SCORED",
                     "refresh_ui_counters":dict(building_doctor.counters),
                     "feed_health_issue_count":len(display_failures),
-                    "manual_retry_required_by_user":False,
+                    "manual_retry_observed":"NOT AUTOMATICALLY DETECTED",
+                    "dashboard_index_slots":["NIFTY","BANKNIFTY","SENSEX"],
+                    "super_five_cached_symbols":len(five_engine_snapshots),
+                    "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
+                    "scanner_fetch_error_count":len(scan_fetch_failure),
+                    "options_cached_context_count":len(dhan_option_context_cache),
+                    "news_fusion_cached_context_count":len(fusion_cache),
+                    "chart_webview_attached":bool(tv_view[0] is not None),
+                    "chart_provider":str(chart_provider[0]),
+                    "login_bootstrap_states":dict(login_bootstrap.stages),
+                    "data_source":"Dhan only",
+                    "trade_execution":"DISABLED",
                     "status_interpretation":"Read-only diagnostic; availability is not proof of a live trading signal"}
                 building_doctor.milestone("cached_test_calculation_complete")
                 outcome["phone_snapshot_capture_ms"]=capture_ms
