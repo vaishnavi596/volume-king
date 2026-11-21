@@ -165,6 +165,15 @@ class FilterFiveDoctorContract(unittest.TestCase):
                             'content.append(chart_filter_evidence())'):
             self.assertIn(audit_field,APP)
         self.assertIn('def chart_filter_evidence():',APP)
+        for paper_marker in ('def paper_dhan_reference():',
+                             'def paper_mark_pnl_preview():',
+                             '"paper_simulated_order_events":sum(',
+                             '"paper_pnl_calculation":"MANUAL_MARK_ONLY_ZERO_FEES_PREVIEW"',
+                             '"paper_dhan_market_reference_only":True',
+                             'PAPER ORDER & P&L STATUS',
+                             'LIVE orders permanently OFF'):
+            self.assertIn(paper_marker,APP)
+
         self.assertIn('chart_snapshots[chart_key]=dict(existing,',APP)
 
         self.assertIn('tick_started=time.perf_counter()',APP)
