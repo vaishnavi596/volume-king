@@ -28,8 +28,8 @@ class CloneB1StatusContract(unittest.TestCase):
         self.assertIn('" LTP • "+session_caption()+', self.source)
 
     def test_chart_timeframe_selector_matches_derivation(self):
-        self.assertIn('["1m","2m","3m","5m","15m","1h"]', self.source)
-        self.assertIn('source_interval="1m" if interval in ("2m","3m")', self.source)
+        self.assertIn('["1m","2m","3m","5m","10m","15m","30m","1h"]', self.source)
+        self.assertIn('source_interval=("1m" if interval in ("2m","3m")', self.source)
 
     def test_watchlist_updates_in_place_and_no_fake_live(self):
         self.assertIn('async def watch_visible_tick()', self.source)
