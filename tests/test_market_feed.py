@@ -50,6 +50,16 @@ class FeedTests(unittest.TestCase):
                         v['fetch_market_data_uncached']('NIFTY','1m','7d')
                 network.assert_not_called()
 
+    def test_injected_angel_login_callback_is_disabled_without_network(self):
+        _,v=start({'scanner_live':False,'source':'Dhan'})
+        v['broker'].value='Angel One'  # Direct callback injection, not a UI option.
+        with patch.object(v['angel_feed'],'connect',side_effect=AssertionError('Angel login attempted')) as login, \
+             patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network')) as network:
+            asyncio.run(v['connect_angel']())
+        login.assert_not_called()
+        network.assert_not_called()
+        self.assertIn('Angel One login disabled',v['connection_status'].value)
+
     def test_dhan_option_metrics_never_reuse_legacy_angel_window(self):
         _,v=start({'source':'Dhan','scanner_live':False})
         rows=[{'strike':24000,'side':side,'premium':100,'oi':oi,'timestamp':time.time()}
