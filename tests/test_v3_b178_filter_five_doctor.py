@@ -87,7 +87,8 @@ class FilterFiveDoctorContract(unittest.TestCase):
         panel=APP[start:end]
         for segment in ("GATEWAY_REFRESH","WATCHLIST_54_70","CANDLE_TIMEFRAMES",
                         "SCANNER_17","SUPER_FIVE_ENGINES","DASHBOARD_INDICES",
-                        "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION"):
+                        "OPTIONS_NEWS_FUTURES","CHART_UI","ERRORS_COORDINATION",
+                        "BACKGROUND_LIFECYCLE"):
             self.assertIn('"'+segment+'"',panel)
         for expected in ('"V3_MASTER_ALL_SEGMENTS_DOCTOR"',
                          '"segments":sections if chosen=="ALL"',
@@ -101,6 +102,18 @@ class FilterFiveDoctorContract(unittest.TestCase):
                          '"physical_flutter_paint_measured":False',
                          'MASTER DIAG • ALL SEGMENTS (read-only)'):
             self.assertIn(expected,panel)
+        for source_code in ('ANDROID_LIFECYCLE_PAUSES_PYTHON_WORK',
+                            'BACKGROUND_CONTINUITY_NOT_PROVEN',
+                            'INDEPENDENT_FIVE_ENGINE_EVIDENCE_NOT_READY',
+                            'WATCHLIST_CAP_OR_DUPLICATE_POLICY',
+                            '3M_WARMUP_RATE_BUDGET_FULL',
+                            '"root_cause_and_solution":remedies',
+                            '"code_diagnostic_limit"',
+                            '"foreground_service_implemented":False',
+                            '"android_workmanager_implemented":False',
+                            '"force_stop_continuity_supported":False',
+                            'src/main.py:lifecycle_changed'):
+            self.assertIn(source_code,panel)
         for disallowed in ('dhan_feed._call(', 'dhan_feed.history(',
                            'get_market_data(', 'dhan_feed.quote(',
                            'refresh_all_dhan_quotes('):
