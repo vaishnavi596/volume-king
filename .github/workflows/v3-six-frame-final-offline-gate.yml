@@ -39,3 +39,5 @@ jobs:
 # Retest current combined 54/70 feature gate after aligning cache fallback assertions.
 
 # Consolidated release gate after RSS News card link fix and live assessment Doctor.
+
+# Final full source regression after News RSS, independent PCR/Max Pain and optional-candle readiness fixes.
