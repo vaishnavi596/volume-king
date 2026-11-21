@@ -4593,188 +4593,107 @@ def app_main(page:ft.Page):
             if stamp.tzinfo is None:stamp=stamp.replace(tzinfo=timezone.utc)
             return stamp.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M:%S IST")
         except (ValueError,TypeError,OverflowError):return "Time unavailable"
-    def sensex_full_diagnostic_panel():
-        """Opt-in, single-symbol phone probe; never transmit secrets or orders."""
-        state_text=ft.Text("SENSEX diagnostic not run • Dhan Clone login required.",
-                           size=11,selectable=True)
-        running=[False]
+    def filter_five_diagnostic_panel():
+        """Read-only error inspector for selected Scanner filters and T/C/N/F/O.
 
-        async def run_sensex_probe(e):
-            if running[0]:
-                return
-            running[0]=True
+        Purely observes current phone caches; no Dhan calls and no invented
+        bullish/bearish percentage when an engine is unverified.
+        """
+        output=ft.Text("Run FILTER + FIVE BOX DIAG after normal login/scan.",
+                       size=10,selectable=True)
+        def inspect(e):
+            symbol=str(scan_symbol.value or "NIFTY")
+            tf=str(scan_tf.value or "1m")
             generation=provider_generation[0]
-            old=quotes.get("SENSEX") or {}
-            output={
-                "test":"SENSEX_END_TO_END_B147",
-                "mode":"EXPLICIT_READ_ONLY",
-                "instrument":{"symbol":"SENSEX","segment":"BSE_I","security_id":51},
-                "provider_generation":generation,
-                "clone_gateway_connected":bool(clone_v2_gateway.connected),
-                "dhan_connected":bool(dhan_feed.connected),
-                "cache_quote_source":str(old.get("source","missing")),
-                "cache_quote_present":bool(building_doctor.valid_quote(old)),
-                "cache_quote_provider_status":str(old.get("provider_status","unknown")),
-                "existing_1m_candles":bool(valid_candle_history(
-                    shared_history("SENSEX","1m").get("bars"))),
-                "existing_3m_candles":bool(valid_candle_history(
-                    shared_history("SENSEX","3m").get("bars"))),
-                "quote_probe":"NOT_ATTEMPTED",
-                "candle_1m_probe":"NOT_ATTEMPTED",
-                "stages":{"mapping":"BSE_I/51 CONFIGURED",
-                          "gateway":"CONNECTED" if clone_v2_gateway.connected else "DISCONNECTED",
-                          "quote":"NOT_ATTEMPTED","history":"NOT_ATTEMPTED",
-                          "phone_cache":"NOT_ATTEMPTED"},
-                "source_verified_live":False,
-                "orders_sent":0,
-            }
-            state_text.value="SENSEX diagnostic running • max 1 quote + 1 candle request..."
-            state_text.update()
             try:
-                if not clone_v2_gateway.connected or not dhan_feed.connected:
-                    output["diagnosis"]="LOGIN_REQUIRED"
-                    return
-                if prefs.get("source")!="Dhan":
-                    output["diagnosis"]="WRONG_SOURCE"
-                    return
-                if dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")>0:
-                    output["diagnosis"]="INDEX_QUOTE_COOLDOWN"
-                    output["quote_probe"]="SKIPPED_COOLDOWN"
-                    return
-                # Opt-in probe stays independent of a whole 51-share scan.
-                # Never overwrite last-good stock or mark historical as live.
-                try:
-                    quote_started=time.perf_counter()
-                    quote=await asyncio.wait_for(
-                        asyncio.to_thread(dhan_feed.quote,"SENSEX"),timeout=25)
-                    output["quote_request_ms"]=round((time.perf_counter()-quote_started)*1000,2)
-                    if generation!=provider_generation[0]:
-                        output["diagnosis"]="LOGIN_CHANGED"
-                        return
-                    price=quote.get("price") if isinstance(quote,dict) else None
-                    if (isinstance(quote,dict) and quote.get("source")=="Dhan"
-                            and type(price) in (int,float)
-                            and math.isfinite(price) and price>0):
-                        output["quote_probe"]="VALID_DHAN_QUOTE_UNVERIFIED_TIME"
-                        output["quote_value"]=round(float(price),2)
-                        # Repair the verified same-session PHONE cache when the
-                        # special SENSEX quote path succeeds; never fake an LTP.
-                        previous=quotes.get("SENSEX") or {}
-                        quotes["SENSEX"]=dict(quote,price=float(price),source="Dhan",
-                            bars=previous.get("bars",[]),fetched_at=time.time(),
-                            quote_timestamp=None,freshness="unverified",
-                            live_verified=False)
-                        output["stages"]["phone_cache"]="SENSEX_QUOTE_PUBLISHED_UNVERIFIED"
-                    else:
-                        output["quote_probe"]="INVALID_QUOTE_SHAPE_OR_PRICE"
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    error=safe_error(exc)
-                    output["quote_probe"]=(
-                        "GATEWAY_RATE_LIMIT_OR_COOLDOWN" if "paced" in error.lower()
-                        or "rate limit" in error.lower() or "cooldown" in error.lower()
-                        else "AUTH_OR_PERMISSION" if "authoriz" in error.lower()
-                        or "access" in error.lower() or "session rejected" in error.lower()
-                        else "QUOTE_REQUEST_UNAVAILABLE")
-                    output["quote_error_type"]=type(exc).__name__
-                    output["quote_error_code"]=output["quote_probe"]
-                    output["quote_error_detail"]=safe_error(exc)
-                    output["quote_route"]="Clone index quote gateway → Dhan /market/quotes"
-                if generation!=provider_generation[0]:
-                    output["diagnosis"]="LOGIN_CHANGED"
-                    return
-                # Dhan gateway serializes histories; do not compete with a
-                # running 51-symbol scanner or index candle worker.
-                if (dhan_history_scan_active[0] or index_one_minute_busy[0]
-                        or watch_three_minute_warm_busy[0]):
-                    output["candle_1m_probe"]="SKIPPED_ACTIVE_HISTORY_WORKER"
-                    output["diagnosis"]="HISTORY_BUSY_RETRY_AFTER_WORKER"
-                    return
-                if dhan_feed.cooldown_remaining("/dhan/intraday")>0:
-                    output["candle_1m_probe"]="SKIPPED_COOLDOWN"
-                    output["diagnosis"]="HISTORY_COOLDOWN"
-                    return
-                await asyncio.sleep(1.5)
-                if generation!=provider_generation[0]:
-                    output["diagnosis"]="LOGIN_CHANGED"
-                    return
-                try:
-                    ist_today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
-                    start=(ist_today-timedelta(days=4)).isoformat()
-                    end=ist_today.isoformat()
-                    history_started=time.perf_counter()
-                    history=await asyncio.wait_for(asyncio.to_thread(
-                        dhan_feed.intraday,"SENSEX",1,start,end),timeout=30)
-                    output["candle_request_ms"]=round((time.perf_counter()-history_started)*1000,2)
-                    if generation!=provider_generation[0]:
-                        output["diagnosis"]="LOGIN_CHANGED"
-                        return
-                    if history.get("source")!="dhan":
-                        output["candle_1m_probe"]="INVALID_SOURCE"
-                    elif valid_candle_history(history.get("bars")):
-                        output["candle_1m_probe"]="VALID_HISTORICAL_CANDLES"
-                        output["candle_count"]=len(history["bars"])
-                        # Publish only source-validated historical 1m candles,
-                        # retaining independently sourced index quote unchanged.
-                        prior=shared_history("SENSEX","1m")
-                        valid=dict(source="Dhan",bars=clean_bars(history["bars"]),
-                            _scanner_timeframe="1m",candle_fetched_at=time.time(),
-                            fetched_at=time.time(),freshness="historical_unverified",
-                            historical=True,live_verified=False)
-                        kept=retain_candle_history(valid,prior,provider="Dhan")
-                        chart_snapshots[("SENSEX","1m",generation)]=kept
-                        output["stages"]["phone_cache"]="SENSEX_HISTORY_1M_PUBLISHED_HISTORICAL"
-                    elif history.get("bars")==[]:
-                        output["candle_1m_probe"]="EMPTY_BROKER_HISTORY"
-                    else:
-                        output["candle_1m_probe"]="INVALID_CANDLE_SHAPE"
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    error=safe_error(exc)
-                    output["candle_1m_probe"]=(
-                        "GATEWAY_RATE_LIMIT_OR_COOLDOWN" if "rate limit" in error.lower()
-                        or "paced" in error.lower() or "cooldown" in error.lower()
-                        else "AUTH_OR_PERMISSION" if "authoriz" in error.lower()
-                        or "access" in error.lower()
-                        else "CANDLE_REQUEST_UNAVAILABLE")
-                    output["candle_error_type"]=type(exc).__name__
-                    output["candle_error_code"]=output["candle_1m_probe"]
-                    output["candle_error_detail"]=safe_error(exc)
-                    output["candle_route"]="Clone candle gateway → Dhan /market/candles (1m)"
-                output["stages"]["quote"]=output["quote_probe"]
-                output["stages"]["history"]=output["candle_1m_probe"]
-                if current[0] in (0,3,4,5):
-                    request_view_refresh(current[0])
-                output["diagnosis"]=(
-                    "QUOTE_AND_HISTORY_AVAILABLE_CHECK_UI_ADAPTER" if
-                    output["quote_probe"]=="VALID_DHAN_QUOTE_UNVERIFIED_TIME" and
-                    output["candle_1m_probe"]=="VALID_HISTORICAL_CANDLES" else
-                    "QUOTE_AVAILABLE_HISTORY_MISSING" if
-                    output["quote_probe"]=="VALID_DHAN_QUOTE_UNVERIFIED_TIME" else
-                    "QUOTE_MISSING_HISTORY_AVAILABLE" if
-                    output["candle_1m_probe"]=="VALID_HISTORICAL_CANDLES" else
-                    "PROVIDER_OR_GATEWAY_EVIDENCE_INCOMPLETE")
-            except asyncio.CancelledError:
-                raise
+                history=(stock_histories.get((symbol,tf,generation))
+                         or shared_history(symbol,tf) or {})
+                bars=history.get("bars") if isinstance(history,dict) else None
+                names=list(filter_selected)
+                rows=[]
+                cause="Selected timeframe candles unavailable"
+                if (bars and tf in scanner_intervals and
+                        valid_candle_history(bars)):
+                    result=analyze(bars,selected=active_analysis_filters(),
+                                   timeframe=tf)
+                    cause=str(result.get("reason","Analysis pending"))
+                    rows=enrich_context_filter_rows(symbol,
+                        complete_filter_rows(result,names,filter_modes))
+                else:
+                    rows=enrich_context_filter_rows(symbol,
+                        complete_filter_rows({"votes":[]},names,filter_modes))
+                filter_rows=[]
+                for row in rows:
+                    name=row.get("name")
+                    if name not in names:
+                        continue
+                    mode=filter_modes.get(name,"Analysis")
+                    vote=row.get("vote")
+                    detail=str(row.get("detail") or cause)[:180]
+                    state=("CHART_ONLY" if mode=="Chart" else
+                           "BULLISH" if vote==1 else
+                           "BEARISH" if vote==-1 else
+                           "NEUTRAL" if vote==0 else "WAIT")
+                    filter_rows.append({"filter":name,"status":state,
+                                        "stage":("DISPLAY" if state=="CHART_ONLY" else
+                                                 "SOURCE_OR_CALCULATION" if state=="WAIT" else
+                                                 "CALCULATED"),
+                                        "detail":detail})
+                present={row["filter"] for row in filter_rows}
+                for name in names:
+                    if name not in present:
+                        filter_rows.append({"filter":name,"status":"ERROR",
+                                            "stage":"UI_ADAPTER",
+                                            "detail":"Selected filter missing from diagnostic rows"})
+                snap=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
+                      if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                engines=[]
+                for name,short in (("technical","T"),("candle","C"),("news","N"),
+                                   ("futures","F"),("options","O")):
+                    item=(next((x for x in snap["engines"] if x.name==name),None)
+                          if snap else None)
+                    display=item.display() if item else {}
+                    bull=display.get("bullish");bear=display.get("bearish")
+                    ready=(type(bull) is int and type(bear) is int and
+                           0<=bull<=100 and 0<=bear<=100 and bull+bear==100)
+                    engines.append({
+                        "box":short,"engine":name,
+                        "status":display.get("state","WAIT") if ready else "WAIT",
+                        "bullish_percent":bull if ready else None,
+                        "bearish_percent":bear if ready else None,
+                        "stage":"VERIFIED_EVIDENCE" if ready else "SOURCE_OR_FRESHNESS",
+                        "reason":str(display.get("reason") or
+                                      "No fresh verified independent Dhan evidence")[:160]})
+                errors=[row for row in filter_rows if row["status"] in ("WAIT","ERROR")]
+                errors.extend({"box":row["box"],"status":"WAIT","stage":row["stage"],
+                               "detail":row["reason"]} for row in engines
+                              if row["status"]=="WAIT")
+                report={
+                    "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
+                    "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
+                    "symbol":symbol,"timeframe":tf,
+                    "selected_filters":len(names),
+                    "filter_results":filter_rows,
+                    "five_boxes":engines,
+                    "errors_only":errors,
+                    "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
+                    "candle_status":cause,
+                    "live_market_verified":False,
+                    "provider_requests":0,"orders_sent":0}
+                output.value=json.dumps(report,indent=2,ensure_ascii=False)
             except Exception as exc:
-                output["diagnosis"]="LOCAL_DIAGNOSTIC_EXCEPTION"
-                output["error_type"]=type(exc).__name__
-                log_error("sensex_full_diagnostic",exc)
-            finally:
-                state_text.value=json.dumps(output,indent=2,ensure_ascii=False)
-                if state_text.page is not None:
-                    state_text.update()
-                running[0]=False
+                log_error("filter_five_diagnostic",exc)
+                output.value=json.dumps({"test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
+                    "status":"ERROR","stage":"LOCAL_ADAPTER",
+                    "error_type":type(exc).__name__,"provider_requests":0,
+                    "orders_sent":0},indent=2)
+            if output.page is not None:
+                output.update()
+        return ft.Column([
+            note("17 selected Scanner filters + T/C/N/F/O; existing cache only. WAIT identifies unavailable data, not a fabricated signal."),
+            ft.OutlinedButton("FILTER + FIVE BOX DIAG (read-only)",on_click=inspect),
+            output],spacing=4)
 
-        return section("SENSEX FULL DIAGNOSTIC • PHONE B143",ft.Column([
-            note("Explicit TEST only: at most one SENSEX Quote and one 1m History request via authenticated Clone Dhan; no orders or fake prices. Run after normal scanner stops. Quote time unverified."),
-            ft.OutlinedButton("SENSEX FULL DIAG (read-only)",
-                              on_click=lambda e:page.run_task(run_sensex_probe,e)),
-            state_text,
-            note("Copy the resulting JSON into ChatGPT. A provider unavailable result is not proof that mapping is wrong.")
-        ],spacing=5))
     # Keep the manual Diagnostics gate across Settings page rebuild/navigation.
     v3_diag_busy=[False]
     v3_diag_refreshed=[None]
@@ -5014,13 +4933,14 @@ def app_main(page:ft.Page):
             ],wrap=True),
             test_status,
             report,
+            filter_five_diagnostic_panel(),
             note("Times are Python processing only; Flutter pixels and verified live option filters are not measured.")],spacing=4))
     def settings():
         if not angel_feed.connected and str(connection_status.value).startswith("Angel One connected"):
             connection_status.value="Broker disconnected or session expired; reconnect.";connection_status.color=GOLD
         content=[heading("Settings"),status,note("Market connection and app settings; Paper Bot controls are together in the Options trading page.")]
         content.append(v3_live_building_panel())  # Easy-access front-visible capacity test after login.
-        content.append(sensex_full_diagnostic_panel())  # B143 focused index quote/1m probe.
+        # Old SENSEX-only probe removed; filter/engine errors now live in main Doctor.
         content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
