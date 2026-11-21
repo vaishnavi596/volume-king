@@ -128,3 +128,5 @@ jobs:
 # B158 full wiring gate: update prior final-only Watchlist identity assertion to last-four OHLCV.
 
 # B159: Dhan upstream exact safe category carried to Clone quote/candle stage logs, no secrets.
+
+# B160: end-to-end B159 upstream classes + guarded Clone-only deploy script syntax and V1 isolation.
