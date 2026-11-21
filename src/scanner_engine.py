@@ -4,7 +4,7 @@ import math
 
 DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
                    "SMC Structure", "Order Block", "Pivot Points", "FVG", "Liquidity Sweep"]
-OPTION_FILTERS = ["OI Support", "OI Resistance", "OI Profile", "Max Pain"]
+OPTION_FILTERS = ["OI Support", "OI Resistance", "OI Profile", "Dhan Max Pain"]
 ALL_FILTERS = DEFAULT_FILTERS + OPTION_FILTERS + ["SMA 5/20", "Volume", "ATR 14", "News Headlines"]
 
 def ema(values, period):
