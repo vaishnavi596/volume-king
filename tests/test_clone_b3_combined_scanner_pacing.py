@@ -31,7 +31,13 @@ class ScannerBatchGuards(unittest.TestCase):
                       'signal.get("source")==expected_source',
                       'search.value.upper() not in sym'):
             self.assertIn(check,rows)
-        self.assertIn("last_cell_signatures.clear()\n                        fill_watch()",SOURCE)
+        membership=SOURCE.split("                    membership=tuple(",1)[1].split("                else:",1)[0]
+        # Membership rebuild must invalidate both mounted price and evidence.
+        self.assertIn("if membership!=last_filtered_membership[0]:",membership)
+        for guard in ("last_cell_signatures.clear()", "last_evidence_signatures.clear()"):
+            self.assertIn(guard,membership)
+            self.assertLess(membership.index(guard),membership.index("fill_watch()"))
+        self.assertIn("if watch_list.page is not None:watch_list.update()",membership)
     def test_index_batch_invalid_payload_uses_safe_fallback(self):
         index=SOURCE.split("snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)",1)[1].split("missing_indices=",1)[0]
         self.assertIn("if not isinstance(snapshots,dict):",index)
