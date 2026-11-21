@@ -4561,7 +4561,7 @@ def app_main(page:ft.Page):
                 stock_quotes=copy.deepcopy({sym:quotes.get(sym) for sym in names})
                 stock_histories=copy.deepcopy({key:value for key,value in chart_snapshots.items()
                     if isinstance(key,tuple) and len(key)==3
-                    and key[0] in names and key[1] in ("1m","3m","5m") and key[2]==generation})
+                    and key[0] in names and key[1] in ("1m","3m","5m","10m","15m","30m") and key[2]==generation})
                 capture_ms=round((time.perf_counter()-stage0)*1000,3)
                 outcome=await asyncio.to_thread(benchmark_cached_capacity,
                     chosen,stock_quotes,stock_histories,generation,count)
