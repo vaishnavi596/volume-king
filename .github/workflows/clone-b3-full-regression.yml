@@ -94,3 +94,5 @@ jobs:
 # B141 exact-head full regression: per-symbol option cache and five-filter fail-closed diagnostic, 2026-11-21
 
 # B142 exact-head security gate: provider-generation-only active option context.
+
+# B143 index-only focused diagnostic source regression and full offline suite; no live Dhan calls in CI.
