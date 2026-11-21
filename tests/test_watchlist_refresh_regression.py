@@ -104,10 +104,16 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def test_oracle_three_minute_cache_revision_wakes_mounted_watch_row(self):
         tick=self.source.split("    async def watch_visible_tick():",1)[1].split(
             "    def watchlist():",1)[0]
-        # An Assessment GET can change while price/votes do not. Both
-        # signature gates must observe the same generation-scoped 3m key.
+        # Assessment can change with unchanged quote/votes. All three gates
+        # must observe the identical generation-scoped 3m cache key.
         token='(provider_generation[0],sym,"3m",None)'
-        self.assertEqual(tick.count(token),2)
+        visible=tick.split('signature=(active_watch[0]',1)[1].split('button=watch_refresh_button[0]',1)[0]
+        row=tick.split('symbol_signature=(id(cells),',1)[1].split('if last_cell_signatures.get(sym)',1)[0]
+        evidence=tick.split('evidence_signature=(',1)[1].split('if last_evidence_signatures.get(sym)',1)[0]
+        for gate in (visible,row,evidence):
+            self.assertIn(token,gate)
+        self.assertEqual(sum(gate.count(token) for gate in (visible,row,evidence)),3)
+        self.assertIn('if last_evidence_signatures.get(sym)!=evidence_signature:',tick)
         self.assertIn('oracle_assessment_cache.get(',tick)
         self.assertIn('assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])',tick)
         # This is a local 2s observation and must not introduce broker fanout.
