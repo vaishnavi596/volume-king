@@ -2081,6 +2081,7 @@ def app_main(page:ft.Page):
     index_refresh_busy=[False]
     index_last_attempt=[0.0]
     index_refresh_generation=[None]
+    index_failure_code=["NOT_TESTED"]
     async def refresh_dhan_index_quotes(force=False):
         """One serialized three-index cycle, independently throttled from equity snapshots."""
         if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
@@ -2093,6 +2094,7 @@ def app_main(page:ft.Page):
         if index_cooldown>0:
             if login_bootstrap.generation==provider_generation[0]:
                 login_bootstrap.finish(provider_generation[0],"indices",0,3,error="cooldown")
+            index_failure_code[0]="COOLDOWN_ACTIVE"
             display_failures["dhan_index_ltp_batch"]=f"Cooling down {index_cooldown:.0f}s • last good indices retained"
             if current[0] in (0,4,5):
                 request_view_refresh(current[0])
@@ -2185,7 +2187,9 @@ def app_main(page:ft.Page):
                    and snapshots[key]["price"]>0 and snapshots[key].get("source")=="Dhan"
                    for key in ("NIFTY","BANKNIFTY","SENSEX")):
                 display_failures.pop("dhan_index_ltp_batch",None)
+                index_failure_code[0]="NONE_ALL_THREE_QUOTES_PRESENT"
             else:
+                index_failure_code[0]="PARTIAL_OR_INVALID_INDEX_BATCH"
                 unavailable=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
                              if not isinstance(snapshots.get(sym),dict)
                              or snapshots[sym].get("source")!="Dhan"
@@ -2202,6 +2206,17 @@ def app_main(page:ft.Page):
             log_error("dhan_index_ltp_batch",exc)
             # Persist a sanitized route/stage error rather than a bare FeedError.
             detail=safe_error(exc)
+            # Fixed-enum only. Do not expose arbitrary exception text,
+            # upstream response bodies, private URLs, or authentication keys.
+            diagnostic=str(exc).lower()
+            index_failure_code[0]=(
+                "GATEWAY_HTTP_429" if "http 429" in diagnostic or "cooldown" in diagnostic else
+                "AUTH_OR_ACCESS_403" if "http 403" in diagnostic or "key rejected" in diagnostic else
+                "GATEWAY_HTTP_404" if "http 404" in diagnostic else
+                "GATEWAY_HTTP_5XX" if any("http "+str(n) in diagnostic for n in (500,502,503,504)) else
+                "INDEX_BATCH_SCHEMA_REJECTED" if ("index batch" in diagnostic or "index availability" in diagnostic) else
+                "NETWORK_OR_TIMEOUT" if any(w in diagnostic for w in ("network","timeout","connection","dns")) else
+                "UNCLASSIFIED_FEED_ERROR")
             display_failures["dhan_index_ltp_batch"]=(
                 "Dhan index quote route failed • "+detail+
                 " • existing prices unverified; check SENSEX IDX_I/51 separately")
@@ -4659,6 +4674,7 @@ def app_main(page:ft.Page):
                     "candle_count":candle_count,
                     "candle_timeframe":tf,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
+                    "last_eight_candle_ohlc_diagnostics":None,
                     "history_present":bool(bars),
                     "history_shape_valid":bool(bars and valid_candle_history(bars)),
                     "analysis_uses_exact_timeframe":str(history.get("_scanner_timeframe"))==tf if isinstance(history,dict) else False,
@@ -4675,6 +4691,23 @@ def app_main(page:ft.Page):
                 with news_lock:
                     headline_items=(news_cache.get(symbol) or {}).get("items") or []
                 diagnostic_context["cached_news_count"]=len(headline_items)
+                # Read-only breakdown for missing C HIST, never transform
+                # zero-body/doji bars into invented bearish/bullish strength.
+                last_eight=(bars[-8:] if isinstance(bars,(list,tuple)) else [])
+                last_bodies={"up":0,"down":0,"doji":0,"malformed":0}
+                for candle in last_eight:
+                    if (not isinstance(candle,(list,tuple)) or len(candle)<5
+                            or any(type(v) not in (int,float) or not math.isfinite(v)
+                                   for v in candle[:5])):
+                        last_bodies["malformed"]+=1
+                    elif candle[4]>candle[1]:
+                        last_bodies["up"]+=1
+                    elif candle[4]<candle[1]:
+                        last_bodies["down"]+=1
+                    else:
+                        last_bodies["doji"]+=1
+                diagnostic_context["last_eight_candle_ohlc_diagnostics"]=last_bodies
+                diagnostic_context["candle_balance_min_directional_bodies"]=5
                 engines=[]
                 raw_snapshot=five_engine_snapshots.get(symbol)
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
@@ -4725,9 +4758,13 @@ def app_main(page:ft.Page):
                                                     "timeframe":tf,
                                                     "directional_candles":balance["count"]}
                     if name=="candle":
+                        directional_count=last_bodies["up"]+last_bodies["down"]
                         diagnostic_context["historical_candle_balance_status"]=(
                             "AVAILABLE" if historical_percent is not None else
-                            "NOT_ENOUGH_DIRECTIONAL_LAST_EIGHT_OR_INVALID_CANDLE_SHAPE")
+                            "MALFORMED_LAST_EIGHT" if last_bodies["malformed"] else
+                            "INSUFFICIENT_LAST_EIGHT_BARS" if len(last_eight)<8 else
+                            "DOJI_DOMINATED_LT_FIVE_DIRECTIONAL" if directional_count<5 else
+                            "CANDLE_OHLC_OR_ORDER_VALIDATION_FAILED")
                     if ready:
                         blocker="NONE_VERIFIED"
                     elif name=="technical":
@@ -4817,6 +4854,9 @@ def app_main(page:ft.Page):
                     "errors_only":errors,
                     "index_route_diagnostic":{
                         "last_failure":str(display_failures.get("dhan_index_ltp_batch") or "none")[:180],
+                        "failure_code":index_failure_code[0],
+                        "route":"/dhan/index-ltp-batch",
+                        "next_check":"REVIEW_ORACLE_ROUTE_LOGS_IF_UNCLASSIFIED" if index_failure_code[0]=="UNCLASSIFIED_FEED_ERROR" else "FOLLOW_FAILURE_CODE",
                         "cooldown_seconds":dhan_feed.cooldown_remaining("/dhan/index-ltp-batch"),
                         "last_attempt_same_generation":index_refresh_generation[0]==generation,
                         "worker_busy":bool(index_refresh_busy[0]),
