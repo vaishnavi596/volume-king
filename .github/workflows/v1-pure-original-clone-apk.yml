@@ -207,3 +207,5 @@ jobs:
 # B186 master root-cause to code path to proposed solution, plus Android lifecycle gap segment; native background service not implemented.
 
 # B187: consolidate Watchlist signal cache reuse; index request diagnostic correlation and candle QA; full offline regression-gated APK.
+
+# B187 gate retry after exact two stale assertion repairs; see docs/V3_MASTER_JOURNAL.md.
