@@ -3173,9 +3173,8 @@ def app_main(page:ft.Page):
             value=data.get("max_pain")
             if type(value) not in (int,float) or not math.isfinite(value) or value<=0:
                 return note("Max Pain ERROR • valid Dhan option-chain metric missing or invalid")
-            return ft.Column([
-                note("Dhan Max Pain: "+f'{value:,.0f}'+" • UNVERIFIED • live orders OFF"),
-                note("OI Support / Resistance: verified directional evidence not connected; cannot infer it from Max Pain.")])
+            return note("Dhan Max Pain: "+f'{value:,.0f}'+
+                        " • UNVERIFIED • live orders OFF • OI Support/Resistance directional evidence not connected")
         return note("Premium flow unavailable without verified volume and transaction direction.")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
