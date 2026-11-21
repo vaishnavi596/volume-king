@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B196 Scanner and Dhan-only full gate • NO APK
+run-name: V3 B196 Snapshot migration full regression • NO APK
 on:
   push:
     branches:
