@@ -4748,16 +4748,21 @@ def app_main(page:ft.Page):
             state_text,
             note("Copy the resulting JSON into ChatGPT. A provider unavailable result is not proof that mapping is wrong.")
         ],spacing=5))
+    # Keep the manual Diagnostics gate across Settings page rebuild/navigation.
+    v3_diag_busy=[False]
+    v3_diag_refreshed=[None]
+    v3_diag_report=["Refresh Diagnostics first • no stale pre-login report."]
+    v3_diag_status=["Login, then tap REFRESH DIAGNOSTICS before TEST 54/70."]
     def v3_live_building_panel():
         # Test actual in-memory stock, without synthetic input or provider requests.
         from v3_live_capacity_probe import benchmark_cached_capacity
         symbols=list(all_watch_symbols())
         state=building_doctor.report(symbols,quotes,chart_snapshots,provider_generation[0],
                                      connected=(prefs.get("source")=="Dhan" and dhan_feed.connected))
-        report=ft.Text("Refresh Diagnostics first • no stale pre-login report.",size=10,selectable=True)
-        test_status=ft.Text("Login, then tap REFRESH DIAGNOSTICS before TEST 54/70.",size=11,color=GOLD)
-        busy=[False]
-        refreshed=[None]
+        report=ft.Text(v3_diag_report[0],size=10,selectable=True)
+        test_status=ft.Text(v3_diag_status[0],size=11,color=GOLD)
+        busy=v3_diag_busy
+        refreshed=v3_diag_refreshed
         async def check_again(e):
             if busy[0]:return
             busy[0]=True
@@ -4805,6 +4810,8 @@ def app_main(page:ft.Page):
             finally:
                 if refreshed[0] is None:
                     report.value=test_status.value+" • previous report remains invalid."
+                v3_diag_report[0]=report.value
+                v3_diag_status[0]=test_status.value
                 busy[0]=False
                 if report.page is not None:report.update()
                 if test_status.page is not None:test_status.update()
@@ -4967,6 +4974,8 @@ def app_main(page:ft.Page):
                 test_status.value="Building Doctor Error: "+type(exc).__name__
                 test_status.update()
             finally:
+                v3_diag_report[0]=report.value
+                v3_diag_status[0]=test_status.value
                 busy[0]=False
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
             note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
@@ -6144,7 +6153,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("scanner_" + label.lower().replace(" ", "_"), exc)
             return card(note(label + " temporarily unavailable (" + type(exc).__name__ + "). Other scanner sections remain accessible."))
     def central_filter_settings():
-        # Active is a movable 15-slot list; unselected default/extra/OI
+        # Active is a movable 18-slot list; unselected default/extra/OI
         # indicators return to the available pool immediately after removal.
         available_filters=[name for name in filter_names if name not in filter_selected]
         filter_checklist.controls=[
@@ -6174,7 +6183,7 @@ console.log('BOT KING Lightweight Charts ready');
             filter_choice.value=None
         filter_feedback.value=filter_feedback.value or "Choose a filter • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active"
         return section("CENTRAL FILTER SETTINGS",ft.Column([
-            note("Shared by Scanner, Watchlist, Super Five and 5m index analysis. Ten defaults and all extra supported slots can remain saved together."),
+            note("Shared by Scanner, Watchlist, Super Five and selected-timeframe analysis. New installs have 17 active filters; the 18th can be added."),
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
                 ft.Column([note("All supported filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
