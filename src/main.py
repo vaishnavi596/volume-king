@@ -5559,10 +5559,13 @@ def app_main(page:ft.Page):
         prefs["scanner_filters"]=list(dict.fromkeys(
             "Dhan Max Pain" if name=="Max Pain" else name
             for name in prefs["scanner_filters"]))
-    if isinstance(prefs.get("scanner_filter_modes"),dict):
-        old_modes=prefs["scanner_filter_modes"]
-        if "Max Pain" in old_modes:
-            old_modes["Dhan Max Pain"]=old_modes.pop("Max Pain")
+    if isinstance(filter_modes,dict) and "Max Pain" in filter_modes:
+        filter_modes.setdefault("Dhan Max Pain",filter_modes["Max Pain"])
+        filter_modes.pop("Max Pain",None)
+    if isinstance(prefs.get("scanner_added_filters"),(list,tuple)):
+        prefs["scanner_added_filters"]=list(dict.fromkeys(
+            "Dhan Max Pain" if name=="Max Pain" else name
+            for name in prefs["scanner_added_filters"]))
     MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
     # New installs begin with 17 active slots; the 18th remains available.
     # Existing saved choices (including intentional removals) are preserved.
