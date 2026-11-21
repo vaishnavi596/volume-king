@@ -30,8 +30,8 @@ else
 import re,sys
 s=sys.stdin.read()
 for label,kind,path in (("CLONE_QUOTES","prefix","/clone-v2/"),("LEGACY_DHAN","prefix","/dhan/"),("OAUTH_CALLBACK","exact","/dhan/callback")):
-    kind_re=r"\\^~\\s*" if kind=="prefix" else r"=\\s*"
-    pattern=r"location\\s+"+kind_re+re.escape(path)+r"\\s*\\{"
+    kind_re=r"\^~\s*" if kind=="prefix" else r"=\s*"
+    pattern=r"location\s+"+kind_re+re.escape(path)+r"\s*\{"
     hits=list(re.finditer(pattern,s))
     if not hits:
         print(label+"_CONFIG=NOT_EXPLICITLY_FOUND")
@@ -40,7 +40,7 @@ for label,kind,path in (("CLONE_QUOTES","prefix","/clone-v2/"),("LEGACY_DHAN","p
     for hit in hits:
         # Local inspection only, not a comprehensive parser of nested includes.
         part=s[hit.end():s.find("}",hit.end()) if "}" in s[hit.end():] else len(s)]
-        match=re.search(r"proxy_pass\\s+http://127\\.0\\.0\\.1:(8000|8002)\\s*;",part)
+        match=re.search(r"proxy_pass\s+http://127\.0\.0\.1:(8000|8002)\s*;",part)
         destinations.append("PORT_"+match.group(1) if match else "OTHER_OR_UNRESOLVED")
     print(label+"_LOCATION_COUNT="+str(len(hits)))
     print(label+"_PROXY_DESTINATIONS="+",".join(destinations))
@@ -56,7 +56,7 @@ allowed={"quotes","candles"}
 stages={"provider","shape","mapping","validation","cooldown"}
 categories={"missing_segment","missing_security_id","invalid_price","invalid_shape","invalid_bars","rate_limited","auth_unavailable","upstream_error"}
 items=[]
-regex=re.compile(r"clone_market_diagnostic route=(\\w+) symbol=SENSEX stage=(\\w+) category=(\\w+)")
+regex=re.compile(r"clone_market_diagnostic route=(\w+) symbol=SENSEX stage=(\w+) category=(\w+)")
 for line in sys.stdin:
     m=regex.search(line)
     if m and m[1] in allowed and m[2] in stages and m[3] in categories:
