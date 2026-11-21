@@ -3359,7 +3359,13 @@ def app_main(page:ft.Page):
         content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
         return content
-    mode=ft.Dropdown(label="Trading mode",value=prefs["mode"],options=[ft.dropdown.Option(x,"Paper simulation" if x=="Paper" else x+" • saved preference; no live orders") for x in ["Paper","Manual","Semi-Auto","Auto"]])
+    # One Paper/Live selector on the shared Trading Center; the Live option
+    # is a display-only locked preference with zero broker order callbacks.
+    # Legacy Manual/Semi-Auto/Auto preferences map to the locked display option.
+    initial_trading_mode="Paper" if prefs.get("mode")=="Paper" else "Live (locked)"
+    mode=ft.Dropdown(label="Trading mode • Live orders OFF",value=initial_trading_mode,
+        options=[ft.dropdown.Option("Paper","Paper simulation"),
+                 ft.dropdown.Option("Live (locked)","Live trading • permanently disabled")])
     # Only Dhan is selectable in the production provider control, even with legacy saved settings.
     source=ft.Dropdown(label="Data provider",dense=True,value="Dhan",options=[ft.dropdown.Option("Dhan")])
     broker_names=["Dhan"]
