@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **BOT KING VERSION 3 — CURRENT OWNER NAMING:** नया आधिकारिक ऐप नाम **BOT KING Version 3 (V3)** है। `v2.3.138`, Clone/B3 GitHub branch, APK metadata और पुराने जर्नल केवल तकनीकी/ऐतिहासिक पहचान हैं; APK का पैकेज/नाम अपने-आप नहीं बदला है। **SUDHAR 1 V3 Building:** First-time progressive data/bootstrap + bounded last-good cache, फिर केवल changed Price/Candle/Bullish-Bearish/Filter/Scanner/Options/Chart control पर Delta Apply; पूरे पेज का Rebuild केवल Layout/Search/Membership/Navigation का वास्तविक बदलाव होने पर। Existing Watchlist partial delta implemented; Dashboard/Scanner mounted sections still broad-rebuild and SmartApplyQueue prototype not wired. Benchmark+joint regression+Test APK+Help Doctor phone evidence required before DONE.
+
 **As of:** 2026-11-21 IST · **Repo:** `vaishnavi596/volume-king` · **Active Clone branch:** `pilot/v1-pure-original-clone-phone-20261120`
 **Owner codeword:** **SUDHAR 1 (सुधार 1)**. New-chat phrase: **“SUDHAR 1 का नियम और पिछला लॉगबुक पढ़कर उसी हिसाब से आगे बढ़ें।”**
 
