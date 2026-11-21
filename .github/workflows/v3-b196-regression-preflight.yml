@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B196 Clone SSK Singleflight Quality • NO APK
+run-name: V3 B196 Index Error Classification Quality • NO APK
 on:
   push:
     branches:
@@ -39,6 +39,7 @@ jobs:
           PY
           python -m unittest discover -s tests -p 'test_market_feed.py' -v
           python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_index_refresh_regression.py' -v
           python -m unittest discover -s tests -p 'test_audit.py' -v
           python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
       - name: Full offline regression (no APK, no server write)
