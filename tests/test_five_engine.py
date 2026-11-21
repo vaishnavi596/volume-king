@@ -90,6 +90,43 @@ class FiveEngineTests(unittest.TestCase):
         self.assertEqual(result["combined"]["coverage"],0)
         self.assertTrue(all(e.bullish is None for e in result["engines"][1:]))
 
+    def test_seventeen_selected_filters_keep_technical_engine_when_oi_waits(self):
+        selected = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
+                    "SMC Structure", "Order Block", "Pivot Points", "FVG",
+                    "Liquidity Sweep", "OI Support", "OI Resistance",
+                    "OI Profile", "Max Pain", "SMA 5/20", "Volume", "ATR 14"]
+        rows = [{"name": name, "vote": (1 if i < 3 else 0), "detail": "computed"}
+                for i, name in enumerate(selected)]
+        for row in rows:
+            if row["name"].startswith("OI ") or row["name"] == "Max Pain":
+                row.update(vote=None, detail="No matching Dhan expiry snapshot; WAIT")
+        scan = {"votes": rows, "source": "Dhan", "timestamp": 1234567890,
+                "freshness": "verified_live", "historical": False, "live_verified": True}
+        snapshot = scanner_snapshot(scan)
+        technical = snapshot["engines"][0]
+        self.assertTrue(technical.eligible)
+        self.assertEqual((technical.bullish, technical.bearish), (100, 0))
+        self.assertEqual(snapshot["combined"]["coverage"], 1)
+        self.assertEqual(snapshot["combined"]["state"], "WAIT")
+        self.assertTrue(all(not engine.eligible for engine in snapshot["engines"][1:]))
+
+    def test_unavailable_known_context_cannot_turn_into_directional_votes(self):
+        base = [{"name": "Supertrend", "vote": 1},
+                {"name": "EMA 9/21", "vote": 1},
+                {"name": "RSI 14", "vote": -1}]
+        for name in ("OI Support", "OI Resistance", "OI Profile", "Max Pain",
+                     "News Headlines", "VWAP", "Volume"):
+            with self.subTest(name=name):
+                rows = base + [{"name": name, "vote": None,
+                                "detail": "Informational Dhan context"}]
+                snapshot = scanner_snapshot({
+                    "votes": rows, "source": "Dhan", "timestamp": 1234567890,
+                    "freshness": "verified_live", "historical": False,
+                    "live_verified": True})
+                self.assertEqual(snapshot["combined"]["coverage"], 1)
+                self.assertEqual(snapshot["engines"][0].bullish, 67)
+                self.assertTrue(all(not engine.eligible for engine in snapshot["engines"][1:]))
+
     def test_scanner_adapter_requires_explicit_verified_dhan(self):
         scan={"votes":[{"name":"Filter 5","vote":1},{"name":"Filter 6","vote":1},{"name":"Filter 7","vote":-1}], "source":"Dhan",
               "timestamp":1234567890,"freshness":"verified_live",
