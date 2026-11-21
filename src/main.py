@@ -4719,6 +4719,17 @@ def app_main(page:ft.Page):
                         last_bodies["doji"]+=1
                 diagnostic_context["last_eight_candle_ohlc_diagnostics"]=last_bodies
                 diagnostic_context["candle_balance_min_directional_bodies"]=5
+                # Preserve source OHLC precision and timestamps in diagnostics;
+                # an all-doji run can be provider aggregation, not absent data.
+                diagnostic_context["last_eight_open_close_equal_exact"]=last_bodies["doji"]
+                diagnostic_context["last_eight_distinct_timestamps"]=len(set(
+                    c[0] for c in last_eight if isinstance(c,(list,tuple)) and len(c)>=1
+                    and type(c[0]) in (int,float) and math.isfinite(c[0])))
+                diagnostic_context["last_candle_age_seconds"]=(
+                    round(time.time()-bars[-1][0],1) if bars and
+                    isinstance(bars[-1],(list,tuple)) and len(bars[-1])>=1 and
+                    type(bars[-1][0]) in (int,float) and math.isfinite(bars[-1][0])
+                    else None)
                 engines=[]
                 raw_snapshot=five_engine_snapshots.get(symbol)
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
@@ -4993,7 +5004,8 @@ def app_main(page:ft.Page):
                         "manual_refresh_floor_seconds":30,
                         "auto_equity_floor_seconds":60,
                         "equity_seconds_since_last_attempt":round(time.monotonic()-watch_batch_last_attempt[0],1)
-                            if watch_batch_last_attempt[0]>0 else None},
+                            if watch_batch_last_attempt[0]>0 else None,
+                        "index_worker_observability":"RESULT_STATE_AND_GENERATION_READ_ONLY"},
                     "WATCHLIST_54_70":{
                         "unique_selected_equities":len(unique),
                         "verified_registry_equities":len(valid_equities),
@@ -5014,7 +5026,8 @@ def app_main(page:ft.Page):
                         "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
                         "warmup_busy":bool(watch_three_minute_warm_busy[0]),
                         "refresh_speed_diagnosis":"3m source candle waits for bounded warmup; 2s UI tick is not 2s provider polling",
-                        "data_priority":"Only selected/current list should be prioritized; do not fan out 70"},
+                        "data_priority":"Only selected/current list should be prioritized; do not fan out 70",
+                        "ui_signal_reuse":"A single 3m analysis per symbol per 2s tick; price and age flags reuse the analyzed result"},
 
                     "CANDLE_TIMEFRAMES":{
                         "cache_by_timeframe":candle_counts,
@@ -5023,7 +5036,19 @@ def app_main(page:ft.Page):
                         "scanner_selected":scanner_tf,
                         "scanner_matching_history":scanner_valid,
                         "selected_scanner_history_bars":len(scanner_bars),
-                        "history_scan_busy":bool(dhan_history_scan_active[0])},
+                        "history_scan_busy":bool(dhan_history_scan_active[0]),
+                        "last_eight_ohlc_body_counts":{
+                            "up":sum(isinstance(c,(list,tuple)) and len(c)>=5 and
+                                      type(c[1]) in (int,float) and type(c[4]) in (int,float)
+                                      and c[4]>c[1] for c in scanner_bars[-8:]),
+                            "down":sum(isinstance(c,(list,tuple)) and len(c)>=5 and
+                                      type(c[1]) in (int,float) and type(c[4]) in (int,float)
+                                      and c[4]<c[1] for c in scanner_bars[-8:]),
+                            "doji":sum(isinstance(c,(list,tuple)) and len(c)>=5 and
+                                      type(c[1]) in (int,float) and type(c[4]) in (int,float)
+                                      and c[4]==c[1] for c in scanner_bars[-8:])},
+                        "volume_scale_review_required":"REVIEW_IF_LAST_BAR_VS_AVG_DISPROPORTIONATE",
+                        "rsi_extreme_review_required":"RSI_100_IS_EXTREME_NOT_A_TRADING_PROBABILITY"},
                     "SCANNER_17":{
                         "symbol":scanner_sym,"timeframe":scanner_tf,
                         "selected_filters":len(filter_names),
