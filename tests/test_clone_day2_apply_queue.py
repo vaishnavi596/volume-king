@@ -94,6 +94,31 @@ class SmartApplyQueueTests(unittest.TestCase):
         self.assertFalse(q.receive(self.sample(revision=True)))
         self.assertEqual(q.health()["issues"][-1]["code"], "INVALID_UPDATE")
 
+    def test_watchlist_evidence_dirty_gate_scoped_to_candle_filters(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        tick = source.split("    async def watch_visible_tick():", 1)[1].split("    def watchlist():", 1)[0]
+        self.assertIn("last_evidence_signatures={}", tick)
+        self.assertIn("last_evidence_signatures.clear()", tick)
+        self.assertIn("evidence_signature=(", tick)
+        self.assertIn("if last_evidence_signatures.get(sym)!=evidence_signature:", tick)
+        gated = tick.split("if last_evidence_signatures.get(sym)!=evidence_signature:", 1)[1]
+        self.assertIn("five.content=five_engine_chips(sym)", gated)
+        self.assertIn("assessment.content=note(oracle_assessment_notes", gated)
+        self.assertIn("signal.content=compact_watch_signal", gated)
+        inputs = tick.split("evidence_signature=(", 1)[1].split("if last_evidence_signatures.get(sym)", 1)[0]
+        self.assertNotIn('q.get("price")', inputs)
+        self.assertIn('signal_row.get("timestamp")', inputs)
+        self.assertIn('provider_generation[0]', inputs)
+        self.assertIn('watch_cell_age_flags(sym)', inputs)
+
+    def test_watchlist_price_cells_still_update_independently(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        tick = source.split("    async def watch_visible_tick():", 1)[1].split("    def watchlist():", 1)[0]
+        price_path = tick.split("for cell,val,col in ((price,p,color),(change,c,color)):", 1)[1]
+        self.assertIn("if cell.value!=val or cell.color!=col:", price_path)
+        self.assertLess(tick.index("for cell,val,col in ((price,p,color),(change,c,color))"),
+                        tick.index("if last_evidence_signatures.get(sym)!=evidence_signature:"))
+
     def test_zero_budget_does_not_apply(self):
         q = SmartApplyQueue()
         q.receive(self.sample())
