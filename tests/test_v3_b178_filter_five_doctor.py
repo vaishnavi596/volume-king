@@ -154,6 +154,9 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('watch_cell_age_flags(sym,now_epoch=None,precomputed_signal=None)',APP)
         tick=APP[APP.index('    async def watch_visible_tick():'):APP.index('    def watchlist():')]
         self.assertEqual(tick.count('watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])'),3)
+        self.assertIn('"mounted_3m_signal_tick_performance":dict(watch_3m_tick_profile)',APP)
+        self.assertIn('tick_started=time.perf_counter()',APP)
+        self.assertIn('watch_3m_tick_profile["last_symbols"]=len(visible)',APP)
         self.assertIn('"index_result_state":index_last_result_state[0]',APP)
         self.assertIn('"index_same_generation":index_last_result_generation[0]==generation',APP)
         self.assertIn('"last_eight_distinct_timestamps"',APP)
