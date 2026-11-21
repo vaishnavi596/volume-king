@@ -42,3 +42,11 @@ Both screenshot reports display an ACK. Their 1.020428s and 1.409014s intervals 
 
 ### Next action
 B1 first: preserve full authoritative per-symbol/per-timeframe candle stock independent of UI hint queue; stage backlog/backpressure or drain batches without losing completed candles; test exact 540/730 key acceptance/application, revisions, completion, error retry, and 1–4 device offline runs before production integration. B2 timeframe implementation deferred. Do not claim V3 Building capacity is 1.409s as a full production UI benchmark.
+
+
+## 2026-11-21 IST — B1 bounded-burst source repair (isolated prototype, not production integration)
+After owner Android screenshots (54: 28 rejected; 73: 218 rejected), inspected exact latest files `src/clone_day2_apply_queue.py`, `diagnostics/v3_building_phone_capacity.py`, and this journal, without rechecking 10 earlier commits. Confirmed `SmartApplyQueue` is an isolated helper not imported by production `src/main.py`.
+
+**B1 patch:** `src/clone_day2_apply_queue.py` gained `ingest_burst(updates, apply, batch_size=128)` that drains before hitting 512 slots and refuses to proceed if callbacks cannot make progress, instead of silently losing newly received keys. This is a bounded in-memory batch-passing policy for a finite list; NOT a persistent stock/cache and NOT yet a frame-budget UI scheduler. The original `receive` cap and exception/health behavior remain unchanged. Diagnostic source now sends its 10 updates per instrument through the new method. Exact target is 540/540 and 730/730, 0 capacity rejected; no assertion of PASS until CI completes.
+
+**GitHub changes:** `65a545df` queue prototype; `c4531c8b` diagnostic B1 queue plumbing; `cfa5561e` test for 10/35/54/73 instruments, 1m/3m/5m key separation, callback failure backpressure and invalid candle timeframe; `d2bfe81e` standalone .github/workflows/v3-b1-bounded-queue-gate.yml CI. Workflow status and outcome to verify from GitHub run. No Android APK built in this step; phone has baseline APK which still shows the old queue behavior. Production app, Oracle, broker and B2 timeframe unchanged.
