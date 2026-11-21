@@ -66,7 +66,7 @@ class SmartApplyQueue:
 
     def receive(self, update: Update) -> bool:
         self.counts["received"] += 1
-        if not isinstance(update, Update) or not isinstance(update.revision, int) or update.revision < 0:
+        if not isinstance(update, Update) or type(update.revision) is not int or update.revision < 0:
             self._problem("INVALID_UPDATE", "Invalid update/revision")
             return False
         if update.section not in PRIORITY or not update.symbol or not update.kind:
@@ -99,7 +99,9 @@ class SmartApplyQueue:
         if max_items < 0:
             raise ValueError("negative budget")
         result = ApplyReport()
-        keys = sorted(self.pending, key=lambda k: (PRIORITY[k[0]], list(self.pending).index(k)))
+        # Stable priority in O(n log n), not repeated O(n) index lookups.
+        # Insertion order breaks ties, preventing needless queue churn.
+        keys = sorted(self.pending, key=lambda k: PRIORITY[k[0]])
         for key in keys[:max_items]:
             update = self.pending[key]
             try:
@@ -129,3 +131,5 @@ class SmartApplyQueue:
 
     def _problem(self, code: str, reason: str) -> None:
         self.diagnostics.append({"code": code, "reason": reason})
+        if len(self.diagnostics) > 100:
+            del self.diagnostics[:-100]
