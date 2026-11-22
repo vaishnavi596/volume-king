@@ -38,6 +38,13 @@ class V3JointFoundationGate(unittest.TestCase):
         self.assertIn('stage in ("PROVIDER_QUOTA","PROVIDER_COOLDOWN")',CLIENT)
         self.assertIn('cooldown_seconds = 2 if "quote lane paced" in str(exc) else 30',CLIENT)
 
+    def test_phone_doctors_explain_rate_limit_origin_not_just_http_429(self):
+        self.assertIn('index_failure_429_stage=["NOT_APPLICABLE"]',MAIN)
+        self.assertIn('"GATEWAY_PACING" if "quote lane paced" in diagnostic',MAIN)
+        self.assertIn('"PROVIDER_QUOTA_OR_COOLDOWN" if "provider rate limit" in diagnostic',MAIN)
+        self.assertIn('"rate_limit_origin":index_failure_429_stage[0]',MAIN)
+        self.assertIn('"index_rate_limit_origin":index_failure_429_stage[0]',MAIN)
+
     def test_normalized_candle_parity_is_not_live_proof(self):
         self.assertIn('"normalized_bars_sha256": hashlib.sha256(',SERVER)
         self.assertIn('"normalized_transport_integrity"]="SHA256_MATCH"',CLIENT)
