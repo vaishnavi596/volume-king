@@ -52,6 +52,11 @@ class V3JointFoundationGate(unittest.TestCase):
         self.assertIn('else:\n            response["normalized_transport_integrity"]="NOT_PROVIDED"',CLIENT)
         self.assertIn('"freshness": "historical_unverified" if bars',SERVER)
 
+    def test_doctor_does_not_label_unverified_waits_as_errors(self):
+        self.assertIn('errors=[row for row in filter_rows if row["status"]=="ERROR"]',MAIN)
+        self.assertIn('"unavailable_evidence":unavailable_evidence',MAIN)
+        self.assertIn('if row["status"]=="WAIT"',MAIN)
+
     def test_five_engine_missing_source_wiring_is_visible_not_fake_signal(self):
         from sys import path
         import sys
