@@ -80,8 +80,23 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
             second = http.post("/clone-v2/market/quotes", headers=self.headers(),
                                json={"symbols": ["SENSEX"]})
         self.assertEqual(second.status_code, 429)
+        self.assertEqual(second.headers["X-BotKing-429-Stage"], "GATEWAY_PACING")
+        self.assertEqual(second.headers["Retry-After"], "2")
         self.assertEqual([call.args[1:] for call in log.call_args_list],
                          [("quotes", "SENSEX", "cooldown", "rate_limited")])
+
+    def test_provider_quota_429_is_not_gateway_pacing(self):
+        from backend.dhan_feed import DhanRateLimitError
+        class Provider:
+            def batch_ltp(self, instruments):
+                raise DhanRateLimitError("sanitized rate limit")
+        with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning"):
+            res = self.client(Provider()).post(
+                "/clone-v2/market/quotes", headers=self.headers(),
+                json={"symbols": ["NIFTY"]})
+        self.assertEqual(res.status_code, 429)
+        self.assertEqual(res.headers["X-BotKing-429-Stage"], "PROVIDER_QUOTA")
+        self.assertEqual(res.headers["Retry-After"], "30")
 
     def test_unauthorized_call_never_logs_symbol(self):
         class Provider:
