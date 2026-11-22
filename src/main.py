@@ -573,7 +573,6 @@ def app_main(page:ft.Page):
                 controls.append(ft.Column([note(item["source"]+" • "+when),ft.TextButton(content=ft.Text(item["title"],size=12,color=WHITE),on_click=lambda e,url=item.get("url"):page.launch_url(url) if url else None)],spacing=1))
         return section("CANDLE + OPTIONS + NEWS • "+symbol+" • "+interval,ft.Column(controls,spacing=5))
     market_status="Waiting for broker API connection…"
-    symbols_yahoo={"NIFTY":"^NSEI","NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN","RELIANCE":"RELIANCE.NS","HDFCBANK":"HDFCBANK.NS","ICICIBANK":"ICICIBANK.NS","TCS":"TCS.NS","INFY":"INFY.NS","BHARTIARTL":"BHARTIARTL.NS","SBIN":"SBIN.NS","ITC":"ITC.NS"}
     def clean_bars(bars):
         import math
         rows={}
@@ -627,9 +626,7 @@ def app_main(page:ft.Page):
             # cannot reach the retained legacy Yahoo/Angel transport branches.
             if selected!="Dhan":
                 raise FeedError("V3 Dhan-only provider required; reconnect Dhan in Settings")
-            if selected=="Yahoo Finance":
-                result=get_yahoo(ticker,interval,range_)
-            elif selected=="Dhan":
+            if selected=="Dhan":
                 if not dhan_feed.connected:
                     raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
                 if ticker not in DHAN_VERIFIED_SYMBOLS:
@@ -691,19 +688,8 @@ def app_main(page:ft.Page):
                         "freshness":"unverified" if quote else "historical_unverified",
                         "live_verified":False,
                         "time":datetime.now().strftime("%H:%M")}
-            elif selected=="Broker API" and angel_feed.connected:
-                try:
-                    result=angel_feed.history(ticker,interval,range_)
-                    broker_failures[0]=0;broker_retry[0]=0
-                except Exception as exc:
-                    broker_failures[0]+=1
-                    broker_retry[0]=time.monotonic()+retry_delay(broker_failures[0])
-                    fallback_reason=safe_error(exc)
-                    raise
             if result is None:
-                if selected=="Broker API":
-                    raise FeedError("Broker API not connected; connect Angel One in Settings")
-                raise FeedError("Unsupported market data provider: "+str(selected)[:32]+"; select Dhan in Settings")
+                raise FeedError("Dhan-only market result unavailable")
             result["cached"]=False
             if result.get("bars"):result["candle_fetched_at"]=time.time()
         except Exception as exc:
@@ -7584,7 +7570,7 @@ console.log('BOT KING Lightweight Charts ready');
             generation=current_generation
             # Mark a closed-session scan as attempted only after its provider is ready.
             # Otherwise the first disconnected launch suppresses the entire scan after login.
-            if prefs.get("source") in ("Yahoo Finance","Broker API","Dhan"):
+            if prefs.get("source")=="Dhan":
                 generation=provider_generation[0]
                 scan_progress["state"]="Starting historical scan • provider "+str(prefs.get("source"))
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
@@ -7686,7 +7672,7 @@ console.log('BOT KING Lightweight Charts ready');
                             # Dhan history is serialized and paced once between
                             # requests in the outer scan loop; avoid double sleeping.
                             data=await asyncio.wait_for(asyncio.to_thread(get_market_data,sym,"5m","2d"),timeout=25)
-                            if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):return False
+                            if generation!=provider_generation[0] or prefs.get("source")!="Dhan":return False
                             if prefs.get("source")=="Dhan":
                                 # A 429/partial/older history must never progressively
                                 # erase prior completed candle/filter evidence.
@@ -7900,7 +7886,7 @@ console.log('BOT KING Lightweight Charts ready');
                     last_scanned_generation=None
                     await asyncio.sleep(5)
                     continue
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
+                if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                     await asyncio.sleep(.05)
                     continue
                 # A provider cooldown is not 51 individual candle failures. Do not
@@ -8036,7 +8022,7 @@ console.log('BOT KING Lightweight Charts ready');
                             if current[0] in (0,4):request_view_refresh(current[0])
                         return sym,result
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in ranking_symbols))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):
+                if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
@@ -8050,7 +8036,7 @@ console.log('BOT KING Lightweight Charts ready');
                             combined=combine_analysis(candidate["symbol"],"5m",candidate,missing,missing)
                         return candidate,combined
                 enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
-                if generation!=provider_generation[0] or prefs.get("source") not in ("Yahoo Finance","Broker API","Dhan"):continue
+                if generation!=provider_generation[0] or prefs.get("source")!="Dhan":continue
                 for candidate,combined in enriched:
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
