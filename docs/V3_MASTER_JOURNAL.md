@@ -1139,3 +1139,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 | R Signed V3 release — after required gates | NOT APPROVED YET. | One distinct signed APK, CI/signature/install and owner phone acceptance. | Successful workflow/artifact/version and tested phone behavior recorded. | If blocked, keep existing build and record exact next fix. |
 
 **Immediate next action:** S0 authoritative SENSEX mapping and gateway difference review, then S1 joint tests. This journal update performs no Oracle change, Dhan call, token read, or APK build.
+
+
+### 2026-11-22 — S0 executed: guarded index mapping regression source test
+- Added tests/test_v3_clone_index_mapping_contract_20261122.py at commit eeae524bf21d60736afd1f683bd747bd25a892b3. Four source-only unittest cases pin current three-index mapping, protect index-over-equity precedence, and check quote pacing/429-stage/candle-hash source contracts. This is new work, not a repeat of the prior mapping audit.
+- IMPORTANT: Oracle and GitHub currently both map SENSEX to IDX_I/51; prior journal expected BSE_I/51. Neither choice is declared correct without authoritative Dhan instrument-master/provider evidence. Do NOT change production mapping by assumption.
+- Tests added but execution/CI PASS not yet observed. No Oracle change, Dhan call, deployment, or APK. NEXT: run exact new test and full no-APK regression; review authoritative mapping; then owner-controlled Clone-only rollout with rollback.
