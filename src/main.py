@@ -4549,6 +4549,8 @@ def app_main(page:ft.Page):
                         and result.get("timestamp") and result.get("count",0)>=30),
                     options_context=option_present,news_context=news_present,
                     modes=filter_modes)
+                from filter_wiring_audit import doctor_filter_rows
+                filter_rows=doctor_filter_rows(filter_rows,wiring_matrix)
                 present={row["filter"] for row in filter_rows}
                 for name in names:
                     if name not in present:

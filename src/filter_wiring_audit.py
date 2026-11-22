@@ -75,3 +75,34 @@ def diagnostic_candle_readiness(history, timeframe, *, now):
     if last[0]+seconds>now:
         return "LATEST_CANDLE_NOT_COMPLETED"
     return "READY_FOR_QUALITY_AND_CALCULATION"
+
+
+def doctor_filter_rows(rows, matrix):
+    """Keep per-filter Doctor labels consistent with authoritative wiring audit.
+
+    UI rows are derived from the *same* selected symbol/timeframe readiness
+    matrix, never guessed by searching for 'unverified' in message text.
+    Does not turn cached options or headlines into directional votes.
+    """
+    states={item.get("name"):item for item in matrix if isinstance(item,dict)}
+    out=[]
+    for row in rows:
+        if not isinstance(row,dict):
+            continue
+        entry=states.get(row.get("filter"))
+        if not entry:
+            out.append(dict(row,status="ERROR",stage="UI_ADAPTER"))
+            continue
+        state=entry["state"]
+        vote=entry.get("vote")
+        if state=="CALCULATED":
+            status="BULLISH" if vote==1 else "BEARISH" if vote==-1 else "NEUTRAL"
+            stage="CALCULATED"
+        elif state=="CHART_ONLY":
+            status,stage="CHART_ONLY","DISPLAY"
+        elif state=="ADAPTER_NOT_DIRECTIONAL":
+            status,stage="CONTEXT_ONLY","INDEPENDENT_CONTEXT_NO_DIRECTIONAL_VOTE"
+        else:
+            status,stage="WAIT",state
+        out.append(dict(row,status=status,stage=stage))
+    return out

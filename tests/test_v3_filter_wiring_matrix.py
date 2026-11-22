@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from scanner_engine import ALL_FILTERS
-from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness
+from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows
 
 
 class V3FilterWiringTests(unittest.TestCase):
@@ -57,6 +57,22 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertEqual(result[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
         self.assertIsNone(result[0]["vote"])
 
+    def test_doctor_labels_use_wiring_not_message_word_guess(self):
+        selected=["RSI 14","OI Support","News Headlines"]
+        rows=[{"filter":"RSI 14","status":"BULLISH","detail":"stale value"},
+              {"filter":"OI Support","status":"WAIT","detail":"source ready"},
+              {"filter":"News Headlines","status":"WAIT","detail":"six headlines"}]
+        matrix=filter_wiring_matrix(selected,[{"name":"RSI 14","vote":1}],
+            source="Dhan",candle_ready=False,options_context=True,news_context=True)
+        result=doctor_filter_rows(rows,matrix)
+        self.assertEqual([r["status"] for r in result],["WAIT","CONTEXT_ONLY","CONTEXT_ONLY"])
+        self.assertEqual(result[0]["stage"],"CANDLE_DATA_MISSING_OR_INVALID")
+        self.assertEqual(result[1]["stage"],"INDEPENDENT_CONTEXT_NO_DIRECTIONAL_VOTE")
+        matrix2=filter_wiring_matrix(selected,[{"name":"RSI 14","vote":-1}],
+            source="Dhan",candle_ready=True,options_context=False,news_context=False)
+        result2=doctor_filter_rows(rows,matrix2)
+        self.assertEqual([r["status"] for r in result2],["BEARISH","WAIT","WAIT"])
+
     def test_candle_readiness_requires_exact_timeframe_and_completed_bar(self):
         bars=[[1800000000+i*60,100,101,99,100,12] for i in range(30)]
         historical={"source":"Dhan","_scanner_timeframe":"1m","bars":bars}
@@ -84,6 +100,7 @@ class V3FilterWiringTests(unittest.TestCase):
         block=ast.get_source_segment(src,nodes[0])
         self.assertIn("diagnostic_candle_readiness(history,tf,now=time.time())",block)
         self.assertIn('selected_candle_readiness',block)
+        self.assertIn('doctor_filter_rows(filter_rows,wiring_matrix)',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
         self.assertIn('result.get("count",0)>=30',block)
 
