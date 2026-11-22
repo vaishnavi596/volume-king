@@ -13,7 +13,7 @@ from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
 from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
-from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance
+from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, independent_engine_source_contract
 from chart_indicators import chart_indicators
 from v3_building_doctor import BuildingDoctor
 from v3_stock_diagnostics import DiagnosticRegistry
@@ -5240,6 +5240,7 @@ def app_main(page:ft.Page):
                     "SUPER_FIVE_ENGINES":{
                         "selected_symbol":scanner_sym,
                         "five_box_status":engine_rows,
+                        "source_wiring_contract":independent_engine_source_contract(),
                         "verified_boxes":sum(x["verified_directional_percent_available"] for x in engine_rows),
                         "cached_engine_snapshots":len(five_engine_snapshots),
                         "top_five_cached_candidate_count":len(top5_candidates),
