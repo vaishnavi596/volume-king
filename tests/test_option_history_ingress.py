@@ -11,10 +11,12 @@ class OptionHistoryIngressTests(unittest.TestCase):
         start = source.index("    async def load_option_history():")
         end = source.index("    def option_chart_panel():", start)
         loader = source[start:end]
-        self.assertIn("bars=clean_bars(raw_bars)", loader)
-        self.assertLess(loader.index("bars=clean_bars(raw_bars)"), loader.index('market_store.put("option_chart"'))
-        self.assertLess(loader.index("bars=clean_bars(raw_bars)"), loader.index('state="AVAILABLE"'))
-        self.assertIn('if len(bars)<2:raise FeedError("Not enough valid option candles")', loader)
+        # Old Angel historical premium ingress is retired in Dhan-only V3.
+        self.assertIn("Dhan historical CE/PE premium candle adapter not yet available",loader)
+        self.assertIn("no broker request sent",loader)
+        self.assertNotIn("angel_feed.",loader)
+        self.assertNotIn('market_store.put("option_chart"',loader)
+        self.assertNotIn('state="AVAILABLE"',loader)
 
 
 if __name__ == "__main__":
