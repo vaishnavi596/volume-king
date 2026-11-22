@@ -14,7 +14,8 @@ class HistoricalVoteUiTests(unittest.TestCase):
         # No authenticated Dhan session. Cached historical evidence must not
         # disappear or claim LIVE when broker is disconnected.
         row=v["five_engine_chips"]("HDFCBANK")
-        visible=[c.content.value for c in row.controls if hasattr(c.content,"value")]
+        visible=[card.content.value for group in row.controls for card in group.controls
+                 if hasattr(card.content,"value")]
         self.assertTrue(any("T HIST B67/S33" in label for label in visible),visible)
         self.assertTrue(any("N WAIT" in label for label in visible),visible)
         self.assertTrue(any("F WAIT" in label for label in visible),visible)
