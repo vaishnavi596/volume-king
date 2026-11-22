@@ -5047,7 +5047,7 @@ def app_main(page:ft.Page):
                              "recovery":"AWAITING_SUCCESSFUL_SAME_GENERATION_CANDLE",
                              "gateway_route":"/clone-v2/market/candles",
                              "failure_scope":"SYMBOL_TIMEFRAME_ONLY_NOT_GLOBAL_QUOTES",
-                             "http_status":"UNKNOWN_NOT_RECORDED",
+                             "http_status":value.get("http_status") or "UNKNOWN_NOT_RECORDED",
                              "provider_origin":"UNDETERMINED_GATEWAY_OR_UPSTREAM",
                              "next_action":"CHECK_GATEWAY_HTTP_STATUS_AND_SOURCE_CANDLE_TIMESTAMP"}
                             for key,value in list(scan_fetch_failure.items())[:10]
@@ -6124,8 +6124,12 @@ console.log('BOT KING Lightweight Charts ready');
             return historical_or_wait("3m analysis failed; last historical votes retained")
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__+" • "+str(safe_error(exc))[:140]
+        import re
+        # Extract only explicit HTTP status from sanitized gateway errors.
+        match=re.search(r"\bHTTP ([45][0-9]{2})\b", str(safe_error(exc)))
         scan_fetch_failure[(provider_generation[0],sym,tf)]={
-            "at":time.time(),"stage":stage,"code":type(exc).__name__,"detail":detail}
+            "at":time.time(),"stage":stage,"code":type(exc).__name__,"detail":detail,
+            "http_status":int(match.group(1)) if match else None}
         record_analysis(sym,tf,stage=stage,error=detail)
         prior=watch_signal_cache.get(sym) if tf=="5m" else None
         if prior:
