@@ -1,5 +1,5 @@
 name: BOT KING CLONE Adapter-Fixed Phone APK
-run-name: BOT KING V3 B199 Candle Quality + Index Doctor Phone Test • v2.3.199 (198)
+run-name: BOT KING V3 B199 Candle Quality + Index Doctor Phone Test • v2.3.199 (199)
 # B199 read-only raw candle-quality Doctor + index route classification; full regression before signing
 # Explicit-only release: never auto-sign from a workflow file change.
 on:
@@ -146,7 +146,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='199' versionName='2\\.3\\.198'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='199' versionName='2\\.3\\.199'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B199 TEST'"
           "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v1-pure-sign/apk-info"
           ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v1-pure-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
