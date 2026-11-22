@@ -1476,17 +1476,24 @@ def app_main(page:ft.Page):
                     items=data.get("items") or []
                     if items:label="N "+str(len(items))+" news • WAIT"
             cards.append(ft.Container(
-                content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD),
+                content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD,
+                                text_align=ft.TextAlign.CENTER),
                 border=ft.border.all(1,color),border_radius=8,padding=5,
-                bgcolor=PANEL2))
+                bgcolor=PANEL2,expand=True))
         # Reserved sixth display slot: intentionally blank until a future
         # Time-Based Movement & Reversal filter is reviewed and implemented.
         # This is not a scoring engine, WAIT result, percentage or broker poll.
         cards.append(ft.Container(
-            content=ft.Text("6  —",size=10,color=MUTED,weight=ft.FontWeight.BOLD),
+            content=ft.Text("6  —",size=10,color=MUTED,weight=ft.FontWeight.BOLD,
+                            text_align=ft.TextAlign.CENTER),
             border=ft.border.all(1,BORDER),border_radius=8,padding=5,
-            bgcolor=PANEL2))
-        return ft.Row(cards,wrap=True,spacing=4,run_spacing=4)
+            bgcolor=PANEL2,expand=True))
+        # Explicit three-per-row layout avoids wrap-dependent clipping on
+        # narrow Android panels; all five states + inert sixth are mounted.
+        return ft.Column([
+            ft.Row(cards[:3],spacing=4),
+            ft.Row(cards[3:],spacing=4)
+        ],spacing=4)
 
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
