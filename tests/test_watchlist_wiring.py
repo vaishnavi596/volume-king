@@ -83,33 +83,34 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
     def test_dhan_connect_settings_displays_partial_count(self):
-        self.assertIn('" LTP • "+session_caption()+',self.source)
-        self.assertIn('(" • PARTIAL" if dhan_batch_issue[0] else "")',self.source)
+        self.assertIn('f"Dhan connected • {received}/{total_symbols} LTP • "',self.source)
         self.assertIn('connection_status.color=GOLD if dhan_batch_issue[0] else GREEN',self.source)
+        self.assertIn('f"Partial Clone B3 Dhan batch: {found}/{total} validated"',self.source)
 
     def test_dhan_connect_keeps_batch_in_new_scan_generation(self):
         # A provider switch creates the generation BEFORE the login snapshot.
         # A second generation bump after snapshot would incorrectly invalidate
         # the just-fetched data and cause a duplicate initial request.
-        login=self.source.split('async def connect_angel():',1)[1].split('    def clear_broker_credentials(',1)[0]
+        login=self.source.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
         switch=login.index('provider_changed(None)')
-        begin=login.index('login_bootstrap.begin(provider_generation[0]',switch)
-        batch=login.index('dhan_batch_cache.update(generation=provider_generation[0]',begin)
-        keep=login.index('dhan_batch_cache["generation"]=provider_generation[0]',batch)
-        self.assertLess(switch,begin)
-        self.assertLess(begin,batch)
-        self.assertLess(batch,keep)
-        self.assertNotIn('provider_generation[0]+=1',login[begin:keep])
+        batch=login.index('dhan_batch_cache.update(',switch)
+        finish=login.index('login_bootstrap.finish(provider_generation[0],"equities"',batch)
+        self.assertLess(switch,batch)
+        self.assertLess(batch,finish)
+        self.assertNotIn('provider_generation[0]+=1',login[switch:finish])
 
     def test_dhan_connect_fetches_watchlist_batch(self):
-        self.assertIn('batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())', self.source)
-        self.assertIn("log_error('dhan_batch_after_connect',exc)", self.source)
-        self.assertIn('failed_symbols.clear()', self.source)
+        login=self.source.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
+        self.assertIn('selected_equities=list(all_watch_symbols())',login)
+        self.assertIn('dhan_feed.paced_market_quotes,request_symbols',login)
+        self.assertIn('dhan_batch_issue[0]=(',login)
+        self.assertIn('watch_batch_status[0]=(',login)
 
     def test_batch_quote_health_is_not_overwritten_by_candle_failures(self):
         self.assertIn('batch_count=len(dhan_batch_cache["quotes"])', self.source)
         self.assertIn('historical candles unavailable', self.source)
-        self.assertIn('watchlist batch failed:', self.source)
+        self.assertIn('dhan_batch_issue[0]=safe_error(exc)',self.source)
+        self.assertIn('Selected Dhan equity',self.source)
 
     def test_oracle_assessment_poll_includes_selected_dynamic_equities(self):
         polling = ast.get_source_segment(self.source, self.functions["oracle_assessment_poll"])
@@ -134,7 +135,8 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("sym in group", ast.get_source_segment(
             self.source, self.functions["watch_symbol_owner"]))
         self.assertIn("verified_equity_symbol,sym", self.source)
-        self.assertIn("equity_quotes_for_watchlist,all_watch_symbols()", self.source)
+        self.assertIn('selected_equities=list(all_watch_symbols())',self.source)
+        self.assertIn('dhan_feed.paced_market_quotes,request_symbols',self.source)
 
     def test_dhan_super_five_ranking_uses_actual_saved_roster(self):
         # With five saved shares the Dhan ranking must not process the
@@ -181,9 +183,11 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn("requested_symbols=priority_equity_batch(",refresh)
         self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",0,0)',refresh)
         self.assertIn('Dhan equity fetch skipped',refresh)
-        login=self.source.split("    async def connect_angel():",1)[1].split("    def clear_broker_credentials(",1)[0]
-        self.assertIn('if not batch and all_watch_symbols():',login)
-        self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",received,expected)',login)
+        login=self.source.split("    async def check_clone_v2_connection():",1)[1].split("    def check_clone_v2_gateway(e):",1)[0]
+        self.assertIn('selected_equities=list(all_watch_symbols())',login)
+        self.assertIn('request_symbols=list(dict.fromkeys(',login)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",found,total)',login)
+        self.assertNotIn('equity_quotes_for_watchlist,all_watch_symbols()',login)
         self.assertIn('if expected==0:',login)
 
     def test_history_cache_reuse_must_cover_newly_selected_equities(self):
