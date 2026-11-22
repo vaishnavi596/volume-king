@@ -1487,7 +1487,7 @@ def app_main(page:ft.Page):
             # Market-closed is a session state, not an unresolved live fetch.
             # Preserve historical context, but label unavailable live boxes OFF.
             if not regular_hours() and "WAIT" in label:
-                label=label.replace("WAIT","OFF • market closed")
+                label=label.replace("WAIT","LIVE WAIT • market closed")
             cards.append(ft.Container(
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD,
                                 text_align=ft.TextAlign.CENTER),
@@ -1847,18 +1847,16 @@ def app_main(page:ft.Page):
         return vote_display(counts,False,timeframe="3m")
 
     def compact_five_engine_watch(symbol):
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
-            return note("5E WAIT • Dhan disconnected")
-        # The scanner already populated this cache; never poll Dhan from a row.
-        snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
-        if not snapshot:
-            return note("5E 5/5 configured • 0/5 verified • WAIT")
-        technical=snapshot["engines"][0].display()
-        coverage=snapshot["combined"]["coverage"]
-        if technical["state"]=="WAIT":
-            return ft.Text("5E 5/5 configured • verified "+str(coverage)+"/5 • WAIT",size=14,color=MUTED,tooltip=str(technical["reason"]))
-        return note("5E 5/5 configured • "+snapshot["combined"]["state"]+" • verified "+str(coverage)+
-                    "/5 • T B"+str(technical["bullish"])+"% / S"+str(technical["bearish"])+"%")
+        # Shared timeframe-aware display: Watchlist is 3m, never a 5m live snapshot.
+        # A disconnected provider must not erase last completed Dhan analysis.
+        if prefs.get("source")!="Dhan":
+            return note("5E WAIT • Dhan source required")
+        historical=watch_three_minute_signal(symbol)
+        counts=signal_percentages(historical) if historical.get("timeframe")=="3m" else None
+        if counts and counts[2]>0:
+            return note("5E HIST 3m • T B"+str(round(counts[0]))+"% / S"+
+                        str(round(counts[1]))+"% • LIVE 0/5 verified")
+        return note("5E HIST 3m unavailable • LIVE WAIT • 0/5 verified")
 
     watch_row_cells={}
     watch_status_text=ft.Text("",size=11,color=MUTED,max_lines=2,
