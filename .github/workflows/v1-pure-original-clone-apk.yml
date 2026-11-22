@@ -1,0 +1,256 @@
+name: BOT KING CLONE Adapter-Fixed Phone APK
+run-name: BOT KING V3 B199 Candle Quality + Index Doctor Phone Test • v2.3.199 (199)
+# B199 read-only raw candle-quality Doctor + index route classification; full regression before signing
+# Explicit-only release: never auto-sign from a workflow file change.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v1-pure-original-clone-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Validate B2 SSK and B3 Dhan two-way data contract before APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast, pathlib, tomllib
+          main=pathlib.Path("src/main.py").read_text()
+          client=pathlib.Path("src/clone_v2_gateway.py").read_text()
+          backend=pathlib.Path("backend/clone_v2_gateway.py").read_text()
+          for p in ("src/main.py","src/clone_v2_gateway.py","backend/clone_v2_gateway.py"):
+              ast.parse(pathlib.Path(p).read_text(),filename=p)
+          for marker in ("CloneV2Gateway", "Connect Clone V2 (SSK)", "Disconnect Clone V2", "CloneDhanReadOnly", "dhan_feed.activate_with_quote", "Check Clone B3 Dhan Quotes"):
+              assert marker in main, marker
+          for marker in ('/clone-v2/status', 'X-BotKing-Key', 'botking-clone-v2', '/clone-v2/market/quotes', '/clone-v2/market/'):
+              assert marker in client, marker
+          for marker in ('/clone-v2/status', '/clone-v2/health', '/clone-v2/market/quotes', '/clone-v2/market/candles', '/clone-v2/market/options/chain', 'live_orders_enabled'):
+              assert marker in backend, marker
+          p=tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          assert p["project"]["version"] == "2.3.199"
+          # Do not sign an APK that can re-enable legacy market requests.
+          assert 'V3 Dhan-only provider required' in main
+          assert 'Yahoo Finance transport disabled in V3' in main
+          assert 'Angel One login disabled in V3' in main
+          assert 'CloneDhanReadOnly(clone_v2_gateway)' in main
+          print("V3_B199_DHAN_ONLY_NETWORK_HARD_STOP=PASS")
+          print("CLONE_B3_SOURCE_CONTRACT=PASS")
+          PY
+          python3 -m pip install --disable-pip-version-check -q 'fastapi==0.115.12' 'httpx==0.28.1'
+          python3 -m unittest discover -s tests -p 'test_clone_v2_oracle_auth_b2.py' -v
+          python3 -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
+          python3 -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+          python3 -m unittest discover -s tests -p 'test_remaining_filter_batch.py' -v
+          bash -n ops/install_clone_v2_b3_oracle.sh
+          bash -n ops/provision_clone_dhan_oauth_env.sh
+          bash -n ops/provision_clone_from_existing_dhan_oauth.sh
+          bash -n ops/audit_v1_dhan_to_clone_handoff.sh
+          bash -n ops/cutover_clone_primary_existing_dhan.sh
+          test -s ops/clone_primary_legacy_dhan_callback_nginx.conf
+          grep -Fq 'location = /dhan/callback' ops/clone_primary_legacy_dhan_callback_nginx.conf
+          python3 - <<'PY'
+          import ast,pathlib
+          gateway=pathlib.Path("backend/clone_v2_gateway.py").read_text()
+          phone=pathlib.Path("src/clone_v2_gateway.py").read_text()
+          app=pathlib.Path("src/main.py").read_text()
+          installer=pathlib.Path("ops/install_clone_v2_b3_oracle.sh").read_text()
+          for path in ("backend/clone_v2_gateway.py","src/clone_v2_gateway.py","src/main.py"):
+              ast.parse(pathlib.Path(path).read_text(),filename=path)
+          assert "https://botkingrajesh.duckdns.org/dhan/callback" in gateway
+          assert '@app.get("/dhan/callback"' in gateway
+          for marker in ("NoBrokerRedirect", 'out.write(new_token+chr(10))',
+                         '/clone-v2/dhan/start','/clone-v2/dhan/callback',
+                         'BOTKING_CLONE_DHAN_CALLBACK_APPROVED'):
+              assert marker in gateway,marker
+          for marker in ("start_dhan_browser_login", "exc.code == 424"):
+              assert marker in phone, marker
+          assert "Authorize Dhan in Browser (Clone)" in app
+          for marker in ("B3_DHAN_BROWSER_REAUTH_REQUIRED=YES",
+                         'B3_ORACLE_GATEWAY=AUTH_REQUIRED',
+                         'EnvironmentFile=/etc/bot-king/clone-dhan-oauth.env'):
+              assert marker in installer, marker
+          print("CLONE_DHAN_BROWSER_LATEST_SECURITY_CONTRACT=PASS")
+          PY
+          python3 -m unittest discover -s tests -p 'test_clone_v2_dhan_browser_consent_b3.py' -v
+          python3 -m unittest discover -s tests -v
+          echo "CLONE_B3_FULL_OFFLINE_GATE=PASS"
+
+      - name: Require pinned permanent Android signing (fail closed)
+        env:
+          BOTKING_KEYSTORE_BASE64: ${{ secrets.BOTKING_KEYSTORE_BASE64 }}
+          BOTKING_KEYSTORE_PASSWORD: ${{ secrets.BOTKING_KEYSTORE_PASSWORD }}
+          BOTKING_KEY_PASSWORD: ${{ secrets.BOTKING_KEY_PASSWORD }}
+          BOTKING_KEY_ALIAS: ${{ secrets.BOTKING_KEY_ALIAS }}
+          BOTKING_SIGNING_SHA256: ${{ secrets.BOTKING_SIGNING_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for var in BOTKING_KEYSTORE_BASE64 BOTKING_KEYSTORE_PASSWORD BOTKING_KEY_PASSWORD BOTKING_KEY_ALIAS BOTKING_SIGNING_SHA256; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error::Missing protected permanent signer input $var; refusing a new/debug-signed APK."
+              exit 1
+            fi
+          done
+          umask 077
+          mkdir -p "$RUNNER_TEMP/v1-pure-sign"
+          printf '%s' "$BOTKING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/v1-pure-sign/clone.jks"
+          keytool -list -v -keystore "$RUNNER_TEMP/v1-pure-sign/clone.jks" -storepass "$BOTKING_KEYSTORE_PASSWORD" -alias "$BOTKING_KEY_ALIAS" > "$RUNNER_TEMP/v1-pure-sign/key-info"
+          ACTUAL="$(grep -m1 'SHA256:' "$RUNNER_TEMP/v1-pure-sign/key-info" | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED="$(printf '%s' "$BOTKING_SIGNING_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if [[ -z "$ACTUAL" || "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "::error::Signing keystore fingerprint mismatch. Release blocked."
+            exit 1
+          fi
+          echo "FLET_ANDROID_SIGNING_KEY_STORE=$RUNNER_TEMP/v1-pure-sign/clone.jks" >> "$GITHUB_ENV"
+          echo "FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD=$BOTKING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "FLET_ANDROID_SIGNING_KEY_ALIAS=$BOTKING_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "FLET_ANDROID_SIGNING_KEY_PASSWORD=$BOTKING_KEY_PASSWORD" >> "$GITHUB_ENV"
+          echo "Permanent signing fingerprint preflight PASS"
+      - name: Build separate Android identity with original full V1 application
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          printf "BUILD_VERSION = '2.3.199'\n" > src/_build_version.py
+          mkdir -p "$GITHUB_WORKSPACE/dist/v1-pure"
+          flet build apk --project bot_king_v1_pure_clone --org com.botking.sudhar1 --product "BOT KING V3 B199 TEST" --build-number 199 --build-version 2.3.199 --output "$GITHUB_WORKSPACE/dist/v1-pure" --verbose
+      - name: Inspect actual resulting signed Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v1-pure -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='199' versionName='2\\.3\\.199'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B199 TEST'"
+          "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v1-pure-sign/apk-info"
+          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v1-pure-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED="$(grep -m1 'SHA256:' "$RUNNER_TEMP/v1-pure-sign/key-info" | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if [[ -z "$ACTUAL" || "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "::error::Output APK is not signed by the pinned keystore (debug-signing fallback blocked)."
+            exit 1
+          fi
+          echo "Permanent APK signer SHA-256 MATCH=PASS"
+          sha256sum "$APK"
+      - name: Remove protected signer material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/v1-pure-sign"
+      - name: Upload B3 Dhan two-way clone phone-test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V3-B199-v2.3.199-APK
+          path: dist/v1-pure/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+# Phone-test build after B3 scanner options safety full gate 2026-11-20
+
+# SUDHAR 1 S1 staged diagnostic build 2026-11-21: full offline tests run before signing/build.
+# Do not treat artifact SUCCESS as Android phone acceptance; Help Doctor runtime pending.
+
+# SUDHAR 1 S1 corrected source 1438/1438 offline PASS: https://github.com/vaishnavi596/volume-king/actions/runs/44862631496
+# Keep S1 test APK side-by-side with installed Clone/V1 by using separate com.botking.sudhar1 package identity.
+
+# SUDHAR 1 S1 corrected two-contract tests verified by full regression run 44862631496 at 4483a4f; gated diagnostic APK build139, 2026-11-21.
+
+# 2026-11-21 B140 staged build after background Watchlist lifecycle source correction. Full offline gate inside build; no screen-off service guarantee.
+
+# 2026-11-21 B140 retry with corrected lifecycle guard and refreshed regression contract (full offline gate before signing).
+
+# B141 phone-diagnostic only: exact-symbol/expiry cached OI-PCR-MaxPain display repair; no verified live five-filter votes or background service yet.
+
+# Final B142 includes exact-provider-generation active-cache guard after B141 diagnostic.
+
+# B143 final phone diagnostic adds explicit read-only SENSEX quote/history probe; no extra market requests until user taps TEST.
+
+# B144 post-B142 regression repair with SENSEX phone-only controlled quote/candle diagnostic.
+
+# B145 last-good Dhan quote retention plus SENSEX full diagnostic; build only after all offline gate tests.
+
+# B146 exact-head SENSEX diagnostic plus candle-quote retention, corrected test contract; central scanner default 1m.
+
+# B147 installed 17 saved filters, 1m central default, refresh-first error-only end-to-end diagnostic and SENSEX source cache fix.
+
+# B148 final updated test contract for 17/18 saved indicators and explicit refresh-first compact errors.
+
+# B149 full offline gate then signed APK, with all 18 slots, 1m defaults, error-only refresh-gated diagnosis.
+
+# B150 signed phone APK after B150 exact-head 1501-test full regression PASS run 44892201231; safe SENSEX unverified quote-cache guard.
+
+# V3 release rule: each later APK increments project version, Android versionCode, label, artifact and verification assertions together.
+
+# B158 uniquely versioned APK after 1513-test full regression success 44896777343; correct 1m→3m→Watchlist wiring.
+
+# B161 Phone-Test combined safety: all offline 3-track tests must pass before aapt and signer checks.
+
+# B178 17 filter + five engine cache-only Doctor phone build: removed old SENSEX-only tool; full offline tests gate before signing.
+
+# B178 release gate retry: project metadata now matches APK 2.3.178; previous run failed only version assertion before testing.
+
+# B178 consolidated retry: 8 legacy offline assertions reconciled to removed old SENSEX probe and deployed IDX_I registry; full gate remains mandatory.
+
+# B178 final parity fixture repair: retain IDX_I 13, 25, 51 in one broker mock response. Full gate retained.
+
+# B179: fix B178 filter Doctor NameError from out-of-scope stock_histories; full regression and signed APK required.
+
+# B180 signed phone test includes second-level filter and five-box source/blocker diagnostics; mandatory full offline gate.
+
+# B181 full gate: cache → filter analysis → five-engine adapter → dashboard UI input trace; signed standalone phone APK.
+
+# B182 full offline gated phone APK: contextual OI readiness and exact timeframe HIST T/C evidence, no fabricated live percentages.
+
+# B183: read-only raw evidence age / per-engine gate and persistent index route failure audit; mandatory full gate.
+
+# B184 strong per-point index FeedError classification and candle-body diagnostics; full regression APK gate.
+
+# B185: nine-segment master diagnostic unifies Watchlist 54/70, Super Five, Scanner, Chart, Gateway and error paths; full offline gate.
+
+# B186 master root-cause to code path to proposed solution, plus Android lifecycle gap segment; native background service not implemented.
+
+# B187: consolidate Watchlist signal cache reuse; index request diagnostic correlation and candle QA; full offline regression-gated APK.
+
+# B187 gate retry after exact two stale assertion repairs; see docs/V3_MASTER_JOURNAL.md.
+
+# B188 unique full regression gated APK after effective 3m Master Doctor fix; see docs/V3_MASTER_JOURNAL.md.
+
+# B189 full regression gated signed APK for indexed source context and local 3m timing.
+
+# B190 unique signed APK, full offline regression gate after single Dhan Max Pain label migration.
+
+# B191 full regression gate: single Dhan Max Pain across UI, filter catalog and five-engine adapter.
+
+# B192 new combined phone APK source includes mounted 3m signal timing and single Dhan Max Pain.
+
+# B193 full offline regression then signed APK: unified adapter Doctor, Paper PnL and Chart Signals.
+
+# B194 regression-gated signed APK with Paper/Live (locked) single selector.
+
+# B195 exact Dhan-only persisted source migration, full regression before signed phone APK.
+
+# B197 gated signed test: requires 1534+ full offline tests and retains V1/Oracle isolation.
+# B198: combine index error-classification and read-only raw OHLCV/volume/doji/age Doctor diagnostics; full offline gate before signing.
