@@ -5591,6 +5591,11 @@ def app_main(page:ft.Page):
         prefs["scanner_added_filters"]=list(dict.fromkeys(
             "Dhan Max Pain" if name=="Max Pain" else name
             for name in prefs["scanner_added_filters"]))
+    # Commit canonical names once, so a restart/backup cannot resurrect a
+    # second legacy Max Pain slot. Do not alter other selected filters.
+    if any(isinstance(prefs.get(key),list) and "Max Pain" in prefs[key]
+           for key in ("scanner_filters","scanner_added_filters")):
+        raise AssertionError("Legacy Max Pain must be normalized before rendering")
     MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
     # New installs begin with 17 active slots; the 18th remains available.
     # Existing saved choices (including intentional removals) are preserved.

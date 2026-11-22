@@ -122,6 +122,15 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('live_verified=False,freshness="historical_unverified"',scan)
         self.assertIn('if hist.get("cached") or not regular_hours():',scan)
 
+    def test_plain_max_pain_is_not_an_independent_filter(self):
+        from scanner_engine import ALL_FILTERS, OPTION_FILTERS
+        self.assertIn("Dhan Max Pain",OPTION_FILTERS)
+        self.assertEqual(ALL_FILTERS.count("Dhan Max Pain"),1)
+        self.assertNotIn("Max Pain",ALL_FILTERS)
+        body=ast.get_source_segment(source,functions["scan_market"])
+        self.assertIn("enrich_context_filter_rows",body)
+        self.assertIn('market_store.put("analysis_last_good"',body)
+
     def test_manual_run_scan_keeps_explicit_network_option(self):
         manual=ast.get_source_segment(source,functions["run_scan"])
         self.assertIn("page.run_task(scan_market)",manual)
