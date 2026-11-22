@@ -83,7 +83,8 @@ class DhanIndexRefreshRegression(unittest.TestCase):
         self.assertIn('and dhan_feed.connected and not index_refresh_busy[0]):', index_source)
         self.assertIn('await refresh_dhan_index_quotes()', index_source)
         self.assertNotIn('await refresh_watch_batch()', index_source)
-        self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60', source)
+        self.assertIn('poll_due=auto_equity_quote_due(',source)
+        self.assertIn('max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])',source)
 
     def test_invalid_index_quote_retains_last_valid_price_but_downgrades_freshness(self):
         fn = next(node for node in ast.walk(self.tree)

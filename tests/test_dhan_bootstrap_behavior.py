@@ -93,7 +93,10 @@ class BootstrapBehaviorTests(unittest.TestCase):
         index=SRC.split("    async def dhan_index_poll():",1)[1].split("    page.run_task(dhan_index_poll)",1)[0]
         self.assertIn('app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"',poll)
         self.assertIn('app_active[0] and refresh_hours() and prefs.get("source")=="Dhan"',index)
-        self.assertIn('>=60',poll)
+        self.assertIn('poll_due=auto_equity_quote_due(',poll)
+        self.assertIn('max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])',poll)
+        policy=(ROOT/'src'/'clone_smart_refresh_priority.py').read_text(encoding='utf-8')
+        self.assertIn('floor_seconds=60',policy)
         self.assertIn('remaining=dhan_feed.cooldown_remaining("/v2/snapshot")',poll)
         self.assertIn('closed_equity_bootstrap_generation[0]=provider_generation[0]',poll)
 

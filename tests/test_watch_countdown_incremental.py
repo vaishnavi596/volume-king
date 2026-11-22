@@ -27,7 +27,8 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
         poll=source.split("    async def dhan_quote_poll():",1)[1].split("    # The Watchlist observes",1)[0]
         render=source.split("    def render_page(i):",1)[1].split("    # Keep the app chrome inside Android system insets",1)[0]
-        self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60",poll)
+        self.assertIn("poll_due=auto_equity_quote_due(",poll)
+        self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])",poll)
         self.assertNotIn("quote_auto_last_attempt[0]=time.monotonic()",poll)
         self.assertIn("time.monotonic()-watch_batch_last_attempt[0]>=60",render)
         self.assertIn('dhan_feed.cooldown_remaining("/v2/snapshot")==0',render)
