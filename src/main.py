@@ -7711,6 +7711,7 @@ console.log('BOT KING Lightweight Charts ready');
 
     async def refresh_market():
         nonlocal market_status
+        from clone_smart_refresh_priority import accept_newer_dhan_quote
         initial=True
         last_scanned_generation=None
         closed_session_retry_generation=None
@@ -7783,7 +7784,10 @@ console.log('BOT KING Lightweight Charts ready');
                             # snapshot data is not evidence of a new live quote.
                             # Keep verified Dhan quotes distinct from stale/cross-provider data.
                             for ticker, snapshot in batch.items():
-                                if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]):
+                                # Historical preflight cannot overwrite a newer LTP.
+                                # Reuse the login/regular batch source-timestamp gate.
+                                if (ticker in all_watch_symbols() and
+                                        accept_newer_dhan_quote(quotes.get(ticker),snapshot)):
                                     previous = quotes.get(ticker) or {}
                                     quotes[ticker] = dict(snapshot, change=None,
                                         bars=previous.get("bars", []) if previous.get("source") == "Dhan" else [],

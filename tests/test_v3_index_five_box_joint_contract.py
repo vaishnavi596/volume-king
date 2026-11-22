@@ -59,7 +59,10 @@ class IndexFiveBoxJointContract(unittest.TestCase):
         chips=body("five_engine_chips")
         # Dashboard defaults to 1m; Watchlist/Scanner pass their own frame.
         # Historical votes remain context, never verified live evidence.
-        self.assertIn('shared_history(sym,display_timeframe or "1m")',chips)
+        self.assertIn('if not historical and display_timeframe=="1m":',chips)
+        self.assertIn('shared_history(sym,"1m")',chips)
+        self.assertIn('if not historical and display_timeframe=="3m":',chips)
+        self.assertIn('three=watch_three_minute_signal(sym)',chips)
         self.assertIn('historical_vote_agreement(',chips)
         self.assertIn('display_timeframe is None or raw.get("timeframe")==display_timeframe',chips)
         self.assertIn('display_timeframe is None or display_timeframe=="5m"',chips)
