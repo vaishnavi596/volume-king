@@ -257,6 +257,28 @@ def historical_candle_balance(bars, *, sample_size=8):
             "historical": True, "verified": False, "count": directional}
 
 
+def measured_directional_evidence(name, component, *, required_basis):
+    """Accept only measured, authenticated Dhan directional percentages.
+
+    Context such as OI, PCR, headline counts and inferred build-up never votes.
+    """
+    if not isinstance(component, dict):
+        return EngineEvidence(name, reason="Measured Dhan directional evidence unavailable")
+    if (component.get("source") != "Dhan" or component.get("verified") is not True
+            or component.get("direction_basis") != required_basis
+            or not isinstance(component.get("contract"), str)
+            or not component["contract"].strip()):
+        return EngineEvidence(name, reason="Verified Dhan directional provenance unavailable")
+    bull, bear = component.get("bullish"), component.get("bearish")
+    timestamp = component.get("timestamp")
+    if (type(bull) is not int or type(bear) is not int or
+            not 0 <= bull <= 100 or bull + bear != 100 or
+            type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0):
+        return EngineEvidence(name, reason="Measured directional strength or timestamp unavailable")
+    return EngineEvidence(name, bull, bear, verified=True, timestamp=timestamp,
+                          source="Dhan", reason="Measured authenticated Dhan directional strength")
+
+
 def option_from_component(component):
     """Adapt authenticated directional option flow; OI/volume alone never votes.
 
@@ -275,8 +297,8 @@ def option_from_component(component):
     timestamp = component.get("timestamp")
     if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
         return EngineEvidence("options", reason="Option flow timestamp unavailable")
-    # A binary direction is not a measured percentage. Leave strength unavailable.
-    return EngineEvidence("options", reason="Validated direction lacks measured bullish/bearish strength")
+    return measured_directional_evidence(
+        "options", component, required_basis="validated_trade_flow")
 
 
 def news_from_headline_cues(cues):
@@ -309,7 +331,8 @@ def futures_from_component(component):
         return EngineEvidence("futures", reason="Futures timestamp unavailable")
     if component.get("direction_basis") != "validated_trade_flow":
         return EngineEvidence("futures", reason="Futures OI/price build-up is inferred, not validated directional flow")
-    return EngineEvidence("futures", reason="Validated futures flow lacks measured directional strength")
+    return measured_directional_evidence(
+        "futures", component, required_basis="validated_trade_flow")
 
 
 def deduplicate_news_context(headlines, *, symbol, now, max_age_seconds=600):
