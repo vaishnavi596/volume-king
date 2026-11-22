@@ -110,7 +110,7 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('batch_count=len(dhan_batch_cache["quotes"])', self.source)
         self.assertIn('historical candles unavailable', self.source)
         self.assertIn('dhan_batch_issue[0]=safe_error(exc)',self.source)
-        self.assertIn('Selected Dhan equity',self.source)
+        self.assertIn('Dhan batch failed:',self.source)
 
     def test_oracle_assessment_poll_includes_selected_dynamic_equities(self):
         polling = ast.get_source_segment(self.source, self.functions["oracle_assessment_poll"])
