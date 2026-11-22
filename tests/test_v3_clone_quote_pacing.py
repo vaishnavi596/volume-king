@@ -40,10 +40,23 @@ class CloneQuotePacingTests(unittest.TestCase):
         feed = CloneDhanReadOnly(gateway)
         with self.assertRaisesRegex(FeedError,"paced"):
             feed.index_batch_quotes()
-        self.assertGreater(feed.cooldown_remaining("/dhan/index-ltp-batch"), 25)
+        # Gateway-only pacing is a 2s backoff, not an imagined 30s broker ban.
+        self.assertGreater(feed.cooldown_remaining("/dhan/index-ltp-batch"), 1)
+        self.assertLessEqual(feed.cooldown_remaining("/dhan/index-ltp-batch"), 2.1)
         with self.assertRaisesRegex(FeedError,"cooldown active"):
             feed._fetch(["RELIANCE"])
         self.assertEqual(len(gateway.calls), 1)
+
+    def test_true_provider_quota_keeps_30s_cooldown(self):
+        gateway = OfflineGateway()
+        gateway.raise_paced = True
+        def provider_429(_):
+            raise FeedError("Clone Dhan provider rate limit; retry later")
+        gateway.market_quotes = provider_429
+        feed = CloneDhanReadOnly(gateway)
+        with self.assertRaisesRegex(FeedError, "provider rate limit"):
+            feed.index_batch_quotes()
+        self.assertGreater(feed.cooldown_remaining("/dhan/index-ltp-batch"), 25)
 
     def test_unverified_quotes_preserve_dhan_source(self):
         gateway = OfflineGateway()
