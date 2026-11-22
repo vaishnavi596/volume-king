@@ -684,6 +684,8 @@ def app_main(page:ft.Page):
                             and candle_result.get("normalized_transport_integrity")=="SHA256_MATCH" else
                             "DERIVED_FROM_TRANSPORT_UNVERIFIED" if interval in ("2m","3m","10m","30m")
                             else candle_result.get("normalized_transport_integrity","NOT_PROVIDED")),
+                        "candle_raw_provider_provenance":"UNVERIFIED",
+                        "candle_transport_digest_scope":"NORMALIZED_GATEWAY_TO_PHONE_ONLY",
                         "fetched_at":time.time(),
                         "freshness":"unverified" if quote else "historical_unverified",
                         "live_verified":False,
