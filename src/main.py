@@ -7810,8 +7810,13 @@ console.log('BOT KING Lightweight Charts ready');
                             if not app_active[0] or generation!=provider_generation[0]:
                                 return False
                             if generation==provider_generation[0]:
-                                failed_symbols[sym]=safe_error(exc)
-                                remember_candle_failure(sym,"5m","candle fetch",exc)
+                                # asyncio.wait_for timeout is local to the phone scan;
+                                # it does not prove a Dhan HTTP failure.
+                                timed_out=isinstance(exc,asyncio.TimeoutError)
+                                failed_symbols[sym]=("Phone scanner candle wait exceeded 25s; gateway HTTP unknown"
+                                                     if timed_out else safe_error(exc))
+                                remember_candle_failure(sym,"5m",
+                                    "phone scanner candle timeout (25s)" if timed_out else "candle fetch",exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
                                 scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
