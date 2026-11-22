@@ -1361,11 +1361,12 @@ def app_main(page:ft.Page):
                 log_error("super_five_minute_refresh",exc)
                 if current[0]==0:
                     request_view_refresh(0)
-    def five_engine_summary(symbol):
+    def five_engine_summary(symbol, display_timeframe=None):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
-        snapshot=snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
+        snapshot=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
+                  if display_timeframe is None or display_timeframe=="5m" else None)
         if not snapshot:
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
@@ -1402,7 +1403,7 @@ def app_main(page:ft.Page):
             pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
         combined=snapshot["combined"]
         # Dashboard indexes use 1m; never read legacy 5m for their C engine.
-        candle_tf=("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m")
+        candle_tf=(display_timeframe or ("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
         candle_history=shared_history(symbol,candle_tf)
         if candle_history.get("source")=="Dhan":
             balance=historical_candle_balance(candle_history.get("bars"))
@@ -6792,7 +6793,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY")],spacing=5))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)],spacing=5))),
             wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
