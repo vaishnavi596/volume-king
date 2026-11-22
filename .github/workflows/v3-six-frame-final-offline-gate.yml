@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install shared full-app regression dependencies
+        run: python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0' 'httpx==0.28.1'
       - name: Compile current phone source and complete grouped Timeframe segment
         run: |
           python -m py_compile src/main.py src/scanner_engine.py src/v3_live_capacity_probe.py src/v3_stock_diagnostics.py src/v3_max_feature_audit.py src/v3_building_doctor.py src/dhan_multi_timeframe.py
@@ -29,8 +31,6 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_clone_b1_*.py' -v
       - name: Run Adapter context regression
         run: python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
-      - name: Install shared full-app regression dependencies
-        run: python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0' 'httpx==0.28.1'
       - name: Run ALL 1476+ repository regression tests before next Android signing
         run: python -m unittest discover -s tests -v
       - name: Record single release gate
