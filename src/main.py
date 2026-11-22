@@ -3177,6 +3177,12 @@ def app_main(page:ft.Page):
             # RELIANCE/HDFCBANK/indices; a later selection cannot borrow the
             # prior underlying\x27s CE/PE prices or OI.
             dhan_option_context_cache[(generation,sym,chosen)]=dict(data)
+            # Persist only genuine Dhan context for historical display after
+            # app restart; never persist broker credentials or a trading vote.
+            if (data.get("source")=="dhan" and data.get("symbol")==sym
+                    and data.get("expiry")==chosen and
+                    data.get("signal_eligible") is False):
+                market_store.put("option_context_last_good",("Dhan",sym,chosen),dict(data))
             while len(dhan_option_context_cache)>16:
                 del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
             option_feed.clear()  # Do not show legacy Angel One contract rows.
@@ -6303,6 +6309,15 @@ console.log('BOT KING Lightweight Charts ready');
                     and data.get("source")=="dhan"
                     and data.get("signal_eligible") is False):
                 return data
+        # A restart clears the in-memory cache; use only the exact selected
+        # listed expiry, never an unrelated or expired contract's metrics.
+        listed=expiry.value if sym==chain_symbol.value else None
+        if isinstance(listed,str) and listed:
+            saved=market_store.get("option_context_last_good","Dhan",sym,listed) or {}
+            if (saved.get("source")=="dhan" and saved.get("symbol")==sym
+                    and saved.get("expiry")==listed and
+                    saved.get("signal_eligible") is False):
+                return dict(saved,historical=True,live_verified=False)
         return {}
 
     def enrich_context_filter_rows(sym,rows):
