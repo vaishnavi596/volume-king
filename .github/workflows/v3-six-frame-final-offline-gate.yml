@@ -48,3 +48,5 @@ jobs:
 # 2026-11-22: Verify scanner per-symbol Doctor failure detail wiring after b7633e1; one pre-APK gate.
 
 # 2026-11-22 combined batch b831d81: one full offline regression before any APK build; WIPRO 5m diagnostic + NIFTY OHLCV quality trace.
+
+# 2026-11-22 one combined validation for fail-closed scanner recovery 5f2dcd5; no APK or broker requests.
