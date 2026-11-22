@@ -4453,6 +4453,8 @@ def app_main(page:ft.Page):
                     "candle_timeframe":tf,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "candle_transport_integrity":str(history.get("candle_transport_integrity","NOT_PROVIDED")) if isinstance(history,dict) else "NOT_PROVIDED",
+                    "candle_raw_provider_provenance":str(history.get("candle_raw_provider_provenance","UNVERIFIED")) if isinstance(history,dict) else "UNVERIFIED",
+                    "candle_transport_digest_scope":str(history.get("candle_transport_digest_scope","NORMALIZED_GATEWAY_TO_PHONE_ONLY")) if isinstance(history,dict) else "NOT_PROVIDED",
                     "last_eight_candle_ohlc_diagnostics":None,
                     "history_present":bool(bars),
                     "history_shape_valid":bool(bars and valid_candle_history(bars)),
