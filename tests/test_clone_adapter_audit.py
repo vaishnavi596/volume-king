@@ -66,11 +66,13 @@ class CloneAdapterAudit(unittest.TestCase):
                and n.name=="_fetch"]
         self.assertEqual(len(nodes),1)
         source=ast.get_source_segment(CLIENT,nodes[0])
-        self.assertIn('time.monotonic() + 30',source)
+        # Real Dhan provider 429 retains 30s; gateway-only 2s pacing must
+        # not be mislabeled as a 30s provider quota ban.
+        self.assertIn('cooldown_seconds = 2 if "quote lane paced" in str(exc) else 30',source)
+        self.assertIn('time.monotonic() + cooldown_seconds',source)
         self.assertIn('"/dhan/selected-ltp-batch"',source)
         self.assertIn('"/dhan/index-ltp-batch"',source)
         self.assertIn('max(self._cooldowns.get(route, 0.0), until)',source)
-        self.assertNotIn('time.monotonic() + 2',source)
 
     def test_gateway_provider_errors_keep_throttle_and_auth_distinct(self):
         gateway_tree=ast.parse(GATEWAY)
