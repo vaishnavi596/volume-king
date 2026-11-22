@@ -68,7 +68,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/v3-b199-preview-sign"
           PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$PASS"
-          printf '%s' "$PASS" > "$RUNNER_TEMP/v3-b199-preview-sign/password"
+          printf '%s\\n' "$PASS" > "$RUNNER_TEMP/v3-b199-preview-sign/password"
           keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-b199-preview-sign/preview.jks" -storetype PKCS12 -alias b199_preview -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V3 B199 ISOLATED PREVIEW" -storepass "$PASS" -keypass "$PASS"
       - name: Build full app with separate preview package
         shell: bash
