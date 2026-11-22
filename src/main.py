@@ -6305,6 +6305,7 @@ console.log('BOT KING Lightweight Charts ready');
             return active
         for (gen,underlying,listed),data in reversed(list(dhan_option_context_cache.items())):
             if (gen==generation and underlying==sym and isinstance(data,dict)
+                    and (sym!=chain_symbol.value or listed==expiry.value)
                     and data.get("symbol")==sym and data.get("expiry")==listed
                     and data.get("source")=="dhan"
                     and data.get("signal_eligible") is False):

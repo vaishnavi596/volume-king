@@ -137,6 +137,7 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         enrich=ast.get_source_segment(source,functions["enrich_context_filter_rows"])
         self.assertIn('data.get("symbol")==sym',match)
         self.assertIn('data.get("expiry")==listed',match)
+        self.assertIn('sym!=chain_symbol.value or listed==expiry.value',match)
         self.assertIn('data.get("source")=="dhan"',match)
         self.assertIn('data.get("signal_eligible") is False',match)
         self.assertIn('row["vote"]=None',enrich)
