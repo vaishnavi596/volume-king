@@ -8349,7 +8349,16 @@ console.log('BOT KING Lightweight Charts ready');
                 watch_login_bootstrap_generation[0]=generation
                 watch_login_bootstrap_attempts[0]+=1
                 watch_login_bootstrap_retry_after[0]=time.monotonic()+180
-                selected=list(dict.fromkeys(sym for group in watch_groups
+                # Prioritize the Watchlist currently on screen without changing
+                # the global <=70 roster, Dhan pacing, or historical safety.
+                # All remaining lists are still visited once in their old order.
+                visible_group=(active_watch[0] if
+                    isinstance(active_watch[0],int) and
+                    0<=active_watch[0]<len(watch_groups) else 0)
+                ordered_groups=([watch_groups[visible_group]]+
+                    [group for i,group in enumerate(watch_groups)
+                     if i!=visible_group]) if watch_groups else []
+                selected=list(dict.fromkeys(sym for group in ordered_groups
                     for sym in group if sym in DHAN_VERIFIED_SYMBOLS
                     and sym not in ("NIFTY","BANKNIFTY","SENSEX")))[:70]
                 total=len(selected)
