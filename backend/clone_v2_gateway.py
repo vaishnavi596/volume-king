@@ -133,9 +133,9 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     candle_cache_max_entries = 100
 
     def market_diagnostic(route, symbol, stage, category):
-        """Fixed-enum, index-only observations: never emit untrusted content."""
+        """Fixed-enum diagnostics for mapped symbols; no payloads or credentials."""
         if (route not in ("quotes", "candles", "option_expiries", "option_chain")
-                or symbol not in ("NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY")
+                or symbol not in option_known
                 or stage not in ("provider", "shape", "mapping", "validation", "cooldown")
                 or category not in ("missing_segment", "missing_security_id",
                                     "invalid_price", "invalid_shape", "invalid_bars",
