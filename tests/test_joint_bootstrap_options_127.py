@@ -8,12 +8,14 @@ def segment(a,b):
 
 class JointSessionRepairTests(unittest.TestCase):
     def test_login_starts_options_even_after_market_close(self):
-        body=segment("    async def connect_angel():","    def provider_changed(")
+        body=segment("    async def check_clone_v2_connection():","    def check_clone_v2_gateway(e):")
         self.assertIn('page.run_task(refresh_selected_options)',body)
         start=body.index("page.run_task(refresh_selected_options)")
         self.assertIn('dhan_feed.connected',body[start-230:start])
         self.assertNotIn('regular_hours()',body[start-230:start])
-        self.assertIn("page.run_task(refresh_dhan_index_quotes,True)",body)
+        # The initial combined Dhan batch already owns index readiness.
+        self.assertNotIn("page.run_task(refresh_dhan_index_quotes,True)",body)
+        self.assertIn("index_last_attempt[0]=time.monotonic()",body)
 
     def test_closed_market_cached_top_five_requires_no_provider_call(self):
         body=segment("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
@@ -51,7 +53,7 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn("await asyncio.sleep(0.5)",news)
         self.assertNotIn("dhan_feed.option_chain_metrics",news)
         self.assertNotIn("dhan_feed.batch_quotes",news)
-        login=segment("    async def connect_angel():","    def provider_changed(")
+        login=segment("    async def check_clone_v2_connection():","    def check_clone_v2_gateway(e):")
         self.assertIn("page.run_task(refresh_superfive_news)",login)
         rss=segment("    def fetch_news(symbol,global_news=False):","    def headline_signal(items):")
         self.assertIn("response.read(262_145)",rss)
@@ -94,11 +96,11 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn('selected_batch_issue[0]=safe_error(exc)[:120]',main)
         self.assertIn('selected equities unavailable: ',main)
         self.assertIn('login_bootstrap.finish(generation,"equities"',main)
-        login=segment('    async def connect_angel():','    def provider_changed(')
-        self.assertIn("log_error('dhan_batch_after_connect',exc)",login)
-        self.assertIn('selected_batch_issue[0]=safe_error(exc)[:120]',login)
-        self.assertIn('selected equities unavailable: ',login)
-        self.assertIn('dhan_batch_issue[0]',login)
+        login=segment('    async def check_clone_v2_connection():','    def check_clone_v2_gateway(e):')
+        self.assertIn('dhan_batch_issue[0]=(',login)
+        self.assertIn('f"Partial Clone B3 Dhan batch: {found}/{total} validated"',login)
+        self.assertIn('watch_batch_status[0]=(',login)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",found,total)',login)
 
     def test_no_live_orders_and_paper_center_retained(self):
         self.assertIn("content.append(paper_trading_center())",SRC)
