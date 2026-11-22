@@ -82,10 +82,11 @@ class DirectEquityBootstrapTests(unittest.TestCase):
 
     def test_app_login_and_regular_poll_share_same_bounded_method(self):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
-        self.assertEqual(source.count(
-            "await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())"),1)
+        login=source.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
+        self.assertIn("dhan_feed.paced_market_quotes,request_symbols",login)
         self.assertIn("dhan_feed.equity_quotes_for_watchlist,requested_symbols",source)
         self.assertIn("priority_equity_batch(",source)
+        self.assertIn("watch_batch_last_attempt[0]=time.monotonic()",login)
         self.assertNotIn("await asyncio.to_thread(dhan_feed.batch_quotes)",source)
 
 if __name__=="__main__":
