@@ -1974,7 +1974,7 @@ def app_main(page:ft.Page):
             watch_batch_status[0]="Dhan reconnect required in Settings"
             request_view_refresh(4)
             return
-        from clone_smart_refresh_priority import priority_equity_batch, accept_newer_dhan_quote
+        from clone_smart_refresh_priority import priority_equity_batch, accept_newer_dhan_quote, safe_quote_batch_for_cache
         positions=(prefs.get("paper_positions") or {})
         active_paper=[sym for sym,p in positions.items()
                       if isinstance(p,dict) and p.get("side") in ("BUY","SELL")]
@@ -2007,8 +2007,9 @@ def app_main(page:ft.Page):
                 raise FeedError("Empty Dhan batch response")
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
+            accepted_batch=safe_quote_batch_for_cache(batch,quotes,requested_symbols)
             with dhan_batch_lock:
-                dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=batch)
+                dhan_batch_cache.update(generation=generation,updated=time.monotonic(),quotes=accepted_batch)
             # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
             # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
@@ -7711,7 +7712,7 @@ console.log('BOT KING Lightweight Charts ready');
 
     async def refresh_market():
         nonlocal market_status
-        from clone_smart_refresh_priority import accept_newer_dhan_quote
+        from clone_smart_refresh_priority import accept_newer_dhan_quote, safe_quote_batch_for_cache
         initial=True
         last_scanned_generation=None
         closed_session_retry_generation=None
@@ -7776,9 +7777,10 @@ console.log('BOT KING Lightweight Charts ready');
                             await asyncio.wait_for(asyncio.to_thread(
                                 dhan_feed.equity_quotes_for_watchlist,selected_equities),timeout=20))
                         if generation==provider_generation[0] and prefs.get("source")=="Dhan":
+                            accepted_batch=safe_quote_batch_for_cache(batch,quotes,selected_equities)
                             with dhan_batch_lock:
                                 dhan_batch_cache.update(generation=generation,
-                                                        updated=time.monotonic(),quotes=batch)
+                                                        updated=time.monotonic(),quotes=accepted_batch)
                             # Watchlist LTP must not depend on historical candle success.
                             # Retain last valid prices for missing symbols; partial
                             # snapshot data is not evidence of a new live quote.

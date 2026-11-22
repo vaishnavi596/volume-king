@@ -13,7 +13,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from clone_smart_refresh_priority import (
     priority_equity_batch, auto_equity_quote_due, active_quote_view,
-    accept_newer_dhan_quote,
+    accept_newer_dhan_quote, safe_quote_batch_for_cache,
 )
 from scanner_engine import ALL_FILTERS, OPTION_FILTERS
 from filter_wiring_audit import filter_wiring_matrix
@@ -55,6 +55,20 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
             {"source":"Dhan","price":101,"quote_timestamp":1800000120}))
         for invalid in (True,0,-1,None,math.nan,math.inf):
             self.assertFalse(accept_newer_dhan_quote({},{"source":"Dhan","price":invalid}))
+
+    def test_fresh_batch_cache_excludes_old_invalid_and_wrong_source(self):
+        previous={"NIFTY":{"source":"Dhan","price":100,"quote_timestamp":1800000100},
+                  "RELIANCE":{"source":"Dhan","price":200,"quote_timestamp":1800000200}}
+        batch={"NIFTY":{"source":"Dhan","price":99,"quote_timestamp":1800000090},
+               "RELIANCE":{"source":"Dhan","price":201,"quote_timestamp":1800000210},
+               "TCS":{"source":"Dhan","price":90},
+               "INFY":{"source":"Dhan","price":float("nan")},
+               "YAHOO":{"source":"Yahoo Finance","price":250}}
+        result=safe_quote_batch_for_cache(batch,previous,("NIFTY","RELIANCE","TCS","INFY","YAHOO"))
+        self.assertEqual(set(result),{"RELIANCE","TCS"})
+        self.assertEqual(result["RELIANCE"]["price"],201)
+        self.assertEqual(previous["NIFTY"]["price"],100)
+        self.assertEqual(safe_quote_batch_for_cache({},previous,previous),{})
 
     def test_market_close_hist_then_open_requires_new_verified_candle(self):
         base={"source":"Dhan","bias":"BULLISH","timestamp":1800000000,

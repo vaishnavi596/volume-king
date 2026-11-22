@@ -92,3 +92,18 @@ def accept_newer_dhan_quote(previous, incoming):
     old_ok=type(old_ts) in (int,float) and isfinite(old_ts) and old_ts>0
     new_ok=type(new_ts) in (int,float) and isfinite(new_ts) and new_ts>0
     return not (old_ok and (not new_ok or new_ts<old_ts))
+
+
+def safe_quote_batch_for_cache(batch, saved_quotes, allowed_symbols):
+    """Cache only genuinely accepted Dhan quote revisions for this request.
+
+    Rejected/stale/mismatched quotes remain in the display last-good cache,
+    not the fresh batch. Missing quotes must not masquerade as this poll's
+    coverage or become a newly verified LIVE price.
+    """
+    if not isinstance(batch,dict) or not isinstance(saved_quotes,dict):
+        return {}
+    allowed=set(allowed_symbols)
+    return {symbol:dict(row) for symbol,row in batch.items()
+            if symbol in allowed and
+            accept_newer_dhan_quote(saved_quotes.get(symbol),row)}
