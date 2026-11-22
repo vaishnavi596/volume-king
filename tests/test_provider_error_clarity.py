@@ -11,10 +11,11 @@ class ProviderErrorClarityTests(unittest.TestCase):
         start = source.index("    def fetch_market_data_uncached(")
         end = source.index("    def ", start + 5)
         body = source[start:end]
-        self.assertIn('if selected=="Broker API":', body)
-        self.assertIn('Unsupported market data provider:', body)
-        self.assertIn('select Dhan in Settings', body)
-        self.assertNotIn('Broker API not connected; select Yahoo Finance', body)
+        self.assertIn('if selected!="Dhan":',body)
+        self.assertIn('V3 Dhan-only provider required',body)
+        self.assertIn('Dhan-only market result unavailable',body)
+        self.assertNotIn('Broker API not connected',body)
+        self.assertNotIn('select Yahoo Finance',body)
 
 
 if __name__ == "__main__":
