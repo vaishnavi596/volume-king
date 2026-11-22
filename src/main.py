@@ -4996,10 +4996,16 @@ def app_main(page:ft.Page):
                      "diagnosed_timeframe":tf,
                      "note":"Cache/adapter trace only; rendered Flutter pixels not measured"}
                 ]
-                errors=[row for row in filter_rows if row["status"] in ("WAIT","ERROR")]
-                errors.extend({"box":row["box"],"status":"WAIT","stage":row["stage"],
-                               "detail":row["reason"]} for row in engines
-                              if row["status"]=="WAIT")
+                # WAIT means missing/unverified evidence, NOT a runtime error.
+                # Avoid five phantom "errors" when the source engine is unwired.
+                errors=[row for row in filter_rows if row["status"]=="ERROR"]
+                unavailable_evidence=[
+                    {"filter":row.get("filter"),"status":"WAIT","stage":row.get("stage")}
+                    for row in filter_rows if row["status"]=="WAIT"]
+                unavailable_evidence.extend(
+                    {"box":row["box"],"status":"WAIT","stage":row["stage"],
+                     "detail":row["reason"]} for row in engines
+                    if row["status"]=="WAIT")
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5010,6 +5016,7 @@ def app_main(page:ft.Page):
                     "stage_context":diagnostic_context,
                     "cache_to_display_trace":pipeline_trace,
                     "errors_only":errors,
+                    "unavailable_evidence":unavailable_evidence,
                     "index_route_diagnostic":{
                         "last_failure":str(display_failures.get("dhan_index_ltp_batch") or "none")[:180],
                         "failure_code":index_failure_code[0],
