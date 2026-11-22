@@ -108,10 +108,14 @@ class CloneV2Gateway:
                 self.disconnect()
                 raise FeedError("Clone SSK authorization expired") from None
             if exc.code == 429:
-                raise FeedError("Clone Dhan rate limit; retry later") from None
+                raise FeedError("Clone Dhan rate limit; retry later (HTTP 429)") from None
             raise FeedError("Clone market " + route + " HTTP " + str(exc.code)) from None
-        except (OSError, URLError, TimeoutError, ValueError, UnicodeError):
-            raise FeedError("Clone Dhan " + route + " unavailable") from None
+        except (TimeoutError,):
+            raise FeedError("Clone Dhan " + route + " transport timeout") from None
+        except (ValueError, UnicodeError):
+            raise FeedError("Clone Dhan " + route + " invalid response encoding or JSON") from None
+        except (OSError, URLError):
+            raise FeedError("Clone Dhan " + route + " transport unavailable") from None
         if (not isinstance(output, dict) or output.get("live_orders_enabled") is not False):
             raise FeedError("Unsafe Clone Dhan response")
         return output
