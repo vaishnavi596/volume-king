@@ -8,6 +8,7 @@ on:
       - .github/workflows/v3-b196-regression-preflight.yml
       - tests/test_v3_visible_watchlist_bootstrap_priority.py
       - tests/test_v3_watchlist_5_34_70_capacity.py
+      - tests/test_v3_watchlist_quote_elapsed_diagnostic.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -45,6 +46,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
           python -m unittest discover -s tests -p 'test_v3_visible_watchlist_bootstrap_priority.py' -v
           python -m unittest discover -s tests -p 'test_v3_watchlist_5_34_70_capacity.py' -v
+          python -m unittest discover -s tests -p 'test_v3_watchlist_quote_elapsed_diagnostic.py' -v
           python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
           python -m unittest discover -s tests -p 'test_v3_legacy_provider_quarantine.py' -v
           python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
