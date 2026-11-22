@@ -50,8 +50,14 @@ def audit_features(*, news_cache, option_metrics, assessment_cache,
               option_metrics.get("freshness")=="unverified" and
               option_metrics.get("signal_eligible") is False)
     if not matching:
+        # A same-symbol/expiry cache may exist but fail provenance requirements.
+        # Report that accurately instead of calling the chain entirely missing.
+        scoped=(isinstance(option_metrics,dict) and
+                option_metrics.get("symbol")==selected_symbol and
+                option_metrics.get("expiry")==selected_expiry)
+        code="OPTION_CHAIN_PROVENANCE_UNVERIFIED" if scoped else "OPTION_CHAIN_CONTEXT_MISSING"
         for feature in ("pcr","max_pain","oi_support","oi_resistance"):
-            emit(feature,"UNAVAILABLE","OPTION_CHAIN_CONTEXT_MISSING",
+            emit(feature,"UNVERIFIED" if scoped else "UNAVAILABLE",code,
                  {"symbol":str(selected_symbol)[:30],"expiry":str(selected_expiry)[:16],
                   "directional_vote":False})
     else:
