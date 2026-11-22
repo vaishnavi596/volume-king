@@ -11,10 +11,11 @@ class ExplicitProviderSelectionTests(unittest.TestCase):
         start = source.index("    def fetch_market_data_uncached(")
         end = source.index("    def ", start + 5)
         body = source[start:end]
-        self.assertIn('elif selected=="Broker API" and angel_feed.connected:', body)
-        self.assertNotIn('elif angel_feed.connected:', body)
-        self.assertIn('elif selected=="Dhan":', body)
-        self.assertIn('if selected=="Yahoo Finance":', body)
+        self.assertIn('if selected!="Dhan":', body)
+        self.assertIn('if selected=="Dhan":', body)
+        self.assertNotIn('angel_feed.history(', body)
+        self.assertNotIn('if selected=="Yahoo Finance":', body)
+        self.assertNotIn('elif selected=="Broker API"', body)
 
 
 if __name__ == "__main__":
