@@ -9,6 +9,7 @@ on:
       - backend/clone_v2_gateway.py
       - src/clone_v2_gateway.py
       - tests/test_clone_adapter_audit.py
+      - tests/test_clone_b3_market_diagnostics.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,6 +25,8 @@ jobs:
       - name: Compile adapters
         run: |
           python -m py_compile src/main.py src/clone_v2_gateway.py backend/clone_v2_gateway.py tests/test_clone_adapter_audit.py
+      - name: Validate mapped equity diagnostic contract
+        run: python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
       - name: Validate guarded Clone-only diagnostic updater syntax
         run: bash -n ops/update_clone_b3_gateway_diagnostics_20261121.sh
       - name: Validate guarded Clone candle cache updater syntax
