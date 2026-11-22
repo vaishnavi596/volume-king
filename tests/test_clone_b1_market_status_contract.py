@@ -25,7 +25,9 @@ class CloneB1StatusContract(unittest.TestCase):
 
     def test_price_status_uses_shared_session_caption(self):
         self.assertIn('f"Dhan connected • {received}/{total_symbols} LTP • "', self.source)
-        self.assertIn('" LTP • "+session_caption()+', self.source)
+        # The old Angel/V1 login callback was retired. The active Dhan
+        # batch status still uses the shared closed/stale session caption.
+        self.assertIn('+ session_caption())', self.source)
 
     def test_chart_timeframe_selector_matches_derivation(self):
         self.assertIn('["1m","2m","3m","5m","10m","15m","30m","1h"]', self.source)
