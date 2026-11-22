@@ -6788,7 +6788,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value),five_engine_summary(scan_symbol.value or "NIFTY")],spacing=5))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY")],spacing=5))),
             wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
