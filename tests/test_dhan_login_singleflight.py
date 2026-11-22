@@ -1,70 +1,52 @@
-"""Dhan login must not start overlapping read-only bootstrap requests.
+"""Dhan-only Clone SSK login must serialize quote bootstrap and release locks.
 
-Source-level regression deliberately avoids invoking a broker or credentials.
+AST checks on real current V3 login. No broker network or credentials.
 """
 import ast
-import pathlib
+from pathlib import Path
 import unittest
 
-TREE = ast.parse((pathlib.Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8"))
-
-
-def subscript_assignment(node, value):
-    if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant) or node.value.value is not value:
-        return False
-    return any(isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
-               and t.value.id == "broker_connect_busy" and isinstance(t.slice, ast.Constant)
-               and t.slice.value == 0 for t in node.targets)
+TREE = ast.parse((Path(__file__).resolve().parents[1]/"src/main.py").read_text())
 
 
 class DhanLoginSingleflightTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        methods = [n for n in ast.walk(TREE) if isinstance(n, ast.AsyncFunctionDef)
-                   and n.name == "connect_angel"]
-        assert len(methods) == 1, "Expected exactly one login function"
-        cls.method = methods[0]
-        cls.dhan_branch = next(n for n in cls.method.body
-                               if isinstance(n, ast.If)
-                               and ast.unparse(n.test) == "broker.value != 'Angel One'")
+        def method(name):
+            found=[n for n in ast.walk(TREE)
+                   if isinstance(n,ast.AsyncFunctionDef) and n.name==name]
+            assert len(found)==1, name
+            return found[0]
+        cls.legacy=method("connect_angel")
+        cls.clone=method("check_clone_v2_connection")
 
-    def test_dhan_reserves_busy_before_any_network_await(self):
-        # This legacy function is permanently fail-closed in V3; the actual
-        # Clone V2 SSK login owns the singleflight connection contract.
-        self.assertIsInstance(self.method.body[3], ast.Return)
-        self.assertFalse(any(isinstance(node, ast.Await)
-                             for node in self.method.body[:4]))
-        clone = next(n for n in ast.walk(TREE) if isinstance(n, ast.AsyncFunctionDef)
-                     and n.name == "check_clone_v2_connection")
-        branch = clone.body
-        busy_checks = [n for n in branch if isinstance(n, ast.If)
-                       and "clone_v2_connect_busy[0]" in ast.unparse(n.test)
-                       and "broker_connect_busy[0]" in ast.unparse(n.test)]
-        self.assertTrue(busy_checks)
-        set_busy = [n for n in branch if isinstance(n, ast.Assign)
-                    and any(isinstance(t, ast.Subscript) and
-                            ast.unparse(t) == "clone_v2_connect_busy[0]"
-                            for t in n.targets) and
-                    isinstance(n.value, ast.Constant) and n.value.value is True]
-        self.assertEqual(len(set_busy), 1)
-        awaits = [n for n in ast.walk(clone) if isinstance(n, ast.Await)]
-        self.assertTrue(awaits)
-        self.assertLess(set_busy[0].lineno, min(n.lineno for n in awaits))
-        finally_clear = [n for n in ast.walk(clone) if isinstance(n, ast.Assign)
-                         and any(isinstance(t, ast.Subscript) and
-                                 ast.unparse(t) == "clone_v2_connect_busy[0]"
-                                 for t in n.targets) and
-                         isinstance(n.value, ast.Constant) and n.value.value is False]
-        self.assertTrue(finally_clear)
+    def test_legacy_login_is_inert_and_clone_reserves_busy_before_await(self):
+        self.assertFalse(any(isinstance(n,ast.Await) for n in ast.walk(self.legacy)))
+        body=ast.unparse(self.clone)
+        self.assertIn("clone_v2_connect_busy[0] or broker_connect_busy[0]",body)
+        self.assertIn("clone_v2_connect_busy[0] = True",body)
+        self.assertIn("await asyncio.to_thread(clone_v2_gateway.connect",body)
+        self.assertIn("dhan_feed.paced_market_quotes",body)
+        assignment=next(n for n in ast.walk(self.clone)
+                        if isinstance(n,ast.Assign)
+                        and any(ast.unparse(t)=="clone_v2_connect_busy[0]"
+                                for t in n.targets)
+                        and isinstance(n.value,ast.Constant) and n.value.value is True)
+        awaited=[n.lineno for n in ast.walk(self.clone)
+                 if isinstance(n,ast.Await)]
+        self.assertLess(assignment.lineno,min(awaited))
 
-    def test_dhan_always_releases_busy_even_on_network_failure(self):
-        tries = [n for n in self.dhan_branch.body if isinstance(n, ast.Try)]
-        release = [n for t in tries for n in t.finalbody
-                   if subscript_assignment(n, False)]
-        self.assertEqual(len(release), 1)
-        self.assertTrue(any(n for n in tries if release[0] in n.finalbody
-                            and any(isinstance(x, ast.Await) for x in ast.walk(n))))
+    def test_clone_always_releases_busy_even_after_network_exception(self):
+        clone=self.clone
+        finalblocks=[n.finalbody for n in ast.walk(clone)
+                     if isinstance(n,ast.Try) and n.finalbody]
+        self.assertTrue(any(any(
+            isinstance(n,ast.Assign) and
+            any(ast.unparse(t)=="clone_v2_connect_busy[0]" for t in n.targets)
+            and isinstance(n.value,ast.Constant) and n.value.value is False
+            for n in block) for block in finalblocks))
+        self.assertIn("server_access.value = ''",ast.unparse(clone).replace('""',"''"))
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     unittest.main()
