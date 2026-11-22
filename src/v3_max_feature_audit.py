@@ -93,7 +93,7 @@ def audit_features(*, news_cache, option_metrics, assessment_cache,
             emit("assessment_"+key,"UNAVAILABLE","ASSESSMENT_EVIDENCE_NOT_AVAILABLE",
                  {"timeframe":scanner_timeframe,"directional_vote":False})
     emit("analysis_filter_settings","CONFIGURED","SELECTED_FILTERS_NOT_ALL_LIVE",
-         {"selected_count":len(active_filters),"selected_names":[str(x)[:45] for x in active_filters[:15]],
+         {"selected_count":len(active_filters),"selected_names":[str(x)[:45] for x in active_filters],
           "scanner_candle_filters_only":True})
     report["issue_count"]=len(report["issues"])
     report["all_features_live_ready"]=False
