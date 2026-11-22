@@ -1,5 +1,5 @@
 name: BOT KING V3 Joint Adapter End-to-End Source Check (No APK)
-run-name: V3 Adapter → Cache → Doctor Focused Final Check • NO APK
+run-name: V3 Legacy Removal Active Clone SSK Bootstrap Targeted Contracts • NO APK
 on:
   push:
     branches:
@@ -31,4 +31,22 @@ jobs:
           python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
           python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
           python -m unittest discover -s tests -p 'test_candle_retention.py' -v
-          echo V3_FOCUSED_ADAPTER_END_TO_END_GATE=PASS
+          python -m unittest discover -s tests -p 'test_127_b_direct_equity_bootstrap.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_activation.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_bootstrap_behavior.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_index_poll_rate_guard.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_login_singleflight.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_market_default.py' -v
+          python -m unittest discover -s tests -p 'test_dhan_source_context.py' -v
+          python -m unittest discover -s tests -p 'test_explicit_provider_selection.py' -v
+          python -m unittest discover -s tests -p 'test_joint_bootstrap_options_127.py' -v
+          python -m unittest discover -s tests -p 'test_option_history_ingress.py' -v
+          python -m unittest discover -s tests -p 'test_provider_error_clarity.py' -v
+          python -m unittest discover -s tests -p 'test_watch_countdown_incremental.py' -v
+          python -m unittest discover -s tests -p 'test_watchlist_partial_snapshot.py' -v
+          python -m unittest discover -s tests -p 'test_watchlist_wiring.py' -v
+          python -m unittest discover -s tests -p 'test_v3_legacy_provider_quarantine.py' -v
+          python -m unittest discover -s tests -p 'test_clone_b1_market_status_contract.py' -v
+          python -m unittest discover -s tests -p 'test_market_feed.py' -v
+          python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
+          echo V3_RETIRED_PROVIDER_CLONE_BOOTSTRAP_TARGETED_GATE=PASS
