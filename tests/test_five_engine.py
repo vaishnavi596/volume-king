@@ -566,9 +566,9 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('wrap_delta_section("scanner_five"', source)
-        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value)', source)
+        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
         self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY")', source)
-        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
+        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
 
     def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
         from pathlib import Path
@@ -593,4 +593,4 @@ class FiveEngineTimeframeIsolationContract(unittest.TestCase):
     def test_scanner_chips_request_selected_timeframe(self):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
-        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value)', source)
+        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
