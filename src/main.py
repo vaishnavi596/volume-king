@@ -1364,6 +1364,18 @@ def app_main(page:ft.Page):
                     request_view_refresh(0)
     def five_engine_summary(symbol, display_timeframe=None):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):
+                # A disconnected Dhan session must not erase exact-frame
+                # last-completed technical history or promote it to LIVE.
+                offline_history=shared_history(symbol,display_timeframe)
+                offline_votes=(historical_vote_agreement(offline_history,"1m")
+                               if display_timeframe=="1m" else
+                               signal_percentages(watch_three_minute_signal(symbol)))
+                if offline_votes and offline_votes[2]>0:
+                    return note("5 engines • OFFLINE • Technical HIST "+
+                                display_timeframe+" B"+str(round(offline_votes[0]))+
+                                "% / S"+str(round(offline_votes[1]))+
+                                "% • LIVE 0/5 verified • N/F/O WAIT")
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())

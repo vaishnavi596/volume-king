@@ -122,6 +122,17 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertIn("0/5 LIVE verified",summary)
         self.assertNotIn('get_market_data(',summary)
 
+    def test_disconnected_dhan_summary_keeps_historical_technical_only(self):
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
+        self.assertIn('if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):',summary)
+        self.assertIn("offline_history=shared_history(symbol,display_timeframe)",summary)
+        self.assertIn('historical_vote_agreement(offline_history,"1m")',summary)
+        self.assertIn("signal_percentages(watch_three_minute_signal(symbol))",summary)
+        self.assertIn('"5 engines • OFFLINE • Technical HIST "',summary)
+        self.assertIn('"% • LIVE 0/5 verified • N/F/O WAIT"',summary)
+        self.assertNotIn('get_market_data(',summary)
+
     def test_selected_18_filters_same_registry_but_missing_independent_vote(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(OPTION_FILTERS),4)
