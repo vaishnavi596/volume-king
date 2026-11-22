@@ -52,6 +52,19 @@ class AssessmentMetricDisplayTests(unittest.TestCase):
         self.assertIn("server producer not configured",
                       assessment_lines("NIFTY", cache, now=110)[0])
 
+    def test_closed_market_expiry_is_explained_without_live_claim(self):
+        cache = cached_assessment("pcr", 1.25)
+        closed = assessment_lines("NIFTY", cache, now=500, market_open=False)
+        self.assertIn("market closed", closed[0])
+        self.assertIn("expired", closed[0])
+        self.assertIn("WAIT", closed[0])
+        opened = assessment_lines("NIFTY", cache, now=500, market_open=True)
+        self.assertIn("cached assessment expired", opened[0])
+        self.assertNotIn("market closed", opened[0])
+        fresh = assessment_lines("NIFTY", cache, now=110, market_open=False)
+        self.assertIn("PCR: 1.250", fresh)
+        self.assertNotIn("market closed", fresh[0])
+
     def test_stale_and_unsafe_payloads_wait(self):
         cache = cached_assessment("pcr", 1.25)
         self.assertIn("WAIT", assessment_lines("NIFTY", cache, now=500)[0])
