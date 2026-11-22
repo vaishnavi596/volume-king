@@ -1541,7 +1541,7 @@ def app_main(page:ft.Page):
             direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
                        else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"]),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"]),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1623,7 +1623,7 @@ def app_main(page:ft.Page):
                 rows.append(note("1m candle votes WAIT • select 1m Scanner chart or await shared 1m history"))
             else:
                 try:
-                    rows.append(five_engine_chips(sym))
+                    rows.append(five_engine_chips(sym,display_timeframe="1m"))
                     rows.append(dashboard_mini_candles(sym,candle_data))
                     agreement=historical_vote_agreement(candle_data,"1m")
                     rows.append(historical_vote_bar(agreement,"1m"))
@@ -1660,7 +1660,7 @@ def app_main(page:ft.Page):
                 content=ft.Column([ft.Row([ft.Container(content=txt(index_name,16,WHITE,True),expand=True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True)]),
                     note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
-                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),five_engine_chips(index_name),index_signal_row],
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),five_engine_chips(index_name,display_timeframe="1m"),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
         return ft.Column(index_cards,spacing=5)
@@ -6326,7 +6326,7 @@ console.log('BOT KING Lightweight Charts ready');
             note(result["display_state"]+" • refresh does not verify exchange time"),
             note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
             note(result.get("reason","Awaiting data")),
-            five_engine_chips(sym),
+            five_engine_chips(sym,display_timeframe=tf),
             vote_display(signal_percentages(result),result.get("display_state")=="LIVE",tf),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
                    else "NEUTRAL" if row.get("vote")==0 else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
@@ -6981,7 +6981,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
                 txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),
                 note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),
-                note(basis),five_engine_chips(sym),vote_display(signal_percentages(advanced),False,interval),*lines,
+                note(basis),five_engine_chips(sym,display_timeframe=interval),vote_display(signal_percentages(advanced),False,interval),*lines,
                 note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
             ],spacing=5))]
             scan_filter_ready[0]=True
