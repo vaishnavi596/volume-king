@@ -681,6 +681,7 @@ def app_main(page:ft.Page):
                 # requests when the batch cache expires during scanning.
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
+                        "candle_transport_integrity":candle_result.get("normalized_transport_integrity","NOT_PROVIDED"),
                         "fetched_at":time.time(),
                         "freshness":"unverified" if quote else "historical_unverified",
                         "live_verified":False,
@@ -4778,6 +4779,7 @@ def app_main(page:ft.Page):
                     "candle_count":candle_count,
                     "candle_timeframe":tf,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
+                    "candle_transport_integrity":str(history.get("candle_transport_integrity","NOT_PROVIDED")) if isinstance(history,dict) else "NOT_PROVIDED",
                     "last_eight_candle_ohlc_diagnostics":None,
                     "history_present":bool(bars),
                     "history_shape_valid":bool(bars and valid_candle_history(bars)),
