@@ -109,6 +109,17 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertEqual(env["scan_shared"]["direction"],"WAIT")
         self.assertEqual(calls,[])
 
+    def test_last_session_analysis_is_separate_from_live_wait(self):
+        scan=ast.get_source_segment(source,functions["scan_market"])
+        self.assertIn('market_store.put("analysis_last_good",("Dhan",sym,interval),historical)',scan)
+        self.assertIn('market_store.get("analysis_last_good","Dhan",sym,interval)',scan)
+        self.assertIn('historical=analyze(bars,selected=active_analysis_filters(),timeframe=interval)',scan)
+        self.assertIn('historical.get("count",0)>=30',scan)
+        self.assertIn('shown_analysis=(historical if history_valid',scan)
+        self.assertIn('LAST SESSION HIST',scan)
+        self.assertIn('live_verified=False,freshness="historical_unverified"',scan)
+        self.assertIn('if hist.get("cached") or not regular_hours():',scan)
+
     def test_manual_run_scan_keeps_explicit_network_option(self):
         manual=ast.get_source_segment(source,functions["run_scan"])
         self.assertIn("page.run_task(scan_market)",manual)

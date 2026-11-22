@@ -6981,16 +6981,44 @@ console.log('BOT KING Lightweight Charts ready');
             advanced=analyze_current(bars,filter_selected,interval)
             record_analysis(sym,interval,result=advanced,candle_count=len(bars))
             scan_last_candle[0]=advanced.get("timestamp")
-            if hist.get("cached"):
-                advanced.update(bias="WAIT",score=0,reason=advanced["reason"]+" • Saved data only: refresh failed; no new live signal")
+            # Keep the actual completed-candle calculation distinct from live
+            # eligibility. A closed market does not erase Friday's analysis.
+            historical=analyze(bars,selected=active_analysis_filters(),timeframe=interval)
+            history_valid=(hist.get("source")=="Dhan" and
+                           valid_candle_history(bars) and
+                           historical.get("timestamp")==bars[-1][0] and
+                           historical.get("count",0)>=30)
+            if history_valid:
+                historical=dict(historical,source="Dhan",historical=True,
+                                live_verified=False,freshness="historical_unverified",
+                                symbol=sym,timeframe=interval)
+                market_store.put("analysis_last_good",("Dhan",sym,interval),historical)
+            elif hist.get("cached"):
+                previous=market_store.get("analysis_last_good","Dhan",sym,interval) or {}
+                if (previous.get("source")=="Dhan" and
+                        previous.get("symbol")==sym and previous.get("timeframe")==interval and
+                        previous.get("historical") is True and
+                        previous.get("live_verified") is False and
+                        isinstance(previous.get("votes"),list)):
+                    historical=previous
+                    history_valid=True
+            if hist.get("cached") or not regular_hours():
+                advanced=dict(advanced,bias="WAIT",score=0,
+                              reason=advanced["reason"]+" • No new verified live signal")
             direction=advanced["bias"]
             basis=advanced["reason"]
+            if history_valid and (hist.get("cached") or not regular_hours()):
+                basis+=" • LAST SESSION HIST "+datetime.fromtimestamp(
+                    historical["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")+
+                    " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)"
             # Publish candle results before RSS requests so missing/slow news cannot hide them.
             scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
-            report_rows=enrich_context_filter_rows(sym,complete_filter_rows(advanced,filter_selected,filter_modes))
+            shown_analysis=(historical if history_valid and
+                            (hist.get("cached") or not regular_hours()) else advanced)
+            report_rows=enrich_context_filter_rows(sym,complete_filter_rows(shown_analysis,filter_selected,filter_modes))
             lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
                        GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]
             # Show filter-by-filter votes as soon as candle analysis completes.
