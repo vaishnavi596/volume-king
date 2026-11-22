@@ -358,6 +358,20 @@ class CloneDhanReadOnly:
                 not isinstance(response.get("bars"), list) or
                 response.get("freshness") not in ("historical_unverified", "no_candles_available")):
             raise FeedError("Clone candle response not verified")
+        # An optional digest from the updated Clone Gateway verifies that
+        # normalized OHLCV arrived unchanged. Old deployments without this
+        # field remain supported, but transport parity stays unverified.
+        import hashlib
+        digest=response.get("normalized_bars_sha256")
+        if digest is not None:
+            expected=hashlib.sha256(json.dumps(
+                response["bars"], separators=(",",":"), allow_nan=False
+            ).encode("utf-8")).hexdigest()
+            if type(digest) is not str or digest != expected:
+                raise FeedError("Clone candle normalized transport digest mismatch")
+            response["normalized_transport_integrity"]="SHA256_MATCH"
+        else:
+            response["normalized_transport_integrity"]="NOT_PROVIDED"
         return response
 
     def assessment(self, symbol, *, timeframe=None, expiry=None):
