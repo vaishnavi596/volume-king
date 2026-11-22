@@ -63,11 +63,24 @@ class TestMaximumFeatureAudit(unittest.TestCase):
         rows=[{"id":id,"status":"unavailable"} for id in
             ("oi_support","oi_resistance","max_pain","pcr","candle_trend")]
         rows[-1]["status"]="available"
-        a={(2,"NIFTY","1m",None):{"assessment_filters":rows},
-           (1,"NIFTY","3m",None):{"assessment_filters":[{"id":"pcr","status":"available"}]}}
+        payload={"symbol":"NIFTY","source":"dhan","freshness":"unverified",
+                 "signal_eligible":False,"live_orders_enabled":False,
+                 "bullish_score":None,"bearish_score":None,
+                 "assessment_filters":rows}
+        a={(2,"NIFTY","1m","2026-11-23"):
+              {"timeframe":"1m","expiry":"2026-11-23","data":payload},
+           (2,"NIFTY","1m","2026-11-30"):
+              {"timeframe":"1m","expiry":"2026-11-30","data":dict(payload,
+                assessment_filters=[{"id":"pcr","status":"available"}])}}
         x=run(assess=a)["features"]
         self.assertEqual(x["assessment_candle_trend"]["state"],"AVAILABLE_CONTEXT")
         self.assertEqual(x["assessment_pcr"]["code"],"ASSESSMENT_EVIDENCE_NOT_AVAILABLE")
+        wrong={(2,"NIFTY","1m","2026-11-30"):a[(2,"NIFTY","1m","2026-11-30")]}
+        self.assertEqual(run(assess=wrong)["features"]["assessment_pcr"]["state"],"UNAVAILABLE")
+        unsafe=dict(payload,signal_eligible=True)
+        self.assertEqual(run(assess={(2,"NIFTY","1m","2026-11-23"):
+              {"timeframe":"1m","expiry":"2026-11-23","data":unsafe}})
+              ["features"]["assessment_candle_trend"]["state"],"UNAVAILABLE")
 
     def test_doctor_lists_all_seventeen_selected_filters(self):
         chosen=["filter_"+str(i) for i in range(17)]
