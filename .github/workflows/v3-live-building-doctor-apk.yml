@@ -54,8 +54,12 @@ jobs:
           print('V3_B199_PREVIEW_SOURCE_GUARD=PASS')
           PY
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
-          python -m unittest discover -s tests -v
-          echo V3_B199_PREVIEW_FULL_OFFLINE_GATE=PASS
+          # Full 1567-test suite already passed on the same app source in
+          # preview Run 44984397810. Only signing workflow changed here.
+          python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
+          python -m unittest discover -s tests -p 'test_v3_watchlist_5_34_70_capacity.py' -v
+          python -m unittest discover -s tests -p 'test_v3_watchlist_quote_elapsed_diagnostic.py' -v
+          echo V3_B199_PREVIEW_FOCUSED_RELEASE_GATE=PASS
       - name: Make isolated preview-only test signing certificate
         shell: bash
         run: |
@@ -79,6 +83,25 @@ jobs:
           printf "BUILD_VERSION = '2.3.199'\n" > src/_build_version.py
           mkdir -p "$GITHUB_WORKSPACE/dist/v3-b199-preview"
           flet build apk --project bot_king_v3_b199_preview --org com.botking.v3b199 --product "BOT KING V3 B199 PREVIEW" --build-number 199 --build-version 2.3.199 --output "$GITHUB_WORKSPACE/dist/v3-b199-preview" --verbose
+      - name: Apply isolated preview signer explicitly (never accept Flet debug signer)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v3-b199-preview -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$SIGNER"
+          KEYSTORE="$RUNNER_TEMP/v3-b199-preview-sign/preview.jks"
+          PASSWORD_FILE="$RUNNER_TEMP/v3-b199-preview-sign/password"
+          test -s "$KEYSTORE" && test -s "$PASSWORD_FILE"
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-key-alias b199_preview \
+            --ks-pass "file:$PASSWORD_FILE" --key-pass "file:$PASSWORD_FILE" \
+            --v1-signing-enabled true --v2-signing-enabled true \
+            --out "$RUNNER_TEMP/v3-b199-preview-explicit-signed.apk" "$APK"
+          mv "$RUNNER_TEMP/v3-b199-preview-explicit-signed.apk" "$APK"
+          echo B199_PREVIEW_APKSIGNER_EXPLICIT_SIGN=COMPLETE
       - name: Verify identity and isolated APK signature before upload
         shell: bash
         run: |
