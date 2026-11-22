@@ -7,6 +7,11 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/clone-b3-full-regression.yml
+      - src/**
+      - backend/**
+      - tests/**
+      - ops/**
+      - pyproject.toml
   workflow_dispatch:
 permissions:
   contents: read
