@@ -31,6 +31,32 @@ class FiveEngineTests(unittest.TestCase):
         self.assertFalse(option_from_component(dict(valid,available=True,bias="BULLISH",
                                                     bullish=None)).eligible)
 
+    def test_independent_five_adapter_fusion_respects_three_engine_quorum(self):
+        from five_engine import compose_verified_adapter_snapshot
+        scan={"votes":[{"name":"EMA 9/21","vote":1},
+                       {"name":"RSI 14","vote":1},
+                       {"name":"MACD","vote":1}],
+              "source":"Dhan","timestamp":1234567890,
+              "freshness":"verified_live","historical":False,"live_verified":True}
+        candle=EngineEvidence("candle",80,20,verified=True,
+                              timestamp=1234567890,source="Dhan")
+        news=EngineEvidence("news",75,25,verified=True,
+                            timestamp=1234567890,source="Dhan")
+        incomplete=compose_verified_adapter_snapshot(scan,candle=candle,
+                                                       now=1234567900)
+        self.assertEqual(incomplete["combined"]["coverage"],2)
+        self.assertEqual(incomplete["combined"]["state"],"WAIT")
+        complete=compose_verified_adapter_snapshot(scan,candle=candle,news=news,
+                                                     now=1234567900)
+        self.assertEqual(complete["combined"]["coverage"],3)
+        self.assertEqual(complete["combined"]["state"],"BULLISH")
+        self.assertFalse(complete["engines"][3].eligible)
+        self.assertFalse(complete["engines"][4].eligible)
+        stale=compose_verified_adapter_snapshot(scan,candle=candle,news=news,
+                                                 now=1234569000)
+        self.assertEqual(stale["combined"]["coverage"],0)
+        self.assertEqual(stale["combined"]["state"],"WAIT")
+
     def test_missing_is_not_zero_or_bearish(self):
         missing=evidence("options")
         self.assertEqual(missing.display()["state"],"WAIT")
