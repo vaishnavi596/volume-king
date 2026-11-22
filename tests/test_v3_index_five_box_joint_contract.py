@@ -56,7 +56,14 @@ class IndexFiveBoxJointContract(unittest.TestCase):
     def test_scanner_context_is_not_a_directional_signal(self):
         self.assertIn('row["vote"]=None',body("enrich_context_filter_rows"))
         self.assertIn('name in OPTION_FILTERS',body("enrich_context_filter_rows"))
-        self.assertIn('shared_history(sym,"1m")',body("five_engine_chips"))
+        chips=body("five_engine_chips")
+        # Dashboard defaults to 1m; Watchlist/Scanner pass their own frame.
+        # Historical votes remain context, never verified live evidence.
+        self.assertIn('shared_history(sym,display_timeframe or "1m")',chips)
+        self.assertIn('historical_vote_agreement(',chips)
+        self.assertIn('display_timeframe is None or raw.get("timeframe")==display_timeframe',chips)
+        self.assertIn('display_timeframe is None or display_timeframe=="5m"',chips)
+        self.assertIn('candle_history=shared_history(sym,candle_tf)',chips)
         self.assertIn('historical=True',body("five_engine_chips"))
 
 if __name__=="__main__":
