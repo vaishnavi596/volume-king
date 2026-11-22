@@ -38,8 +38,8 @@ class IndexPollRateGuard(unittest.TestCase):
         self.assertIn("watch_batch_success_generation[0]!=provider_generation[0]",self.source)
         self.assertIn("if received==total_symbols:",self.source)
         self.assertIn("watch_batch_success_generation[0]=generation",self.source)
-        self.assertIn("login_equity_complete=",self.source)
-        self.assertIn("if login_equity_complete:",self.source)
+        self.assertIn("watch_batch_success_generation[0]=provider_generation[0]",self.source)
+        self.assertIn("quote_auto_last_attempt[0]=watch_batch_last_attempt[0]",self.source)
         self.assertNotIn("and not any(isinstance(quotes.get(sym),dict)",self.source)
 
         self.assertIn("closed_equity_bootstrap_generation[0]!=provider_generation[0]",self.source)
