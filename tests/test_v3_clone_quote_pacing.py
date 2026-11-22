@@ -34,6 +34,24 @@ class CloneQuotePacingTests(unittest.TestCase):
         self.assertEqual(len(gateway.calls), 2)
         self.assertGreaterEqual(gateway.calls[1][1] - gateway.calls[0][1], 1.05)
 
+    def test_ssk_login_quote_proof_uses_same_paced_lane_as_indices(self):
+        gateway=OfflineGateway()
+        feed=CloneDhanReadOnly(gateway)
+        first=feed.paced_market_quotes(["NIFTY","BANKNIFTY","SENSEX","RELIANCE"])
+        second=feed.index_batch_quotes()
+        self.assertEqual(len(first),4)
+        self.assertEqual(len(second),3)
+        self.assertEqual(len(gateway.calls),2)
+        self.assertGreaterEqual(gateway.calls[1][1]-gateway.calls[0][1],1.05)
+
+    def test_ssk_login_proof_rejects_disconnected_gateway(self):
+        gateway=OfflineGateway()
+        gateway.connected=False
+        feed=CloneDhanReadOnly(gateway)
+        with self.assertRaisesRegex(FeedError,"SSK connection required"):
+            feed.paced_market_quotes(["NIFTY"])
+        self.assertEqual(gateway.calls,[])
+
     def test_429_blocks_immediate_retries_across_index_and_equity(self):
         gateway = OfflineGateway()
         gateway.raise_paced = True
