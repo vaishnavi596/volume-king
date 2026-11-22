@@ -7,7 +7,8 @@ import asyncio
 import urllib.request
 import urllib.parse
 from market_feed import FeedError, SessionExpired
-from server_feed import ServerAngelFeed, ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
+from server_feed import ServerDhanReadOnly, DHAN_VERIFIED_SYMBOLS
+from v3_disabled_legacy_broker import V3DisabledLegacyBroker
 from watchlist_policy import normalize_watchlists
 from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
@@ -294,7 +295,7 @@ def app_main(page:ft.Page):
     provider_generation=[0]
     from login_bootstrap import LoginBootstrapState
     login_bootstrap=LoginBootstrapState()
-    angel_feed=ServerAngelFeed()
+    angel_feed=V3DisabledLegacyBroker()  # V3: no legacy broker requests, even from old callbacks
     from clone_v2_gateway import CloneV2Gateway, CloneDhanReadOnly
     clone_v2_gateway=CloneV2Gateway()  # Independent B2 SSK, never the original V1 connection.
     dhan_feed=CloneDhanReadOnly(clone_v2_gateway)  # B3 Dhan read-only data, clone routes only.
@@ -3032,44 +3033,13 @@ def app_main(page:ft.Page):
     def option_chart_context():
         return (chain_symbol.value,expiry.value,option_strike.value,option_side.value)
     async def load_option_history():
-        if option_chart_busy[0]:return
-        context=option_chart_context();generation=provider_generation[0]
-        key=(generation,context)
-        message=""
-        if prefs.get("source")!="Broker API" or not angel_feed.connected:
-            message="Select Broker API and connect Angel One in Settings to load verified option premium history."
-        else:
-            try:
-                if finite(context[2])<=0:raise ValueError("strike")
-                date.fromisoformat(context[1])
-            except (ValueError,TypeError):
-                message="Enter a positive listed strike and select a broker-listed expiry, then load the chart."
-        if message:
-            option_chart_feedback.update(key=key,state="UNAVAILABLE",message=message)
-            if current[0]==1:select(1)
-            return
-        option_chart_busy[0]=True
-        option_chart_feedback.update(key=key,state="LOADING",message="Loading selected option history from Angel One...")
-        health_key="option_chart:"+":".join(str(x) for x in context);request_id=health.begin(health_key)
+        # Historical option premium via Angel One was retired from V3.
+        # Preserve this UI callback only as an explicit Dhan-only unavailable state.
+        option_chart_feedback.update(
+            key=(provider_generation[0],option_chart_context()),state="UNAVAILABLE",
+            message="Dhan historical CE/PE premium candle adapter not yet available; no broker request sent")
         if current[0]==1:select(1)
-        try:
-            raw_bars=await asyncio.to_thread(angel_feed.option_history,*context)
-            if generation!=provider_generation[0] or context!=option_chart_context():return
-            bars=clean_bars(raw_bars)
-            if len(bars)<2:raise FeedError("Not enough valid option candles")
-            option_chart_cache.clear();option_chart_cache.update(context=context,bars=bars)
-            market_store.put("option_chart",context,{"bars":bars,"source":"Angel One"})
-            state="AVAILABLE" if 0<=datetime.now(timezone.utc).timestamp()-bars[-1][0]<=630 else "STALE"
-            health.finish(health_key,request_id,state,source="Angel One",data_time=bars[-1][0])
-            option_chart_feedback.update(key=key,state=state,message="Selected option premium history loaded from Angel One.")
-        except Exception as exc:
-            log_error("option_chart",exc)
-            if generation==provider_generation[0] and context==option_chart_context():
-                health.finish(health_key,request_id,"UNAVAILABLE",error=safe_error(exc))
-                option_chart_feedback.update(key=key,state="UNAVAILABLE",message="Angel One option history request failed: "+safe_error(exc)+". Verify the selected listed contract and server session, then retry.")
-        finally:
-            option_chart_busy[0]=False
-            if current[0]==1:select(1)
+
     def option_chart_panel():
         # This production build uses Dhan only. Do not surface or revive
         # archived Angel One premium history or ask users to connect Angel One.
@@ -3376,10 +3346,7 @@ def app_main(page:ft.Page):
     server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
     server_trust=ft.Checkbox(label="Dhan credentials remain on the server",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
-    broker_fields={
-        "Angel One":["API Key","Client Code","MPIN","TOTP (current 6-digit code)"],
-        "Dhan":[]  # Dhan credentials stay on the trusted server, never in the Android UI
-    }
+    broker_fields={"Dhan":[]}  # Legacy credential form removed from V3 Android
     default_fields=[]
     credential_inputs={}
     credential_column=ft.Column(spacing=10)
@@ -3426,325 +3393,11 @@ def app_main(page:ft.Page):
         raw=key.encode("utf-8")
         return "Key length "+str(len(raw))+" bytes • SHA256 first 12: "+hashlib.sha256(raw).hexdigest()[:12]
     async def connect_angel():
-        # The legacy UI callback is retained for compatibility only.
-        # V3 must not attempt Angel One login, even after direct event injection.
-        connection_status.value="Angel One login disabled in V3; use Connect Clone V2 (SSK)"
+        # Retired V3 callback. Never open a second provider session or send credentials.
+        connection_status.value="Only Dhan via Clone SSK is available in V3."
         connection_status.color=GOLD
         page.update()
-        return
-        nonlocal market_status
-        if broker_connect_busy[0]:return
-        if broker.value!="Angel One":
-            connection_status.value="Clone B3 uses Connect Clone V2 (SSK); legacy Dhan/V1 login is disabled."
-            connection_status.color=GOLD
-            page.update()
-            return
-            endpoint=(api_url.value or "").strip()
-            # Recheck an active in-memory session without requesting the key again.
-            # Never persist the pairing key in ordinary preferences.
-            existing_session=(dhan_feed.connected and
-                              endpoint.rstrip("/")==dhan_feed._origin and
-                              not server_access.value.strip())
-            if not endpoint or (not server_access.value.strip() and not existing_session):
-                connection_status.value="Dhan check requires your BOT KING HTTPS server address and server access key. No Dhan token is needed on this phone."
-                connection_status.color=GOLD
-                page.update();return
-            from server_feed import checked_pairing_key
-            pairing_key=(dhan_feed._pairing_key if existing_session else server_access.value.strip())
-            try:
-                pairing_key=checked_pairing_key(pairing_key)
-            except FeedError as exc:
-                connection_status.value=str(exc)
-                connection_status.color=RED
-                page.update();return
-            # Dhan shares the login guard with Angel: reserve it before the
-            # first awaited network probe to prevent duplicate bootstrap lanes.
-            broker_connect_busy[0]=True
-            try:
-                from server_feed import server_origin, direct_https_opener, checked_pairing_key
-                import urllib.request, urllib.error, json
-                origin=server_origin(endpoint)
-                def check_dhan():
-                    req=urllib.request.Request(origin+"/dhan/status",
-                        headers={"X-BotKing-Key":pairing_key,"Accept":"application/json"},method="GET")
-                    with direct_https_opener().open(req,timeout=12) as response:
-                        raw=response.read(8193)
-                        if len(raw)>8192:raise FeedError("Server status response too large")
-                        return json.loads(raw)
-                dhan_check_endpoint="/dhan/status"
-                result=await asyncio.to_thread(check_dhan)
-                if not isinstance(result,dict) or result.get("live_orders_enabled") is not False:
-                    raise FeedError("Invalid Dhan server status")
-                if result.get("reauthentication_required") is True:
-                    connection_status.value="Dhan: Re-login Required • token missing or expired. Press Authorize Dhan API."
-                    connection_status.color=GOLD
-                elif result.get("market_data_configured") is True:
-                    connection_status.value="Dhan token configured on server • checking NIFTY read-only LTP..."
-                    connection_status.color=GOLD
-                    page.update()
-                    def check_ltp():
-                        req=urllib.request.Request(origin+"/dhan/ltp",
-                            data=b'{"symbol":"NIFTY"}',
-                            headers={"X-BotKing-Key":pairing_key,
-                                     "Content-Type":"application/json","Accept":"application/json"},
-                            method="POST")
-                        with direct_https_opener().open(req,timeout=15) as response:
-                            raw=response.read(8193)
-                            if len(raw)>8192:raise FeedError("Dhan LTP response too large")
-                            return json.loads(raw)
-                    live_ltp_verified=False
-                    login_index_quotes={}
-                    dhan_check_endpoint="/dhan/ltp"
-                    try:
-                        quote=await asyncio.to_thread(check_ltp)
-                        if (not isinstance(quote,dict) or quote.get("source")!="dhan"
-                                or quote.get("symbol")!="NIFTY" or quote.get("live_orders_enabled") is not False
-                                or not isinstance(quote.get("ltp"),(int,float))
-                                or isinstance(quote["ltp"],bool) or not math.isfinite(quote["ltp"]) or quote["ltp"]<=0):
-                            raise FeedError("Invalid Dhan quote response")
-                        dhan_feed.activate_verified(endpoint,pairing_key,quote)
-                        live_ltp_verified=True
-                        connection_status.value=("Dhan NIFTY LTP verified via server • "
-                            +str(round(quote["ltp"],2))+" • timestamp unverified; not a live signal.")
-                        connection_status.color=GREEN
-                    except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as ltp_exc:
-                        log_error("dhan_ltp_connect",ltp_exc)
-                        # Never compound a rate limit with another upstream request.
-                        if isinstance(ltp_exc, urllib.error.HTTPError) and ltp_exc.code==429:
-                            raise
-                        # If a single NIFTY probe fails (other than 429), use the
-                        # independently verified three-index batch before falling back
-                        # to historical-only mode. S19 confirmed this route can return
-                        # all three while individual requests are unreliable.
-                        try:
-                            from server_feed import validated_login_index_batch
-                            dhan_check_endpoint="/dhan/index-ltp-batch"
-                            def check_index_login():
-                                req=urllib.request.Request(origin+"/dhan/index-ltp-batch",
-                                    data=b"{}",
-                                    headers={"X-BotKing-Key":pairing_key,
-                                             "Content-Type":"application/json","Accept":"application/json"},
-                                    method="POST")
-                                with direct_https_opener().open(req,timeout=15) as response:
-                                    raw=response.read(8193)
-                                    if len(raw)>8192:raise FeedError("Dhan index batch too large")
-                                    return json.loads(raw)
-                            login_index_quotes=validated_login_index_batch(
-                                await asyncio.to_thread(check_index_login))
-                            dhan_feed.activate_verified(endpoint,pairing_key,login_index_quotes["NIFTY"])
-                            live_ltp_verified=True
-                            connection_status.value="Dhan index batch verified • last-known prices, timestamps unverified"
-                            connection_status.color=GREEN
-                        except (FeedError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as batch_exc:
-                            log_error("dhan_index_login",batch_exc)
-                            # Never compound a provider-wide rate limit with
-                            # a third market request for historical candles.
-                            if isinstance(batch_exc, urllib.error.HTTPError) and batch_exc.code==429:
-                                raise
-                            dhan_check_endpoint="/dhan/intraday"
-                            # Read-only historical access can work when Dhan LTP is unavailable.
-                            # Verify a real candle response before enabling it; never fake an LTP.
-                            from datetime import timedelta
-                            today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
-                            payload={"symbol":"RELIANCE","interval":5,
-                                     "from_date":str(today-timedelta(days=5)),"to_date":str(today)}
-                            def check_candles():
-                                req=urllib.request.Request(origin+"/dhan/intraday",
-                                    data=json.dumps(payload).encode("utf-8"),
-                                    headers={"X-BotKing-Key":pairing_key,
-                                             "Content-Type":"application/json","Accept":"application/json"},
-                                    method="POST")
-                                with direct_https_opener().open(req,timeout=30) as response:
-                                    raw=response.read(2_000_001)
-                                    if len(raw)>2_000_000:raise FeedError("Dhan candles response too large")
-                                    return json.loads(raw)
-                            candles=await asyncio.to_thread(check_candles)
-                            dhan_feed.activate_historical_verified(endpoint,pairing_key,candles)
-                            connection_status.value="Dhan historical candles verified • LIVE LTP UNAVAILABLE • read-only charts only"
-                            connection_status.color=GOLD
-                    source.value="Dhan";prefs["source"]="Dhan";save()
-                    provider_changed(None)
-                    # Record this generation before evaluating fresh server observations.
-                    login_bootstrap.begin(provider_generation[0],authenticated=dhan_feed.connected)
-                    # provider_changed clears prior-provider prices. Publish only
-                    # validated same-provider index batch values after the reset.
-                    for index_sym, index_row in login_index_quotes.items():
-                        quotes[index_sym]={"symbol": index_sym, "source": "Dhan",
-                            "price": index_row["ltp"], "quote_timestamp": None,
-                            "freshness": "unverified", "live_verified": False,
-                            "fetched_at": time.time()}
-                    # Verify watchlist batch independently of the login check.
-                    # Share this real request attempt with page-entry and auto polling.
-                    try:
-                        watch_batch_last_attempt[0]=time.monotonic()
-                        batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())
-                        selected_batch_issue[0]=(
-                            "Selected batch route unavailable; using legacy 51-equity snapshot"
-                            if dhan_feed._selected_batch_missing else "")
-                        if not batch and all_watch_symbols():
-                            raise FeedError("Empty Dhan batch response")
-                        with dhan_batch_lock:
-                            dhan_batch_cache.update(generation=provider_generation[0],
-                                                    updated=time.monotonic(),quotes=batch)
-                        # Keep previously valid Dhan quotes for symbols absent from
-                        # a partial batch. They remain historical/unverified, not live.
-                        for ticker,snapshot in batch.items():
-                            if (ticker in all_watch_symbols() and snapshot.get('source')=='Dhan'
-                                    and isinstance(snapshot.get('price'),(int,float))
-                                    and not isinstance(snapshot.get('price'),bool)
-                                    and math.isfinite(snapshot['price']) and snapshot['price']>0):
-                                previous=quotes.get(ticker) or {}
-                                quotes[ticker]=dict(snapshot,change=None,
-                                    bars=previous.get('bars',[]) if previous.get('source')=='Dhan' else [],
-                                    candle_fetched_at=previous.get('candle_fetched_at',0),fetched_at=time.time())
-                        failed_symbols.clear()
-                        expected=len(all_watch_symbols())
-                        received=sum(1 for ticker in all_watch_symbols() if
-                                     (item:=batch.get(ticker)) and item.get('source')=='Dhan'
-                                     and isinstance(item.get('price'),(int,float))
-                                     and not isinstance(item.get('price'),bool)
-                                     and math.isfinite(item['price']) and item['price']>0)
-                        dhan_batch_issue[0]=(f"Partial Dhan batch: {received}/{expected} symbols returned"
-                                             if received<expected else None)
-                        market_status=('Dhan • '+str(received)+'/'+str(expected)+
-                                       ' equity LTP quotes returned; timestamps unverified'+
-                                       (' • PARTIAL' if dhan_batch_issue[0] else ''))
-                        # The independent Watchlist status must reflect the
-                        # LOGIN snapshot, not remain "not checked" until a
-                        # separate scheduled 60s poll. Rates may stay numerically
-                        # unchanged after close even when the request succeeds.
-                        direct_login_batch=any(
-                            isinstance(item,dict) and item.get("quote_collection")=="direct_dhan_batch"
-                            for item in batch.values())
-                        watch_batch_status[0]=(
-                            ("Login Dhan direct batch • " if direct_login_batch else "Login Oracle snapshot • ")+
-                            str(received)+"/"+str(expected)+
-                            (" partial" if dhan_batch_issue[0] else " loaded")+
-                            " • last-known Dhan prices; exchange time unverified")
-                        if selected_batch_issue[0]:
-                            watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
-                        if expected==0:
-                            watch_batch_status[0]="Login equities SKIPPED • no Watchlist shares selected"
-                            market_status=watch_batch_status[0]
-                        login_bootstrap.finish(provider_generation[0],"equities",received,expected)
-                        if not dhan_batch_issue[0]:
-                            watch_batch_last_success[0]=time.monotonic()
-                        if current[0] in (0,4):request_view_refresh(current[0])
-                    except Exception as exc:
-                        selected_batch_issue[0]=safe_error(exc)[:120]
-                        log_error('dhan_batch_after_connect',exc)
-                        with dhan_batch_lock:
-                            dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
-                        # A failed refresh must not erase the last valid Dhan quote.
-                        # The error status above makes refresh failure explicit.
-                        dhan_batch_issue[0]=safe_error(exc)
-                        market_status='Dhan connected; watchlist batch failed: '+safe_error(exc)
-                        watch_batch_status[0]="Login snapshot failed • "+safe_error(exc)+" • last valid prices retained"
-                        login_bootstrap.finish(provider_generation[0],"equities",0,max(1,len(all_watch_symbols())),error=safe_error(exc))
-                        if current[0] in (0,4):request_view_refresh(current[0])
-                    if market_status.startswith("Dhan connected; watchlist batch failed"):
-                        connection_status.value=(("Dhan LTP verified; batch quotes unavailable • historical scan queued"
-                                                  if live_ltp_verified else
-                                                  "Dhan historical-only connection • LIVE LTP UNAVAILABLE • "
-                                                  "watchlist prices unavailable; historical scan queued"))
-                        connection_status.color=GOLD
-                    else:
-                        connection_status.value=("Dhan connected • "+str(received)+"/"+str(expected)+
-                            " LTP • "+session_caption()+
-                            (" • PARTIAL" if dhan_batch_issue[0] else ""))
-                        connection_status.color=GOLD if dhan_batch_issue[0] else GREEN
-                    # Historical scan must run even if the independent LTP batch fails.
-                    login_equity_complete=(not market_status.startswith(
-                        "Dhan connected; watchlist batch failed") and not dhan_batch_issue[0])
-                    five_engine_snapshots.clear()
-                    if login_equity_complete:
-                        watch_batch_success_generation[0]=provider_generation[0]
-                    with dhan_batch_lock:
-                        dhan_batch_cache["generation"]=provider_generation[0]
-                    # One guarded index batch on connect also retrieves last-traded after-hours quotes.
-                    # Dhan exchange timestamps remain unverified; never mark these LIVE.
-                    if login_index_quotes:
-                        login_bootstrap.finish(provider_generation[0],"indices",len(login_index_quotes),3)
-                    if (app_active[0] and dhan_feed.connected
-                            and not login_index_quotes):
-                        page.run_task(refresh_dhan_index_quotes,True)
-                    # The login path already fetched and published the equity batch.
-                    # Do not duplicate that same upstream snapshot immediately.
-                    # On a failed login batch, schedule one guarded retry; index
-                    # quotes still refresh independently on the normal poll loop.
-                    # Failed login batches retry only through the normal throttled poll.
-                    # Start the selected broker-listed expiry/chain ONCE per
-                    # authenticated login, even when the market is closed. This
-                    # uses the existing serial Dhan transport and 3.25s pacing.
-                    if (app_active[0] and dhan_feed.connected and prefs.get("source")=="Dhan"):
-                        page.run_task(refresh_selected_options)
-                        page.run_task(refresh_superfive_news)
-                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
-                        failed=0,cached=0,state="Dhan historical scan queued; LTP independently checked")
-                else:
-                    connection_status.value=("Dhan Connected (OAuth), but market-data token is unavailable."
-                        if result.get("authenticated") else
-                        "Dhan: Not Connected • press Authorize Dhan API to sign in.")
-                    connection_status.color=GOLD
-            except urllib.error.HTTPError as exc:
-                log_error("dhan_connect_http",exc)
-                code=exc.code
-                if code==403:
-                    detail="Dhan /status HTTP 403 • "+pairing_diagnostic(pairing_key)+". Compare with Oracle key fingerprint."
-                elif code==429:
-                    detail=f"Dhan {dhan_check_endpoint} HTTP 429 • rate limited; wait before retrying. No extra fallback request sent after LTP 429."
-                elif code==404:
-                    detail="Dhan endpoint not found (HTTP 404). Check HTTPS proxy routing."
-                elif code in (502,503,504):
-                    detail=f"Dhan upstream/backend error (HTTP {code}). Check server logs and Dhan token."
-                else:
-                    detail=f"Dhan server returned HTTP {code}. Check backend logs."
-                connection_status.value=detail
-                connection_status.color=RED
-            except (urllib.error.URLError,TimeoutError) as exc:
-                log_error("dhan_status_network",exc)
-                connection_status.value="Dhan network/TLS connection failed or timed out. Check phone internet, HTTPS certificate and server URL."
-                connection_status.color=RED
-            except Exception as exc:
-                log_error("dhan_status",exc)
-                connection_status.value="Dhan check failed ("+type(exc).__name__+"). Check server response format and app logs."
-                connection_status.color=RED
-            finally:
-                server_access.value=""
-                broker_connect_busy[0]=False
-            page.update();return
-        endpoint=(api_url.value or "").strip()
-        if endpoint and not server_trust.value:
-            connection_status.value="Confirm that you trust this server before sending your broker login."
-            page.update();return
-        broker_connect_busy[0]=True
-        connection_status.value="Connecting to Angel One read-only market data"+(" through your server..." if endpoint else " directly...")
-        page.update()
-        values=[credential_inputs[label].value or "" for label in broker_fields["Angel One"]]
-        try:
-            await asyncio.to_thread(angel_feed.connect,*values,endpoint,server_access.value or "")
-            for field in credential_inputs.values():field.value=""
-            server_access.value=""
-            broker_retry[0]=0
-            source.value=prefs.get("source","Dhan");save()
-            provider_changed(None)
-            connection_status.value="Angel One connected"+(" through your server" if endpoint else " directly")+" • market data only • reconnect after session expiry or restart"
-            connection_status.color=GREEN
-            page.run_task(refresh_selected_options)
-        except FeedError as exc:
-            log_error("broker_login",exc)
-            # FeedError messages are curated by the transport; never show raw
-            # HTTP response bodies, broker tokens or unhandled exception text.
-            connection_status.value="Connection failed: "+str(exc)+" • Broker data unavailable."
-            connection_status.color=RED
-        except Exception as exc:
-            log_error("broker_login",exc)
-            connection_status.value="Connection failed unexpectedly. Check app diagnostics; broker data unavailable."
-            connection_status.color=RED
-        finally:
-            values.clear()
-            broker_connect_busy[0]=False
-        page.update()
+
     async def start_dhan_authorization():
         if broker.value!="Dhan":
             connection_status.value="Select Dhan as the broker before authorization."
