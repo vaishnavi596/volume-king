@@ -20,7 +20,13 @@ class V3JointFoundationGate(unittest.TestCase):
     def test_no_auto_or_ephemeral_same_package_apk(self):
         # Never produce a new independently signed APK for the same package.
         self.assertIn("workflow_dispatch:",WORKFLOW)
-        self.assertNotIn("  push:",WORKFLOW.split("permissions:",1)[0])
+        # Auto builds must be restricted to an explicit release-request file.
+        trigger=WORKFLOW.split("permissions:",1)[0]
+        if "  push:" in trigger:
+            self.assertIn("      - docs/V3_APK_RELEASE_REQUEST.md",trigger)
+            self.assertNotIn("      - src/",trigger)
+            self.assertNotIn("      - .github/workflows/",trigger)
+            self.assertIn("      - pilot/v1-pure-original-clone-phone-20261120",trigger)
         self.assertNotIn("keytool -genkeypair",WORKFLOW)
         for key in ("BOTKING_KEYSTORE_BASE64","BOTKING_KEYSTORE_PASSWORD",
                     "BOTKING_KEY_PASSWORD","BOTKING_KEY_ALIAS","BOTKING_SIGNING_SHA256"):
