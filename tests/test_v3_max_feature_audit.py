@@ -82,6 +82,20 @@ class TestMaximumFeatureAudit(unittest.TestCase):
               {"timeframe":"1m","expiry":"2026-11-23","data":unsafe}})
               ["features"]["assessment_candle_trend"]["state"],"UNAVAILABLE")
 
+    def test_incomplete_or_duplicate_assessment_never_reports_available(self):
+        base={"symbol":"NIFTY","source":"dhan","freshness":"unverified",
+              "signal_eligible":False,"live_orders_enabled":False,
+              "bullish_score":None,"bearish_score":None}
+        good=[{"id":key,"status":"available"} for key in
+              ("oi_support","oi_resistance","max_pain","pcr","candle_trend")]
+        for rows in (good[:1],good[:4]+[good[0]],good[:4]+[{"id":"bogus","status":"available"}]):
+            payload=dict(base,assessment_filters=rows)
+            record={"timeframe":"1m","expiry":"2026-11-23","data":payload}
+            features=run(assess={(2,"NIFTY","1m","2026-11-23"):record})["features"]
+            for key in ("oi_support","oi_resistance","max_pain","pcr","candle_trend"):
+                self.assertEqual(features["assessment_"+key]["state"],"UNAVAILABLE")
+                self.assertFalse(features["assessment_"+key]["directional_vote"])
+
     def test_doctor_lists_all_seventeen_selected_filters(self):
         chosen=["filter_"+str(i) for i in range(17)]
         report=audit_features(news_cache={},option_metrics={},assessment_cache={},

@@ -89,8 +89,14 @@ def audit_features(*, news_cache, option_metrics, assessment_cache,
            data.get("bullish_score") is None and
            data.get("bearish_score") is None)
     rows=data.get("assessment_filters") if valid else None
-    by_id={row.get("id"):row for row in rows if isinstance(row,dict) and
-           row.get("id") in FILTER_IDS} if isinstance(rows,list) else {}
+    # A partial or duplicate five-filter payload is not evidence. Match the
+    # strict UI contract before reporting even informational availability.
+    complete=(isinstance(rows,list) and len(rows)==len(FILTER_IDS) and
+              all(isinstance(row,dict) and isinstance(row.get("id"),str) and
+                  row["id"] in FILTER_IDS and
+                  row.get("status") in ("available","unavailable") for row in rows) and
+              {row["id"] for row in rows}==set(FILTER_IDS))
+    by_id={row["id"]:row for row in rows} if complete else {}
     for key in FILTER_IDS:
         row=by_id.get(key)
         if row and row.get("status")=="available":
