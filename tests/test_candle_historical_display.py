@@ -4,6 +4,13 @@ import unittest
 from test_audit import start
 
 class HistoricalVoteUiTests(unittest.TestCase):
+    def test_option_history_is_not_a_live_directional_vote(self):
+        from scanner_engine import OPTION_FILTERS, ALL_FILTERS
+        self.assertEqual(ALL_FILTERS.count("Dhan Max Pain"),1)
+        self.assertNotIn("Max Pain",ALL_FILTERS)
+        self.assertEqual(set(OPTION_FILTERS),{"OI Support","OI Resistance","OI Profile","Dhan Max Pain"})
+
+
     def test_offline_technical_engine_keeps_last_valid_historical_vote(self):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
         v["watch_signal_cache"]["HDFCBANK"]={
