@@ -4499,16 +4499,21 @@ def app_main(page:ft.Page):
                 names=list(filter_selected)
                 rows=[]
                 cause="Selected timeframe candles unavailable"
-                if (bars and tf in scanner_intervals and
-                        valid_candle_history(bars)):
+                from filter_wiring_audit import diagnostic_candle_readiness
+                candle_stage=diagnostic_candle_readiness(history,tf,now=time.time())
+                if (candle_stage=="READY_FOR_QUALITY_AND_CALCULATION"
+                        and valid_candle_history(bars)):
                     result=analyze(bars,selected=active_analysis_filters(),
                                    timeframe=tf)
                     cause=str(result.get("reason","Analysis pending"))
                     rows=enrich_context_filter_rows(symbol,
                         complete_filter_rows(result,names,filter_modes))
                 else:
+                    cause=(candle_stage if candle_stage!="READY_FOR_QUALITY_AND_CALCULATION"
+                           else "CANDLE_OHLCV_INVALID")
+                    result={"votes":[],"timestamp":None,"reason":cause}
                     rows=enrich_context_filter_rows(symbol,
-                        complete_filter_rows({"votes":[]},names,filter_modes))
+                        complete_filter_rows(result,names,filter_modes))
                 filter_rows=[]
                 for row in rows:
                     name=row.get("name")
@@ -4539,7 +4544,9 @@ def app_main(page:ft.Page):
                     news_present=bool((news_cache.get(symbol) or {}).get("items"))
                 wiring_matrix=filter_wiring_matrix(
                     names,rows,source=history.get("source") if isinstance(history,dict) else "",
-                    timeframe=tf,candle_ready=bool(bars and valid_candle_history(bars)),
+                    timeframe=tf,candle_ready=bool(
+                        candle_stage=="READY_FOR_QUALITY_AND_CALCULATION"
+                        and result.get("timestamp") and result.get("count",0)>=30),
                     options_context=option_present,news_context=news_present,
                     modes=filter_modes)
                 present={row["filter"] for row in filter_rows}
@@ -4548,8 +4555,11 @@ def app_main(page:ft.Page):
                         filter_rows.append({"filter":name,"status":"ERROR",
                                             "stage":"UI_ADAPTER",
                                             "detail":"Selected filter missing from diagnostic rows"})
+                # The publisher is symbol-only 5m. Never report it as a
+                # verified 1m/3m engine in the selected Doctor context.
                 snap=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
-                      if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                      if tf=="5m" and prefs.get("source")=="Dhan"
+                      and dhan_feed.connected and regular_hours() else None)
                 # Separate healthy calculation, missing input and evidence policy:
                 # a grey box is not automatically a runtime exception.
                 candle_count=len(bars) if isinstance(bars,(tuple,list)) else 0
@@ -4565,6 +4575,7 @@ def app_main(page:ft.Page):
                     "history_shape_valid":bool(bars and valid_candle_history(bars)),
                     "analysis_uses_exact_timeframe":str(history.get("_scanner_timeframe"))==tf if isinstance(history,dict) else False,
                     "analysis_reason":cause,
+                    "selected_candle_readiness":candle_stage,
                     "engine_snapshot_present":symbol in five_engine_snapshots,
                     "provider_connected":bool(dhan_feed.connected),
                 }

@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from scanner_engine import ALL_FILTERS
-from filter_wiring_audit import filter_wiring_matrix
+from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness
 
 
 class V3FilterWiringTests(unittest.TestCase):
@@ -40,6 +40,30 @@ class V3FilterWiringTests(unittest.TestCase):
                                    candle_ready=False)
         self.assertEqual(result[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
         self.assertIsNone(result[0]["vote"])
+
+    def test_candle_readiness_requires_exact_timeframe_and_completed_bar(self):
+        bars=[[1800000000+i*60,100,101,99,100,12] for i in range(30)]
+        historical={"source":"Dhan","_scanner_timeframe":"1m","bars":bars}
+        self.assertEqual(diagnostic_candle_readiness(historical,"1m",
+            now=1800000000+30*60),"READY_FOR_QUALITY_AND_CALCULATION")
+        self.assertEqual(diagnostic_candle_readiness(historical,"3m",
+            now=1800000000+30*60),"TIMEFRAME_MISMATCH")
+        self.assertEqual(diagnostic_candle_readiness(historical,"1m",
+            now=1800000000+29*60),"LATEST_CANDLE_NOT_COMPLETED")
+        self.assertEqual(diagnostic_candle_readiness(
+            {"source":"Yahoo Finance",**{"bars":bars,"_scanner_timeframe":"1m"}},
+            "1m",now=1800000000+30*60),"SOURCE_MISSING_OR_MISMATCH")
+        self.assertEqual(diagnostic_candle_readiness(
+            {"source":"Dhan","_scanner_timeframe":"1m","bars":bars[:3]},
+            "1m",now=1800000000+30*60),"CANDLE_DATA_MISSING_OR_INSUFFICIENT")
+
+    def test_diagnostic_same_timeframe_gates_evidence(self):
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        block=src.split("    def filter_five_diagnostic_panel():",1)[1].split("    def ",1)[0]
+        self.assertIn("diagnostic_candle_readiness(history,tf,now=time.time())",block)
+        self.assertIn('selected_candle_readiness',block)
+        self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
+        self.assertIn('result.get("count",0)>=30',block)
 
     def test_historical_3m_display_uses_exact_watch_cache_no_fanout(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
