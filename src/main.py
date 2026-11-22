@@ -1543,8 +1543,13 @@ def app_main(page:ft.Page):
             color=GREEN if row["bias"]=="BULLISH" else RED if row["bias"]=="BEARISH" else MUTED
             # Rendering is the final safety gate: a restored ranking can predate
             # the current provider verification or market session.
-            direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical
-                       else "HISTORICAL "+row["bias"] if historical and row["bias"] in ("BULLISH","BEARISH")
+            # Preserve the last measured historical direction instead of
+            # replacing it with a generic NO LIVE SIGNAL at market close.
+            # A historical ranking remains non-actionable and never LIVE.
+            direction=("HISTORICAL "+row["bias"]
+                       if historical and row.get("source")==expected_source
+                       and row.get("bias") in ("BULLISH","BEARISH")
+                       else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
