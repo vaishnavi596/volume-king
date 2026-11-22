@@ -73,15 +73,22 @@ def audit_features(*, news_cache, option_metrics, assessment_cache,
             emit(feature,"NOT_CONNECTED","OI_DIRECTIONAL_EVIDENCE_NOT_WIRED",
                  {"reason":"OI level or PCR alone cannot prove market direction",
                   "directional_vote":False})
-    selected_records=[]
-    if isinstance(assessment_cache,dict):
-        for key,value in assessment_cache.items():
-            if (isinstance(key,tuple) and len(key)>=3 and key[0]==generation
-                    and key[1]==scanner_symbol and key[2]==scanner_timeframe
-                    and isinstance(value,dict)):
-                selected_records.append(value)
-    record=selected_records[-1] if selected_records else None
-    rows=record.get("assessment_filters") if isinstance(record,dict) else None
+    # The actual app cache key includes expiry; never read another expiry's
+    # assessment. The validated provider response lives inside record["data"].
+    record=(assessment_cache.get((generation,scanner_symbol,scanner_timeframe,selected_expiry))
+            if isinstance(assessment_cache,dict) else None)
+    data=record.get("data") if isinstance(record,dict) else None
+    valid=(isinstance(record,dict) and
+           record.get("timeframe")==scanner_timeframe and
+           record.get("expiry")==selected_expiry and
+           isinstance(data,dict) and data.get("symbol")==scanner_symbol and
+           data.get("source","dhan")=="dhan" and
+           data.get("freshness","unverified")=="unverified" and
+           data.get("signal_eligible") is False and
+           data.get("live_orders_enabled") is False and
+           data.get("bullish_score") is None and
+           data.get("bearish_score") is None)
+    rows=data.get("assessment_filters") if valid else None
     by_id={row.get("id"):row for row in rows if isinstance(row,dict) and
            row.get("id") in FILTER_IDS} if isinstance(rows,list) else {}
     for key in FILTER_IDS:
