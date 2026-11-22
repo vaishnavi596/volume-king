@@ -1452,6 +1452,23 @@ def app_main(page:ft.Page):
                     counts=historical_vote_agreement(shared_history(sym,display_timeframe or "1m"),display_timeframe or "1m")
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
+                if (not historical and display_timeframe=="3m"
+                        and sym not in ("NIFTY","BANKNIFTY","SENSEX")):
+                    # Watchlist rows take their votes from the dedicated 3m cache.
+                    # The shared 5m ranking cache above can never match a 3m
+                    # display, so the T chip stayed WAIT beside a HIST 3m vote bar.
+                    # Read-only reuse: no analysis, no provider call, and only with
+                    # the same provider generation/filter policy as the row.
+                    saved3=watch_three_minute_cache.get(sym)
+                    result3=(saved3[1] if isinstance(saved3,tuple) and len(saved3)==2 else None)
+                    context3=(provider_generation[0],tuple(filter_selected),
+                              tuple(sorted(filter_modes.items())),prefs.get("confidence",75))
+                    if (isinstance(result3,dict) and result3.get("source")=="Dhan"
+                            and result3.get("timeframe")=="3m"
+                            and isinstance(saved3[0],tuple) and saved3[0][:4]==context3):
+                        counts=signal_percentages(result3)
+                        if counts and counts[2]>0:
+                            bull,bear=counts[:2];historical=True
             valid=(type(bull) in (int,float) and type(bear) in (int,float)
                    and math.isfinite(bull) and math.isfinite(bear)
                    and 0<=bull<=100 and 0<=bear<=100 and abs(bull+bear-100)<=1)
