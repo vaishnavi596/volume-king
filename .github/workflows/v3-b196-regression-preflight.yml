@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B199 Release Preflight — Watchlist + Full Offline NO APK
+run-name: V3 Joint Index 429 + Six Box Full Audit • NO APK
 on:
   push:
     branches:
@@ -9,6 +9,7 @@ on:
       - tests/test_v3_visible_watchlist_bootstrap_priority.py
       - tests/test_v3_watchlist_5_34_70_capacity.py
       - tests/test_v3_watchlist_quote_elapsed_diagnostic.py
+      - tests/test_v3_index_five_box_joint_contract.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,6 +52,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_v3_legacy_provider_quarantine.py' -v
           python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_v3_index_five_box_joint_contract.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_candle_singleflight_cache.py' -v
           python -m unittest discover -s tests -p 'test_candle_retention.py' -v
           python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
