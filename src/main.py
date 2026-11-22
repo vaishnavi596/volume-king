@@ -6318,7 +6318,12 @@ console.log('BOT KING Lightweight Charts ready');
                         bars_1m,now_epoch=now_epoch)
                     derived=dict(source_1m,bars=[list(row) for row in completed],
                                  _scanner_timeframe="3m",historical=True,
-                                 live_verified=False,freshness="historical_unverified")
+                                 live_verified=False,freshness="historical_unverified",
+                                 candle_transport_integrity=(
+                                     "DERIVED_FROM_TRANSPORT_SHA256_MATCH"
+                                     if source_1m.get("candle_transport_integrity") in
+                                     ("SHA256_MATCH", "DERIVED_FROM_TRANSPORT_SHA256_MATCH")
+                                     else "DERIVED_FROM_TRANSPORT_UNVERIFIED"))
                     # Limit retained derived histories for changing watchlists.
                     if len(derived_three_minute_cache)>140:
                         derived_three_minute_cache.clear()
@@ -6339,6 +6344,7 @@ console.log('BOT KING Lightweight Charts ready');
                     candidates.append(dict(
                         saved[1],historical=True,live_verified=False,
                         freshness="historical_unverified",cached=True,
+                        candle_transport_integrity="RETAINED_DERIVED_HISTORY_UNVERIFIED",
                         _candle_retained=True))
         # 10m and 30m are built only from their exact existing 5m/15m
         # matching-generation Dhan histories; no hidden broker requests.
@@ -6357,7 +6363,12 @@ console.log('BOT KING Lightweight Charts ready');
                 if completed:
                     candidates.append(dict(source,bars=[list(row) for row in completed],
                                            _scanner_timeframe=tf,historical=True,
-                                           live_verified=False,freshness="historical_unverified"))
+                                           live_verified=False,freshness="historical_unverified",
+                                           candle_transport_integrity=(
+                                               "DERIVED_FROM_TRANSPORT_SHA256_MATCH"
+                                               if source.get("candle_transport_integrity") in
+                                               ("SHA256_MATCH", "DERIVED_FROM_TRANSPORT_SHA256_MATCH")
+                                               else "DERIVED_FROM_TRANSPORT_UNVERIFIED")))
         def revision_order(item):
             bars=item.get("bars") or []
             last=bars[-1][0] if bars and isinstance(bars[-1],(list,tuple)) and bars[-1] else 0
