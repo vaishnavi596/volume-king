@@ -10,6 +10,7 @@ on:
       - tests/test_v3_watchlist_5_34_70_capacity.py
       - tests/test_v3_watchlist_quote_elapsed_diagnostic.py
       - tests/test_v3_index_five_box_joint_contract.py
+      - tests/test_v3_joint_foundation_gate.py
   workflow_dispatch:
 permissions:
   contents: read
