@@ -1412,7 +1412,7 @@ def app_main(page:ft.Page):
         return ft.ExpansionTile(title=note("5 engines • "+str(combined["coverage"])+"/5 verified • overall "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
-    def five_engine_chips(sym):
+    def five_engine_chips(sym, display_timeframe=None):
         """Five independent evidence slots; percentages only when justified."""
         names=(("technical","T"),("candle","C"),("news","N"),
                ("futures","F"),("options","O"))
@@ -1435,14 +1435,15 @@ def app_main(page:ft.Page):
                 # On app reopen the saved Top Five ranking may exist before
                 # the paced 51-candle scan has rebuilt watch_signal_cache.
                 # Its old votes are shown HIST only; no actionable 5/5 vote.
-                if raw.get("source")=="Dhan" and raw.get("timestamp"):
+                if (raw.get("source")=="Dhan" and raw.get("timestamp") and
+                        (display_timeframe is None or raw.get("timeframe")==display_timeframe)):
                     counts=signal_percentages(raw)
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
                 if (not historical and sym in ("NIFTY","BANKNIFTY","SENSEX")):
                     # Index Dashboard is 1m; never pull 5m Top Five evidence
                     # or call the broker from this UI render.
-                    counts=historical_vote_agreement(shared_history(sym,"1m"),"1m")
+                    counts=historical_vote_agreement(shared_history(sym,display_timeframe or "1m"),display_timeframe or "1m")
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
             valid=(type(bull) in (int,float) and type(bear) in (int,float)
@@ -1465,7 +1466,7 @@ def app_main(page:ft.Page):
                             and isinstance(data.get("pcr"),(int,float))):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
                 elif name=="candle" and prefs.get("source")=="Dhan":
-                    candle_tf=("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m")
+                    candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
                     candle_history=shared_history(sym,candle_tf)
                     if candle_history.get("source")=="Dhan":
                         balance=historical_candle_balance(candle_history.get("bars"))
@@ -1904,7 +1905,7 @@ def app_main(page:ft.Page):
             change_cell=txt("CONNECT DHAN" if dhan_offline() else
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
                             10,price_color(sym) if quote_source==expected_quote_source else MUTED)
-            five_cell=ft.Container(content=five_engine_chips(sym))
+            five_cell=ft.Container(content=five_engine_chips(sym,display_timeframe="3m"))
             assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym,"watchlist")[0]))
             signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
             freshness_cell=ft.Text(("LTP cached • not live" if not quote_fresh else "LTP time unverified")+
@@ -2508,7 +2509,7 @@ def app_main(page:ft.Page):
                         last_evidence_signatures[sym]=evidence_signature
                         # Replace child content inside persistent mounted containers,
                         # not the symbol label/row or the whole Watchlist page.
-                        five.content=five_engine_chips(sym)
+                        five.content=five_engine_chips(sym,display_timeframe="3m")
                         assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
                         signal.content=compact_watch_signal(row,available,fresh)
                         for cell in (five,assessment,signal):
@@ -6787,7 +6788,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY"),five_engine_summary(scan_symbol.value or "NIFTY")],spacing=5))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value),five_engine_summary(scan_symbol.value or "NIFTY")],spacing=5))),
             wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
