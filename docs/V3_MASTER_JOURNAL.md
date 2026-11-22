@@ -1237,3 +1237,42 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - 2026-11-22: mapped-equity gateway diagnostic source d77d9ab Adapter Joint Audit 45008643869 SUCCESS; Status Bridge 45008669094 SKIPPED (not failed, commit lacked explicit track tag). Added mocked RELIANCE 5m malformed-candle regression in tests/test_clone_b3_market_diagnostics.py commit a86c2751 (checks 502, sanitized validation/invalid_bars log and no SSK leak). Wired that test into Adapter Joint Audit workflow and trigger paths commit a8c4e00d; run 45008945736 initially QUEUED. No Dhan network access in test, no Oracle deployment, no WIPRO provider recovery proof. Existing guarded updater has hardcoded old SHA/blob and must NOT be run against unknown current server state without checking preconditions.
 
 - 2026-11-22 15:42 IST scheduled tracked-CI reconciliation: Adapter run 45008945736 on a8c4e00d FAILED at `Validate mapped equity diagnostic contract`; subsequent tracked fix 22f2db096 adds FastAPI TestClient dependencies and Adapter run 45009033339 SUCCESS. B3 full regression run 45010603946 on 1303ffaeb FAILED at `Run all offline tests once together`; subsequent tracked test guard fix a855d7e8d has B3 run 45010959183 SUCCESS and Joint Index 429 + Six Box audit 45010959188 SUCCESS. Failed job/step confirmed via GitHub jobs API; detailed raw failure logs not accessible in this check, so exact traceback not asserted. All runs scoped to pilot/v1-pure-original-clone-phone-20261120; unrelated runs excluded. No duplicate re-runs, no server deployment, no Dhan calls, no trades, no APK. Further Oracle WIPRO recovery remains unverified.
+
+
+---
+
+## 22 नवंबर 2026 — हिंदी संयुक्त हैंडऑफ: पिछले चैट + वर्तमान चैट का मिलान
+
+**दायरा:** केवल BOT KING V3 Clone, शाखा `pilot/v1-pure-original-clone-phone-20261120`। यह अनुभाग पूर्व के विस्तृत अंग्रेज़ी/हिंदी रिकॉर्ड को मिटाता नहीं; उनका प्रमाण-आधारित सार और वर्तमान स्थिति दर्ज करता है। V1 Production तथा Oracle पर इस जर्नल अपडेट से कोई बदलाव नहीं।
+
+### 1. पिछले चैट से सुरक्षित रखने योग्य काम
+- B142: Scanner में प्रति-प्रतीक, सही Dhan generation/underlying/expiry के अनुसार Options संदर्भ की सुरक्षा। OI/PCR/Max Pain सूचना-संबंधी हैं; इन्हें बिना सत्यापित स्वतंत्र डेटा के दिशात्मक वोट नहीं बनाना है।
+- B148–B158: Watchlist/Scanner के 1m, 3m और 5m संदर्भ, 1m→3m candle व्युत्पत्ति, 17 सक्रिय फ़िल्टर और Doctor/Options डेटा-वायरिंग पर क्रमिक सुधार; अलग-अलग पुरानी APK में बाद के सुधार शामिल होने का दावा नहीं करना है।
+- B164: SENSEX का Clone-only `IDX_I/51` मार्ग/मैपिंग और सुरक्षित सर्वर जाँच। NIFTY `IDX_I/13`, BANKNIFTY `IDX_I/25`। केवल सही मैपिंग से वास्तविक SENSEX LTP/candles या freshness सिद्ध नहीं होती।
+- B178–B179: Doctor में `stock_histories` NameError की फोन रिपोर्ट और अगला सुधार; Index FeedError का मूल upstream कारण तब भी अलग था।
+- B193–B199: पुराने Max Pain/Five Engine अपेक्षा, Scanner Auto/Paper restoration, Dhan-only provider safety, Yahoo/Angel One quarantine, Signing तथा APK gates के सुधार। B196/B197 के पुराने signed APK की सफलता नवीनतम source या फोन पर LIVE data का प्रमाण नहीं है।
+- पूर्व Phone/Cache रिपोर्ट: 51/51 equities के quote, 1m/3m histories तथा कुछ फ़िल्टर गणनाएँ cache में दिखी थीं, लेकिन provider timestamp और Dhan→Oracle→Phone वास्तविक ताज़गी का प्रमाण अधूरा है। SENSEX/Index FeedError, WIPRO 5m upstream candle failure, Super Five WAIT, News/OI/PCR/Max Pain की स्वतंत्र readiness तथा Android background scanner continuity अभी खुली जाँच हैं।
+- Android background पर native foreground service/WorkManager की उपलब्धता का प्रमाण नहीं मिला; app pause/hidden स्थिति में scanner/warmup लगातार चलने का दावा नहीं करना है।
+- यूज़र नियम: 70 unique equities global cap, watchlists में duplicate निषिद्ध; चुने हुए प्रतीकों के हिसाब से Smart Data pacing; Dashboard 1m, Watchlist 3m; Scanner चयन योग्य; Dhan एकमात्र market provider; Live Orders बंद; पाँच सक्रिय evidence boxes तथा छठा निष्क्रिय placeholder जहाँ लागू हो। V3 में बाद के 17/18 filter contract को पुराने पाँच evidence boxes से भ्रमित न करें।
+- पिछले चैट के B3 सुरक्षित Clone-only Oracle deployment और health HTTP 200 प्रमाण पुराने निर्दिष्ट blob के लिए थे। नए gateway code को Oracle पर deployed मानना गलत होगा। V1 और Oracle पर कोई नया बदलाव किए बिना live-provider acceptance अलग से चाहिए।
+
+### 2. इस चैट में वास्तविक GitHub बदलाव, क्रमवार
+1. `22f2db096e22e2bda55bd12cb111cf27a2694c9e`: `.github/workflows/clone-adapter-joint-audit.yml` में FastAPI/httpx TestClient dependencies install जोड़ीं। पहले Adapter run `45008945736` FAIL; बाद का `45009033339` SUCCESS। Compile, mapped-equity diagnostics, guarded updater syntax और joint adapter audit PASS।
+2. `1303ffaebd16e24e3e77ef445f2caa48165000cc`: B3 Full Regression के push paths में `src/**`, `backend/**`, `tests/**`, `ops/**`, `pyproject.toml` जोड़े। इससे स्रोत बदलने पर Regression बिना मैनुअल Workflow Dispatch के अपने आप चलने लगा। इसका पहला run `45010603946` चला, पर 1583 tests में 1 FAIL।
+3. Fail का वास्तविक traceback: `tests/test_v3_clone_quote_pacing_deploy_safety.py::test_pinned_git_blob_is_exact_candidate` ने वर्तमान gateway blob `f6d339fdda826bb8de51fd259e5e0c14b2b33c09` को पुराने guarded deployment script के frozen `EXPECTED_NEW=49d8d5cdd90da4c768367d9258f00414f9027291` से मिलाने की माँग की। यह पुराने pinned deployment candidate और वर्तमान source के बीच contract mismatch था; किसी LIVE provider की त्रुटि नहीं।
+4. `a855d7e8d5af41ac768f0bdf0936c705a58b7239`: उपरोक्त टेस्ट को frozen PIN/EXPECTED_NEW तथा fail-closed SHA guard की संरचना सत्यापित करने के लिए सुधारा; सुरक्षित deployment script को चुपचाप नए source पर retarget नहीं किया। नया B3 Full Regression `45010959183` SUCCESS और Joint Index 429 + Six Box Full Audit `45010959188` SUCCESS।
+5. `7baaa3673b1c25b105e9d38bf5d4634d21d56a6b`: `docs/V3_APK_RELEASE_REQUEST.md` में B199-R3 का एक नियंत्रित Release Request दर्ज। पहले दोनों PASS runs संदर्भित; APK Workflow में signing, Dhan-only तथा full offline gate बरकरार। GitHub Run `45011505714` इस जर्नल लिखते समय IN_PROGRESS; **Build/Signing/Upload SUCCESS अभी प्रमाणित नहीं**।
+
+### 3. Automation की वर्तमान सीमा
+- **लागू और प्रमाणित:** Clone source/test/ops बदलने पर B3 Full Regression auto-trigger; `1303ffa` पर इसका वास्तविक auto-run हुआ।
+- **लागू लेकिन सीमित:** APK का मौजूदा release-request file trigger, जिससे `7baaa36` के बाद एक B199-R3 Build स्वतः शुरू हुआ। यह **Regression PASS से सीधा निर्भर workflow_run auto-chain नहीं** है। इसलिए इसे पूर्ण `PASS→APK` automation कहना अभी गलत होगा।
+- **आगे का तकनीकी कार्य:** Source change→Regression PASS→नियंत्रित single APK का सुरक्षित dependency gate; FAILED/IN_PROGRESS पर APK बंद; अनावश्यक बार-बार APK/CI नहीं; journal में exact run ID और SHA दर्ज।
+
+### 4. खुले काम और अंतिम acceptance
+- WIPRO 5m और SENSEX LTP/1m/5m के वास्तविक Dhan upstream route/status/timestamp; raw Dhan→Oracle→Phone provenance; 429 cooldown/pacing, 51→70 symbols की capacity; Scanner Auto-Refresh, Watchlist/Super Five, 17/18 फ़िल्टर, News और expiry-specific Options/OI/PCR/Max Pain का फोन पर सत्यापन।
+- Master Login/SSK, Dhan token renewal, 1–4 फोन, UI/Adapter parity, background resume और Error-only Doctor के end-to-end व्यवहार को अलग प्रमाण चाहिए।
+- Yahoo/Angel One के बचे हुए compatibility paths की सुरक्षा जाँच; V1/Paper journal नष्ट नहीं करना। सुरक्षित quarantine और वास्तव में हटाए गए network paths को अलग-अलग रिपोर्ट करें।
+- B199-R3 का GitHub अंतिम Build, certificate/signing, artifact upload और फोन acceptance अभी लंबित। सफल CI को LIVE market readiness या सभी समस्याओं का समाधान न लिखें।
+- अगली जाँच केवल नवीनतम बदली फाइलें और उनके संबंधित tests; पहले PASS targets पर duplicate tests/fixes नहीं। सभी नए बदलाव और run IDs इसी Master Journal में हिंदी में जोड़ें।
+
+**सुरक्षा:** इस लेखा-जोखा कार्य में कोई Oracle deployment, V1 production mutation, Dhan live call, credential exposure या trade order नहीं किया गया।
