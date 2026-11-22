@@ -57,6 +57,16 @@ class V3JointFoundationGate(unittest.TestCase):
         self.assertIn('"unavailable_evidence":unavailable_evidence',MAIN)
         self.assertIn('if row["status"]=="WAIT"',MAIN)
 
+    def test_candle_integrity_survives_phone_to_doctor_with_derived_label(self):
+        self.assertIn('candle_result.get("normalized_transport_integrity","NOT_PROVIDED")',MAIN)
+        self.assertIn('"DERIVED_FROM_TRANSPORT_SHA256_MATCH"',MAIN)
+        self.assertIn('"DERIVED_FROM_TRANSPORT_UNVERIFIED"',MAIN)
+        self.assertIn('"candle_transport_integrity":str(history.get(',MAIN)
+        retention=(ROOT/"src/candle_retention.py").read_text()
+        self.assertIn('"MERGED_HISTORY_NOT_DIRECT_DIGEST"',retention)
+        self.assertIn('"RETAINED_PRIOR_TRANSPORT_SHA256_MATCH"',retention)
+        self.assertIn('"RETAINED_PRIOR_TRANSPORT_UNVERIFIED"',retention)
+
     def test_five_engine_missing_source_wiring_is_visible_not_fake_signal(self):
         from sys import path
         import sys
