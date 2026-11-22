@@ -1,6 +1,10 @@
 """Guard last-valid Dhan prices without misreporting partial refresh coverage."""
 import unittest
+import sys
 from pathlib import Path
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/"src"))
 
 
 class WatchlistPartialSnapshotTests(unittest.TestCase):
