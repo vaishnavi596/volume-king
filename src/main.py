@@ -1511,12 +1511,9 @@ def app_main(page:ft.Page):
     def super_five_card():
         # A disconnected broker must never display restored directional rankings
         # as actionable Super Five candidates, even when snapshots survived restore.
-        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
-            return section("SUPER FIVE • CONNECTION REQUIRED",ft.Column([
-                note("Dhan disconnected • connect and verify the feed in Settings before scanning."),
-                note("Saved historical rankings are hidden while disconnected; no live signal is available."),
-                note("Historical analysis unavailable • Dhan reconnect required")
-            ],spacing=7))
+        # A disconnected Dhan feed cannot supply LIVE signals or verified LTP.
+        # Existing matching-source measured rankings may still be shown as HIST.
+        disconnected_dhan=(prefs.get("source")=="Dhan" and not dhan_feed.connected)
         rows=(
             [row for row in top5_candidates if row.get("symbol") in set(all_watch_symbols())]
             if prefs.get("source")=="Dhan" else top5_candidates[:])
@@ -1524,6 +1521,8 @@ def app_main(page:ft.Page):
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in (all_watch_symbols() if prefs.get("source")=="Dhan" else watch_symbols)[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Historical analysis: "+str(scan_progress["state"])+" • separate from watchlist quote refresh")]
+        if disconnected_dhan:
+            controls.insert(0,note("Dhan disconnected • saved historical analysis only; no live prices or trade signals."))
         # Keep Super Five focused on five candidates, not a scrolling wall
         # of up to 51 provider errors and retry buttons. Full per-symbol
         # diagnostics remain in System Health / Scanner.
@@ -1535,7 +1534,7 @@ def app_main(page:ft.Page):
         for row in rows:
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
             expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
-            historical=(row.get("historical") or row.get("cached") or row.get("source")!=expected_source or
+            historical=(disconnected_dhan or row.get("historical") or row.get("cached") or row.get("source")!=expected_source or
                         (prefs.get("source")=="Dhan" and (row.get("freshness") not in ("verified_live","live_verified") or row.get("live_verified") is not True)) or
                         age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
@@ -1547,11 +1546,12 @@ def app_main(page:ft.Page):
             # replacing it with a generic NO LIVE SIGNAL at market close.
             # A historical ranking remains non-actionable and never LIVE.
             direction=("HISTORICAL "+row["bias"]
-                       if historical and row.get("source")==expected_source
+                       if historical and isinstance(stamp,(int,float)) and stamp>0
+                       and row.get("source")==expected_source
                        and row.get("bias") in ("BULLISH","BEARISH")
                        else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP unavailable • Dhan disconnected" if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):

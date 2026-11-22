@@ -208,6 +208,18 @@ class MobileRegressionTests(unittest.TestCase):
         end = source.index("    async def retry_failed_symbol(", start)
         self.assertIn('row.get("source")!=expected_source', source[start:end])
 
+    def test_super_five_disconnected_dhan_keeps_only_provenanced_historical(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
+        self.assertIn('disconnected_dhan=(prefs.get("source")=="Dhan" and not dhan_feed.connected)', card)
+        self.assertNotIn('return section("SUPER FIVE • CONNECTION REQUIRED"', card)
+        self.assertIn('historical=(disconnected_dhan or', card)
+        self.assertIn('isinstance(stamp,(int,float)) and stamp>0', card)
+        self.assertIn('row.get("source")==expected_source', card)
+        self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
+        self.assertIn('"LTP unavailable • Dhan disconnected" if disconnected_dhan', card)
+        self.assertIn('else "NO LIVE SIGNAL" if historical', card)
+
     def test_watchlist_chart_navigation_does_not_double_fetch(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         start = source.index("    def open_stock(sym):")
