@@ -46,3 +46,5 @@ jobs:
 # 2026-11-22: Release preflight for scanner failure-detail commits b7633e1 and 36f59c8; run once, no APK.
 
 # 2026-11-22: Verify scanner per-symbol Doctor failure detail wiring after b7633e1; one pre-APK gate.
+
+# 2026-11-22 combined batch b831d81: one full offline regression before any APK build; WIPRO 5m diagnostic + NIFTY OHLCV quality trace.
