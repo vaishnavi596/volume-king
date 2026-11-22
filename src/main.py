@@ -4538,10 +4538,11 @@ def app_main(page:ft.Page):
                                         "detail":detail})
                 # Diagnostic only: separate missing data from missing
                 # directional wiring for the same 18-filter registry.
-                from filter_wiring_audit import filter_wiring_matrix
+                from filter_wiring_audit import filter_wiring_matrix, has_recent_news_context
                 option_present=bool(matching_option_context_for_symbol(symbol))
                 with news_lock:
-                    news_present=bool((news_cache.get(symbol) or {}).get("items"))
+                    news_context=dict(news_cache.get(symbol) or {})
+                news_present=has_recent_news_context(news_context,now=time.time())
                 wiring_matrix=filter_wiring_matrix(
                     names,rows,source=history.get("source") if isinstance(history,dict) else "",
                     timeframe=tf,candle_ready=bool(

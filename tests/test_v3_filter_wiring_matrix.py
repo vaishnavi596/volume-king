@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from scanner_engine import ALL_FILTERS
-from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows
+from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows, has_recent_news_context
 
 
 class V3FilterWiringTests(unittest.TestCase):
@@ -50,6 +50,17 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertEqual(absent[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
         self.assertEqual(absent[1]["state"],"OPTION_DATA_MISSING")
         self.assertEqual(absent[-1]["state"],"ADAPTER_NOT_DIRECTIONAL")
+
+    def test_news_readiness_excludes_undated_old_and_future_headlines(self):
+        now=1800000000
+        article={"title":"Dhan market company item","published":now-90}
+        context={"fetched":now-30,"items":[article]}
+        self.assertTrue(has_recent_news_context(context,now=now))
+        self.assertFalse(has_recent_news_context({"fetched":now-90000,"items":[article]},now=now))
+        self.assertFalse(has_recent_news_context({"fetched":now-30,"items":[{"title":"old","published":now-90000}]},now=now))
+        self.assertFalse(has_recent_news_context({"fetched":now-30,"items":[{"title":"undated"}]},now=now))
+        self.assertFalse(has_recent_news_context({"fetched":now-30,"items":[{"title":"future","published":now+300}]},now=now))
+        self.assertFalse(has_recent_news_context({"fetched":now-30,"items":[article]},now=now+90000))
 
     def test_invalid_candles_cannot_pretend_to_vote(self):
         result=filter_wiring_matrix(["Supertrend"],[{"name":"Supertrend","vote":1}],
@@ -101,6 +112,7 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn("diagnostic_candle_readiness(history,tf,now=time.time())",block)
         self.assertIn('selected_candle_readiness',block)
         self.assertIn('doctor_filter_rows(filter_rows,wiring_matrix)',block)
+        self.assertIn('has_recent_news_context(news_context,now=time.time())',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
         self.assertIn('result.get("count",0)>=30',block)
 

@@ -106,3 +106,25 @@ def doctor_filter_rows(rows, matrix):
             status,stage="WAIT",state
         out.append(dict(row,status=status,stage=stage))
     return out
+
+
+def has_recent_news_context(data, *, now, max_age_seconds=86400):
+    """Check actual dated RSS headline context, not just a cached item count.
+
+    This never authenticates news direction or generates a trading vote.
+    Cached news can stay displayed as HIST even after this readiness expires.
+    """
+    from math import isfinite
+    if (not isinstance(data,dict) or not isinstance(data.get("items"),(list,tuple))
+            or type(now) not in (int,float) or not isfinite(now) or now<=0
+            or type(max_age_seconds) not in (int,float) or not isfinite(max_age_seconds)
+            or max_age_seconds<=0):
+        return False
+    fetched=data.get("fetched")
+    if type(fetched) not in (int,float) or not isfinite(fetched) or not 0<=now-fetched<=max_age_seconds:
+        return False
+    return any(isinstance(row,dict) and isinstance(row.get("title"),str)
+               and bool(row["title"].strip()) and
+               type(row.get("published")) in (int,float) and
+               isfinite(row["published"]) and 0<=now-row["published"]<=max_age_seconds
+               for row in data["items"])
