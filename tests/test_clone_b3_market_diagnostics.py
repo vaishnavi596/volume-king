@@ -66,6 +66,24 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertEqual([call.args[1:] for call in log.call_args_list],
                          [("candles", "SENSEX", "validation", "invalid_bars")])
 
+    def test_mapped_equity_candle_failure_is_logged_without_provider_payload(self):
+        class Provider:
+            def intraday(self, args):
+                return {"status": "success", "timestamp": [1800000000],
+                        "open": [100], "high": [99], "low": [98],
+                        "close": [101], "volume": [100]}
+        today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date().isoformat()
+        with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning") as log:
+            res = self.client(Provider()).post(
+                "/clone-v2/market/candles", headers=self.headers(),
+                json={"symbol": "RELIANCE", "interval": 5,
+                      "from_date": today, "to_date": today})
+        self.assertEqual(res.status_code, 502)
+        self.assertEqual([call.args[1:] for call in log.call_args_list],
+                         [("candles", "RELIANCE", "validation", "invalid_bars")])
+        self.assertNotIn(self.KEY.decode(), repr(log.call_args_list))
+
+
     def test_paced_index_retry_queues_instead_of_gateway_429(self):
         import time
         calls=[]
