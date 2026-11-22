@@ -1416,8 +1416,12 @@ def app_main(page:ft.Page):
         """Five independent evidence slots; percentages only when justified."""
         names=(("technical","T"),("candle","C"),("news","N"),
                ("futures","F"),("options","O"))
+        # Shared five-engine publisher currently uses 5m scanner/ranking results.
+        # Do not display its symbol-only snapshot as verified 1m/3m evidence.
+        # Per-timeframe historical context below stays explicitly HIST.
         snapshot=(snapshot_for_display(five_engine_snapshots.get(sym),now=time.time())
-                  if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                  if prefs.get("source")=="Dhan" and dhan_feed.connected
+                  and (display_timeframe is None or display_timeframe=="5m") else None)
         evidence={row.name:row.display() for row in snapshot["engines"]} if snapshot else {}
         cards=[]
         for name,short in names:
