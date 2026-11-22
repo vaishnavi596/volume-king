@@ -75,7 +75,13 @@ class V3FilterWiringTests(unittest.TestCase):
 
     def test_diagnostic_same_timeframe_gates_evidence(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
-        block=src.split("    def filter_five_diagnostic_panel():",1)[1].split("    def ",1)[0]
+        import ast
+        tree=ast.parse(src)
+        nodes=[node for node in ast.walk(tree)
+               if isinstance(node,ast.FunctionDef)
+               and node.name=="filter_five_diagnostic_panel"]
+        self.assertEqual(len(nodes),1)
+        block=ast.get_source_segment(src,nodes[0])
         self.assertIn("diagnostic_candle_readiness(history,tf,now=time.time())",block)
         self.assertIn('selected_candle_readiness',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
