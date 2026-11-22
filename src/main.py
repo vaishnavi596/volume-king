@@ -3380,7 +3380,7 @@ def app_main(page:ft.Page):
         return "Key length "+str(len(raw))+" bytes • SHA256 first 12: "+hashlib.sha256(raw).hexdigest()[:12]
     async def connect_angel():
         # Retired V3 callback. Never open a second provider session or send credentials.
-        connection_status.value="Only Dhan via Clone SSK is available in V3."
+        connection_status.value="Angel One login disabled in V3; only Dhan via Clone SSK is available."
         connection_status.color=GOLD
         page.update()
 
