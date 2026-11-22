@@ -13,8 +13,9 @@ class DhanSourceContextTests(unittest.TestCase):
         self.assertIn('market_store.get("market",prefs.get("source","Dhan")', source)
         self.assertIn('key="market:"+prefs.get("source","Dhan")', source)
         self.assertNotIn('.get(prefs.get("source"),"Yahoo Finance")', source)
-        self.assertIn('"Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")', source)
-        self.assertIn('source.value=prefs.get("source","Dhan");save()', source)
+        self.assertIn('if prefs.get("source")!="Dhan":',source)
+        self.assertIn('source.value="Dhan"', source)
+        self.assertIn('prefs["source"]="Dhan"', source)
         self.assertIn('prefs.get(\'source\',\'Dhan\')', source)
 
 
