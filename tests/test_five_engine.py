@@ -566,8 +566,8 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('wrap_delta_section("scanner_five"', source)
         self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
-        self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY")', source)
-        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
+        self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
+        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)]', source)
 
     def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
         from pathlib import Path
@@ -604,5 +604,16 @@ class FiveEngineNonFiveMinuteSnapshotSafety(unittest.TestCase):
         function = source[start:end]
         self.assertIn('display_timeframe is None or display_timeframe=="5m"', function)
         self.assertIn('snapshot_for_display(five_engine_snapshots.get(sym)', function)
+
+class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
+    def test_scanner_details_use_scanner_timeframe(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
+        start = source.index("    def five_engine_summary(symbol, display_timeframe=None):")
+        end = source.index("    def five_engine_chips(", start)
+        summary = source[start:end]
+        self.assertIn('display_timeframe is None or display_timeframe=="5m"', summary)
+        self.assertIn('candle_tf=(display_timeframe or ', summary)
 
 if __name__=="__main__":unittest.main()
