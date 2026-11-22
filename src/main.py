@@ -2068,6 +2068,7 @@ def app_main(page:ft.Page):
     index_last_attempt=[0.0]
     index_refresh_generation=[None]
     index_failure_code=["NOT_TESTED"]
+    index_failure_429_stage=["NOT_APPLICABLE"]
     index_last_result_at=[None]
     index_last_result_generation=[None]
     index_last_result_state=["NEVER_ATTEMPTED"]
@@ -2084,6 +2085,7 @@ def app_main(page:ft.Page):
             if login_bootstrap.generation==provider_generation[0]:
                 login_bootstrap.finish(provider_generation[0],"indices",0,3,error="cooldown")
             index_failure_code[0]="COOLDOWN_ACTIVE"
+            index_failure_429_stage[0]="ACTIVE_SHARED_COOLDOWN"
             index_last_result_at[0]=time.time()
             index_last_result_generation[0]=provider_generation[0]
             index_last_result_state[0]="DEFERRED_COOLDOWN"
@@ -2180,9 +2182,11 @@ def app_main(page:ft.Page):
                    for key in ("NIFTY","BANKNIFTY","SENSEX")):
                 display_failures.pop("dhan_index_ltp_batch",None)
                 index_failure_code[0]="NONE_ALL_THREE_QUOTES_PRESENT"
+                index_failure_429_stage[0]="NOT_APPLICABLE"
                 index_last_result_state[0]="RESPONSE_VALID_ALL_THREE_UNVERIFIED_LIVE"
             else:
                 index_failure_code[0]="PARTIAL_OR_INVALID_INDEX_BATCH"
+                index_failure_429_stage[0]="NOT_APPLICABLE"
                 index_last_result_state[0]="PARTIAL_RESPONSE"
                 unavailable=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX")
                              if not isinstance(snapshots.get(sym),dict)
@@ -2203,6 +2207,11 @@ def app_main(page:ft.Page):
             # Fixed-enum only. Do not expose arbitrary exception text,
             # upstream response bodies, private URLs, or authentication keys.
             diagnostic=str(exc).lower()
+            index_failure_429_stage[0]=(
+                "GATEWAY_PACING" if "quote lane paced" in diagnostic else
+                "PROVIDER_QUOTA_OR_COOLDOWN" if "provider rate limit" in diagnostic else
+                "UNKNOWN_429_SOURCE" if "rate limit" in diagnostic or "http 429" in diagnostic else
+                "NOT_APPLICABLE")
             index_last_result_state[0]="FAILED"
             index_failure_code[0]=(
                 "GATEWAY_HTTP_429" if any(w in diagnostic for w in ("http 429","cooldown","quote lane paced","rate limit")) else
@@ -5004,6 +5013,7 @@ def app_main(page:ft.Page):
                     "index_route_diagnostic":{
                         "last_failure":str(display_failures.get("dhan_index_ltp_batch") or "none")[:180],
                         "failure_code":index_failure_code[0],
+                        "rate_limit_origin":index_failure_429_stage[0],
                         "last_result_state":index_last_result_state[0],
                         "last_result_generation_matches":index_last_result_generation[0]==generation,
                         "last_result_age_seconds":round(time.time()-index_last_result_at[0],1)
@@ -5165,6 +5175,7 @@ def app_main(page:ft.Page):
                         "index_busy":bool(index_refresh_busy[0]),
                         "index_last_failure":str(display_failures.get("dhan_index_ltp_batch") or "")[:180],
                         "index_failure_code":index_failure_code[0],
+                        "index_rate_limit_origin":index_failure_429_stage[0],
                         "index_last_result_state":index_last_result_state[0],
                         "index_last_result_generation_matches":index_last_result_generation[0]==generation,
                         "index_result_age_seconds":round(now-index_last_result_at[0],1)
