@@ -39,5 +39,7 @@ class HistoricalVoteUiTests(unittest.TestCase):
         walk(root)
         self.assertFalse(any("Bearish 100%" in t for t in texts),texts[-30:])
         self.assertTrue(any("1m historical candle votes unavailable" in t for t in texts),texts[-30:])
-        self.assertTrue(any("HIST" in t for t in texts),texts[-30:])
+        # No completed 1m candles: cached indicator votes cannot substitute for candle evidence.
+        # The dashboard must show a truthful WAIT rather than inventing HIST or LIVE.
+        self.assertTrue(any("C WAIT" in t for t in texts),texts[-30:])
         self.assertFalse(any(t=="LIVE" for t in texts),texts[-30:])
