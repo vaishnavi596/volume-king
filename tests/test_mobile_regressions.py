@@ -568,8 +568,16 @@ class MobileRegressionTests(unittest.TestCase):
 
     def test_dhan_connect_queues_new_history_generation(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        self.assertIn('state="Dhan historical scan queued; LTP independently checked"', source)
+        # Legacy Angel/V1 login and its obsolete status text are removed.
+        # Clone SSK login remains the sole active credential/quote bootstrap.
+        block=source.split('    async def check_clone_v2_connection():',1)[1].split(
+            '    def check_clone_v2_gateway(e):',1)[0]
+        self.assertIn('dhan_feed.activate_with_quote(proof)', block)
+        self.assertIn('provider_changed(None)',block)
+        self.assertIn('watch_batch_success_generation[0]=provider_generation[0]',block)
+        self.assertIn('page.run_task(refresh_selected_options)',block)
         self.assertIn('provider_generation[0]+=1', source)
+        self.assertIn('dhan_history_scan_active',source)
 
     def test_background_market_task_recovers_from_unhandled_errors(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
