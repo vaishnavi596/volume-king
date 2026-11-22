@@ -475,12 +475,19 @@ class MobileRegressionTests(unittest.TestCase):
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
         self.assertIn('data.get("live_verified") is not True', display)
         self.assertIn('row.get("live_verified") is not True', card)
-        self.assertIn('direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical', card)
+        self.assertIn('direction=("HISTORICAL "+row["bias"]', card)
+        self.assertIn('if historical and row.get("source")==expected_source', card)
+        self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
+        self.assertIn('else "NO LIVE SIGNAL" if historical', card)
 
     def test_super_five_render_masks_stale_dhan_direction(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
-        self.assertIn('direction=("NO LIVE SIGNAL" if prefs.get("source")=="Dhan" and historical', card)
+        self.assertIn('direction=("HISTORICAL "+row["bias"]', card)
+        self.assertIn('if historical and row.get("source")==expected_source', card)
+        self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
+        self.assertIn('else "NO LIVE SIGNAL" if historical', card)
+        self.assertIn('row.get("live_verified") is not True', card)
         self.assertIn('else "NO CLEAR SIGNAL" if row["bias"]=="WAIT"', card)
         self.assertIn('or not regular_hours()', card)
         self.assertIn('row.get("cached")', card)
