@@ -3513,7 +3513,7 @@ def app_main(page:ft.Page):
             selected_equities=list(all_watch_symbols())
             request_symbols=list(dict.fromkeys(
                 ["NIFTY","BANKNIFTY","SENSEX"]+selected_equities))
-            proof=await asyncio.to_thread(clone_v2_gateway.market_quotes,request_symbols)
+            proof=await asyncio.to_thread(dhan_feed.paced_market_quotes,request_symbols)
             building_doctor.milestone("quotes_response_received")
             received_symbols=set(proof) if isinstance(proof,dict) else set()
             building_doctor.login_source_coverage={
@@ -3546,12 +3546,20 @@ def app_main(page:ft.Page):
                 if found<total else None)
             watch_batch_status[0]=(
                 f"Clone B3 Dhan selected equity batch: {found}/{total} prices returned")
-            watch_batch_last_success[0]=time.monotonic()
+            # Initial SSK proof is an actual quote request. It must advance
+            # the same watchlist/auto-poll clock to prevent immediate duplicate
+            # equity and index requests after successful login.
+            watch_batch_last_attempt[0]=time.monotonic()
+            quote_auto_last_attempt[0]=watch_batch_last_attempt[0]
+            watch_batch_last_success[0]=watch_batch_last_attempt[0]
             watch_batch_success_generation[0]=provider_generation[0]
             login_bootstrap.finish(provider_generation[0],"equities",found,total)
             received_indices=sum(1 for sym in ("NIFTY","BANKNIFTY","SENSEX")
                                  if sym in proof)
             login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)
+            if received_indices==3:
+                index_last_attempt[0]=time.monotonic()
+                index_refresh_generation[0]=provider_generation[0]
             building_doctor.milestone("quotes_applied_to_phone_stock")
             # A default NIFTY selection does not emit on_change. Explicitly
             # start one existing paced options refresh on successful login,
@@ -3604,7 +3612,7 @@ def app_main(page:ft.Page):
             connection_status.color=GOLD
             page.update()
             result=await asyncio.to_thread(
-                clone_v2_gateway.market_quotes, ["NIFTY","BANKNIFTY","SENSEX"])
+                dhan_feed.paced_market_quotes, ["NIFTY","BANKNIFTY","SENSEX"])
             connection_status.value=(
                 "Clone B3 • Dhan read-only returned "+str(len(result))+
                 "/3 indices • "+", ".join(
