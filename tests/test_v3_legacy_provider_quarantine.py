@@ -56,7 +56,8 @@ class V3LegacyProviderQuarantine(unittest.TestCase):
             "    async def start_dhan_authorization():",1)[0]
         self.assertNotIn("await asyncio.to_thread",old)
         self.assertNotIn("urllib.request",old)
-        self.assertIn("Only Dhan via Clone SSK",old)
+        self.assertIn("Angel One login disabled in V3",old)
+        self.assertIn("only Dhan via Clone SSK",old)
         option=MAIN.split("    async def load_option_history():",1)[1].split(
             "    def option_chart_panel():",1)[0]
         self.assertIn("no broker request sent",option)
