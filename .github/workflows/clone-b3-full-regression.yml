@@ -15,6 +15,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Smart latest-commit gate: cancel obsolete B3 runs on the same branch.
+# Direct offline test execution; no Project Workflow Status Bridge dependency.
+concurrency:
+  group: clone-b3-latest-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   clone-full-regression:
     runs-on: ubuntu-22.04
