@@ -1362,6 +1362,16 @@ def app_main(page:ft.Page):
                 log_error("super_five_minute_refresh",exc)
                 if current[0]==0:
                     request_view_refresh(0)
+    def historical_five_minute_technical(symbol):
+        """Only saved exact-5m Dhan votes; historical display, never LIVE."""
+        saved=watch_signal_cache.get(symbol) or {}
+        if (saved.get("source")!="Dhan" or saved.get("timeframe")!="5m"
+                or type(saved.get("timestamp")) not in (int,float)
+                or not math.isfinite(saved["timestamp"]) or saved["timestamp"]<=0):
+            return None
+        counts=signal_percentages(saved)
+        return counts if counts and counts[2]>0 else None
+
     def five_engine_summary(symbol, display_timeframe=None):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
             if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):
@@ -1376,6 +1386,13 @@ def app_main(page:ft.Page):
                                 display_timeframe+" B"+str(round(offline_votes[0]))+
                                 "% / S"+str(round(offline_votes[1]))+
                                 "% • LIVE 0/5 verified • N/F/O WAIT")
+            if prefs.get("source")=="Dhan" and display_timeframe in (None,"5m"):
+                last_votes=historical_five_minute_technical(symbol)
+                if last_votes:
+                    return note("5 engines • OFFLINE • Technical HIST 5m B"+
+                                str(round(last_votes[0]))+"% / S"+
+                                str(round(last_votes[1]))+
+                                "% • LIVE 0/5 verified • C/N/F/O WAIT")
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
@@ -1420,6 +1437,14 @@ def app_main(page:ft.Page):
             label=names[evidence.name]
             pieces.append(label+(" B"+str(result["bullish"])+"% / S"+str(result["bearish"])+"%"
                                   if result["state"]!="WAIT" else " WAIT ("+str(result["reason"])+")"))
+        # Stale/closed-market 5m publisher cannot hide last completed 5m
+        # technical votes. Historical context is not a sixth/verified engine.
+        if snapshot["engines"][0].display()["state"]=="WAIT":
+            last_votes=historical_five_minute_technical(symbol)
+            if last_votes:
+                pieces[0]=("Technical HIST 5m B"+str(round(last_votes[0]))+
+                           "% / S"+str(round(last_votes[1]))+
+                           "% • not LIVE verified")
         # Reuse the existing read-only option component; never create a second API poll.
         # Current option snapshots lack measured directional strength and remain WAIT.
         option_context=option_from_component(option_component(symbol, "5m"))

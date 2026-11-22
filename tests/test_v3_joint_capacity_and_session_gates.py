@@ -133,6 +133,20 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertIn('"% • LIVE 0/5 verified • N/F/O WAIT"',summary)
         self.assertNotIn('get_market_data(',summary)
 
+    def test_historical_five_minute_summary_shared_with_chip_when_disconnected(self):
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        helper=source.split("    def historical_five_minute_technical(",1)[1].split("    def five_engine_summary(",1)[0]
+        summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
+        self.assertIn('saved=watch_signal_cache.get(symbol) or {}',helper)
+        self.assertIn('saved.get("timeframe")!="5m"',helper)
+        self.assertIn('saved.get("source")!="Dhan"',helper)
+        self.assertIn('counts=signal_percentages(saved)',helper)
+        self.assertIn('historical_five_minute_technical(symbol)',summary)
+        self.assertIn('"5 engines • OFFLINE • Technical HIST 5m B"',summary)
+        self.assertIn('pieces[0]=("Technical HIST 5m B"',summary)
+        self.assertIn('snapshot["engines"][0].display()["state"]=="WAIT"',summary)
+        self.assertNotIn('get_market_data(',summary)
+
     def test_selected_18_filters_same_registry_but_missing_independent_vote(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(OPTION_FILTERS),4)
