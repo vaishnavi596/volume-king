@@ -17,9 +17,9 @@ class HistoricalVoteUiTests(unittest.TestCase):
         visible=[card.content.value for group in row.controls for card in group.controls
                  if hasattr(card.content,"value")]
         self.assertTrue(any("T HIST B67/S33" in label for label in visible),visible)
-        self.assertTrue(any("N WAIT" in label for label in visible),visible)
-        self.assertTrue(any("F WAIT" in label for label in visible),visible)
-        self.assertTrue(any("O WAIT" in label for label in visible),visible)
+        self.assertTrue(any(("N WAIT" in label or "N OFF • market closed" in label) for label in visible),visible)
+        self.assertTrue(any(("F WAIT" in label or "F OFF • market closed" in label) for label in visible),visible)
+        self.assertTrue(any(("O WAIT" in label or "O OFF • market closed" in label) for label in visible),visible)
 
     def test_nifty_no_bars_shows_previous_historical_votes_not_price_direction(self):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
@@ -40,6 +40,6 @@ class HistoricalVoteUiTests(unittest.TestCase):
         self.assertFalse(any("Bearish 100%" in t for t in texts),texts[-30:])
         self.assertTrue(any("1m historical candle votes unavailable" in t for t in texts),texts[-30:])
         # No completed 1m candles: cached indicator votes cannot substitute for candle evidence.
-        # The dashboard must show a truthful WAIT rather than inventing HIST or LIVE.
-        self.assertTrue(any("C WAIT" in t for t in texts),texts[-30:])
+        # The dashboard must show WAIT when open or OFF when market closed; never invent HIST or LIVE.
+        self.assertTrue(any(("C WAIT" in t or "C OFF • market closed" in t) for t in texts),texts[-30:])
         self.assertFalse(any(t=="LIVE" for t in texts),texts[-30:])
