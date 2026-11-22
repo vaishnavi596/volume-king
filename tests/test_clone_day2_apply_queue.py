@@ -104,7 +104,7 @@ class SmartApplyQueueTests(unittest.TestCase):
         self.assertIn('id(cells),signal_row.get("timestamp")', tick)
         self.assertIn("if last_evidence_signatures.get(sym)!=evidence_signature:", tick)
         gated = tick.split("if last_evidence_signatures.get(sym)!=evidence_signature:", 1)[1]
-        self.assertIn("five.content=five_engine_chips(sym)", gated)
+        self.assertIn('five.content=five_engine_chips(sym,display_timeframe="3m")', gated)
         self.assertIn("assessment.content=note(oracle_assessment_notes", gated)
         self.assertIn("signal.content=compact_watch_signal", gated)
         inputs = tick.split("evidence_signature=(", 1)[1].split("if last_evidence_signatures.get(sym)", 1)[0]

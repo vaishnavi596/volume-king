@@ -18,7 +18,7 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn("index_last_attempt[0]=time.monotonic()",body)
 
     def test_closed_market_cached_top_five_requires_no_provider_call(self):
-        body=segment("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
+        body=segment("    async def super_five_minute_refresh():","    def five_engine_summary(symbol, display_timeframe=None):")
         self.assertNotIn("not regular_hours()",body)
         self.assertIn('bars=snapshot.get("bars") or []',body)
         self.assertIn("publish_partial_ranking(results)",body)
@@ -32,7 +32,7 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertNotIn("dhan_feed.option_chain_metrics(",body)
         change=segment("    def provider_changed(e):","    broker_previous=broker.on_change")
         self.assertIn("publish_partial_ranking({})",change)
-        chips=segment("    def five_engine_chips(sym):","    def super_five_card():")
+        chips=segment("    def five_engine_chips(sym, display_timeframe=None):","    def super_five_card():")
         self.assertIn("top5_candidates",chips)
         self.assertIn('row.get("historical") is True',chips)
         self.assertIn('row.get("source")=="Dhan"',chips)
@@ -69,7 +69,7 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn("len(dhan_option_context_cache)>16",body)
         self.assertIn("generation!=provider_generation[0]",body)
         self.assertIn("await asyncio.sleep(3.25)",body)
-        context=segment("    def five_engine_summary(symbol):","    def super_five_card():")
+        context=segment("    def five_engine_summary(symbol, display_timeframe=None):","    def super_five_card():")
         self.assertIn("gen==provider_generation[0]",context)
         self.assertIn("underlying==sym",context)
         self.assertIn("symbol!=chain_symbol.value",context)

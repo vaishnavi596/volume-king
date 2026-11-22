@@ -24,7 +24,7 @@ class HistoricalVoteUiTests(unittest.TestCase):
     def test_nifty_no_bars_shows_previous_historical_votes_not_price_direction(self):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
         v["watch_signal_cache"]["NIFTY"]={
-            "source":"Dhan","symbol":"NIFTY","timestamp":time.time()-1000,
+            "source":"Dhan","symbol":"NIFTY","timeframe":"1m","timestamp":time.time()-1000,
             "historical":True,"freshness":"unverified","live_verified":False,
             "votes":[{"name":"RSI","vote":-1},{"name":"MACD","vote":-1}]}
         v["quotes"]["NIFTY"]={"source":"Dhan","price":25100,"change":-2.0,

@@ -8,6 +8,7 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-live-building-doctor-apk.yml
+      - tests/test_b1_five_engine_dhan_shared_option.py
   workflow_dispatch:
 permissions:
   contents: read

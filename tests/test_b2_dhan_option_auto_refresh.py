@@ -70,8 +70,8 @@ class DhanMultiUnderlyingOptionsTests(unittest.TestCase):
         self.assertIn('data.get("source")!="dhan"',context)
         self.assertIn('message=("Dhan "+symbol+',context)
         self.assertNotIn('if symbol!="NIFTY"',context)
-        summary=source.split("    def five_engine_summary(symbol):",1)[1].split(
-            "    def five_engine_chips(sym):",1)[0]
+        summary=source.split("    def five_engine_summary(symbol, display_timeframe=None):",1)[1].split(
+            "    def five_engine_chips(sym, display_timeframe=None):",1)[0]
         self.assertIn("symbol==chain_symbol.value",summary)
         self.assertNotIn('symbol=="NIFTY"',summary)
 

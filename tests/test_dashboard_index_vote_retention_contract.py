@@ -66,7 +66,7 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
             self.assertIn('("NIFTY","BANKNIFTY","SENSEX")',body)
             self.assertIn('else "5m"',body)
             self.assertIn("historical_candle_balance",body)
-        self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
+        self.assertIn('historical_vote_agreement(shared_history(sym,display_timeframe or "1m"),display_timeframe or "1m")',chips)
         self.assertIn('historical=True',chips)
         self.assertIn('NOT live',chips)
         self.assertNotIn('dhan_feed.intraday(',chips)

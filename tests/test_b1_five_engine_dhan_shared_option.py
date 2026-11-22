@@ -46,7 +46,7 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         self.assertIsNone(historical_candle_balance(bars[:-1]+[bars[-2]]))
 
     def test_historical_candle_chip_never_fetches_broker_data(self):
-        chip=SOURCE.split("    def five_engine_chips(sym):",1)[1].split("    def super_five_card():",1)[0]
+        chip=SOURCE.split("    def five_engine_chips(sym, display_timeframe=None):",1)[1].split("    def super_five_card():",1)[0]
         self.assertIn("C HIST B",chip)
         self.assertIn("NOT live",chip)
         self.assertNotIn("dhan_feed.option_chain",chip)

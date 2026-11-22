@@ -193,7 +193,7 @@ class OracleFiveFiltersSourceAudit(TestCase):
         self.assertIn('oracle_assessment_notes(sym,"watchlist")', source)
         self.assertIn('oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")', source)
         self.assertIn('oracle_assessment_notes(row["symbol"],"overview")', source)
-        self.assertIn("five_engine_summary(symbol)", source)
+        self.assertIn('five_engine_summary(row["symbol"],display_timeframe="5m")', source)
 
 
 if __name__ == "__main__":
