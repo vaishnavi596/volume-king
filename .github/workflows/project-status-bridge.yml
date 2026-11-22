@@ -1,0 +1,51 @@
+name: Project Workflow Status Bridge
+# Runs on default branch when a named project workflow finishes.
+# Read-only status artifact; no secrets, no provider requests, no automatic code mutation.
+on:
+  workflow_run:
+    workflows:
+      - BOT KING CLONE Adapter-Fixed Phone APK
+      - BOT KING V1 Pure Original Clone APK
+      - BOT KING V3 One Pass Final Offline Gate
+      - BOT KING CLONE Adapter Joint Audit
+      - BOT KING CLONE B1 Timeframe Targeted Tests
+      - BOT KING CLONE B2 Smart Priority Tests
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Write machine-readable latest result
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          event=json.loads(pathlib.Path(os.environ["EVENT_PATH"]).read_text())
+          run=event["workflow_run"]
+          status={
+            "repository": event["repository"]["full_name"],
+            "workflow": run["name"],
+            "run_id": run["id"],
+            "run_number": run["run_number"],
+            "branch": run.get("head_branch"),
+            "commit": run.get("head_sha"),
+            "status": run.get("status"),
+            "conclusion": run.get("conclusion"),
+            "url": run["html_url"],
+            "completed_at": run.get("updated_at"),
+            "next_action": ("inspect_failed_jobs_then_fix_and_retest" if run.get("conclusion")=="failure"
+              else "check_release_gate_and_next_step" if run.get("conclusion")=="success"
+              else "review_cancelled_or_skipped_run")
+          }
+          pathlib.Path("workflow-status.json").write_text(json.dumps(status,indent=2)+"\n")
+          print(json.dumps(status))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workflow-status-${{ github.event.workflow_run.id }}
+          path: workflow-status.json
+          retention-days: 30
