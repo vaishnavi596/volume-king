@@ -1522,7 +1522,7 @@ def app_main(page:ft.Page):
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
             note("Historical analysis: "+str(scan_progress["state"])+" • separate from watchlist quote refresh")]
         if disconnected_dhan:
-            controls.insert(0,note("Dhan disconnected • saved historical analysis only; no live prices or trade signals."))
+            controls.insert(0,note("Dhan disconnected • saved historical analysis only; no live signal or verified prices."))
         # Keep Super Five focused on five candidates, not a scrolling wall
         # of up to 51 provider errors and retry buttons. Full per-symbol
         # diagnostics remain in System Health / Scanner.
@@ -6343,7 +6343,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if data:
                     context=option_chain_display_context(data)
                     if name=="Dhan Max Pain" and isinstance(data.get("max_pain"),(int,float)):
-                        row["detail"]="Dhan Max Pain "+format(data["max_pain"],",.0f")+" • unverified, display only"
+                        row["detail"]="Strike "+format(data["max_pain"],",.0f")+" • unverified option-chain context, display only"
                     elif name=="OI Profile" and context.get("available"):
                         row["detail"]="Dhan ATM ±3 listed strikes available • unverified, display only"
                     elif name in ("OI Support","OI Resistance") and context.get("available"):
@@ -6355,6 +6355,7 @@ console.log('BOT KING Lightweight Charts ready');
                 else:
                     row["detail"]="No matching Dhan expiry snapshot for "+sym+" • WAIT"
                 row["vote"]=None
+                row["context_only"]=bool(data)
         return rows
     def shared_filter_report(sym,tf,result):
         result=selected_presentation(result,tf)
@@ -6370,7 +6371,7 @@ console.log('BOT KING Lightweight Charts ready');
             five_engine_chips(sym,display_timeframe=tf),
             vote_display(signal_percentages(result),result.get("display_state")=="LIVE",tf),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
-                   else "NEUTRAL" if row.get("vote")==0 else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
+                   else "NEUTRAL" if row.get("vote")==0 else "CONTEXT ONLY" if row.get("context_only") else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
                    GREEN if row.get("vote")==1 else RED if row.get("vote")==-1 else MUTED) for row in rows]
         ],spacing=4))
     chart_delivery_identity=[None]
@@ -7044,7 +7045,7 @@ console.log('BOT KING Lightweight Charts ready');
             shown_analysis=(historical if history_valid and
                             (hist.get("cached") or not regular_hours()) else advanced)
             report_rows=enrich_context_filter_rows(sym,complete_filter_rows(shown_analysis,filter_selected,filter_modes))
-            lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
+            lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "CONTEXT ONLY" if v.get("context_only") else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
                        GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]
             # Show filter-by-filter votes as soon as candle analysis completes.
             # Option premium modeling, news or combined analysis must not hide them.
@@ -7106,7 +7107,7 @@ console.log('BOT KING Lightweight Charts ready');
                     note("Unverified strike/expiry • check broker.")
                 ],spacing=6),bgcolor=PANEL2,padding=12,border_radius=10))
             age_warning=("HISTORICAL / STALE for selected timeframe" if hist.get("cached") or age_hours*3600>timeframe_spec(interval)["fresh_seconds"] or age_hours<0 else "source candle history; confirm with broker.")
-            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Analysis uses completed candles only; chart may show a forming candle."),note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),note(basis),*lines,note("OI/PCR/Dhan Max Pain not connected; unavailable filters never vote.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
+            controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),note("Analysis uses completed candles only; chart may show a forming candle."),note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),note(basis),*lines,note("Dhan option/OI/PCR context is unverified and display-only; missing evidence never votes.")],spacing=5)),card(txt(sym+" • "+direction,19,GREEN if direction=="BULLISH" else RED if direction=="BEARISH" else GOLD,True),
                 txt("Underlying historical close: ₹"+scan_num(price),15),
                 txt(hist.get("source","Source")+" candle (IST): "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M"),12),
                 txt("Data age: "+f"{max(0,age_hours):.1f}"+" hours • "+age_warning,12,RED if age_hours>24 else GOLD),

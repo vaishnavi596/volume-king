@@ -220,6 +220,18 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('"LTP unavailable • Dhan disconnected" if disconnected_dhan', card)
         self.assertIn('else "NO LIVE SIGNAL" if historical', card)
 
+    def test_scanner_dhan_option_context_never_duplicate_max_pain_or_vote(self):
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        enrich = source[source.index("    def enrich_context_filter_rows("):source.index("    def shared_filter_report(")]
+        scan = source[source.index('            lines=[txt(str(v.get("name"'):source.index('            # Show filter-by-filter votes', source.index('            lines=[txt(str(v.get("name"'))]
+        self.assertIn('row["detail"]="Strike "+format(data["max_pain"],",.0f")', enrich)
+        self.assertNotIn('row["detail"]="Dhan Max Pain "+', enrich)
+        self.assertIn('row["context_only"]=bool(data)', enrich)
+        self.assertIn('row["vote"]=None', enrich)
+        self.assertIn('else "CONTEXT ONLY" if v.get("context_only") else "UNAVAILABLE"', scan)
+        self.assertIn('Dhan option/OI/PCR context is unverified and display-only', source)
+        self.assertEqual(source.count('row["detail"]="Strike "+format(data["max_pain"],",.0f")'), 1)
+
     def test_watchlist_chart_navigation_does_not_double_fetch(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         start = source.index("    def open_stock(sym):")
@@ -488,7 +500,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('data.get("live_verified") is not True', display)
         self.assertIn('row.get("live_verified") is not True', card)
         self.assertIn('direction=("HISTORICAL "+row["bias"]', card)
-        self.assertIn('if historical and row.get("source")==expected_source', card)
+        self.assertIn('if historical and isinstance(stamp,(int,float)) and stamp>0', card)
         self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
         self.assertIn('else "NO LIVE SIGNAL" if historical', card)
 
@@ -496,7 +508,7 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         card = source[source.index("    def super_five_card():"):source.index("    async def retry_failed_symbol(", source.index("    def super_five_card():"))]
         self.assertIn('direction=("HISTORICAL "+row["bias"]', card)
-        self.assertIn('if historical and row.get("source")==expected_source', card)
+        self.assertIn('if historical and isinstance(stamp,(int,float)) and stamp>0', card)
         self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
         self.assertIn('else "NO LIVE SIGNAL" if historical', card)
         self.assertIn('row.get("live_verified") is not True', card)
