@@ -4539,6 +4539,11 @@ def app_main(page:ft.Page):
                      and diagnostic_context["last_candle_age_seconds"]>300 else []))
                 diagnostic_context["candle_quality_interpretation"]=(
                     "READ_ONLY_REVIEW_FLAGS_NOT_BROKER_ERRORS_OR_LIVE_SIGNALS")
+                diagnostic_context["candle_quality_next_action"]=(
+                    "COMPARE_RAW_DHAN_OHLCV_WITH_GATEWAY_AND_PHONE_CACHE; "
+                    "DO_NOT_PROMOTE_TO_VERIFIED_LIVE" if
+                    diagnostic_context["candle_quality_flags"] else
+                    "NO_LOCAL_QUALITY_REVIEW_FLAG; LIVE_SOURCE_STILL_UNVERIFIED")
                 engines=[]
                 raw_snapshot=five_engine_snapshots.get(symbol)
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
@@ -5039,7 +5044,12 @@ def app_main(page:ft.Page):
                              "error_code":str(value.get("code","UNCLASSIFIED_FETCH_FAILURE"))[:80],
                              "detail":str(value.get("detail",""))[:180],
                              "recorded_at":value.get("at"),
-                             "recovery":"AWAITING_SUCCESSFUL_SAME_GENERATION_CANDLE"}
+                             "recovery":"AWAITING_SUCCESSFUL_SAME_GENERATION_CANDLE",
+                             "gateway_route":"/clone-v2/market/candles",
+                             "failure_scope":"SYMBOL_TIMEFRAME_ONLY_NOT_GLOBAL_QUOTES",
+                             "http_status":"UNKNOWN_NOT_RECORDED",
+                             "provider_origin":"UNDETERMINED_GATEWAY_OR_UPSTREAM",
+                             "next_action":"CHECK_GATEWAY_HTTP_STATUS_AND_SOURCE_CANDLE_TIMESTAMP"}
                             for key,value in list(scan_fetch_failure.items())[:10]
                             if isinstance(key,tuple) and len(key)==3 and isinstance(value,dict)],
                         "recent_error_count":len(diagnostics[-30:]),
