@@ -12,6 +12,25 @@ def evidence(name, bullish=None, verified=False):
 
 
 class FiveEngineTests(unittest.TestCase):
+    def test_measured_dhan_derivative_adapters_only_accept_proven_strength(self):
+        from five_engine import futures_from_component
+        valid={"source":"Dhan","verified":True,"contract":"NIFTY-FUT",
+               "direction_basis":"validated_trade_flow","timestamp":1234567890,
+               "bullish":72,"bearish":28}
+        future=futures_from_component(valid)
+        self.assertTrue(future.eligible)
+        self.assertEqual(future.display()["state"],"BULLISH")
+        option=option_from_component(dict(valid,available=True,bias="BULLISH"))
+        self.assertTrue(option.eligible)
+        for field,bad in (("bullish",True),("bearish",27),
+                          ("direction_basis","oi_inference"),("source","Yahoo Finance")):
+            with self.subTest(field=field):
+                broken=dict(valid,available=True,bias="BULLISH",**{field:bad})
+                self.assertFalse(futures_from_component(broken).eligible)
+                self.assertFalse(option_from_component(broken).eligible)
+        self.assertFalse(option_from_component(dict(valid,available=True,bias="BULLISH",
+                                                    bullish=None)).eligible)
+
     def test_missing_is_not_zero_or_bearish(self):
         missing=evidence("options")
         self.assertEqual(missing.display()["state"],"WAIT")
