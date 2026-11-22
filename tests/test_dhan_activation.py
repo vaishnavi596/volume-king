@@ -76,9 +76,11 @@ class DhanActivationTests(unittest.TestCase):
 
     def test_historical_only_contract_in_main(self):
         main = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
-        self.assertIn("activate_historical_verified(endpoint,pairing_key,candles)", main)
-        self.assertIn('"freshness":"unverified" if quote else "historical_unverified"', main)
-        self.assertIn("Dhan historical scan queued; LTP independently checked", main)
+        # Legacy V1 historical-only activation is no longer an Android login
+        # fallback. The current Clone SSK requires real quote proof.
+        self.assertIn("dhan_feed.activate_with_quote(proof)",main)
+        self.assertIn('"freshness":"unverified" if quote else "historical_unverified"',main)
+        self.assertNotIn("activate_historical_verified(endpoint,pairing_key,candles)",main)
 
 
     def test_index_batch_can_activate_login_after_individual_probe_failure(self):
@@ -117,16 +119,15 @@ class DhanActivationTests(unittest.TestCase):
 
     def test_index_login_fallback_is_before_historical_only_and_reuses_prices(self):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
-        block=source.split('async def connect_angel():',1)[1].split('    def provider_changed(',1)[0] if '    def provider_changed(' in source.split('async def connect_angel():',1)[1] else source.split('async def connect_angel():',1)[1].split('    def clear_broker_credentials(',1)[0]
-        self.assertIn("validated_login_index_batch(",block)
-        self.assertIn('dhan_feed.activate_verified(endpoint,pairing_key,login_index_quotes["NIFTY"])',block)
-        self.assertIn("for index_sym, index_row in login_index_quotes.items():",block)
-        # An observed login batch must not be requested again immediately;
-        # if the batch was not used, the independent index pipeline starts.
-        self.assertIn('if login_index_quotes:',block)
-        self.assertIn('login_bootstrap.finish(provider_generation[0],"indices",len(login_index_quotes),3)',block)
-        self.assertIn('and not login_index_quotes',block)
-        self.assertIn('page.run_task(refresh_dhan_index_quotes,True)',block)
+        block=source.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
+        self.assertIn('dhan_feed.paced_market_quotes,request_symbols',block)
+        self.assertIn('if "NIFTY" not in proof:',block)
+        self.assertIn("dhan_feed.activate_with_quote(proof)",block)
+        self.assertIn('login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)',block)
+        self.assertIn("if received_indices==3:",block)
+        # A complete first index batch must not immediately repeat against Dhan.
+        self.assertIn("index_last_attempt[0]=time.monotonic()",block)
+        self.assertNotIn('page.run_task(refresh_dhan_index_quotes,True)',block)
 
     def test_rejects_unverified_or_live_order_responses(self):
         for quote in (
