@@ -24,6 +24,8 @@ jobs:
   regression:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    env:
+      PYTHONPATH: src
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
