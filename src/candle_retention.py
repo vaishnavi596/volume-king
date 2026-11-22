@@ -64,6 +64,7 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
             revised=dict(new,bars=merged,historical=True,live_verified=False,
                          freshness="historical_unverified",
                          candle_fetched_at=new.get("candle_fetched_at") or prior.get("candle_fetched_at",0),
+                         candle_transport_integrity="MERGED_HISTORY_NOT_DIRECT_DIGEST",
                          _candle_partial_revised=True)
             return revised
     if _valid_bars(new_bars):
@@ -74,7 +75,11 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     # and its source/freshness metadata are handled by the quote batch path.
     retained=dict(new,bars=list(old_bars),candle_fetched_at=prior.get("candle_fetched_at",0),
                   historical=True,cached=True,freshness="historical_unverified",
-                  live_verified=False,_candle_retained=True)
+                  live_verified=False,
+                  candle_transport_integrity=("RETAINED_PRIOR_TRANSPORT_SHA256_MATCH"
+                      if prior.get("candle_transport_integrity")=="SHA256_MATCH"
+                      else "RETAINED_PRIOR_TRANSPORT_UNVERIFIED"),
+                  _candle_retained=True)
     return retained
 
 def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan"):
