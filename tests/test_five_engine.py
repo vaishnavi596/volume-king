@@ -557,3 +557,26 @@ def test_batch4_shared_snapshot_option_context_does_not_vote():
     assert wrapped["engines"] == base["engines"]
     assert wrapped["option_context"]["available"] is False
     assert "option_context" not in base
+
+
+class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
+    """Source-level regression: Scanner must mount the same five chips as other screens."""
+
+    def test_scanner_five_engine_panel_mounts_shared_chips_and_details(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('wrap_delta_section("scanner_five"', source)
+        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY")', source)
+        self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY")', source)
+        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY"),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
+
+    def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        start = source.index("    def five_engine_chips(sym):")
+        end = source.index("    def ", start + 5)
+        function = source[start:end]
+        self.assertIn('("technical","T"),("candle","C"),("news","N")', function)
+        self.assertIn('("futures","F"),("options","O")', function)
+        self.assertIn('ft.Text("6  —"', function)
+        self.assertIn('cards.append(', function)
