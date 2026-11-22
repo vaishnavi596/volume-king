@@ -54,6 +54,39 @@ class FakeOpener:
         return Response(self.payload, req.full_url)
 
 
+class CandleTransportIntegrityTests(unittest.TestCase):
+    def test_optional_digest_rejects_tampering_and_supports_older_gateway(self):
+        import hashlib
+        from clone_v2_gateway import CloneDhanReadOnly
+        bars = [[1800000000, 100.0, 102.0, 99.0, 101.0, 50.0]]
+        digest = hashlib.sha256(json.dumps(
+            bars, separators=(",",":"), allow_nan=False
+        ).encode("utf-8")).hexdigest()
+        class Gateway:
+            connected = True
+            def __init__(self, value):
+                self.value = value
+            def post_market(self, route, selection):
+                return dict(source="dhan", symbol="NIFTY",
+                            interval="1m", bars=bars,
+                            freshness="historical_unverified",
+                            normalized_bars_sha256=self.value)
+        good = CloneDhanReadOnly(Gateway(digest)).intraday(
+            "NIFTY", 1, "2026-11-20", "2026-11-20")
+        self.assertEqual(good["normalized_transport_integrity"], "SHA256_MATCH")
+        self.assertEqual(good["freshness"], "historical_unverified")
+        with self.assertRaisesRegex(FeedError, "digest mismatch"):
+            CloneDhanReadOnly(Gateway("0"*64)).intraday(
+                "NIFTY", 1, "2026-11-20", "2026-11-20")
+        class LegacyGateway(Gateway):
+            def post_market(self, route, selection):
+                result = super().post_market(route, selection)
+                result.pop("normalized_bars_sha256")
+                return result
+        legacy = CloneDhanReadOnly(LegacyGateway(digest)).intraday(
+            "NIFTY", 1, "2026-11-20", "2026-11-20")
+        self.assertEqual(legacy["normalized_transport_integrity"], "NOT_PROVIDED")
+
 class CloneV2GatewayB2Tests(unittest.TestCase):
     def test_genuine_signed_off_readonly_status(self):
         opener = FakeOpener()
