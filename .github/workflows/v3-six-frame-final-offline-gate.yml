@@ -41,3 +41,5 @@ jobs:
 # Consolidated release gate after RSS News card link fix and live assessment Doctor.
 
 # Final full source regression after News RSS, independent PCR/Max Pain and optional-candle readiness fixes.
+
+# 2026-11-22: One combined S0/S1 no-APK gate includes new SENSEX index source-contract regression.
