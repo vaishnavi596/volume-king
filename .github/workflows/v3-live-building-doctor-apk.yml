@@ -9,6 +9,7 @@ on:
     paths:
       - .github/workflows/v3-live-building-doctor-apk.yml
       - tests/test_b1_five_engine_dhan_shared_option.py
+      - tests/test_market_closed_refresh_gates.py
   workflow_dispatch:
 permissions:
   contents: read
