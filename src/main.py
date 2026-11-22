@@ -371,7 +371,8 @@ def app_main(page:ft.Page):
             return ["Oracle assessment • WAIT • selected timeframe/expiry not loaded"]
         if record.get("timeframe")!=tf or record.get("expiry")!=selected_expiry:
             return ["Oracle assessment • WAIT • selected timeframe/expiry changed"]
-        lines=assessment_lines(symbol,{symbol:record},market_open=regular_hours())
+        lines=(assessment_lines(symbol,{symbol:record},market_open=regular_hours())
+               if surface=="watchlist" else assessment_lines(symbol,{symbol:record}))
         # Only the compact surfaces need the one-line summary. Options and
         # Scanner keep the full evidence; standalone selection tests can
         # execute this callback without unrelated global helper bindings.
