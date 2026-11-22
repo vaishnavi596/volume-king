@@ -66,9 +66,12 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertEqual([call.args[1:] for call in log.call_args_list],
                          [("candles", "SENSEX", "validation", "invalid_bars")])
 
-    def test_paced_index_retry_has_sanitized_429_category(self):
+    def test_paced_index_retry_queues_instead_of_gateway_429(self):
+        import time
+        calls=[]
         class Provider:
             def batch_ltp(self, instruments):
+                calls.append(time.monotonic())
                 return {"status": "success", "data": {
                     "IDX_I": {"13": {"last_price": 25000.0},
                               "51": {"last_price": 70000.0}}}}
@@ -79,11 +82,11 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning") as log:
             second = http.post("/clone-v2/market/quotes", headers=self.headers(),
                                json={"symbols": ["SENSEX"]})
-        self.assertEqual(second.status_code, 429)
-        self.assertEqual(second.headers["X-BotKing-429-Stage"], "GATEWAY_PACING")
-        self.assertEqual(second.headers["Retry-After"], "2")
-        self.assertEqual([call.args[1:] for call in log.call_args_list],
-                         [("quotes", "SENSEX", "cooldown", "rate_limited")])
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["quotes"]["SENSEX"]["ltp"], 70000.0)
+        self.assertEqual(len(calls), 2)
+        self.assertGreaterEqual(calls[1]-calls[0], 1.04)
+        log.assert_not_called()
 
     def test_provider_quota_429_is_not_gateway_pacing(self):
         from backend.dhan_feed import DhanRateLimitError
