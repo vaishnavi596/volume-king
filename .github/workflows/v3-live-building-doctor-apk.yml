@@ -96,10 +96,12 @@ jobs:
           KEYSTORE="$RUNNER_TEMP/v3-b199-preview-sign/preview.jks"
           PASSWORD_FILE="$RUNNER_TEMP/v3-b199-preview-sign/password"
           test -s "$KEYSTORE" && test -s "$PASSWORD_FILE"
+          export BOTKING_PREVIEW_KEY_PASSWORD="$(cat "$PASSWORD_FILE")"
           "$SIGNER" sign --ks "$KEYSTORE" --ks-key-alias b199_preview \
-            --ks-pass "file:$PASSWORD_FILE" --key-pass "file:$PASSWORD_FILE" \
+            --ks-pass "file:$PASSWORD_FILE" --key-pass "env:BOTKING_PREVIEW_KEY_PASSWORD" \
             --v1-signing-enabled true --v2-signing-enabled true \
             --out "$RUNNER_TEMP/v3-b199-preview-explicit-signed.apk" "$APK"
+          unset BOTKING_PREVIEW_KEY_PASSWORD
           mv "$RUNNER_TEMP/v3-b199-preview-explicit-signed.apk" "$APK"
           echo B199_PREVIEW_APKSIGNER_EXPLICIT_SIGN=COMPLETE
       - name: Verify identity and isolated APK signature before upload
