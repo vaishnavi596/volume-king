@@ -6113,8 +6113,9 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("watch_three_minute_analysis",exc)
             return historical_or_wait("3m analysis failed; last historical votes retained")
     def remember_candle_failure(sym,tf,stage,exc):
-        detail=stage+" • "+type(exc).__name__
-        scan_fetch_failure[(provider_generation[0],sym,tf)]={"at":time.time(),"detail":detail}
+        detail=stage+" • "+type(exc).__name__+" • "+str(safe_error(exc))[:140]
+        scan_fetch_failure[(provider_generation[0],sym,tf)]={
+            "at":time.time(),"stage":stage,"code":type(exc).__name__,"detail":detail}
         record_analysis(sym,tf,stage=stage,error=detail)
         prior=watch_signal_cache.get(sym) if tf=="5m" else None
         if prior:
