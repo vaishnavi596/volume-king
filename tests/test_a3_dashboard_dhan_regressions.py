@@ -94,11 +94,11 @@ class A3RegressionTests(unittest.TestCase):
         labels=[card.content.value for group in chips.controls for card in group.controls]
         self.assertEqual(labels[-1],"6  —")
         # Session state is distinct from data readiness: off-hours must
-        # show OFF, while an open market without evidence must show WAIT.
+        # show LIVE WAIT (without hiding HIST), while open market without evidence shows WAIT.
         from datetime import datetime, timezone, timedelta
         ist=datetime.now(timezone(timedelta(hours=5,minutes=30)))
         expected=(" WAIT" if ist.weekday()<5 and (9,15)<=(ist.hour,ist.minute)<(15,30)
-                  else " OFF • market closed")
+                  else " LIVE WAIT • market closed")
         self.assertEqual(labels[:5],[name+expected for name in ("T","C","N","F","O")])
         # Reserved sixth visual slot is inert; the five engine states stay unchanged.
         self.assertEqual(len(labels[:5]),5)
