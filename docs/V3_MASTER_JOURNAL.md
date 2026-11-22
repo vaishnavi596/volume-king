@@ -1164,3 +1164,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 2026-11-22 — S2 post-deploy owner read-only confirmation PASS
 - Owner Oracle SSH post-deploy: `DEPLOYED_BLOB=49d8d5cdd90da4c768367d9258f00414f9027291`, `EXPECTED_MATCH=True`, `botking-clone-v2.service=active`, `bot-king.service=active`, Clone `/clone-v2/health` HTTP 200 and V1 `/health` HTTP 200.
 - S2 source identity + both services health CONFIRMED; no Dhan request, trade or V1 modification. S3 provider-backed SENSEX 3/3 quotes, 429 stages, candles, options and phone end-to-end remain UNVERIFIED; SENSEX segment master contract unresolved. NEXT: bounded log-only read-only diagnostic, then authorized market-window protected-route checks.
+
+
+### 2026-11-22 — S3 passive postdeploy log check: NO MATCHES (not live PASS)
+- Owner successfully ran read-only `sudo journalctl -u botking-clone-v2.service --since "30 minutes ago" --no-pager -o cat | grep -Ei 'INDEX_DIAG|PROVIDER_QUOTA|PROVIDER_COOLDOWN|rate_limited|SENSEX' | tail -30` and received zero matching output. Previous attempt had Windows CR paste error and did not run; corrected one-liner succeeded.
+- Interpretation: no matching lines in that 30-minute journal window, NOT evidence that provider requests occurred or that 429, index 3/3 or SENSEX are fixed. Avoid repeating passive log check without new event.
+- S2 remains confirmed PASS (deployed source blob and both services healthy); S3 still BLOCKED on bounded authorized live market request and authoritative Dhan SENSEX instrument-master mapping. NEXT: prepare one combined provider-to-phone acceptance with per-index quote, freshness, 429-stage, candles/options; do not make uncontrolled broker calls.
