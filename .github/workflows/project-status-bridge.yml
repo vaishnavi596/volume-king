@@ -16,8 +16,9 @@ permissions:
   actions: read
 jobs:
   record:
-    # Only explicitly ChatGPT-tracked work, not unrelated user/AI pushes.
-    if: ${{ github.event.workflow_run.head_branch == 'pilot/v1-pure-original-clone-phone-20261120' && (contains(github.event.workflow_run.head_commit.message, '[chatgpt-track]') || github.event.workflow_run.head_sha == 'b434cfccb8bda66702d40e2e315f826cbdbf5c7f') }}
+    # Track project workflow completions on the dedicated V3 pilot branch;
+    # avoid fragile commit-message markers that skip valid ChatGPT changes.
+    if: ${{ github.event.workflow_run.head_branch == 'pilot/v1-pure-original-clone-phone-20261120' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
