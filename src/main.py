@@ -6141,10 +6141,16 @@ console.log('BOT KING Lightweight Charts ready');
         key=(provider_generation[0],sym,tf)
         failure=scan_fetch_failure.get(key)
         received=data.get("candle_fetched_at")
-        if (failure and type(received) in (int,float) and math.isfinite(received)
+        # Never clear a failed symbol on a quote, empty response or stale cache.
+        # Recovery requires valid same-source candles fetched after this failure.
+        if (failure and isinstance(data,dict) and data.get("source")=="Dhan"
+                and valid_candle_history(data.get("bars"))
+                and type(received) in (int,float) and math.isfinite(received)
                 and received>=failure["at"]):
             scan_fetch_failure.pop(key,None)
-            failed_symbols.pop(sym,None)
+            if not any(k[0]==provider_generation[0] and k[1]==sym
+                       for k in scan_fetch_failure if isinstance(k,tuple) and len(k)==3):
+                failed_symbols.pop(sym,None)
     def selected_presentation(result,tf):
         expected={"Dhan":"Dhan","Yahoo Finance":"Yahoo Finance","Broker API":"Angel One"}.get(prefs.get("source"))
         shown=presentation_result(result,expected_source=expected,now=time.time(),
