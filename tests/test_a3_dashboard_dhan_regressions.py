@@ -78,15 +78,16 @@ class A3RegressionTests(unittest.TestCase):
 
     def test_five_engine_chips_are_safe_and_consistent(self):
         source=MAIN.read_text(encoding="utf-8")
-        area=source.split("    def five_engine_chips(sym):",1)[1].split("    def super_five_card():",1)[0]
+        area=source.split("    def five_engine_chips(sym, display_timeframe=None):",1)[1].split("    def super_five_card():",1)[0]
         self.assertIn('snapshot_for_display(',area)
         self.assertIn('raw.get("source")=="Dhan"',area)
         self.assertIn('label=short+" WAIT"',area)
         self.assertIn('historical=True',area)
         self.assertNotIn('get_market_data(',area)
         self.assertNotIn('asyncio.to_thread',area)
-        for site in ('five_engine_chips(sym)', 'five_engine_chips(index_name)',
-                     'five_engine_chips(row["symbol"])'):
+        for site in ('five_engine_chips(sym,display_timeframe="1m")',
+                     'five_engine_chips(index_name,display_timeframe="1m")',
+                     'five_engine_chips(row["symbol"],display_timeframe="5m")'):
             self.assertIn(site,source)
         _,views=start({"scanner_live":False,"source":"Dhan"})
         chips=views["five_engine_chips"]("NIFTY")
