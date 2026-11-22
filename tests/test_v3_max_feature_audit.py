@@ -1,5 +1,6 @@
 """Full phone Doctor feature audit: news RSS, PCR, Max Pain, OI, Oracle WAIT."""
 import unittest
+from unittest.mock import patch
 from v3_max_feature_audit import audit_features
 from v3_stock_diagnostics import classify_stock
 
@@ -68,18 +69,19 @@ class TestMaximumFeatureAudit(unittest.TestCase):
                  "bullish_score":None,"bearish_score":None,
                  "assessment_filters":rows}
         a={(2,"NIFTY","1m","2026-11-23"):
-              {"timeframe":"1m","expiry":"2026-11-23","data":payload},
+              {"fetched":1000,"timeframe":"1m","expiry":"2026-11-23","data":payload},
            (2,"NIFTY","1m","2026-11-30"):
-              {"timeframe":"1m","expiry":"2026-11-30","data":dict(payload,
+              {"fetched":1000,"timeframe":"1m","expiry":"2026-11-30","data":dict(payload,
                 assessment_filters=[{"id":"pcr","status":"available"}])}}
-        x=run(assess=a)["features"]
+        with patch("v3_max_feature_audit.time.monotonic",return_value=1100):
+            x=run(assess=a)["features"]
         self.assertEqual(x["assessment_candle_trend"]["state"],"AVAILABLE_CONTEXT")
         self.assertEqual(x["assessment_pcr"]["code"],"ASSESSMENT_EVIDENCE_NOT_AVAILABLE")
         wrong={(2,"NIFTY","1m","2026-11-30"):a[(2,"NIFTY","1m","2026-11-30")]}
         self.assertEqual(run(assess=wrong)["features"]["assessment_pcr"]["state"],"UNAVAILABLE")
         unsafe=dict(payload,signal_eligible=True)
         self.assertEqual(run(assess={(2,"NIFTY","1m","2026-11-23"):
-              {"timeframe":"1m","expiry":"2026-11-23","data":unsafe}})
+              {"fetched":1000,"timeframe":"1m","expiry":"2026-11-23","data":unsafe}})
               ["features"]["assessment_candle_trend"]["state"],"UNAVAILABLE")
 
     def test_incomplete_or_duplicate_assessment_never_reports_available(self):
@@ -90,11 +92,28 @@ class TestMaximumFeatureAudit(unittest.TestCase):
               ("oi_support","oi_resistance","max_pain","pcr","candle_trend")]
         for rows in (good[:1],good[:4]+[good[0]],good[:4]+[{"id":"bogus","status":"available"}]):
             payload=dict(base,assessment_filters=rows)
-            record={"timeframe":"1m","expiry":"2026-11-23","data":payload}
+            record={"fetched":1000,"timeframe":"1m","expiry":"2026-11-23","data":payload}
             features=run(assess={(2,"NIFTY","1m","2026-11-23"):record})["features"]
             for key in ("oi_support","oi_resistance","max_pain","pcr","candle_trend"):
                 self.assertEqual(features["assessment_"+key]["state"],"UNAVAILABLE")
                 self.assertFalse(features["assessment_"+key]["directional_vote"])
+
+    def test_expired_future_and_missing_assessment_timestamp_wait(self):
+        payload={"symbol":"NIFTY","source":"dhan","freshness":"unverified",
+                 "signal_eligible":False,"live_orders_enabled":False,
+                 "bullish_score":None,"bearish_score":None,
+                 "assessment_filters":[{"id":key,"status":"available"} for key in
+                 ("oi_support","oi_resistance","max_pain","pcr","candle_trend")]}
+        with patch("v3_max_feature_audit.time.monotonic",return_value=1200):
+            for fetched in (None,1000,1201,float("nan")):
+                record={"timeframe":"1m","expiry":"2026-11-23","data":payload}
+                if fetched is not None:record["fetched"]=fetched
+                features=run(assess={(2,"NIFTY","1m","2026-11-23"):record})["features"]
+                self.assertEqual(features["assessment_pcr"]["state"],"UNAVAILABLE")
+            record={"fetched":1020,"timeframe":"1m","expiry":"2026-11-23","data":payload}
+            features=run(assess={(2,"NIFTY","1m","2026-11-23"):record})["features"]
+            self.assertEqual(features["assessment_pcr"]["state"],"AVAILABLE_CONTEXT")
+            self.assertFalse(features["assessment_pcr"]["directional_vote"])
 
     def test_doctor_lists_all_seventeen_selected_filters(self):
         chosen=["filter_"+str(i) for i in range(17)]

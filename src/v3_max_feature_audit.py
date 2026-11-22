@@ -78,7 +78,11 @@ def audit_features(*, news_cache, option_metrics, assessment_cache,
     record=(assessment_cache.get((generation,scanner_symbol,scanner_timeframe,selected_expiry))
             if isinstance(assessment_cache,dict) else None)
     data=record.get("data") if isinstance(record,dict) else None
-    valid=(isinstance(record,dict) and
+    fetched=record.get("fetched") if isinstance(record,dict) else None
+    monotonic_now=time.monotonic()
+    age_ok=(type(fetched) in (int,float) and math.isfinite(fetched) and
+            0<=monotonic_now-fetched<=180)
+    valid=(age_ok and isinstance(record,dict) and
            record.get("timeframe")==scanner_timeframe and
            record.get("expiry")==selected_expiry and
            isinstance(data,dict) and data.get("symbol")==scanner_symbol and
