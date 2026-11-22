@@ -616,4 +616,19 @@ class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
         self.assertIn('display_timeframe is None or display_timeframe=="5m"', summary)
         self.assertIn('candle_tf=(display_timeframe or ', summary)
 
+class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
+    def test_dashboard_superfive_and_analysis_explicit_timeframes(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        for expected in (
+            'rows.append(five_engine_chips(sym,display_timeframe="1m"))',
+            'five_engine_chips(index_name,display_timeframe="1m")',
+            'five_engine_chips(row["symbol"],display_timeframe="5m")',
+            'five_engine_summary(row["symbol"],display_timeframe="5m")',
+            'five_engine_chips(sym,display_timeframe=tf)',
+            'five_engine_chips(sym,display_timeframe=interval)',
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, source)
+
 if __name__=="__main__":unittest.main()
