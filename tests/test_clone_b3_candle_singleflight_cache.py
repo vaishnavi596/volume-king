@@ -57,6 +57,20 @@ class CloneCandleCacheTests(unittest.TestCase):
         self.assertEqual(len(feed.calls), 1)
         self.assertEqual(first.json()["freshness"], "historical_unverified")
 
+    def test_normalized_bars_digest_matches_exact_gateway_payload(self):
+        import hashlib
+        import json
+        _, http = self.feed()
+        res = http.post(self.path, headers=self.headers, json=self.request())
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        expected = hashlib.sha256(json.dumps(
+            body["bars"], separators=(",",":"), allow_nan=False
+        ).encode("utf-8")).hexdigest()
+        self.assertEqual(body["normalized_bars_sha256"], expected)
+        self.assertEqual(body["freshness"], "historical_unverified")
+        self.assertFalse(body["live_orders_enabled"])
+
     def test_concurrent_matching_requests_single_provider_call(self):
         feed, http = self.feed()
         payload = self.request()
