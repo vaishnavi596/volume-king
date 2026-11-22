@@ -115,6 +115,8 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('market_store.get("analysis_last_good","Dhan",sym,interval)',scan)
         self.assertIn('historical=analyze(bars,selected=active_analysis_filters(),timeframe=interval)',scan)
         self.assertIn('historical.get("count",0)>=30',scan)
+        self.assertIn('quality_check(bars,timeframe_spec(interval)["seconds"])["usable"]',scan)
+        self.assertIn('vote_display(signal_percentages(shown_analysis),False,interval)',scan)
         self.assertIn('shown_analysis=(historical if history_valid',scan)
         self.assertIn('LAST SESSION HIST',scan)
         self.assertIn('live_verified=False,freshness="historical_unverified"',scan)
