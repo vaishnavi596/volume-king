@@ -188,7 +188,10 @@ class WatchlistWiringTests(unittest.TestCase):
         self.assertIn('request_symbols=list(dict.fromkeys(',login)
         self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",found,total)',login)
         self.assertNotIn('equity_quotes_for_watchlist,all_watch_symbols()',login)
-        self.assertIn('if expected==0:',login)
+        # Empty equity lists still permit the three independent index quotes;
+        # no 51-equity fixed-roster request is required on login.
+        self.assertIn('total=len(selected_equities)',login)
+        self.assertIn('["NIFTY","BANKNIFTY","SENSEX"]+selected_equities',login)
 
     def test_history_cache_reuse_must_cover_newly_selected_equities(self):
         # A same-generation <45s cache is not complete when an equity was
