@@ -1,11 +1,12 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 Legacy Provider Removal + Unified SSK Pacing Final All Tests • NO APK
+run-name: V3 Visible Watchlist Priority + Full Offline Regression • NO APK
 on:
   push:
     branches:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-b196-regression-preflight.yml
+      - tests/test_v3_visible_watchlist_bootstrap_priority.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,6 +42,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
           python -m unittest discover -s tests -p 'test_dhan_index_refresh_regression.py' -v
           python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
+          python -m unittest discover -s tests -p 'test_v3_visible_watchlist_bootstrap_priority.py' -v
           python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
           python -m unittest discover -s tests -p 'test_v3_legacy_provider_quarantine.py' -v
           python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
