@@ -27,12 +27,15 @@ def filter_wiring_matrix(selected, rows, *, source="Dhan", timeframe="1m",
         vote=row.get("vote")
         if modes.get(name)=="Chart":
             state="CHART_ONLY"
-        elif source!="Dhan":
-            state="SOURCE_MISMATCH"
         elif name in OPTION_FILTERS:
+            # OI has its own selected-symbol/expiry Dhan chain. Missing
+            # OHLCV candles must not be mislabeled as an option source fault.
             state="ADAPTER_NOT_DIRECTIONAL" if options_context else "OPTION_DATA_MISSING"
         elif name=="News Headlines":
+            # Headlines are an independent context source, not candle data.
             state="ADAPTER_NOT_DIRECTIONAL" if news_context else "NEWS_DATA_MISSING"
+        elif source!="Dhan":
+            state="SOURCE_MISMATCH"
         elif not candle_ready:
             state="CANDLE_DATA_MISSING_OR_INVALID"
         elif type(vote) is int and vote in (-1,0,1):

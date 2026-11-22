@@ -35,6 +35,22 @@ class V3FilterWiringTests(unittest.TestCase):
             ["CALCULATED","OPTION_DATA_MISSING","NEWS_DATA_MISSING"])
         self.assertEqual(result[0]["vote"],0)
 
+    def test_candle_source_failure_does_not_mask_independent_context(self):
+        selected=["Supertrend","OI Support","OI Resistance","Dhan Max Pain","News Headlines"]
+        result=filter_wiring_matrix(selected,[],source="",
+            candle_ready=False,options_context=True,news_context=False,
+            timeframe="3m")
+        self.assertEqual([row["state"] for row in result],
+            ["SOURCE_MISMATCH","ADAPTER_NOT_DIRECTIONAL",
+             "ADAPTER_NOT_DIRECTIONAL","ADAPTER_NOT_DIRECTIONAL",
+             "NEWS_DATA_MISSING"])
+        self.assertTrue(all(row["vote"] is None for row in result))
+        absent=filter_wiring_matrix(selected,[],source="Dhan",
+            candle_ready=False,options_context=False,news_context=True)
+        self.assertEqual(absent[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
+        self.assertEqual(absent[1]["state"],"OPTION_DATA_MISSING")
+        self.assertEqual(absent[-1]["state"],"ADAPTER_NOT_DIRECTIONAL")
+
     def test_invalid_candles_cannot_pretend_to_vote(self):
         result=filter_wiring_matrix(["Supertrend"],[{"name":"Supertrend","vote":1}],
                                    candle_ready=False)
