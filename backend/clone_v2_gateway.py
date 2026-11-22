@@ -380,12 +380,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 for sym in symbols:
                     market_diagnostic("quotes", sym, "cooldown", "rate_limited")
                 raise HTTPException(429, "Clone Dhan provider cooldown",
-                                    headers={"Retry-After": "30"})
+                                    headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
             if now - last_request[0] < 1.05:
                 for sym in symbols:
                     market_diagnostic("quotes", sym, "cooldown", "rate_limited")
                 raise HTTPException(429, "Clone quote lane paced",
-                                    headers={"Retry-After": "2"})
+                                    headers={"Retry-After": "2", "X-BotKing-429-Stage": "GATEWAY_PACING"})
             last_request[0] = now
             try:
                 result = provider().batch_ltp([known[s] for s in symbols])
@@ -415,7 +415,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 if category=="rate_limited":
                     provider_cooldown_until[0] = time.monotonic() + 30
                     raise HTTPException(429, "Clone Dhan quota cooldown",
-                                        headers={"Retry-After": "30"}) from None
+                                        headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}) from None
                 raise HTTPException(502, "Clone read-only Dhan quote unavailable") from None
             if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
                 for sym in symbols:
