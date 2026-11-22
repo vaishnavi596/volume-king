@@ -3567,6 +3567,10 @@ def app_main(page:ft.Page):
             if (app_active[0] and dhan_feed.connected and prefs.get("source")=="Dhan"
                     and chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS):
                 page.run_task(refresh_selected_options)
+            # Bounded contextual RSS bootstrap is independent of Dhan market
+            # quotes and never a verified five-engine directional vote.
+            if app_active[0] and dhan_feed.connected:
+                page.run_task(refresh_superfive_news)
             connection_status.value=(
                 "Clone B3 Dhan→Oracle→Phone verified • "+
                 str(received_indices)+"/3 indices • "+
