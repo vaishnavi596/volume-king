@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 Joint Foundation Signing 429 Candle Integrity Five Engines • NO APK
+run-name: V3 Combined Foundation Final Audit • Signing + Data + Five Engine + Doctor • NO APK
 on:
   push:
     branches:
@@ -21,7 +21,7 @@ jobs:
       - name: Install offline test dependencies
         run: |
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
-      - name: Verify V3 B196 source and target tests
+      - name: Verify latest V3 joint source and targeted contracts
         run: |
           python - <<'PY'
           import ast, pathlib, tomllib
@@ -42,6 +42,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_dhan_index_refresh_regression.py' -v
           python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
           python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
+          python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_candle_singleflight_cache.py' -v
           python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
