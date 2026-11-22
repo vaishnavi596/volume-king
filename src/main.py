@@ -6144,7 +6144,7 @@ console.log('BOT KING Lightweight Charts ready');
     def clear_scan_failure(sym,tf,data):
         key=(provider_generation[0],sym,tf)
         failure=scan_fetch_failure.get(key)
-        received=data.get("candle_fetched_at")
+        received=data.get("candle_fetched_at") if isinstance(data,dict) else None
         # Never clear a failed symbol on a quote, empty response or stale cache.
         # Recovery requires valid same-source candles fetched after this failure.
         if (failure and isinstance(data,dict) and data.get("source")=="Dhan"
