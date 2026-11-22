@@ -24,11 +24,11 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
         self.assertIn("if not app_active[0]:",watch)
         self.assertIn("Dhan batch failed:",watch)
         self.assertIn("dhan_batch_issue[0]=safe_error(exc)",watch)
-        start=text.index("# Verify watchlist batch independently of the login check.")
-        end=text.index('                    if market_status.startswith("Dhan connected; watchlist batch failed"):',start)
-        login=text[start:end]
+        login=text.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
         self.assertNotIn("quotes.pop(ticker,None)",login)
-        self.assertIn("Partial Dhan batch:",login)
+        self.assertIn("Partial Clone B3 Dhan batch:",login)
+        self.assertIn('dhan_batch_cache.update(',login)
+        self.assertIn("watch_batch_last_attempt[0]=time.monotonic()",login)
         start=text.index('scan_progress["state"]="Checking Dhan batch before historical scan"')
         end=text.index('                # Connection is now ready:',start)
         scanner=text[start:end]
