@@ -566,9 +566,9 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('wrap_delta_section("scanner_five"', source)
-        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY")', source)
+        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value)', source)
         self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY")', source)
-        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY"),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
+        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value),five_engine_summary(scan_symbol.value or "NIFTY")]', source)
 
     def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
         from pathlib import Path
@@ -580,3 +580,17 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         self.assertIn('("futures","F"),("options","O")', function)
         self.assertIn('ft.Text("6  —"', function)
         self.assertIn('cards.append(', function)
+
+
+class FiveEngineTimeframeIsolationContract(unittest.TestCase):
+    def test_watchlist_chips_request_three_minute_history(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('five_cell=ft.Container(content=five_engine_chips(sym,display_timeframe="3m"))', source)
+        self.assertIn('five.content=five_engine_chips(sym,display_timeframe="3m")', source)
+        self.assertIn('(display_timeframe is None or raw.get("timeframe")==display_timeframe)', source)
+
+    def test_scanner_chips_request_selected_timeframe(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=timeframe.value)', source)
