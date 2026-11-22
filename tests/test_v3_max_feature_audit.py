@@ -69,6 +69,16 @@ class TestMaximumFeatureAudit(unittest.TestCase):
         self.assertEqual(x["assessment_candle_trend"]["state"],"AVAILABLE_CONTEXT")
         self.assertEqual(x["assessment_pcr"]["code"],"ASSESSMENT_EVIDENCE_NOT_AVAILABLE")
 
+    def test_doctor_lists_all_seventeen_selected_filters(self):
+        chosen=["filter_"+str(i) for i in range(17)]
+        report=audit_features(news_cache={},option_metrics={},assessment_cache={},
+              selected_symbol="NIFTY",selected_expiry="2026-11-23",generation=2,
+              scanner_symbol="NIFTY",scanner_timeframe="1m",active_filters=chosen,
+              now=1795300000)
+        x=report["features"]["analysis_filter_settings"]
+        self.assertEqual(x["selected_count"],17)
+        self.assertEqual(x["selected_names"],chosen)
+
     def test_missing_optional_frames_not_fatal_for_stock(self):
         t=1795250000
         bars=[[t+i*60,100,101,99,100,50] for i in range(4)]
