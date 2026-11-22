@@ -1376,6 +1376,28 @@ def app_main(page:ft.Page):
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
             option_context=option_from_component(option_component(symbol, "5m"))
+            if display_timeframe in ("1m","3m"):
+                # The symbol-only 5m publisher must never masquerade as LIVE
+                # evidence for an index 1m or Watchlist 3m report. Show their
+                # exact-frame saved technical/candle HIST context instead.
+                selected_history=shared_history(symbol,display_timeframe)
+                counts=(historical_vote_agreement(selected_history,"1m")
+                        if display_timeframe=="1m" else
+                        signal_percentages(watch_three_minute_signal(symbol)))
+                parts=[]
+                if counts and counts[2]>0:
+                    parts.append("Technical HIST "+display_timeframe+" B"+
+                                 str(round(counts[0]))+"% / S"+str(round(counts[1]))+"%")
+                if (selected_history.get("source")=="Dhan" and
+                        selected_history.get("_scanner_timeframe")==display_timeframe and
+                        valid_candle_history(selected_history.get("bars"))):
+                    balance=historical_candle_balance(selected_history["bars"])
+                    if balance:
+                        parts.append("Candle HIST "+display_timeframe+" B"+
+                                     str(balance["bullish"])+"% / S"+str(balance["bearish"])+"%")
+                if parts:
+                    return note("5 engines • 0/5 LIVE verified • "+" | ".join(parts)+
+                                " | News/Futures/Options WAIT ("+option_context.reason+")")
             return note("5/5 modules configured (100% setup) • 0/5 verified • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT ("+
                         option_context.reason+")")
         names={"technical":"Technical","candle":"Candle","news":"News",

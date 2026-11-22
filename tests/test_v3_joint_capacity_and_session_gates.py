@@ -110,6 +110,18 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertIn("snapshot=snapshot_for_display(None,now=time.time())",chips)
         self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
 
+    def test_unverified_1m_3m_summary_uses_matching_historical_cache(self):
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
+        self.assertIn('if display_timeframe in ("1m","3m"):',summary)
+        self.assertIn('selected_history=shared_history(symbol,display_timeframe)',summary)
+        self.assertIn('historical_vote_agreement(selected_history,"1m")',summary)
+        self.assertIn('signal_percentages(watch_three_minute_signal(symbol))',summary)
+        self.assertIn('selected_history.get("_scanner_timeframe")==display_timeframe',summary)
+        self.assertIn('valid_candle_history(selected_history.get("bars"))',summary)
+        self.assertIn("0/5 LIVE verified",summary)
+        self.assertNotIn('get_market_data(',summary)
+
     def test_selected_18_filters_same_registry_but_missing_independent_vote(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(OPTION_FILTERS),4)
