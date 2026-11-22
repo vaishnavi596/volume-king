@@ -4,6 +4,11 @@ run-name: BOT KING V3 B199 Candle Quality + Index Doctor Phone Test • v2.3.199
 # Explicit-only release: never auto-sign from a workflow file change.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - docs/V3_APK_RELEASE_REQUEST.md
 permissions:
   contents: read
 concurrency:
