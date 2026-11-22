@@ -992,3 +992,8 @@ The word **WIRED** means a verified source-level call/cache linkage and offline 
 
 ### 2026-11-22 — Visible-first priority targeted exact CI CLOSED PASS
 - Previously pending [B2 Run 44981632359](https://github.com/vaishnavi596/volume-king/actions/runs/44981632359), HEAD `7c064865ffe5b54d37e9ac554f57a3e03dc281ba`, job `137083176965`: `completed/success`. Both `Compile source and priority tests` and `Run B2 focus contract regression` steps **SUCCESS**, including newly added `test_v3_visible_watchlist_bootstrap_priority.py`. Source B1 `44981589168`, B2 `44981589214` and Adapter `44981589164` likewise SUCCESS. No full exact-head regression or physical phone latency benchmark has been performed since these source edits; no APK has been built. Next gate remains full offline test, permanent signing and safe install/migration validation.
+
+
+### 2026-11-22 — Visible Watchlist full regression launched (NO APK)
+- Extended existing `.github/workflows/v3-b196-regression-preflight.yml` rather than a duplicate workflow: renamed the run to explicitly reference visible Watchlist priority, added the newly created test to targeted preflight and workflow trigger. Commit `65964ca97edb6db1c6ddf12fe927a15c05cfb92c`, workflow remains B198 source guard and all-suite test, NO APK.
+- Exact new-source [Full Offline Run 44981703756](https://github.com/vaishnavi596/volume-king/actions/runs/44981703756) at commit `65964ca97edb6db1c6ddf12fe927a15c05cfb92c` was IN_PROGRESS when checked. Do not mark PASS until final conclusion and exact logs. Existing B1/B2/Adapter + new extended B2 targeted all completed SUCCESS. New APK still NOT BUILT; signer/data migration blocked and live phone timing unmeasured.
