@@ -4231,7 +4231,7 @@ def app_main(page:ft.Page):
                 (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")+
                 " • Realized net paper P&L INR "+format(item["realized_net_pnl"],"+,.2f")))
         instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
-        context=[five_engine_chips(instrument),
+        context=[five_engine_chips(instrument,display_timeframe=("1m" if instrument in ("NIFTY","BANKNIFTY","SENSEX") else "5m")),
                  dashboard_mini_candles(instrument,shared_history(instrument) or {}),
                  note(oracle_assessment_notes(instrument,"overview")[0]),
                  note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders."),
