@@ -5,6 +5,7 @@ Owner operates this on 127.0.0.1:8002 behind a reviewed HTTPS proxy. No
 market quote/candle endpoints or broker trading orders are added here.
 """
 from __future__ import annotations
+import hashlib
 
 import hmac
 import secrets
@@ -550,6 +551,11 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 "source": "dhan", "symbol": body.symbol,
                 "interval": str(body.interval) + "m", "bars": bars,
                 "last_candle_timestamp": bars[-1][0] if bars else None,
+                # Hash of normalized broker OHLCV after shape validation.
+                # It verifies transport equality only, never exchange freshness.
+                "normalized_bars_sha256": hashlib.sha256(
+                    json.dumps(bars, separators=(",",":"), allow_nan=False).encode("utf-8")
+                ).hexdigest(),
                 "freshness": "historical_unverified" if bars else "no_candles_available",
                 "live_orders_enabled": False}
             if bars:
