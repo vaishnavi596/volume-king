@@ -65,7 +65,7 @@ class ClosedSessionRefreshGates(unittest.TestCase):
                         index.index("snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)"))
 
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
-        loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol):")
+        loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol, display_timeframe=None):")
         self.assertNotIn("not refresh_hours()",loop)
         self.assertIn('bars=snapshot.get("bars") or []',loop)
         self.assertIn("fingerprint==last_fingerprint",loop)
