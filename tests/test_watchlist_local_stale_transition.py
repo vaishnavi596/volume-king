@@ -33,6 +33,14 @@ class WatchlistAgeTransitionTests(unittest.TestCase):
         self.assertEqual(fn("RELIANCE",now_epoch=1000),(False,False,(False,)))
         self.assertEqual(fn("UNKNOWN",now_epoch=1000),(False,False,()))
 
+    def test_assessment_expiry_repaints_mounted_watchlist_without_network(self):
+        block=SRC.split("    def watch_assessment_expired(sym):",1)[1].split(
+            "    def watchlist():",1)[0]
+        self.assertIn('time.monotonic()-fetched>180',block)
+        self.assertEqual(block.count("watch_assessment_expired(sym)"),3)
+        self.assertNotIn("dhan_feed.batch_quotes(",block)
+        self.assertNotIn("dhan_feed.assessment(",block)
+
     def test_visible_watchlist_signatures_include_age_transition(self):
         block=SRC.split("    async def watch_visible_tick():",1)[1].split(
             "    def watchlist():",1)[0]
