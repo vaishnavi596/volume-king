@@ -2375,6 +2375,16 @@ def app_main(page:ft.Page):
         return quote_stale,signal_stale,five_stale
 
     watch_3m_tick_profile={"sample_count":0,"last_ms":None,"max_ms":None,"last_symbols":0}
+    def watch_assessment_expired(sym):
+        # A mounted Watchlist row must repaint when its 180s assessment
+        # expires, even without a new quote, candle or network request.
+        record=oracle_assessment_cache.get((provider_generation[0],sym,"3m",None))
+        if not isinstance(record,dict):
+            return False
+        fetched=record.get("fetched")
+        return (type(fetched) not in (int,float) or not math.isfinite(fetched)
+                or time.monotonic()<fetched or time.monotonic()-fetched>180)
+
     async def watch_visible_tick():
         # Local 2s observation does NOT call Dhan or reconstruct the entire page.
         # Update only mounted Price/Change/Five-filter/Candle/Status controls.
@@ -2410,7 +2420,7 @@ def app_main(page:ft.Page):
                            repr(tick_signals[sym].get("votes")),
                            id(five_engine_snapshots.get(sym)),
                            (oracle_assessment_cache.get(
-                               (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
+                               (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),watch_assessment_expired(sym),
                            watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym])) for sym in visible))
                 button=watch_refresh_button[0]
                 if button is not None:
@@ -2470,7 +2480,7 @@ def app_main(page:ft.Page):
                                       signal_row.get("live_verified"),signal_row.get("freshness"),
                                       id(five_engine_snapshots.get(sym)),
                                       (oracle_assessment_cache.get(
-                                          (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
+                                          (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),watch_assessment_expired(sym),
                                       watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym]),watch_batch_status[0])
                     if last_cell_signatures.get(sym)==symbol_signature:
                         continue
@@ -2506,7 +2516,7 @@ def app_main(page:ft.Page):
                         bool(signal_row.get("historical")),available,fresh,
                         id(five_engine_snapshots.get(sym)),
                         (oracle_assessment_cache.get(
-                            (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),
+                            (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),watch_assessment_expired(sym),
                         watch_cell_age_flags(sym,precomputed_signal=tick_signals[sym]),watch_batch_status[0],
                         provider_generation[0],tuple(filter_selected),
                         tuple(sorted(filter_modes.items())))
