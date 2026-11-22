@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 Dhan-Only Deep Legacy Provider Quarantine • Full Regression NO APK
+run-name: V3 Deep Legacy Quarantine Final 1550+ Offline Validation • NO APK
 on:
   push:
     branches:
