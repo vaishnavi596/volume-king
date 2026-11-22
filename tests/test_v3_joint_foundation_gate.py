@@ -31,7 +31,12 @@ class V3JointFoundationGate(unittest.TestCase):
                         WORKFLOW.index("flet build apk"))
 
     def test_429_stage_is_fixed_sanitized_enum(self):
-        self.assertIn('"X-BotKing-429-Stage": "GATEWAY_PACING"',SERVER)
+        # The new Clone gateway serializes close cross-phone quotes rather
+        # than emitting a preventable local pacing 429. The phone still
+        # understands that fixed enum for older gateways/proxies.
+        self.assertIn("spacing_remaining=1.05-(now-last_request[0])",SERVER)
+        self.assertIn("time.sleep(spacing_remaining)",SERVER)
+        self.assertNotIn('"X-BotKing-429-Stage": "GATEWAY_PACING"',SERVER)
         self.assertIn('"X-BotKing-429-Stage": "PROVIDER_QUOTA"',SERVER)
         self.assertIn('"X-BotKing-429-Stage": "PROVIDER_COOLDOWN"',SERVER)
         self.assertIn('stage=="GATEWAY_PACING"',CLIENT)
