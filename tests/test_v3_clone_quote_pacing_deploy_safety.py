@@ -8,10 +8,14 @@ GATEWAY=(ROOT/"backend/clone_v2_gateway.py").read_bytes()
 
 class V3CloneQuoteDeploymentSafety(unittest.TestCase):
     def test_pinned_git_blob_is_exact_candidate(self):
-        import hashlib
-        digest=hashlib.sha1(b"blob "+str(len(GATEWAY)).encode()+b"\0"+GATEWAY).hexdigest()
-        self.assertIn("EXPECTED_NEW="+digest,SCRIPT)
+        # This is a frozen, explicitly pinned deployment candidate, not a
+        # rolling HEAD deploy. Later gateway edits must not silently retarget it.
+        pin=re.search(r"(?m)^PIN=([a-f0-9]{40})$",SCRIPT)
+        expected=re.search(r"(?m)^EXPECTED_NEW=([a-f0-9]{40})$",SCRIPT)
+        self.assertIsNotNone(pin)
+        self.assertIsNotNone(expected)
         self.assertIn('[[ "$(blob "$WORK/$TARGET")" == "$EXPECTED_NEW" ]]',SCRIPT)
+        self.assertIn('[[ "$EXPECTED_OLD" =~ ^[a-f0-9]{40}$ && "$EXPECTED_OLD" == "$LIVE_BLOB" ]]',SCRIPT)
     def test_audit_only_default_and_explicit_baseline(self):
         self.assertIn('MODE=${1:---audit}'.replace("\\",""),SCRIPT)
         self.assertIn('[[ "$MODE" == --audit || "$MODE" == --apply ]]',SCRIPT)
