@@ -1964,7 +1964,7 @@ def app_main(page:ft.Page):
             watch_batch_status[0]="Dhan reconnect required in Settings"
             request_view_refresh(4)
             return
-        from clone_smart_refresh_priority import priority_equity_batch
+        from clone_smart_refresh_priority import priority_equity_batch, accept_newer_dhan_quote
         positions=(prefs.get("paper_positions") or {})
         active_paper=[sym for sym,p in positions.items()
                       if isinstance(p,dict) and p.get("side") in ("BUY","SELL")]
@@ -2002,7 +2002,7 @@ def app_main(page:ft.Page):
             # Preserve missing symbols' last valid Dhan quotes as historical/unverified.
             # Partial status below must not imply a complete live refresh.
             for ticker,snapshot in batch.items():
-                if ticker in requested_symbols and snapshot.get("source")=="Dhan" and isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"]) and snapshot["price"]>0:
+                if ticker in requested_symbols and accept_newer_dhan_quote(quotes.get(ticker),snapshot):
                     old=quotes.get(ticker) or {}
                     quotes[ticker]=dict(snapshot,change=None,
                         bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
@@ -3584,10 +3584,14 @@ def app_main(page:ft.Page):
             prefs["source"]="Dhan"
             save()
             provider_changed(None)
+            # Unstamped login proof cannot supersede a newer exchange-stamped quote.
+            from clone_smart_refresh_priority import accept_newer_dhan_quote
             for symbol, price in proof.items():
-                quotes[symbol]={"symbol":symbol,"price":price,"source":"Dhan",
-                                "freshness":"unverified","quote_timestamp":None,
-                                "live_verified":False,"fetched_at":time.time()}
+                candidate={"symbol":symbol,"price":price,"source":"Dhan",
+                           "freshness":"unverified","quote_timestamp":None,
+                           "live_verified":False,"fetched_at":time.time()}
+                if accept_newer_dhan_quote(quotes.get(symbol),candidate):
+                    quotes[symbol]=candidate
             selected_rows={
                 sym:quotes[sym] for sym in selected_equities if sym in quotes}
             with dhan_batch_lock:

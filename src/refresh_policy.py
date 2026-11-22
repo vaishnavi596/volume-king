@@ -16,12 +16,14 @@ class DataLane:
 
 
 LANES = (
-    DataLane("quotes", ("watchlist", "indices", "dashboard", "paper-mark"), 30, "oracle-cache"),
+    DataLane("quotes", ("watchlist", "indices", "dashboard", "paper-mark"), 60, "oracle-cache"),
     DataLane("candles", ("scanner", "super-five", "chart", "historical-index"), 300, "completed-bars"),
     DataLane("derivatives", ("options", "oi", "pcr", "max-pain"), 30, "selected-contract"),
     DataLane("context", ("news", "assessment", "health"), 300, "independent-ttl"),
 )
 
+# Equity quote lane is a 60s provider floor, not the 2s local UI observation.
+# Faster LTP must be verified with upstream transport without polling fanout.
 # A local recomputation never authorizes an additional Dhan request.
 SUPER_FIVE_LOCAL_TICK_SECONDS = 2
 WATCHLIST_LOCAL_TICK_SECONDS = 2

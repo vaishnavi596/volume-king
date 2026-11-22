@@ -71,3 +71,24 @@ def auto_equity_quote_due(now, previous_attempt, *, busy=False, floor_seconds=60
 def active_quote_view(page):
     """Return only the mounted quote-consuming page; never refresh hidden pages."""
     return page if page in (0,3,4) else None
+
+
+def accept_newer_dhan_quote(previous, incoming):
+    """Do not overwrite a source-stamped Dhan quote with older/unstamped data.
+
+    Phone arrival time is not an exchange timestamp. Generation and symbol
+    constraints remain mandatory in the caller; no provider call occurs here.
+    """
+    from math import isfinite
+    if not isinstance(incoming,dict) or incoming.get("source")!="Dhan":
+        return False
+    price=incoming.get("price")
+    if type(price) not in (int,float) or not isfinite(price) or price<=0:
+        return False
+    if not isinstance(previous,dict) or previous.get("source")!="Dhan":
+        return True
+    old_ts=previous.get("quote_timestamp")
+    new_ts=incoming.get("quote_timestamp")
+    old_ok=type(old_ts) in (int,float) and isfinite(old_ts) and old_ts>0
+    new_ok=type(new_ts) in (int,float) and isfinite(new_ts) and new_ts>0
+    return not (old_ok and (not new_ok or new_ts<old_ts))

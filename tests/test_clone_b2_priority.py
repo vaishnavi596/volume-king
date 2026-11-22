@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from clone_smart_refresh_priority import focused_contexts, priority_equity_batch
+from clone_smart_refresh_priority import focused_contexts, priority_equity_batch, accept_newer_dhan_quote
 
 
 class TestB2Priority(unittest.TestCase):
@@ -61,6 +61,23 @@ class TestB2Priority(unittest.TestCase):
         self.assertIn('timeframe=None',source)
         self.assertNotIn('selected=[("overview",index_symbol)',source)
 
+
+    def test_timestamp_guard_prevents_old_quote_overwriting_new(self):
+        last={"source":"Dhan","price":104.0,"quote_timestamp":1800000010}
+        self.assertFalse(accept_newer_dhan_quote(last,{"source":"Dhan","price":100.0,"quote_timestamp":1800000009}))
+        self.assertFalse(accept_newer_dhan_quote(last,{"source":"Dhan","price":100.0,"quote_timestamp":None}))
+        self.assertTrue(accept_newer_dhan_quote(last,{"source":"Dhan","price":106.0,"quote_timestamp":1800000011}))
+        self.assertTrue(accept_newer_dhan_quote({"source":"Dhan","price":100},{"source":"Dhan","price":101}))
+        for bad in (None,0,True,-1,float("nan"),float("inf")):
+            self.assertFalse(accept_newer_dhan_quote({},{"source":"Dhan","price":bad}))
+        self.assertFalse(accept_newer_dhan_quote({},{"source":"Yahoo Finance","price":100}))
+
+    def test_revision_guard_is_on_both_login_and_batch_paths(self):
+        source=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        self.assertIn("if ticker in requested_symbols and accept_newer_dhan_quote(quotes.get(ticker),snapshot):",source)
+        self.assertIn("if accept_newer_dhan_quote(quotes.get(symbol),candidate):",source)
+        self.assertIn("auto_equity_quote_due(",source)
+        self.assertIn("active_quote_view(current[0])",source)
 
 if __name__ == "__main__":
     unittest.main()
