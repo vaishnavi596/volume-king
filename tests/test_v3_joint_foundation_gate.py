@@ -67,6 +67,18 @@ class V3JointFoundationGate(unittest.TestCase):
         self.assertIn('"RETAINED_PRIOR_TRANSPORT_SHA256_MATCH"',retention)
         self.assertIn('"RETAINED_PRIOR_TRANSPORT_UNVERIFIED"',retention)
 
+    def test_local_derived_watchlist_and_chart_do_not_inherit_raw_sha_match(self):
+        # Three independent display paths: 1m→3m, retained 3m, 5m→10m/15m→30m.
+        shared=MAIN.split('    def shared_history(sym,tf="5m"):',1)[1].split(
+            '    watch_three_minute_cache={}',1)[0]
+        self.assertIn('candle_transport_integrity=(',shared)
+        self.assertIn('source_1m.get("candle_transport_integrity")',shared)
+        self.assertIn('source.get("candle_transport_integrity")',shared)
+        self.assertIn('"DERIVED_FROM_TRANSPORT_SHA256_MATCH"',shared)
+        self.assertIn('"DERIVED_FROM_TRANSPORT_UNVERIFIED"',shared)
+        self.assertIn('"RETAINED_DERIVED_HISTORY_UNVERIFIED"',shared)
+        self.assertNotIn('live_verified=True',shared)
+
     def test_five_engine_missing_source_wiring_is_visible_not_fake_signal(self):
         from sys import path
         import sys
