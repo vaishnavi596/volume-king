@@ -15,17 +15,30 @@ permissions:
   contents: read
 jobs:
   record:
+    # Only explicitly ChatGPT-tracked work, not unrelated user/AI pushes.
+    if: ${{ github.event.workflow_run.head_branch == 'pilot/v1-pure-original-clone-phone-20261120' && (contains(github.event.workflow_run.head_commit.message, '[chatgpt-track]') || github.event.workflow_run.head_sha == 'b434cfccb8bda66702d40e2e315f826cbdbf5c7f') }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Write machine-readable latest result
         env:
           EVENT_PATH: ${{ github.event_path }}
+          GH_STATUS_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, urllib.request
           event=json.loads(pathlib.Path(os.environ["EVENT_PATH"]).read_text())
           run=event["workflow_run"]
+          token=os.environ.get("GH_STATUS_TOKEN","")
+          failed_steps=[]
+          if token:
+            req=urllib.request.Request(run["jobs_url"],headers={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json"})
+            try:
+              with urllib.request.urlopen(req,timeout=15) as response:
+                jobs=json.load(response).get("jobs",[])
+              failed_steps=[{"job":j.get("name"),"job_url":j.get("html_url"),"step":s.get("name"),"step_number":s.get("number"),"conclusion":s.get("conclusion")} for j in jobs for s in j.get("steps",[]) if s.get("conclusion")=="failure"][:30]
+            except Exception as exc:
+              print("JOB_STEP_LOOKUP_UNAVAILABLE",type(exc).__name__)
           status={
             "repository": event["repository"]["full_name"],
             "workflow": run["name"],
@@ -37,6 +50,8 @@ jobs:
             "conclusion": run.get("conclusion"),
             "url": run["html_url"],
             "completed_at": run.get("updated_at"),
+            "failed_steps": failed_steps,
+            "tracking_scope": "chatgpt_explicit_only",
             "next_action": ("inspect_failed_jobs_then_fix_and_retest" if run.get("conclusion")=="failure"
               else "check_release_gate_and_next_step" if run.get("conclusion")=="success"
               else "review_cancelled_or_skipped_run")
