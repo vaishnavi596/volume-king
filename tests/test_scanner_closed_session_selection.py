@@ -131,6 +131,19 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn("enrich_context_filter_rows",body)
         self.assertIn('market_store.put("analysis_last_good"',body)
 
+    def test_option_context_never_votes_without_verified_evidence(self):
+        from scanner_engine import OPTION_FILTERS
+        match=ast.get_source_segment(source,functions["matching_option_context_for_symbol"])
+        enrich=ast.get_source_segment(source,functions["enrich_context_filter_rows"])
+        self.assertIn('data.get("symbol")==sym',match)
+        self.assertIn('data.get("expiry")==listed',match)
+        self.assertIn('data.get("source")=="dhan"',match)
+        self.assertIn('data.get("signal_eligible") is False',match)
+        self.assertIn('row["vote"]=None',enrich)
+        for name in OPTION_FILTERS:
+            self.assertIn(name,("OI Support","OI Resistance","OI Profile","Dhan Max Pain"))
+        self.assertIn('No matching Dhan expiry snapshot',enrich)
+
     def test_manual_run_scan_keeps_explicit_network_option(self):
         manual=ast.get_source_segment(source,functions["run_scan"])
         self.assertIn("page.run_task(scan_market)",manual)
