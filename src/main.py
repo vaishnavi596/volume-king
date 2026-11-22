@@ -2087,7 +2087,12 @@ def app_main(page:ft.Page):
                 watch_batch_last_duration_ms[0]=round(
                     max(0.0,time.monotonic()-watch_batch_last_attempt[0])*1000,1)
             watch_batch_busy[0]=False
-            request_view_refresh(4)
+            # New shared quotes go only to the currently mounted consumer.
+            # The 2s Watchlist tick updates rows in place; no hidden-page rebuild.
+            from clone_smart_refresh_priority import active_quote_view
+            visible_target=active_quote_view(current[0])
+            if visible_target is not None:
+                request_view_refresh(visible_target)
     index_refresh_busy=[False]
     index_last_attempt=[0.0]
     index_refresh_generation=[None]
@@ -2329,9 +2334,11 @@ def app_main(page:ft.Page):
                         or (app_active[0] and closing_bootstrap and prefs.get("source")=="Dhan"
                             and dhan_feed.connected)):
                     # The initial auto quote must not wait for 60s of process uptime.
-                    poll_due=((max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0
-                               or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
-                              and not watch_batch_busy[0])
+                    from clone_smart_refresh_priority import auto_equity_quote_due
+                    poll_due=auto_equity_quote_due(
+                        time.monotonic(),
+                        max(quote_auto_last_attempt[0],watch_batch_last_attempt[0]),
+                        busy=watch_batch_busy[0])
                 else:
                     poll_due=False
                 if (poll_due and not watch_batch_busy[0]):

@@ -64,6 +64,23 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertLess(index.index("if index_cooldown>0:"),
                         index.index("snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)"))
 
+    def test_smart_quote_clock_is_safely_bounded_and_view_focused(self):
+        from clone_smart_refresh_priority import auto_equity_quote_due, active_quote_view
+        self.assertTrue(auto_equity_quote_due(100, 0))
+        self.assertFalse(auto_equity_quote_due(159, 100))
+        self.assertTrue(auto_equity_quote_due(160, 100))
+        self.assertFalse(auto_equity_quote_due(170, 171))
+        self.assertFalse(auto_equity_quote_due(999, 100, busy=True))
+        self.assertFalse(auto_equity_quote_due(110, 100, floor_seconds=2))
+        self.assertEqual([active_quote_view(p) for p in range(6)],
+                         [0,None,None,3,4,None])
+        poll=section("    async def dhan_quote_poll():","    # The Watchlist observes")
+        self.assertIn("auto_equity_quote_due(",poll)
+        self.assertIn('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")',poll)
+        batch=section("    async def refresh_watch_batch():","    index_refresh_busy=[False]")
+        self.assertIn("active_quote_view(current[0])",batch)
+        self.assertIn("request_view_refresh(visible_target)",batch)
+
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
         loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol, display_timeframe=None):")
         self.assertNotIn("not refresh_hours()",loop)

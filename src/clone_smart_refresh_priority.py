@@ -49,3 +49,25 @@ def priority_equity_batch(watch_symbols, position_symbols, *, verified, limit=70
             if len(result) >= limit:
                 break
     return result
+
+
+def auto_equity_quote_due(now, previous_attempt, *, busy=False, floor_seconds=60):
+    """True only when a shared equity request can begin; not a UI render clock.
+
+    A backward clock jump fails closed. The initial login (no attempt) is due.
+    Provider-specific cooldowns remain the caller's separate mandatory gate.
+    """
+    if busy or not isinstance(now,(int,float)) or isinstance(now,bool):
+        return False
+    if not isinstance(floor_seconds,(int,float)) or floor_seconds<60:
+        return False
+    if not isinstance(previous_attempt,(int,float)) or isinstance(previous_attempt,bool):
+        return False
+    if previous_attempt<=0:
+        return now>=0
+    return now>=previous_attempt and now-previous_attempt>=floor_seconds
+
+
+def active_quote_view(page):
+    """Return only the mounted quote-consuming page; never refresh hidden pages."""
+    return page if page in (0,3,4) else None
