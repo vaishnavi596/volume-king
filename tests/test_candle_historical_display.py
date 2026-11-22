@@ -11,6 +11,22 @@ class HistoricalVoteUiTests(unittest.TestCase):
         self.assertEqual(set(OPTION_FILTERS),{"OI Support","OI Resistance","OI Profile","Dhan Max Pain"})
 
 
+    def test_b199_scanner_option_context_uses_one_canonical_max_pain_label(self):
+        from pathlib import Path
+        from scanner_engine import OPTION_FILTERS, ALL_FILTERS
+        source=Path(__file__).resolve().parents[1].joinpath("src","main.py").read_text()
+        enrich=source[source.index("    def enrich_context_filter_rows("):
+                      source.index("    def shared_filter_report(")]
+        self.assertEqual(ALL_FILTERS.count("Dhan Max Pain"),1)
+        self.assertNotIn("Max Pain",ALL_FILTERS)
+        self.assertIn("Dhan Max Pain",OPTION_FILTERS)
+        self.assertIn('row["detail"]="Strike "+format(data["max_pain"],",.0f")',enrich)
+        self.assertNotIn('row["detail"]="Dhan Max Pain "+',enrich)
+        self.assertIn('row["vote"]=None',enrich)
+        self.assertIn('row["context_only"]=bool(data)',enrich)
+        self.assertIn('else "CONTEXT ONLY" if v.get("context_only") else "UNAVAILABLE"',source)
+        self.assertNotIn('note("OI/PCR/Dhan Max Pain not connected; unavailable filters never vote.")',source)
+
     def test_offline_technical_engine_keeps_last_valid_historical_vote(self):
         page,v=start({"source":"Dhan","scanner_live":False,"last_page":2})
         v["watch_signal_cache"]["HDFCBANK"]={
