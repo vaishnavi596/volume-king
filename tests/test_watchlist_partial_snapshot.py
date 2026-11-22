@@ -123,14 +123,20 @@ class WatchlistPartialSnapshotTests(unittest.TestCase):
 
     def test_invalid_dhan_batch_prices_cannot_overwrite_last_good_quotes(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        guard='isinstance(snapshot.get("price"),(int,float)) and not isinstance(snapshot.get("price"),bool) and math.isfinite(snapshot["price"])'
-        self.assertGreaterEqual(text.count(guard),1)
+        # All three writers use the shared price + source timestamp gate.
+        # Checking an old inline expression would miss a genuine regression.
         self.assertIn('if ticker in requested_symbols and accept_newer_dhan_quote(quotes.get(ticker),snapshot):',text)
-        helper=(Path(__file__).resolve().parents[1]/"src"/"clone_smart_refresh_priority.py").read_text(encoding="utf-8")
-        self.assertIn('def accept_newer_dhan_quote(previous, incoming):',helper)
-        self.assertIn('type(price) not in (int,float)',helper)
-        self.assertIn('not isfinite(price) or price<=0',helper)
-        self.assertIn('if ticker in all_watch_symbols() and snapshot.get("source") == "Dhan" and '+guard+':',text)
+        self.assertIn('accept_newer_dhan_quote(quotes.get(ticker),snapshot)',text)
+        self.assertIn('accept_newer_dhan_quote(quotes.get(symbol),candidate)',text)
+        from clone_smart_refresh_priority import accept_newer_dhan_quote
+        good={"source":"Dhan","price":102,"quote_timestamp":1800000100}
+        self.assertTrue(accept_newer_dhan_quote({},good))
+        self.assertFalse(accept_newer_dhan_quote(good,{"source":"Dhan","price":101,"quote_timestamp":1800000099}))
+        self.assertFalse(accept_newer_dhan_quote(good,{"source":"Dhan","price":101,"quote_timestamp":None}))
+        self.assertTrue(accept_newer_dhan_quote(good,{"source":"Dhan","price":103,"quote_timestamp":1800000101}))
+        for invalid in (None,0,-1,True,float("nan"),float("inf")):
+            self.assertFalse(accept_newer_dhan_quote(good,{"source":"Dhan","price":invalid}))
+        self.assertFalse(accept_newer_dhan_quote(good,{"source":"Yahoo Finance","price":100}))
 
     def test_dhan_history_cooldown_does_not_rank_unattempted_symbols(self):
         text=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
