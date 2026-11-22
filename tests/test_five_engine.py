@@ -631,4 +631,11 @@ class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertIn(expected, source)
 
+class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
+    def test_paper_trading_has_explicit_timeframe(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        self.assertIn('five_engine_chips(instrument,display_timeframe=("1m" if instrument in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))', source)
+        self.assertNotIn('context=[five_engine_chips(instrument),', source)
+
 if __name__=="__main__":unittest.main()
