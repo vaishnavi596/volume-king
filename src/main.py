@@ -5032,6 +5032,16 @@ def app_main(page:ft.Page):
                     "ERRORS_COORDINATION":{
                         "active_display_failure_areas":sorted(str(k)[:48] for k in display_failures),
                         "scanner_fetch_failure_count":len(scan_fetch_failure),
+                        "scanner_failure_details":[
+                            {"symbol":str(key[1])[:40],"timeframe":str(key[2])[:12],
+                             "provider_generation":key[0],
+                             "stage":str(value.get("stage","candle fetch"))[:60],
+                             "error_code":str(value.get("code","UNCLASSIFIED_FETCH_FAILURE"))[:80],
+                             "detail":str(value.get("detail",""))[:180],
+                             "recorded_at":value.get("at"),
+                             "recovery":"AWAITING_SUCCESSFUL_SAME_GENERATION_CANDLE"}
+                            for key,value in list(scan_fetch_failure.items())[:10]
+                            if isinstance(key,tuple) and len(key)==3 and isinstance(value,dict)],
                         "recent_error_count":len(diagnostics[-30:]),
                         "data_path":"Dhan → Oracle Clone Gateway → phone cache → analysis → UI",
                         "failure_inference":"Do not confuse local cache readiness with exchange-verified live data"}
