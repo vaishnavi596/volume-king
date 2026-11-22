@@ -13,7 +13,7 @@ permissions:
   contents: read
 concurrency:
   group: v3-b199-preview-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   build-preview:
     runs-on: ubuntu-22.04
