@@ -74,7 +74,7 @@ class AssessmentAfterHoursPollTests(unittest.TestCase):
         self.assertIn("now-oracle_assessment_attempts[key]<180", self.block)
         ui=(Path(__file__).resolve().parents[1]/"src"/
             "shared_assessment_ui.py").read_text(encoding="utf-8")
-        self.assertIn("def assessment_lines(symbol, cached, *, now=None, max_age=180)",ui)
+        self.assertIn("def assessment_lines(symbol, cached, *, now=None, max_age=180, market_open=None)",ui)
         self.assertIn("now - fetched > max_age",ui)
 
     def test_one_after_hours_attempt_does_not_clear_last_good_cache(self):
