@@ -13,7 +13,8 @@ class DhanMarketDefaultTests(unittest.TestCase):
         body = source[start:end]
         self.assertIn('selected=prefs.get("source","Dhan")', body)
         self.assertNotIn('selected=prefs.get("source","Yahoo Finance")', body)
-        self.assertIn('elif selected=="Dhan":', body)
+        self.assertIn('if selected=="Dhan":', body)
+        self.assertNotIn('elif selected=="Broker API"', body)
 
 
 if __name__ == "__main__":
