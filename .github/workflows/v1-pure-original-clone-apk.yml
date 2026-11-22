@@ -3,12 +3,6 @@ run-name: BOT KING V3 B199 Candle Quality + Index Doctor Phone Test • v2.3.199
 # B199 read-only raw candle-quality Doctor + index route classification; full regression before signing
 # Explicit-only release: never auto-sign from a workflow file change.
 on:
-  # One owner-authorized B199 release attempt. Revert to manual-only after run starts.
-  push:
-    branches:
-      - pilot/v1-pure-original-clone-phone-20261120
-    paths:
-      - .github/workflows/v1-pure-original-clone-apk.yml
   workflow_dispatch:
 permissions:
   contents: read
