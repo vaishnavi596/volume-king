@@ -172,6 +172,33 @@ def snapshot_for_display(snapshot, *, now, max_age_seconds=300, expected_source=
     return {"engines": gated, "combined": combine_evidence(gated)}
 
 
+def compose_verified_adapter_snapshot(scan_result, *, candle=None, news=None,
+                                      futures=None, options=None, now=None,
+                                      max_age_seconds=300):
+    """Join five independent typed adapters, then gate every vote at render time.
+
+    Missing sources remain WAIT; no simulated news, OI or PCR strength.
+    This function makes the data contract usable by a real publisher without
+    letting scanner technical votes masquerade as candle/news evidence.
+    """
+    technical=scanner_snapshot(scan_result)["engines"][0]
+    rows={"technical":technical}
+    for name, supplied in (("candle",candle),("news",news),
+                           ("futures",futures),("options",options)):
+        if isinstance(supplied, EngineEvidence) and supplied.name==name:
+            rows[name]=supplied
+        elif name=="futures":
+            rows[name]=futures_from_component(supplied)
+        elif name=="options":
+            rows[name]=option_from_component(supplied)
+        else:
+            rows[name]=EngineEvidence(name,reason="Independent verified "+name+" adapter unavailable")
+    snapshot=compose_snapshot(**rows)
+    if now is None:
+        return snapshot
+    return snapshot_for_display(snapshot,now=now,max_age_seconds=max_age_seconds)
+
+
 def scanner_snapshot(scan_result):
     """Adapt existing scanner votes without network calls or false live labels.
 
