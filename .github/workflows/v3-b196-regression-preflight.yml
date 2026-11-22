@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 B198 Constant Volume Quality Full Regression • NO APK
+run-name: V3 Joint Foundation Signing 429 Candle Integrity Five Engines • NO APK
 on:
   push:
     branches:
@@ -41,6 +41,10 @@ jobs:
           python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
           python -m unittest discover -s tests -p 'test_dhan_index_refresh_regression.py' -v
           python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
+          python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
+          python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_clone_b3_candle_singleflight_cache.py' -v
+          python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
           python -m unittest discover -s tests -p 'test_audit.py' -v
           python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
       - name: Full offline regression (no APK, no server write)
