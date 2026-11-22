@@ -40,3 +40,29 @@ def agreement_detail(result):
     return {"available_filters":len(available),"unavailable_filters":len(votes)-len(available),
             "directional_filters":len(directional),
             "limitation":"Indicators share price inputs; agreement is not a win probability."}
+
+
+def candle_provenance_diagnostic(snapshot):
+    """Distinguish a normalized transport digest from raw Dhan proof.
+
+    A matching gateway-to-phone SHA256 covers only the *normalized* payload.
+    Without a separately authenticated raw broker attestation, original
+    provider OHLCV and exchange-live freshness remain UNVERIFIED. This is
+    diagnostic only, never a license for live trading or a directional vote.
+    """
+    if not isinstance(snapshot,dict) or snapshot.get("source")!="Dhan":
+        return {"transport":"SOURCE_MISSING_OR_MISMATCH",
+                "raw_dhan":"UNVERIFIED","exchange_live":"UNVERIFIED",
+                "next_action":"OBTAIN_AUTHENTIC_DHAN_SOURCE_AND_TIMESTAMP_PROOF"}
+    state=snapshot.get("candle_transport_integrity")
+    if state=="SHA256_MATCH":
+        transport="NORMALIZED_GATEWAY_TO_PHONE_MATCH"
+    elif state=="DERIVED_FROM_TRANSPORT_SHA256_MATCH":
+        transport="DERIVED_FROM_NORMALIZED_MATCH_NOT_RAW"
+    elif isinstance(state,str) and state.startswith("RETAINED_"):
+        transport="RETAINED_HISTORICAL_NOT_CURRENT_TRANSPORT_PROOF"
+    else:
+        transport="NORMALIZED_TRANSPORT_UNVERIFIED"
+    return {"transport":transport,"raw_dhan":"UNVERIFIED",
+            "exchange_live":"UNVERIFIED",
+            "next_action":"COMPARE_ORIGINAL_DHAN_OHLCV_WITH_GATEWAY_NORMALIZATION_AND_PHONE"}

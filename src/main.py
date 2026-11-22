@@ -4597,8 +4597,11 @@ def app_main(page:ft.Page):
                 # Separate healthy calculation, missing input and evidence policy:
                 # a grey box is not automatically a runtime exception.
                 candle_count=len(bars) if isinstance(bars,(tuple,list)) else 0
+                from analysis_quality import candle_provenance_diagnostic
+                provenance=candle_provenance_diagnostic(history)
                 diagnostic_context={
                     "candle_count":candle_count,
+                    "candle_provenance_verdict":provenance,
                     "candle_timeframe":tf,
                     "candle_source":str(history.get("source","missing")) if isinstance(history,dict) else "missing",
                     "candle_transport_integrity":str(history.get("candle_transport_integrity","NOT_PROVIDED")) if isinstance(history,dict) else "NOT_PROVIDED",

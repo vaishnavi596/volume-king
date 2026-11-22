@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from scanner_engine import ALL_FILTERS
+from analysis_quality import candle_provenance_diagnostic
 from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows, has_recent_news_context, option_filter_context_readiness
 
 
@@ -50,6 +51,21 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertEqual(absent[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
         self.assertEqual(absent[1]["state"],"OPTION_DATA_MISSING")
         self.assertEqual(absent[-1]["state"],"ADAPTER_NOT_DIRECTIONAL")
+
+    def test_normalized_digest_never_authenticates_raw_dhan(self):
+        cases={"SHA256_MATCH":"NORMALIZED_GATEWAY_TO_PHONE_MATCH",
+               "DERIVED_FROM_TRANSPORT_SHA256_MATCH":"DERIVED_FROM_NORMALIZED_MATCH_NOT_RAW",
+               "RETAINED_DERIVED_HISTORY_UNVERIFIED":"RETAINED_HISTORICAL_NOT_CURRENT_TRANSPORT_PROOF",
+               "NOT_PROVIDED":"NORMALIZED_TRANSPORT_UNVERIFIED"}
+        for raw, expected in cases.items():
+            diagnostic=candle_provenance_diagnostic(
+                {"source":"Dhan","candle_transport_integrity":raw})
+            self.assertEqual(diagnostic["transport"],expected)
+            self.assertEqual(diagnostic["raw_dhan"],"UNVERIFIED")
+            self.assertEqual(diagnostic["exchange_live"],"UNVERIFIED")
+        mismatch=candle_provenance_diagnostic(
+            {"source":"Angel One","candle_transport_integrity":"SHA256_MATCH"})
+        self.assertEqual(mismatch["transport"],"SOURCE_MISSING_OR_MISMATCH")
 
     def test_option_readiness_is_expiry_and_filter_specific(self):
         from datetime import datetime,timezone
@@ -142,6 +158,8 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('doctor_filter_rows(filter_rows,wiring_matrix)',block)
         self.assertIn('has_recent_news_context(news_context,now=time.time())',block)
         self.assertIn('option_filter_context_readiness(',block)
+        self.assertIn('candle_provenance_diagnostic(history)',block)
+        self.assertIn('"candle_provenance_verdict":provenance',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
         self.assertIn('result.get("count",0)>=30',block)
 
