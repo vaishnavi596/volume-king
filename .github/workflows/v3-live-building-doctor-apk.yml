@@ -54,12 +54,10 @@ jobs:
           print('V3_B199_PREVIEW_SOURCE_GUARD=PASS')
           PY
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
-          # Full 1567-test suite already passed on the same app source in
-          # preview Run 44984397810. Only signing workflow changed here.
-          python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
-          python -m unittest discover -s tests -p 'test_v3_watchlist_5_34_70_capacity.py' -v
-          python -m unittest discover -s tests -p 'test_v3_watchlist_quote_elapsed_diagnostic.py' -v
-          echo V3_B199_PREVIEW_FOCUSED_RELEASE_GATE=PASS
+          # Validate CURRENT source, not a prior preview SHA. Fail before
+          # signing/building if any cross-screen or gateway regression fails.
+          python -m unittest discover -s tests -v
+          echo V3_B199_PREVIEW_FULL_OFFLINE_GATE=PASS
       - name: Make isolated preview-only test signing certificate
         shell: bash
         run: |
