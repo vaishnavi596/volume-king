@@ -594,3 +594,14 @@ class FiveEngineTimeframeIsolationContract(unittest.TestCase):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
+
+
+class FiveEngineNonFiveMinuteSnapshotSafety(unittest.TestCase):
+    def test_non_five_minute_chips_do_not_reuse_symbol_only_snapshot(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
+        start = source.index("    def five_engine_chips(sym, display_timeframe=None):")
+        end = source.index("    def ", start + 5)
+        function = source[start:end]
+        self.assertIn('display_timeframe is None or display_timeframe=="5m"', function)
+        self.assertIn('snapshot_for_display(five_engine_snapshots.get(sym)', function)
