@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
-run-name: V3 Combined Foundation Final Audit • Signing + Data + Five Engine + Doctor • NO APK
+run-name: V3 Joint Foundation Exact-Head Final Gate + Candle Retention • NO APK
 on:
   push:
     branches:
@@ -45,6 +45,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
           python -m unittest discover -s tests -p 'test_clone_b3_candle_singleflight_cache.py' -v
+          python -m unittest discover -s tests -p 'test_candle_retention.py' -v
           python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
           python -m unittest discover -s tests -p 'test_audit.py' -v
           python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
