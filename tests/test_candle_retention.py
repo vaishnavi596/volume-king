@@ -25,6 +25,25 @@ class CandleRetentionTests(unittest.TestCase):
         self.assertEqual(result["freshness"],"historical_unverified")
         self.assertEqual(result["candle_fetched_at"],65000)
 
+    def test_retained_or_merged_candles_never_claim_fresh_transport_equality(self):
+        prior=dict(self.old,candle_transport_integrity="SHA256_MATCH",
+                   _scanner_timeframe="1m")
+        retained=retain_candle_history(
+            {"source":"Dhan","bars":[],
+             "candle_transport_integrity":"NOT_PROVIDED"},prior)
+        self.assertEqual(retained["candle_transport_integrity"],
+                         "RETAINED_PRIOR_TRANSPORT_SHA256_MATCH")
+        self.assertFalse(retained["live_verified"])
+        latest=[list(row) for row in prior["bars"][-2:]]
+        merged=retain_candle_history(
+            {"source":"Dhan","bars":latest,
+             "_scanner_timeframe":"1m",
+             "candle_transport_integrity":"SHA256_MATCH"},prior)
+        self.assertTrue(merged["_candle_partial_revised"])
+        self.assertEqual(merged["candle_transport_integrity"],
+                         "MERGED_HISTORY_NOT_DIRECT_DIGEST")
+        self.assertFalse(merged["live_verified"])
+
     def test_partial_history_does_not_replace_last_40_candles(self):
         result=retain_candle_history({"source":"Dhan","bars":candles(13000,4)},self.old)
         self.assertEqual(len(result["bars"]),40)
