@@ -153,6 +153,13 @@ jobs:
           test -x "$AAPT" && test -x "$SIGNER"
           "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.sudhar1\\.bot_king_v1_pure_clone' versionCode='199' versionName='2\\.3\\.199'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B199 TEST'"
+          # Flet 0.25 may emit a debug-signed APK even with custom signing variables.
+          # Explicitly sign with pinned keystore, then verify certificate match.
+          "$SIGNER" sign --ks "$RUNNER_TEMP/v1-pure-sign/clone.jks" \
+            --ks-key-alias "$FLET_ANDROID_SIGNING_KEY_ALIAS" \
+            --ks-pass env:FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD \
+            --key-pass env:FLET_ANDROID_SIGNING_KEY_PASSWORD \
+            "$APK"
           "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v1-pure-sign/apk-info"
           ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v1-pure-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
           EXPECTED="$(grep -m1 'SHA256:' "$RUNNER_TEMP/v1-pure-sign/key-info" | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
