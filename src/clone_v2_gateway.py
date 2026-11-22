@@ -267,6 +267,16 @@ class CloneDhanReadOnly:
         import time
         return max(0, self._cooldowns.get(path, 0.0) - time.monotonic())
 
+    def paced_market_quotes(self, symbols):
+        """One Dhan-only phone quote lane, including initial SSK login proof.
+
+        A status-authenticated gateway is sufficient for the first quote proof;
+        no verified market session is asserted until caller validates response.
+        """
+        if not self.gateway.connected:
+            raise FeedError("Clone SSK connection required")
+        return self._fetch(symbols)
+
     def _fetch(self, symbols):
         import time
         # Serialize index/equity/individual quotes within this phone, including
