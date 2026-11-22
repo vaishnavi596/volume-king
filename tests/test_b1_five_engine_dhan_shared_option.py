@@ -25,7 +25,7 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
             expiry=v["expiry"].value,pcr=0.83,max_pain=25000,
             freshness="unverified",signal_eligible=False)
         chips=v["five_engine_chips"]("NIFTY")
-        values=[card.content.value for card in chips.controls]
+        values=[card.content.value for group in chips.controls for card in group.controls]
         # Disconnected test page must never pretend it received a verified vote.
         self.assertEqual(len(values),6)
         self.assertEqual(values[5],"6  —")  # Blank, inert reserved display only.
