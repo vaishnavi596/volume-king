@@ -1159,3 +1159,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Observed baseline live Git blob `10d2bf6f2265bfbca8a195cb742691ff541f7baf`; desired pinned source Git blob `49d8d5cdd90da4c768367d9258f00414f9027291`. Backup path `/home/opc/botking-clone-v2-private/v3-quote-pacing.poSBmaM4`.
 - Owner terminal output: `V3_CLONE_STAGED_IMPORT=PASS`, `V3_CLONE_ONLY_DEPLOY=PASS`, `V3_V1_UNCHANGED_AND_HEALTHY=YES`, `V3_NO_DHAN_API_OR_TRADE_REQUEST=YES`. Script includes post-restart clone and V1 health checks, hash check and rollback on error. No V1 modification or broker call in this deploy.
 - S2 DEPLOY PASS. S3 remains OPEN: verify exact deployed blob read-only, index NIFTY/BANKNIFTY/SENSEX 3/3 and provider 429 classification during authorized market hours; independently resolve SENSEX IDX_I/51 vs prior BSE_I/51 expectation from authoritative instrument master; verify candle/option/news end-to-end on phone. Do not claim live-data or phone FINAL PASS from deployment health alone.
+
+
+### 2026-11-22 — S2 post-deploy owner read-only confirmation PASS
+- Owner Oracle SSH post-deploy: `DEPLOYED_BLOB=49d8d5cdd90da4c768367d9258f00414f9027291`, `EXPECTED_MATCH=True`, `botking-clone-v2.service=active`, `bot-king.service=active`, Clone `/clone-v2/health` HTTP 200 and V1 `/health` HTTP 200.
+- S2 source identity + both services health CONFIRMED; no Dhan request, trade or V1 modification. S3 provider-backed SENSEX 3/3 quotes, 429 stages, candles, options and phone end-to-end remain UNVERIFIED; SENSEX segment master contract unresolved. NEXT: bounded log-only read-only diagnostic, then authorized market-window protected-route checks.
