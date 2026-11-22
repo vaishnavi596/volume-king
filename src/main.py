@@ -7008,9 +7008,9 @@ console.log('BOT KING Lightweight Charts ready');
             direction=advanced["bias"]
             basis=advanced["reason"]
             if history_valid and (hist.get("cached") or not regular_hours()):
-                basis+=" • LAST SESSION HIST "+datetime.fromtimestamp(
+                basis+=(" • LAST SESSION HIST "+datetime.fromtimestamp(
                     historical["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")+
-                    " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)"
+                    " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)")
             # Publish candle results before RSS requests so missing/slow news cannot hide them.
             scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
             if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
