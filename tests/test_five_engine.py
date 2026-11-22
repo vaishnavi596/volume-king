@@ -271,7 +271,6 @@ class FiveEngineTests(unittest.TestCase):
             self.assertEqual(row.display()["state"],"WAIT")
             self.assertIsNone(row.bullish)
 
-if __name__=="__main__":unittest.main()
 
 
 def test_news_headline_keywords_never_count_as_verified_market_direction():
@@ -605,3 +604,5 @@ class FiveEngineNonFiveMinuteSnapshotSafety(unittest.TestCase):
         function = source[start:end]
         self.assertIn('display_timeframe is None or display_timeframe=="5m"', function)
         self.assertIn('snapshot_for_display(five_engine_snapshots.get(sym)', function)
+
+if __name__=="__main__":unittest.main()
