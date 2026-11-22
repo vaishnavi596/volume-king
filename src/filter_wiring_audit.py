@@ -30,7 +30,9 @@ def filter_wiring_matrix(selected, rows, *, source="Dhan", timeframe="1m",
         elif name in OPTION_FILTERS:
             # OI has its own selected-symbol/expiry Dhan chain. Missing
             # OHLCV candles must not be mislabeled as an option source fault.
-            state="ADAPTER_NOT_DIRECTIONAL" if options_context else "OPTION_DATA_MISSING"
+            ready=(options_context.get(name,False) if isinstance(options_context,dict)
+                   else bool(options_context))
+            state="ADAPTER_NOT_DIRECTIONAL" if ready else "OPTION_DATA_MISSING"
         elif name=="News Headlines":
             # Headlines are an independent context source, not candle data.
             state="ADAPTER_NOT_DIRECTIONAL" if news_context else "NEWS_DATA_MISSING"
@@ -128,3 +130,35 @@ def has_recent_news_context(data, *, now, max_age_seconds=86400):
                type(row.get("published")) in (int,float) and
                isfinite(row["published"]) and 0<=now-row["published"]<=max_age_seconds
                for row in data["items"])
+
+
+def option_filter_context_readiness(data, *, symbol, now, window_available=False):
+    """Per-filter current Dhan expiry context, never independent direction.
+
+    Calendar expiry is checked in IST. Historical/expired contracts can be
+    shown as saved context elsewhere but must not be labeled current-ready.
+    """
+    from datetime import datetime, date, timezone, timedelta
+    from math import isfinite
+    result={name:False for name in OPTION_FILTERS}
+    if (not isinstance(data,dict) or data.get("source")!="dhan"
+            or not isinstance(symbol,str) or not symbol
+            or data.get("symbol")!=symbol or data.get("signal_eligible") is not False
+            or type(now) not in (int,float) or not isfinite(now) or now<=0):
+        return result
+    expiry=data.get("expiry")
+    try:
+        expiry_day=date.fromisoformat(expiry)
+        local_day=datetime.fromtimestamp(now,timezone(timedelta(hours=5,minutes=30))).date()
+    except (TypeError,ValueError,OverflowError):
+        return result
+    if expiry_day<local_day:
+        return result
+    max_pain=data.get("max_pain")
+    result["Dhan Max Pain"]=(type(max_pain) in (int,float)
+                             and isfinite(max_pain) and max_pain>0)
+    if window_available:
+        result["OI Profile"]=True
+        result["OI Support"]=True
+        result["OI Resistance"]=True
+    return result

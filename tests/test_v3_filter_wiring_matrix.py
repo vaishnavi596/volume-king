@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from scanner_engine import ALL_FILTERS
-from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows, has_recent_news_context
+from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readiness, doctor_filter_rows, has_recent_news_context, option_filter_context_readiness
 
 
 class V3FilterWiringTests(unittest.TestCase):
@@ -50,6 +50,34 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertEqual(absent[0]["state"],"CANDLE_DATA_MISSING_OR_INVALID")
         self.assertEqual(absent[1]["state"],"OPTION_DATA_MISSING")
         self.assertEqual(absent[-1]["state"],"ADAPTER_NOT_DIRECTIONAL")
+
+    def test_option_readiness_is_expiry_and_filter_specific(self):
+        from datetime import datetime,timezone
+        now=datetime(2026,11,22,tzinfo=timezone.utc).timestamp()
+        data={"source":"dhan","symbol":"NIFTY","expiry":"2026-11-26",
+              "signal_eligible":False,"max_pain":25000}
+        ready=option_filter_context_readiness(data,symbol="NIFTY",
+            now=now,window_available=False)
+        self.assertTrue(ready["Dhan Max Pain"])
+        self.assertFalse(ready["OI Support"])
+        self.assertFalse(ready["OI Profile"])
+        populated=option_filter_context_readiness(data,symbol="NIFTY",
+            now=now,window_available=True)
+        self.assertTrue(all(populated.values()))
+        expired=option_filter_context_readiness(dict(data,expiry="2026-11-19"),
+            symbol="NIFTY",now=now,window_available=True)
+        self.assertFalse(any(expired.values()))
+        wrong=option_filter_context_readiness(data,symbol="BANKNIFTY",
+            now=now,window_available=True)
+        self.assertFalse(any(wrong.values()))
+        nonbroker=option_filter_context_readiness(dict(data,source="other"),
+            symbol="NIFTY",now=now,window_available=True)
+        self.assertFalse(any(nonbroker.values()))
+        matrix=filter_wiring_matrix(["OI Support","Dhan Max Pain"],[],
+            options_context=ready)
+        self.assertEqual([row["state"] for row in matrix],
+            ["OPTION_DATA_MISSING","ADAPTER_NOT_DIRECTIONAL"])
+        self.assertTrue(all(row["vote"] is None for row in matrix))
 
     def test_news_readiness_excludes_undated_old_and_future_headlines(self):
         now=1800000000
@@ -113,6 +141,7 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('selected_candle_readiness',block)
         self.assertIn('doctor_filter_rows(filter_rows,wiring_matrix)',block)
         self.assertIn('has_recent_news_context(news_context,now=time.time())',block)
+        self.assertIn('option_filter_context_readiness(',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
         self.assertIn('result.get("count",0)>=30',block)
 
