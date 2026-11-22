@@ -1484,6 +1484,10 @@ def app_main(page:ft.Page):
                         data=news_cache.get(sym) or {}
                     items=data.get("items") or []
                     if items:label="N "+str(len(items))+" news • WAIT"
+            # Market-closed is a session state, not an unresolved live fetch.
+            # Preserve historical context, but label unavailable live boxes OFF.
+            if not regular_hours() and "WAIT" in label:
+                label=label.replace("WAIT","OFF • market closed")
             cards.append(ft.Container(
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD,
                                 text_align=ft.TextAlign.CENTER),
