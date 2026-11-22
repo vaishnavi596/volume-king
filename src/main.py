@@ -1368,6 +1368,10 @@ def app_main(page:ft.Page):
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
                   if display_timeframe is None or display_timeframe=="5m" else None)
+        if snapshot and not regular_hours():
+            # Even an otherwise fresh verified engine is ineligible outside
+            # market hours. The historical candle box below remains visible.
+            snapshot=snapshot_for_display(None,now=time.time())
         if not snapshot:
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
@@ -1424,6 +1428,10 @@ def app_main(page:ft.Page):
         snapshot=(snapshot_for_display(five_engine_snapshots.get(sym),now=time.time())
                   if prefs.get("source")=="Dhan" and dhan_feed.connected
                   and (display_timeframe is None or display_timeframe=="5m") else None)
+        if snapshot and not regular_hours():
+            # Session closure revokes LIVE eligibility but not the distinct
+            # 1m/3m/5m completed-candle HIST display below.
+            snapshot=snapshot_for_display(None,now=time.time())
         evidence={row.name:row.display() for row in snapshot["engines"]} if snapshot else {}
         cards=[]
         for name,short in names:

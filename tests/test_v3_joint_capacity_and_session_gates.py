@@ -100,6 +100,16 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertEqual(cross_source["votes"],[])
         self.assertEqual(cross_source["bias"],"WAIT")
 
+    def test_five_engine_closed_session_revokes_verified_live_display(self):
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
+        chips=source.split("    def five_engine_chips(",1)[1].split("    def super_five_card(",1)[0]
+        self.assertIn("if snapshot and not regular_hours():",summary)
+        self.assertIn("if snapshot and not regular_hours():",chips)
+        self.assertIn("snapshot=snapshot_for_display(None,now=time.time())",summary)
+        self.assertIn("snapshot=snapshot_for_display(None,now=time.time())",chips)
+        self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
+
     def test_selected_18_filters_same_registry_but_missing_independent_vote(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(OPTION_FILTERS),4)
