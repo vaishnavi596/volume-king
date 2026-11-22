@@ -8389,9 +8389,20 @@ console.log('BOT KING Lightweight Charts ready');
                             f" • Dhan cooldown {cooldown:.0f}s")
                         request_view_refresh(4)
                         break
+                    # The standard 3m warmup already reuses this exact
+                    # generation/source/timeframe recent history cache.
+                    # Do not sleep on a cache hit; uncached provider calls
+                    # retain their existing 1.5s safety pacing.
+                    history_key=(generation,angel_feed.epoch,dhan_feed.connected,
+                                 "Dhan",sym,"1m","2d")
+                    with market_registry_lock:
+                        prior_cache=market_recent.get(history_key)
+                        cache_ready=bool(prior_cache and
+                                         0<=time.monotonic()-prior_cache[0]<87)
                     watch_three_minute_warm_busy[0]=True
                     try:
-                        await asyncio.sleep(1.5)
+                        if not cache_ready:
+                            await asyncio.sleep(1.5)
                         if (generation!=provider_generation[0]
                                 or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
