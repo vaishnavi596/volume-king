@@ -147,7 +147,15 @@ class CloneV2Gateway:
             if exc.code == 424:
                 raise FeedError("Dhan authorization required. Use Authorize Dhan in Browser (Clone), then SSK Connect") from None
             if exc.code == 429:
-                raise FeedError("Clone Dhan quote lane paced; retry later") from None
+                # Accept only a tiny, fixed enum supplied by our Clone gateway.
+                # Never surface arbitrary upstream bodies or untrusted headers.
+                headers=getattr(exc,"headers",None)
+                stage=headers.get("X-BotKing-429-Stage","") if headers is not None else ""
+                if stage=="GATEWAY_PACING":
+                    raise FeedError("Clone Dhan quote lane paced; retry later") from None
+                if stage in ("PROVIDER_QUOTA","PROVIDER_COOLDOWN"):
+                    raise FeedError("Clone Dhan provider rate limit; retry later") from None
+                raise FeedError("Clone Dhan quote rate limit; retry later") from None
             raise FeedError("Clone market route not ready (HTTP " + str(exc.code) + ")") from None
         except (URLError, OSError, TimeoutError, ValueError, UnicodeError):
             raise FeedError("Clone market data unavailable") from None
@@ -277,9 +285,10 @@ class CloneDhanReadOnly:
                 return self.gateway.market_quotes(list(symbols))
             except FeedError as exc:
                 if "paced" in str(exc) or "rate limit" in str(exc):
-                    # Preserve the 30s broker quota guard; a 2s gateway pace
-                    # failure also backs off safely instead of a retry burst.
-                    until = time.monotonic() + 30
+                    # Only local gateway pacing uses 2s. Actual or unknown
+                    # provider quota failures retain the full 30s safety floor.
+                    cooldown_seconds = 2 if "quote lane paced" in str(exc) else 30
+                    until = time.monotonic() + cooldown_seconds
                     for route in ("/dhan/selected-ltp-batch", "/dhan/index-ltp-batch"):
                         self._cooldowns[route] = max(self._cooldowns.get(route, 0.0), until)
                 raise
