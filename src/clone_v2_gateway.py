@@ -107,8 +107,12 @@ class CloneV2Gateway:
             if exc.code in (401, 403):
                 self.disconnect()
                 raise FeedError("Clone SSK authorization expired") from None
+            if exc.code == 424:
+                raise FeedError("Clone Dhan authorization required (HTTP 424)") from None
             if exc.code == 429:
                 raise FeedError("Clone Dhan rate limit; retry later (HTTP 429)") from None
+            if exc.code in (502, 503, 504):
+                raise FeedError("Clone Dhan upstream or gateway unavailable (HTTP " + str(exc.code) + ")") from None
             raise FeedError("Clone market " + route + " HTTP " + str(exc.code)) from None
         except (TimeoutError,):
             raise FeedError("Clone Dhan " + route + " transport timeout") from None
