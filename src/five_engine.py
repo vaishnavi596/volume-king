@@ -114,6 +114,26 @@ def technical_from_votes(votes, *, timestamp=None, source="", verified=False):
                           reason="Technical directional vote ratio; not win probability")
 
 
+def independent_engine_source_contract():
+    """Static source-wiring coverage, not runtime evidence or an error count.
+
+    Report deliberately incomplete adapters as missing implementations rather
+    than claiming the user caused a network error or inventing live percentages.
+    """
+    return {
+        "technical": {"adapter": "scanner_snapshot",
+                      "readiness": "SOURCE_FRESHNESS_REQUIRED"},
+        "candle": {"adapter": "historical_candle_balance",
+                   "readiness": "HISTORICAL_ONLY_INDEPENDENT_LIVE_NOT_WIRED"},
+        "news": {"adapter": "news_from_headline_cues",
+                 "readiness": "RSS_CONTEXT_ONLY_VERIFIED_IMPACT_NOT_WIRED"},
+        "futures": {"adapter": "futures_from_component",
+                    "readiness": "MEASURED_DIRECTIONAL_STRENGTH_NOT_WIRED"},
+        "options": {"adapter": "option_from_component",
+                    "readiness": "MEASURED_DIRECTIONAL_STRENGTH_NOT_WIRED"},
+    }
+
+
 def compose_snapshot(*, technical=None, candle=None, news=None, futures=None, options=None):
     """Merge separately sourced engines without treating one as another."""
     provided = dict(technical=technical, candle=candle, news=news,
