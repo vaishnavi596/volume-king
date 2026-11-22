@@ -54,9 +54,10 @@ class WatchCountdownIncrementalTests(unittest.TestCase):
 
     def test_login_batch_starts_shared_request_clock(self):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
-        login=source.split("                    # Verify watchlist batch independently of the login check.",1)[1].split("                    if market_status.startswith",1)[0]
+        login=source.split("    async def check_clone_v2_connection():",1)[1].split("    def check_clone_v2_gateway(e):",1)[0]
         self.assertIn("watch_batch_last_attempt[0]=time.monotonic()",login)
-        self.assertIn("batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,all_watch_symbols())",login)
+        self.assertIn("quote_auto_last_attempt[0]=watch_batch_last_attempt[0]",login)
+        self.assertIn("dhan_feed.paced_market_quotes,request_symbols",login)
 
 if __name__=="__main__":
     unittest.main()
