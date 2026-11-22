@@ -41,6 +41,15 @@ class TestMaximumFeatureAudit(unittest.TestCase):
                  "freshness":"unverified","signal_eligible":False,"pcr":1.2,"max_pain":24000})["features"]
         self.assertEqual(x["pcr"]["code"],"OPTION_CHAIN_CONTEXT_MISSING")
 
+    def test_same_expiry_unverified_provenance_is_not_missing_chain(self):
+        x=run(metrics={"symbol":"NIFTY","expiry":"2026-11-23",
+                       "source":"unknown","freshness":"unverified",
+                       "signal_eligible":False,"pcr":1.1,"max_pain":24000})["features"]
+        for key in ("pcr","max_pain","oi_support","oi_resistance"):
+            self.assertEqual(x[key]["state"],"UNVERIFIED")
+            self.assertEqual(x[key]["code"],"OPTION_CHAIN_PROVENANCE_UNVERIFIED")
+            self.assertFalse(x[key]["directional_vote"])
+
     def test_bad_pcr_nan_and_future_news_are_not_available(self):
         bad={"source":"dhan","symbol":"NIFTY","expiry":"2026-11-23",
              "freshness":"unverified","signal_eligible":False,"pcr":float("nan"),"max_pain":0}
