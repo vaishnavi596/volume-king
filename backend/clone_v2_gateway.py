@@ -382,11 +382,18 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     market_diagnostic("quotes", sym, "cooldown", "rate_limited")
                 raise HTTPException(429, "Clone Dhan provider cooldown",
                                     headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
-            if now - last_request[0] < 1.05:
-                for sym in symbols:
-                    market_diagnostic("quotes", sym, "cooldown", "rate_limited")
-                raise HTTPException(429, "Clone quote lane paced",
-                                    headers={"Retry-After": "2", "X-BotKing-429-Stage": "GATEWAY_PACING"})
+            # Queue legitimate authenticated quote selections inside the
+            # existing server-wide lock instead of returning a spurious 429
+            # when two phones/index/equity lanes arrive within 1.05 seconds.
+            # Still issue at most one upstream batch per 1.05s and keep the
+            # independent provider quota 429/30s cooldown fail-closed.
+            spacing_remaining=1.05-(now-last_request[0])
+            if 0 < spacing_remaining <= 1.05:
+                time.sleep(spacing_remaining)
+                now=time.monotonic()
+                if now < provider_cooldown_until[0]:
+                    raise HTTPException(429, "Clone Dhan provider cooldown",
+                                        headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
             last_request[0] = now
             try:
                 result = provider().batch_ltp([known[s] for s in symbols])
