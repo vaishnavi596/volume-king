@@ -4,7 +4,7 @@ import time
 
 FILTER_NAMES = ("oi_support", "oi_resistance", "max_pain", "pcr", "candle_trend")
 
-def assessment_lines(symbol, cached, *, now=None, max_age=180):
+def assessment_lines(symbol, cached, *, now=None, max_age=180, market_open=None):
     """Display cached per-symbol values without interpreting stale metrics as votes."""
     if not isinstance(symbol, str) or not symbol or not isinstance(cached, dict):
         return ["Oracle 4 factors / 5 filters • WAIT • no matching cache"]
@@ -17,7 +17,9 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180):
             or type(now) not in (int, float) or not math.isfinite(now)
             or type(max_age) not in (int, float) or not math.isfinite(max_age)
             or max_age < 0 or now < fetched or now - fetched > max_age):
-        return ["Oracle 4 factors / 5 filters • WAIT • cached assessment expired"]
+        return ["Oracle 4 factors / 5 filters • WAIT • " + (
+            "market closed • historical assessment expired" if market_open is False
+            else "cached assessment expired")]
     data = record.get("data")
     if not isinstance(data, dict) or data.get("symbol") != symbol:
         return ["Oracle 4 factors / 5 filters • WAIT • mismatched symbol"]
