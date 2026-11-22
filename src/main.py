@@ -1927,6 +1927,9 @@ def app_main(page:ft.Page):
     selected_batch_issue=[""]  # Staged NSE equity route diagnostics.
     watch_batch_last_attempt=[0.0]
     watch_batch_last_success=[0.0]
+    # Local phone timing only: never imply exchange freshness.
+    watch_batch_last_duration_ms=[None]
+    watch_batch_last_result=["NOT_ATTEMPTED"]
     # A saved last-good quote does NOT prove this login generation fetched data.
     # Closed-session recovery follows successful network observations, not UI cache.
     watch_batch_success_generation=[None]
@@ -1956,6 +1959,7 @@ def app_main(page:ft.Page):
             return
         watch_batch_busy[0]=True
         watch_batch_last_attempt[0]=time.monotonic()
+        watch_batch_last_result[0]="IN_PROGRESS"
         if login_bootstrap.generation==provider_generation[0]:
             login_bootstrap.stages["equities"]="LOADING"
         generation=provider_generation[0]
@@ -2024,6 +2028,7 @@ def app_main(page:ft.Page):
             if selected_batch_issue[0]:
                 watch_batch_status[0]+=" • selected equities unavailable: "+selected_batch_issue[0]
             market_status=watch_batch_status[0]
+            watch_batch_last_result[0]=("COMPLETE" if received==total_symbols else "PARTIAL")
             login_bootstrap.finish(generation,"equities",received,total_symbols)
             watch_batch_last_success[0]=time.monotonic()
             if received==total_symbols:
@@ -2053,7 +2058,11 @@ def app_main(page:ft.Page):
             watch_batch_status[0]="Dhan batch failed: "+safe_error(exc)
             login_bootstrap.finish(generation,"equities",0,max(1,len(all_watch_symbols())),error=safe_error(exc))
             market_status=watch_batch_status[0]
+            watch_batch_last_result[0]="FAILED"
         finally:
+            if generation==provider_generation[0]:
+                watch_batch_last_duration_ms[0]=round(
+                    max(0.0,time.monotonic()-watch_batch_last_attempt[0])*1000,1)
             watch_batch_busy[0]=False
             request_view_refresh(4)
     index_refresh_busy=[False]
@@ -4836,6 +4845,8 @@ def app_main(page:ft.Page):
                         "oracle_connected":bool(clone_v2_gateway.connected),
                         "equity_status":str(watch_batch_status[0])[:200],
                         "equity_busy":bool(watch_batch_busy[0]),
+                        "equity_last_local_duration_ms":watch_batch_last_duration_ms[0],
+                        "equity_last_result":watch_batch_last_result[0],
                         "index_busy":bool(index_refresh_busy[0]),
                         "index_last_failure":str(display_failures.get("dhan_index_ltp_batch") or "")[:180],
                         "index_failure_code":index_failure_code[0],
