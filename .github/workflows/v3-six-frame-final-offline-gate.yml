@@ -43,5 +43,6 @@ jobs:
 # Final full source regression after News RSS, independent PCR/Max Pain and optional-candle readiness fixes.
 
 # 2026-11-22: One combined S0/S1 no-APK gate includes new SENSEX index source-contract regression.
+# 2026-11-22: Release preflight for scanner failure-detail commits b7633e1 and 36f59c8; run once, no APK.
 
 # 2026-11-22: Verify scanner per-symbol Doctor failure detail wiring after b7633e1; one pre-APK gate.
