@@ -5487,7 +5487,9 @@ def app_main(page:ft.Page):
                     "phone_snapshot_capture_ms":capture_ms,
                     "sensex_issue":next((row for row in outcome["stock_errors"]
                         if row.get("symbol")=="SENSEX"),None),
+                    "capacity_test_target_equities":count,
                     "unconfigured_equity_slots":outcome["unselected_equity_slots"],
+                    "unconfigured_equity_slots_meaning":"Unused slots relative to TEST 54/70 target; not missing quotes or a failed instrument",
                     "no_provider_requests":True}
                 report.value=json.dumps(condensed,indent=2,ensure_ascii=False)
                 test_status.value=("Capacity test "+str(count)+" equities • "+str(
