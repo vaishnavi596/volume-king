@@ -443,8 +443,12 @@ class ColdBootRefreshSentinelTests(unittest.TestCase):
 
     def test_auto_quote_navigation_resume_use_never_attempted_sentinel(self):
         source=function_source("dhan_quote_poll")
-        self.assertIn('max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0',source)
-        self.assertIn('time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60',source)
+        self.assertIn("poll_due=auto_equity_quote_due(",source)
+        self.assertIn("max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])",source)
+        from clone_smart_refresh_priority import auto_equity_quote_due
+        self.assertTrue(auto_equity_quote_due(100.0,0.0))
+        self.assertFalse(auto_equity_quote_due(159.0,100.0))
+        self.assertTrue(auto_equity_quote_due(160.0,100.0))
         nav=function_source("render_page")
         self.assertIn('watch_batch_last_attempt[0]<=0',nav)
         self.assertIn('time.monotonic()-watch_batch_last_attempt[0]>=60',nav)

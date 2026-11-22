@@ -1446,10 +1446,20 @@ def app_main(page:ft.Page):
                     counts=signal_percentages(raw)
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
-                if (not historical and sym in ("NIFTY","BANKNIFTY","SENSEX")):
-                    # Index Dashboard is 1m; never pull 5m Top Five evidence
-                    # or call the broker from this UI render.
-                    counts=historical_vote_agreement(shared_history(sym,display_timeframe or "1m"),display_timeframe or "1m")
+                if not historical and display_timeframe=="3m":
+                    # Reuse the already-memoized Watchlist 3m votes; do not
+                    # rerun 18 technical filters for 51 mounted rows on every
+                    # quote-only repaint. 5m rankings cannot substitute for 3m.
+                    three=watch_three_minute_signal(sym)
+                    if (three.get("source")=="Dhan" and
+                            three.get("timeframe")=="3m" and three.get("timestamp")):
+                        counts=signal_percentages(three)
+                        if counts and counts[2]>0:
+                            bull,bear=counts[:2];historical=True
+                if not historical and display_timeframe=="1m":
+                    # Index and selected equity Scanner share exact 1m Dhan
+                    # history. Off-hours values are explicitly HIST, never LIVE.
+                    counts=historical_vote_agreement(shared_history(sym,"1m"),"1m")
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
             valid=(type(bull) in (int,float) and type(bear) in (int,float)
@@ -4478,6 +4488,17 @@ def app_main(page:ft.Page):
                                                  "SOURCE_OR_CALCULATION" if state=="WAIT" else
                                                  "CALCULATED"),
                                         "detail":detail})
+                # Diagnostic only: separate missing data from missing
+                # directional wiring for the same 18-filter registry.
+                from filter_wiring_audit import filter_wiring_matrix
+                option_present=bool(matching_option_context_for_symbol(symbol))
+                with news_lock:
+                    news_present=bool((news_cache.get(symbol) or {}).get("items"))
+                wiring_matrix=filter_wiring_matrix(
+                    names,rows,source=history.get("source") if isinstance(history,dict) else "",
+                    timeframe=tf,candle_ready=bool(bars and valid_candle_history(bars)),
+                    options_context=option_present,news_context=news_present,
+                    modes=filter_modes)
                 present={row["filter"] for row in filter_rows}
                 for name in names:
                     if name not in present:
@@ -4735,6 +4756,7 @@ def app_main(page:ft.Page):
                     "symbol":symbol,"timeframe":tf,
                     "selected_filters":len(names),
                     "filter_results":filter_rows,
+                    "filter_wiring_matrix":wiring_matrix,
                     "five_boxes":engines,
                     "stage_context":diagnostic_context,
                     "cache_to_display_trace":pipeline_trace,
