@@ -303,7 +303,7 @@ def app_main(page:ft.Page):
     broker_retry=[0.0]
     broker_failures=[0]
     health=FeedHealth()
-    scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting"}
+    scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting","timeframe":"5m"}
     failed_symbols={}
     analysis_audit=AnalysisAudit()
     scan_fetch_failure={}
@@ -5184,7 +5184,7 @@ def app_main(page:ft.Page):
                         "scan_busy":bool(scan_busy[0]),
                         "scan_status":str(scan_status.value or "")[:160],
                         "scanner_progress":{k:scan_progress.get(k) for k in
-                            ("checked","total","valid","failed","cached","state")}},
+                            ("checked","total","valid","failed","cached","state","timeframe")}},
                     "SUPER_FIVE_ENGINES":{
                         "selected_symbol":scanner_sym,
                         "five_box_status":engine_rows,
@@ -5629,7 +5629,7 @@ def app_main(page:ft.Page):
                     "scanner_last_candle_present":scan_last_candle[0] is not None,
                     "scanner_analysis_direction":str(scan_shared.get("direction","UNAVAILABLE"))[:18],
                     "scanner_progress":{k:scan_progress.get(k) for k in
-                        ("checked","total","valid","failed","cached","state")},
+                        ("checked","total","valid","failed","cached","state","timeframe")},
                     "option_symbol":str(chain_symbol.value or "NIFTY"),
                     "option_selected_expiry":str(expiry.value or "NOT_AVAILABLE"),
                     "option_busy":bool(option_feed_busy[0]),
@@ -8338,7 +8338,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # Reuse already scanned candles; this adds no provider requests.
                 ranking_symbols=(all_watch_symbols() if prefs.get("source")=="Dhan"
                                  else watch_symbols)
-                scan_progress.update(checked=0,total=len(ranking_symbols),valid=0,failed=0,cached=0,state="Ranking completed candles: 0 / "+str(len(ranking_symbols))+" • "+str(history_failed[0])+" history fetch failures")
+                scan_progress.update(checked=0,total=len(ranking_symbols),valid=0,failed=0,cached=0,timeframe="5m",state="Ranking 5m completed candles: 0 / "+str(len(ranking_symbols))+" • "+str(history_failed[0])+" history fetch failures")
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
@@ -8397,7 +8397,7 @@ console.log('BOT KING Lightweight Charts ready');
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
-                scan_progress["state"]="Complete" if scan_progress["valid"] else "No valid data; last saved results retained"
+                scan_progress["state"]="5m ranking complete" if scan_progress["valid"] else "No valid 5m ranking candles; 1m/3m may still be available; last saved results retained"
                 async def enrich(candidate):
                     async with semaphore:
                         try:combined=await asyncio.wait_for(load_combined(candidate["symbol"],"5m",candidate),timeout=20)
