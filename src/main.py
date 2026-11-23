@@ -609,6 +609,12 @@ def app_main(page:ft.Page):
             if cached and time.monotonic()-cached[0]<ttl:return copy.deepcopy(cached[1])
             result=fetch_market_data_uncached(ticker,interval,range_)
             if key[0]!=provider_generation[0]:raise RuntimeError("Obsolete market response")
+            # The requested Dhan timeframe is proven by this exact cache key.
+            # Stamp it BEFORE retaining/merging history across Chart, Scanner,
+            # Index and Watchlist callers, and before copying into shared cache.
+            # No historical candle or transport digest becomes LIVE evidence.
+            if key[3]=="Dhan" and isinstance(result,dict) and result.get("source")=="Dhan":
+                result=dict(result,_scanner_timeframe=interval)
             with market_registry_lock:
                 market_recent[key]=(time.monotonic(),copy.deepcopy(result))
                 for old in list(market_recent):

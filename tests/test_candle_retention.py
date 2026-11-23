@@ -122,6 +122,52 @@ class CandleRetentionTests(unittest.TestCase):
         self.assertTrue(result["_candle_retained"])
         self.assertFalse(result["live_verified"])
 
+    def test_real_market_wrapper_tags_dhan_history_before_cache_and_retention(self):
+        # Execute the actual nested production wrapper without Flet startup
+        # or any provider network. Explicit timeframes prevent partial overlap
+        # revisions from being rejected by the shared retention adapter.
+        import ast
+        import threading
+        from types import SimpleNamespace
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        nodes=[n for n in ast.walk(ast.parse(source))
+               if isinstance(n,ast.FunctionDef) and n.name=="get_market_data"]
+        self.assertEqual(len(nodes),1)
+        module=ast.Module(body=[nodes[0]],type_ignores=[])
+        ast.fix_missing_locations(module)
+        calls=[]
+        def offline_fetch(sym,tf,days):
+            calls.append((sym,tf,days))
+            return {"source":"Dhan",
+                    "bars":[list(row) for row in self.old["bars"][-2:]],
+                    "live_verified":False,
+                    "freshness":"historical_unverified"}
+        ns={"provider_generation":[9],"angel_feed":SimpleNamespace(epoch=0),
+            "dhan_feed":SimpleNamespace(connected=True),"prefs":{"source":"Dhan"},
+            "market_registry_lock":threading.RLock(),"market_locks":{},
+            "RLock":threading.RLock,"market_recent":{},
+            "fetch_market_data_uncached":offline_fetch}
+        exec(compile(module,"production_get_market_data","exec"),ns)
+        fn=ns["get_market_data"]
+        for tf in ("1m","3m","5m"):
+            with self.subTest(tf=tf):
+                tagged=fn("NIFTY",tf,"2d")
+                cached=fn("NIFTY",tf,"2d")
+                self.assertEqual(tagged["_scanner_timeframe"],tf)
+                self.assertEqual(cached["_scanner_timeframe"],tf)
+                self.assertIsNot(tagged,cached)
+                prior=dict(self.old,_scanner_timeframe=tf)
+                merged=retain_candle_history(tagged,prior)
+                self.assertTrue(merged["_candle_partial_revised"])
+                self.assertEqual(len(merged["bars"]),40)
+                self.assertFalse(merged["live_verified"])
+        self.assertEqual(len(calls),3)
+        # One distinct interval must never consume another's last-good series.
+        wrong=retain_candle_history(fn("NIFTY","3m","2d"),
+                                    dict(self.old,_scanner_timeframe="1m"))
+        self.assertNotIn("_candle_retained",wrong)
+        self.assertNotIn("_candle_partial_revised",wrong)
+
     def test_cross_timeframe_last_filter_votes_never_transfer(self):
         from candle_retention import retain_last_filter_votes
         prior={"source":"Dhan","timeframe":"5m","timestamp":1234.0,
