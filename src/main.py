@@ -6429,7 +6429,7 @@ console.log('BOT KING Lightweight Charts ready');
                 prior=watch_signal_cache.get(sym)
                 if prior:
                     watch_signal_cache[sym]=dict(prior,historical=True,live_verified=False,freshness="unverified")
-                    five_engine_snapshots[sym]=scanner_snapshot(watch_signal_cache[sym])
+                    publish_five_engine_5m(sym,scanner_snapshot(watch_signal_cache[sym]))
                 if sym==scan_symbol.value and scan_tf.value=="5m":
                     publish_selected_result(sym,"5m",{"source":"Dhan","bias":"WAIT",
                         "reason":"Local analysis failed • "+type(exc).__name__})

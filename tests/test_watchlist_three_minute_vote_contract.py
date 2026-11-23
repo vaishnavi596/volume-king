@@ -61,7 +61,8 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
         source = self.source
         self.assertIn('data=shared_history(sym) or data', source)
         self.assertIn('report_identity=(sym,"5m",identity)', source)
-        self.assertIn('five_engine_snapshots[sym]=scanner_snapshot(result)', source)
+        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot(result))', source)
+        self.assertIn('symbol=sym,timeframe="5m",generation=provider_generation[0]', source)
 
 
 if __name__ == "__main__":
