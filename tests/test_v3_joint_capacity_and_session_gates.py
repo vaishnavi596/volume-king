@@ -122,15 +122,18 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertIn("0/5 LIVE verified",summary)
         self.assertNotIn('get_market_data(',summary)
 
-    def test_disconnected_dhan_summary_keeps_historical_technical_only(self):
+    def test_disconnected_dhan_summary_keeps_technical_and_valid_candle_hist(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
         self.assertIn('if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):',summary)
         self.assertIn("offline_history=shared_history(symbol,display_timeframe)",summary)
         self.assertIn('historical_vote_agreement(offline_history,"1m")',summary)
         self.assertIn("signal_percentages(watch_three_minute_signal(symbol))",summary)
-        self.assertIn('"5 engines • OFFLINE • Technical HIST "',summary)
-        self.assertIn('"% • LIVE 0/5 verified • N/F/O WAIT"',summary)
+        self.assertIn('parts.append("Technical HIST "+display_timeframe+" B"+',summary)
+        self.assertIn('offline_candle=completed_timeframe_candle_balance(',summary)
+        self.assertIn('parts.append("Candle HIST "+display_timeframe+" B"+',summary)
+        self.assertIn('"5 engines • OFFLINE • LIVE 0/5 verified • "+',summary)
+        self.assertIn('N/F/O WAIT (independent evidence unavailable)',summary)
         self.assertNotIn('get_market_data(',summary)
 
     def test_historical_five_minute_summary_shared_with_chip_when_disconnected(self):
@@ -143,7 +146,11 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         self.assertIn('historical_vote_agreement(shared_history(symbol,"5m"),"5m")',helper)
         self.assertIn('counts=signal_percentages(saved)',helper)
         self.assertIn('historical_five_minute_technical(symbol)',summary)
-        self.assertIn('"5 engines • OFFLINE • Technical HIST 5m B"',summary)
+        self.assertIn('offline_5m=shared_history(symbol,"5m")',summary)
+        self.assertIn('candle_5m=completed_timeframe_candle_balance(',summary)
+        self.assertIn('parts.append("Technical HIST 5m B"+',summary)
+        self.assertIn('parts.append("Candle HIST 5m B"+',summary)
+        self.assertIn('"5 engines • OFFLINE • LIVE 0/5 verified • "+',summary)
         self.assertIn('pieces[0]=("Technical HIST 5m B"',summary)
         self.assertIn('snapshot["engines"][0].display()["state"]=="WAIT"',summary)
         self.assertNotIn('get_market_data(',summary)

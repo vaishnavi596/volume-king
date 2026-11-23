@@ -827,7 +827,8 @@ class FiveEngineCompletedCandleDisplayContract(unittest.TestCase):
                    and isinstance(n.func,ast.Name)
                    and n.func.id=="completed_timeframe_candle_balance"]
             counts[node.name]=len(calls)
-        self.assertEqual(counts,{"five_engine_summary":2,"five_engine_chips":1})
+        # Summary now validates both ONLINE and OFFLINE 1m/3m/5m C HIST.
+        self.assertEqual(counts,{"five_engine_summary":4,"five_engine_chips":1})
 
 
 class FiveEngineMainContextWiringContract(unittest.TestCase):
