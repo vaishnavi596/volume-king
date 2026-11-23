@@ -111,6 +111,59 @@ class V3FilterWiringTests(unittest.TestCase):
             ["OPTION_DATA_MISSING","ADAPTER_NOT_DIRECTIONAL"])
         self.assertTrue(all(row["vote"] is None for row in matrix))
 
+    def test_dhan_option_context_chain_to_doctor_never_votes(self):
+        """Real 7-strike display adapter -> readiness -> matrix -> Doctor."""
+        from datetime import datetime, timezone
+        from five_engine import option_chain_display_context
+        now=datetime(2026,11,22,tzinfo=timezone.utc).timestamp()
+        rows=tuple({"strike":25000+i*50,
+                    "ce":{"oi":120.0}, "pe":{"oi":90.0}}
+                   for i in range(-3,4))
+        metrics={"source":"dhan","symbol":"NIFTY","expiry":"2026-11-26",
+                 "signal_eligible":False,"freshness":"unverified",
+                 "max_pain":25000,
+                 "atm_window":{"source":"dhan","freshness":"unverified",
+                               "signal_eligible":False,"atm":25000,"rows":rows}}
+        selected=("OI Support","OI Resistance","OI Profile","Dhan Max Pain")
+        def diagnose(data):
+            display=option_chain_display_context(data)
+            readiness=option_filter_context_readiness(
+                data,symbol="NIFTY",now=now,window_context=display)
+            matrix=filter_wiring_matrix(selected,[],options_context=readiness,
+                                        candle_ready=False)
+            doctor=doctor_filter_rows(
+                [{"filter":name,"detail":"source context"} for name in selected],
+                matrix)
+            return display,readiness,matrix,doctor
+
+        display,ready,matrix,doctor=diagnose(metrics)
+        self.assertTrue(display["available"])
+        self.assertTrue(all(ready.values()))
+        self.assertEqual([r["status"] for r in doctor],["CONTEXT_ONLY"]*4)
+        self.assertTrue(all(r["vote"] is None for r in matrix))
+
+        # A duplicated strike or wrong center ATM is rejected by the actual
+        # display adapter, not merely a synthetic readiness hint.
+        duplicate=tuple(dict(row,strike=25000) if i==4 else row
+                        for i,row in enumerate(rows))
+        invalids=(
+            dict(metrics,atm_window=dict(metrics["atm_window"],rows=duplicate)),
+            dict(metrics,atm_window=dict(metrics["atm_window"],atm=25050)),
+            dict(metrics,atm_window=dict(metrics["atm_window"],rows=rows[:6])),
+            dict(metrics,expiry="2026-11-19"),
+            dict(metrics,source="Yahoo"),
+            dict(metrics,signal_eligible=True),
+        )
+        for bad in invalids:
+            with self.subTest(cause=str(bad.get("source"))+" / "+str(bad.get("expiry"))):
+                display,ready,matrix,doctor=diagnose(bad)
+                self.assertFalse(any(ready[name] for name in
+                                 ("OI Support","OI Resistance","OI Profile")))
+                self.assertEqual([r["status"] for r in doctor[:3]],["WAIT"]*3)
+                self.assertTrue(all(r["vote"] is None for r in matrix))
+        # Even a complete, valid option chain cannot fabricate LIVE direction.
+        self.assertFalse(any(x["vote"] is not None for x in matrix))
+
     def test_news_readiness_excludes_undated_old_and_future_headlines(self):
         now=1800000000
         article={"title":"Dhan market company item","published":now-90}
