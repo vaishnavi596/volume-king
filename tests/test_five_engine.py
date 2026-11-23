@@ -684,3 +684,59 @@ class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
         self.assertNotIn('context=[five_engine_chips(instrument),', source)
 
 if __name__=="__main__":unittest.main()
+
+
+class ContextualFiveEngineCacheContract(unittest.TestCase):
+    def _verified_snapshot(self, timestamp=1234567890):
+        from five_engine import EngineEvidence, compose_snapshot
+        return compose_snapshot(technical=EngineEvidence(
+            "technical", 75, 25, verified=True, timestamp=timestamp,
+            source="Dhan", reason="independently verified fixture"))
+
+    def test_symbol_timeframe_and_generation_are_isolated(self):
+        from five_engine import ContextualFiveEngineCache
+        cache=ContextualFiveEngineCache()
+        cache.publish(symbol="NIFTY",timeframe="5m",generation=7,
+                      snapshot=self._verified_snapshot())
+        accepted=cache.read(symbol="NIFTY",timeframe="5m",generation=7,
+                            now=1234567900,connected=True,market_open=True)
+        self.assertEqual(accepted["combined"]["coverage"],1)
+        for symbol,tf,gen in (("BANKNIFTY","5m",7),
+                              ("NIFTY","1m",7),("NIFTY","3m",7),
+                              ("NIFTY","5m",8)):
+            with self.subTest(symbol=symbol,timeframe=tf,generation=gen):
+                shown=cache.read(symbol=symbol,timeframe=tf,generation=gen,
+                                 now=1234567900,connected=True,market_open=True)
+                self.assertEqual(shown["combined"]["coverage"],0)
+        self.assertEqual(len(cache),1)
+
+    def test_closed_disconnected_stale_and_cleared_fail_closed(self):
+        from five_engine import ContextualFiveEngineCache
+        cache=ContextualFiveEngineCache()
+        cache.publish(symbol="RELIANCE",timeframe="3m",generation=1,
+                      snapshot=self._verified_snapshot())
+        args=dict(symbol="RELIANCE",timeframe="3m",generation=1,now=1234567900)
+        self.assertEqual(cache.read(**args,connected=True,market_open=True)
+                         ["combined"]["coverage"],1)
+        self.assertEqual(cache.read(**args,connected=False,market_open=True)
+                         ["combined"]["coverage"],0)
+        self.assertEqual(cache.read(**args,connected=True,market_open=False)
+                         ["combined"]["coverage"],0)
+        self.assertEqual(cache.read(**dict(args,now=1234569000),
+                                    connected=True,market_open=True)
+                         ["combined"]["coverage"],0)
+        cache.clear()
+        self.assertEqual(cache.read(**args,connected=True,market_open=True)
+                         ["combined"]["coverage"],0)
+
+    def test_malformed_publish_and_context_rejected(self):
+        from five_engine import ContextualFiveEngineCache
+        cache=ContextualFiveEngineCache()
+        with self.assertRaises(ValueError):
+            cache.publish(symbol="NIFTY",timeframe="1m",generation=0,snapshot={})
+        with self.assertRaises(ValueError):
+            cache.publish(symbol="NIFTY",timeframe="1m",generation=True,
+                          snapshot=self._verified_snapshot())
+        with self.assertRaises(ValueError):
+            cache.read(symbol="NIFTY",timeframe="1d",generation=0,
+                       now=1234567900,connected=True,market_open=True)
