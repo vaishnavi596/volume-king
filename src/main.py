@@ -27,7 +27,7 @@ from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
 from paper_engine import levels,pnl as paper_pnl,validate_expiry,risk_check,evaluate_mark,finite
 from paper_bot_slots import SLOTS as PAPER_BOT_SLOTS, bootstrap as bootstrap_paper_slots, save_slot as save_paper_slot, load_slot as load_paper_slot, record as record_paper_event, positions_summary as paper_positions_summary
-from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, analyze, rank_candidates
+from scanner_engine import DEFAULT_FILTERS, OPTION_FILTERS, ALL_FILTERS, canonical_filter_selection, analyze, rank_candidates
 from shared_assessment_ui import assessment_lines
 from datetime import datetime, date, timedelta, timezone
 from importlib.metadata import version as package_version, PackageNotFoundError
@@ -4515,10 +4515,11 @@ def app_main(page:ft.Page):
             prefs["paper_journal"]=existing[-200:]
             for key,target in [("scanner_filters",filter_selected),("scanner_added_filters",added_filters)]:
                 values=data.get(key)
-                if isinstance(values,list) and all(isinstance(x,str) and x in ALL_FILTERS for x in values):target[:]=list(dict.fromkeys(values));prefs[key]=target[:]
+                if isinstance(values,list) and all(isinstance(x,str) and (x in ALL_FILTERS or x=="Max Pain") for x in values):target[:]=canonical_filter_selection(values);prefs[key]=target[:]
             modes=data.get("filter_modes",{})
             if isinstance(modes,dict):
                 for name,value in modes.items():
+                    if name=="Max Pain":name="Dhan Max Pain"
                     if name in ALL_FILTERS and value in ("Analysis","Chart","Both") and (name=="EMA 9/21" or value=="Analysis"):filter_modes[name]=value
                 prefs["filter_modes"]=dict(filter_modes)
             if data.get("chart_provider") in ("TradingView Lightweight","BOT KING / Broker"):
@@ -5763,24 +5764,24 @@ def app_main(page:ft.Page):
     scan_next_refresh=[None]
     scan_age_display=ft.Text("Analysis: — • Candle: —",size=14,color=MUTED)
     filter_names=ALL_FILTERS[:]
-    # Legacy standalone label now resolves to the single Dhan-backed filter.
-    # Preserve previously selected filters and modes, with no duplicate slot.
-    if isinstance(prefs.get("scanner_filters"),(list,tuple)):
-        prefs["scanner_filters"]=list(dict.fromkeys(
-            "Dhan Max Pain" if name=="Max Pain" else name
-            for name in prefs["scanner_filters"]))
+    # Permanently consolidate old saved/backup filter identities into the
+    # only supported Dhan Max Pain slot; never render or retain a second slot.
+    legacy_filter_changed=False
+    for key in ("scanner_filters","scanner_added_filters"):
+        previous=prefs.get(key)
+        if isinstance(previous,(list,tuple)):
+            clean=canonical_filter_selection(previous)
+            if list(previous)!=clean:
+                prefs[key]=clean
+                legacy_filter_changed=True
     if isinstance(filter_modes,dict) and "Max Pain" in filter_modes:
         filter_modes.setdefault("Dhan Max Pain",filter_modes["Max Pain"])
-        filter_modes.pop("Max Pain",None)
-    if isinstance(prefs.get("scanner_added_filters"),(list,tuple)):
-        prefs["scanner_added_filters"]=list(dict.fromkeys(
-            "Dhan Max Pain" if name=="Max Pain" else name
-            for name in prefs["scanner_added_filters"]))
-    # Commit canonical names once, so a restart/backup cannot resurrect a
-    # second legacy Max Pain slot. Do not alter other selected filters.
-    if any(isinstance(prefs.get(key),list) and "Max Pain" in prefs[key]
-           for key in ("scanner_filters","scanner_added_filters")):
-        raise AssertionError("Legacy Max Pain must be normalized before rendering")
+        del filter_modes["Max Pain"]
+        legacy_filter_changed=True
+    if legacy_filter_changed:
+        # Save once so reopening the app cannot reload a deleted old slot.
+        # Keep the clean in-memory state even if storage is temporarily down.
+        save()
     MAX_ACTIVE_FILTERS=len(filter_names)  # All 18 supported; keep 17 user-saved filters together.
     # New installs begin with 17 active slots; the 18th remains available.
     # Existing saved choices (including intentional removals) are preserved.
