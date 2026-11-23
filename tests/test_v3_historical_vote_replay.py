@@ -56,6 +56,8 @@ class HistoricalVotingTests(unittest.TestCase):
     def test_b178_and_master_doctors_integrate_same_historical_replay(self):
         s=(ROOT/"src/main.py").read_text()
         ast.parse(s)
+        self.assertIn('source=history.get("source"),bars=bars,',s)
+        self.assertNotIn('source=history.get("source"),bars=completed_bars,',s)
         self.assertIn('"historical_vote_replay":historical_replay',s)
         self.assertIn('"historical_vote_replay":master_historical_replay',s)
         self.assertIn('"voting_policy_self_test":simulated_conflict_policy_matrix()',s)
