@@ -5096,7 +5096,10 @@ def app_main(page:ft.Page):
                     historical_vote_replay,simulated_conflict_policy_matrix)
                 historical_replay=historical_vote_replay(
                     symbol=symbol,timeframe=tf,generation=generation,
-                    source=history.get("source"),bars=completed_bars,
+                    # Pass untouched cache bars: replay itself trims any
+                    # verified after-close suffix and reports its removal count.
+                    # Pre-trimmed input falsely reported zero removed rows.
+                    source=history.get("source"),bars=bars,
                     filter_rows=rows)
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
