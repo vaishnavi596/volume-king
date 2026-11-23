@@ -1716,3 +1716,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Actual source+test CI PASS only; **separate pre-push local targeted tests NOT EXECUTED**, on-device Android test NOT EXECUTED; source-live Dhan OHLCV/exchange timestamp NOT VERIFIED. These facts must not be represented as device-accepted or LIVE.
 - No duplicate workflow reruns, no Oracle/V1/V2 production edit, provider request, trading order or new APK. Older B200 preview is on different SHA and does not contain joint e18c87f2 patch.
 - Next: determine whether B196 index-429/six-box extra gate applies before any APK; acquire authentic NIFTY 1m and RELIANCE 3m source→gateway→phone Doctor trace when authorized/available, then combined defect resolution only.
+
+
+### 23 नवंबर 2026 — B196 manual gate dispatch SHA safety (read-only)
+- Read actual `.github/workflows/v3-b196-regression-preflight.yml`. Trigger `workflow_dispatch` only, and its first job calls GitHub Actions API to require **B3 success on `GITHUB_SHA` exactly**. Its remaining source-guard AST checks are independent from B3 but DO NOT rerun all 22 targeted commands.
+- Last verified source+test `e18c87f21f2b1acdbd7aa7d27b6190c5d8c63090` has four PASS CI, but current V3 branch HEAD after journal-only commit is different. Dispatching B196 at branch HEAD now would check a docs-only SHA without matching B3 and fail `B3_EXACT_SHA_NOT_VERIFIED`; this is a preventable workflow error, not evidence of V3 source failure.
+- Decision: **B196 NOT RUN / NOT PASSED**. Require a valid SHA-pinned dispatch/ref plan that preserves source and does not trigger unnecessary duplicate B3 before release. No B196 claims or APK release until its own actual success is verified. No repo code/workflow mutation, Oracle production or market request in this evaluation.
