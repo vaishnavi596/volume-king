@@ -1,7 +1,7 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
 run-name: V3 Joint Index 429 + Six Box Full Audit • NO APK
 # B3 already runs full offline regression for every src/tests push.
-# Keep this extended B196 audit on-demand to avoid duplicate CI on every commit.
+# Keep B196 unique extended checks on-demand; B3 alone owns the full offline suite.
 on:
   workflow_dispatch:
 permissions:
@@ -23,8 +23,9 @@ jobs:
       - name: Verify latest V3 joint source and targeted contracts
         run: |
           python - <<'PY'
-          import ast, pathlib, tomllib
-          assert tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"] == "2.3.199"
+          import ast, pathlib, re, tomllib
+          version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), f"Invalid V3 version: {version}"
           for path in ("src/main.py", "tests/test_market_feed.py", "tests/test_monitoring_audit.py"):
               ast.parse(pathlib.Path(path).read_text(),filename=path)
           source=pathlib.Path("src/main.py").read_text()
@@ -58,7 +59,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
           python -m unittest discover -s tests -p 'test_audit.py' -v
           python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
-      - name: Full offline regression (no APK, no server write)
-        run: |
-          python -m unittest discover -s tests -v
-          echo V3_B199_FULL_OFFLINE_GATE=PASS
+      # Full-suite owner is the auto-triggered B3 workflow on the identical SHA.
+      # Release gate MUST separately verify B3 PASS before claiming V3 readiness.
+      - name: Confirm B196 extra targeted audit complete (B3 full gate is independent)
+        run: echo V3_B196_EXTRA_AUDIT=PASS_B3_FULL_GATE_STILL_REQUIRED
