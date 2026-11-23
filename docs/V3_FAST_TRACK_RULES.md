@@ -22,3 +22,10 @@
 
 ## Next joint V3 work
 Latest OI seven-strike structural window contract का exact-head B3 outcome जाँचें; फिर actual Dhan raw OHLCV vs normalized gateway and phone evidence, independent OI/News/Futures vote eligibility, shared 1m/3m/5m HIST/LIVE UI, 5/34/54/70 four-device stress. पुराने successful fixes duplicate नहीं करने।
+
+## स्थायी Owner Rule: Standalone Max Pain स्थायी रूप से निषिद्ध (23 नवंबर 2026)
+- V3 Scanner/Filter Settings/Watchlist/Super Five/Doctor में केवल **Dhan Max Pain** filter और caption मान्य है। स्वतंत्र **Max Pain** नाम से कोई दूसरा filter, slot, series, display caption, scoring या source adapter फिर न जोड़ें।
+- पुराने preferences, imported backups या filter modes से standalone label आए तो उसे **एक ही Dhan Max Pain** identity में migrate/dedupe करके valid saved settings में रखें; साथ में अलग legacy filter न बचाएँ। अन्य filters के user choices सुरक्षित रखें।
+- Dhan के underlying numeric `max_pain` provider/metrics field, option-chain calculations और audit provenance को न हटाएँ: यही Dhan Max Pain की underlying value है। इसका unverified historical context किसी LIVE/directional vote को authorize नहीं करता।
+- Regression का स्थायी contract: registry में `"Max Pain"` अनुपस्थित, `"Dhan Max Pain"` केवल एक; startup, restore और modes migration में duplicate नहीं; सभी UI captions Dhan-qualified; invalid/missing/stale provider evidence ⇒ WAIT।
+- उपरोक्त नियम का उल्लंघन regression failure है। Fast Track 2.0 का targeted + exact-SHA B3 Full Gate तथा हिंदी journal नियम लागू रहेंगे।
