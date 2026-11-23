@@ -1,7 +1,8 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
 run-name: V3 Joint Index 429 + Six Box Full Audit • NO APK
 # B3 already runs full offline regression for every src/tests push.
-# Keep B196 unique extended checks on-demand; B3 alone owns full suite.
+# All 22 former B196 targeted commands are already discovered by B3 full suite.
+# B196 only validates source guards and independent exact-SHA B3 evidence.
 # B196 now fails closed unless exact-head B3 SUCCESS exists.
 on:
   workflow_dispatch:
@@ -63,28 +64,6 @@ jobs:
           assert 'V3 Dhan-only provider required' in source
           print("V3_B199_SOURCE_GUARD=PASS")
           PY
-          python -m unittest discover -s tests -p 'test_market_feed.py' -v
-          python -m unittest discover -s tests -p 'test_monitoring_audit.py' -v
-          python -m unittest discover -s tests -p 'test_dhan_index_refresh_regression.py' -v
-          python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing.py' -v
-          python -m unittest discover -s tests -p 'test_v3_visible_watchlist_bootstrap_priority.py' -v
-          python -m unittest discover -s tests -p 'test_v3_watchlist_5_34_70_capacity.py' -v
-          python -m unittest discover -s tests -p 'test_v3_watchlist_quote_elapsed_diagnostic.py' -v
-          python -m unittest discover -s tests -p 'test_v3_joint_foundation_gate.py' -v
-          python -m unittest discover -s tests -p 'test_v3_legacy_provider_quarantine.py' -v
-          python -m unittest discover -s tests -p 'test_clone_adapter_audit.py' -v
-          python -m unittest discover -s tests -p 'test_clone_b3_market_diagnostics.py' -v
-          python -m unittest discover -s tests -p 'test_v3_index_five_box_joint_contract.py' -v
-          python -m unittest discover -s tests -p 'test_a3_dashboard_dhan_regressions.py' -v
-          python -m unittest discover -s tests -p 'test_b1_five_engine_dhan_shared_option.py' -v
-          python -m unittest discover -s tests -p 'test_five_engine.py' -v
-          python -m unittest discover -s tests -p 'test_candle_historical_display.py' -v
-          python -m unittest discover -s tests -p 'test_v3_clone_quote_pacing_deploy_safety.py' -v
-          python -m unittest discover -s tests -p 'test_clone_b3_candle_singleflight_cache.py' -v
-          python -m unittest discover -s tests -p 'test_candle_retention.py' -v
-          python -m unittest discover -s tests -p 'test_clone_v2_gateway_b2.py' -v
-          python -m unittest discover -s tests -p 'test_audit.py' -v
-          python -m unittest discover -s tests -p 'test_mobile_regressions.py' -v
       # Full-suite owner is the auto-triggered B3 workflow on the identical SHA.
       # Release gate MUST separately verify B3 PASS before claiming V3 readiness.
       - name: Confirm B196 extra targeted audit complete (B3 full gate is independent)
