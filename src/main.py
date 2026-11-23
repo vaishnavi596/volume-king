@@ -378,7 +378,26 @@ def app_main(page:ft.Page):
         # execute this callback without unrelated global helper bindings.
         if surface in ("overview","watchlist"):
             from shared_assessment_ui import compact_assessment_summary
-            return [compact_assessment_summary(lines)]
+            compact=compact_assessment_summary(lines)
+            # An unconfigured Oracle producer must not hide the independent
+            # Dhan phone's already calculated matching 3m historical evidence.
+            # Never present these votes as verified LIVE or an option signal.
+            if (surface=="watchlist" and
+                    lines==["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]):
+                three=watch_three_minute_signal(symbol)
+                if (three.get("source")=="Dhan"
+                        and three.get("timeframe")=="3m"
+                        and three.get("historical") is True
+                        and three.get("live_verified") is False):
+                    counts=signal_percentages(three)
+                    if counts and counts[2]>0:
+                        return ["Dhan phone 3m • Candle HIST B"+
+                                str(round(counts[0]))+"/S"+str(round(counts[1]))+
+                                " • "+str(counts[2])+" technical votes • "+
+                                "OI/PCR 4 filters CONTEXT/WAIT • NOT live"]
+                return ["Dhan phone 3m • Candle WAIT • "+
+                        "OI/PCR 4 filters CONTEXT/WAIT • NOT live"]
+            return [compact]
         return lines
 
     def log_error(area,exc):
