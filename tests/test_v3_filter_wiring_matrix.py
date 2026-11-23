@@ -30,7 +30,20 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('if legacy_filter_changed:',src)
         self.assertIn('target[:]=canonical_filter_selection(values)',src)
         self.assertIn('if name=="Max Pain":name="Dhan Max Pain"',src)
-        self.assertIn('save()\n    MAX_ACTIVE_FILTERS=',src)
+        # Verify the actual persistence call remains inside the migration
+        # condition; source comments/formatting must not cause false failures.
+        import ast
+        tree=ast.parse(src)
+        migration=[node for node in ast.walk(tree)
+                   if isinstance(node,ast.If)
+                   and isinstance(node.test,ast.Name)
+                   and node.test.id=="legacy_filter_changed"]
+        self.assertEqual(len(migration),1)
+        self.assertTrue(any(
+            isinstance(node,ast.Call) and isinstance(node.func,ast.Name)
+            and node.func.id=="save"
+            for statement in migration[0].body for node in ast.walk(statement)))
+
         # No independent standalone label/caption is registered for display.
         self.assertEqual([name for name in ALL_FILTERS
                           if name.casefold()=="max pain"],[])
