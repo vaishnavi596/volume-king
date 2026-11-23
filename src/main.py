@@ -4610,7 +4610,7 @@ def app_main(page:ft.Page):
                                if option_context_for_filters else {})
                 option_present=option_filter_context_readiness(
                     option_context_for_filters,symbol=symbol,now=time.time(),
-                    window_available=bool(option_window.get("available")))
+                    window_context=option_window)
                 with news_lock:
                     news_context=dict(news_cache.get(symbol) or {})
                 news_present=has_recent_news_context(news_context,now=time.time())

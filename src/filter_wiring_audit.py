@@ -132,7 +132,7 @@ def has_recent_news_context(data, *, now, max_age_seconds=86400):
                for row in data["items"])
 
 
-def option_filter_context_readiness(data, *, symbol, now, window_available=False):
+def option_filter_context_readiness(data, *, symbol, now, window_available=False, window_context=None):
     """Per-filter current Dhan expiry context, never independent direction.
 
     Calendar expiry is checked in IST. Historical/expired contracts can be
@@ -157,7 +157,29 @@ def option_filter_context_readiness(data, *, symbol, now, window_available=False
     max_pain=data.get("max_pain")
     result["Dhan Max Pain"]=(type(max_pain) in (int,float)
                              and isfinite(max_pain) and max_pain>0)
-    if window_available:
+    # A bare boolean cannot prove a valid seven-strike CE/PE Dhan chain.
+    valid_window=(isinstance(window_context,dict)
+                  and window_context.get("available") is True
+                  and window_context.get("source")=="Dhan"
+                  and window_context.get("freshness")=="unverified"
+                  and window_context.get("signal_eligible") is False
+                  and window_context.get("direction")=="WAIT"
+                  and isinstance(window_context.get("rows"),(list,tuple))
+                  and len(window_context["rows"])==7)
+    if valid_window:
+        for row in window_context["rows"]:
+            if not isinstance(row,dict):
+                valid_window=False
+                break
+            for side in ("ce","pe"):
+                leg=row.get(side)
+                if (not isinstance(leg,dict) or type(leg.get("oi")) not in (int,float)
+                        or not isfinite(leg["oi"]) or leg["oi"]<0):
+                    valid_window=False
+                    break
+            if not valid_window:
+                break
+    if valid_window:
         result["OI Profile"]=True
         result["OI Support"]=True
         result["OI Resistance"]=True

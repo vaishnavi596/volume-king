@@ -77,17 +77,33 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertTrue(ready["Dhan Max Pain"])
         self.assertFalse(ready["OI Support"])
         self.assertFalse(ready["OI Profile"])
+        self.assertFalse(option_filter_context_readiness(
+            data,symbol="NIFTY",now=now,window_available=True)["OI Support"])
+        valid_window={"available":True,"source":"Dhan",
+            "freshness":"unverified","signal_eligible":False,"direction":"WAIT",
+            "rows":tuple({"strike":25000+i*50,
+                           "ce":{"oi":100.0},"pe":{"oi":200.0}}
+                          for i in range(-3,4))}
         populated=option_filter_context_readiness(data,symbol="NIFTY",
-            now=now,window_available=True)
+            now=now,window_context=valid_window)
         self.assertTrue(all(populated.values()))
+        truncated=option_filter_context_readiness(data,symbol="NIFTY",
+            now=now,window_context=dict(valid_window,rows=valid_window["rows"][:3]))
+        self.assertFalse(truncated["OI Profile"])
+        self.assertTrue(truncated["Dhan Max Pain"])
+        missing_leg=option_filter_context_readiness(data,symbol="NIFTY",
+            now=now,window_context=dict(valid_window,rows=tuple(
+                dict(row,ce={}) if i==0 else row
+                for i,row in enumerate(valid_window["rows"]))))
+        self.assertFalse(missing_leg["OI Resistance"])
         expired=option_filter_context_readiness(dict(data,expiry="2026-11-19"),
-            symbol="NIFTY",now=now,window_available=True)
+            symbol="NIFTY",now=now,window_context=valid_window)
         self.assertFalse(any(expired.values()))
         wrong=option_filter_context_readiness(data,symbol="BANKNIFTY",
-            now=now,window_available=True)
+            now=now,window_context=valid_window)
         self.assertFalse(any(wrong.values()))
         nonbroker=option_filter_context_readiness(dict(data,source="other"),
-            symbol="NIFTY",now=now,window_available=True)
+            symbol="NIFTY",now=now,window_context=valid_window)
         self.assertFalse(any(nonbroker.values()))
         matrix=filter_wiring_matrix(["OI Support","Dhan Max Pain"],[],
             options_context=ready)
