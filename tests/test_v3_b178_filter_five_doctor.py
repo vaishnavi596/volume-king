@@ -20,7 +20,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('names=list(filter_selected)',panel)
         self.assertIn('complete_filter_rows(result,names,filter_modes)',panel)
         self.assertIn('enrich_context_filter_rows(symbol,',panel)
-        self.assertIn('read_five_engine_context(symbol,"5m")',panel)
+        self.assertIn('read_five_engine_context(symbol,tf)',panel)
         for name in ('technical','candle','news','futures','options'):
             self.assertIn('"'+name+'"',panel)
         self.assertIn('"errors_only":errors',panel)
@@ -52,7 +52,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
                          '"last_attempt_same_generation"', '"worker_busy"'):
             self.assertIn(expected,panel)
         self.assertIn('raw_snapshot=(five_engine_snapshots.get(symbol)',panel)
-        self.assertIn('if tf=="5m" and prefs.get("source")=="Dhan"',panel)
+        self.assertIn('if tf in ("1m","3m","5m") and prefs.get("source")=="Dhan"',panel)
         self.assertIn('"NO_EXACT_TIMEFRAME_ENGINE_PUBLISHER"',panel)
         self.assertIn('now_for_evidence=time.time()',panel)
         for token in ('"failure_code":index_failure_code[0]',
@@ -71,7 +71,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"OI_CONTEXT_NO_DIRECTIONAL_VOTE"',panel)
         self.assertIn('"context_only":sum(',panel)
         self.assertIn('historical_vote_agreement(history,tf)',panel)
-        self.assertIn('historical_candle_balance(bars)',panel)
+        self.assertIn('completed_timeframe_candle_balance(',panel)
         self.assertIn('"timeframe":tf',panel)
         self.assertNotIn('saved=watch_signal_cache.get(symbol)',panel)
         self.assertIn('"provider_requests":0',panel)

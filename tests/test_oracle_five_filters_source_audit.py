@@ -187,7 +187,7 @@ class OracleFiveFiltersSourceAudit(TestCase):
 
     def test_historical_percentages_are_not_assessment_filter_scores(self):
         source = (ROOT / "src" / "main.py").read_text(encoding="utf-8")
-        self.assertIn("historical_candle_balance(", source)
+        self.assertIn("completed_timeframe_candle_balance(", source)
         # Explicit per-screen contexts replaced the old symbol-only UI call.
         # Historical percentages stay separate from Oracle evidence.
         self.assertIn('oracle_assessment_notes(sym,"watchlist")', source)

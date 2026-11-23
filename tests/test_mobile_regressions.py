@@ -69,7 +69,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('market_completed[0]+=1', source)
         self.assertIn('history_failed=[0]', source)
         self.assertIn('history_failed[0]+=1', source)
-        self.assertIn('Ranking completed candles: 0 / ', source)
+        self.assertIn('Ranking 5m completed candles: 0 / ', source)
         self.assertIn('Loading candle histories: 0 / ', source)
 
     def test_android_enum_lifecycle_resumed_does_not_pause_scanner(self):

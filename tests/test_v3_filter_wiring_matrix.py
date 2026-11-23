@@ -353,11 +353,11 @@ class V3FilterWiringTests(unittest.TestCase):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
         doctor=src.split("                scanner_sym=str(scan_symbol.value or",1)[1]
         doctor=doctor.split("                sections={",1)[0]
-        self.assertIn('scanner_engine_5m_eligible=(scanner_tf=="5m"',doctor)
-        self.assertIn('read_five_engine_context(scanner_sym,"5m")',doctor)
+        self.assertIn('scanner_engine_frame_eligible=(scanner_tf in ("1m","3m","5m")',doctor)
+        self.assertIn('read_five_engine_context(scanner_sym,scanner_tf)',doctor)
         self.assertIn('and regular_hours())',doctor)
-        self.assertIn('if scanner_engine_5m_eligible else None)',doctor)
-        self.assertIn('if scanner_engine_5m_eligible else None)',doctor.split('raw=(next(',1)[1])
+        self.assertIn('if scanner_engine_frame_eligible else None)',doctor)
+        self.assertIn('if scanner_tf=="5m" and scanner_engine_frame_eligible else None)',doctor.split('raw=(next(',1)[1])
         self.assertNotIn('if prefs.get("source")=="Dhan" and dhan_feed.connected else None)',doctor)
 
     def test_historical_3m_display_uses_exact_watch_cache_no_fanout(self):
