@@ -4669,10 +4669,11 @@ def app_main(page:ft.Page):
                         filter_rows.append({"filter":name,"status":"ERROR",
                                             "stage":"UI_ADAPTER",
                                             "detail":"Selected filter missing from diagnostic rows"})
-                # The publisher is symbol-only 5m. Never report it as a
-                # verified 1m/3m engine in the selected Doctor context.
-                snap=(read_five_engine_context(symbol,"5m")
-                      if tf=="5m" and prefs.get("source")=="Dhan"
+                # Read the publisher for the *selected* frame only.
+                # Cached 1m/3m HIST is never promoted to verified LIVE;
+                # cross-frame 5m engine snapshots must not leak into 1m Doctor.
+                snap=(read_five_engine_context(symbol,tf)
+                      if tf in ("1m","3m","5m") and prefs.get("source")=="Dhan"
                       and dhan_feed.connected and regular_hours() else None)
                 # Separate healthy calculation, missing input and evidence policy:
                 # a grey box is not automatically a runtime exception.
@@ -5084,11 +5085,11 @@ def app_main(page:ft.Page):
                 from five_engine import snapshot_for_display
                 # The shared publisher is 5m and symbol-only. Never count
                 # its evidence as Scanner 1m/3m (or closed-session) VERIFIED.
-                scanner_engine_5m_eligible=(scanner_tf=="5m"
+                scanner_engine_frame_eligible=(scanner_tf in ("1m","3m","5m")
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and regular_hours())
-                snap=(read_five_engine_context(scanner_sym,"5m")
-                      if scanner_engine_5m_eligible else None)
+                snap=(read_five_engine_context(scanner_sym,scanner_tf)
+                      if scanner_engine_frame_eligible else None)
                 engine_rows=[]
                 for name in ("technical","candle","news","futures","options"):
                     raw=(next((row for row in (five_engine_snapshots.get(scanner_sym) or {}).get("engines",())
