@@ -3,6 +3,7 @@ run-name: BOT KING V3 B200 PREVIEW • separate Android identity • v2.3.200
 # This PREVIEW has a distinct package ID and is NOT an upgrade to installed B198.
 # Never replace the protected same-package release workflow with a temporary key.
 # Controlled follow-up to failed run 45103663441: 1650-test preflight had 3 failures + 6 errors in four stale contracts; current source/tests + exact-SHA B3 gate required before signed preview.
+# Single-failure fix checkpoint: B200 #42 / B3 45104634287 had 1650 tests, 1 obsolete Max Pain source-literal test failure; retry only against updated test SHA, exact B3 PASS before APK.
 on:
   push:
     branches:
