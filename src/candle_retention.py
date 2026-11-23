@@ -47,7 +47,9 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     # the ordinary last-good fallback below must enforce the same rule.
     new_tf=new.get("_scanner_timeframe")
     old_tf=prior.get("_scanner_timeframe")
-    if new_tf is not None and old_tf is not None and new_tf!=old_tf:
+    # A tagged 1m/3m/5m request must not inherit a legacy cache whose
+    # timeframe is unknown. Matching explicit tags remain eligible for HIST.
+    if new_tf is not None and (old_tf is None or new_tf!=old_tf):
         return dict(new)
     new_bars=new.get("bars")
     old_bars=prior.get("bars")
