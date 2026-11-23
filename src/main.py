@@ -1497,8 +1497,8 @@ def app_main(page:ft.Page):
                                      str(balance["bullish"])+"% / S"+str(balance["bearish"])+"%")
                 if parts:
                     return note("5 engines • 0/5 LIVE verified • "+" | ".join(parts)+
-                                " | News/Futures/Options WAIT ("+option_context.reason+")")
-            return note("5/5 modules configured (100% setup) • 0/5 verified • Technical WAIT | Candle WAIT | News WAIT | Futures WAIT | Options WAIT ("+
+                                " | News HIST WAIT (verified impact missing) | Futures HIST WAIT (measured flow missing) | Options HIST WAIT (expiry-specific trade flow missing; "+option_context.reason+")"")
+            return note("5 engine slots • LIVE 0/5 verified • T/C await exact-frame HIST; N verified impact WAIT; F measured futures flow WAIT; O expiry-scoped flow WAIT ("+
                         option_context.reason+")")
         names={"technical":"Technical","candle":"Candle","news":"News",
                "futures":"Futures","options":"Options"}
