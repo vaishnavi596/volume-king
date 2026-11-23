@@ -44,9 +44,7 @@ jobs:
                                " | run B3 full gate for this SHA before B196")
           print("B3_EXACT_SHA_VERIFIED=PASS run_id="+str(matching[0]["id"]))
           PY
-      - name: Install offline test dependencies
-        run: |
-          python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+      # No third-party dependency installation: only stdlib source contract checks.
       - name: Verify latest V3 joint source and targeted contracts
         run: |
           python - <<'PY'
