@@ -29,3 +29,13 @@ Latest OI seven-strike structural window contract का exact-head B3 outcome �
 - Dhan के underlying numeric `max_pain` provider/metrics field, option-chain calculations और audit provenance को न हटाएँ: यही Dhan Max Pain की underlying value है। इसका unverified historical context किसी LIVE/directional vote को authorize नहीं करता।
 - Regression का स्थायी contract: registry में `"Max Pain"` अनुपस्थित, `"Dhan Max Pain"` केवल एक; startup, restore और modes migration में duplicate नहीं; सभी UI captions Dhan-qualified; invalid/missing/stale provider evidence ⇒ WAIT।
 - उपरोक्त नियम का उल्लंघन regression failure है। Fast Track 2.0 का targeted + exact-SHA B3 Full Gate तथा हिंदी journal नियम लागू रहेंगे।
+
+
+## Owner rule — संयुक्त सुधार और हर Workflow का अंतिम सत्यापन (23 नवंबर 2026)
+- किसी एक मुद्दे के प्रभावित source, backend, adapters, cache, UI और tests की **पूरी impact-list पहले** बनाएँ। सभी संबंधित बदलाव एक नियोजित संयुक्त batch के रूप में लागू करें। बीच-बीच में source-only/test-only micro-push से अनेक अधूरे runs न पैदा करें।
+- नवीनतम संबंधित source और हिंदी मास्टर जर्नल पढ़ना अनिवार्य; पुराने दस commits, पुराने PASS या अनावश्यक APK दोहराना निषिद्ध।
+- **Push से पहले** स्थानीय/उपलब्ध environment में syntax/import, targeted positive+negative परीक्षण चलाएँ। यदि environment में targeted test चलाना संभव नहीं हुआ, जर्नल में स्पष्ट NOT EXECUTED लिखें; GitHub B3 को उस स्वतंत्र pre-push प्रमाण का विकल्प न बताएं।
+- प्रत्येक batch का exact source+test SHA, automatic B3 और जहाँ लागू हो B196/adapter audit का वास्तविक job/traceback/conclusion देखें। Running/pending को PASS न लिखें; FAIL पर उसी बैच का संयुक्त root-cause repair और फिर नए exact-SHA Gate का सत्यापन अनिवार्य।
+- पिछला Workflow अभी चल रहा हो तो बिना तत्काल सुरक्षा-कारण नए source Push से उसे अनावश्यक cancel न करें। Docs-only updates must not trigger B3.
+- B200 Phone-Test artifact ऐतिहासिक signed checkpoint है; उसके बाद के patches उसमें मौजूद नहीं। नया APK explicit release gate और परीक्षण-उद्देश्य पर ही, Oracle/V1/V2 सुरक्षित।
+- हर result—PASS, FAIL, CANCELLED, PENDING, NOT EXECUTED—को उसी रूप में हिंदी मास्टर जर्नल में दर्ज करें; अगली कार्रवाई तभी चुनें।
