@@ -1,6 +1,30 @@
 # BOT KING V3 — पाँच-बॉक्स Voting और छठे Brain का संयुक्त कार्य-अनुबंध
 **तारीख:** 23 नवंबर 2026 | **स्थिति:** चरणबद्ध; पूरी LIVE wiring या server deployment का दावा नहीं
 
+## नई प्रथम प्राथमिकता — 23 नवंबर 2026 (मालिक का निर्देश, V3)
+
+**क्रम बदल गया है: अब 1 → 2 → 3; पहले छठे M Brain का server-side memory/backup आधार, फिर 17-filter wiring, फिर T/C/N/F/O independent engine wiring।** पुराने नीचे लिखे चरण A/B/C/D का तकनीकी सुरक्षा क्रम बना रहेगा, लेकिन यह नया कार्य-प्राथमिकता क्रम उनके ऊपर लागू है। वर्तमान B203 build/phone evidence अपना अलग in-flight acceptance है; उसे रद्द या अनावश्यक दोबारा ट्रिगर नहीं करना।
+
+### 1 — BOX SIX / M Market Brain: सर्वर बैकअप और Memory Foundation (FIRST)
+- Oracle Dhan pipe/token-renewal से पृथक **staging Brain Memory Service** का contract और read-only/inactive prototype पहले तैयार करना। Gateway के production routes/config/preferences में बदलाव नहीं; V1/V2 से पूर्ण अलगाव।
+- Append-only authenticated `prediction_event`, `vote_evidence_reference`, `outcome_event`, `model_policy_version`; per-device phone 1–4 Master authorization, encryption, idempotency, revision and immutable audit trail। डिवाइस/सर्वर विफलता में bounded encrypted pending queue और replay।
+- **बैकअप प्रथम:** encrypted versioned backups, restore verification, access audit, retention, reconciliation, server outage & four-phone conflicting event tests, recovery drill और rollback plan। किसी proof को केवल लिखे हुए contract से PASS न मानें।
+- Proposed `/brain/v1/events`, `/brain/v1/sync`, `/brain/v1/health`, `/brain/v1/restore` staging-only; production Oracle deployment से पहले स्वतंत्र approval तथा server backup/safety gate। Secret, broker token, raw password, live trading access service को न मिले।
+- **M Box की अवस्था:** अभी `STANDBY/WAIT`, **zero vote**; memory backup/auth/replay/4-phone PASS के बाद केवल read-only UI preview + Brain Sync Doctor। स्वतंत्र audit व user approval के बिना 5→6 voting quorum, autonomous weight changes या LIVE activation नहीं।
+
+### 2 — सभी 17 Scanner Filters / Quality / Historical Analyzer (SECOND)
+- 13 technical गणनाएँ + 4 OI context-only, 18th catalog option; zero false LIVE votes। NIFTY/BANKNIFTY/SENSEX/RELIANCE 1m, Watchlist 3m, 5m source-scoped cache; real timestamps, irregular spacing के actual causes; पिछले verified completed session से HIST analysis।
+- Historical vs LIVE quality gates अलग; last-good retained, Volume provenance, expiry-verified OI only, shared UI/Dashboard/Watchlist/Scanner/Super Five और errors-only Doctor। B203 phone report को इस workstream के लिए field baseline माना जाएगा।
+
+### 3 — पाँच स्वतंत्र Voting Engines + Canonical Combined Vote (THIRD)
+- T/C/N/F/O के individually authenticated source lineage, exact symbol/tf/generation/time/expiry; News/Futures/Options missing evidence `WAIT`, candle-direction overlap और source dependency Doctor।
+- Existing `combine_evidence` policy (3 of 5 independent verified eligible; >=2/3 direction agreement and >=10 pp margin) intact। HIST-only replay research vs VERIFIED LIVE vote अलग; कोई broker order या fabricated B/S प्रतिशत नहीं।
+- परिणाम सभी स्क्रीन में एकरूप, errors-only full trace; इसके बाद selected-only 5/34/51/70 capacity, 1–4 phone regressions और एक consolidated release gate।
+
+**काम की execution discipline:** हर segment शुरू करने से पहले current हिंदी journal + latest changed files + previous run exact SHA/status/log/artifact; PASS repeat नहीं। Segments के भीतर related tests/fixes combined; हर checkpoint हिंदी issue journal #114 में recorded। Stage 1 को planning/code-staging से शुरू करना अनुमत, लेकिन production server mutation अथवा M LIVE enablement स्वतः नहीं।
+
+---
+
 ## एक साझा सत्य
 - T Technical, C Candle, N News, F Futures, O Options: पाँच मौजूदा सक्रिय स्लॉट। M Market Brain छठा स्टैंडबाय स्लॉट; अभी शून्य वोट और पाँच-वोट quorum में बदलाव नहीं।
 - साझा `combine_evidence`: 3/5 verified independent engines आवश्यक, eligible के कम-से-कम 2/3 का directional agreement, averaged directional margin कम-से-कम 10 percentage points, अन्यथा WAIT। हर असहमत किंतु प्रमाणित वोट शामिल; 4 B/1 S संभावित B, 3 B/2 S WAIT, 4 S/1 B संभावित S, ताकत की शर्त के अधीन।
