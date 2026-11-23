@@ -14,7 +14,7 @@ from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
 from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
-from five_engine import scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, independent_engine_source_contract
+from five_engine import ContextualFiveEngineCache, scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, independent_engine_source_contract
 from chart_indicators import chart_indicators
 from v3_building_doctor import BuildingDoctor
 from v3_stock_diagnostics import DiagnosticRegistry
@@ -922,6 +922,23 @@ def app_main(page:ft.Page):
         if r.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan")):
             watch_signal_cache.setdefault(r["symbol"],r)
     five_engine_snapshots={}
+    contextual_five_engine=ContextualFiveEngineCache()
+
+    def publish_five_engine_5m(sym, snapshot):
+        """Mirror the existing verified/WAIT 5m publisher without provider I/O."""
+        five_engine_snapshots[sym]=snapshot
+        contextual_five_engine.publish(
+            symbol=sym,timeframe="5m",generation=provider_generation[0],
+            snapshot=snapshot)
+
+    def read_five_engine_context(sym, timeframe):
+        """Never reuse another timeframe, symbol or provider generation."""
+        return contextual_five_engine.read(
+            symbol=sym,timeframe=timeframe,generation=provider_generation[0],
+            now=time.time(),connected=(prefs.get("source")=="Dhan"
+                                       and dhan_feed.connected),
+            market_open=regular_hours())
+
     def signal_percentages(row):
         votes=row.get("votes") or []
         bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
@@ -1395,7 +1412,7 @@ def app_main(page:ft.Page):
                                 "% • LIVE 0/5 verified • C/N/F/O WAIT")
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
-        snapshot=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
+        snapshot=(read_five_engine_context(symbol,"5m")
                   if display_timeframe is None or display_timeframe=="5m" else None)
         if snapshot and not regular_hours():
             # Even an otherwise fresh verified engine is ineligible outside
@@ -1484,7 +1501,7 @@ def app_main(page:ft.Page):
         # Shared five-engine publisher currently uses 5m scanner/ranking results.
         # Do not display its symbol-only snapshot as verified 1m/3m evidence.
         # Per-timeframe historical context below stays explicitly HIST.
-        snapshot=(snapshot_for_display(five_engine_snapshots.get(sym),now=time.time())
+        snapshot=(read_five_engine_context(sym,"5m")
                   if prefs.get("source")=="Dhan" and dhan_feed.connected
                   and (display_timeframe is None or display_timeframe=="5m") else None)
         if snapshot and not regular_hours():
@@ -4490,7 +4507,7 @@ def app_main(page:ft.Page):
             protection_pending.clear();protection_sample.clear();protection_peak[0]=0
             market_status="Data source: "+source.value+" • waiting for refresh"
             connection_status.value=market_status
-            provider_generation[0]+=1;five_engine_snapshots.clear();scan_generation[0]+=1
+            provider_generation[0]+=1;five_engine_snapshots.clear();contextual_five_engine.clear();scan_generation[0]+=1
             quotes.clear();candles.clear();fusion_cache.clear();mark_ranking_historical();scan_result.controls.clear()
             restore_confirm.value=False;save();backup_status.value="Settings restored; Auto Scan/protection OFF. Imported positions were not opened. Daily limits retained."
             select(current[0])
@@ -6305,7 +6322,7 @@ console.log('BOT KING Lightweight Charts ready');
         prior=watch_signal_cache.get(sym) if tf=="5m" else None
         if prior:
             watch_signal_cache[sym]=dict(prior,historical=True,live_verified=False,freshness="unverified")
-            five_engine_snapshots[sym]=scanner_snapshot(watch_signal_cache[sym])
+            publish_five_engine_5m(sym,scanner_snapshot(watch_signal_cache[sym]))
             for row in top5_candidates:
                 if row.get("symbol")==sym:
                     row.update(historical=True,live_verified=False,freshness="unverified",bias="WAIT",score=0)
@@ -6402,7 +6419,7 @@ console.log('BOT KING Lightweight Charts ready');
                 shared_analysis_seen[sym]=identity
                 shared_analysis_calculated[sym]=time.time()
                 watch_signal_cache[sym]=dict(result,symbol=sym)
-                five_engine_snapshots[sym]=scanner_snapshot(result)
+                publish_five_engine_5m(sym,scanner_snapshot(result))
                 if sym==scan_symbol.value and scan_tf.value=="5m" and (not scan_busy[0] or scan_filter_ready[0]):
                     publish_selected_result(sym,"5m",result,shared_analysis_calculated[sym])
                     selected_report_identity[0]=report_identity
@@ -7385,7 +7402,7 @@ console.log('BOT KING Lightweight Charts ready');
         nonlocal market_status
         dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
-        provider_generation[0]+=1;five_engine_snapshots.clear()
+        provider_generation[0]+=1;five_engine_snapshots.clear();contextual_five_engine.clear()
         login_bootstrap.begin(provider_generation[0],authenticated=(source.value=="Dhan" and dhan_feed.connected))
         # Preserve the last displayed price while the new provider reconnects.
         # Mark it as historical/unverified rather than implying that the old
@@ -8286,10 +8303,10 @@ console.log('BOT KING Lightweight Charts ready');
                                   (data or {}).get("freshness") in ("verified_live","live_verified") and
                                   analyzed.get("historical") is False and
                                   (data or {}).get("historical") is False)
-                        five_engine_snapshots[sym]=scanner_snapshot(dict(analyzed,
+                        publish_five_engine_5m(sym,scanner_snapshot(dict(analyzed,
                             source="Dhan" if source_ok else "",
                             freshness="verified_live" if verified else "unverified",
-                            live_verified=verified,historical=not verified))
+                            live_verified=verified,historical=not verified)))
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
