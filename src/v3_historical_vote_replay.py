@@ -11,8 +11,50 @@ from historical_session_window import historical_regular_session_bars
 OPTION_CONTEXT={"OI Support","OI Resistance","OI Profile","Dhan Max Pain"}
 TIMEFRAMES={"1m":60,"3m":180,"5m":300}
 
+# HIST evidence accepts only independently authenticated measured direction, not
+# headlines count, OI, PCR, option-chain context or futures price alone.
+HIST_BASES={"news":"verified_symbol_news_impact",
+            "futures":"validated_futures_trade_flow",
+            "options":"validated_option_trade_flow"}
+HIST_BLOCKERS={"candle":"INSUFFICIENT_VALID_COMPLETED_DIRECTIONAL_CANDLES",
+               "news":"VERIFIED_HISTORICAL_NEWS_IMPACT_MISSING",
+               "futures":"VERIFIED_HISTORICAL_FUTURES_FLOW_MISSING",
+               "options":"VERIFIED_EXPIRY_SCOPED_OPTION_FLOW_MISSING"}
+
+def _historical_measured(name, component, *, symbol, timeframe, generation, last_bar):
+    """Only explicit attested HIST directional samples; never imply LIVE proof."""
+    if not isinstance(component,dict):
+        return None
+    if (component.get("verified") is not True or component.get("source")!="Dhan"
+            or component.get("historical") is not True
+            or component.get("direction_basis")!=HIST_BASES[name]
+            or component.get("symbol")!=symbol
+            or component.get("timeframe")!=timeframe
+            or type(component.get("generation")) is not int
+            or component["generation"]!=generation):
+        return None
+    ts=component.get("timestamp")
+    if type(ts) not in (int,float) or not isfinite(ts) or ts<=0 or ts>last_bar:
+        return None
+    # Historical evidence must be near the session window being replayed.
+    if last_bar-ts>86400:
+        return None
+    if name in ("futures","options"):
+        if not isinstance(component.get("contract"),str) or not component["contract"].strip():
+            return None
+    if name=="options":
+        if (not isinstance(component.get("expiry"),str)
+                or not component["expiry"].strip()
+                or component.get("underlying")!=symbol):
+            return None
+    b,r=component.get("bullish"),component.get("bearish")
+    if type(b) is not int or type(r) is not int or not 0<=b<=100 or b+r!=100:
+        return None
+    return {"bullish":b,"bearish":r,"historical":True,"verified_live":False,
+            "evidence_timestamp":ts,"evidence_basis":HIST_BASES[name]}
+
 def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
-                           filter_rows, history_timestamp=None):
+                           filter_rows, history_timestamp=None, historical_context=None):
     if (not isinstance(symbol,str) or not symbol or timeframe not in TIMEFRAMES
             or type(generation) is not int or not isinstance(filter_rows,(list,tuple))):
         raise ValueError("Exact replay identity and computed filter rows required")
@@ -60,8 +102,16 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     candle=historical_candle_balance(session,sample_size=8)
     result["technical_vote"]=technical
     result["candle_vote"]=candle
+    measured={}
+    for engine in HIST_BASES:
+        measured[engine]=_historical_measured(engine,
+            historical_context.get(engine) if isinstance(historical_context,dict) else None,
+            symbol=symbol,timeframe=timeframe,generation=generation,
+            last_bar=session[-1][0])
     for name in ENGINE_NAMES:
-        context=(technical if name=="technical" else candle if name=="candle" else None)
+        context=(technical if name=="technical" else candle if name=="candle" else
+                 measured.get(name))
+        missing=(HIST_BLOCKERS.get(name,"NO_TECHNICAL_DIRECTIONAL_FILTER_VOTES"))
         result["boxes"].append({
             "engine":name,"state":("HIST_VOTE" if context else "WAIT"),
             "direction":("BULLISH" if context and context["bullish"]>context["bearish"]
@@ -69,11 +119,11 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
                           else "NEUTRAL" if context else "WAIT"),
             "bullish":context["bullish"] if context else None,
             "bearish":context["bearish"] if context else None,
-            "reason":("COMPUTED_HIST_NOT_LIVE" if context else
-                      "DIRECTIONAL_CONTEXT_NOT_PRESENT_IN_REPLAY"),
+            "reason":("VERIFIED_DIRECTIONAL_HIST_NOT_LIVE" if name in measured and context else
+                      "COMPUTED_HIST_NOT_LIVE" if context else missing),
             "eligible_live":False})
-    # Up to two different HIST observations are available. Distinguish them
-    # from three independently authenticated sources; no majority fabrication.
+    # HIST observations are not LIVE votes. Missing independent historical
+    # inputs remain WAIT; never synthesize an N/F/O vote from context data.
     available=sum(r["state"]=="HIST_VOTE" for r in result["boxes"])
     result["combined"]={"state":"WAIT","coverage":available,"required":3,
                         "reason":"HIST_REPLAY_QUORUM_NOT_MET" if available<3
