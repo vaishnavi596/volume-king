@@ -25,6 +25,20 @@
 
 ---
 
+## छह मूल कार्यों की 3-चरणों में स्पष्ट मैपिंग (कोई कार्य हटाया नहीं गया)
+
+**छह मूल कार्य (पूर्व योजना):** (A) B203 APK/फोन diagnostic acceptance, (B) Dhan raw→Gateway→phone candles/source-quality, (C) Scanner 17 filters, (D) पाँच स्वतंत्र T/C/N/F/O engines, (E) सभी स्क्रीन HIST/LIVE/WAIT shared display, (F) Smart 5/34/51/70 + four-phone capacity और final gated APK। नया **छठा M Brain server-backup initiative** इन्हीं कामों के ऊपर सर्वप्रथम जोड़ा गया है; यह मूल final APK कार्य का विकल्प नहीं है।
+
+| नया execution group | सुरक्षित पुराने काम और नए काम | Acceptance |
+| --- | --- | --- |
+| **1. Box Six Foundation FIRST** | नया M Brain staging memory/auth/append-only log, encrypted backup/restore, 4-phone sync, recovery; B203 चलती build/फोन रिपोर्ट को अलग parallel read-only input के रूप में सुरक्षित रखें | Server backup+restore/auth/replay proven before read-only M UI; M vote=0, no production deployment |
+| **2. Data + Scanner Filters SECOND** | पुराने **A (B203 phone baseline), B (Dhan candles/timestamps/1m-3m-5m), C (17 filters)**; historical session vs live gates, index spacing, errors-only | RELIANCE/NIFTY/BANKNIFTY/SENSEX, selected timeframes और filter stages का end-to-end proof |
+| **3. Engine + UI + Capacity/Release THIRD** | पुराने **D (T/C/N/F/O independent evidence), E (Dashboard/Watchlist/Scanner/Super Five/Chart shared presentation), F (5/34/51/70 load, four phones, B3/B196/signed APK)** | Truthful HIST/LIVE/WAIT, five-engine combined policy, capacity test and final Android acceptance |
+
+**गणना:** मूल 6/6 काम संरक्षित; नया M Brain first priority में जोड़ा; कार्यों को केवल तीन execution groups में समेकित किया है, घटाया नहीं। Release proof, live-source proof और server deploy स्वतंत्र fail-closed gates रहेंगे।
+
+---
+
 ## एक साझा सत्य
 - T Technical, C Candle, N News, F Futures, O Options: पाँच मौजूदा सक्रिय स्लॉट। M Market Brain छठा स्टैंडबाय स्लॉट; अभी शून्य वोट और पाँच-वोट quorum में बदलाव नहीं।
 - साझा `combine_evidence`: 3/5 verified independent engines आवश्यक, eligible के कम-से-कम 2/3 का directional agreement, averaged directional margin कम-से-कम 10 percentage points, अन्यथा WAIT। हर असहमत किंतु प्रमाणित वोट शामिल; 4 B/1 S संभावित B, 3 B/2 S WAIT, 4 S/1 B संभावित S, ताकत की शर्त के अधीन।
