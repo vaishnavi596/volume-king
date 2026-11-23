@@ -365,6 +365,28 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('" HIST " if historical',chips)
         self.assertIn('content=ft.Text("6  —"',chips)
 
+    def test_cached_historical_scan_republishes_same_frame_not_live(self):
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        scanner=src.split('            elif hist.get("cached"):',1)[1].split(
+            '            if hist.get("cached") or not regular_hours():',1)[0]
+        self.assertIn('historical=previous',scanner)
+        self.assertIn('if interval in ("1m","3m"):',scanner)
+        self.assertIn('publish_five_engine_historical(sym,interval,historical)',scanner)
+        doctor=src.split('    def filter_five_diagnostic_panel():',1)[1].split(
+            '    # Keep the manual Diagnostics gate',1)[0]
+        self.assertIn('contextual_five_engine.peek(',doctor)
+        self.assertIn('"exact_frame_snapshot_published"',doctor)
+        self.assertIn('"NO_EXACT_FRAME_PUBLISH"',doctor)
+        self.assertIn('"PUBLISHED_BUT_LIVE_NOT_VERIFIED"',doctor)
+
+    def test_engine_peek_is_observability_not_live_verification(self):
+        src=(ROOT/"src/five_engine.py").read_text(encoding="utf-8")
+        code=src.split('class ContextualFiveEngineCache:',1)[1]
+        peek=code.split('    def peek(',1)[1].split('    def read(',1)[0]
+        self.assertIn('self._snapshots.get(self._key(symbol, timeframe, generation))',peek)
+        self.assertNotIn('verified=True',peek)
+        self.assertIn('return compose_snapshot()',code)
+
     def test_diagnostic_same_timeframe_gates_evidence(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
         import ast

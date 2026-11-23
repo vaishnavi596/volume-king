@@ -4807,7 +4807,17 @@ def app_main(page:ft.Page):
                 raw_snapshot=(five_engine_snapshots.get(symbol)
                               if tf=="5m" and prefs.get("source")=="Dhan"
                               and dhan_feed.connected and regular_hours() else None)
+                exact_published_snapshot=contextual_five_engine.peek(
+                    symbol=symbol,timeframe=tf,generation=generation)
+                if tf!="5m":
+                    raw_snapshot=exact_published_snapshot
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
+                diagnostic_context["exact_frame_snapshot_published"]=bool(exact_published_snapshot)
+                diagnostic_context["snapshot_read_gate"]=(
+                    "NO_EXACT_FRAME_PUBLISH" if not exact_published_snapshot else
+                    "MARKET_CLOSED" if not regular_hours() else
+                    "PROVIDER_DISCONNECTED" if not dhan_feed.connected else
+                    "PUBLISHED_BUT_LIVE_NOT_VERIFIED")
                 now_for_evidence=time.time()
                 for name,short in (("technical","T"),("candle","C"),("news","N"),
                                    ("futures","F"),("options","O")):
@@ -4820,7 +4830,7 @@ def app_main(page:ft.Page):
                     raw_verified=getattr(raw_item,"verified",False) is True
                     evidence_age=(round(now_for_evidence-raw_stamp,1)
                         if type(raw_stamp) in (int,float) and math.isfinite(raw_stamp) else None)
-                    freshness_issue=("NO_EXACT_TIMEFRAME_ENGINE_PUBLISHER" if tf!="5m" else
+                    freshness_issue=("NO_EXACT_TIMEFRAME_ENGINE_PUBLISHER" if tf!="5m" and not exact_published_snapshot else
                         "NO_SOURCE_SNAPSHOT" if raw_item is None else
                         "UNVERIFIED_EVIDENCE" if not raw_verified else
                         "SOURCE_MISMATCH" if raw_source!="Dhan" else
@@ -7271,6 +7281,11 @@ console.log('BOT KING Lightweight Charts ready');
                         isinstance(previous.get("votes"),list)):
                     historical=previous
                     history_valid=True
+                    # Cached successful analysis is a read from local last-good
+                    # data, but still needs exact-frame HIST publication for
+                    # downstream five-engine observers. Never mark it LIVE.
+                    if interval in ("1m","3m"):
+                        publish_five_engine_historical(sym,interval,historical)
             if hist.get("cached") or not regular_hours():
                 advanced=dict(advanced,bias="WAIT",score=0,
                               reason=advanced["reason"]+" • No new verified live signal")

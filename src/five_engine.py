@@ -609,6 +609,10 @@ class ContextualFiveEngineCache:
             raise ValueError("Canonical five-engine snapshot required")
         self._snapshots[key] = snapshot
 
+    def peek(self, *, symbol, timeframe, generation):
+        """Read cached evidence before LIVE/session gating; never certify it."""
+        return self._snapshots.get(self._key(symbol, timeframe, generation))
+
     def read(self, *, symbol, timeframe, generation, now, connected,
              market_open, expected_source="Dhan", max_age_seconds=300):
         key = self._key(symbol, timeframe, generation)
