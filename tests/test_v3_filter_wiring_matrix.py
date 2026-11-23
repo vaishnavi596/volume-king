@@ -55,10 +55,37 @@ class V3FilterWiringTests(unittest.TestCase):
         backups=[n for n in ast.walk(tree)
                  if isinstance(n,ast.FunctionDef) and n.name=="backup_payload"]
         self.assertEqual(len(backups),1)
-        backup_source=ast.get_source_segment(src,backups[0])
-        self.assertIn('canonical_filter_selection(data[key])',backup_source)
-        self.assertIn('modes.pop("Max Pain",None)',backup_source)
-        self.assertIn('data["filter_modes"]=modes',backup_source)
+        # Execute the actual production export function in a pure isolated
+        # scope (no Flet app startup or provider request). Source-string checks
+        # cannot prove exported backup contents.
+        isolated=ast.Module(body=[backups[0]],type_ignores=[])
+        ast.fix_missing_locations(isolated)
+        saved={"scanner_filters":["RSI 14","Max Pain","Dhan Max Pain","Max Pain"],
+               "scanner_added_filters":["Max Pain","OI Profile"],
+               "filter_modes":{"Max Pain":"Analysis",
+                               "Dhan Max Pain":"Analysis","EMA 9/21":"Both"},
+               "api_url":"sensitive-do-not-export"}
+        namespace={"field_bindings":[],
+                   "prefs":saved,
+                   "canonical_filter_selection":canonical_filter_selection}
+        exec(compile(isolated,str(ROOT/"src/main.py"),"exec"),namespace)
+        original_lists=[list(saved[k]) for k in
+                        ("scanner_filters","scanner_added_filters")]
+        exported=namespace["backup_payload"]()
+        self.assertEqual(exported["app"],"BOT KING")
+        self.assertEqual(exported["data"]["scanner_filters"],
+                         ["RSI 14","Dhan Max Pain"])
+        self.assertEqual(exported["data"]["scanner_added_filters"],
+                         ["Dhan Max Pain","OI Profile"])
+        self.assertEqual(exported["data"]["filter_modes"],
+                         {"Dhan Max Pain":"Analysis","EMA 9/21":"Both"})
+        self.assertNotIn("api_url",exported["data"])
+        # Export is nonmutating and repeatable; a legacy slot stays absent.
+        self.assertEqual([saved[k] for k in
+                          ("scanner_filters","scanner_added_filters")],
+                         original_lists)
+        self.assertIn("Max Pain",saved["filter_modes"])
+        self.assertEqual(namespace["backup_payload"](),exported)
 
     def test_registry_exactly_eighteen_unique(self):
         self.assertEqual(len(ALL_FILTERS),18)
