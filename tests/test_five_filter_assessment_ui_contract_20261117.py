@@ -17,7 +17,7 @@ class AssessmentFiveSlotTests(unittest.TestCase):
         }
         lines = assessment_lines("NIFTY", {"NIFTY": {"fetched": 100, "data": payload}}, now=110)
         self.assertEqual(len(FILTER_NAMES), 5)
-        for label in ("OI Support", "OI Resistance", "Max Pain", "PCR", "Candle"):
+        for label in ("OI Support", "OI Resistance", "Dhan Max Pain", "PCR", "Candle"):
             self.assertTrue(any(line.startswith(label + ": WAIT") for line in lines), label)
         self.assertFalse(any("BULLISH %" in line or "BEARISH %" in line for line in lines))
         # Sixth slot is visible but inert; backend still sends exactly five IDs.
@@ -56,7 +56,7 @@ class AssessmentFiveSlotTests(unittest.TestCase):
             "Oracle informational", "not-a-filter-row", "a", "b", "c", "d"]))
         self.assertIn("WAIT", compact_assessment_summary([
             "Oracle informational", "OI Support: WAIT", "OI Resistance: WAIT",
-            "Max Pain: WAIT", "PCR: WAIT", "Candle: WAIT"]))
+            "Dhan Max Pain: WAIT", "PCR: WAIT", "Candle: WAIT"]))
 
     def test_duplicate_filter_id_is_rejected(self):
         ids = list(FILTER_NAMES)
