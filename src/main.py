@@ -4828,7 +4828,10 @@ def app_main(page:ft.Page):
                         # independent live evidence vote.
                         if (history.get("source")=="Dhan" and
                                 diagnostic_context["history_shape_valid"]):
-                            balance=historical_candle_balance(bars)
+                            # Use the exact-frame completed-bar gate shared
+                            # with UI chips; never count a forming last candle.
+                            balance=completed_timeframe_candle_balance(
+                                history,tf,now=time.time())
                             if balance:
                                 historical_percent={"bullish":balance["bullish"],
                                                     "bearish":balance["bearish"],
