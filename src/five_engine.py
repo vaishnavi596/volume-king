@@ -526,3 +526,48 @@ def compose_snapshot_with_option_context(*, option_metrics=None, technical=None,
     snapshot = compose_snapshot(technical=technical, candle=candle, news=news,
                                 futures=futures, options=options)
     return {**snapshot, "option_context": option_chain_display_context(option_metrics)}
+
+
+class ContextualFiveEngineCache:
+    """Read-only evidence store keyed by symbol, timeframe and provider generation.
+
+    No provider I/O. A change of scanner timeframe or login generation cannot
+    reuse another snapshot. Actual live eligibility remains a separate
+    freshness, market-session and source check at read time.
+    """
+
+    def __init__(self):
+        self._snapshots = {}
+
+    @staticmethod
+    def _key(symbol, timeframe, generation):
+        if (not isinstance(symbol, str) or not symbol.strip() or
+                timeframe not in ("1m", "2m", "3m", "5m") or
+                type(generation) is not int or generation < 0):
+            raise ValueError("Explicit symbol, supported timeframe and generation required")
+        return (symbol.strip().upper(), timeframe, generation)
+
+    def publish(self, *, symbol, timeframe, generation, snapshot):
+        key = self._key(symbol, timeframe, generation)
+        if (not isinstance(snapshot, dict) or
+                not isinstance(snapshot.get("engines"), (tuple, list)) or
+                len(snapshot["engines"]) != len(ENGINE_NAMES) or
+                any(not isinstance(e, EngineEvidence) or e.name != name
+                    for e, name in zip(snapshot["engines"], ENGINE_NAMES))):
+            raise ValueError("Canonical five-engine snapshot required")
+        self._snapshots[key] = snapshot
+
+    def read(self, *, symbol, timeframe, generation, now, connected,
+             market_open, expected_source="Dhan", max_age_seconds=300):
+        key = self._key(symbol, timeframe, generation)
+        if connected is not True or market_open is not True:
+            return compose_snapshot()
+        return snapshot_for_display(
+            self._snapshots.get(key), now=now,
+            max_age_seconds=max_age_seconds, expected_source=expected_source)
+
+    def clear(self):
+        self._snapshots.clear()
+
+    def __len__(self):
+        return len(self._snapshots)
