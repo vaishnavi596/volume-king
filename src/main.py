@@ -14,7 +14,7 @@ from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
 from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
-from five_engine import ContextualFiveEngineCache, scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, independent_engine_source_contract
+from five_engine import ContextualFiveEngineCache, scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, completed_timeframe_candle_balance, independent_engine_source_contract
 from chart_indicators import chart_indicators
 from v3_building_doctor import BuildingDoctor
 from v3_stock_diagnostics import DiagnosticRegistry
@@ -1460,7 +1460,7 @@ def app_main(page:ft.Page):
                 if (selected_history.get("source")=="Dhan" and
                         selected_history.get("_scanner_timeframe")==display_timeframe and
                         valid_candle_history(selected_history.get("bars"))):
-                    balance=historical_candle_balance(selected_history["bars"])
+                    balance=completed_timeframe_candle_balance(selected_history,display_timeframe,now=time.time())
                     if balance:
                         parts.append("Candle HIST "+display_timeframe+" B"+
                                      str(balance["bullish"])+"% / S"+str(balance["bearish"])+"%")
@@ -1510,7 +1510,7 @@ def app_main(page:ft.Page):
         candle_tf=(display_timeframe or ("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
         candle_history=shared_history(symbol,candle_tf)
         if candle_history.get("source")=="Dhan":
-            balance=historical_candle_balance(candle_history.get("bars"))
+            balance=completed_timeframe_candle_balance(candle_history,candle_tf,now=time.time())
             if balance and snapshot["engines"][1].display()["state"]=="WAIT":
                 pieces[1]=("Candle HIST B"+str(balance["bullish"])+"% / S"+
                            str(balance["bearish"])+"% • not an independently verified engine vote")
@@ -1594,7 +1594,7 @@ def app_main(page:ft.Page):
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
                     candle_history=shared_history(sym,candle_tf)
                     if candle_history.get("source")=="Dhan":
-                        balance=historical_candle_balance(candle_history.get("bars"))
+                        balance=completed_timeframe_candle_balance(candle_history,candle_tf,now=time.time())
                         if balance:
                             label=("C HIST B"+str(balance["bullish"])+"/S"+
                                    str(balance["bearish"])+" • NOT live")
