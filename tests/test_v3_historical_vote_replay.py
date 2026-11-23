@@ -35,6 +35,67 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(r["combined"]["coverage"],2)
         self.assertFalse(r["verified_live"])
         self.assertEqual(r["provider_requests"],0)
+    def test_independent_historical_four_box_evidence_contract(self):
+        session=bars()
+        stamp=session[-1][0]
+        def evidence(name, basis, **extra):
+            return dict(source="Dhan",verified=True,historical=True,
+                        symbol="NIFTY",timeframe="1m",generation=1,
+                        timestamp=stamp,bullish=75,bearish=25,
+                        direction_basis=basis,**extra)
+        hist=dict(
+            news=evidence("news","verified_symbol_news_impact"),
+            futures=evidence("futures","validated_futures_trade_flow",
+                             contract="NIFTY-FUT-202611"),
+            options=evidence("options","validated_option_trade_flow",
+                             contract="NIFTY-25350-CE",expiry="2026-11-23",
+                             underlying="NIFTY"))
+        result=replay(historical_context=hist)
+        self.assertEqual([v["state"] for v in result["boxes"]],
+                         ["HIST_VOTE","HIST_VOTE","HIST_VOTE","HIST_VOTE","HIST_VOTE"])
+        self.assertTrue(all(v["eligible_live"] is False for v in result["boxes"]))
+        self.assertFalse(result["verified_live"])
+        self.assertEqual(result["combined"]["state"],"WAIT")
+        self.assertEqual(result["combined"]["coverage"],5)
+        self.assertEqual(result["orders_sent"],0)
+
+    def test_unverified_context_never_claims_four_box_votes(self):
+        # Data-only context and mismatched proof never vote.
+        bad=dict(news={"headlines":20,"direction":"BULLISH"},
+                 futures={"source":"Dhan","price":25300},
+                 options={"source":"Dhan","pcr":1.5,"max_pain":25350})
+        result=replay(historical_context=bad)
+        self.assertEqual([v["state"] for v in result["boxes"]][2:],
+                         ["WAIT","WAIT","WAIT"])
+        self.assertEqual(result["boxes"][2]["reason"],
+                         "VERIFIED_HISTORICAL_NEWS_IMPACT_MISSING")
+        self.assertEqual(result["boxes"][3]["reason"],
+                         "VERIFIED_HISTORICAL_FUTURES_FLOW_MISSING")
+        self.assertEqual(result["boxes"][4]["reason"],
+                         "VERIFIED_EXPIRY_SCOPED_OPTION_FLOW_MISSING")
+        valid=dict(source="Dhan",verified=True,historical=True,
+                   symbol="NIFTY",timeframe="1m",generation=1,
+                   timestamp=bars()[-1][0],bullish=70,bearish=30,
+                   direction_basis="validated_option_trade_flow",
+                   contract="NIFTY-CE",expiry="2026-11-23",
+                   underlying="NIFTY")
+        for change in ({"generation":2},{"symbol":"BANKNIFTY"},
+                       {"timestamp":bars()[-1][0]+100},
+                       {"verified":False},{"expiry":""},
+                       {"underlying":"RELIANCE"},{"direction_basis":"pcr"},
+                       {"bearish":40}):
+            row=dict(valid,**change)
+            self.assertEqual(replay(historical_context={"options":row})
+                             ["boxes"][4]["state"],"WAIT")
+
+    def test_candle_doji_wait_has_distinct_reason(self):
+        rows=bars()
+        for b in rows[-8:]:
+            b[4]=b[1]
+        result=replay(bars=rows)
+        self.assertEqual(result["boxes"][1]["state"],"WAIT")
+        self.assertEqual(result["boxes"][1]["reason"],
+                         "INSUFFICIENT_VALID_COMPLETED_DIRECTIONAL_CANDLES")
     def test_non_session_tail_excluded_without_mutating(self):
         arr=bars()
         arr.append([int(datetime(2026,11,23,19,57,tzinfo=IST).timestamp()),
