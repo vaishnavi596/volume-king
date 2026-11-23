@@ -352,6 +352,19 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn("bar[0]+interval_seconds<=observation_time",section)
         self.assertNotIn("result=analyze(bars,selected=active_analysis_filters()",section)
 
+    def test_five_minute_historical_chips_use_completed_candle_fallback(self):
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        helper=src.split("    def historical_five_minute_technical(symbol):",1)[1].split(
+            "    def five_engine_summary(",1)[0]
+        chips=src.split("    def five_engine_chips(sym, display_timeframe=None):",1)[1].split(
+            "    def super_five_card():",1)[0]
+        self.assertIn('historical_vote_agreement(shared_history(symbol,"5m"),"5m")',helper)
+        self.assertIn('if not historical and display_timeframe=="5m":',chips)
+        self.assertIn("counts=historical_five_minute_technical(sym)",chips)
+        self.assertIn("bull,bear=counts[:2];historical=True",chips)
+        self.assertIn('" HIST " if historical',chips)
+        self.assertIn('content=ft.Text("6  —"',chips)
+
     def test_diagnostic_same_timeframe_gates_evidence(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
         import ast

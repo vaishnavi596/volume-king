@@ -1430,12 +1430,16 @@ def app_main(page:ft.Page):
     def historical_five_minute_technical(symbol):
         """Only saved exact-5m Dhan votes; historical display, never LIVE."""
         saved=watch_signal_cache.get(symbol) or {}
-        if (saved.get("source")!="Dhan" or saved.get("timeframe")!="5m"
-                or type(saved.get("timestamp")) not in (int,float)
-                or not math.isfinite(saved["timestamp"]) or saved["timestamp"]<=0):
-            return None
-        counts=signal_percentages(saved)
-        return counts if counts and counts[2]>0 else None
+        if (saved.get("source")=="Dhan" and saved.get("timeframe")=="5m"
+                and type(saved.get("timestamp")) in (int,float)
+                and math.isfinite(saved["timestamp"]) and saved["timestamp"]>0):
+            counts=signal_percentages(saved)
+            if counts and counts[2]>0:
+                return counts
+        # A source-valid 5m candle series can outlive the symbol-only
+        # ranking vote cache, especially during a paced 54-instrument scan.
+        # This is strictly HIST, never a fresh independent LIVE engine.
+        return historical_vote_agreement(shared_history(symbol,"5m"),"5m")
 
     def five_engine_summary(symbol, display_timeframe=None):
         if prefs.get("source")!="Dhan" or not dhan_feed.connected:
@@ -1576,6 +1580,13 @@ def app_main(page:ft.Page):
                 if (raw.get("source")=="Dhan" and raw.get("timestamp") and
                         (display_timeframe is None or raw.get("timeframe")==display_timeframe)):
                     counts=signal_percentages(raw)
+                    if counts and counts[2]>0:
+                        bull,bear=counts[:2];historical=True
+                if not historical and display_timeframe=="5m":
+                    # The phone Doctor can calculate 5m history even when the
+                    # independent LIVE publisher is WAIT. Display its completed
+                    # votes as HIST, not as an engine verified-live percentage.
+                    counts=historical_five_minute_technical(sym)
                     if counts and counts[2]>0:
                         bull,bear=counts[:2];historical=True
                 if not historical and display_timeframe=="3m":
