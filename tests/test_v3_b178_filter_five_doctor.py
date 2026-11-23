@@ -138,7 +138,8 @@ class FilterFiveDoctorContract(unittest.TestCase):
                       '"index_failure_next_stage"',
                       '"other_indices_option_context_not_inferred":True'):
             self.assertIn(extra,panel)
-        self.assertIn('"Dhan Max Pain" if name=="Max Pain" else name',APP)
+        self.assertIn('clean=canonical_filter_selection(previous)',APP)
+        self.assertIn('target[:]=canonical_filter_selection(values)',APP)
         self.assertIn('if name=="Dhan Max Pain"',APP)
         self.assertIn('data["max_pain"]',APP)
         engine=(ROOT/"src"/"five_engine.py").read_text(encoding="utf-8")
