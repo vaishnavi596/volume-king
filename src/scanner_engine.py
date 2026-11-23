@@ -73,8 +73,27 @@ def analyze(bars, selected=None, timeframe="5m"):
             # a burst of nearly identical bars is not 30 independent candles.
             if same_session and (current[0] - previous[0] > interval_seconds * 1.5
                                  or current[0] - previous[0] < interval_seconds * 0.5):
+                # Preserve the fail-closed vote gate, but disclose the exact
+                # source timestamps so Doctor can distinguish an in-session
+                # missing bar from a possible after-close extra broker row.
+                previous_ist = datetime.fromtimestamp(previous[0], market_tz)
+                current_ist = datetime.fromtimestamp(current[0], market_tz)
+                def regular_cash_bar(dt):
+                    clock = (dt.hour, dt.minute)
+                    return (9, 15) <= clock < (15, 30)
+                gap = {"previous_timestamp": int(previous[0]),
+                       "current_timestamp": int(current[0]),
+                       "delta_seconds": int(current[0] - previous[0]),
+                       "expected_seconds": interval_seconds,
+                       "previous_ist": previous_ist.isoformat(),
+                       "current_ist": current_ist.isoformat(),
+                       "regular_cash_session_boundary": (
+                           regular_cash_bar(previous_ist) != regular_cash_bar(current_ist)),
+                       "raw_dhan_provenance": "UNVERIFIED",
+                       "next_action": "COMPARE_RAW_DHAN_WITH_GATEWAY_AND_PHONE"}
                 return {"bias":"WAIT","score":0,"votes":[],"reason":"Irregular candle spacing within trading session",
-                        "count":len(clean),"timeframe":timeframe,"timestamp":None}
+                        "count":len(clean),"timeframe":timeframe,"timestamp":None,
+                        "spacing_diagnostic":gap}
     if len(clean)<30:
         return {"bias":"WAIT","score":0,"votes":[],"reason":"Need 30 valid candles","count":len(clean),"timeframe":timeframe,"timestamp":None}
     close=[float(b[4]) for b in clean]
