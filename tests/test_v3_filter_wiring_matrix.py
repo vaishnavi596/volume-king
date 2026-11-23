@@ -48,6 +48,17 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertEqual([name for name in ALL_FILTERS
                           if name.casefold()=="max pain"],[])
         self.assertIn('"Dhan Max Pain"',src)
+        # Backup export must sanitize in-memory legacy values too, not only
+        # import them when the backup is restored.
+        import ast
+        tree=ast.parse(src)
+        backups=[n for n in ast.walk(tree)
+                 if isinstance(n,ast.FunctionDef) and n.name=="backup_payload"]
+        self.assertEqual(len(backups),1)
+        backup_source=ast.get_source_segment(src,backups[0])
+        self.assertIn('canonical_filter_selection(data[key])',backup_source)
+        self.assertIn('modes.pop("Max Pain",None)',backup_source)
+        self.assertIn('data["filter_modes"]=modes',backup_source)
 
     def test_registry_exactly_eighteen_unique(self):
         self.assertEqual(len(ALL_FILTERS),18)
