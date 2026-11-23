@@ -17,6 +17,26 @@ class HistoricalSessionTests(unittest.TestCase):
         self.assertEqual(rows,original)
         self.assertEqual(analyze(rows,["EMA 9/21"],"1m")["votes"],[])
         self.assertTrue(analyze(clean,["EMA 9/21"],"1m")["votes"])
+    def test_1856_same_day_suffix_is_not_intraday_gap(self):
+        # B201 real phone: 15:29 IST followed by 18:56 IST zero-volume
+        # gateway row must not block the 13 historical technical filters.
+        rows=[bar(14,m) for m in range(50,60)]+[bar(15,m) for m in range(30)]
+        final=bar(18,56);final[5]=0
+        original=[x[:] for x in rows+[final]]
+        result=historical_regular_session_bars(rows+[final],"1m")
+        self.assertEqual(len(result),40)
+        self.assertEqual(rows+[final],original)
+        self.assertTrue(analyze(result,["EMA 9/21"],"1m")["votes"])
+        self.assertFalse(analyze(rows+[final],["EMA 9/21"],"1m")["votes"])
+    def test_invalid_afterclose_row_is_not_silently_removed(self):
+        rows=[bar(14,m) for m in range(50,60)]+[bar(15,m) for m in range(30)]
+        bad=bar(18,56);bad[2]=bad[1]-10
+        result=historical_regular_session_bars(rows+[bad],"1m")
+        self.assertEqual(len(result),41)
+    def test_no_borrowing_previous_day(self):
+        rows=[bar(14,m) for m in range(50,60)]+[bar(15,m) for m in range(30)]
+        tomorrow=bar(18,56);tomorrow[0]+=86400
+        self.assertIs(historical_regular_session_bars(rows+[tomorrow],"1m"),rows+[tomorrow])
     def test_interior_gap_still_waits(self):
         rows=[bar(14,m) for m in range(20,50) if m!=42]+[bar(15,m) for m in range(15)]+[bar(15,34)]
         clean=historical_regular_session_bars(rows,"1m")

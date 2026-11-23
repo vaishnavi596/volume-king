@@ -8,7 +8,11 @@ from math import isfinite
 IST=timezone(timedelta(hours=5,minutes=30))
 
 def historical_regular_session_bars(rows, timeframe):
-    """Remove only an unambiguous final after-close suffix (NSE/BSE cash)."""
+    """Remove a validated final after-close cash-session suffix without mutating input.
+
+    The normalized gateway may append a post-close reference bar after 18:00.
+    Such a bar must not invalidate valid completed 1m historical analysis.
+    """
     if timeframe not in ("1m","3m","5m") or not isinstance(rows,(list,tuple)) or len(rows)<31:
         return rows
     def valid(r):
@@ -19,12 +23,12 @@ def historical_regular_session_bars(rows, timeframe):
     if not valid(rows[-1]):
         return rows
     last=datetime.fromtimestamp(rows[-1][0],IST)
-    if not ((15,30)<=(last.hour,last.minute)<(18,0)):
+    if not ((15,30)<=(last.hour,last.minute)<(24,0)):
         return rows
     i=len(rows)
     while i and valid(rows[i-1]):
         dt=datetime.fromtimestamp(rows[i-1][0],IST)
-        if dt.date()!=last.date() or not ((15,30)<=(dt.hour,dt.minute)<(18,0)):
+        if dt.date()!=last.date() or not ((15,30)<=(dt.hour,dt.minute)<(24,0)):
             break
         i-=1
     if i<30 or i==len(rows) or not valid(rows[i-1]):
