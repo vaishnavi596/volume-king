@@ -1,5 +1,6 @@
 """STANDARD-2: classify real source spacing faults without creating votes."""
 import unittest
+from v3_candle_source_review import inspect_candle_tail
 from datetime import datetime, timedelta, timezone
 from scanner_engine import analyze
 
@@ -10,6 +11,18 @@ def bar(hour, minute):
     return [stamp, 25366.4, 25366.4, 25366.4, 25366.4, 916.0]
 
 class V3SourceSpacingDoctorTests(unittest.TestCase):
+    def test_repeated_candle_diagnostic_has_bounded_source_trace(self):
+        bars=[bar(14,20+i) for i in range(7)]+[bar(19,57)]
+        result=inspect_candle_tail(bars,timeframe="1m")
+        flagged=next(x for x in result["review"] if x["code"]=="REPEATED_IDENTICAL_OHLCV_REVIEW")
+        self.assertEqual(flagged["consecutive_candles"],7)
+        self.assertEqual(flagged["first_ist"],"2026-11-23 14:20 IST")
+        self.assertEqual(flagged["last_ist"],"2026-11-23 14:26 IST")
+        self.assertEqual(len(flagged["cached_ohlcv_sample_sha256"]),64)
+        self.assertEqual(flagged["digest_scope"],"PHONE_CACHED_NORMALIZED_ROWS_NOT_RAW_DHAN")
+        self.assertFalse(result["source_error_confirmed"])
+        self.assertEqual(result["provider_requests"],0)
+
     def test_after_close_extra_row_is_identified_but_not_scored(self):
         result = analyze([bar(15, 29), bar(15, 34)], ["RSI 14"], "1m")
         self.assertEqual(result["bias"], "WAIT")
