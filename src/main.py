@@ -1778,7 +1778,23 @@ def app_main(page:ft.Page):
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
     from v3_dashboard_bar_monitor import DashboardBarMonitor
+    from v3_dashboard_last_good import LastGoodHistoricalAgreement
     dashboard_bar_monitor=DashboardBarMonitor()
+    dashboard_last_good=LastGoodHistoricalAgreement()
+    def dashboard_hist_agreement(sym,history):
+        # Both dashboard index surfaces use the SAME exact-frame cached result.
+        # The fallback is HIST-only, never a verified-live or six-box vote.
+        raw=history.get("bars") or []
+        fresh=historical_vote_agreement(history,"1m")
+        safe=historical_regular_session_bars(raw,"1m") if isinstance(raw,list) else []
+        stamp=(safe[-1][0] if safe and type(safe[-1][0]) in (int,float)
+               else None)
+        signature=tuple(sorted(name for name in filter_selected
+                               if filter_modes.get(name,"Analysis")!="Chart"))
+        return dashboard_last_good.resolve(
+            symbol=sym,timeframe="1m",generation=provider_generation[0],
+            source=history.get("source"),filter_signature=signature,
+            calculated=fresh,source_candle_time=stamp)
     def dashboard_index_analysis():
         panels=[]
         # Three independent persisted slots; restrict selections to the verified
@@ -1841,23 +1857,27 @@ def app_main(page:ft.Page):
                                  " • exchange timestamp unverified"))
             else:
                 rows.append(note("LTP update unavailable • last known value only"))
+            agreement,restored=dashboard_hist_agreement(sym,candle_data)
             if not candle_data.get("bars"):
                 dashboard_bar_monitor.observe(
                     surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
                     generation=provider_generation[0],
-                    history_present=False,history_count=0,bar_constructed=False)
-                rows.append(note("1m candle votes WAIT • select 1m Scanner chart or await shared 1m history"))
+                    history_present=False,history_count=0,
+                    bar_constructed=agreement is not None,
+                    used_last_good=restored)
+                rows.append(historical_vote_bar(agreement,"1m") if agreement is not None
+                            else note("1m candle votes WAIT • select 1m Scanner chart or await shared 1m history"))
             else:
                 try:
                     rows.append(five_engine_chips(sym,display_timeframe="1m"))
                     rows.append(dashboard_mini_candles(sym,candle_data))
-                    agreement=historical_vote_agreement(candle_data,"1m")
                     dashboard_bar_monitor.observe(
                         surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
                         generation=provider_generation[0],
                         history_present=bool(candle_data.get("bars")),
                         history_count=len(candle_data.get("bars") or []),
-                        bar_constructed=agreement is not None)
+                        bar_constructed=agreement is not None,
+                        used_last_good=restored)
                     rows.append(historical_vote_bar(agreement,"1m"))
                     rows.append(note("1m • HISTORICAL • NOT live • candle votes only" if agreement is not None
                                      else "1m • WAIT • insufficient completed candle filters"))
@@ -1878,13 +1898,14 @@ def app_main(page:ft.Page):
                    and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_history=shared_history(index_name,"1m")
-            index_agreement=historical_vote_agreement(index_history,"1m")
+            index_agreement,index_restored=dashboard_hist_agreement(index_name,index_history)
             dashboard_bar_monitor.observe(
                 surface="INDEX_CARDS",symbol=index_name,timeframe="1m",
                 generation=provider_generation[0],
                 history_present=bool(index_history.get("bars")),
                 history_count=len(index_history.get("bars") or []),
-                bar_constructed=index_agreement is not None)
+                bar_constructed=index_agreement is not None,
+                used_last_good=index_restored)
             index_signal_row=historical_vote_bar(index_agreement,"1m")
             # A nonempty candle response can still have zero usable completed
             # votes (partial/malformed bars, transient data quality failure).

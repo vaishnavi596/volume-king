@@ -15,7 +15,8 @@ class DashboardBarMonitor:
         self.max_entries=max_entries
 
     def observe(self, *, surface, symbol, timeframe, generation,
-                history_present, bar_constructed, history_count):
+                history_present, bar_constructed, history_count,
+                used_last_good=False):
         if surface not in SURFACES or not isinstance(symbol,str) or not symbol:
             raise ValueError("Invalid dashboard location")
         if timeframe!="1m" or type(generation) is not int:
@@ -24,6 +25,8 @@ class DashboardBarMonitor:
             raise ValueError("Boolean observation required")
         if type(history_count) is not int or history_count<0:
             raise ValueError("Invalid history count")
+        if type(used_last_good) is not bool:
+            raise ValueError("Boolean fallback observation required")
         key=(surface,symbol,timeframe,generation)
         before=self._states.get(key) or {}
         existed=bool(before.get("last_bar_constructed"))
@@ -34,6 +37,8 @@ class DashboardBarMonitor:
                   else "HIST_BAR_DISAPPEARED_HISTORY_MISSING")
         elif history_present and history_count>=30 and not bar_constructed:
             code="CACHED_1M_HISTORY_NO_HIST_VOTE_BAR"
+        elif used_last_good:
+            code="LAST_GOOD_HIST_USED_CURRENT_CALCULATION_UNAVAILABLE"
         self._states[key]={"last_bar_constructed":bar_constructed,
                            "ever_bar_constructed":shown_once,
                            "history_present":history_present,
