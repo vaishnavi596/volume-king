@@ -6,10 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: 'Exact V3 source commit SHA (must have a successful B3 run)'
+        description: 'Paste exact 40-character V3 SHA with successful B3 (never use an old default)'
         required: true
         type: string
-        default: 'e18c87f21f2b1acdbd7aa7d27b6190c5d8c63090'
 permissions:
   contents: read
   actions: read
