@@ -70,6 +70,24 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
         result["blockers"].append("MATCHING_DHAN_HISTORY_REQUIRED")
         return result
     session=historical_regular_session_bars(list(bars),timeframe)
+    result["excluded_forming_candle_bars"]=0
+    if history_timestamp is not None:
+        if (type(history_timestamp) not in (int,float)
+                or not isfinite(history_timestamp) or history_timestamp<=0):
+            raise ValueError("Valid replay observation timestamp required")
+        # The phone's clock is a completion cutoff, not source-live proof.
+        if session and session[-1][0]>history_timestamp:
+            result["blockers"].append("FUTURE_DATED_HIST_CANDLE_NOT_VERIFIED")
+            return result
+        if session and session[-1][0]+TIMEFRAMES[timeframe]>history_timestamp:
+            if (len(session)<31 or
+                    session[-1][0]-session[-2][0]!=TIMEFRAMES[timeframe]):
+                result["blockers"].append("FORMING_CANDLE_PREDECESSOR_UNVERIFIED")
+                return result
+            session=session[:-1]
+            result["excluded_forming_candle_bars"]=1
+            # Filter rows were calculated upstream and may include forming bar.
+            result["blockers"].append("TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED")
     valid=(len(session)>=30 and all(
         isinstance(b,(tuple,list)) and len(b)>=6 and
         all(type(v) in (int,float) and isfinite(v) for v in b[:6])
@@ -94,7 +112,7 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
             bear+=vote==-1
             neutral+=vote==0
     technical=None
-    if bull+bear:
+    if bull+bear and result["excluded_forming_candle_bars"]==0:
         technical={"bullish":round(100*bull/(bull+bear)),
                    "bearish":100-round(100*bull/(bull+bear)),
                    "directional_count":bull+bear,"neutral_count":neutral,

@@ -5119,7 +5119,7 @@ def app_main(page:ft.Page):
                     # verified after-close suffix and reports its removal count.
                     # Pre-trimmed input falsely reported zero removed rows.
                     source=history.get("source"),bars=bars,
-                    filter_rows=rows)
+                    filter_rows=rows,history_timestamp=time.time())
                 from v3_four_box_source_readiness import four_box_source_readiness
                 four_box_readiness=four_box_source_readiness(
                     symbol=symbol,timeframe=tf,generation=generation,
@@ -5708,7 +5708,8 @@ def app_main(page:ft.Page):
                 master_historical_replay=historical_vote_replay(
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                     source=scanner_data.get("source"),
-                    bars=scanner_hist_bars,filter_rows=scanner_rows)
+                    bars=scanner_hist_bars,filter_rows=scanner_rows,
+                    history_timestamp=time.time())
                 from v3_four_box_source_readiness import four_box_source_readiness
                 with news_lock:
                     master_news_context=dict(news_cache.get(scanner_sym) or {})

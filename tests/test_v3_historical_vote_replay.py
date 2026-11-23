@@ -104,6 +104,35 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(replayed["orders_sent"],0)
         self.assertEqual(shifted[-4][0],original[-4][0]+1)
 
+    def test_forming_bar_excluded_without_promoting_old_technical_votes(self):
+        arr=bars()
+        before=[row[:] for row in arr]
+        r=replay(bars=arr,history_timestamp=arr[-1][0]+10)
+        self.assertEqual(r["excluded_forming_candle_bars"],1)
+        self.assertEqual(r["boxes"][0]["state"],"WAIT")
+        self.assertEqual(r["boxes"][1]["state"],"HIST_VOTE")
+        self.assertEqual(r["historical_session_bars"],374)
+        self.assertIn("TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED",r["blockers"])
+        self.assertEqual(r["orders_sent"],0)
+        self.assertEqual(arr,before)
+
+    def test_future_dated_and_bad_observation_fail_closed(self):
+        arr=bars()
+        r=replay(bars=arr,history_timestamp=arr[-1][0]-10)
+        self.assertEqual(r["boxes"],[])
+        self.assertIn("FUTURE_DATED_HIST_CANDLE_NOT_VERIFIED",r["blockers"])
+        for stamp in (0,-1,True,float("nan"),float("inf"),"2026-11-23"):
+            with self.subTest(stamp=stamp):
+                with self.assertRaises(ValueError):
+                    replay(history_timestamp=stamp)
+
+    def test_completed_bar_keeps_T_and_C_hist(self):
+        arr=bars()
+        r=replay(bars=arr,history_timestamp=arr[-1][0]+60)
+        self.assertEqual(r["excluded_forming_candle_bars"],0)
+        self.assertEqual([row["state"] for row in r["boxes"][:2]],
+                         ["HIST_VOTE","HIST_VOTE"])
+
     def test_candle_doji_wait_has_distinct_reason(self):
         rows=bars()
         for b in rows[-8:]:
