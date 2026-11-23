@@ -63,7 +63,7 @@ def assessment_lines(symbol, cached, *, now=None, max_age=180, market_open=None)
         return ["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]
     lines = ["Oracle 4 factors / 5 filters • informational only • live orders OFF"]
     labels = {"oi_support": "OI Support", "oi_resistance": "OI Resistance",
-              "max_pain": "Max Pain", "pcr": "PCR", "candle_trend": "Candle"}
+              "max_pain": "Dhan Max Pain", "pcr": "PCR", "candle_trend": "Candle"}
     for key in FILTER_NAMES:
         row = indexed[key]
         value = row.get("value")
@@ -109,7 +109,7 @@ def compact_assessment_summary(lines):
     if len(lines) == 1:
         return lines[0]
     # assessment_lines emits five labelled rows immediately after the header.
-    labels = ("OI Support: ", "OI Resistance: ", "Max Pain: ", "PCR: ", "Candle: ")
+    labels = ("OI Support: ", "OI Resistance: ", "Dhan Max Pain: ", "PCR: ", "Candle: ")
     if len(lines) < 6 or any(not isinstance(line, str) or
                               not line.startswith(label)
                               for line, label in zip(lines[1:6], labels)):
