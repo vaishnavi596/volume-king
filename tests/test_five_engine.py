@@ -699,7 +699,7 @@ class FiveEngineMainContextWiringContract(unittest.TestCase):
         self.assertIn('read_five_engine_context(sym,"5m")',source)
         self.assertIn('contextual_five_engine.clear()',source)
         # Three direct scanner_snapshot calls plus one ranking dict adapter.
-        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),3)
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),4)
         self.assertIn('publish_five_engine_5m(sym,scanner_snapshot(dict(analyzed,',source)
         self.assertNotIn('five_engine_snapshots[sym]=scanner_snapshot(',source)
 
