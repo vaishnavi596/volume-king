@@ -5090,7 +5090,7 @@ def app_main(page:ft.Page):
     v3_diag_busy=[False]
     v3_diag_refreshed=[None]
     v3_diag_report=["Refresh Diagnostics first • no stale pre-login report."]
-    v3_diag_status=["Login, then tap REFRESH DIAGNOSTICS before TEST 54/70."]
+    v3_diag_status=["Login, then tap REFRESH DIAGNOSTICS before TEST ACTIVE (MAX 70)."]
     def master_diagnostic_panel():
         """One-cache-capture master report across independent feature segments.
 
@@ -5253,9 +5253,9 @@ def app_main(page:ft.Page):
                         "unique_selected_equities":len(unique),
                         "verified_registry_equities":len(valid_equities),
                         "global_equity_limit":70,
-                        "legacy_54_roster_composition":"51 equities + 3 indices",
-                        "capacity_test_54":"AVAILABLE_SEPARATELY_NO_SYNTHETIC_QUOTES",
-                        "capacity_test_70":"AVAILABLE_SEPARATELY_NO_SYNTHETIC_QUOTES",
+                        "instrument_count_rule":"selected unique equities + 3 indices",
+                        "one_dynamic_capacity_test":"ACTIVE_SELECTED_UNIQUE_EQUITIES_MAX_70",
+                        "indices_tested_separately":3,
                         "duplicate_assignments":len(configured)-len(unique),
                         "watchlist_groups":len(watch_groups),
                         "active_list":active_watch[0]+1,
@@ -5686,10 +5686,10 @@ def app_main(page:ft.Page):
                         if index_last_result_at[0] is not None else None,
                     "index_same_generation":index_last_result_generation[0]==generation,
                     "refresh_source":"EXPLICIT_USER_TAP",
-                    "next_step":"Now run TEST 54 or TEST 70 • local cache only",
+                    "next_step":"Now run TEST ACTIVE (MAX 70) • cache only",
                     "source_live_verified":False,
                     "orders_sent":0},indent=2,ensure_ascii=False)
-                test_status.value="REFRESH ATTEMPT COMPLETE • TEST 54/70 enabled for this login."
+                test_status.value="REFRESH ATTEMPT COMPLETE • TEST ACTIVE (MAX 70) enabled for this login."
             except asyncio.TimeoutError:
                 test_status.value="REFRESH TIMEOUT • quote worker exceeded 55s; recheck connection/cooldown."
             except asyncio.CancelledError:
@@ -5705,13 +5705,13 @@ def app_main(page:ft.Page):
                 busy[0]=False
                 if report.page is not None:report.update()
                 if test_status.page is not None:test_status.update()
-        async def run_cached_test(e,count):
+        async def run_cached_test(e):
             if busy[0]:return
             # Do not reuse a report from an earlier login/provider generation
             # or from before the user explicitly pressed Diagnostics Refresh.
             if (refreshed[0] is None or refreshed[0][0]!=provider_generation[0]
                     or not dhan_feed.connected or prefs.get("source")!="Dhan"):
-                test_status.value="Tap REFRESH DIAGNOSTICS after Dhan login before TEST 54/70."
+                test_status.value="Tap REFRESH DIAGNOSTICS after Dhan login before TEST ACTIVE (MAX 70)."
                 test_status.update()
                 return
             busy[0]=True
@@ -5721,7 +5721,8 @@ def app_main(page:ft.Page):
             try:
                 import copy
                 stage0=time.perf_counter()
-                chosen=list(dict.fromkeys(all_watch_symbols()))[:count]
+                chosen=list(dict.fromkeys(all_watch_symbols()))[:70]
+                count=len(chosen)
                 names=("NIFTY","BANKNIFTY","SENSEX",*chosen)
                 generation=provider_generation[0]
                 # Materialize one consistent snapshot on UI thread; do not use
@@ -5858,12 +5859,13 @@ def app_main(page:ft.Page):
                     "phone_snapshot_capture_ms":capture_ms,
                     "sensex_issue":next((row for row in outcome["stock_errors"]
                         if row.get("symbol")=="SENSEX"),None),
-                    "capacity_test_target_equities":count,
-                    "unconfigured_equity_slots":outcome["unselected_equity_slots"],
-                    "unconfigured_equity_slots_meaning":"Unused slots relative to TEST 54/70 target; not missing quotes or a failed instrument",
+                    "global_equity_limit":70,
+                    "active_unique_equities_tested":count,
+                    "indices_tested":3,
+                    "unused_capacity_slots_not_errors":70-count,
                     "no_provider_requests":True}
                 report.value=json.dumps(condensed,indent=2,ensure_ascii=False)
-                test_status.value=("Capacity test "+str(count)+" equities • "+str(
+                test_status.value=("Active unique test "+str(count)+"/70 equities • "+str(
                     outcome["observed_instruments"])+"/"+str(outcome["requested_instruments"])+
                     " checked • "+str(outcome["stock_error_count"])+
                     " stock errors. Inspect ERROR codes and Health Doctor below.")
@@ -5879,12 +5881,10 @@ def app_main(page:ft.Page):
                 busy[0]=False
         return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
             note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
-            note("Tap REFRESH DIAGNOSTICS first: one paced explicit quote refresh through current Dhan/Oracle session. Then TEST 54/70 are cache-only; no full-page rebuild."),
-            ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST 54/70",on_click=lambda e:page.run_task(check_again,e)),
-            ft.Row([
-                ft.OutlinedButton("TEST 54 (51+3)",on_click=lambda e:page.run_task(run_cached_test,e,51)),
-                ft.OutlinedButton("TEST 70 SHARES (+3 indices)",on_click=lambda e:page.run_task(run_cached_test,e,70))
-            ],wrap=True),
+            note("One refresh, then one cache-only active-roster test. 70 is the maximum unique-equity limit; do not schedule inactive equity slots. Three indices are separate."),
+            ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST ACTIVE",on_click=lambda e:page.run_task(check_again,e)),
+            ft.OutlinedButton("TEST ACTIVE • MAX 70 EQUITIES (+3 INDICES)",
+                              on_click=lambda e:page.run_task(run_cached_test,e)),
             test_status,
             report,
             filter_five_diagnostic_panel(),

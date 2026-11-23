@@ -15,8 +15,8 @@ from dhan_multi_timeframe import completed_derived_bars
 INDEXES=("NIFTY","BANKNIFTY","SENSEX")
 
 def benchmark_cached_capacity(equities, quotes, histories, generation, requested_equities):
-    if requested_equities not in (51,70):
-        raise ValueError("Only 51 and 70 equity tests are supported")
+    if type(requested_equities) is not int or not 0 <= requested_equities <= 70:
+        raise ValueError("Active unique equity count must be between 0 and 70")
     start=time.perf_counter()
     dedup=list(dict.fromkeys(s for s in equities if isinstance(s,str) and s and s not in INDEXES))
     selected=dedup[:requested_equities]

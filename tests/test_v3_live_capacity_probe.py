@@ -48,7 +48,11 @@ class TestRealCapacity(unittest.TestCase):
         self.assertEqual(res["history_presence"]["3m"],0)
         self.assertEqual(res["technical_scanner_analyzed"],0)
     def test_bounds(self):
-        with self.assertRaises(ValueError):
-            benchmark_cached_capacity([],{}, {},1,54)
+        for invalid in (-1,71,True,54.5):
+            with self.assertRaises(ValueError):
+                benchmark_cached_capacity([],{}, {},1,invalid)
+        result=benchmark_cached_capacity(["EQ01","EQ01"],{}, {},1,1)
+        self.assertEqual(result["observed_instruments"],4)
+        self.assertEqual(result["unselected_equity_slots"],0)
 
 if __name__=="__main__":unittest.main()

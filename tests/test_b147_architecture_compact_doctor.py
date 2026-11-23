@@ -30,6 +30,7 @@ class B147ArchitectureTests(unittest.TestCase):
                            provider_connected=True,quote_status="UNAVAILABLE")
         self.assertEqual(doc["selected_filter_count"],17)
         self.assertEqual(len(doc["filter_results"]),17)
+        self.assertEqual(doc["healthy_filter_count_hidden"],0)
         self.assertEqual(doc["healthy_stock_count_hidden"],1)
         self.assertTrue(any(x.get("symbol")=="SENSEX" for x in doc["issues"]))
         self.assertFalse(any(x.get("symbol")=="NIFTY" for x in doc["issues"]))
