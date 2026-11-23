@@ -1444,7 +1444,7 @@ def app_main(page:ft.Page):
         if not snapshot:
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
-            option_context=option_from_component(option_component(symbol, "5m"))
+            option_context=option_from_component(option_component(symbol, (display_timeframe or "5m")))
             if display_timeframe in ("1m","3m"):
                 # The symbol-only 5m publisher must never masquerade as LIVE
                 # evidence for an index 1m or Watchlist 3m report. Show their
@@ -1487,7 +1487,7 @@ def app_main(page:ft.Page):
                            "% • not LIVE verified")
         # Reuse the existing read-only option component; never create a second API poll.
         # Current option snapshots lack measured directional strength and remain WAIT.
-        option_context=option_from_component(option_component(symbol, "5m"))
+        option_context=option_from_component(option_component(symbol, (display_timeframe or "5m")))
         data=(dhan_option_metrics if symbol==chain_symbol.value else
               next((row for (gen,sym,listed),row in reversed(list(dhan_option_context_cache.items()))
                     if gen==provider_generation[0] and sym==symbol),{}))
@@ -1585,8 +1585,10 @@ def app_main(page:ft.Page):
                                 if gen==provider_generation[0] and underlying==sym),{}))
                     if (data.get("source")=="dhan" and data.get("symbol")==sym
                             and (sym!=chain_symbol.value or data.get("expiry")==expiry.value)
+                            and data.get("freshness")=="unverified"
                             and data.get("signal_eligible") is False
-                            and isinstance(data.get("pcr"),(int,float))):
+                            and type(data.get("pcr")) in (int,float)
+                            and math.isfinite(data["pcr"]) and data["pcr"]>=0):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
                 elif name=="candle" and prefs.get("source")=="Dhan":
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
