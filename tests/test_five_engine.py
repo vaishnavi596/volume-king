@@ -687,6 +687,44 @@ class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
 if __name__=="__main__":unittest.main()
 
 
+class FiveEngineHistoricalTimeframePublishContract(unittest.TestCase):
+    def test_completed_1m_3m_publish_paths_are_contextual_and_hist_only(self):
+        from pathlib import Path
+        app=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        start=app.index("    def publish_five_engine_historical(")
+        end=app.index("    def read_five_engine_context(",start)
+        helper=app[start:end]
+        self.assertIn('timeframe not in ("1m","3m")',helper)
+        self.assertIn('result.get("source")!="Dhan"',helper)
+        self.assertIn('result.get("timeframe")!=timeframe',helper)
+        self.assertIn('result.get("historical") is not True',helper)
+        self.assertIn('result.get("live_verified") is not False',helper)
+        self.assertIn('live_verified=False,freshness="historical_unverified"',helper)
+        self.assertIn('generation=provider_generation[0]',helper)
+        self.assertIn('snapshot=scanner_snapshot(historical_only)',helper)
+        self.assertIn('publish_five_engine_historical(sym,"3m",result)',app)
+        self.assertIn('publish_five_engine_historical(sym,interval,historical)',app)
+        self.assertIn('if interval in ("1m","3m"):',app)
+
+    def test_hist_only_snapshot_cannot_vote_live(self):
+        from five_engine import ContextualFiveEngineCache, scanner_snapshot
+        result={"source":"Dhan","historical":True,"live_verified":False,
+                "freshness":"historical_unverified","timestamp":1234567890,
+                "votes":[{"name":"EMA 9/21","vote":1},
+                         {"name":"RSI 14","vote":1},
+                         {"name":"MACD","vote":1}]}
+        cache=ContextualFiveEngineCache()
+        for tf in ("1m","3m"):
+            with self.subTest(timeframe=tf):
+                cache.publish(symbol="NIFTY",timeframe=tf,generation=4,
+                              snapshot=scanner_snapshot(dict(result,timeframe=tf)))
+                shown=cache.read(symbol="NIFTY",timeframe=tf,generation=4,
+                                 now=1234567900,connected=True,market_open=True)
+                self.assertEqual(shown["combined"]["coverage"],0)
+                self.assertTrue(all(row.display()["state"]=="WAIT"
+                                    for row in shown["engines"]))
+
+
 class FiveEngineMainContextWiringContract(unittest.TestCase):
     def test_legacy_5m_publisher_mirrored_and_main_display_reads_context(self):
         from pathlib import Path

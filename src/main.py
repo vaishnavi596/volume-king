@@ -931,6 +931,29 @@ def app_main(page:ft.Page):
             symbol=sym,timeframe="5m",generation=provider_generation[0],
             snapshot=snapshot)
 
+    def publish_five_engine_historical(sym, timeframe, result):
+        """Store exact-frame completed Dhan votes as HIST, never LIVE.
+
+        No extra candle calculation or broker I/O; the verified-live path
+        needs independent provider proof before it can be published.
+        """
+        if (timeframe not in ("1m","3m") or not isinstance(result,dict)
+                or result.get("source")!="Dhan"
+                or result.get("symbol")!=sym
+                or result.get("timeframe")!=timeframe
+                or result.get("historical") is not True
+                or result.get("live_verified") is not False):
+            return False
+        timestamp=result.get("timestamp")
+        if type(timestamp) not in (int,float) or not math.isfinite(timestamp) or timestamp<=0:
+            return False
+        historical_only=dict(result,historical=True,
+                             live_verified=False,freshness="historical_unverified")
+        contextual_five_engine.publish(
+            symbol=sym,timeframe=timeframe,generation=provider_generation[0],
+            snapshot=scanner_snapshot(historical_only))
+        return True
+
     def read_five_engine_context(sym, timeframe):
         """Never reuse another timeframe, symbol or provider generation."""
         return contextual_five_engine.read(
@@ -6312,6 +6335,7 @@ console.log('BOT KING Lightweight Charts ready');
             if not signal_percentages(result):
                 return historical_or_wait("Latest 3m directional votes unavailable")
             watch_three_minute_cache[sym]=(identity,result)
+            publish_five_engine_historical(sym,"3m",result)
             return result
         except Exception as exc:
             log_error("watch_three_minute_analysis",exc)
@@ -7172,6 +7196,8 @@ console.log('BOT KING Lightweight Charts ready');
                                 live_verified=False,freshness="historical_unverified",
                                 symbol=sym,timeframe=interval)
                 market_store.put("analysis_last_good",("Dhan",sym,interval),historical)
+                if interval in ("1m","3m"):
+                    publish_five_engine_historical(sym,interval,historical)
             elif hist.get("cached"):
                 previous=market_store.get("analysis_last_good","Dhan",sym,interval) or {}
                 if (previous.get("source")=="Dhan" and
