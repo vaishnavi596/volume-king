@@ -4,6 +4,7 @@ Uses already computed Doctor rows and already published exact-frame snapshot.
 Never fetches data, recomputes directional market signals or authorizes trades.
 """
 from scanner_engine import OPTION_FILTERS
+from v3_vote_conflict_doctor import conflict_doctor
 from five_engine import ENGINE_NAMES, combine_evidence, EngineEvidence
 
 
@@ -107,6 +108,7 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
                               "blocked_details":blocked_filters},
         "box_vote_gate":{"eligible":eligible_count,"required":3,"boxes":boxes,
                          "sixth_M":"STANDBY_NOT_SCORED"},
+        "voting_conflict_audit":conflict_doctor(snapshot,market_open=market_open),
         "combined_vote":{"state":combined.get("state","WAIT"),
                          "coverage":combined.get("coverage",0),
                          "bullish":combined.get("bullish"),
