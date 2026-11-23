@@ -99,7 +99,16 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
                    "bearish":100-round(100*bull/(bull+bear)),
                    "directional_count":bull+bear,"neutral_count":neutral,
                    "historical":True,"verified_live":False}
-    candle=historical_candle_balance(session,sample_size=8)
+    # Match the normal phone C-HIST gate: the last eight completed bars
+    # must have exact in-session spacing for the requested timeframe.
+    # A timestamp gap is not a bearish/bullish candle and cannot be skipped.
+    seconds=TIMEFRAMES[timeframe]
+    tail=session[-8:]
+    contiguous=(len(tail)==8 and all(
+        type(row[0]) in (int,float) and isfinite(row[0]) and row[0]>0
+        for row in tail) and all(
+        tail[i][0]-tail[i-1][0]==seconds for i in range(1,8)))
+    candle=historical_candle_balance(tail,sample_size=8) if contiguous else None
     result["technical_vote"]=technical
     result["candle_vote"]=candle
     measured={}
@@ -111,7 +120,8 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     for name in ENGINE_NAMES:
         context=(technical if name=="technical" else candle if name=="candle" else
                  measured.get(name))
-        missing=(HIST_BLOCKERS.get(name,"NO_TECHNICAL_DIRECTIONAL_FILTER_VOTES"))
+        missing=("HIST_CANDLE_SAMPLE_NONCONTIGUOUS" if name=="candle" and not contiguous
+                 else HIST_BLOCKERS.get(name,"NO_TECHNICAL_DIRECTIONAL_FILTER_VOTES"))
         result["boxes"].append({
             "engine":name,"state":("HIST_VOTE" if context else "WAIT"),
             "direction":("BULLISH" if context and context["bullish"]>context["bearish"]

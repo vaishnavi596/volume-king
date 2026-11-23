@@ -88,6 +88,22 @@ class HistoricalVotingTests(unittest.TestCase):
             self.assertEqual(replay(historical_context={"options":row})
                              ["boxes"][4]["state"],"WAIT")
 
+    def test_candle_hist_replay_rejects_irregular_last_eight(self):
+        original=bars()
+        regular=replay(bars=original)
+        self.assertEqual(regular["boxes"][1]["state"],"HIST_VOTE")
+        shifted=[row[:] for row in original]
+        shifted[-4][0]+=1  # 61s then 59s: monotonic but not exact 1m
+        replayed=replay(bars=shifted)
+        self.assertEqual(replayed["boxes"][0]["state"],"HIST_VOTE")
+        self.assertEqual(replayed["boxes"][1]["state"],"WAIT")
+        self.assertEqual(replayed["boxes"][1]["reason"],
+                         "HIST_CANDLE_SAMPLE_NONCONTIGUOUS")
+        self.assertEqual(replayed["combined"]["state"],"WAIT")
+        self.assertEqual(replayed["provider_requests"],0)
+        self.assertEqual(replayed["orders_sent"],0)
+        self.assertEqual(shifted[-4][0],original[-4][0]+1)
+
     def test_candle_doji_wait_has_distinct_reason(self):
         rows=bars()
         for b in rows[-8:]:
