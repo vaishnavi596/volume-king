@@ -46,7 +46,9 @@ class StagingBrainLedger:
             raise ValueError("Invalid staging device credentials")
         self._credentials = dict(device_credentials)
         self.database = str(database)
-        self._db = sqlite3.connect(self.database)
+        # The isolated ASGI service serializes every ledger operation with a
+        # process-local RLock; its event loop can differ from bootstrap thread.
+        self._db = sqlite3.connect(self.database, check_same_thread=False)
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.execute("""CREATE TABLE IF NOT EXISTS brain_events (
             seq INTEGER PRIMARY KEY AUTOINCREMENT,
