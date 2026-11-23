@@ -116,7 +116,7 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('historical_bars=historical_regular_session_bars(bars,interval)',scan)
         self.assertIn('historical=analyze(historical_bars,selected=active_analysis_filters(),timeframe=interval)',scan)
         self.assertIn('historical.get("count",0)>=30',scan)
-        self.assertIn('quality_check(historical_bars,timeframe_spec(interval)["seconds"])["usable"]',scan)
+        self.assertIn('now=historical_bars[-1][0]+timeframe_spec(interval)["seconds"]',scan)
         self.assertIn('historical.get("timestamp")==historical_bars[-1][0]',scan)
         self.assertIn('vote_display(signal_percentages(shown_analysis),False,interval)',scan)
         self.assertIn('shown_analysis=(historical if history_valid',scan)
