@@ -662,6 +662,45 @@ class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
         self.assertIn('display_timeframe is None or display_timeframe=="5m"', summary)
         self.assertIn('candle_tf=(display_timeframe or ', summary)
 
+class FiveEngineOptionContextTimeframeSafety(unittest.TestCase):
+    def test_summary_option_source_uses_exact_selected_timeframe(self):
+        """Never present cached 5m option readiness as 1m/3m diagnostics."""
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        functions=[n for n in ast.walk(tree)
+                   if isinstance(n,ast.FunctionDef) and n.name=="five_engine_summary"]
+        self.assertEqual(len(functions),1)
+        option_calls=[n for n in ast.walk(functions[0])
+                      if isinstance(n,ast.Call) and isinstance(n.func,ast.Name)
+                      and n.func.id=="option_component"]
+        self.assertEqual(len(option_calls),2)
+        for call in option_calls:
+            self.assertEqual(len(call.args),2)
+            self.assertIsInstance(call.args[1],ast.BoolOp)
+            self.assertIsInstance(call.args[1].op,ast.Or)
+            self.assertIsInstance(call.args[1].values[0],ast.Name)
+            self.assertEqual(call.args[1].values[0].id,"display_timeframe")
+            self.assertIsInstance(call.args[1].values[1],ast.Constant)
+            self.assertEqual(call.args[1].values[1].value,"5m")
+
+    def test_unverified_pcr_bad_values_never_become_readiness_chip(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        chips=[n for n in ast.walk(tree)
+               if isinstance(n,ast.FunctionDef) and n.name=="five_engine_chips"]
+        self.assertEqual(len(chips),1)
+        chip_source=ast.get_source_segment(source,chips[0])
+        self.assertIn('data.get("freshness")=="unverified"',chip_source)
+        self.assertIn('type(data.get("pcr")) in (int,float)',chip_source)
+        self.assertIn('math.isfinite(data["pcr"])',chip_source)
+        self.assertIn('data["pcr"]>=0',chip_source)
+        self.assertNotIn('isinstance(data.get("pcr"),(int,float))',chip_source)
+
+
 class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
     def test_dashboard_superfive_and_analysis_explicit_timeframes(self):
         from pathlib import Path
