@@ -1,5 +1,5 @@
 name: BOT KING V3 B201 Side-by-Side Phone-Test APK
-run-name: BOT KING V3 B201 • source ${{ inputs.source_sha || '8db9036145c58b9571a0ca9e15718283423fceda' }} • NO PROD
+run-name: BOT KING V3 B201 • source ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }} • NO PROD
 # This PREVIEW has a distinct package ID and is NOT an upgrade to installed B198.
 # Never replace the protected same-package release workflow with a temporary key.
 # Controlled isolated B201 from a tested V3 source SHA: B3 and B196 required.
@@ -15,7 +15,7 @@ on:
         description: 'Verified V3 source SHA for isolated B201 phone APK'
         required: true
         type: string
-        default: '8db9036145c58b9571a0ca9e15718283423fceda'
+        default: '5e76e63a92847919ae9e4110c911250b0dc593d5'
 permissions:
   contents: read
   actions: read
@@ -26,7 +26,7 @@ jobs:
   build-preview:
     runs-on: ubuntu-22.04
     env:
-      TARGET_SHA: ${{ inputs.source_sha || '8db9036145c58b9571a0ca9e15718283423fceda' }}
+      TARGET_SHA: ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }}
     timeout-minutes: 75
     steps:
       - name: Validate exact source SHA input
@@ -35,7 +35,7 @@ jobs:
           [[ "$TARGET_SHA" =~ ^[a-fA-F0-9]{40}$ ]] || { echo INVALID_SOURCE_SHA; exit 1; }
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_sha || '8db9036145c58b9571a0ca9e15718283423fceda' }}
+          ref: ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }}
           persist-credentials: false
       - name: Verify checked-out V3 source SHA
         shell: bash
