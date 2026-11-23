@@ -125,7 +125,7 @@ jobs:
           repo=os.environ["GITHUB_REPOSITORY"]
           url=("https://api.github.com/repos/"+repo+
                "/actions/workflows/v3-b196-safe-manual-audit.yml/runs?"+
-               urllib.parse.urlencode({"event":"workflow_dispatch","per_page":100}))
+               urllib.parse.urlencode({"per_page":100}))
           req=urllib.request.Request(url,headers={
               "Authorization":"Bearer "+os.environ["GH_TOKEN"],
               "Accept":"application/vnd.github+json",
@@ -134,7 +134,8 @@ jobs:
               runs=json.load(response).get("workflow_runs",[])
           verified=[r for r in runs if r.get("status")=="completed" and
                     r.get("conclusion")=="success" and
-                    r.get("display_title","").endswith(" • "+sha)]
+                    r.get("event") in ("workflow_dispatch","push") and
+                    r.get("display_title","")=="V3 B196 exact-SHA audit • NO APK • "+sha]
           if not verified:
               raise SystemExit("B196_EXACT_SOURCE_AUDIT_NOT_VERIFIED: "+sha)
           print("B196_EXACT_SOURCE_AUDIT=PASS run_id="+str(verified[0]["id"]))
