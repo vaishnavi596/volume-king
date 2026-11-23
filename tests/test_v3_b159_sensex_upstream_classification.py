@@ -38,6 +38,23 @@ class UpstreamClassTests(unittest.TestCase):
                 self.assertEqual(cm.exception.category,expected)
                 self.assertNotIn("SECRET",str(cm.exception))
 
+    def test_candle_provider_429_reports_stage_and_retry_without_leaking_details(self):
+        from backend.dhan_feed import DhanRateLimitError
+        class ThrottledProvider:
+            def intraday(self,args):
+                raise DhanRateLimitError("SECRET_UPSTREAM_REQUEST")
+        app=create_app(key_bytes=b"K"*40,
+                       market_feed_factory=lambda:ThrottledProvider(),
+                       market_registry={"RELIANCE":("NSE_EQ",2885)})
+        reply=TestClient(app).post("/clone-v2/market/candles",
+            headers={"X-BotKing-Key":"K"*40},
+            json={"symbol":"RELIANCE","interval":1,
+                  "from_date":"2026-11-19","to_date":"2026-11-19"})
+        self.assertEqual(reply.status_code,429)
+        self.assertEqual(reply.headers.get("Retry-After"),"30")
+        self.assertEqual(reply.headers.get("X-BotKing-429-Stage"),"PROVIDER_QUOTA")
+        self.assertNotIn("SECRET_UPSTREAM_REQUEST",reply.text)
+
     def test_clone_logs_enum_without_exposing_http_response(self):
         class BrokenProvider:
             def intraday(self,args):
