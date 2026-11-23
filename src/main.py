@@ -1777,6 +1777,8 @@ def app_main(page:ft.Page):
             market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
+    from v3_dashboard_bar_monitor import DashboardBarMonitor
+    dashboard_bar_monitor=DashboardBarMonitor()
     def dashboard_index_analysis():
         panels=[]
         # Three independent persisted slots; restrict selections to the verified
@@ -1840,12 +1842,22 @@ def app_main(page:ft.Page):
             else:
                 rows.append(note("LTP update unavailable • last known value only"))
             if not candle_data.get("bars"):
+                dashboard_bar_monitor.observe(
+                    surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
+                    generation=provider_generation[0],
+                    history_present=False,history_count=0,bar_constructed=False)
                 rows.append(note("1m candle votes WAIT • select 1m Scanner chart or await shared 1m history"))
             else:
                 try:
                     rows.append(five_engine_chips(sym,display_timeframe="1m"))
                     rows.append(dashboard_mini_candles(sym,candle_data))
                     agreement=historical_vote_agreement(candle_data,"1m")
+                    dashboard_bar_monitor.observe(
+                        surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
+                        generation=provider_generation[0],
+                        history_present=bool(candle_data.get("bars")),
+                        history_count=len(candle_data.get("bars") or []),
+                        bar_constructed=agreement is not None)
                     rows.append(historical_vote_bar(agreement,"1m"))
                     rows.append(note("1m • HISTORICAL • NOT live • candle votes only" if agreement is not None
                                      else "1m • WAIT • insufficient completed candle filters"))
@@ -1867,6 +1879,12 @@ def app_main(page:ft.Page):
             provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
             index_history=shared_history(index_name,"1m")
             index_agreement=historical_vote_agreement(index_history,"1m")
+            dashboard_bar_monitor.observe(
+                surface="INDEX_CARDS",symbol=index_name,timeframe="1m",
+                generation=provider_generation[0],
+                history_present=bool(index_history.get("bars")),
+                history_count=len(index_history.get("bars") or []),
+                bar_constructed=index_agreement is not None)
             index_signal_row=historical_vote_bar(index_agreement,"1m")
             # A nonempty candle response can still have zero usable completed
             # votes (partial/malformed bars, transient data quality failure).
@@ -5621,6 +5639,8 @@ def app_main(page:ft.Page):
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                     filter_rows=scanner_rows,box_rows=engine_rows,
                     snapshot=snap,market_open=regular_hours())
+                dashboard_bar_errors=dashboard_bar_monitor.report(
+                    generation=generation)
                 report_data={
                     "test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5630,6 +5650,7 @@ def app_main(page:ft.Page):
                     "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
                     "five_engine_endpoint_doctor":master_endpoint_doctor,
                     "calculation_to_vote_trace":master_vote_trace,
+                    "dashboard_bar_errors_only":dashboard_bar_errors,
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
