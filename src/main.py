@@ -1223,7 +1223,7 @@ def app_main(page:ft.Page):
         # Quote freshness is not established by a recent historical candle.
         provider_unverified = (data.get("source") == "Dhan" and
                                (data.get("freshness") not in ("verified_live", "live_verified") or data.get("live_verified") is not True))
-        display.update(symbol=sym,source=data.get("source","Unavailable"),
+        display.update(symbol=sym,timeframe="5m",source=data.get("source","Unavailable"),
                        freshness=data.get("freshness","unverified"),
                        live_verified=data.get("live_verified") is True,
                        historical=bool(data.get("cached")) or provider_unverified or
