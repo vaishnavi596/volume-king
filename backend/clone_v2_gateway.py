@@ -478,7 +478,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         if isinstance(exc, DhanRateLimitError):
             raise HTTPException(
                 429, "Clone Dhan provider cooldown",
-                headers={"Retry-After": "30"}) from None
+                headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}) from None
         if (isinstance(exc, DhanFeedError) and
                 "token expired or data access not entitled" in str(exc)):
             raise HTTPException(
