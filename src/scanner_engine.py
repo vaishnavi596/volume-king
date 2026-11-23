@@ -148,8 +148,14 @@ def analyze(bars, selected=None, timeframe="5m"):
     sweep=1 if low[-1]<min(low[-11:-1]) and p>min(low[-11:-1]) else -1 if high[-1]>max(high[-11:-1]) and p<max(high[-11:-1]) else 0
     add("Liquidity Sweep",sweep,"10-bar wick sweep with close back inside range" if sweep else "No confirmed sweep")
     avgvol=sum(vol[-21:-1])/20
-    if avgvol <= 0 or vol[-1] <= 0:
-        add("Volume",None,"UNAVAILABLE: valid source volume required")
+    # Preserve a truthful WAIT for an incomplete/zero-volume last bar.
+    # The reason code distinguishes source OHLCV gaps from an empty baseline
+    # without silently replacing Dhan volume or manufacturing a direction.
+    volume_input_status=("NO_BASELINE_VOLUME" if avgvol <= 0 else
+                         "ZERO_LAST_BAR_VOLUME" if vol[-1] <= 0 else "OK")
+    if volume_input_status != "OK":
+        add("Volume",None,"UNAVAILABLE: valid source volume required ("+
+            volume_input_status+")")
     else:
         volume_side=(1 if vol[-1]>avgvol*1.2 and p>close[-2]
                      else -1 if vol[-1]>avgvol*1.2 and p<close[-2] else 0)
@@ -169,7 +175,8 @@ def analyze(bars, selected=None, timeframe="5m"):
     return {"bias":bias,"score":round(agreement*100) if bias!="WAIT" else 0,
             "votes":votes,"reason":f"{bulls} bullish / {bears} bearish; {total} directional votes (NOT success probability)",
             "count":len(clean),"timeframe":timeframe,"timestamp":clean[-1][0],
-            "atr":atr_values[-1],"price":p}
+            "atr":atr_values[-1],"price":p,
+            "volume_input_status":volume_input_status}
 
 def rank_candidates(candidates, max_results=5, max_age_seconds=1800):
     now=datetime.now(timezone.utc).timestamp()
