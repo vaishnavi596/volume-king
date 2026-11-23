@@ -5,6 +5,7 @@ unverified or unavailable engine cannot vote. This module performs no I/O.
 """
 from dataclasses import dataclass
 from math import isfinite
+from historical_session_window import historical_regular_session_bars
 from typing import Optional
 
 ENGINE_NAMES = ("technical", "candle", "news", "futures", "options")
@@ -302,6 +303,9 @@ def completed_timeframe_candle_balance(history, timeframe, *, now):
     bars=history.get("bars")
     if not isinstance(bars, (list, tuple)) or len(bars) < 8:
         return None
+    # HIST-only recovery from a provable after-close suffix.
+    # Raw history remains unchanged; any interior gap still fails closed.
+    bars=historical_regular_session_bars(bars,timeframe)
     # Only the newest forming bar may be excluded; do not silently skip
     # malformed interior candles and manufacture a clean-looking sample.
     last=bars[-1]

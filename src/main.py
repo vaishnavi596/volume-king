@@ -12,6 +12,7 @@ from v3_disabled_legacy_broker import V3DisabledLegacyBroker
 from watchlist_policy import normalize_watchlists
 from analysis_quality import quality_check, agreement_detail
 from candle_retention import retain_candle_history, retain_last_filter_votes, valid_candle_history
+from historical_session_window import historical_regular_session_bars
 from refresh_policy import SUPER_FIVE_LOCAL_TICK_SECONDS
 from analysis_reports import AnalysisAudit, complete_filter_rows, presentation_result
 from five_engine import ContextualFiveEngineCache, scanner_snapshot, snapshot_for_display, option_from_component, option_chain_display_context, deduplicate_news_context, historical_candle_balance, completed_timeframe_candle_balance, independent_engine_source_contract
@@ -1267,6 +1268,7 @@ def app_main(page:ft.Page):
         raw=data.get("bars") or []
         if data.get("source")!="Dhan" or not isinstance(raw,list):
             return None
+        raw=historical_regular_session_bars(raw,tf)
         seconds=timeframe_spec(tf)["seconds"]
         now=datetime.now(timezone.utc).timestamp()
         completed=[bar for bar in raw if isinstance(bar,(list,tuple)) and len(bar)>=6
@@ -7259,11 +7261,12 @@ console.log('BOT KING Lightweight Charts ready');
             scan_last_candle[0]=advanced.get("timestamp")
             # Keep the actual completed-candle calculation distinct from live
             # eligibility. A closed market does not erase Friday's analysis.
-            historical=analyze(bars,selected=active_analysis_filters(),timeframe=interval)
+            historical_bars=historical_regular_session_bars(bars,interval)
+            historical=analyze(historical_bars,selected=active_analysis_filters(),timeframe=interval)
             history_valid=(hist.get("source")=="Dhan" and
-                           valid_candle_history(bars) and
-                           quality_check(bars,timeframe_spec(interval)["seconds"])["usable"] and
-                           historical.get("timestamp")==bars[-1][0] and
+                           valid_candle_history(historical_bars) and
+                           quality_check(historical_bars,timeframe_spec(interval)["seconds"])["usable"] and
+                           historical.get("timestamp")==historical_bars[-1][0] and
                            historical.get("count",0)>=30)
             if history_valid:
                 historical=dict(historical,source="Dhan",historical=True,
