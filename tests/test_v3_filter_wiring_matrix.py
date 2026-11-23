@@ -163,6 +163,16 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
         self.assertIn('result.get("count",0)>=30',block)
 
+    def test_scanner_doctor_disallows_foreign_timeframe_engine_evidence(self):
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        doctor=src.split("                scanner_sym=str(scan_symbol.value or",1)[1]
+        doctor=doctor.split("                sections={",1)[0]
+        self.assertIn('scanner_engine_5m_eligible=(scanner_tf=="5m"',doctor)
+        self.assertIn('and regular_hours())',doctor)
+        self.assertIn('if scanner_engine_5m_eligible else None)',doctor)
+        self.assertIn('if scanner_engine_5m_eligible else None)',doctor.split('raw=(next(',1)[1])
+        self.assertNotIn('if prefs.get("source")=="Dhan" and dhan_feed.connected else None)',doctor)
+
     def test_historical_3m_display_uses_exact_watch_cache_no_fanout(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
         block=src.split("    def five_engine_chips(",1)[1].split("    def super_five_card(",1)[0]
