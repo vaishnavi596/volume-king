@@ -2,6 +2,7 @@
 import asyncio
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import flet as ft
@@ -18,6 +19,15 @@ def text_values(root):
 
 
 class RemainingFilterBatchTests(unittest.TestCase):
+    def test_b3_completion_contract_prevents_hanging_mocked_sleep(self):
+        # Fast source guard: if the producer label changes, update the
+        # completion hook in the same change rather than hanging B3 for 30m.
+        source=(Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        self.assertIn('scan_progress["state"]="5m ranking complete"',source)
+        self.assertIn('if v["scan_progress"].get("state") == "5m ranking complete":',
+                      Path(__file__).read_text())
+        self.assertIn('if sleep_calls[0] > 100:',Path(__file__).read_text())
+
     def setup_app(self):
         return shared_runtime.SharedAnalysisRuntimeTests().setup_app()
 
