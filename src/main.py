@@ -4466,7 +4466,19 @@ def app_main(page:ft.Page):
     def backup_payload():
         allowed={k for _,k in field_bindings if k!="api_url"}
         allowed.update({"language","filter_modes","scanner_filters","scanner_added_filters","scanner_chart_indicators","scanner_chart_style","scanner_chart_visible","chart_provider","chart_views","last_page","page_scroll","option_strategy","paper_journal","paper_daily_limits","bot_position"})
-        return {"app":"BOT KING","schema":1,"data":{k:v for k,v in prefs.items() if k in allowed}}
+        data={k:v for k,v in prefs.items() if k in allowed}
+        # Defense in depth: never export the deleted standalone Max Pain slot,
+        # including when a stale legacy preference was injected this session.
+        for key in ("scanner_filters","scanner_added_filters"):
+            if isinstance(data.get(key),(list,tuple)):
+                data[key]=canonical_filter_selection(data[key])
+        if isinstance(data.get("filter_modes"),dict):
+            modes=dict(data["filter_modes"])
+            if "Max Pain" in modes:
+                modes.setdefault("Dhan Max Pain",modes["Max Pain"])
+                modes.pop("Max Pain",None)
+            data["filter_modes"]=modes
+        return {"app":"BOT KING","schema":1,"data":data}
     def export_backup(e=None):
         backup_text.value=json.dumps(backup_payload(),ensure_ascii=False,indent=2)
         backup_status.value="Backup prepared. Copy and save this text outside the app. Credentials/API endpoint excluded."
