@@ -42,6 +42,13 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     prior=previous if isinstance(previous,dict) else {}
     if new.get("source")!=provider or prior.get("source")!=provider:
         return dict(new)
+    # A complete or failed refresh cannot borrow a different explicit
+    # timeframe's candles. The short 2-4 bar merge gate alone is not enough:
+    # the ordinary last-good fallback below must enforce the same rule.
+    new_tf=new.get("_scanner_timeframe")
+    old_tf=prior.get("_scanner_timeframe")
+    if new_tf is not None and old_tf is not None and new_tf!=old_tf:
+        return dict(new)
     new_bars=new.get("bars")
     old_bars=prior.get("bars")
     if not _valid_bars(old_bars):
@@ -91,6 +98,12 @@ def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan
     new=dict(incoming) if isinstance(incoming,dict) else {}
     old=previous if isinstance(previous,dict) else {}
     if new.get("source")!=provider or old.get("source")!=provider:
+        return new
+    # A saved 5m directional ratio cannot become a 1m/3m HIST ratio merely
+    # because the filter names are identical.
+    new_tf=new.get("timeframe")
+    old_tf=old.get("timeframe")
+    if new_tf is not None and old_tf is not None and new_tf!=old_tf:
         return new
     votes=new.get("votes") or ()
     if not isinstance(votes, (list, tuple)):
