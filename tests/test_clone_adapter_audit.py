@@ -26,7 +26,12 @@ class CloneAdapterAudit(unittest.TestCase):
         market=block("    def dashboard_market_indices():","    def dashboard():")
         self.assertIn('defaults=("NIFTY","BANKNIFTY","SENSEX")',page)
         self.assertIn('shared_history(sym,"1m")',page)
-        self.assertIn('historical_vote_agreement(index_history,"1m")',market)
+        self.assertIn('dashboard_hist_agreement(index_name,index_history)',market)
+        self.assertIn('dashboard_hist_agreement(sym,candle_data)',page)
+        shared=block("    def dashboard_hist_agreement(sym,history):",
+                     "    def dashboard_index_analysis():")
+        self.assertIn('historical_vote_agreement(history,"1m")',shared)
+        self.assertIn('timeframe="1m"',shared)
         home=block("    def dashboard():","    search=ft.TextField(")
         self.assertIn("Dashboard index candles: 1m",home)
         self.assertIn("Scanner has independent timeframe",home)
