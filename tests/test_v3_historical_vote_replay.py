@@ -104,6 +104,34 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(replayed["orders_sent"],0)
         self.assertEqual(shifted[-4][0],original[-4][0]+1)
 
+    def test_only_thirteen_candle_filters_can_enter_technical_hist_vote(self):
+        # An integer in an RSS or option context row is not technical evidence.
+        filters=[
+            {"name":"MACD","vote":1},
+            {"name":"VWAP","vote":-1},
+            {"name":"News Headlines","vote":1},
+            {"name":"OI Support","vote":1},
+            {"name":"OI Resistance","vote":-1},
+            {"name":"OI Profile","vote":1},
+            {"name":"Dhan Max Pain","vote":-1}]
+        original=[dict(row) for row in filters]
+        result=replay(filter_rows=filters)
+        self.assertEqual(result["technical_vote"]["bullish"],50)
+        self.assertEqual(result["technical_vote"]["bearish"],50)
+        self.assertEqual(result["technical_vote"]["directional_count"],2)
+        self.assertEqual(result["boxes"][2]["state"],"WAIT")
+        self.assertEqual(result["boxes"][4]["state"],"WAIT")
+        self.assertEqual(filters,original)
+        self.assertEqual(result["orders_sent"],0)
+
+    def test_unknown_candle_filter_cannot_inject_direction(self):
+        result=replay(filter_rows=[
+            {"name":"MACD","vote":-1},
+            {"name":"INJECTED_CONTEXT_VOTE","vote":1}])
+        self.assertEqual(result["technical_vote"]["bullish"],0)
+        self.assertEqual(result["technical_vote"]["bearish"],100)
+        self.assertEqual(result["technical_vote"]["directional_count"],1)
+
     def test_forming_bar_excluded_without_promoting_old_technical_votes(self):
         arr=bars()
         before=[row[:] for row in arr]

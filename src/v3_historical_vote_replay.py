@@ -7,6 +7,7 @@ options directional flow abstain. No artificial votes or provider requests.
 from math import isfinite
 from five_engine import ENGINE_NAMES, historical_candle_balance, combine_evidence, EngineEvidence
 from historical_session_window import historical_regular_session_bars
+from filter_wiring_audit import CANDLE_FILTERS
 
 OPTION_CONTEXT={"OI Support","OI Resistance","OI Profile","Dhan Max Pain"}
 TIMEFRAMES={"1m":60,"3m":180,"5m":300}
@@ -104,7 +105,11 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
         if not isinstance(name,str) or not name or name in unique:
             raise ValueError("Duplicate or malformed computed filter")
         unique.add(name)
-        if name in OPTION_CONTEXT:
+        # Only the 13 candle-derived technical indicators belong to T.
+        # News headlines and four option-chain filters are separate evidence
+        # lanes and must never inflate a technical ratio, even if a cached or
+        # malformed adapter row happens to carry a directional integer.
+        if name not in CANDLE_FILTERS:
             continue
         vote=row.get("vote")
         if type(vote) is int and vote in (-1,0,1):
