@@ -1452,18 +1452,37 @@ def app_main(page:ft.Page):
                 offline_votes=(historical_vote_agreement(offline_history,"1m")
                                if display_timeframe=="1m" else
                                signal_percentages(watch_three_minute_signal(symbol)))
+                offline_candle=completed_timeframe_candle_balance(
+                    offline_history,display_timeframe,now=time.time())
+                parts=[]
                 if offline_votes and offline_votes[2]>0:
-                    return note("5 engines • OFFLINE • Technical HIST "+
-                                display_timeframe+" B"+str(round(offline_votes[0]))+
-                                "% / S"+str(round(offline_votes[1]))+
-                                "% • LIVE 0/5 verified • N/F/O WAIT")
+                    parts.append("Technical HIST "+display_timeframe+" B"+
+                                 str(round(offline_votes[0]))+"% / S"+
+                                 str(round(offline_votes[1]))+"%")
+                if offline_candle:
+                    parts.append("Candle HIST "+display_timeframe+" B"+
+                                 str(offline_candle["bullish"])+"% / S"+
+                                 str(offline_candle["bearish"])+"%")
+                if parts:
+                    return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
+                                " | ".join(parts)+
+                                " | N/F/O WAIT (independent evidence unavailable)")
             if prefs.get("source")=="Dhan" and display_timeframe in (None,"5m"):
                 last_votes=historical_five_minute_technical(symbol)
+                offline_5m=shared_history(symbol,"5m")
+                candle_5m=completed_timeframe_candle_balance(
+                    offline_5m,"5m",now=time.time())
+                parts=[]
                 if last_votes:
-                    return note("5 engines • OFFLINE • Technical HIST 5m B"+
-                                str(round(last_votes[0]))+"% / S"+
-                                str(round(last_votes[1]))+
-                                "% • LIVE 0/5 verified • C/N/F/O WAIT")
+                    parts.append("Technical HIST 5m B"+str(round(last_votes[0]))+
+                                 "% / S"+str(round(last_votes[1]))+"%")
+                if candle_5m:
+                    parts.append("Candle HIST 5m B"+str(candle_5m["bullish"])+
+                                 "% / S"+str(candle_5m["bearish"])+"%")
+                if parts:
+                    return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
+                                " | ".join(parts)+
+                                " | N/F/O WAIT (independent evidence unavailable)")
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
         snapshot=(read_five_engine_context(symbol,"5m")
