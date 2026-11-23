@@ -42,7 +42,9 @@ class DhanScanProgressTests(unittest.TestCase):
         source = SOURCE.read_text(encoding="utf-8")
         body = source.split("    def dashboard_index_analysis():", 1)[1].split("    def dashboard():", 1)[0]
         self.assertIn('shared_history(sym,"1m")', body)
-        self.assertIn('historical_vote_agreement(candle_data,"1m")', body)
+        self.assertIn('dashboard_hist_agreement(sym,candle_data)', body)
+        helper=source.split("    def dashboard_hist_agreement(sym,history):",1)[1].split("    def dashboard_index_analysis():",1)[0]
+        self.assertIn('historical_vote_agreement(history,"1m")',helper)
         self.assertIn('LTP last collected • ', body)
         self.assertIn('exchange timestamp unverified', body)
         self.assertNotIn('get_market_data(', body)

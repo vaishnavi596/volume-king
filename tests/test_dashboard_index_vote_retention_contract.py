@@ -25,7 +25,9 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         source = self.functions["dashboard_market_indices"]
         self.assertIn('("NIFTY", "BANKNIFTY", "SENSEX")', source)
         self.assertIn('shared_history(index_name,"1m")', source)
-        self.assertIn('historical_vote_agreement(index_history,"1m")', source)
+        self.assertIn('dashboard_hist_agreement(index_name,index_history)', source)
+        helper=self.functions["dashboard_hist_agreement"]
+        self.assertIn('historical_vote_agreement(history,"1m")', helper)
         self.assertIn('historical_vote_bar(index_agreement,"1m")', source)
 
     def test_incomplete_one_minute_does_not_borrow_five_minute_ranking(self):
@@ -38,7 +40,7 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
     def test_three_slot_dashboard_does_not_label_five_minute_as_one(self):
         source = self.functions["dashboard_index_analysis"]
         self.assertIn('shared_history(sym,"1m")', source)
-        self.assertIn('historical_vote_agreement(candle_data,"1m")', source)
+        self.assertIn('dashboard_hist_agreement(sym,candle_data)', source)
         self.assertIn('historical_vote_bar(agreement,"1m")', source)
         self.assertNotIn('display_analysis(sym,candle_data)', source)
 
