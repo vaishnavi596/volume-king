@@ -103,6 +103,46 @@ class CandleRetentionTests(unittest.TestCase):
         self.assertEqual(result["bars"],[])
         self.assertNotIn("_candle_retained",result)
 
+    def test_last_good_candles_reject_foreign_symbol_and_generation(self):
+        prior=dict(self.old,symbol="NIFTY",_scanner_timeframe="1m",
+                   _scanner_generation=5)
+        incoming={"source":"Dhan","symbol":"BANKNIFTY",
+                  "_scanner_timeframe":"1m","_scanner_generation":5,"bars":[]}
+        foreign=retain_candle_history(incoming,prior)
+        self.assertEqual(foreign["bars"],[])
+        self.assertFalse(foreign.get("_candle_retained",False))
+        stale=dict(incoming,symbol="NIFTY",_scanner_generation=6)
+        separated=retain_candle_history(stale,prior)
+        self.assertEqual(separated["bars"],[])
+        self.assertFalse(separated.get("_candle_retained",False))
+        # Genuine same-identity 429/partial fallback still keeps HIST bars.
+        same=dict(stale,_scanner_generation=5)
+        safe=retain_candle_history(same,prior)
+        self.assertEqual(safe["bars"],prior["bars"])
+        self.assertTrue(safe["_candle_retained"])
+        self.assertFalse(safe["live_verified"])
+
+    def test_last_good_votes_reject_foreign_symbol_and_generation(self):
+        from candle_retention import retain_last_filter_votes
+        prior={"source":"Dhan","symbol":"NIFTY","timeframe":"3m",
+               "_scanner_generation":5,"timestamp":1234.0,
+               "votes":[{"name":"EMA 9/21","vote":1}]}
+        current={"source":"Dhan","symbol":"BANKNIFTY","timeframe":"3m",
+                 "_scanner_generation":5,"votes":[]}
+        foreign=retain_last_filter_votes(
+            current,prior,selected_filters=["EMA 9/21"])
+        self.assertNotIn("_last_votes_retained",foreign)
+        shifted=dict(current,symbol="NIFTY",_scanner_generation=6)
+        wrong_generation=retain_last_filter_votes(
+            shifted,prior,selected_filters=["EMA 9/21"])
+        self.assertNotIn("_last_votes_retained",wrong_generation)
+        same=dict(shifted,_scanner_generation=5)
+        retained=retain_last_filter_votes(
+            same,prior,selected_filters=["EMA 9/21"])
+        self.assertTrue(retained["_last_votes_retained"])
+        self.assertEqual(retained["timeframe"],"3m")
+        self.assertFalse(retained["live_verified"])
+
     def test_cross_timeframe_last_filter_votes_never_transfer(self):
         from candle_retention import retain_last_filter_votes
         prior={"source":"Dhan","timeframe":"5m","timestamp":1234.0,
