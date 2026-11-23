@@ -1,0 +1,95 @@
+name: BOT KING V3 B196 Safe Manual Audit (No APK)
+run-name: V3 B196 exact-SHA audit • NO APK • ${{ inputs.source_sha }}
+# Registration is on default branch main, but the audit checks out ONLY the
+# selected V3 source commit. Never deploy, build APK, or touch production.
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Exact V3 source commit SHA (must have a successful B3 run)'
+        required: true
+        type: string
+        default: 'e18c87f21f2b1acdbd7aa7d27b6190c5d8c63090'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  v3-b196-audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+      TARGET_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Validate exact source SHA input
+        shell: bash
+        run: |
+          if [[ ! "$TARGET_SHA" =~ ^[a-fA-F0-9]{40}$ ]]; then
+            echo "INVALID_V3_SHA: require a full 40-character source SHA"
+            exit 1
+          fi
+      - name: Checkout only selected V3 source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Verify checked-out source SHA
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TARGET_SHA" || {
+            echo "V3_SHA_MISMATCH: checkout does not match requested source"
+            exit 1
+          }
+          echo "V3_EXACT_SOURCE_SHA=$actual"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require exact-source B3 Full Regression success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          repo=os.environ["GITHUB_REPOSITORY"]
+          sha=os.environ["TARGET_SHA"]
+          url=("https://api.github.com/repos/"+repo+
+               "/actions/workflows/clone-b3-full-regression.yml/runs?"+
+               urllib.parse.urlencode({"head_sha":sha,"per_page":100}))
+          request=urllib.request.Request(url,headers={
+              "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+              "Accept":"application/vnd.github+json",
+              "X-GitHub-Api-Version":"2022-11-28"})
+          with urllib.request.urlopen(request,timeout=20) as response:
+              runs=json.load(response).get("workflow_runs",[])
+          matching=[r for r in runs if r.get("head_sha")==sha and
+                    r.get("conclusion")=="success" and
+                    r.get("status")=="completed"]
+          if not matching:
+              raise SystemExit("B3_EXACT_SHA_NOT_VERIFIED: "+sha)
+          print("B3_EXACT_SHA_VERIFIED=PASS run_id="+str(matching[0]["id"]))
+          PY
+      - name: Verify B196 Dhan-only joint source and syntax contracts
+        run: |
+          python - <<'PY'
+          import ast,pathlib,re,tomllib
+          version=tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",version), "Invalid V3 version"
+          for file in ("src/main.py","tests/test_market_feed.py",
+                       "tests/test_monitoring_audit.py","tests/test_five_engine.py"):
+              ast.parse(pathlib.Path(file).read_text(),filename=file)
+          source=pathlib.Path("src/main.py").read_text()
+          for literal in (
+              'if prefs.get("source")!="Dhan":',
+              'prefs["source"]="Dhan"',
+              'if source.value!="Dhan":source.value="Dhan"',
+              'if selected!="Dhan":',
+              'V3 Dhan-only provider required',
+              'read_five_engine_context(sym,"5m")',
+          ):
+              assert literal in source, "V3_REQUIRED_SOURCE_CONTRACT_MISSING: "+literal
+          assert 'five_engine_snapshots[sym]=scanner_snapshot(' not in source, "OLD_SYMBOL_ONLY_CACHE_PRESENT"
+          print("V3_B196_SOURCE_AND_SYNTAX=PASS")
+          PY
+      - name: Confirm audit gate outcome
+        run: echo "V3_B196_AUDIT=PASS_ON_VERIFIED_SOURCE_ONLY • NO_APK"
