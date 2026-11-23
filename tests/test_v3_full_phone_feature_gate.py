@@ -12,9 +12,14 @@ class TestSinglePhoneFeatureAudit(unittest.TestCase):
     def test_full_source_compiles(self):
         for name,text in (("main",MAIN),("probe",PROBE),("doctor",DOCTOR)):
             with self.subTest(file=name):ast.parse(text)
-    def test_real_phone_probe_has_both_user_buttons(self):
-        self.assertIn('TEST 54 (51+3)',MAIN)
-        self.assertIn('TEST 70 SHARES (+3 indices)',MAIN)
+    def test_real_phone_probe_has_one_active_max_70_button(self):
+        # One diagnostic pass: actual selected unique equities, capped at 70.
+        # Three indices are counted separately, not as equity slots.
+        self.assertIn('TEST ACTIVE • MAX 70 EQUITIES (+3 INDICES)',MAIN)
+        self.assertIn('async def run_cached_test(e):',MAIN)
+        self.assertIn('count=len(chosen)',MAIN)
+        self.assertNotIn('ft.OutlinedButton("TEST 54',MAIN)
+        self.assertNotIn('ft.OutlinedButton("TEST 70 SHARES',MAIN)
         self.assertIn('asyncio.to_thread(benchmark_cached_capacity',MAIN)
         self.assertIn('stock_diagnostic_registry.reconcile(',MAIN)
     def test_one_pass_live_feature_inventory(self):
