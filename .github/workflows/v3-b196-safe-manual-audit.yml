@@ -1,5 +1,5 @@
 name: BOT KING V3 B196 Safe Manual Audit (No APK)
-run-name: V3 B196 exact-SHA audit • NO APK • ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }}
+run-name: V3 B196 exact-SHA audit • NO APK • ${{ inputs.source_sha || '8bac377dccc41fa3605fc85f26edc039f44c0257' }}
 # Registration is on default branch main, but the audit checks out ONLY the
 # selected V3 source commit. Never deploy, build APK, or touch production.
 on:
@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONPATH: src
-      TARGET_SHA: ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }}
+      TARGET_SHA: ${{ inputs.source_sha || '8bac377dccc41fa3605fc85f26edc039f44c0257' }}
     steps:
       - name: Validate exact source SHA input
         shell: bash
@@ -34,7 +34,7 @@ jobs:
       - name: Checkout only selected V3 source SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_sha || '5e76e63a92847919ae9e4110c911250b0dc593d5' }}
+          ref: ${{ inputs.source_sha || '8bac377dccc41fa3605fc85f26edc039f44c0257' }}
           persist-credentials: false
       - name: Verify checked-out source SHA
         shell: bash
