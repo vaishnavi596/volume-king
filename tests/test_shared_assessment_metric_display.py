@@ -25,7 +25,7 @@ class AssessmentMetricDisplayTests(unittest.TestCase):
                     lines = assessment_lines("NIFTY", cached_assessment(key, invalid), now=110)
                     label = next(line for line in lines if line.startswith({
                         "oi_support": "OI Support:", "oi_resistance": "OI Resistance:",
-                        "max_pain": "Max Pain:", "pcr": "PCR:"}[key]))
+                        "max_pain": "Dhan Max Pain:", "pcr": "PCR:"}[key]))
                     self.assertTrue(label.endswith("WAIT"), label)
 
     def test_positive_context_is_not_trading_signal(self):
