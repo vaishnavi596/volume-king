@@ -10,6 +10,32 @@ from filter_wiring_audit import filter_wiring_matrix, diagnostic_candle_readines
 
 
 class V3FilterWiringTests(unittest.TestCase):
+    def test_standalone_max_pain_removed_from_saved_filters_and_backup(self):
+        from scanner_engine import canonical_filter_selection, ALL_FILTERS
+        self.assertNotIn("Max Pain",ALL_FILTERS)
+        self.assertEqual(ALL_FILTERS.count("Dhan Max Pain"),1)
+        self.assertEqual(canonical_filter_selection([
+            "RSI 14","Max Pain","Dhan Max Pain","Max Pain","OI Support"]),
+            ["RSI 14","Dhan Max Pain","OI Support"])
+        self.assertEqual(canonical_filter_selection(["Max Pain"]),["Dhan Max Pain"])
+        self.assertEqual(canonical_filter_selection(["Dhan Max Pain"]),
+                         ["Dhan Max Pain"])
+        self.assertEqual(canonical_filter_selection(["obsolete","Max Pain",None]),
+                         ["Dhan Max Pain"])
+        self.assertEqual(canonical_filter_selection(None),[])
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        # Startup purges legacy identity and persists it before display;
+        # legacy backups normalize rather than resurrect a second series.
+        self.assertIn('clean=canonical_filter_selection(previous)',src)
+        self.assertIn('if legacy_filter_changed:',src)
+        self.assertIn('target[:]=canonical_filter_selection(values)',src)
+        self.assertIn('if name=="Max Pain":name="Dhan Max Pain"',src)
+        self.assertIn('save()\n    MAX_ACTIVE_FILTERS=',src)
+        # No independent standalone label/caption is registered for display.
+        self.assertEqual([name for name in ALL_FILTERS
+                          if name.casefold()=="max pain"],[])
+        self.assertIn('"Dhan Max Pain"',src)
+
     def test_registry_exactly_eighteen_unique(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(set(ALL_FILTERS)),18)
