@@ -98,9 +98,16 @@ class RemainingFilterBatchTests(unittest.TestCase):
                         "fetched_at": time.time(), "candle_fetched_at": time.time(),
                         "freshness": "unverified", "live_verified": False}
             return {"items": [], "status": "No headlines"}
+        # The 5m ranking completion message is explicitly scoped, not the
+        # selected 1m Scanner status. Bound mocked sleeps so a future label
+        # change cannot spin this test until the 30-minute CI timeout.
+        sleep_calls = [0]
         async def stop_after_complete(delay):
-            if v["scan_progress"].get("state") == "Complete":
+            sleep_calls[0] += 1
+            if v["scan_progress"].get("state") == "5m ranking complete":
                 raise asyncio.CancelledError()
+            if sleep_calls[0] > 100:
+                raise AssertionError("5m ranking did not reach completion; fail fast")
         with patch("asyncio.to_thread", side_effect=fake_io), \
              patch("asyncio.sleep", side_effect=stop_after_complete), \
              patch.object(v["dhan_feed"], "_call", side_effect=AssertionError("HTTP forbidden")):
