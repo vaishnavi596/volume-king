@@ -29,6 +29,12 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         generated=[1]
         cache={}
         calls=[]
+        published=[]
+        def publish_five_engine_historical(sym,tf,result):
+            # Real publisher is tested separately; this harness only checks
+            # that the completed 3m analysis reaches its cache handoff.
+            published.append((sym,tf,dict(result)))
+            return True
         now=time.time()
         bars=history if history is not None else {}
         def quality(rows,seconds,now=None):
@@ -49,7 +55,9 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
                "shared_history":lambda sym,tf:bars,"time":time,"math":math,
                "quality_check":quality,"analyze":analyze,
                "signal_percentages":percentages,"retain_last_filter_votes":retain_last_filter_votes,
-               "log_error":lambda label,exc:calls.append("error")}
+               "log_error":lambda label,exc:calls.append("error"),
+               "publish_five_engine_historical":publish_five_engine_historical,
+               "published_historical":published}
         exec(compile(FUNCTION,str(ROOT/"src"/"main.py"),"exec"),scope)
         return scope,calls
 
@@ -147,6 +155,13 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         self.assertTrue(row["historical"])
         self.assertFalse(row["live_verified"])
         self.assertIn("analyze",calls)
+        self.assertNotIn("error",calls)
+        self.assertEqual(len(scope["published_historical"]),1)
+        symbol,tf,snapshot=scope["published_historical"][0]
+        self.assertEqual((symbol,tf),("RELIANCE","3m"))
+        self.assertEqual(snapshot["votes"],new_votes)
+        self.assertTrue(snapshot["historical"])
+        self.assertFalse(snapshot["live_verified"])
 
 
 if __name__=="__main__":
