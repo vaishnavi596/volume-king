@@ -4996,12 +4996,18 @@ def app_main(page:ft.Page):
                 scanner_calc=sum(type(row.get("vote")) is int and
                                  row.get("vote") in (-1,0,1) for row in scanner_rows)
                 from five_engine import snapshot_for_display
+                # The shared publisher is 5m and symbol-only. Never count
+                # its evidence as Scanner 1m/3m (or closed-session) VERIFIED.
+                scanner_engine_5m_eligible=(scanner_tf=="5m"
+                    and prefs.get("source")=="Dhan" and dhan_feed.connected
+                    and regular_hours())
                 snap=(snapshot_for_display(five_engine_snapshots.get(scanner_sym),now=now)
-                      if prefs.get("source")=="Dhan" and dhan_feed.connected else None)
+                      if scanner_engine_5m_eligible else None)
                 engine_rows=[]
                 for name in ("technical","candle","news","futures","options"):
                     raw=(next((row for row in (five_engine_snapshots.get(scanner_sym) or {}).get("engines",())
-                               if getattr(row,"name",None)==name),None))
+                               if getattr(row,"name",None)==name),None)
+                         if scanner_engine_5m_eligible else None)
                     shown=(next((row for row in snap["engines"] if row.name==name),None)
                            if snap else None)
                     disp=shown.display() if shown else {}
