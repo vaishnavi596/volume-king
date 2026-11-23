@@ -5112,10 +5112,18 @@ def app_main(page:ft.Page):
                 scanner_data=shared_history(scanner_sym,scanner_tf)
                 scanner_bars=scanner_data.get("bars") or []
                 scanner_valid=bool(scanner_bars and valid_candle_history(scanner_bars))
+                # Master and B178/B147 must calculate from the same exact
+                # completed historical cash-session window as Dashboard.
+                # Original provider bars remain untouched for provenance review.
+                scanner_hist_bars=(historical_regular_session_bars(scanner_bars,scanner_tf)
+                    if scanner_data.get("source")=="Dhan"
+                    and scanner_data.get("_scanner_timeframe")==scanner_tf
+                    else scanner_bars)
+                scanner_hist_result=(analyze(scanner_hist_bars,
+                    selected=active_analysis_filters(),timeframe=scanner_tf)
+                    if scanner_valid and scanner_hist_bars else {"votes":[]})
                 scanner_rows=complete_filter_rows(
-                    analyze(scanner_bars,selected=active_analysis_filters(),
-                            timeframe=scanner_tf) if scanner_valid else {"votes":[]},
-                    filter_names,filter_modes)
+                    scanner_hist_result,filter_names,filter_modes)
                 scanner_rows=enrich_context_filter_rows(scanner_sym,scanner_rows)
                 non_directional=sum(row.get("name") in OPTION_FILTERS and
                     row.get("vote") is None and "unverified" in str(row.get("detail",""))
