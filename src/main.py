@@ -7454,7 +7454,10 @@ console.log('BOT KING Lightweight Charts ready');
             historical=analyze(historical_bars,selected=active_analysis_filters(),timeframe=interval)
             history_valid=(hist.get("source")=="Dhan" and
                            valid_candle_history(historical_bars) and
-                           quality_check(historical_bars,timeframe_spec(interval)["seconds"])["usable"] and
+                           # HIST quality is relative to the last completed session bar.
+                           # Current wall-clock staleness remains a separate LIVE gate.
+                           quality_check(historical_bars,timeframe_spec(interval)["seconds"],
+                                         now=historical_bars[-1][0]+timeframe_spec(interval)["seconds"])["usable"] and
                            historical.get("timestamp")==historical_bars[-1][0] and
                            historical.get("count",0)>=30)
             if history_valid:
