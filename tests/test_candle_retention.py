@@ -69,8 +69,14 @@ class CandleRetentionTests(unittest.TestCase):
         prior=dict(self.old,_scanner_timeframe="1m")
         cross=retain_candle_history({"source":"Dhan","bars":latest,
             "_scanner_timeframe":"3m"},prior)
-        self.assertEqual(cross["bars"],prior["bars"])
+        self.assertEqual(cross["bars"],latest)
+        self.assertFalse(cross.get("_candle_retained",False))
         self.assertFalse(cross.get("_candle_partial_revised",False))
+        # Even an empty response cannot borrow the other timeframe's bars.
+        empty=retain_candle_history({"source":"Dhan","bars":[],
+            "_scanner_timeframe":"3m"},prior)
+        self.assertEqual(empty["bars"],[])
+        self.assertFalse(empty.get("_candle_retained",False))
         gap=[list(self.old["bars"][-4]),list(self.old["bars"][-1])]
         result=retain_candle_history({"source":"Dhan","bars":gap},self.old)
         self.assertFalse(result.get("_candle_partial_revised",False))
@@ -95,6 +101,39 @@ class CandleRetentionTests(unittest.TestCase):
         broken=dict(self.old,bars=[[1,100,105,95,101,1000]])
         result=retain_candle_history({"source":"Dhan","bars":[]},broken)
         self.assertEqual(result["bars"],[])
+        self.assertNotIn("_candle_retained",result)
+
+    def test_cross_timeframe_last_filter_votes_never_transfer(self):
+        from candle_retention import retain_last_filter_votes
+        prior={"source":"Dhan","timeframe":"5m","timestamp":1234.0,
+               "votes":[{"name":"EMA 9/21","vote":1}],
+               "historical":True}
+        for tf in ("1m","3m"):
+            with self.subTest(tf=tf):
+                new={"source":"Dhan","timeframe":tf,"votes":[]}
+                result=retain_last_filter_votes(
+                    new,prior,selected_filters=["EMA 9/21"])
+                self.assertEqual(result["votes"],[])
+                self.assertNotIn("_last_votes_retained",result)
+                self.assertIsNone(result.get("timestamp"))
+        same=retain_last_filter_votes(
+            {"source":"Dhan","timeframe":"5m","votes":[]},
+            prior,selected_filters=["EMA 9/21"])
+        self.assertTrue(same["_last_votes_retained"])
+        self.assertTrue(same["historical"])
+        self.assertFalse(same["live_verified"])
+
+    def test_cross_timeframe_complete_history_never_relabels_bars(self):
+        old=dict(self.old,_scanner_timeframe="5m")
+        fresh={"source":"Dhan","_scanner_timeframe":"1m",
+               "bars":candles(2000,40)}
+        result=retain_candle_history(fresh,old)
+        self.assertEqual(result["bars"],fresh["bars"])
+        self.assertNotIn("_candle_retained",result)
+        short={"source":"Dhan","_scanner_timeframe":"1m",
+               "bars":candles(2000,3)}
+        result=retain_candle_history(short,old)
+        self.assertEqual(result["bars"],short["bars"])
         self.assertNotIn("_candle_retained",result)
 
     def test_malformed_incoming_votes_do_not_crash_retention(self):
