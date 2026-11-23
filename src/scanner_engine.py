@@ -7,6 +7,24 @@ DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
 OPTION_FILTERS = ["OI Support", "OI Resistance", "OI Profile", "Dhan Max Pain"]
 ALL_FILTERS = DEFAULT_FILTERS + OPTION_FILTERS + ["SMA 5/20", "Volume", "ATR 14", "News Headlines"]
 
+def canonical_filter_selection(saved):
+    """One-way legacy migration: keep Dhan Max Pain, never a second Max Pain.
+
+    Works on local saved selections/backups only. The broker's internal
+    max_pain metric stays unchanged because Dhan Max Pain uses that value.
+    Unknown labels cannot enter the Scanner registry.
+    """
+    if not isinstance(saved, (list, tuple)):
+        return []
+    result = []
+    for name in saved:
+        if name == "Max Pain":
+            name = "Dhan Max Pain"
+        if isinstance(name, str) and name in ALL_FILTERS and name not in result:
+            result.append(name)
+    return result
+
+
 def ema(values, period):
     out = []
     alpha = 2.0 / (period + 1)
