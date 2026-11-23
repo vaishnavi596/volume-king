@@ -361,7 +361,8 @@ class V3FilterWiringTests(unittest.TestCase):
                and node.name=="filter_five_diagnostic_panel"]
         self.assertEqual(len(nodes),1)
         block=ast.get_source_segment(src,nodes[0])
-        self.assertIn("diagnostic_candle_readiness(history,tf,now=time.time())",block)
+        self.assertIn("observation_time=time.time()",block)
+        self.assertIn("diagnostic_candle_readiness(history,tf,now=observation_time)",block)
         self.assertIn('selected_candle_readiness',block)
         self.assertIn('doctor_filter_rows(filter_rows,wiring_matrix)',block)
         self.assertIn('has_recent_news_context(news_context,now=time.time())',block)
