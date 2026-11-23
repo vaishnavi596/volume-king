@@ -1,28 +1,8 @@
 name: BOT KING V3 B196 Offline Regression Preflight (No APK)
 run-name: V3 Joint Index 429 + Six Box Full Audit • NO APK
+# B3 already runs full offline regression for every src/tests push.
+# Keep this extended B196 audit on-demand to avoid duplicate CI on every commit.
 on:
-  push:
-    branches:
-      - pilot/v1-pure-original-clone-phone-20261120
-    paths:
-      - .github/workflows/v3-b196-regression-preflight.yml
-      # Runtime and filter-wiring changes must run this existing NO-APK gate.
-      - src/main.py
-      - src/analysis_quality.py
-      - src/filter_wiring_audit.py
-      - src/scanner_engine.py
-      - tests/test_v3_filter_wiring_matrix.py
-      - tests/test_v3_visible_watchlist_bootstrap_priority.py
-      - tests/test_v3_watchlist_5_34_70_capacity.py
-      - tests/test_v3_watchlist_quote_elapsed_diagnostic.py
-      - tests/test_v3_index_five_box_joint_contract.py
-      - tests/test_v3_joint_foundation_gate.py
-      - tests/test_a3_dashboard_dhan_regressions.py
-      - tests/test_b1_five_engine_dhan_shared_option.py
-      - tests/test_five_engine.py
-      - tests/test_candle_historical_display.py
-      - ops/v3_clone_quote_pacing_guarded_20261122.sh
-      - tests/test_v3_clone_quote_pacing_deploy_safety.py
   workflow_dispatch:
 permissions:
   contents: read
