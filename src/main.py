@@ -4622,12 +4622,17 @@ def app_main(page:ft.Page):
                 candle_stage=diagnostic_candle_readiness(history,tf,now=observation_time)
                 interval_seconds={"1m":60,"2m":120,"3m":180,"5m":300,
                                   "10m":600,"15m":900,"30m":1800}.get(tf)
-                completed_bars=([bar for bar in bars
+                # Read the SAME trailing after-close HIST-safe window as the
+                # dashboard and Scanner. Never alter the original broker cache.
+                diagnostic_bars=(historical_regular_session_bars(bars,tf)
+                    if history.get("source")=="Dhan" and
+                    history.get("_scanner_timeframe")==tf else bars)
+                completed_bars=([bar for bar in diagnostic_bars
                     if isinstance(bar,(list,tuple)) and len(bar)>=6
                     and type(bar[0]) in (int,float) and math.isfinite(bar[0])
                     and interval_seconds and 0<bar[0]
                     and bar[0]+interval_seconds<=observation_time]
-                    if isinstance(bars,(list,tuple)) else [])
+                    if isinstance(diagnostic_bars,(list,tuple)) else [])
                 if (candle_stage=="READY_FOR_QUALITY_AND_CALCULATION"
                         and valid_candle_history(completed_bars)):
                     result=analyze(completed_bars,selected=active_analysis_filters(),
@@ -5716,9 +5721,17 @@ def app_main(page:ft.Page):
                 selected_bars=selected_history.get("bars") if isinstance(selected_history,dict) else None
                 from scanner_engine import analyze as diagnostic_analyze
                 diagnostic_filter_rows=complete_filter_rows
-                diagnostic_analysis=(diagnostic_analyze(selected_bars,
+                # B147 must report the same validated historical calculation
+                # as Dashboard and B178, not a raw after-close phantom WAIT.
+                diagnostic_hist_bars=(historical_regular_session_bars(
+                    selected_bars,diagnostic_tf)
+                    if isinstance(selected_history,dict)
+                    and selected_history.get("source")=="Dhan"
+                    and selected_history.get("_scanner_timeframe")==diagnostic_tf
+                    else selected_bars)
+                diagnostic_analysis=(diagnostic_analyze(diagnostic_hist_bars,
                     selected=active_analysis_filters(),timeframe=diagnostic_tf)
-                    if selected_bars and diagnostic_tf in scanner_intervals
+                    if diagnostic_hist_bars and diagnostic_tf in scanner_intervals
                     else {"reason":"Selected timeframe candles unavailable","votes":[]})
                 diagnostic_rows=enrich_context_filter_rows(diagnostic_symbol,
                     diagnostic_filter_rows(diagnostic_analysis,filter_selected,filter_modes))
