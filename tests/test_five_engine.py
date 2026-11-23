@@ -764,6 +764,59 @@ class FiveEngineHistoricalTimeframePublishContract(unittest.TestCase):
                                     for row in shown["engines"]))
 
 
+class FiveEngineCompletedCandleDisplayContract(unittest.TestCase):
+    def test_exact_frame_and_completed_candle_hist_only(self):
+        from five_engine import completed_timeframe_candle_balance
+        start=1800000000
+        for tf,seconds in (("1m",60),("3m",180),("5m",300)):
+            with self.subTest(timeframe=tf):
+                bars=[[start+i*seconds,100,103,99,102,12] for i in range(8)]
+                history={"source":"Dhan","_scanner_timeframe":tf,"bars":bars}
+                now=start+8*seconds
+                shown=completed_timeframe_candle_balance(history,tf,now=now)
+                self.assertIsNotNone(shown)
+                self.assertTrue(shown["historical"])
+                self.assertFalse(shown["verified"])
+                self.assertEqual((shown["bullish"],shown["bearish"]),(100,0))
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    history,tf,now=start+7*seconds))
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    dict(history,_scanner_timeframe="5m" if tf!="5m" else "1m"),
+                    tf,now=now))
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    dict(history,source="Yahoo Finance"),tf,now=now))
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    dict(history,bars=bars[:6]),tf,now=now))
+                # A forming ninth candle cannot distort the valid final eight.
+                partial=bars+[[now,100,103,99,99,12]]
+                self.assertEqual(completed_timeframe_candle_balance(
+                    dict(history,bars=partial),tf,now=now),shown)
+                broken=[list(x) for x in bars]
+                broken[4][0]+=seconds/2
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    dict(history,bars=broken),tf,now=now))
+                malformed=[list(x) for x in bars]
+                malformed[3][5]=-1
+                self.assertIsNone(completed_timeframe_candle_balance(
+                    dict(history,bars=malformed),tf,now=now))
+
+    def test_all_three_five_box_display_paths_share_validated_hist_helper(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        selected=[node for node in ast.walk(tree) if isinstance(node,ast.FunctionDef)
+                  and node.name in ("five_engine_summary","five_engine_chips")]
+        self.assertEqual(len(selected),2)
+        counts={}
+        for node in selected:
+            calls=[n for n in ast.walk(node) if isinstance(n,ast.Call)
+                   and isinstance(n.func,ast.Name)
+                   and n.func.id=="completed_timeframe_candle_balance"]
+            counts[node.name]=len(calls)
+        self.assertEqual(counts,{"five_engine_summary":2,"five_engine_chips":1})
+
+
 class FiveEngineMainContextWiringContract(unittest.TestCase):
     def test_legacy_5m_publisher_mirrored_and_main_display_reads_context(self):
         from pathlib import Path
