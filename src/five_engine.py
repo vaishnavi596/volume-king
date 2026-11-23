@@ -308,16 +308,28 @@ def completed_timeframe_candle_balance(history, timeframe, *, now):
     if (not isinstance(last, (list, tuple)) or len(last) < 6 or
             type(last[0]) not in (int, float) or not isfinite(last[0])):
         return None
-    completed=bars if last[0]+seconds <= now else bars[:-1]
+    forming=last[0]+seconds > now
+    if forming:
+        # Exclude only the legitimate current interval. A future-dated or
+        # jumped final timestamp is invalid, not a forming candle to skip.
+        if (len(bars)<9 or last[0]>now or
+                not isinstance(bars[-2], (list, tuple)) or
+                len(bars[-2])<6 or type(bars[-2][0]) not in (int,float)
+                or not isfinite(bars[-2][0]) or
+                last[0]-bars[-2][0]!=seconds):
+            return None
+    completed=bars[:-1] if forming else bars
     if len(completed) < 8:
         return None
     sample=completed[-8:]
     for index, bar in enumerate(sample):
         if (not isinstance(bar, (list, tuple)) or len(bar) < 6 or
-                type(bar[0]) not in (int, float) or not isfinite(bar[0])
-                or bar[0]+seconds > now
-                or type(bar[5]) not in (int, float) or
-                not isfinite(bar[5]) or bar[5] < 0):
+                any(type(v) not in (int,float) or not isfinite(v)
+                    for v in bar[:6])
+                or min(bar[:5])<=0 or bar[5]<0
+                or bar[2]<max(bar[1],bar[4])
+                or bar[3]>min(bar[1],bar[4]) or bar[3]>bar[2]
+                or bar[0]+seconds>now):
             return None
         if index and bar[0]-sample[index-1][0] != seconds:
             return None
