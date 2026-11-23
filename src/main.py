@@ -5094,7 +5094,7 @@ def app_main(page:ft.Page):
                 for name in ("technical","candle","news","futures","options"):
                     raw=(next((row for row in (five_engine_snapshots.get(scanner_sym) or {}).get("engines",())
                                if getattr(row,"name",None)==name),None)
-                         if scanner_engine_5m_eligible else None)
+                         if scanner_tf=="5m" and scanner_engine_frame_eligible else None)
                     shown=(next((row for row in snap["engines"] if row.name==name),None)
                            if snap else None)
                     disp=shown.display() if shown else {}
