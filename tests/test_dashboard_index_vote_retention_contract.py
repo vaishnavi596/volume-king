@@ -65,7 +65,7 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         for body in (summary,chips):
             self.assertIn('("NIFTY","BANKNIFTY","SENSEX")',body)
             self.assertIn('else "5m"',body)
-            self.assertIn("historical_candle_balance",body)
+            self.assertIn("completed_timeframe_candle_balance",body)
         self.assertIn('if not historical and display_timeframe=="1m":',chips)
         self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
         self.assertIn('if not historical and display_timeframe=="3m":',chips)
