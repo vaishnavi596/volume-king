@@ -5678,9 +5678,8 @@ def app_main(page:ft.Page):
                 from v3_historical_vote_replay import historical_vote_replay
                 master_historical_replay=historical_vote_replay(
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
-                    source=(scanner_history.get("source")
-                            if isinstance(scanner_history,dict) else None),
-                    bars=scanner_bars,filter_rows=scanner_rows)
+                    source=scanner_data.get("source"),
+                    bars=scanner_hist_bars,filter_rows=scanner_rows)
                 dashboard_bar_errors=dashboard_bar_monitor.report(
                     generation=generation)
                 report_data={
