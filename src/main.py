@@ -5021,6 +5021,22 @@ def app_main(page:ft.Page):
                     {"box":row["box"],"status":"WAIT","stage":row["stage"],
                      "detail":row["reason"]} for row in engines
                     if row["status"]=="WAIT")
+                # Five independent end-to-end source paths, cached HIST and
+                # exact last missing LIVE endpoint. No provider I/O.
+                from five_engine_endpoint_doctor import five_engine_endpoint_diagnostic
+                endpoint_doctor=five_engine_endpoint_diagnostic(
+                    symbol=symbol,timeframe=tf,generation=generation,
+                    technical_calculated=len(computed),
+                    technical_total=sum(name not in OPTION_FILTERS for name in names),
+                    historical_technical_votes=(historical_vote_agreement(history,tf) or (0,0,0))[2],
+                    historical_candle_directional=(
+                        last_bodies["up"]+last_bodies["down"]),
+                    news_headline_count=len(headline_items),
+                    option_context_present=bool(option_context),
+                    snapshots_present=bool(exact_published_snapshot),
+                    market_open=regular_hours(),
+                    exchange_timestamp_verified=False,
+                    raw_dhan_candles_verified=False)
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5031,6 +5047,7 @@ def app_main(page:ft.Page):
                     "five_boxes":engines,
                     "stage_context":diagnostic_context,
                     "cache_to_display_trace":pipeline_trace,
+                    "five_engine_endpoint_doctor":endpoint_doctor,
                     "errors_only":errors,
                     "unavailable_evidence":unavailable_evidence,
                     "index_route_diagnostic":{
@@ -5571,6 +5588,24 @@ def app_main(page:ft.Page):
                         "solution":"Audit each engine freshness, source and measured directional strength separately; show HIST/WAIT without fabricated live percentages",
                         "confidence":"CODE_AND_CACHE_CONFIRMED"})
                 chosen=str(selected.value or "ALL")
+                from five_engine_endpoint_doctor import five_engine_endpoint_diagnostic
+                master_endpoint_doctor=five_engine_endpoint_diagnostic(
+                    symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
+                    technical_calculated=scanner_calc,
+                    technical_total=sum(name not in OPTION_FILTERS for name in filter_names),
+                    historical_technical_votes=sum(
+                        row.get("vote") in (-1,1) and type(row.get("vote")) is int
+                        for row in scanner_rows),
+                    historical_candle_directional=sum(
+                        isinstance(c,(list,tuple)) and len(c)>=5
+                        and type(c[1]) in (int,float) and type(c[4]) in (int,float)
+                        and c[4]!=c[1] for c in scanner_bars[-8:]),
+                    news_headline_count=len((news_cache.get(scanner_sym) or {}).get("items") or []),
+                    option_context_present=bool(matching_option_context_for_symbol(scanner_sym)),
+                    snapshots_present=bool(contextual_five_engine.peek(
+                        symbol=scanner_sym,timeframe=scanner_tf,generation=generation)),
+                    market_open=regular_hours(),
+                    exchange_timestamp_verified=False,raw_dhan_candles_verified=False)
                 report_data={
                     "test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5578,6 +5613,7 @@ def app_main(page:ft.Page):
                     "segment":chosen,
                     "segment_count":len(sections),
                     "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
+                    "five_engine_endpoint_doctor":master_endpoint_doctor,
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
