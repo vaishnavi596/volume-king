@@ -103,6 +103,25 @@ class CandleRetentionTests(unittest.TestCase):
         self.assertEqual(result["bars"],[])
         self.assertNotIn("_candle_retained",result)
 
+    def test_explicit_timeframe_never_borrows_untagged_legacy_candles(self):
+        # Legacy phone cache may have valid but unknown 5m bars; it cannot
+        # serve a new explicit 1m/3m request after a missing Dhan refresh.
+        for tf in ("1m", "3m", "5m"):
+            with self.subTest(timeframe=tf):
+                fresh={"source":"Dhan", "_scanner_timeframe":tf,
+                       "bars":[], "candle_fetched_at":0}
+                result=retain_candle_history(fresh,self.old)
+                self.assertEqual(result["bars"],[])
+                self.assertNotIn("_candle_retained",result)
+                self.assertNotIn("_candle_partial_revised",result)
+        # Valid matching-tag last-good history continues to work normally.
+        prior=dict(self.old,_scanner_timeframe="3m")
+        fresh={"source":"Dhan","_scanner_timeframe":"3m","bars":[]}
+        result=retain_candle_history(fresh,prior)
+        self.assertEqual(result["bars"],prior["bars"])
+        self.assertTrue(result["_candle_retained"])
+        self.assertFalse(result["live_verified"])
+
     def test_cross_timeframe_last_filter_votes_never_transfer(self):
         from candle_retention import retain_last_filter_votes
         prior={"source":"Dhan","timeframe":"5m","timestamp":1234.0,
