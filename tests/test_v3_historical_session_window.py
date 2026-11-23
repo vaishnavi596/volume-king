@@ -36,7 +36,8 @@ class HistoricalSessionTests(unittest.TestCase):
     def test_no_borrowing_previous_day(self):
         rows=[bar(14,m) for m in range(50,60)]+[bar(15,m) for m in range(30)]
         tomorrow=bar(18,56);tomorrow[0]+=86400
-        self.assertIs(historical_regular_session_bars(rows+[tomorrow],"1m"),rows+[tomorrow])
+        input_rows=rows+[tomorrow]
+        self.assertIs(historical_regular_session_bars(input_rows,"1m"),input_rows)
     def test_interior_gap_still_waits(self):
         rows=[bar(14,m) for m in range(20,50) if m!=42]+[bar(15,m) for m in range(15)]+[bar(15,34)]
         clean=historical_regular_session_bars(rows,"1m")
