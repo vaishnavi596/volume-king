@@ -160,7 +160,32 @@ jobs:
           export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-b202-preview-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.202'\n" > src/_build_version.py
+          # Build-only version stamping: source stays pinned to B3+B196 PASS.
+          # Runtime UI, Python package metadata and Android manifest must agree.
+          python - <<'PY'
+          from pathlib import Path
+          import ast, tomllib
+          version="2.3.202"
+          metadata=Path("pyproject.toml")
+          original=metadata.read_text(encoding="utf-8")
+          prior='version = "2.3.200"'
+          assert original.count(prior)==1, "SOURCE_PROJECT_VERSION_CHANGED"
+          metadata.write_text(original.replace(prior, f'version = "{version}"',1),encoding="utf-8")
+          assert tomllib.loads(metadata.read_text(encoding="utf-8"))["project"]["version"]==version
+          main=Path("src/main.py")
+          body=main.read_text(encoding="utf-8")
+          marker='    pass\nfrom pathlib import Path\n'
+          assert body.count(marker)==1, "VERSION_OVERRIDE_ANCHOR_CHANGED"
+          body=body.replace(marker,
+              '    pass\n# Preview APK display version always follows its verified build stamp.\n'
+              'if "BUILD_VERSION" in globals() and BUILD_VERSION:\n'
+              '    APP_VERSION = BUILD_VERSION\nfrom pathlib import Path\n',1)
+          ast.parse(body,filename="src/main.py")
+          assert body.count('APP_VERSION = BUILD_VERSION')==2
+          main.write_text(body,encoding="utf-8")
+          Path("src/_build_version.py").write_text(f'BUILD_VERSION = "{version}"\n',encoding="utf-8")
+          print("B202_VERSION_SYNC=PASS Android=202 Python="+version+" UI="+version)
+          PY
           mkdir -p "$GITHUB_WORKSPACE/dist/v3-b202-preview"
           flet build apk --project bot_king_v3_b202_preview --org com.botking.v3b202 --product "BOT KING V3 B202 PREVIEW" --build-number 202 --build-version 2.3.202 --output "$GITHUB_WORKSPACE/dist/v3-b202-preview" --verbose
       - name: Apply isolated preview signer explicitly (never accept Flet debug signer)
