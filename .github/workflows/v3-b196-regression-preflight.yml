@@ -6,6 +6,12 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-b196-regression-preflight.yml
+      # Runtime and filter-wiring changes must run this existing NO-APK gate.
+      - src/main.py
+      - src/analysis_quality.py
+      - src/filter_wiring_audit.py
+      - src/scanner_engine.py
+      - tests/test_v3_filter_wiring_matrix.py
       - tests/test_v3_visible_watchlist_bootstrap_priority.py
       - tests/test_v3_watchlist_5_34_70_capacity.py
       - tests/test_v3_watchlist_quote_elapsed_diagnostic.py
