@@ -87,6 +87,36 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn("Max Pain",saved["filter_modes"])
         self.assertEqual(namespace["backup_payload"](),exported)
 
+    def test_shared_assessment_has_only_dhan_max_pain_captions(self):
+        """Same canonical caption for full Scanner and compact Watchlist."""
+        from shared_assessment_ui import assessment_lines, compact_assessment_summary
+        filters=[{"id":name,"status":"unavailable","reason":"not_configured"}
+                 for name in ("oi_support","oi_resistance","max_pain","pcr",
+                              "candle_trend")]
+        filters[2]={"id":"max_pain","status":"available","value":25000}
+        factors={kind:{"status":"unavailable"} for kind in
+                 ("news","futures","options","candle")}
+        data={"symbol":"NIFTY","source":"dhan","freshness":"unverified",
+              "live_orders_enabled":False,"signal_eligible":False,
+              "assessment_filters":filters,"factors":factors}
+        lines=assessment_lines("NIFTY",{"NIFTY":{"fetched":90,
+                "data":data}},now=100)
+        self.assertEqual(len([line for line in lines if
+                              line.startswith("Dhan Max Pain: ")]),1)
+        self.assertFalse(any(line.startswith("Max Pain: ") for line in lines))
+        self.assertIn("Dhan Max Pain: 25,000.00",lines)
+        compact=compact_assessment_summary(lines)
+        self.assertIn("1 context / 4 WAIT",compact)
+        self.assertNotIn("incomplete assessment",compact)
+        self.assertEqual(len([line for line in lines if line=="Filter 6: "]),1)
+        self.assertFalse(data["signal_eligible"])
+        # Corrupt assessment must retain the WAIT fail-closed contract.
+        broken=dict(data,source="Yahoo")
+        denied=assessment_lines("NIFTY",{"NIFTY":{"fetched":90,
+                "data":broken}},now=100)
+        self.assertTrue(all("WAIT" in line for line in denied))
+        self.assertFalse(any("Max Pain: " in line for line in denied))
+
     def test_registry_exactly_eighteen_unique(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(set(ALL_FILTERS)),18)
