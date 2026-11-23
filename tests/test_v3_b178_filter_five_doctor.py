@@ -20,7 +20,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('names=list(filter_selected)',panel)
         self.assertIn('complete_filter_rows(result,names,filter_modes)',panel)
         self.assertIn('enrich_context_filter_rows(symbol,',panel)
-        self.assertIn('snapshot_for_display(five_engine_snapshots.get(symbol)',panel)
+        self.assertIn('read_five_engine_context(symbol,"5m")',panel)
         for name in ('technical','candle','news','futures','options'):
             self.assertIn('"'+name+'"',panel)
         self.assertIn('"errors_only":errors',panel)
@@ -51,7 +51,9 @@ class FilterFiveDoctorContract(unittest.TestCase):
                          '"index_route_diagnostic"', '"cooldown_seconds"',
                          '"last_attempt_same_generation"', '"worker_busy"'):
             self.assertIn(expected,panel)
-        self.assertIn('raw_snapshot=five_engine_snapshots.get(symbol)',panel)
+        self.assertIn('raw_snapshot=(five_engine_snapshots.get(symbol)',panel)
+        self.assertIn('if tf=="5m" and prefs.get("source")=="Dhan"',panel)
+        self.assertIn('"NO_EXACT_TIMEFRAME_ENGINE_PUBLISHER"',panel)
         self.assertIn('now_for_evidence=time.time()',panel)
         for token in ('"failure_code":index_failure_code[0]',
                       '"last_eight_candle_ohlc_diagnostics"',

@@ -4630,7 +4630,7 @@ def app_main(page:ft.Page):
                     "analysis_uses_exact_timeframe":str(history.get("_scanner_timeframe"))==tf if isinstance(history,dict) else False,
                     "analysis_reason":cause,
                     "selected_candle_readiness":candle_stage,
-                    "engine_snapshot_present":symbol in five_engine_snapshots,
+                    "engine_snapshot_present":(tf=="5m" and symbol in five_engine_snapshots),
                     "provider_connected":bool(dhan_feed.connected),
                 }
                 option_context=matching_option_context_for_symbol(symbol)
@@ -4719,7 +4719,10 @@ def app_main(page:ft.Page):
                     diagnostic_context["candle_quality_flags"] else
                     "NO_LOCAL_QUALITY_REVIEW_FLAG; LIVE_SOURCE_STILL_UNVERIFIED")
                 engines=[]
-                raw_snapshot=five_engine_snapshots.get(symbol)
+                # Legacy 5m raw metadata is not evidence for the selected 1m/3m.
+                raw_snapshot=(five_engine_snapshots.get(symbol)
+                              if tf=="5m" and prefs.get("source")=="Dhan"
+                              and dhan_feed.connected and regular_hours() else None)
                 raw_engine_rows=raw_snapshot.get("engines",()) if isinstance(raw_snapshot,dict) else ()
                 now_for_evidence=time.time()
                 for name,short in (("technical","T"),("candle","C"),("news","N"),
@@ -4733,7 +4736,8 @@ def app_main(page:ft.Page):
                     raw_verified=getattr(raw_item,"verified",False) is True
                     evidence_age=(round(now_for_evidence-raw_stamp,1)
                         if type(raw_stamp) in (int,float) and math.isfinite(raw_stamp) else None)
-                    freshness_issue=("NO_SOURCE_SNAPSHOT" if raw_item is None else
+                    freshness_issue=("NO_EXACT_TIMEFRAME_ENGINE_PUBLISHER" if tf!="5m" else
+                        "NO_SOURCE_SNAPSHOT" if raw_item is None else
                         "UNVERIFIED_EVIDENCE" if not raw_verified else
                         "SOURCE_MISMATCH" if raw_source!="Dhan" else
                         "TIMESTAMP_MISSING" if evidence_age is None else
@@ -4819,7 +4823,9 @@ def app_main(page:ft.Page):
                              history.get("_scanner_timeframe")==tf)
                 computed=[row for row in filter_rows
                           if row["status"] in ("BULLISH","BEARISH","NEUTRAL")]
-                prepared_snapshot=five_engine_snapshots.get(symbol)
+                prepared_snapshot=(five_engine_snapshots.get(symbol)
+                                   if tf=="5m" and prefs.get("source")=="Dhan"
+                                   and dhan_feed.connected and regular_hours() else None)
                 display_ready=sum(row.get("bullish_percent") is not None for row in engines)
                 dashboard_tf="1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"
                 pipeline_trace=[

@@ -26,7 +26,7 @@ class SensexFullDiagnosticB143(unittest.TestCase):
         self.assertIn('"orders_sent":0',p)
         self.assertNotIn("asyncio.to_thread(",p)
         self.assertNotIn("dhan_feed.quote(",p)
-        self.assertIn('snapshot_for_display(',p)
+        self.assertIn('read_five_engine_context(symbol,"5m")',p)
 
     def test_five_box_percentages_fail_closed(self):
         p=self.app.split("    def filter_five_diagnostic_panel():",1)[1].split(

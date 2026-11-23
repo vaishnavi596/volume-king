@@ -161,6 +161,8 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn('candle_provenance_diagnostic(history)',block)
         self.assertIn('"candle_provenance_verdict":provenance',block)
         self.assertIn('tf=="5m" and prefs.get("source")=="Dhan"',block)
+        self.assertIn('"engine_snapshot_present":(tf=="5m" and symbol in five_engine_snapshots)',block)
+        self.assertIn('prepared_snapshot=(five_engine_snapshots.get(symbol)',block)
         self.assertIn('result.get("count",0)>=30',block)
 
     def test_scanner_doctor_disallows_foreign_timeframe_engine_evidence(self):
