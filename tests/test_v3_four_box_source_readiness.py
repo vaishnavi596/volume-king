@@ -1,0 +1,80 @@
+"""B178/master four-box ingress visibility cannot invent provider proof."""
+import pathlib
+import sys
+import unittest
+from datetime import datetime, timezone, timedelta
+
+ROOT=pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/"src"))
+from v3_four_box_source_readiness import four_box_source_readiness
+
+IST=timezone(timedelta(hours=5,minutes=30))
+
+
+def history(tf="1m"):
+    seconds={"1m":60,"3m":180,"5m":300}[tf]
+    start=int(datetime(2026,11,23,9,15,tzinfo=IST).timestamp())
+    return dict(source="Dhan",_scanner_timeframe=tf,
+                bars=[[start+i*seconds,100,103,99,101,300+i] for i in range(40)])
+
+
+class FourBoxSourceContracts(unittest.TestCase):
+    def test_exact_frame_c_has_real_hist_and_nfo_only_context(self):
+        h=history()
+        last=h["bars"][-1][0]+60
+        x=four_box_source_readiness(
+            symbol="NIFTY",timeframe="1m",generation=3,history=h,
+            news_cache={"items":[{"title":"One"}]},
+            futures_cache=dict(source="Dhan",underlying="NIFTY",
+                               mapping_verified=True,contract="NIFTY-FUT"),
+            option_context=dict(source="dhan",symbol="NIFTY",
+                                expiry="2026-11-26",signal_eligible=False),
+            now=last)
+        self.assertTrue(x["box_sources"]["C"]["historical_direction_available"])
+        self.assertEqual(x["box_sources"]["C"]["historical_bullish"],100)
+        for name in ("N","F","O"):
+            self.assertTrue(x["box_sources"][name]["cache_present"])
+            self.assertFalse(x["box_sources"][name]["historical_direction_available"])
+            self.assertFalse(x["box_sources"][name]["live_direction_verified"])
+        self.assertEqual(x["live_vote_count"],0)
+        self.assertEqual(x["provider_requests"],0)
+        self.assertEqual(x["orders_sent"],0)
+
+    def test_cross_timeframe_and_expiry_context_fails_closed(self):
+        h=history("1m")
+        now=h["bars"][-1][0]+60
+        x=four_box_source_readiness(
+            symbol="BANKNIFTY",timeframe="3m",generation=3,history=h,
+            news_cache={"items":[1,2]},
+            futures_cache=dict(source="Dhan",underlying="NIFTY",
+                               mapping_verified=True,contract="NIFTY-FUT"),
+            option_context=dict(source="dhan",symbol="NIFTY",expiry="2026-11-26",
+                                signal_eligible=False),now=now)
+        self.assertFalse(x["box_sources"]["C"]["cache_present"])
+        self.assertEqual(x["box_sources"]["C"]["blocker"],
+                         "EXACT_FRAME_DHAN_CANDLES_MISSING")
+        self.assertFalse(x["box_sources"]["F"]["cache_present"])
+        self.assertFalse(x["box_sources"]["O"]["cache_present"])
+        self.assertFalse(x["box_sources"]["N"]["historical_direction_available"])
+
+    def test_real_cached_all_doji_is_wait_not_bearish(self):
+        h=history()
+        for row in h["bars"][-8:]:
+            row[4]=row[1]
+        x=four_box_source_readiness(
+            symbol="NIFTY",timeframe="1m",generation=3,history=h,
+            now=h["bars"][-1][0]+60)
+        self.assertIsNone(x["box_sources"]["C"]["historical_bullish"])
+        self.assertEqual(x["box_sources"]["C"]["blocker"],
+                         "HIST_CANDLE_DIRECTION_OR_SPACING_NOT_READY")
+        self.assertEqual(x["live_vote_count"],0)
+
+    def test_doctor_bridges_both_paths_without_adding_provider_requests(self):
+        text=(ROOT/"src"/"main.py").read_text()
+        self.assertIn('"four_box_source_readiness":four_box_readiness',text)
+        self.assertIn('"four_box_source_readiness":master_four_box_readiness',text)
+        self.assertIn('from v3_four_box_source_readiness import four_box_source_readiness',text)
+
+
+if __name__=="__main__":
+    unittest.main()

@@ -5120,6 +5120,12 @@ def app_main(page:ft.Page):
                     # Pre-trimmed input falsely reported zero removed rows.
                     source=history.get("source"),bars=bars,
                     filter_rows=rows)
+                from v3_four_box_source_readiness import four_box_source_readiness
+                four_box_readiness=four_box_source_readiness(
+                    symbol=symbol,timeframe=tf,generation=generation,
+                    history=history,news_cache=news_context,
+                    # No genuine verified directional futures producer is connected.
+                    futures_cache=None,option_context=option_context,now=time.time())
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5132,6 +5138,7 @@ def app_main(page:ft.Page):
                     "cache_to_display_trace":pipeline_trace,
                     "five_engine_endpoint_doctor":endpoint_doctor,
                     "calculation_to_vote_trace":vote_trace,
+                    "four_box_source_readiness":four_box_readiness,
                     "historical_vote_replay":historical_replay,
                     "voting_policy_self_test":simulated_conflict_policy_matrix(),
                     "errors_only":errors,
@@ -5702,6 +5709,15 @@ def app_main(page:ft.Page):
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                     source=scanner_data.get("source"),
                     bars=scanner_hist_bars,filter_rows=scanner_rows)
+                from v3_four_box_source_readiness import four_box_source_readiness
+                with news_lock:
+                    master_news_context=dict(news_cache.get(scanner_sym) or {})
+                master_four_box_readiness=four_box_source_readiness(
+                    symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
+                    history=scanner_data,news_cache=master_news_context,
+                    futures_cache=None,
+                    option_context=matching_option_context_for_symbol(scanner_sym),
+                    now=time.time())
                 dashboard_bar_errors=dashboard_bar_monitor.report(
                     generation=generation)
                 report_data={
@@ -5713,6 +5729,7 @@ def app_main(page:ft.Page):
                     "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
                     "five_engine_endpoint_doctor":master_endpoint_doctor,
                     "calculation_to_vote_trace":master_vote_trace,
+                    "four_box_source_readiness":master_four_box_readiness,
                     "historical_vote_replay":master_historical_replay,
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "root_cause_and_solution":remedies if chosen=="ALL" else
