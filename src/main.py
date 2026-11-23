@@ -4608,7 +4608,7 @@ def app_main(page:ft.Page):
                                             "detail":"Selected filter missing from diagnostic rows"})
                 # The publisher is symbol-only 5m. Never report it as a
                 # verified 1m/3m engine in the selected Doctor context.
-                snap=(snapshot_for_display(five_engine_snapshots.get(symbol),now=time.time())
+                snap=(read_five_engine_context(symbol,"5m")
                       if tf=="5m" and prefs.get("source")=="Dhan"
                       and dhan_feed.connected and regular_hours() else None)
                 # Separate healthy calculation, missing input and evidence policy:
@@ -5018,7 +5018,7 @@ def app_main(page:ft.Page):
                 scanner_engine_5m_eligible=(scanner_tf=="5m"
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and regular_hours())
-                snap=(snapshot_for_display(five_engine_snapshots.get(scanner_sym),now=now)
+                snap=(read_five_engine_context(scanner_sym,"5m")
                       if scanner_engine_5m_eligible else None)
                 engine_rows=[]
                 for name in ("technical","candle","news","futures","options"):

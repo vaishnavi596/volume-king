@@ -168,6 +168,7 @@ class V3FilterWiringTests(unittest.TestCase):
         doctor=src.split("                scanner_sym=str(scan_symbol.value or",1)[1]
         doctor=doctor.split("                sections={",1)[0]
         self.assertIn('scanner_engine_5m_eligible=(scanner_tf=="5m"',doctor)
+        self.assertIn('read_five_engine_context(scanner_sym,"5m")',doctor)
         self.assertIn('and regular_hours())',doctor)
         self.assertIn('if scanner_engine_5m_eligible else None)',doctor)
         self.assertIn('if scanner_engine_5m_eligible else None)',doctor.split('raw=(next(',1)[1])
