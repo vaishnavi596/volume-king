@@ -84,7 +84,7 @@ else
   echo "STAGING_DISK_FREE_GE_1G=UNVERIFIED"
   fail=1
 fi
-# Never curl Dhan, print environment, inspect credential contents, or mutate files.
+# No outbound Dhan requests, environment dump, credential inspection, or file mutation.
 echo "PROVIDER_REQUESTS_SENT=0"
 echo "ORDERS_SENT=0"
 echo "FILES_WRITTEN=0"
