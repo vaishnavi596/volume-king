@@ -648,7 +648,8 @@ class FiveEngineNonFiveMinuteSnapshotSafety(unittest.TestCase):
         end = source.index("    def ", start + 5)
         function = source[start:end]
         self.assertIn('display_timeframe is None or display_timeframe=="5m"', function)
-        self.assertIn('snapshot_for_display(five_engine_snapshots.get(sym)', function)
+        self.assertIn('read_five_engine_context(sym,"5m")', function)
+        self.assertIn('ContextualFiveEngineCache()', source)
 
 class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
     def test_scanner_details_use_scanner_timeframe(self):
@@ -684,6 +685,21 @@ class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
         self.assertNotIn('context=[five_engine_chips(instrument),', source)
 
 if __name__=="__main__":unittest.main()
+
+
+class FiveEngineMainContextWiringContract(unittest.TestCase):
+    def test_legacy_5m_publisher_mirrored_and_main_display_reads_context(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        self.assertIn('contextual_five_engine=ContextualFiveEngineCache()',source)
+        self.assertIn('contextual_five_engine.publish(',source)
+        self.assertIn('contextual_five_engine.read(',source)
+        self.assertIn('symbol=sym,timeframe="5m",generation=provider_generation[0]',source)
+        self.assertIn('read_five_engine_context(symbol,"5m")',source)
+        self.assertIn('read_five_engine_context(sym,"5m")',source)
+        self.assertIn('contextual_five_engine.clear()',source)
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),4)
+        self.assertNotIn('five_engine_snapshots[sym]=scanner_snapshot(',source)
 
 
 class ContextualFiveEngineCacheContract(unittest.TestCase):
