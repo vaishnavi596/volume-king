@@ -4865,6 +4865,9 @@ def app_main(page:ft.Page):
                               and all(type(v) in (int,float) and math.isfinite(v)
                                       for v in c[:6])]
                 diagnostic_context["last_eight_raw_ohlcv"]=quality_rows
+                from v3_candle_source_review import inspect_candle_tail
+                diagnostic_context["source_quality_review"]=inspect_candle_tail(
+                    bars,timeframe=tf)
                 # Exact eight-bar nonzero constant-volume pattern is unusual
                 # enough to review, but NOT proof of source corruption.
                 quality_timestamps=[int(c[0]) for c in quality_rows]
