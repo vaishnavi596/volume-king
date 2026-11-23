@@ -42,6 +42,15 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     prior=previous if isinstance(previous,dict) else {}
     if new.get("source")!=provider or prior.get("source")!=provider:
         return dict(new)
+    # Last-good history is instrument- and session-scoped, not just provider-
+    # scoped. Check explicit identifiers without guessing absent legacy tags.
+    if (new.get("symbol") is not None and prior.get("symbol") is not None
+            and new["symbol"]!=prior["symbol"]):
+        return dict(new)
+    if (new.get("_scanner_generation") is not None
+            and prior.get("_scanner_generation") is not None
+            and new["_scanner_generation"]!=prior["_scanner_generation"]):
+        return dict(new)
     # A complete or failed refresh cannot borrow a different explicit
     # timeframe's candles. The short 2-4 bar merge gate alone is not enough:
     # the ordinary last-good fallback below must enforce the same rule.
@@ -98,6 +107,15 @@ def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan
     new=dict(incoming) if isinstance(incoming,dict) else {}
     old=previous if isinstance(previous,dict) else {}
     if new.get("source")!=provider or old.get("source")!=provider:
+        return new
+    # Do not transfer yesterday's/another instrument's vote context when
+    # explicitly identified; an absent legacy identity is not proof of match.
+    if (new.get("symbol") is not None and old.get("symbol") is not None
+            and new["symbol"]!=old["symbol"]):
+        return new
+    if (new.get("_scanner_generation") is not None
+            and old.get("_scanner_generation") is not None
+            and new["_scanner_generation"]!=old["_scanner_generation"]):
         return new
     # A saved 5m directional ratio cannot become a 1m/3m HIST ratio merely
     # because the filter names are identical.
