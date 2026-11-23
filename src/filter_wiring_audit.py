@@ -143,7 +143,8 @@ def option_filter_context_readiness(data, *, symbol, now, window_available=False
     result={name:False for name in OPTION_FILTERS}
     if (not isinstance(data,dict) or data.get("source")!="dhan"
             or not isinstance(symbol,str) or not symbol
-            or data.get("symbol")!=symbol or data.get("signal_eligible") is not False
+            or data.get("symbol")!=symbol or data.get("freshness")!="unverified"
+            or data.get("signal_eligible") is not False
             or type(now) not in (int,float) or not isfinite(now) or now<=0):
         return result
     expiry=data.get("expiry")
