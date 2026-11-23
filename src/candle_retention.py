@@ -103,7 +103,9 @@ def retain_last_filter_votes(incoming,previous,*,selected_filters,provider="Dhan
     # because the filter names are identical.
     new_tf=new.get("timeframe")
     old_tf=old.get("timeframe")
-    if new_tf is not None and old_tf is not None and new_tf!=old_tf:
+    # A new explicitly tagged result must never inherit untagged legacy votes:
+    # their timeframe cannot be proven to match this analysis.
+    if new_tf is not None and (old_tf is None or new_tf!=old_tf):
         return new
     votes=new.get("votes") or ()
     if not isinstance(votes, (list, tuple)):
