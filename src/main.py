@@ -1548,10 +1548,63 @@ def app_main(page:ft.Page):
         return ft.ExpansionTile(title=note("5 engines • "+str(combined["coverage"])+"/5 verified • overall "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
+    def ensure_cached_historical_engine_publish(sym, tf):
+        """Publish a validated exact-frame HIST snapshot from existing cache.
+
+        Dashboard/Watchlist may display valid HIST without invoking Run Scan.
+        The five-engine publisher must see that *same* historical technical
+        result. No broker request, LIVE proof, or cross-frame substitution.
+        """
+        if tf not in ("1m","3m") or prefs.get("source")!="Dhan":
+            return False
+        history=shared_history(sym,tf)
+        if (not isinstance(history,dict) or history.get("source")!="Dhan"
+                or history.get("_scanner_timeframe")!=tf):
+            return False
+        original=history.get("bars")
+        if not isinstance(original,(list,tuple)) or not original:
+            return False
+        historical_bars=historical_regular_session_bars(original,tf)
+        seconds=timeframe_spec(tf)["seconds"]
+        now=time.time()
+        completed=[bar for bar in historical_bars
+                   if isinstance(bar,(list,tuple)) and len(bar)>=6
+                   and type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                   and bar[0]+seconds<=now]
+        if not valid_candle_history(completed):
+            return False
+        quality=quality_check(completed,seconds,
+                              now=completed[-1][0]+seconds)
+        if not quality.get("usable"):
+            return False
+        timestamp=completed[-1][0]
+        existing=contextual_five_engine.peek(
+            symbol=sym,timeframe=tf,generation=provider_generation[0])
+        if existing:
+            technical=next((e for e in existing.get("engines",())
+                            if getattr(e,"name",None)=="technical"),None)
+            if technical and technical.timestamp==timestamp:
+                return True
+        selected=[name for name in filter_selected
+                  if filter_modes.get(name,"Analysis")!="Chart"]
+        result=analyze(quality["bars"],selected,tf)
+        if (result.get("timestamp")!=timestamp
+                or result.get("count",0)<30
+                or not signal_percentages(result)):
+            return False
+        return publish_five_engine_historical(sym,tf,dict(
+            result,source="Dhan",symbol=sym,timeframe=tf,
+            historical=True,live_verified=False,
+            freshness="historical_unverified"))
+
     def five_engine_chips(sym, display_timeframe=None):
         """Five independent evidence slots; percentages only when justified."""
         names=(("technical","T"),("candle","C"),("news","N"),
                ("futures","F"),("options","O"))
+        # Normal UI hydration, not Doctor: publish existing exact-frame HIST
+        # once so a closed market does not depend on a manual Run Scan.
+        if display_timeframe in ("1m","3m") and prefs.get("source")=="Dhan":
+            ensure_cached_historical_engine_publish(sym,display_timeframe)
         # Shared five-engine publisher currently uses 5m scanner/ranking results.
         # Do not display its symbol-only snapshot as verified 1m/3m evidence.
         # Per-timeframe historical context below stays explicitly HIST.
