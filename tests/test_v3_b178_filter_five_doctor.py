@@ -147,7 +147,14 @@ class FilterFiveDoctorContract(unittest.TestCase):
         self.assertIn('"Dhan Max Pain"',engine)
         self.assertIn('"Dhan Max Pain"',catalog)
         self.assertNotIn('"Max Pain"',engine)
-        self.assertNotIn('"Max Pain"',catalog)
+        # Standalone Max Pain must be absent from the active registry;
+        # the literal stays ONLY to migrate old saved settings one-way.
+        from scanner_engine import ALL_FILTERS, canonical_filter_selection
+        self.assertNotIn("Max Pain",ALL_FILTERS)
+        self.assertEqual(ALL_FILTERS.count("Dhan Max Pain"),1)
+        self.assertEqual(canonical_filter_selection(
+            ["Max Pain","Dhan Max Pain","Max Pain"]),["Dhan Max Pain"])
+        self.assertIn('name == "Max Pain"',catalog)
         for removed_label in ('OI / PCR / Max Pain:',
                               'OI / PCR / MAX PAIN • INFORMATION ONLY',
                               'OI Profile and Max Pain can be selected',
