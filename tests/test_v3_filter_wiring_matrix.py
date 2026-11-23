@@ -71,7 +71,7 @@ class V3FilterWiringTests(unittest.TestCase):
         from datetime import datetime,timezone
         now=datetime(2026,11,22,tzinfo=timezone.utc).timestamp()
         data={"source":"dhan","symbol":"NIFTY","expiry":"2026-11-26",
-              "signal_eligible":False,"max_pain":25000}
+              "freshness":"unverified","signal_eligible":False,"max_pain":25000}
         ready=option_filter_context_readiness(data,symbol="NIFTY",
             now=now,window_available=False)
         self.assertTrue(ready["Dhan Max Pain"])
@@ -105,6 +105,12 @@ class V3FilterWiringTests(unittest.TestCase):
         nonbroker=option_filter_context_readiness(dict(data,source="other"),
             symbol="NIFTY",now=now,window_context=valid_window)
         self.assertFalse(any(nonbroker.values()))
+        # No asserted provenance means no OI readiness, even for positive max pain.
+        for incomplete in (dict(data,freshness="stale"),dict(data,freshness=None),
+                           {k:v for k,v in data.items() if k!="freshness"}):
+            self.assertFalse(any(option_filter_context_readiness(
+                incomplete,symbol="NIFTY",now=now,
+                window_context=valid_window).values()))
         matrix=filter_wiring_matrix(["OI Support","Dhan Max Pain"],[],
             options_context=ready)
         self.assertEqual([row["state"] for row in matrix],
@@ -153,6 +159,8 @@ class V3FilterWiringTests(unittest.TestCase):
             dict(metrics,expiry="2026-11-19"),
             dict(metrics,source="Yahoo"),
             dict(metrics,signal_eligible=True),
+            dict(metrics,freshness="stale"),
+            {k:v for k,v in metrics.items() if k!="freshness"},
         )
         for bad in invalids:
             with self.subTest(cause=str(bad.get("source"))+" / "+str(bad.get("expiry"))):
