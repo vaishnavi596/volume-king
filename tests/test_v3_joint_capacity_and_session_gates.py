@@ -138,8 +138,9 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         helper=source.split("    def historical_five_minute_technical(",1)[1].split("    def five_engine_summary(",1)[0]
         summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
         self.assertIn('saved=watch_signal_cache.get(symbol) or {}',helper)
-        self.assertIn('saved.get("timeframe")!="5m"',helper)
-        self.assertIn('saved.get("source")!="Dhan"',helper)
+        self.assertIn('saved.get("timeframe")=="5m"',helper)
+        self.assertIn('saved.get("source")=="Dhan"',helper)
+        self.assertIn('historical_vote_agreement(shared_history(symbol,"5m"),"5m")',helper)
         self.assertIn('counts=signal_percentages(saved)',helper)
         self.assertIn('historical_five_minute_technical(symbol)',summary)
         self.assertIn('"5 engines • OFFLINE • Technical HIST 5m B"',summary)
