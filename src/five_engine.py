@@ -284,6 +284,46 @@ def historical_candle_balance(bars, *, sample_size=8):
             "historical": True, "verified": False, "count": directional}
 
 
+
+def completed_timeframe_candle_balance(history, timeframe, *, now):
+    """Read-only HIST context for an exact Dhan timeframe and completed bars.
+
+    Never turn the currently forming candle into a vote or relabel 5m as 1m/3m.
+    The validated result is display-only, NOT independent/live engine evidence.
+    """
+    if timeframe not in ("1m", "3m", "5m") or not isinstance(history, dict):
+        return None
+    if (history.get("source") != "Dhan" or
+            history.get("_scanner_timeframe", "5m") != timeframe):
+        return None
+    if type(now) not in (int, float) or not isfinite(now) or now <= 0:
+        return None
+    seconds={"1m":60, "3m":180, "5m":300}[timeframe]
+    bars=history.get("bars")
+    if not isinstance(bars, (list, tuple)) or len(bars) < 8:
+        return None
+    # Only the newest forming bar may be excluded; do not silently skip
+    # malformed interior candles and manufacture a clean-looking sample.
+    last=bars[-1]
+    if (not isinstance(last, (list, tuple)) or len(last) < 6 or
+            type(last[0]) not in (int, float) or not isfinite(last[0])):
+        return None
+    completed=bars if last[0]+seconds <= now else bars[:-1]
+    if len(completed) < 8:
+        return None
+    sample=completed[-8:]
+    for index, bar in enumerate(sample):
+        if (not isinstance(bar, (list, tuple)) or len(bar) < 6 or
+                type(bar[0]) not in (int, float) or not isfinite(bar[0])
+                or bar[0]+seconds > now
+                or type(bar[5]) not in (int, float) or
+                not isfinite(bar[5]) or bar[5] < 0):
+            return None
+        if index and bar[0]-sample[index-1][0] != seconds:
+            return None
+    return historical_candle_balance(sample)
+
+
 def measured_directional_evidence(name, component, *, required_basis):
     """Accept only measured, authenticated Dhan directional percentages.
 
