@@ -48,5 +48,6 @@ class HistoricalFallbackTests(unittest.TestCase):
         self.assertIn("dashboard_last_good=LastGoodHistoricalAgreement()",s)
         self.assertIn("dashboard_hist_agreement(sym,candle_data)",s)
         self.assertIn("dashboard_hist_agreement(index_name,index_history)",s)
+        self.assertIn('("Dhan" if prefs.get("source")=="Dhan" else None)',s)
 
 if __name__=="__main__":unittest.main()

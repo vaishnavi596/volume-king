@@ -1793,7 +1793,11 @@ def app_main(page:ft.Page):
                                if filter_modes.get(name,"Analysis")!="Chart"))
         return dashboard_last_good.resolve(
             symbol=sym,timeframe="1m",generation=provider_generation[0],
-            source=history.get("source"),filter_signature=signature,
+            # Missing transient cache can reuse only an earlier exact-key HIST.
+            # A real mismatched provider label is never accepted.
+            source=(history.get("source") or
+                    ("Dhan" if prefs.get("source")=="Dhan" else None)),
+            filter_signature=signature,
             calculated=fresh,source_candle_time=stamp)
     def dashboard_index_analysis():
         panels=[]
