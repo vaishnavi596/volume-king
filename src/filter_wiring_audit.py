@@ -74,9 +74,17 @@ def diagnostic_candle_readiness(history, timeframe, *, now):
     last=bars[-1]
     if not isinstance(last,(list,tuple)) or len(last)<6 or type(last[0]) not in (int,float) or not isfinite(last[0]):
         return "CANDLE_INVALID_TIMESTAMP"
+    # The current forming bar must not invalidate older *completed* bars.
+    # Do not accept malformed or future observations as proof of readiness.
+    completed=sum(1 for bar in bars
+                  if isinstance(bar,(list,tuple)) and len(bar)>=6
+                  and type(bar[0]) in (int,float) and isfinite(bar[0])
+                  and 0<bar[0] and bar[0]+seconds<=now)
+    if completed>=30:
+        return "READY_FOR_QUALITY_AND_CALCULATION"
     if last[0]+seconds>now:
         return "LATEST_CANDLE_NOT_COMPLETED"
-    return "READY_FOR_QUALITY_AND_CALCULATION"
+    return "CANDLE_DATA_MISSING_OR_INSUFFICIENT"
 
 
 def doctor_filter_rows(rows, matrix):

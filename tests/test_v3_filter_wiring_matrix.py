@@ -328,6 +328,30 @@ class V3FilterWiringTests(unittest.TestCase):
             {"source":"Dhan","_scanner_timeframe":"1m","bars":bars[:3]},
             "1m",now=1800000000+30*60),"CANDLE_DATA_MISSING_OR_INSUFFICIENT")
 
+    def test_forming_last_bar_does_not_block_30_completed_history(self):
+        start=1800000000
+        bars=[[start+i*300,100,102,99,101,100] for i in range(49)]
+        bars.append([start+49*300,120,122,119,121,0])
+        history={"source":"Dhan","_scanner_timeframe":"5m","bars":bars}
+        now=start+49*300+180
+        self.assertEqual(diagnostic_candle_readiness(history,"5m",now=now),
+                         "READY_FOR_QUALITY_AND_CALCULATION")
+        self.assertEqual(diagnostic_candle_readiness(
+            dict(history,_scanner_timeframe="3m"),"5m",now=now),
+            "TIMEFRAME_MISMATCH")
+        self.assertEqual(diagnostic_candle_readiness(
+            dict(history,bars=bars[:29]+[bars[-1]]),"5m",now=now),
+            "LATEST_CANDLE_NOT_COMPLETED")
+
+    def test_doctor_only_analyzes_completed_bars(self):
+        src=(ROOT/"src/main.py").read_text(encoding="utf-8")
+        section=src.split("    def filter_five_diagnostic_panel():",1)[1].split(
+            "    # Keep the manual Diagnostics gate",1)[0]
+        self.assertIn("result=analyze(completed_bars,",section)
+        self.assertIn("valid_candle_history(completed_bars)",section)
+        self.assertIn("bar[0]+interval_seconds<=observation_time",section)
+        self.assertNotIn("result=analyze(bars,selected=active_analysis_filters()",section)
+
     def test_diagnostic_same_timeframe_gates_evidence(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")
         import ast

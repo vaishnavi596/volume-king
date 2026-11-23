@@ -4605,10 +4605,19 @@ def app_main(page:ft.Page):
                 rows=[]
                 cause="Selected timeframe candles unavailable"
                 from filter_wiring_audit import diagnostic_candle_readiness
-                candle_stage=diagnostic_candle_readiness(history,tf,now=time.time())
+                observation_time=time.time()
+                candle_stage=diagnostic_candle_readiness(history,tf,now=observation_time)
+                interval_seconds={"1m":60,"2m":120,"3m":180,"5m":300,
+                                  "10m":600,"15m":900,"30m":1800}.get(tf)
+                completed_bars=([bar for bar in bars
+                    if isinstance(bar,(list,tuple)) and len(bar)>=6
+                    and type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                    and interval_seconds and 0<bar[0]
+                    and bar[0]+interval_seconds<=observation_time]
+                    if isinstance(bars,(list,tuple)) else [])
                 if (candle_stage=="READY_FOR_QUALITY_AND_CALCULATION"
-                        and valid_candle_history(bars)):
-                    result=analyze(bars,selected=active_analysis_filters(),
+                        and valid_candle_history(completed_bars)):
+                    result=analyze(completed_bars,selected=active_analysis_filters(),
                                    timeframe=tf)
                     cause=str(result.get("reason","Analysis pending"))
                     rows=enrich_context_filter_rows(symbol,
