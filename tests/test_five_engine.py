@@ -799,6 +799,19 @@ class FiveEngineCompletedCandleDisplayContract(unittest.TestCase):
                 malformed[3][5]=-1
                 self.assertIsNone(completed_timeframe_candle_balance(
                     dict(history,bars=malformed),tf,now=now))
+                # Broken OHLC must not produce plausible historical percentages.
+                for field,value in ((1,0),(2,99),(3,103),(4,float("nan"))):
+                    invalid=[list(x) for x in bars]
+                    invalid[5][field]=value
+                    with self.subTest(timeframe=tf,field=field):
+                        self.assertIsNone(completed_timeframe_candle_balance(
+                            dict(history,bars=invalid),tf,now=now))
+                # A future/gapped ninth candle must not be silently discarded.
+                for timestamp in (now+seconds,now+3600,now-seconds/2):
+                    broken_last=bars+[[timestamp,100,103,99,99,12]]
+                    with self.subTest(timeframe=tf,final_timestamp=timestamp):
+                        self.assertIsNone(completed_timeframe_candle_balance(
+                            dict(history,bars=broken_last),tf,now=now))
 
     def test_all_three_five_box_display_paths_share_validated_hist_helper(self):
         import ast
