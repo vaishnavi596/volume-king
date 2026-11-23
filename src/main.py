@@ -5037,6 +5037,15 @@ def app_main(page:ft.Page):
                     market_open=regular_hours(),
                     exchange_timestamp_verified=False,
                     raw_dhan_candles_verified=False)
+                from v3_vote_trace_doctor import audit_vote_trace
+                vote_trace=audit_vote_trace(
+                    symbol=symbol,timeframe=tf,generation=generation,
+                    filter_rows=[{"filter":row.get("filter"),
+                                  "vote":next((r.get("vote") for r in rows
+                                    if r.get("name")==row.get("filter")),None),
+                                  "status":row.get("status"),"stage":row.get("stage")}
+                                 for row in filter_rows],
+                    box_rows=engines,snapshot=snap,market_open=regular_hours())
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5048,6 +5057,7 @@ def app_main(page:ft.Page):
                     "stage_context":diagnostic_context,
                     "cache_to_display_trace":pipeline_trace,
                     "five_engine_endpoint_doctor":endpoint_doctor,
+                    "calculation_to_vote_trace":vote_trace,
                     "errors_only":errors,
                     "unavailable_evidence":unavailable_evidence,
                     "index_route_diagnostic":{
@@ -5606,6 +5616,11 @@ def app_main(page:ft.Page):
                         symbol=scanner_sym,timeframe=scanner_tf,generation=generation)),
                     market_open=regular_hours(),
                     exchange_timestamp_verified=False,raw_dhan_candles_verified=False)
+                from v3_vote_trace_doctor import audit_vote_trace
+                master_vote_trace=audit_vote_trace(
+                    symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
+                    filter_rows=scanner_rows,box_rows=engine_rows,
+                    snapshot=snap,market_open=regular_hours())
                 report_data={
                     "test":"V3_MASTER_ALL_SEGMENTS_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5614,6 +5629,7 @@ def app_main(page:ft.Page):
                     "segment_count":len(sections),
                     "segments":sections if chosen=="ALL" else {chosen:sections[chosen]},
                     "five_engine_endpoint_doctor":master_endpoint_doctor,
+                    "calculation_to_vote_trace":master_vote_trace,
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
