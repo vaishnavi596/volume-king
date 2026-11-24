@@ -59,10 +59,13 @@ expected="8c53eb8900564752e42b3d1d1368967ad7b1b809"
 try:
     data=p.read_bytes()
     got=hashlib.sha1(b"blob "+str(len(data)).encode()+b"\x00"+data).hexdigest()
-    print("DEPLOYED_CLONE_GATEWAY_BLOB="+("MATCH_REVIEWED_SOURCE" if got==expected else "DIFFERS_FROM_REVIEWED_SOURCE"))
+    print("DEPLOYED_CLONE_GATEWAY_BLOB="+("MATCH_LEGACY_REVIEWED_SOURCE" if got==expected else "DIFFERS_FROM_LEGACY_REVIEWED_SOURCE"))
+    print("DEPLOYED_CLONE_GATEWAY_BLOB_SHA="+got)
     source=data.decode("utf-8")
     print("DEPLOYED_SENSEX_STAGE_LOGGER="+("PRESENT" if "clone_market_diagnostic" in source else "ABSENT"))
-    print("DEPLOYED_SENSEX_REGISTRY="+("BSE_I_51_PRESENT" if '"SENSEX": ("BSE_I", 51)' in source else "REVIEW_REQUIRED"))
+    idx='"SENSEX": ("IDX_I", 51)' in source
+    bse='"SENSEX": ("BSE_I", 51)' in source
+    print("DEPLOYED_SENSEX_REGISTRY="+("IDX_I_51_PRESENT" if idx and not bse else "BSE_I_51_PRESENT" if bse and not idx else "AMBIGUOUS_OR_MISSING"))
 except (OSError,UnicodeError,ValueError):
     print("DEPLOYED_CLONE_GATEWAY_BLOB=NOT_READABLE")
 PY
