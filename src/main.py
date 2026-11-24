@@ -6695,6 +6695,18 @@ console.log('BOT KING Lightweight Charts ready');
             candidates.append(scanner_data)
         candidates=[item for item in candidates if item.get("source")==expected and item.get("bars")
                     and item.get("_scanner_timeframe","5m")==tf]
+        # On app restart after a market holiday, in-memory chart/scan caches
+        # are empty. Restore only exact Dhan symbol + timeframe last-good
+        # candles from local SnapshotStore; never turn them into LIVE quotes.
+        if not candidates and expected=="Dhan":
+            for saved_range in ("7d","2d","5d","1mo","1d"):
+                saved=market_store.get("market","Dhan",sym,tf,saved_range)
+                if (saved and saved.get("source")=="Dhan"
+                        and saved.get("_scanner_timeframe")==tf
+                        and valid_candle_history(saved.get("bars"))):
+                    candidates.append(dict(saved,historical=True,live_verified=False,
+                                           freshness="historical_unverified",cached=True))
+                    break
         # B2: If a Dhan 1m candle history is ALREADY present, derive the
         # matching 3m series locally. This does not initiate any new request,
         # nor borrow unlabeled 5m ranking/quote candles.
