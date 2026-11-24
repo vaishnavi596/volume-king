@@ -126,7 +126,7 @@ class AuditTests(unittest.TestCase):
                     FrozenIST.instant=instant
                     self.assertEqual(ui["session_caption"](),expected)
                     self.assertEqual(ui["regular_hours"](),expected.startswith("STALE"))
-                    self.assertFalse(ui["refresh_hours"]() if instant.year>=2027 else False)
+                    self.assertEqual(ui["refresh_hours"](),expected.startswith("STALE"))
 
     def test_ohlc_aggregation_provider_boundary_and_hours(self):
         _,v=start()
