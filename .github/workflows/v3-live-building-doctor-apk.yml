@@ -57,7 +57,19 @@ jobs:
                         'Angel One login disabled in V3',
                         'CloneDhanReadOnly(clone_v2_gateway)'):
               assert guard in main, guard
+          # Latest V3 phone-build must include verified 2026 holiday gate
+          # and explicit unavailable-calendar OFF reasons; no unsafe LIVE.
+          calendar=pathlib.Path('src/v3_equity_session_calendar.py').read_text()
+          for marker in (
+              'EQUITY_HOLIDAYS_2026',
+              'if clock.year>=2027:',
+              'official holiday calendar unavailable',
+              'special Muhurat session not enabled',
+          ):
+              assert marker in calendar, marker
+          assert 'equity_session_closed_detail())' in main
           print('V3_B200_PREVIEW_SOURCE_GUARD=PASS')
+          print('V3_2026_2027_HOLIDAY_AND_PHONE_OFF_GUARD=PASS')
           PY
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           # Validate CURRENT source, not a prior preview SHA. Fail before
