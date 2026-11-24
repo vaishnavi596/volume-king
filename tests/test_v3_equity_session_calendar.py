@@ -53,6 +53,17 @@ class V3EquityHolidayCalendar(unittest.TestCase):
         with self.assertRaises(ValueError):
             regular_equity_hours(datetime(2026,11,25,11,0))
 
+    def test_unverified_2027_future_year_cannot_claim_live_or_refresh(self):
+        # An official 2027 NSE/BSE equity calendar has not been confirmed.
+        # Weekday alone cannot authorize LIVE analysis or automatic Dhan polls.
+        for value in (dt(2027,1,4,9,15),dt(2027,1,4,11,30),
+                      dt(2027,12,31,14,0),dt(2028,1,3,12,0)):
+            with self.subTest(day=value.date().isoformat()):
+                self.assertFalse(regular_equity_day(value))
+                self.assertFalse(regular_equity_hours(value))
+                self.assertFalse(equity_refresh_window(value))
+        self.assertTrue(regular_equity_hours(dt(2026,12,31,11,30)))
+
     def test_phone_market_and_refresh_production_contract(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         section=source.split("    def regular_hours(now=None):",1)[1].split(

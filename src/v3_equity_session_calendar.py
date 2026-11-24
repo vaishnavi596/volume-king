@@ -34,9 +34,12 @@ def regular_equity_day(now=None):
     clock=ist_clock(now)
     if clock.weekday()>=5:
         return False
-    # The 2026 list is exchange-circular-backed. Other years fall back to
-    # weekday gating pending separately versioned official annual calendars;
-    # this is NOT an assertion that those years have no holidays.
+    # 2027+ cannot claim regular LIVE eligibility from weekday-only dates
+    # until a separately verified, versioned NSE/BSE calendar is installed.
+    # Fail closed: cached HIST analysis remains available, automatic polling
+    # and LIVE eligibility are disabled for an unverified future year.
+    if clock.year>=2027:
+        return False
     if clock.year==2026 and clock.date().isoformat() in EQUITY_HOLIDAYS_2026:
         return False
     return True
