@@ -8169,7 +8169,7 @@ console.log('BOT KING Lightweight Charts ready');
             # Opening Scanner starts the selected timeframe immediately instead
             # of waiting for the previous symbol's auto-refresh deadline.
             scan_next_refresh[0]=None
-            if prefs.get("source")=="Dhan" and dhan_feed.connected and not refresh_hours():
+            if prefs.get("source")=="Dhan" and not refresh_hours():
                 # Off-hours automatic network polling is forbidden. Still
                 # hydrate the visible scanner from same-symbol/timeframe saved
                 # candles without requiring a trip through Settings > Retry.
