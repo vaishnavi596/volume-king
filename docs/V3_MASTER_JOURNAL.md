@@ -2263,3 +2263,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Batch 1C exact 225bb4b: B1 45456443505, B2 45456443370, Adapter 45456443356, B3 45456443384 all completed/success. Latest changed files previously inspected.
 - Explicit closed-session HIST queue now permits one additional pass over unresolved symbols, preserving per-symbol 180s cooldown and shared 3/180s + 30s pacing. Already valid history skipped; retry baseline prevents repeated failed-symbol loops within the pass. Existing foreground/auth/generation/list guards retained. Updated source-contract tests; runtime retry and actual phone recovery not yet proven.
 - No auto-login, no token rotation, no server deployment or APK. Disconnect/reconnect auto-resume remains pending; next inspect actual Clone auth status and connection recovery. Await exact-SHA CI.
+
+
+### 25 नवंबर 2026 — Deep Batch 1D regression repair
+- Exact df9ca6f B1 45457437267, B2 45457437301, Adapter 45457437404 PASS; B3 45457437263 FAIL (1899 tests, 1 failure). Job 138670591502: test_periodic_and_early_warmups_both_handle_unset_clock_sentinels rejects get(key,0) in new retry guard. No evidence of live provider failure from this offline test.
+- Replaced implicit zero timestamp fallback in retry guard with explicit key membership then indexed comparison. Existing sentinel guard retained; new retry source contract updated, no relaxation of old test. Pacing unchanged. Batch 1E held pending exact-source regression. No server/APK/provider calls.

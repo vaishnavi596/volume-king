@@ -8634,7 +8634,8 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
                 if closed_retry_baseline is not None and (
                         sym not in closed_retry_baseline or
-                        watch_three_minute_warm_attempts.get(key,0)>closed_retry_baseline[sym]):
+                        (key in watch_three_minute_warm_attempts and
+                         watch_three_minute_warm_attempts[key]>closed_retry_baseline[sym])):
                     continue
             if (key in watch_three_minute_warm_attempts
                     and now-watch_three_minute_warm_attempts[key]<180):

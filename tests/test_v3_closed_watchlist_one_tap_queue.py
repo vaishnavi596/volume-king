@@ -48,7 +48,8 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
         self.assertIn("retry_pass=True",queue)
         self.assertIn("closed_retry_baseline=retry_baseline if retry_pass else None",queue)
         warm=function("warm_selected_watch_three_minute_early")
-        self.assertIn("watch_three_minute_warm_attempts.get(key,0)>closed_retry_baseline[sym]",warm)
+        self.assertIn("watch_three_minute_warm_attempts[key]>closed_retry_baseline[sym]",warm)
+        self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",warm)
         self.assertIn("now-watch_three_minute_warm_attempts[key]<180",warm)
 
     def test_pacing_budget_not_bypassed(self):
