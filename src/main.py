@@ -2754,7 +2754,7 @@ def app_main(page:ft.Page):
         watch_closed_hist_key[0]=(generation,list_index,tuple(selected))
         try:
             while True:
-                if (provider_generation[0]!=generation or current[0]!=4
+                if (provider_generation[0]!=generation
                         or active_watch[0]!=list_index
                         or (search.value or "").upper()!=search_scope
                         or not app_active[0]
@@ -2765,7 +2765,7 @@ def app_main(page:ft.Page):
                     watch_closed_hist_resume_pending[0]=bool(
                         provider_generation[0]==generation
                         and prefs.get("source")=="Dhan" and not refresh_hours()
-                        and (current[0]!=4 or not app_active[0] or lifecycle_background[0]))
+                        and (not app_active[0] or lifecycle_background[0]))
                     watch_batch_status[0]=(
                         "HIST paused • resumes on Watchlist return • NOT LIVE"
                         if watch_closed_hist_resume_pending[0] else
@@ -2787,7 +2787,7 @@ def app_main(page:ft.Page):
                     break
                 watch_batch_status[0]=(
                     f"HIST loading {finished}/{total} • attempted without data {attempted} • NOT LIVE")
-                if watch_status_text.page is not None:
+                if current[0]==4 and watch_status_text.page is not None:
                     watch_status_text.value="Quote check • "+watch_batch_status[0]
                     watch_status_text.update()
                 before=len(watch_three_minute_warm_attempts)
@@ -8582,7 +8582,7 @@ console.log('BOT KING Lightweight Charts ready');
     async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False):
         # A closed-session 1m history read is allowed only through the explicit
         # Watchlist manual callback, never through either automatic scheduler.
-        if (current[0]!=4 or not app_active[0] or lifecycle_background[0]
+        if ((current[0]!=4 and not explicit_closed) or not app_active[0] or lifecycle_background[0]
                 or prefs.get("source")!="Dhan"
                 or not (dhan_feed.connected or
                         (explicit_closed and clone_v2_gateway.connected and not refresh_hours()))
@@ -8601,6 +8601,7 @@ console.log('BOT KING Lightweight Charts ready');
                   if sym in DHAN_VERIFIED_SYMBOLS
                   and sym not in ("NIFTY","BANKNIFTY","SENSEX")
                   and (not search.value or search.value.upper() in sym)]
+        scope=(active_watch[0],(search.value or "").upper())
         for sym in selected:
             prior_three=shared_history(sym,"3m")
             fetched=prior_three.get("candle_fetched_at")
@@ -8627,7 +8628,8 @@ console.log('BOT KING Lightweight Charts ready');
                 if not cache_ready:
                     # Existing 5m scan uses the same 1.5s provider gap.
                     await asyncio.sleep(1.5)
-                if (generation!=provider_generation[0] or current[0]!=4
+                if (generation!=provider_generation[0] or (current[0]!=4 and not explicit_closed)
+                        or (explicit_closed and scope!=(active_watch[0],(search.value or "").upper()))
                         or not app_active[0] or lifecycle_background[0]
                         or (not refresh_hours() and not explicit_closed)
                         or (explicit_closed and (refresh_hours() or

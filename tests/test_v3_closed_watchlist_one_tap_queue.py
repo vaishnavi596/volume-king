@@ -22,7 +22,7 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
     def test_auto_queue_respects_foreground_auth_generation_scope(self):
         src=function("continue_closed_watch_history")
         for guard in ('provider_generation[0]!=generation',
-                      'current[0]!=4', 'active_watch[0]!=list_index',
+                      'active_watch[0]!=list_index',
                       '(search.value or "").upper()!=search_scope',
                       'not app_active[0]', 'lifecycle_background[0]',
                       'not clone_v2_gateway.connected', 'refresh_hours()',
@@ -33,6 +33,14 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
         self.assertIn('await asyncio.sleep(10)',src)
         self.assertIn('watch_closed_hist_loading[0]=False',src)
         self.assertNotIn('refresh_watch_batch(',src)
+
+    def test_explicit_queue_can_continue_across_foreground_tabs(self):
+        queue=function("continue_closed_watch_history")
+        self.assertNotIn("or current[0]!=4",queue)
+        warm=function("warm_selected_watch_three_minute_early")
+        self.assertEqual(warm.count("current[0]!=4 and not explicit_closed"),2)
+        self.assertIn("explicit_closed and scope!=",warm)
+        self.assertIn("not app_active[0] or lifecycle_background[0]",warm)
 
     def test_pacing_budget_not_bypassed(self):
         src=function("warm_selected_watch_three_minute_early")

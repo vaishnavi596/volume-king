@@ -2251,3 +2251,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Batch 1A e95b70c दोनों exact-SHA workflows completed/success: Adapter 45454276813, Full B3 45454276800. पाँच changed files verified; no repeated successful fix.
 - shared_history now checks every existing allowed saved range on disk fallback, chooses newest complete exact-frame candles rather than first range. 1m→3m fallback prioritizes newest validated complete input, not merely longest series. Existing source/timeframe gates and explicit historical-only disk derivation retained. New executable regression covers older 7d vs newer 2d and partial 5d; no provider requests or live promotion.
 - This is bounded recovery selection, not full cache retention redesign. In-memory vs disk comparison when valid memory exists, real Dhan/Oracle auth, deployed gateway and phone recovery remain unverified. No server deployment/APK. CI pending before next batch.
+
+
+### 24 नवंबर 2026 — Deep Batch 1C: foreground HIST queue
+- Batch 1B exact 7b2962e four workflows verified completed/success: B1 45455288337, B2 45455288312, Adapter 45455288396, B3 45455288426. Temporary contents API 404 resolved by branch ref; branch head unchanged.
+- Explicitly user-started closed-session HIST queue now continues across foreground tabs; ordinary automatic warmup remains Watchlist-gated. App background, generation, list/search, auth and quota guards retained; recheck selected list/search before dispatch, update mounted Watchlist only. Updated existing source contract test for foreground tab change. No unsolicited holiday start or real orders.
+- Bounded retries/reconnect and full retention redesign remain pending; no live provider test, APK or server change. Await exact-source CI before next batch.
