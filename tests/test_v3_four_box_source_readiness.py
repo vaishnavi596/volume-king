@@ -73,7 +73,8 @@ class FourBoxSourceContracts(unittest.TestCase):
                    freshness="unverified",direction=None,
                    direction_verified=False,signal_eligible=False,
                    live_orders_enabled=False)
-        for patch in ({"expiry":"not-a-date"},{"symbol":"BANKNIFTY"},
+        for patch in ({"expiry":"not-a-date"},{"expiry":"2020-01-01"},
+                      {"symbol":"BANKNIFTY"},
                       {"exchange_segment":"NSE_EQ"},{"ltp":True},{"ltp":0},
                       {"ltp":float("nan")},{"direction":"BULLISH"},
                       {"direction_verified":True},{"signal_eligible":True},

@@ -106,6 +106,33 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
                 self.assertEqual(report["provider_requests"],0)
                 self.assertEqual(report["orders_sent"],0)
 
+    def test_user_seventeen_filter_selection_does_not_invent_sixth_or_votes(self):
+        # User may choose 17/18. Preserve exactly the chosen registry rows.
+        selected=[name for name in ALL_FILTERS if name!="News Headlines"]
+        self.assertEqual(len(selected),17)
+        for frame,seconds in (("1m",60),("3m",180),("5m",300)):
+            with self.subTest(frame=frame):
+                candles=completed_fixture(frame)
+                scan=analyze(candles,selected=selected,timeframe=frame)
+                self.assertEqual(len(scan["votes"]),17)
+                self.assertEqual(set(row["name"] for row in scan["votes"]),set(selected))
+                matrix=filter_wiring_matrix(
+                    selected,scan["votes"],source="Dhan",timeframe=frame,
+                    candle_ready=True,options_context=False,news_context=False)
+                self.assertEqual(len(matrix),17)
+                replay=historical_vote_replay(
+                    symbol="NIFTY",timeframe=frame,generation=9,
+                    source="Dhan",bars=candles,filter_rows=scan["votes"],
+                    history_timestamp=candles[-1][0]+seconds)
+                self.assertEqual(len(replay["boxes"]),5)
+                self.assertEqual([box["engine"] for box in replay["boxes"]],
+                                 list(ENGINE_NAMES))
+                self.assertEqual([box["state"] for box in replay["boxes"]][2:],
+                                 ["WAIT","WAIT","WAIT"])
+                self.assertEqual(replay["combined"]["state"],"WAIT")
+                self.assertEqual(replay["provider_requests"],0)
+                self.assertEqual(replay["orders_sent"],0)
+
     def test_no_legacy_context_can_promote_news_futures_options(self):
         bars=completed_fixture("1m")
         raw=analyze(bars,selected=ALL_FILTERS,timeframe="1m")

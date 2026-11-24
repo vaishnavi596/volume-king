@@ -4,7 +4,7 @@ Distinguishes cached context from independent directional voting evidence.
 This module cannot request providers, write orders, or certify live timestamps.
 """
 from math import isfinite
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from five_engine import completed_timeframe_candle_balance
 
 
@@ -47,8 +47,12 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
     expiry=futures_cache.get("expiry")
     ltp=futures_cache.get("ltp")
     try:
-        expiry_valid=(isinstance(expiry,str) and date.fromisoformat(expiry).isoformat()==expiry)
-    except ValueError:
+        expiry_day=date.fromisoformat(expiry)
+        expiry_valid=(isinstance(expiry,str)
+                      and expiry_day.isoformat()==expiry
+                      and expiry_day>=datetime.fromtimestamp(
+                          now,timezone(timedelta(hours=5,minutes=30))).date())
+    except (ValueError,TypeError,OverflowError):
         expiry_valid=False
     futures_match = (futures_cache.get("source") == "Dhan"
                      and futures_cache.get("symbol") == symbol
