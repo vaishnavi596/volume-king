@@ -32,7 +32,7 @@ class B205PhoneSSKWatchlist(unittest.TestCase):
         self.assertIn('clone_v2_gateway.connected and not refresh_hours()',body("watch_visible_tick"))
     def test_compact_closed_boxes_and_true_hist_preserved(self):
         s=body("five_engine_chips")
-        self.assertIn('label=short+" OFF"',s)
-        self.assertIn('if not regular_hours() and "WAIT" in label:',s)
+        self.assertIn('label=short+" WAIT"',s)
+        self.assertNotIn('label=short+" OFF"',s)
         self.assertIn('historical=True',s)
 if __name__=="__main__": unittest.main()
