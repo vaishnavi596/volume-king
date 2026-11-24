@@ -2191,3 +2191,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - पिछला exact B209 source `c96857666cac2fd8021a3428cd5f6b6225b237dd` के full regression PASS: https://github.com/vaishnavi596/volume-king/actions/runs/45440020666 ; signed preview APK build PASS: https://github.com/vaishnavi596/volume-king/actions/runs/45440020838 ; artifact `BOT-KING-V3-B209-SIDE-BY-SIDE-PREVIEW-APK`, 65,902,996 bytes, artifact id 14944190946. यह फोन B178 TypeError resolution का प्रमाण नहीं।
 - नया targeted commit `14f7f2b773bde8c16580b63b654b5f50d79aa847`: `src/main.py` के B178 Doctor exception report में sanitized TypeError message और local traceback function/file/line जोड़ता है, बिना बाहरी requests/orders; `ERROR` को कृत्रिम `WAIT` नहीं बनाता। अभी underlying exception source अज्ञात है; अगली फोन रिपोर्ट से exact दोषी function पकड़ें। अनावश्यक पुराना B209 APK दोबारा सफल घोषित न करें।
 - अगले चक्र में नवीनतम बदली फ़ाइल और CI check करें, फिर साफ़ error site पर regression test + targeted fix; prior PASS tests बेमतलब न दोहराएँ।
+
+
+#### B178 TypeError का वास्तविक source fix
+- `src/main.py` में Doctor की `valid_volume_rows=[c[5] for c in bars[-20:] ...]` लाइन अनजाने में `bars=None` पर slice करती थी। OFFLINE/empty chart history में यही `TypeError: 'NoneType' object is not subscriptable` का ठोस code path है। 
+- Targeted guard commit `0490acd592a7b17a0e8bd6a94ed97d19c8419e0d`: `bars` list/tuple होने पर ही अंतिम 20 records देखें; अन्यथा खाली rows; no data => WAIT; no provider requests or order changes। समान Doctor में error origin fields commit `14f7f2b7` पहले लगा था।
+- तत्काल पिछले `14f7f2b7` पर B1/B2/Adapter audit PASS: runs `45448519224`, `45448519124`, `45448519123`; B3 `45448519306` उस समय running। **यह PASS नई `0490acd5` source commit का PASS नहीं है**; latest source regression और फोन में B178 error-free response अलग से प्रमाणित करना होगा।
