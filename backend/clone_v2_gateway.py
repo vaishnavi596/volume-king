@@ -68,6 +68,11 @@ class MarketOptionChain(BaseModel):
     expiry: date
 
 
+class MarketFuturesContext(BaseModel):
+    symbol: str
+    expiry: date
+
+
 class MarketRequest(BaseModel):
     symbols: list
 
@@ -99,7 +104,7 @@ def load_equity_registry(path):
 
 
 def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None,
-               consent_config_factory=None):
+               consent_config_factory=None, futures_master_factory=None):
     """Fail closed at startup if owner has not provisioned a protected key."""
     if key_bytes is None:
         key_bytes = private_ssk(os.environ.get(KEY_ENV))
@@ -571,6 +576,59 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     if len(candle_cache) > candle_cache_max_entries:
                         candle_cache.pop(min(candle_cache, key=lambda k: candle_cache[k][0]))
             return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/market/futures/context")
+    def market_futures_context(body: MarketFuturesContext,
+                               x_botking_key: Optional[str] = Header(default=None)):
+        """Mapped read-only NSE_FNO LTP. This is context, never a directional vote."""
+        authorized(x_botking_key)
+        ist_today=datetime.now(timezone(timedelta(hours=5,minutes=30))).date()
+        if body.symbol not in known or body.expiry < ist_today:
+            raise HTTPException(422,"Unknown or expired futures underlying")
+        # No operator-validated Dhan futures master means NO provider call.
+        if futures_master_factory is None:
+            raise HTTPException(503,"Dhan futures instrument master not provisioned")
+        try:
+            try:
+                from .futures_context import select_verified_future, normalize_futures_ltp
+            except ImportError:
+                from futures_context import select_verified_future, normalize_futures_ltp
+            rows=futures_master_factory()
+            mapped=select_verified_future(rows,body.symbol,body.expiry)
+        except (TypeError,ValueError,KeyError):
+            mapped=None
+        if mapped is None:
+            raise HTTPException(422,"Unique verified Dhan futures contract unavailable")
+        with market_lock:
+            now=time.monotonic()
+            if now < provider_cooldown_until[0]:
+                raise HTTPException(429,"Clone Dhan provider cooldown",
+                                    headers={"Retry-After":"30"})
+            remain=1.05-(now-last_request[0])
+            if 0 < remain <= 1.05:
+                time.sleep(remain)
+                if time.monotonic() < provider_cooldown_until[0]:
+                    raise HTTPException(429,"Clone Dhan provider cooldown",
+                                        headers={"Retry-After":"30"})
+            last_request[0]=time.monotonic()
+            try:
+                raw=provider().ltp("NSE_FNO",mapped["security_id"])
+            except HTTPException:
+                raise
+            except Exception as exc:
+                try:
+                    from .dhan_feed import DhanRateLimitError
+                except ImportError:
+                    from dhan_feed import DhanRateLimitError
+                if isinstance(exc,DhanRateLimitError):
+                    provider_cooldown_until[0]=time.monotonic()+30
+                    raise HTTPException(429,"Clone Dhan quota cooldown",
+                                        headers={"Retry-After":"30"}) from None
+                raise HTTPException(502,"Dhan futures quote unavailable") from None
+        context=normalize_futures_ltp(raw,mapped)
+        if context is None:
+            raise HTTPException(502,"Dhan futures quote shape unverified")
+        return JSONResponse(context,headers={"Cache-Control":"no-store"})
 
     @app.post("/clone-v2/market/options/expiries")
     def market_option_expiries(body: MarketUnderlying,
