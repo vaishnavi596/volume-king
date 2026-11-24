@@ -14,6 +14,7 @@ from scanner_engine import ALL_FILTERS, OPTION_FILTERS, analyze
 from filter_wiring_audit import CANDLE_FILTERS, filter_wiring_matrix
 from five_engine import ENGINE_NAMES
 from v3_historical_vote_replay import historical_vote_replay
+from v3_four_box_source_readiness import four_box_source_readiness
 
 IST=timezone(timedelta(hours=5,minutes=30))
 
@@ -76,6 +77,34 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
                 self.assertEqual(replay["orders_sent"],0)
                 self.assertFalse(replay["verified_live"])
                 self.assertEqual(bars,before)
+
+    def test_doctor_joint_18_filters_four_context_sources_each_frame(self):
+        for frame,sec in (("1m",60),("3m",180),("5m",300)):
+            with self.subTest(frame=frame):
+                bars=completed_fixture(frame)
+                futures=dict(source="Dhan",symbol="NIFTY",underlying="NIFTY",
+                             exchange_segment="NSE_FNO",expiry="2026-12-31",
+                             contract="NIFTY DEC FUT",ltp=25200.0,
+                             mapping_verified=True,freshness="unverified",
+                             direction=None,direction_verified=False,
+                             signal_eligible=False,live_orders_enabled=False)
+                report=four_box_source_readiness(
+                    symbol="NIFTY",timeframe=frame,generation=7,
+                    history={"source":"Dhan","_scanner_timeframe":frame,"bars":bars},
+                    news_cache={"items":[{"title":"Context"}]},
+                    futures_cache=futures,
+                    option_context={"source":"dhan","symbol":"NIFTY",
+                                    "expiry":"2026-12-31","signal_eligible":False},
+                    now=bars[-1][0]+sec)
+                self.assertEqual(set(report["box_sources"]),{"C","N","F","O"})
+                self.assertTrue(report["box_sources"]["C"]["historical_direction_available"])
+                self.assertTrue(all(report["box_sources"][key]["cache_present"]
+                                    for key in ("N","F","O")))
+                self.assertEqual(report["live_vote_count"],0)
+                self.assertTrue(all(not row["live_direction_verified"]
+                                    for row in report["box_sources"].values()))
+                self.assertEqual(report["provider_requests"],0)
+                self.assertEqual(report["orders_sent"],0)
 
     def test_no_legacy_context_can_promote_news_futures_options(self):
         bars=completed_fixture("1m")

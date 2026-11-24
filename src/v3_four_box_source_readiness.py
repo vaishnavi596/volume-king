@@ -4,6 +4,7 @@ Distinguishes cached context from independent directional voting evidence.
 This module cannot request providers, write orders, or certify live timestamps.
 """
 from math import isfinite
+from datetime import date
 from five_engine import completed_timeframe_candle_balance
 
 
@@ -43,11 +44,26 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
                     and bool(option_context["expiry"].strip())
                     and option_context.get("signal_eligible") is False)
     # Context futures LTP/OI without broker-certified trade side is not a vote.
+    expiry=futures_cache.get("expiry")
+    ltp=futures_cache.get("ltp")
+    try:
+        expiry_valid=(isinstance(expiry,str) and date.fromisoformat(expiry).isoformat()==expiry)
+    except ValueError:
+        expiry_valid=False
     futures_match = (futures_cache.get("source") == "Dhan"
+                     and futures_cache.get("symbol") == symbol
                      and futures_cache.get("underlying") == symbol
+                     and futures_cache.get("exchange_segment") == "NSE_FNO"
                      and futures_cache.get("mapping_verified") is True
+                     and expiry_valid
                      and isinstance(futures_cache.get("contract"), str)
-                     and bool(futures_cache["contract"].strip()))
+                     and bool(futures_cache["contract"].strip())
+                     and type(ltp) in (int,float) and isfinite(ltp) and ltp>0
+                     and futures_cache.get("freshness") == "unverified"
+                     and futures_cache.get("direction") is None
+                     and futures_cache.get("direction_verified") is False
+                     and futures_cache.get("signal_eligible") is False
+                     and futures_cache.get("live_orders_enabled") is False)
     sources = {
         "C": {"cache_present": bool(candles), "context_count": len(candles),
               "historical_direction_available": balance is not None,

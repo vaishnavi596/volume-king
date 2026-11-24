@@ -25,8 +25,12 @@ class FourBoxSourceContracts(unittest.TestCase):
         x=four_box_source_readiness(
             symbol="NIFTY",timeframe="1m",generation=3,history=h,
             news_cache={"items":[{"title":"One"}]},
-            futures_cache=dict(source="Dhan",underlying="NIFTY",
-                               mapping_verified=True,contract="NIFTY-FUT"),
+            futures_cache=dict(source="Dhan",symbol="NIFTY",underlying="NIFTY",
+                               exchange_segment="NSE_FNO",expiry="2026-12-31",
+                               mapping_verified=True,contract="NIFTY-FUT",
+                               ltp=25600.5,freshness="unverified",direction=None,
+                               direction_verified=False,signal_eligible=False,
+                               live_orders_enabled=False),
             option_context=dict(source="dhan",symbol="NIFTY",
                                 expiry="2026-11-26",signal_eligible=False),
             now=last)
@@ -46,8 +50,12 @@ class FourBoxSourceContracts(unittest.TestCase):
         x=four_box_source_readiness(
             symbol="BANKNIFTY",timeframe="3m",generation=3,history=h,
             news_cache={"items":[1,2]},
-            futures_cache=dict(source="Dhan",underlying="NIFTY",
-                               mapping_verified=True,contract="NIFTY-FUT"),
+            futures_cache=dict(source="Dhan",symbol="NIFTY",underlying="NIFTY",
+                               exchange_segment="NSE_FNO",expiry="2026-12-31",
+                               mapping_verified=True,contract="NIFTY-FUT",
+                               ltp=25600.5,freshness="unverified",direction=None,
+                               direction_verified=False,signal_eligible=False,
+                               live_orders_enabled=False),
             option_context=dict(source="dhan",symbol="NIFTY",expiry="2026-11-26",
                                 signal_eligible=False),now=now)
         self.assertFalse(x["box_sources"]["C"]["cache_present"])
@@ -56,6 +64,27 @@ class FourBoxSourceContracts(unittest.TestCase):
         self.assertFalse(x["box_sources"]["F"]["cache_present"])
         self.assertFalse(x["box_sources"]["O"]["cache_present"])
         self.assertFalse(x["box_sources"]["N"]["historical_direction_available"])
+
+    def test_unsafe_futures_context_never_counts_as_present(self):
+        h=history()
+        valid=dict(source="Dhan",symbol="NIFTY",underlying="NIFTY",
+                   exchange_segment="NSE_FNO",expiry="2026-12-31",
+                   mapping_verified=True,contract="NIFTY-FUT",ltp=25600.5,
+                   freshness="unverified",direction=None,
+                   direction_verified=False,signal_eligible=False,
+                   live_orders_enabled=False)
+        for patch in ({"expiry":"not-a-date"},{"symbol":"BANKNIFTY"},
+                      {"exchange_segment":"NSE_EQ"},{"ltp":True},{"ltp":0},
+                      {"ltp":float("nan")},{"direction":"BULLISH"},
+                      {"direction_verified":True},{"signal_eligible":True},
+                      {"live_orders_enabled":True},{"freshness":"verified_live"}):
+            with self.subTest(patch=patch):
+                result=four_box_source_readiness(
+                    symbol="NIFTY",timeframe="1m",generation=3,history=h,
+                    futures_cache=dict(valid,**patch),
+                    now=h["bars"][-1][0]+60)
+                self.assertFalse(result["box_sources"]["F"]["cache_present"])
+                self.assertEqual(result["live_vote_count"],0)
 
     def test_real_cached_all_doji_is_wait_not_bearish(self):
         h=history()
