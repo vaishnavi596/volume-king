@@ -320,6 +320,7 @@ def app_main(page:ft.Page):
     # Session-local, bounded read-only option evidence for multiple underlyings.
     # Never persisted and never promoted to directional/live signals.
     dhan_option_context_cache={}
+    futures_context_cache={}  # (session generation, underlying, expiry): read-only LTP context.
     option_refresh_pending=[False]
     dhan_option_last_attempt=[0.0]
     # A rejected listed expiry must not repeatedly wake the provider every
@@ -3970,6 +3971,67 @@ def app_main(page:ft.Page):
     def check_clone_v2_market(e):
         page.run_task(check_clone_v2_market_quotes)
 
+    futures_symbol_input=ft.TextField(label="Futures underlying",value="NIFTY")
+    futures_expiry_input=ft.TextField(label="Futures expiry YYYY-MM-DD",value="")
+    futures_context_status=ft.Text("Futures • no mapped context checked; F WAIT",color=MUTED,size=12)
+    futures_busy=[False]
+
+    def matching_futures_context_for_symbol(sym):
+        listed=str(futures_expiry_input.value or "").strip()
+        entry=futures_context_cache.get((provider_generation[0],sym,listed))
+        if entry is None:return {}
+        saved_at,context=entry
+        if not 0<=time.time()-saved_at<=900:return {}
+        return dict(context,source="Dhan",verified=False,live_verified=False)
+
+    async def fetch_futures_context():
+        if futures_busy[0]:return
+        sym=str(futures_symbol_input.value or "").strip().upper()
+        listed=str(futures_expiry_input.value or "").strip()
+        try:
+            if date.fromisoformat(listed).isoformat()!=listed or sym not in selection_symbols():
+                raise ValueError("Invalid symbol or expiry")
+        except ValueError:
+            futures_context_status.value="Futures • select mapped underlying and exact YYYY-MM-DD expiry"
+            page.update()
+            return
+        if not dhan_feed.connected:
+            futures_context_status.value="Futures • connect Clone Dhan SSK first"
+            page.update()
+            return
+        generation=provider_generation[0]
+        futures_busy[0]=True
+        futures_context_status.value="Futures • checking mapped contract context (not a vote)"
+        page.update()
+        try:
+            context=await asyncio.to_thread(dhan_feed.futures_context,sym,listed)
+            if generation!=provider_generation[0]:return
+            if sym!=str(futures_symbol_input.value or "").strip().upper() or listed!=str(futures_expiry_input.value or "").strip():return
+            if (context.get("source")!="dhan" or context.get("symbol")!=sym
+                    or context.get("underlying")!=sym or context.get("expiry")!=listed
+                    or context.get("mapping_verified") is not True
+                    or context.get("direction_verified") is not False
+                    or context.get("signal_eligible") is not False
+                    or context.get("direction") is not None
+                    or context.get("live_orders_enabled") is not False):
+                raise FeedError("Futures context provenance missing")
+            futures_context_cache[(generation,sym,listed)]=(time.time(),dict(context))
+            while len(futures_context_cache)>12:
+                futures_context_cache.pop(next(iter(futures_context_cache)))
+            futures_context_status.value=("Futures Dhan LTP "+str(context["ltp"])+
+                " • mapped context only • F direction WAIT")
+        except FeedError as exc:
+            futures_context_status.value="Futures WAIT • "+str(exc)
+        except Exception as exc:
+            log_error("futures_context",exc)
+            futures_context_status.value="Futures context unavailable • F WAIT"
+        finally:
+            futures_busy[0]=False
+            page.update()
+
+    def fetch_futures_context_tap(e):
+        page.run_task(fetch_futures_context)
+
     def explain_broker_connection(e):
         page.run_task(connect_angel)
 
@@ -5124,8 +5186,8 @@ def app_main(page:ft.Page):
                 four_box_readiness=four_box_source_readiness(
                     symbol=symbol,timeframe=tf,generation=generation,
                     history=history,news_cache=news_context,
-                    # No genuine verified directional futures producer is connected.
-                    futures_cache=None,option_context=option_context,now=time.time())
+                    futures_cache=matching_futures_context_for_symbol(symbol),
+                    option_context=option_context,now=time.time())
                 report={
                     "test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "mode":"EXPLICIT_CACHE_ONLY_READ_ONLY",
@@ -5716,7 +5778,7 @@ def app_main(page:ft.Page):
                 master_four_box_readiness=four_box_source_readiness(
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                     history=scanner_data,news_cache=master_news_context,
-                    futures_cache=None,
+                    futures_cache=matching_futures_context_for_symbol(scanner_sym),
                     option_context=matching_option_context_for_symbol(scanner_sym),
                     now=time.time())
                 dashboard_bar_errors=dashboard_bar_monitor.report(
@@ -6017,6 +6079,11 @@ def app_main(page:ft.Page):
         # Old SENSEX-only probe removed; filter/engine errors now live in main Doctor.
         content.append(central_filter_settings())
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
+        content.append(section("FUTURES • READ ONLY",ft.Column([
+            futures_symbol_input,futures_expiry_input,
+            ft.OutlinedButton("Check Futures Context (read-only)",on_click=fetch_futures_context_tap),
+            futures_context_status,
+            note("Requires verified Dhan Futures master; mapping/quote context cannot create an F vote.")],spacing=4)))
         content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
@@ -7746,6 +7813,7 @@ console.log('BOT KING Lightweight Charts ready');
             _control.on_change=_save_profile_change
     def provider_changed(e):
         nonlocal market_status
+        futures_context_cache.clear()
         dhan_batch_issue[0]=None
         market_status="Data source: "+source.value+" • waiting for refresh"
         provider_generation[0]+=1;five_engine_snapshots.clear();contextual_five_engine.clear()
