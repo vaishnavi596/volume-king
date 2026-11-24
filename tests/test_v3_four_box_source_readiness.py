@@ -87,6 +87,29 @@ class FourBoxSourceContracts(unittest.TestCase):
                 self.assertFalse(result["box_sources"]["F"]["cache_present"])
                 self.assertEqual(result["live_vote_count"],0)
 
+    def test_invalid_or_expired_option_expiry_is_not_cache_ready(self):
+        h=history()
+        now=h["bars"][-1][0]+60
+        valid=dict(source="dhan",symbol="NIFTY",expiry="2026-11-26",
+                   signal_eligible=False)
+        self.assertTrue(four_box_source_readiness(
+            symbol="NIFTY",timeframe="1m",generation=3,history=h,
+            option_context=valid,now=now)["box_sources"]["O"]["cache_present"])
+        for patch in ({"expiry":"2020-01-01"},{"expiry":"not-a-date"},
+                      {"expiry":"2026-11-23T00:00:00"},{"expiry":""},
+                      {"expiry":None},{"expiry":True},
+                      {"symbol":"BANKNIFTY"},{"signal_eligible":True}):
+            with self.subTest(patch=patch):
+                x=four_box_source_readiness(
+                    symbol="NIFTY",timeframe="1m",generation=3,history=h,
+                    option_context=dict(valid,**patch),now=now)
+                self.assertFalse(x["box_sources"]["O"]["cache_present"])
+                self.assertEqual(x["box_sources"]["O"]["blocker"],
+                                 "MATCHING_DHAN_OPTION_EXPIRY_CONTEXT_MISSING")
+                self.assertEqual(x["live_vote_count"],0)
+                self.assertEqual(x["provider_requests"],0)
+                self.assertEqual(x["orders_sent"],0)
+
     def test_real_cached_all_doji_is_wait_not_bearish(self):
         h=history()
         for row in h["bars"][-8:]:

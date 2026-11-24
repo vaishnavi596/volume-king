@@ -38,10 +38,21 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
     news = news_cache.get("items")
     headlines = len(news) if isinstance(news, (tuple, list)) else 0
     # The current news source is RSS context; no verified price-impact source.
+    # An expired or malformed option expiry cannot count as usable context.
+    # This is only cache-presence validation; it never authorizes a vote.
+    observed_ist_day=datetime.fromtimestamp(
+        now,timezone(timedelta(hours=5,minutes=30))).date()
+    option_expiry=option_context.get("expiry")
+    try:
+        parsed_option_day=date.fromisoformat(option_expiry)
+        option_expiry_valid=(type(option_expiry) is str
+                             and parsed_option_day.isoformat()==option_expiry
+                             and parsed_option_day>=observed_ist_day)
+    except (ValueError,TypeError,OverflowError):
+        option_expiry_valid=False
     option_match = (option_context.get("source") == "dhan"
                     and option_context.get("symbol") == symbol
-                    and isinstance(option_context.get("expiry"), str)
-                    and bool(option_context["expiry"].strip())
+                    and option_expiry_valid
                     and option_context.get("signal_eligible") is False)
     # Context futures LTP/OI without broker-certified trade side is not a vote.
     expiry=futures_cache.get("expiry")
