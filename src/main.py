@@ -1019,7 +1019,9 @@ def app_main(page:ft.Page):
             symbol=sym,timeframe=timeframe,generation=provider_generation[0],
             now=time.time(),connected=(prefs.get("source")=="Dhan"
                                        and dhan_feed.connected),
-            market_open=regular_hours())
+            # Timestamp/source/verified status (not calendar alone) controls LIVE.
+            # Read is always freshness-gated; connected still required.
+            market_open=True)
 
     def signal_percentages(row):
         # Shared UI T percentages must use only canonical candle indicators.
@@ -1550,10 +1552,9 @@ def app_main(page:ft.Page):
                 not any(e.eligible and e.source=="Dhan"
                         for e in snapshot["engines"])):
             snapshot=None
-        if snapshot and not regular_hours():
-            # Even an otherwise fresh verified engine is ineligible outside
-            # market hours. The historical candle box below remains visible.
-            snapshot=snapshot_for_display(None,now=time.time())
+        # The contextual reader already checks Dhan connection, source,
+        # evidence timestamps and independent eligibility. Calendar must not
+        # erase a genuinely verified fresh sample on a special session.
         if not snapshot:
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
@@ -1725,11 +1726,8 @@ def app_main(page:ft.Page):
             return note("LIVE FINAL • DISABLED BY HISTORICAL MODE • NOT LIVE")
         if timeframe not in ("1m","3m","5m"):
             return note("LIVE FINAL • WAIT • unsupported timeframe • 0/5 verified")
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected or not regular_hours():
-            return note("LIVE FINAL • WAIT • "+(
-                "SSK/Oracle connected • HIST available separately • LIVE quote unverified"
-                if prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours()
-                else "LIVE quote/session unverified or market closed")+" • 0/5 verified")
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return note("LIVE FINAL • WAIT • LIVE quote/session unverified • 0/5 verified")
         snapshot=read_five_engine_context(symbol,timeframe)
         combined=snapshot["combined"]
         state=combined["state"]
@@ -1784,10 +1782,8 @@ def app_main(page:ft.Page):
                   if prefs.get("market_display_mode")!="HISTORICAL"
                   and prefs.get("source")=="Dhan" and dhan_feed.connected
                   and exact_frame in ("1m","3m","5m") else None)
-        if snapshot and not regular_hours():
-            # Session closure revokes LIVE eligibility but not the distinct
-            # 1m/3m/5m completed-candle HIST display below.
-            snapshot=snapshot_for_display(None,now=time.time())
+        # Do not erase fresh authenticated evidence solely due to the
+        # static holiday calendar; cache reader validates source/freshness.
         evidence={row.name:row.display() for row in snapshot["engines"]} if snapshot else {}
         cards=[]
         for name,short in names:
