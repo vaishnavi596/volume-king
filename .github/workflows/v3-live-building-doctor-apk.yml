@@ -1,14 +1,14 @@
-name: BOT KING V3 B202 Side-by-Side Phone-Test APK
-run-name: BOT KING V3 B202 PREVIEW • separate Android identity • v2.3.202
+name: BOT KING V3 B203 Side-by-Side Phone-Test APK
+run-name: BOT KING V3 B203 PREVIEW • separate Android identity • v2.3.203
 # This PREVIEW has a distinct package ID and is NOT an upgrade to installed B198.
 # Never replace the protected same-package release workflow with a temporary key.
-# B202 is an isolated new phone identity after successful B3 holiday login/runtime audit.
+# B203 is an isolated new phone identity after successful B3 holiday login/runtime audit.
 # The full independent exact-head B3 gate must PASS before signing this preview.
-# B202 final regression checkpoint: exact-head 1833-test suite, holiday HIST and signer guards.
+# B203 final regression checkpoint: exact-head 1833-test suite, holiday HIST and signer guards.
 on:
   push:
     branches:
-      - pilot/v1-pure-original-clone-phone-20261120
+      - pilot/v1-pure-original-clone-phone-20361120
     paths:
       - .github/workflows/v3-live-building-doctor-apk.yml
       - tests/test_b1_five_engine_dhan_shared_option.py
@@ -19,7 +19,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: v3-b202-preview-${{ github.ref }}
+  group: v3-b203-preview-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build-preview:
@@ -41,7 +41,7 @@ jobs:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
-      - name: Check B202 Dhan-only full app and release safety
+      - name: Check B203 Dhan-only full app and release safety
         env:
           PYTHONPATH: src
         run: |
@@ -49,7 +49,7 @@ jobs:
           python - <<'PY'
           import ast,pathlib,tomllib
           meta=tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-          assert meta['project']['version']=='2.3.202'
+          assert meta['project']['version']=='2.3.203'
           main=pathlib.Path('src/main.py').read_text()
           for f in ('src/main.py','src/clone_v2_gateway.py','backend/clone_v2_gateway.py'):
               ast.parse(pathlib.Path(f).read_text(),filename=f)
@@ -58,25 +58,25 @@ jobs:
                         'Angel One login disabled in V3',
                         'CloneDhanReadOnly(clone_v2_gateway)'):
               assert guard in main, guard
-          # Latest V3 phone-build must include verified 2026 holiday gate
+          # Latest V3 phone-build must include verified 2036 holiday gate
           # and explicit unavailable-calendar OFF reasons; no unsafe LIVE.
           calendar=pathlib.Path('src/v3_equity_session_calendar.py').read_text()
           for marker in (
-              'EQUITY_HOLIDAYS_2026',
-              'if clock.year>=2027:',
+              'EQUITY_HOLIDAYS_2036',
+              'if clock.year>=2037:',
               'official holiday calendar unavailable',
               'special Muhurat session not enabled',
           ):
               assert marker in calendar, marker
           assert 'equity_session_closed_detail())' in main
-          print('V3_B202_PREVIEW_SOURCE_GUARD=PASS')
-          print('V3_2026_2027_HOLIDAY_AND_PHONE_OFF_GUARD=PASS')
+          print('V3_B203_PREVIEW_SOURCE_GUARD=PASS')
+          print('V3_2036_2037_HOLIDAY_AND_PHONE_OFF_GUARD=PASS')
           PY
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           # Validate CURRENT source, not a prior preview SHA. Fail before
           # signing/building if any cross-screen or gateway regression fails.
           python -m unittest discover -s tests -v
-          echo V3_B202_PREVIEW_FULL_OFFLINE_GATE=PASS
+          echo V3_B203_PREVIEW_FULL_OFFLINE_GATE=PASS
       # A phone-test APK may run a full local suite but must not bypass
       # the independent exact-head B3 gate. Wait only a bounded period for
       # the separately auto-triggered run, then fail closed if missing.
@@ -95,7 +95,7 @@ jobs:
               req=urllib.request.Request(url,headers={
                   "Authorization":"Bearer "+os.environ["GH_TOKEN"],
                   "Accept":"application/vnd.github+json",
-                  "X-GitHub-Api-Version":"2022-11-28"})
+                  "X-GitHub-Api-Version":"2032-11-28"})
               try:
                   with urllib.request.urlopen(req,timeout=20) as response:
                       runs=json.load(response).get("workflow_runs",[])
@@ -120,72 +120,72 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          mkdir -p "$RUNNER_TEMP/v3-b202-preview-sign"
+          mkdir -p "$RUNNER_TEMP/v3-b203-preview-sign"
           PASS="$(openssl rand -hex 24)"
           echo "::add-mask::$PASS"
-          printf '%s\n' "$PASS" > "$RUNNER_TEMP/v3-b202-preview-sign/password"
-          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-b202-preview-sign/preview.jks" -storetype PKCS12 -alias b202_preview -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V3 B202 ISOLATED PREVIEW" -storepass "$PASS" -keypass "$PASS"
+          printf '%s\n' "$PASS" > "$RUNNER_TEMP/v3-b203-preview-sign/password"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-b203-preview-sign/preview.jks" -storetype PKCS12 -alias b203_preview -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V3 B203 ISOLATED PREVIEW" -storepass "$PASS" -keypass "$PASS"
       - name: Build full app with separate preview package
         shell: bash
         env:
-          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v3-b202-preview-sign/preview.jks
-          FLET_ANDROID_SIGNING_KEY_ALIAS: b202_preview
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v3-b203-preview-sign/preview.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: b203_preview
         run: |
           set -euo pipefail
-          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-b202-preview-sign/password")"
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-b203-preview-sign/password")"
           export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
           python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
-          printf "BUILD_VERSION = '2.3.202'\n" > src/_build_version.py
-          mkdir -p "$GITHUB_WORKSPACE/dist/v3-b202-preview"
-          flet build apk --project bot_king_v3_b202_preview --org com.botking.v3b202 --product "BOT KING V3 B202 PREVIEW" --build-number 202 --build-version 2.3.202 --output "$GITHUB_WORKSPACE/dist/v3-b202-preview" --verbose
+          printf "BUILD_VERSION = '2.3.203'\n" > src/_build_version.py
+          mkdir -p "$GITHUB_WORKSPACE/dist/v3-b203-preview"
+          flet build apk --project bot_king_v3_b203_preview --org com.botking.v3b203 --product "BOT KING V3 B203 PREVIEW" --build-number 203 --build-version 2.3.203 --output "$GITHUB_WORKSPACE/dist/v3-b203-preview" --verbose
       - name: Apply isolated preview signer explicitly (never accept Flet debug signer)
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find dist/v3-b202-preview -type f -name '*.apk' | sort)
+          mapfile -t apks < <(find dist/v3-b203-preview -type f -name '*.apk' | sort)
           test "${#apks[@]}" -eq 1
           APK="${apks[0]}"
           SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$SIGNER"
-          KEYSTORE="$RUNNER_TEMP/v3-b202-preview-sign/preview.jks"
-          PASSWORD_FILE="$RUNNER_TEMP/v3-b202-preview-sign/password"
+          KEYSTORE="$RUNNER_TEMP/v3-b203-preview-sign/preview.jks"
+          PASSWORD_FILE="$RUNNER_TEMP/v3-b203-preview-sign/password"
           test -s "$KEYSTORE" && test -s "$PASSWORD_FILE"
           export BOTKING_PREVIEW_KEY_PASSWORD="$(cat "$PASSWORD_FILE")"
-          "$SIGNER" sign --ks "$KEYSTORE" --ks-key-alias b202_preview \
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-key-alias b203_preview \
             --ks-pass "file:$PASSWORD_FILE" --key-pass "env:BOTKING_PREVIEW_KEY_PASSWORD" \
             --v1-signing-enabled true --v2-signing-enabled true \
-            --out "$RUNNER_TEMP/v3-b202-preview-explicit-signed.apk" "$APK"
+            --out "$RUNNER_TEMP/v3-b203-preview-explicit-signed.apk" "$APK"
           unset BOTKING_PREVIEW_KEY_PASSWORD
-          mv "$RUNNER_TEMP/v3-b202-preview-explicit-signed.apk" "$APK"
-          echo B202_PREVIEW_APKSIGNER_EXPLICIT_SIGN=COMPLETE
+          mv "$RUNNER_TEMP/v3-b203-preview-explicit-signed.apk" "$APK"
+          echo B203_PREVIEW_APKSIGNER_EXPLICIT_SIGN=COMPLETE
       - name: Verify identity and isolated APK signature before upload
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find dist/v3-b202-preview -type f -name '*.apk' | sort)
+          mapfile -t apks < <(find dist/v3-b203-preview -type f -name '*.apk' | sort)
           test "${#apks[@]}" -eq 1
           APK="${apks[0]}"
           SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3b202\\.bot_king_v3_b202_preview' versionCode='202' versionName='2\\.3\\.202'"
-          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B202 PREVIEW'"
-          "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v3-b202-preview-sign/apk-info"
-          PASS="$(cat "$RUNNER_TEMP/v3-b202-preview-sign/password")"
-          EXPECTED="$(keytool -list -v -keystore "$RUNNER_TEMP/v3-b202-preview-sign/preview.jks" -alias b202_preview -storepass "$PASS" | grep -m1 'SHA256:' | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
-          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v3-b202-preview-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3b203\\.bot_king_v3_b203_preview' versionCode='203' versionName='2\\.3\\.203'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B203 PREVIEW'"
+          "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v3-b203-preview-sign/apk-info"
+          PASS="$(cat "$RUNNER_TEMP/v3-b203-preview-sign/password")"
+          EXPECTED="$(keytool -list -v -keystore "$RUNNER_TEMP/v3-b203-preview-sign/preview.jks" -alias b203_preview -storepass "$PASS" | grep -m1 'SHA256:' | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v3-b203-preview-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
           test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
           sha256sum "$APK"
-          echo B202_PREVIEW_SIGNATURE_AND_PACKAGE=PASS
+          echo B203_PREVIEW_SIGNATURE_AND_PACKAGE=PASS
       - name: Delete disposable preview-only signer
         if: always()
-        run: rm -rf "$RUNNER_TEMP/v3-b202-preview-sign"
+        run: rm -rf "$RUNNER_TEMP/v3-b203-preview-sign"
       - name: Upload isolated preview Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: BOT-KING-V3-B202-SIDE-BY-SIDE-PREVIEW-APK
-          path: dist/v3-b202-preview/**/*.apk
+          name: BOT-KING-V3-B203-SIDE-BY-SIDE-PREVIEW-APK
+          path: dist/v3-b203-preview/**/*.apk
           if-no-files-found: error
           retention-days: 14
