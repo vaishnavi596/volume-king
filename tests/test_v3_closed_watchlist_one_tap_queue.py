@@ -41,6 +41,11 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
         self.assertIn('get_market_data,sym,"1m","2d"',src)
         self.assertIn('return False  # At most one selected equity per 5m scan cycle.',src)
 
+    def test_unavailable_symbols_are_not_claimed_as_completed(self):
+        src=function("continue_closed_watch_history")
+        self.assertIn('if attempted else f"HIST complete {finished}/{total}',src)
+        self.assertIn('HIST loaded {finished}/{total} • unavailable after attempt',src)
+
     def test_button_disables_while_worker_running(self):
         src=function("watchlist")
         self.assertIn('or watch_closed_hist_loading[0]',src)
