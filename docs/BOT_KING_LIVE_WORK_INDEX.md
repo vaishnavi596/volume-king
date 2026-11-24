@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **24-Nov-2026 CONTINUOUS WORK / PHONE OFF REASON:** Source+test [`dcaa480d`](https://github.com/vaishnavi596/volume-king/commit/dcaa480da9c74f22d5de680aa21148319660dde4) adds holiday/weekend/Muhurat-not-enabled/calendar-unavailable/outside-hours reason to shared `session_caption()`, without enabling uncertain LIVE sessions or changing T/C/N/F/O. B1 [#45338493211](https://github.com/vaishnavi596/volume-king/actions/runs/45338493211) PASS, B2 [#45338493206](https://github.com/vaishnavi596/volume-king/actions/runs/45338493206) PASS, Adapter [#45338493259](https://github.com/vaishnavi596/volume-king/actions/runs/45338493259) PASS; new exact-source full B3 [#45338493297](https://github.com/vaishnavi596/volume-king/actions/runs/45338493297) IN_PROGRESS, not yet final PASS. Earlier 1805/1805 B3 remains green baseline. Full audit in [Work Log](BOT_KING_WORK_LOG.md). Next gate: examine exact B3 verdict and add actual caption-runtime/off-hours phone acceptance, not redundant old workflow; no APK or Oracle change yet.
+
+
 > **24-Nov-2026 2027 HOLIDAY FAIL-CLOSED B3 GREEN:** [#45337696756](https://github.com/vaishnavi596/volume-king/actions/runs/45337696756) tested source `68855972`, **1805/1805 offline tests OK** incl. 2027+ unknown annual calendar cannot authorize LIVE or automatic polling. Full evidence recorded in [Hindi Work Log](BOT_KING_WORK_LOG.md). The missing official 2027 calendar remains OPEN; 2027+ auto-refresh intentionally blocked pending verified list, and no special sessions/Android phone proof is claimed. Do not repeat unchanged regression.
 
 
