@@ -121,8 +121,11 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
     # final output based on such incomplete inspection.
     eligible_count=sum(x["vote_state"]=="ELIGIBLE" for x in boxes)
     conflict=conflict_doctor(snapshot,market_open=market_open)
-    if any(issue.get("code")=="COMBINED_VOTE_PUBLISH_MISMATCH"
-           for issue in conflict.get("issues",[])):
+    if published and "combined" not in snapshot:
+        combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
+                  "bearish":None,"reason":"PUBLISHED_COMBINED_VOTE_MISSING"}
+    elif any(issue.get("code")=="COMBINED_VOTE_PUBLISH_MISMATCH"
+             for issue in conflict.get("issues",[])):
         combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
                   "bearish":None,"reason":"COMBINED_VOTE_PUBLISH_MISMATCH"}
     elif eligible_count<3 and combined.get("state")!="WAIT":
