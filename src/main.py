@@ -2724,6 +2724,17 @@ def app_main(page:ft.Page):
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
     watch_closed_hist_key=[None]
+    watch_closed_hist_wait_seconds=[0]
+    def watch_hist_budget_wait_seconds():
+        # Show the *actual* remaining local quota delay. Never guess that a
+        # source fetch failed merely because the 3/180s budget is exhausted.
+        now=time.monotonic()
+        recent=[t for t in watch_three_minute_upstream_times if 0<=now-t<180]
+        budget_wait=(180-(now-min(recent))) if len(recent)>=3 else 0
+        floor_wait=(30-(now-watch_three_minute_warm_last_provider[0])
+                    if watch_three_minute_warm_last_provider[0]>0 else 0)
+        return max(0,int(math.ceil(max(budget_wait,floor_wait,0))))
+
     # Resume only a previously user-requested HIST queue; no unsolicited
     # closed-session provider polling when the user has not tapped Refresh.
     watch_closed_hist_resume_pending=[False]
@@ -2785,8 +2796,22 @@ def app_main(page:ft.Page):
                 # A request may be deferred by 30s/3-per-180s provider budget,
                 # existing workers or cooldown. One task simply waits and retries.
                 if not checked and len(watch_three_minute_warm_attempts)==before:
+                    wait=watch_hist_budget_wait_seconds()
+                    watch_closed_hist_wait_seconds[0]=wait
+                    if wait:
+                        watch_batch_status[0]=(
+                            f"HIST {finished}/{total} • provider pacing; next eligible "
+                            f"in ~{wait}s • NOT LIVE")
+                    else:
+                        watch_batch_status[0]=(
+                            f"HIST {finished}/{total} • waiting for worker or cooldown "
+                            "• NOT LIVE")
+                    if current[0]==4 and watch_status_text.page is not None:
+                        watch_status_text.value="Quote check • "+watch_batch_status[0]
+                        watch_status_text.update()
                     await asyncio.sleep(10)
                 else:
+                    watch_closed_hist_wait_seconds[0]=0
                     await asyncio.sleep(1)
         except asyncio.CancelledError:
             raise
@@ -5741,6 +5766,9 @@ def app_main(page:ft.Page):
                         "warmup_max_uncached_requests_per_180s":3,
                         "warmup_floor_seconds":30,
                         "recent_uncached_requests_in_180s":len(warm_times),
+                        "closed_hist_queue_active":bool(watch_closed_hist_loading[0]),
+                        "closed_hist_resume_pending":bool(watch_closed_hist_resume_pending[0]),
+                        "closed_hist_pacing_wait_seconds":watch_hist_budget_wait_seconds(),
                         "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
                         "warmup_busy":bool(watch_three_minute_warm_busy[0]),
                         "refresh_speed_diagnosis":"3m source candle waits for bounded warmup; 2s UI tick is not 2s provider polling",
