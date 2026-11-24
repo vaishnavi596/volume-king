@@ -7,6 +7,7 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/clone-b3-full-regression.yml
+      - .github/workflows/v3-b207-side-by-side-preview-apk.yml
       - .github/workflows/v3-b196-regression-preflight.yml
       - .github/workflows/v3-live-building-doctor-apk.yml
       - src/**
