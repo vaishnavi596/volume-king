@@ -14,7 +14,7 @@ class CloneB1StatusContract(unittest.TestCase):
         self.assertIn('Data mode: LIVE (verified) / HISTORICAL (last completed)', self.source)
         self.assertIn('Missing evidence stays WAIT; cached quote never becomes LIVE', self.source)
         self.assertNotIn('market_display_choice=ft.Dropdown(', self.source)
-        self.assertIn('LIVE quote/session unverified or market closed', self.source)
+        self.assertIn('LIVE quote/session unverified • 0/5 verified', self.source)
 
     def test_mounted_watchlist_compact_status(self):
         self.assertIn('label=("OFF" if not regular_hours() else "STALE")', self.source)
