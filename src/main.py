@@ -3948,6 +3948,18 @@ def app_main(page:ft.Page):
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
             building_doctor.milestone("gateway_authorized")
+            # On a verified exchange holiday/closed session, SSK authorization
+            # is a valid read-only gateway connection, NOT Dhan quote proof.
+            # Do not request absent holiday LTPs or activate the LIVE feed.
+            # Previously stored exact-frame HIST candles remain independently
+            # displayable; next open session still requires actual quote proof.
+            if not regular_hours():
+                connection_status.value=(
+                    "Clone SSK connected • "+equity_session_closed_detail().strip(" •")+
+                    " • market-data quotes unverified • HIST cache only • LIVE OFF.")
+                connection_status.color=GOLD
+                building_doctor.milestone("gateway_authorized_closed_session")
+                return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
             selected_equities=list(all_watch_symbols())
