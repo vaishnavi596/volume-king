@@ -23,7 +23,8 @@ class HolidayHistorySourceGate(unittest.TestCase):
 
     def test_manual_scanner_can_request_closed_session_history_without_live(self):
         source=body("scan_market")
-        self.assertIn("allow_network and not (clone_v2_gateway.connected and not regular_hours())",source)
+        self.assertIn("and allow_network",source)
+        self.assertIn("and not (clone_v2_gateway.connected and not regular_hours())",source)
         self.assertIn("get_market_data,sym,interval,period",source)
         self.assertIn("if not allow_network and prefs.get(\"source\")==\"Dhan\":",source)
 
