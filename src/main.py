@@ -1625,13 +1625,46 @@ def app_main(page:ft.Page):
             historical=True,live_verified=False,
             freshness="historical_unverified"))
 
+    # One completed-bar replay per immutable input revision, not one per
+    # quote-only screen repaint. Keys cannot mix symbol, timeframe or session.
+    historical_final_replay_cache={}
+    def cached_historical_final_replay(sym,frame,history,selected,now):
+        from v3_historical_vote_replay import historical_vote_replay
+        bars=history.get("bars") if isinstance(history,dict) else None
+        seconds={"1m":60,"3m":180,"5m":300}[frame]
+        # A complete fingerprint detects revisions ANYWHERE in the OHLCV
+        # series, not just appends/final timestamps or the last four candles.
+        fingerprint=tuple(tuple(bar) if isinstance(bar,(tuple,list))
+                          else repr(bar) for bar in bars) if isinstance(bars,(tuple,list)) else ()
+        last=bars[-1] if isinstance(bars,(tuple,list)) and bars else None
+        last_stamp=(last[0] if isinstance(last,(tuple,list)) and last
+                    and type(last[0]) in (int,float) and math.isfinite(last[0])
+                    else None)
+        # A candle can become complete without any cache/feed mutation.
+        completion=(last_stamp is not None and last_stamp+seconds<=now)
+        identity=(provider_generation[0],prefs.get("source"),
+                  history.get("source") if isinstance(history,dict) else None,
+                  tuple(row["name"] for row in selected),fingerprint,completion)
+        key=(sym,frame)
+        cached=historical_final_replay_cache.get(key)
+        if cached and cached[0]==identity:
+            return cached[1]
+        result=historical_vote_replay(
+            symbol=sym,timeframe=frame,generation=provider_generation[0],
+            source=history.get("source") if isinstance(history,dict) else None,
+            bars=bars,filter_rows=selected,history_timestamp=now)
+        # Bounded for 70 equities × three timeframes, plus three indexes.
+        if len(historical_final_replay_cache)>=220 and key not in historical_final_replay_cache:
+            historical_final_replay_cache.clear()
+        historical_final_replay_cache[key]=(identity,result)
+        return result
+
     def scanner_historical_final_vote(symbol=None, timeframe=None):
         """Display one read-only HIST policy across all four V3 surfaces.
 
         The replay recalculates the T lane from completed Dhan cache candles;
         missing N/F/O inputs remain abstentions. Never report this as LIVE.
         """
-        from v3_historical_vote_replay import historical_vote_replay
         from filter_wiring_audit import CANDLE_FILTERS
         sym=str(symbol or scan_symbol.value or "NIFTY")
         frame=str(timeframe or scan_tf.value or "1m")
@@ -1640,11 +1673,8 @@ def app_main(page:ft.Page):
             return note("HIST FINAL • WAIT • unsupported selected timeframe • NOT LIVE")
         selected=[{"name":name} for name in filter_selected
                   if name in CANDLE_FILTERS and filter_modes.get(name,"Analysis")!="Chart"]
-        output=historical_vote_replay(
-            symbol=sym,timeframe=frame,generation=provider_generation[0],
-            source=history.get("source") if isinstance(history,dict) else None,
-            bars=history.get("bars") if isinstance(history,dict) else None,
-            filter_rows=selected,history_timestamp=time.time())
+        output=cached_historical_final_replay(
+            sym,frame,history,selected,time.time())
         final=output["historical_combined"]
         direction=final["state"]
         confidence=(" B"+str(final["bullish"])+"% / S"+str(final["bearish"])+"%"

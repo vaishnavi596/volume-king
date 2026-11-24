@@ -298,7 +298,8 @@ class HistoricalVotingTests(unittest.TestCase):
         ast.parse(source)
         self.assertIn("def scanner_historical_final_vote(symbol=None, timeframe=None):",source)
         self.assertIn('final=output["historical_combined"]',source)
-        self.assertIn('filter_rows=selected,history_timestamp=time.time()',source)
+        self.assertIn('output=cached_historical_final_replay(',source)
+        self.assertIn('filter_rows=selected,history_timestamp=now)',source)
         self.assertIn('scanner_historical_final_vote()],spacing=5)))',source)
         self.assertIn('" • NOT LIVE")',source)
         block=source.split("    def scanner_historical_final_vote(symbol=None, timeframe=None):",1)[1].split("    def five_engine_chips(",1)[0]
@@ -306,6 +307,24 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertNotIn('get_market_data(',block)
         self.assertNotIn('dhan_feed.',block)
         self.assertNotIn('orders_sent(',block)
+
+    def test_historical_final_replay_cache_bounds_and_revision_gates(self):
+        s=(ROOT/"src/main.py").read_text()
+        ast.parse(s)
+        cache=s.split("    def cached_historical_final_replay(",1)[1].split(
+            "    def scanner_historical_final_vote(",1)[0]
+        self.assertIn('key=(sym,frame)',cache)
+        self.assertIn('provider_generation[0]',cache)
+        self.assertIn('prefs.get("source")',cache)
+        self.assertIn('tuple(row["name"] for row in selected)',cache)
+        self.assertIn('fingerprint=tuple(tuple(bar)',cache)
+        self.assertIn('last_stamp+seconds<=now',cache)
+        self.assertIn('cached[0]==identity',cache)
+        self.assertIn('len(historical_final_replay_cache)>=220',cache)
+        self.assertIn('historical_final_replay_cache.clear()',cache)
+        self.assertIn('history_timestamp=now',cache)
+        self.assertNotIn('get_market_data(',cache)
+        self.assertNotIn('dhan_feed.',cache)
 
     def test_historical_final_is_same_function_on_all_four_surfaces(self):
         source=(ROOT/"src/main.py").read_text()
