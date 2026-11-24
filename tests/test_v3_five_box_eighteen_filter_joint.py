@@ -43,7 +43,8 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         self.assertIn(
             'if exact_frame=="5m" and snapshot["engines"][0].display()["state"]=="WAIT":',
             summary)
-        self.assertEqual(summary.count("last_votes=historical_five_minute_technical(symbol)"),1)
+        self.assertEqual(summary.count("last_votes=historical_five_minute_technical(symbol)"),2)
+        self.assertIn('if display_timeframe in (None,"5m"):',summary)
         self.assertIn('exact_frame=display_timeframe or "5m"',summary)
 
     def test_canonical_eighteen_registry_and_exact_five_lanes(self):
