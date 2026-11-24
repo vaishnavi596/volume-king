@@ -76,9 +76,12 @@ class V3EquityHolidayCalendar(unittest.TestCase):
             with self.subTest(at=instant.isoformat()):
                 self.assertIn(reason,equity_session_closed_detail(instant))
                 self.assertFalse(regular_equity_hours(instant))
-        self.assertIn(
-            'equity_session_closed_detail())',
-            (ROOT/"src"/"main.py").read_text(encoding="utf-8"))
+        # Calendar can explain market hours but must not select display mode.
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        self.assertIn("return regular_equity_hours(now)",source)
+        self.assertIn("return equity_refresh_window(now)",source)
+        self.assertIn("LIVE when exchange-verified",source)
+        self.assertNotIn("LIVE ONLY • WAIT • market closed",source)
 
     def test_phone_market_and_refresh_production_contract(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
