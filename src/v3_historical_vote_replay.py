@@ -5,6 +5,7 @@ and independent candle-body C. Absent news impact, futures trade-flow and
 options directional flow abstain. No artificial votes or provider requests.
 """
 from math import isfinite
+from datetime import date, datetime, timezone, timedelta
 from five_engine import ENGINE_NAMES, historical_candle_balance, combine_evidence, EngineEvidence
 from historical_session_window import historical_regular_session_bars
 from filter_wiring_audit import CANDLE_FILTERS
@@ -45,9 +46,16 @@ def _historical_measured(name, component, *, symbol, timeframe, generation, last
         if not isinstance(component.get("contract"),str) or not component["contract"].strip():
             return None
     if name=="options":
-        if (not isinstance(component.get("expiry"),str)
-                or not component["expiry"].strip()
-                or component.get("underlying")!=symbol):
+        expiry=component.get("expiry")
+        try:
+            expiry_day=date.fromisoformat(expiry)
+            exact_expiry=(type(expiry) is str
+                          and expiry_day.isoformat()==expiry
+                          and expiry_day>=datetime.fromtimestamp(
+                              last_bar,timezone(timedelta(hours=5,minutes=30))).date())
+        except (ValueError,TypeError,OverflowError):
+            exact_expiry=False
+        if not exact_expiry or component.get("underlying")!=symbol:
             return None
     b,r=component.get("bullish"),component.get("bearish")
     if type(b) is not int or type(r) is not int or not 0<=b<=100 or b+r!=100:
@@ -67,6 +75,10 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
             "boxes":[],"technical_vote":None,"candle_vote":None,
             "combined":{"state":"WAIT","coverage":0,
                         "reason":"HIST replay needs three independent directional sources"},
+            "historical_combined":{"state":"WAIT","coverage":0,"required":3,
+                                   "bullish":None,"bearish":None,
+                                   "reason":"HIST_REPLAY_QUORUM_NOT_MET",
+                                   "mode":"HIST_ONLY_NOT_LIVE"},
             "blockers":[]}
     if source!="Dhan" or not isinstance(bars,(list,tuple)):
         result["blockers"].append("MATCHING_DHAN_HISTORY_REQUIRED")
@@ -186,6 +198,27 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     result["combined"]={"state":"WAIT","coverage":available,"required":3,
                         "reason":"HIST_REPLAY_QUORUM_NOT_MET" if available<3
                                  else "HIST_REPLAY_NOT_LIVE_CERTIFICATION"}
+    # Apply the already-audited 3/5 policy to actual replay evidence in a
+    # DISTINCT historical-only result. Neither an HIST engine nor this
+    # result is eligible for live trading, and no simulated missing N/F/O
+    # inputs may be supplied implicitly.
+    hist_rows=tuple(
+        EngineEvidence(row["engine"],
+                       row["bullish"] if row["state"]=="HIST_VOTE" else None,
+                       row["bearish"] if row["state"]=="HIST_VOTE" else None,
+                       verified=row["state"]=="HIST_VOTE",
+                       timestamp=session[-1][0] if row["state"]=="HIST_VOTE" else None,
+                       source="Dhan" if row["state"]=="HIST_VOTE" else "")
+        for row in result["boxes"])
+    historical_policy=combine_evidence(hist_rows)
+    result["historical_combined"]={
+        "state":historical_policy["state"],
+        "coverage":historical_policy["coverage"],
+        "required":historical_policy["required"],
+        "bullish":historical_policy["bullish"],
+        "bearish":historical_policy["bearish"],
+        "reason":historical_policy["reason"],
+        "mode":"HIST_ONLY_NOT_LIVE"}
     result["historical_session_bars"]=len(session)
     result["removed_outside_session_bars"]=len(bars)-len(session)
     return result

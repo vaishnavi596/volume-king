@@ -57,7 +57,54 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertFalse(result["verified_live"])
         self.assertEqual(result["combined"]["state"],"WAIT")
         self.assertEqual(result["combined"]["coverage"],5)
+        self.assertEqual(result["historical_combined"]["coverage"],5)
+        self.assertEqual(result["historical_combined"]["mode"],"HIST_ONLY_NOT_LIVE")
+        self.assertIn(result["historical_combined"]["state"],("BULLISH","BEARISH","WAIT"))
         self.assertEqual(result["orders_sent"],0)
+
+    def test_three_independent_historical_engines_can_vote_hist_not_live(self):
+        sample=bars()
+        stamp=sample[-1][0]
+        context={"news":{"source":"Dhan","verified":True,"historical":True,
+                         "symbol":"NIFTY","timeframe":"1m","generation":1,
+                         "timestamp":stamp,"bullish":95,"bearish":5,
+                         "direction_basis":"verified_symbol_news_impact"}}
+        result=replay(historical_context=context,
+                      filter_rows=[{"name":"EMA 9/21","vote":1},
+                                   {"name":"MACD","vote":1},
+                                   {"name":"RSI 14","vote":1}])
+        self.assertEqual(result["historical_combined"]["coverage"],3)
+        self.assertEqual(result["historical_combined"]["mode"],"HIST_ONLY_NOT_LIVE")
+        self.assertEqual(result["combined"]["state"],"WAIT")
+        self.assertFalse(result["verified_live"])
+        self.assertEqual(result["orders_sent"],0)
+        self.assertEqual(result["provider_requests"],0)
+
+    def test_historical_vote_stays_wait_without_verified_third_source(self):
+        result=replay()
+        self.assertEqual(result["historical_combined"]["coverage"],2)
+        self.assertEqual(result["historical_combined"]["state"],"WAIT")
+        self.assertEqual(result["historical_combined"]["reason"],
+                         "Insufficient verified engines")
+        self.assertEqual(result["combined"]["state"],"WAIT")
+
+    def test_option_historical_expiry_is_canonical_and_not_expired(self):
+        stamp=bars()[-1][0]
+        valid=dict(source="Dhan",verified=True,historical=True,
+                   symbol="NIFTY",timeframe="1m",generation=1,
+                   timestamp=stamp,bullish=80,bearish=20,
+                   direction_basis="validated_option_trade_flow",
+                   contract="NIFTY-CE",expiry="2026-11-26",
+                   underlying="NIFTY")
+        self.assertEqual(replay(historical_context={"options":valid})
+                         ["boxes"][4]["state"],"HIST_VOTE")
+        for bad in ("2020-01-01","2026-11-23T00:00:00",
+                    "bad-expiry","",None,True):
+            with self.subTest(expiry=bad):
+                result=replay(historical_context={
+                    "options":dict(valid,expiry=bad)})
+                self.assertEqual(result["boxes"][4]["state"],"WAIT")
+                self.assertEqual(result["historical_combined"]["state"],"WAIT")
 
     def test_unverified_context_never_claims_four_box_votes(self):
         # Data-only context and mismatched proof never vote.
