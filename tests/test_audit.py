@@ -108,25 +108,25 @@ class AuditTests(unittest.TestCase):
         ist=timezone(timedelta(hours=5,minutes=30))
         cases=(
             (datetime(2026,11,24,11,0,tzinfo=ist),
-             "OFF • last available prices (not live) • NSE/BSE trading holiday"),
+             "AUTO • HIST fallback • LIVE OFF • NSE/BSE trading holiday"),
             (datetime(2026,11,8,14,20,tzinfo=ist),
-             "OFF • last available prices (not live) • special Muhurat session not enabled"),
+             "AUTO • HIST fallback • LIVE OFF • special Muhurat session not enabled"),
             (datetime(2026,11,28,11,0,tzinfo=ist),
-             "OFF • last available prices (not live) • weekend"),
+             "AUTO • HIST fallback • LIVE OFF • weekend"),
             (datetime(2027,1,4,11,0,tzinfo=ist),
-             "OFF • last available prices (not live) • official holiday calendar unavailable"),
+             "AUTO • HIST fallback • LIVE OFF • official holiday calendar unavailable"),
             (datetime(2026,11,25,8,30,tzinfo=ist),
-             "OFF • last available prices (not live) • outside regular market hours"),
+             "AUTO • HIST fallback • LIVE OFF • outside regular market hours"),
             (datetime(2026,11,25,11,0,tzinfo=ist),
-             "STALE • exchange timestamps unverified"),
+             "AUTO • LIVE unverified until fresh exchange evidence • HIST fallback allowed"),
         )
         with patch.object(cal,"datetime",FrozenIST):
             for instant,expected in cases:
                 with self.subTest(time=instant.isoformat()):
                     FrozenIST.instant=instant
                     self.assertEqual(ui["session_caption"](),expected)
-                    self.assertEqual(ui["regular_hours"](),expected.startswith("STALE"))
-                    self.assertEqual(ui["refresh_hours"](),expected.startswith("STALE"))
+                    self.assertEqual(ui["regular_hours"](),expected.startswith("AUTO • LIVE unverified"))
+                    self.assertEqual(ui["refresh_hours"](),expected.startswith("AUTO • LIVE unverified"))
 
     def test_ohlc_aggregation_provider_boundary_and_hours(self):
         _,v=start()
@@ -621,7 +621,7 @@ class AuditTests(unittest.TestCase):
         self.assertIsNone(v['dhan_batch_issue'][0])
         self.assertIn('Dhan connected • 51/51',v['connection_status'].value)
         self.assertIn('51/51 LTP • ',v['connection_status'].value)
-        self.assertNotIn('LIVE',v['connection_status'].value)
+        self.assertNotIn('verified LIVE',v['connection_status'].value)
         self.assertNotIn('batch failed',v['connection_status'].value)
 
     def test_partial_dhan_batch_is_not_reported_as_complete(self):
