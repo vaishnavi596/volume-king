@@ -12,29 +12,10 @@ def _positive_stamp(value):
     return type(value) in (int, float) and isfinite(value) and value > 0
 
 
-def four_box_source_readiness(*, symbol, timeframe, generation, history,
-                              news_cache=None, futures_cache=None,
-                              option_context=None, now):
-    """Describe what real cache data can prove; never synthesize a vote.
-
-    Note: caller's contexts have no authenticated independent directional
-    provenance; verified LIVE directional outputs are always unavailable.
-    """
-    if (not isinstance(symbol, str) or not symbol.strip()
-            or timeframe not in ("1m", "3m", "5m")
-            or type(generation) is not int or generation < 0
-            or not _positive_stamp(now)):
-        raise ValueError("Valid exact symbol/timeframe/generation/time required")
-    history = history if isinstance(history, dict) else {}
-    news_cache = news_cache if isinstance(news_cache, dict) else {}
-    option_context = option_context if isinstance(option_context, dict) else {}
-    futures_cache = futures_cache if isinstance(futures_cache, dict) else {}
-    exact_history = (history.get("source") == "Dhan"
-                     and history.get("_scanner_timeframe") == timeframe
-                     and isinstance(history.get("bars"), (tuple, list)))
-    balance = (completed_timeframe_candle_balance(history, timeframe, now=now)
-               if exact_history else None)
-    candles = history.get("bars") if exact_history else []
+def valid_news_context_count(news_cache, *, now):
+    """One safe, deduplicated source-shaped RSS count for UI and both Doctors."""
+    if not _positive_stamp(now):
+        raise ValueError("Valid news observation time required")
     news = news_cache.get("items")
     # Count only source-shaped, time-bounded RSS rows, never arbitrary items,
     # future headlines, repeated titles or stale persisted cache records.
@@ -58,6 +39,33 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
             if key not in seen_headlines:
                 seen_headlines.add(key)
                 headlines+=1
+    return headlines
+
+
+def four_box_source_readiness(*, symbol, timeframe, generation, history,
+                              news_cache=None, futures_cache=None,
+                              option_context=None, now):
+    """Describe what real cache data can prove; never synthesize a vote.
+
+    Note: caller's contexts have no authenticated independent directional
+    provenance; verified LIVE directional outputs are always unavailable.
+    """
+    if (not isinstance(symbol, str) or not symbol.strip()
+            or timeframe not in ("1m", "3m", "5m")
+            or type(generation) is not int or generation < 0
+            or not _positive_stamp(now)):
+        raise ValueError("Valid exact symbol/timeframe/generation/time required")
+    history = history if isinstance(history, dict) else {}
+    news_cache = news_cache if isinstance(news_cache, dict) else {}
+    option_context = option_context if isinstance(option_context, dict) else {}
+    futures_cache = futures_cache if isinstance(futures_cache, dict) else {}
+    exact_history = (history.get("source") == "Dhan"
+                     and history.get("_scanner_timeframe") == timeframe
+                     and isinstance(history.get("bars"), (tuple, list)))
+    balance = (completed_timeframe_candle_balance(history, timeframe, now=now)
+               if exact_history else None)
+    candles = history.get("bars") if exact_history else []
+    headlines=valid_news_context_count(news_cache,now=now)
     # RSS is only a headline context, never verified market impact.
     # An expired or malformed option expiry cannot count as usable context.
     # This is only cache-presence validation; it never authorizes a vote.

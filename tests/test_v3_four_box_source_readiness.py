@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
-from v3_four_box_source_readiness import four_box_source_readiness
+from v3_four_box_source_readiness import four_box_source_readiness, valid_news_context_count
 
 IST=timezone(timedelta(hours=5,minutes=30))
 
@@ -60,6 +60,7 @@ class FourBoxSourceContracts(unittest.TestCase):
             news_cache={"items":invalid+[valid,dict(valid,title=" NIFTY   EARNINGS ")]},
             now=now)
         self.assertEqual(x["box_sources"]["N"]["context_count"],1)
+        self.assertEqual(valid_news_context_count({"items":invalid+[valid,dict(valid,title=" NIFTY   EARNINGS ")]},now=now),1)
         self.assertTrue(x["box_sources"]["N"]["cache_present"])
         self.assertFalse(x["box_sources"]["N"]["live_direction_verified"])
         self.assertEqual(x["live_vote_count"],0)
@@ -72,6 +73,13 @@ class FourBoxSourceContracts(unittest.TestCase):
                          "SYMBOL_NEWS_HEADLINES_MISSING")
         self.assertEqual(x["provider_requests"],0)
         self.assertEqual(x["orders_sent"],0)
+
+    def test_shared_news_count_on_phone_and_two_doctors(self):
+        text=(ROOT/"src"/"main.py").read_text()
+        self.assertIn("news_headline_count=valid_news_context_count(news_context,now=time.time())",text)
+        self.assertIn('news_headline_count=valid_news_context_count(news_cache.get(scanner_sym) or {},now=time.time())',text)
+        self.assertIn('valid_count=valid_news_context_count(data,now=time.time())',text)
+        self.assertEqual(valid_news_context_count({"items":[3,{"title":"No time"}]},now=1795000000),0)
 
     def test_cross_timeframe_and_expiry_context_fails_closed(self):
         h=history("1m")

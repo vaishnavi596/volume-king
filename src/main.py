@@ -1619,6 +1619,7 @@ def app_main(page:ft.Page):
 
     def five_engine_chips(sym, display_timeframe=None):
         """Five independent evidence slots; percentages only when justified."""
+        from v3_four_box_source_readiness import valid_news_context_count
         names=(("technical","T"),("candle","C"),("news","N"),
                ("futures","F"),("options","O"))
         # Normal UI hydration, not Doctor: publish existing exact-frame HIST
@@ -1713,7 +1714,8 @@ def app_main(page:ft.Page):
                     with news_lock:
                         data=news_cache.get(sym) or {}
                     items=data.get("items") or []
-                    if items:label="N "+str(len(items))+" news • WAIT"
+                    valid_count=valid_news_context_count(data,now=time.time())
+                    if valid_count:label="N "+str(valid_count)+" news • WAIT"
             # Market-closed is a session state, not an unresolved live fetch.
             # Preserve historical context, but label unavailable live boxes OFF.
             if not regular_hours() and "WAIT" in label:
@@ -5150,6 +5152,7 @@ def app_main(page:ft.Page):
                     if row["status"]=="WAIT")
                 # Five independent end-to-end source paths, cached HIST and
                 # exact last missing LIVE endpoint. No provider I/O.
+                from v3_four_box_source_readiness import valid_news_context_count
                 from five_engine_endpoint_doctor import five_engine_endpoint_diagnostic
                 endpoint_doctor=five_engine_endpoint_diagnostic(
                     symbol=symbol,timeframe=tf,generation=generation,
@@ -5158,7 +5161,7 @@ def app_main(page:ft.Page):
                     historical_technical_votes=(historical_vote_agreement(history,tf) or (0,0,0))[2],
                     historical_candle_directional=(
                         last_bodies["up"]+last_bodies["down"]),
-                    news_headline_count=len(headline_items),
+                    news_headline_count=valid_news_context_count(news_context,now=time.time()),
                     option_context_present=bool(option_context),
                     snapshots_present=bool(exact_published_snapshot),
                     market_open=regular_hours(),
@@ -5743,6 +5746,7 @@ def app_main(page:ft.Page):
                         "solution":"Audit each engine freshness, source and measured directional strength separately; show HIST/WAIT without fabricated live percentages",
                         "confidence":"CODE_AND_CACHE_CONFIRMED"})
                 chosen=str(selected.value or "ALL")
+                from v3_four_box_source_readiness import valid_news_context_count
                 from five_engine_endpoint_doctor import five_engine_endpoint_diagnostic
                 master_endpoint_doctor=five_engine_endpoint_diagnostic(
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
@@ -5755,7 +5759,7 @@ def app_main(page:ft.Page):
                         isinstance(c,(list,tuple)) and len(c)>=5
                         and type(c[1]) in (int,float) and type(c[4]) in (int,float)
                         and c[4]!=c[1] for c in scanner_bars[-8:]),
-                    news_headline_count=len((news_cache.get(scanner_sym) or {}).get("items") or []),
+                    news_headline_count=valid_news_context_count(news_cache.get(scanner_sym) or {},now=time.time()),
                     option_context_present=bool(matching_option_context_for_symbol(scanner_sym)),
                     snapshots_present=bool(contextual_five_engine.peek(
                         symbol=scanner_sym,timeframe=scanner_tf,generation=generation)),
