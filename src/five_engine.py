@@ -386,8 +386,15 @@ def option_from_component(component):
     timestamp = component.get("timestamp")
     if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
         return EngineEvidence("options", reason="Option flow timestamp unavailable")
-    return measured_directional_evidence(
+    # A supplied BULLISH/BEARISH label may not contradict the independently
+    # measured trade-side strengths; otherwise it could mislead the 3/5 vote.
+    measured = measured_directional_evidence(
         "options", component, required_basis="validated_trade_flow")
+    if measured.eligible and (
+            (component["bias"]=="BULLISH" and measured.bullish<=measured.bearish)
+            or (component["bias"]=="BEARISH" and measured.bearish<=measured.bullish)):
+        return EngineEvidence("options", reason="Option flow bias conflicts with measured direction")
+    return measured
 
 
 def news_from_headline_cues(cues):

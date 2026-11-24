@@ -172,6 +172,31 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         self.assertEqual(result["combined"]["state"],"WAIT")
         self.assertFalse(result["engines"][0].eligible)
 
+    def test_options_measured_strength_must_agree_with_claimed_bias(self):
+        from five_engine import option_from_component, compose_snapshot, EngineEvidence
+        good=dict(available=True,source="Dhan",verified=True,
+                  direction_basis="validated_trade_flow",
+                  contract="NIFTY-CE",timestamp=1795000000,
+                  bullish=85,bearish=15,bias="BULLISH")
+        good_result=option_from_component(good)
+        self.assertTrue(good_result.eligible)
+        self.assertEqual((good_result.bullish,good_result.bearish),(85,15))
+        for conflict in (
+            dict(good,bias="BEARISH"),
+            dict(good,bullish=15,bearish=85),
+            dict(good,bullish=50,bearish=50)):
+            with self.subTest(conflict=conflict):
+                output=option_from_component(conflict)
+                self.assertFalse(output.eligible)
+                self.assertEqual(output.display()["state"],"WAIT")
+                self.assertIn("conflicts",output.reason)
+                combined=compose_snapshot(options=output)
+                self.assertEqual(combined["combined"]["coverage"],0)
+        reverse=option_from_component(dict(good,bias="BEARISH",
+                                           bullish=15,bearish=85))
+        self.assertTrue(reverse.eligible)
+        self.assertEqual(reverse.display()["state"],"BEARISH")
+
     def test_no_legacy_context_can_promote_news_futures_options(self):
         bars=completed_fixture("1m")
         raw=analyze(bars,selected=ALL_FILTERS,timeframe="1m")
