@@ -82,6 +82,23 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         self.assertIsNone(count({"votes":[]}))
         self.assertEqual(count({"votes":clean[0:2]}),(100,0,2))
 
+    def test_all_v3_surfaces_share_readonly_canonical_live_final_presenter(self):
+        """No 1m/3m/5m source relabel and no separate voting policy per screen."""
+        from test_audit import start
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        self.assertIn('canonical_live_final_note(index_name,"1m")',source)
+        self.assertIn('canonical_live_final_note(sym,"1m")',source)
+        self.assertIn('canonical_live_final_note(sym,"3m")',source)
+        self.assertIn('canonical_live_final_note(row["symbol"],"5m")',source)
+        self.assertIn('canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value)',source)
+        _,views=start({"source":"Dhan","scanner_live":False})
+        status=views["canonical_live_final_note"]("NIFTY","1m").value
+        self.assertIn("LIVE FINAL • WAIT",status)
+        self.assertIn("0/5 verified",status)
+        self.assertIn("market closed or Dhan disconnected",status)
+        self.assertIn("unsupported timeframe",
+                      views["canonical_live_final_note"]("NIFTY","2m").value)
+
     def test_canonical_eighteen_registry_and_exact_five_lanes(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(set(ALL_FILTERS)),18)
