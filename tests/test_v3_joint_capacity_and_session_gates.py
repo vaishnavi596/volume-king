@@ -113,7 +113,8 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
     def test_unverified_1m_3m_summary_uses_matching_historical_cache(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
-        self.assertIn('if display_timeframe in ("1m","3m"):',summary)
+        self.assertIn('display_timeframe in ("1m","3m")',summary)
+        self.assertIn('prefs.get("market_display_mode")!="LIVE_ONLY"',summary)
         self.assertIn('selected_history=shared_history(symbol,display_timeframe)',summary)
         self.assertIn('historical_vote_agreement(selected_history,"1m")',summary)
         self.assertIn('signal_percentages(watch_three_minute_signal(symbol))',summary)
@@ -125,7 +126,8 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
     def test_disconnected_dhan_summary_keeps_technical_and_valid_candle_hist(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
-        self.assertIn('if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):',summary)
+        self.assertIn('prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m")',summary)
+        self.assertIn('prefs.get("market_display_mode")!="LIVE_ONLY"',summary)
         self.assertIn("offline_history=shared_history(symbol,display_timeframe)",summary)
         self.assertIn('historical_vote_agreement(offline_history,"1m")',summary)
         self.assertIn("signal_percentages(watch_three_minute_signal(symbol))",summary)

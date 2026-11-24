@@ -44,7 +44,8 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
             'if exact_frame=="5m" and snapshot["engines"][0].display()["state"]=="WAIT":',
             summary)
         self.assertEqual(summary.count("last_votes=historical_five_minute_technical(symbol)"),2)
-        self.assertIn('if prefs.get("source")=="Dhan" and display_timeframe in (None,"5m"):',summary)
+        self.assertIn('display_timeframe in (None,"5m")',summary)
+        self.assertIn('prefs.get("market_display_mode")!="LIVE_ONLY"',summary)
         self.assertIn('exact_frame=display_timeframe or "5m"',summary)
 
     def test_shared_phone_vote_display_rejects_context_and_duplicate_integers(self):
