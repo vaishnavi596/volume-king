@@ -4,7 +4,7 @@ run-name: BOT KING V3 B203 PREVIEW • separate Android identity • v2.3.203
 # Never replace the protected same-package release workflow with a temporary key.
 # B203 is an isolated new phone identity after successful B3 holiday login/runtime audit.
 # The full independent exact-head B3 gate must PASS before signing this preview.
-# B203 final regression checkpoint: exact-head 1833-test suite, holiday HIST and signer guards.
+# B203 final regression checkpoint: exact-head complete offline suite, holiday manual HIST and signer guards.
 on:
   push:
     branches:
