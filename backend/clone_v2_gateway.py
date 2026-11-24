@@ -455,7 +455,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     if isinstance(segment_data, dict) and isinstance(segment_data.get(str(sid)), dict):
                         market_diagnostic("quotes", symbol, "validation", "invalid_price")
             if not quotes:
-                raise HTTPException(502, "No validated clone quotes")
+                raise HTTPException(502, "No validated clone quotes",
+                                    headers={"X-BotKing-Quote-Failure-Stage": "RESPONSE"})
             payload = {"source": "dhan", "quotes": quotes,
                        "unavailable": [s for s in symbols if s not in quotes],
                        "freshness": "unverified", "live_orders_enabled": False}
