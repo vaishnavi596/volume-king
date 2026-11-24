@@ -2903,6 +2903,7 @@ def app_main(page:ft.Page):
                            (quotes.get(sym) or {}).get("change"),
                            tick_signals[sym].get("timestamp"),
                            repr(tick_signals[sym].get("votes")),
+                           watch_price_and_status(sym) if prefs.get("source")=="Dhan" else None,
                            id(five_engine_snapshots.get(sym)),
                            (oracle_assessment_cache.get(
                                (provider_generation[0],sym,"3m",None)) or {}).get("fetched"),watch_assessment_expired(sym),
@@ -2963,6 +2964,7 @@ def app_main(page:ft.Page):
                     # Rebuilt search/membership rows must not inherit old mounted-cell signatures.
                     symbol_signature=(id(cells),q.get("fetched_at"),q.get("price"),q.get("change"),
                                       q.get("freshness"),q.get("source"),
+                                      watch_price_and_status(sym) if prefs.get("source")=="Dhan" else None,
                                       signal_row.get("timestamp"),repr(signal_row.get("votes")),
                                       signal_row.get("live_verified"),signal_row.get("freshness"),
                                       id(five_engine_snapshots.get(sym)),
