@@ -37,7 +37,9 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
         def connect(endpoint,key):
             return {"status":"connected_read_only" if authenticated else "not_authorized"}
         def quote(*args):
-            raise AssertionError("Unexpected LIVE quote request in holiday/offline route")
+            if not market_open:
+                raise AssertionError("Unexpected LIVE quote request in holiday/offline route")
+            return {}
         def activate(*args):
             raise AssertionError("Unexpected LIVE activation")
         doctor=FakeDoctor()
@@ -55,6 +57,7 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "dhan_feed":types.SimpleNamespace(paced_market_quotes=quote,
                                                activate_with_quote=activate),
             "regular_hours":lambda:market_open,
+            "all_watch_symbols":lambda: ["RELIANCE"],
             "equity_session_closed_detail":lambda:" • NSE/BSE trading holiday",
             "FeedError":FeedError,"log_error":lambda *a:None,
         }
@@ -80,17 +83,16 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
         await f()
         self.assertEqual([x[0] for x in calls],["connect"])
         self.assertEqual(status.color,"red")
-        self.assertIn("no session activated",status.value)
+        self.assertIn("read-only authorization unavailable",status.value)
         self.assertNotIn("gateway_authorized_closed_session",doctor.events)
         self.assertEqual(server.value,"")
         self.assertFalse(busy[0])
 
     async def test_market_open_reaches_quote_proof_gate_without_false_activation(self):
         f,calls,status,server,busy,doctor=self.setup_flow(market_open=True)
-        # The real branch must call the selected-instrument accessor before
-        # quote proof; leave it absent to prevent any inadvertent feed call.
         await f()
-        self.assertEqual([x[0] for x in calls],["connect"])
+        self.assertEqual([x[0] for x in calls],["connect","quote"])
+        self.assertIn("quote proof unavailable",status.value)
         self.assertEqual(status.color,"red")
         self.assertNotIn("gateway_authorized_closed_session",doctor.events)
         self.assertNotIn("HIST cache only",status.value)
