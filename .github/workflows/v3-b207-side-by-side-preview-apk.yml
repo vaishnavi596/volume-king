@@ -11,6 +11,7 @@ on:
       - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-b207-side-by-side-preview-apk.yml
+      - .github/workflows/clone-b3-full-regression.yml
       - tests/test_b1_five_engine_dhan_shared_option.py
       - tests/test_market_closed_refresh_gates.py
       - tests/test_candle_historical_display.py
