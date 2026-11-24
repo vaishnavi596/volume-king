@@ -2257,3 +2257,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Batch 1B exact 7b2962e four workflows verified completed/success: B1 45455288337, B2 45455288312, Adapter 45455288396, B3 45455288426. Temporary contents API 404 resolved by branch ref; branch head unchanged.
 - Explicitly user-started closed-session HIST queue now continues across foreground tabs; ordinary automatic warmup remains Watchlist-gated. App background, generation, list/search, auth and quota guards retained; recheck selected list/search before dispatch, update mounted Watchlist only. Updated existing source contract test for foreground tab change. No unsolicited holiday start or real orders.
 - Bounded retries/reconnect and full retention redesign remain pending; no live provider test, APK or server change. Await exact-source CI before next batch.
+
+
+### 25 नवंबर 2026 — Deep Batch 1D: bounded HIST retry
+- Batch 1C exact 225bb4b: B1 45456443505, B2 45456443370, Adapter 45456443356, B3 45456443384 all completed/success. Latest changed files previously inspected.
+- Explicit closed-session HIST queue now permits one additional pass over unresolved symbols, preserving per-symbol 180s cooldown and shared 3/180s + 30s pacing. Already valid history skipped; retry baseline prevents repeated failed-symbol loops within the pass. Existing foreground/auth/generation/list guards retained. Updated source-contract tests; runtime retry and actual phone recovery not yet proven.
+- No auto-login, no token rotation, no server deployment or APK. Disconnect/reconnect auto-resume remains pending; next inspect actual Clone auth status and connection recovery. Await exact-SHA CI.

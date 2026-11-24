@@ -2752,6 +2752,9 @@ def app_main(page:ft.Page):
 
     async def continue_closed_watch_history(generation,list_index,selected,search_scope):
         watch_closed_hist_key[0]=(generation,list_index,tuple(selected))
+        # One bounded retry pass per explicitly requested queue. Do not reset
+        # the rolling provider budget or the per-symbol 180s attempt clock.
+        retry_pass=False
         try:
             while True:
                 if (provider_generation[0]!=generation
@@ -2779,6 +2782,17 @@ def app_main(page:ft.Page):
                     elif (generation,sym) in watch_three_minute_warm_attempts:
                         attempted+=1
                 total=len(selected)
+                if finished+attempted>=total and attempted and not retry_pass:
+                    # Retry only unresolved symbols, once, after their existing
+                    # cooldown. Keep attempt timestamps for the warmup gate.
+                    retry_pass=True
+                    retry_baseline={sym:watch_three_minute_warm_attempts.get((generation,sym),0)
+                                    for sym in selected}
+                if retry_pass:
+                    attempted=sum(1 for sym in selected
+                        if not valid_candle_history(shared_history(sym,"3m").get("bars"))
+                        and watch_three_minute_warm_attempts.get((generation,sym),0)
+                            > retry_baseline[sym])
                 if finished+attempted>=total:
                     watch_closed_hist_resume_pending[0]=False
                     watch_batch_status[0]=(
@@ -2790,12 +2804,13 @@ def app_main(page:ft.Page):
                 if current[0]==4 and watch_status_text.page is not None:
                     watch_status_text.value="Quote check • "+watch_batch_status[0]
                     watch_status_text.update()
-                before=len(watch_three_minute_warm_attempts)
+                before=dict(watch_three_minute_warm_attempts)
                 checked=await warm_selected_watch_three_minute_early(
-                    generation,explicit_closed=True)
+                    generation,explicit_closed=True,
+                    closed_retry_baseline=retry_baseline if retry_pass else None)
                 # A request may be deferred by 30s/3-per-180s provider budget,
                 # existing workers or cooldown. One task simply waits and retries.
-                if not checked and len(watch_three_minute_warm_attempts)==before:
+                if not checked and watch_three_minute_warm_attempts==before:
                     wait=watch_hist_budget_wait_seconds()
                     watch_closed_hist_wait_seconds[0]=wait
                     if wait:
@@ -8579,7 +8594,7 @@ console.log('BOT KING Lightweight Charts ready');
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
     index_one_minute_busy=[False]
-    async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False):
+    async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False,closed_retry_baseline=None):
         # A closed-session 1m history read is allowed only through the explicit
         # Watchlist manual callback, never through either automatic scheduler.
         if ((current[0]!=4 and not explicit_closed) or not app_active[0] or lifecycle_background[0]
@@ -8610,6 +8625,17 @@ console.log('BOT KING Lightweight Charts ready');
                     and 0<=time.time()-fetched<180):
                 continue
             key=(generation,sym)
+            if explicit_closed:
+                # A closed queue visits each missing symbol once per pass.
+                # Valid history and completed retry attempts need no new IO.
+                if valid_candle_history(prior_three.get("bars")):
+                    continue
+                if closed_retry_baseline is None and key in watch_three_minute_warm_attempts:
+                    continue
+                if closed_retry_baseline is not None and (
+                        sym not in closed_retry_baseline or
+                        watch_three_minute_warm_attempts.get(key,0)>closed_retry_baseline[sym]):
+                    continue
             if (key in watch_three_minute_warm_attempts
                     and now-watch_three_minute_warm_attempts[key]<180):
                 continue
