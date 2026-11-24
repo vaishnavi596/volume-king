@@ -420,7 +420,7 @@ def app_main(page:ft.Page):
             state=("ACTIVE" if area in display_failures else "RECOVERED") if area in ("chart","load_chart","dhan_index_ltp_batch") else "RECORDED"
             rows.append(state+" • "+entry)
         return "\n".join(rows) or "No errors recorded this session"
-    from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window
+    from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window, equity_session_closed_detail
     def regular_hours(now=None):
         # NSE/BSE equity calendar + IST; holiday means no LIVE vote eligibility.
         return regular_equity_hours(now)
@@ -429,7 +429,7 @@ def app_main(page:ft.Page):
         return equity_refresh_window(now)
     def session_caption():
         return ("STALE • exchange timestamps unverified" if regular_hours() else
-                "OFF • last available prices (not live)")
+                "OFF • last available prices (not live)"+equity_session_closed_detail())
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}

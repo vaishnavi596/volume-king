@@ -8,7 +8,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from v3_equity_session_calendar import (
     IST,EQUITY_HOLIDAYS_2026,ist_clock,regular_equity_day,
-    regular_equity_hours,equity_refresh_window
+    regular_equity_hours,equity_refresh_window,equity_session_closed_detail
 )
 
 def dt(y,m,d,h=11,minute=0,tz=IST):
@@ -64,13 +64,29 @@ class V3EquityHolidayCalendar(unittest.TestCase):
                 self.assertFalse(equity_refresh_window(value))
         self.assertTrue(regular_equity_hours(dt(2026,12,31,11,30)))
 
+    def test_phone_off_caption_explains_closed_session_without_false_live(self):
+        cases=(
+            (dt(2026,11,24,11,0),"NSE/BSE trading holiday"),
+            (dt(2026,11,8,14,20),"special Muhurat session not enabled"),
+            (dt(2026,11,28,11,0),"weekend"),
+            (dt(2026,11,25,8,0),"outside regular market hours"),
+            (dt(2027,1,4,11,0),"official holiday calendar unavailable"),
+        )
+        for instant,reason in cases:
+            with self.subTest(at=instant.isoformat()):
+                self.assertIn(reason,equity_session_closed_detail(instant))
+                self.assertFalse(regular_equity_hours(instant))
+        self.assertIn(
+            'equity_session_closed_detail())',
+            (ROOT/"src"/"main.py").read_text(encoding="utf-8"))
+
     def test_phone_market_and_refresh_production_contract(self):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         section=source.split("    def regular_hours(now=None):",1)[1].split(
             "    def session_caption():",1)[0]
         self.assertIn("return regular_equity_hours(now)",section)
         self.assertIn("return equity_refresh_window(now)",section)
-        self.assertIn("    from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window",source)
+        self.assertIn("    from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window, equity_session_closed_detail",source)
 
 if __name__=="__main__":
     unittest.main()

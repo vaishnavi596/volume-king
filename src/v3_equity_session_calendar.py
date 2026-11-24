@@ -44,6 +44,23 @@ def regular_equity_day(now=None):
         return False
     return True
 
+def equity_session_closed_detail(now=None):
+    """User-facing OFF reason, never a claim that live quotes are verified.
+
+    Muhurat is a special session requiring separate source/timeframe proof;
+    its date alone cannot activate an ordinary NSE/BSE equity LIVE vote.
+    """
+    clock=ist_clock(now)
+    if clock.year>=2027:
+        return " • official holiday calendar unavailable"
+    if clock.year==2026 and clock.date().isoformat()=="2026-11-08":
+        return " • special Muhurat session not enabled"
+    if clock.year==2026 and clock.date().isoformat() in EQUITY_HOLIDAYS_2026:
+        return " • NSE/BSE trading holiday"
+    if clock.weekday()>=5:
+        return " • weekend"
+    return " • outside regular market hours"
+
 def regular_equity_hours(now=None):
     clock=ist_clock(now)
     return regular_equity_day(clock) and (9,15)<=(clock.hour,clock.minute)<(15,30)
