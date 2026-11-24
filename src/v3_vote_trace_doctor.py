@@ -120,7 +120,12 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
     # limited Master display row has no source proof. Never claim an eligible
     # final output based on such incomplete inspection.
     eligible_count=sum(x["vote_state"]=="ELIGIBLE" for x in boxes)
-    if eligible_count<3 and combined.get("state")!="WAIT":
+    conflict=conflict_doctor(snapshot,market_open=market_open)
+    if any(issue.get("code")=="COMBINED_VOTE_PUBLISH_MISMATCH"
+           for issue in conflict.get("issues",[])):
+        combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
+                  "bearish":None,"reason":"COMBINED_VOTE_PUBLISH_MISMATCH"}
+    elif eligible_count<3 and combined.get("state")!="WAIT":
         combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
                   "bearish":None,"reason":"DISPLAY_SIDE_PROVENANCE_NOT_VERIFIED"}
     return {
@@ -132,7 +137,7 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
                               "blocked_details":blocked_filters},
         "box_vote_gate":{"eligible":eligible_count,"required":3,"boxes":boxes,
                          "sixth_M":"STANDBY_NOT_SCORED"},
-        "voting_conflict_audit":conflict_doctor(snapshot,market_open=market_open),
+        "voting_conflict_audit":conflict,
         "combined_vote":{"state":combined.get("state","WAIT"),
                          "coverage":combined.get("coverage",0),
                          "bullish":combined.get("bullish"),
