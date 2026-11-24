@@ -2722,15 +2722,14 @@ def app_main(page:ft.Page):
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
     watch_closed_hist_key=[None]
-    async def continue_closed_watch_history(generation,list_index,selected):
-        if watch_closed_hist_loading[0]:
-            return
-        watch_closed_hist_loading[0]=True
+    async def continue_closed_watch_history(generation,list_index,selected,search_scope):
         watch_closed_hist_key[0]=(generation,list_index,tuple(selected))
         try:
             while True:
                 if (provider_generation[0]!=generation or current[0]!=4
-                        or active_watch[0]!=list_index or not app_active[0]
+                        or active_watch[0]!=list_index
+                        or (search.value or "").upper()!=search_scope
+                        or not app_active[0]
                         or lifecycle_background[0] or not clone_v2_gateway.connected
                         or refresh_hours() or prefs.get("source")!="Dhan"):
                     watch_batch_status[0]="HIST loading paused • reopen Watchlist and tap Refresh"
@@ -2786,8 +2785,10 @@ def app_main(page:ft.Page):
                     and sym not in ("NIFTY","BANKNIFTY","SENSEX")
                     and (not search.value or search.value.upper() in sym))
                 if selected:
+                    watch_closed_hist_loading[0]=True
                     page.run_task(continue_closed_watch_history,
-                                  provider_generation[0],active_watch[0],selected)
+                                  provider_generation[0],active_watch[0],selected,
+                                  (search.value or "").upper())
                     watch_batch_status[0]=f"HIST loading requested for {len(selected)} equities • NOT LIVE"
                 else:
                     watch_batch_status[0]="No selected equities for HIST loading"
