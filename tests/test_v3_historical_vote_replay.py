@@ -296,16 +296,31 @@ class HistoricalVotingTests(unittest.TestCase):
     def test_scanner_renders_real_historical_final_replay_separately(self):
         source=(ROOT/"src/main.py").read_text()
         ast.parse(source)
-        self.assertIn("def scanner_historical_final_vote():",source)
+        self.assertIn("def scanner_historical_final_vote(symbol=None, timeframe=None):",source)
         self.assertIn('final=output["historical_combined"]',source)
         self.assertIn('filter_rows=selected,history_timestamp=time.time()',source)
         self.assertIn('scanner_historical_final_vote()],spacing=5)))',source)
         self.assertIn('" • NOT LIVE")',source)
-        block=source.split("    def scanner_historical_final_vote():",1)[1].split("    def five_engine_chips(",1)[0]
+        block=source.split("    def scanner_historical_final_vote(symbol=None, timeframe=None):",1)[1].split("    def five_engine_chips(",1)[0]
         self.assertIn('history=shared_history(sym,frame)',block)
         self.assertNotIn('get_market_data(',block)
         self.assertNotIn('dhan_feed.',block)
         self.assertNotIn('orders_sent(',block)
+
+    def test_historical_final_is_same_function_on_all_four_surfaces(self):
+        source=(ROOT/"src/main.py").read_text()
+        ast.parse(source)
+        for call in ('scanner_historical_final_vote(index_name,"1m")',
+                     'scanner_historical_final_vote(sym,"1m")',
+                     'scanner_historical_final_vote(sym,"3m")',
+                     'scanner_historical_final_vote(row["symbol"],"5m")',
+                     'scanner_historical_final_vote()],spacing=5)))'):
+            with self.subTest(call=call):
+                self.assertIn(call,source)
+        self.assertIn('five_cell=ft.Container(content=ft.Column([',source)
+        self.assertIn('five.content=ft.Column([',source)
+        self.assertIn('sym=str(symbol or scan_symbol.value or "NIFTY")',source)
+        self.assertIn('frame=str(timeframe or scan_tf.value or "1m")',source)
 
     def test_b178_and_master_doctors_integrate_same_historical_replay(self):
         s=(ROOT/"src/main.py").read_text()

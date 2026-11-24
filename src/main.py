@@ -1625,16 +1625,16 @@ def app_main(page:ft.Page):
             historical=True,live_verified=False,
             freshness="historical_unverified"))
 
-    def scanner_historical_final_vote():
-        """Display read-only HIST final policy for selected Scanner frame only.
+    def scanner_historical_final_vote(symbol=None, timeframe=None):
+        """Display one read-only HIST policy across all four V3 surfaces.
 
         The replay recalculates the T lane from completed Dhan cache candles;
         missing N/F/O inputs remain abstentions. Never report this as LIVE.
         """
         from v3_historical_vote_replay import historical_vote_replay
         from filter_wiring_audit import CANDLE_FILTERS
-        sym=str(scan_symbol.value or "NIFTY")
-        frame=str(scan_tf.value or "1m")
+        sym=str(symbol or scan_symbol.value or "NIFTY")
+        frame=str(timeframe or scan_tf.value or "1m")
         history=shared_history(sym,frame)
         if frame not in ("1m","3m","5m"):
             return note("HIST FINAL • WAIT • unsupported selected timeframe • NOT LIVE")
@@ -1820,7 +1820,7 @@ def app_main(page:ft.Page):
                        and row.get("bias") in ("BULLISH","BEARISH")
                        else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP unavailable • Dhan disconnected" if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP unavailable • Dhan disconnected" if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     async def retry_failed_symbol(symbol):
@@ -1933,6 +1933,7 @@ def app_main(page:ft.Page):
             else:
                 try:
                     rows.append(five_engine_chips(sym,display_timeframe="1m"))
+                    rows.append(scanner_historical_final_vote(sym,"1m"))
                     rows.append(dashboard_mini_candles(sym,candle_data))
                     dashboard_bar_monitor.observe(
                         surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
@@ -1982,7 +1983,8 @@ def app_main(page:ft.Page):
                 content=ft.Column([ft.Row([ft.Container(content=txt(index_name,16,WHITE,True),expand=True),
                     txt(f'{index_quote["price"]:,.2f}' if valid else "—",16,MUTED if provider_missing else GOLD if valid else MUTED,True)]),
                     note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
-                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),five_engine_chips(index_name,display_timeframe="1m"),index_signal_row],
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable"),five_engine_chips(index_name,display_timeframe="1m"),
+                    scanner_historical_final_vote(index_name,"1m"),index_signal_row],
                     spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
                 on_click=lambda e,v=index_name:open_stock(v)))
         return ft.Column(index_cards,spacing=5)
@@ -2230,7 +2232,9 @@ def app_main(page:ft.Page):
             change_cell=txt("CONNECT DHAN" if dhan_offline() else
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
                             10,price_color(sym) if quote_source==expected_quote_source else MUTED)
-            five_cell=ft.Container(content=five_engine_chips(sym,display_timeframe="3m"))
+            five_cell=ft.Container(content=ft.Column([
+                five_engine_chips(sym,display_timeframe="3m"),
+                scanner_historical_final_vote(sym,"3m")],spacing=2))
             assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym,"watchlist")[0]))
             signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
             freshness_cell=ft.Text(("LTP cached • not live" if not quote_fresh else "LTP time unverified")+
@@ -2852,7 +2856,9 @@ def app_main(page:ft.Page):
                         last_evidence_signatures[sym]=evidence_signature
                         # Replace child content inside persistent mounted containers,
                         # not the symbol label/row or the whole Watchlist page.
-                        five.content=five_engine_chips(sym,display_timeframe="3m")
+                        five.content=ft.Column([
+                            five_engine_chips(sym,display_timeframe="3m"),
+                            scanner_historical_final_vote(sym,"3m")],spacing=2)
                         assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
                         signal.content=compact_watch_signal(row,available,fresh)
                         for cell in (five,assessment,signal):
