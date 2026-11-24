@@ -116,6 +116,19 @@ class CloneOracleAuthTests(unittest.TestCase):
         self.assertEqual(again.status_code, 200)
         self.assertEqual(len(seen), 1, "same app request must share cache")
 
+    def test_clone_b3_no_validated_quotes_reports_response_stage(self):
+        class MissingQuoteProvider:
+            def batch_ltp(self, instruments):
+                return {"status": "success", "data": {"IDX_I": {}}}
+        http = TestClient(create_app(key_bytes=self.key,
+                       market_feed_factory=MissingQuoteProvider,
+                       market_registry={"RELIANCE": ("NSE_EQ", 2885)}))
+        response = http.post("/clone-v2/market/quotes",
+                     headers={"X-BotKing-Key": self.key.decode()},
+                     json={"symbols": ["NIFTY", "BANKNIFTY", "SENSEX"]})
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.headers.get("X-BotKing-Quote-Failure-Stage"), "RESPONSE")
+
     def test_clone_b3_rejects_duplicate_unknown_and_unbounded_requests(self):
         http = TestClient(create_app(key_bytes=self.key, market_registry={"RELIANCE": ("NSE_EQ", 2885)},
                                      market_feed_factory=lambda: None))
