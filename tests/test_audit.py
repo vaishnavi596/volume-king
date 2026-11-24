@@ -92,7 +92,10 @@ class AuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):v['bot_values']()
 
     def test_actual_phone_session_caption_runtime_holiday_hist_vs_live(self):
-        """Exercise actual Flet app_main closure, not just source-string checks."""
+        """Two display sources are selected by evidence, not calendar date.
+
+        Calendar is still used to pace broker requests independently.
+        """
         _,ui=start({"source":"Dhan","scanner_live":False})
         import v3_equity_session_calendar as cal
 
@@ -101,32 +104,27 @@ class AuditTests(unittest.TestCase):
 
             @classmethod
             def now(cls,tz=None):
-                # Return the frozen subclass, preserving isinstance checks
-                # inside ist_clock and conversion to the target timezone.
                 return cls.fromtimestamp(cls.instant.timestamp(),tz or cal.IST)
 
         ist=timezone(timedelta(hours=5,minutes=30))
         cases=(
-            (datetime(2026,11,24,11,0,tzinfo=ist),
-             "AUTO • HIST fallback • LIVE OFF • NSE/BSE trading holiday"),
-            (datetime(2026,11,8,14,20,tzinfo=ist),
-             "AUTO • HIST fallback • LIVE OFF • special Muhurat session not enabled"),
-            (datetime(2026,11,28,11,0,tzinfo=ist),
-             "AUTO • HIST fallback • LIVE OFF • weekend"),
-            (datetime(2027,1,4,11,0,tzinfo=ist),
-             "AUTO • HIST fallback • LIVE OFF • official holiday calendar unavailable"),
-            (datetime(2026,11,25,8,30,tzinfo=ist),
-             "AUTO • HIST fallback • LIVE OFF • outside regular market hours"),
-            (datetime(2026,11,25,11,0,tzinfo=ist),
-             "AUTO • LIVE unverified until fresh exchange evidence • HIST fallback allowed"),
+            (datetime(2026,11,24,11,0,tzinfo=ist),False),
+            (datetime(2026,11,8,14,20,tzinfo=ist),False),
+            (datetime(2026,11,28,11,0,tzinfo=ist),False),
+            (datetime(2027,1,4,11,0,tzinfo=ist),False),
+            (datetime(2026,11,25,8,30,tzinfo=ist),False),
+            (datetime(2026,11,25,11,0,tzinfo=ist),True),
         )
         with patch.object(cal,"datetime",FrozenIST):
-            for instant,expected in cases:
+            for instant,market_session_open in cases:
                 with self.subTest(time=instant.isoformat()):
                     FrozenIST.instant=instant
-                    self.assertEqual(ui["session_caption"](),expected)
-                    self.assertEqual(ui["regular_hours"](),expected.startswith("AUTO • LIVE unverified"))
-                    self.assertEqual(ui["refresh_hours"](),expected.startswith("AUTO • LIVE unverified"))
+                    caption=ui["session_caption"]()
+                    self.assertIn("LIVE when exchange-verified",caption)
+                    self.assertIn("HISTORICAL",caption)
+                    self.assertNotIn("trading holiday",caption)
+                    self.assertEqual(ui["regular_hours"](),market_session_open)
+                    self.assertEqual(ui["refresh_hours"](),market_session_open)
 
     def test_ohlc_aggregation_provider_boundary_and_hours(self):
         _,v=start()
