@@ -429,28 +429,15 @@ def app_main(page:ft.Page):
     def refresh_hours(now=None):
         # Calendar-gated automatic Dhan polls. Manual HIST reads remain separate.
         return equity_refresh_window(now)
-    market_display_choice=ft.Dropdown(
-        label="Market analysis • AUTO / HISTORICAL / LIVE ONLY",
-        value=prefs["market_display_mode"],
-        options=[ft.dropdown.Option(v) for v in ("AUTO","HISTORICAL","LIVE_ONLY")],
-        width=315)
-    def change_market_display_mode(e):
-        new_mode=normalized_mode(e.control.value)
-        if new_mode!=prefs.get("market_display_mode"):
-            prefs["market_display_mode"]=new_mode
-            save()
-            # A settings change repaints but never initiates a provider request.
-            select(2)
-    market_display_choice.on_change=change_market_display_mode
+    # No manual AUTO/HIST/LIVE_ONLY selector. Mode follows source evidence.
+    market_display_choice=ft.Text(
+        "Data mode: LIVE (verified) / HISTORICAL (last completed) • automatic",
+        size=12,color=MUTED)
     def session_caption():
-        mode=prefs.get("market_display_mode","AUTO")
-        if mode=="HISTORICAL":
-            return "HISTORICAL ONLY • last completed Dhan session • NOT LIVE"
-        if mode=="LIVE_ONLY":
-            return ("LIVE ONLY • evidence freshness required" if regular_hours() else
-                    "LIVE ONLY • WAIT • market closed"+equity_session_closed_detail())
-        return ("AUTO • LIVE unverified until fresh exchange evidence • HIST fallback allowed"
-                if regular_hours() else "AUTO • HIST fallback • LIVE OFF"+equity_session_closed_detail())
+        # Reporting state is independent of holidays and connection banners.
+        # Exchange-verified LIVE is assessed per symbol/timeframe downstream.
+        return ("LIVE when exchange-verified • otherwise HISTORICAL "
+                "if completed Dhan candles exist • NEVER fake LIVE")
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
@@ -6373,9 +6360,8 @@ def app_main(page:ft.Page):
         content.append(central_filter_settings())
         content.append(section("MARKET DISPLAY • LIVE / HIST",ft.Column([
             market_display_choice,
-            note("AUTO: fresh verified LIVE or last-good HIST on holiday/stale/outage. "
-                 "HISTORICAL: completed candles only. LIVE ONLY: no HIST final. "
-                 "Saved quote prices never become live proof; no orders.")],spacing=5)))
+            note("Two automatic source states: verified LIVE or last completed HISTORICAL. "
+                 "Missing evidence stays WAIT; cached quote never becomes LIVE; no orders.")],spacing=5)))
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
@@ -7947,7 +7933,7 @@ console.log('BOT KING Lightweight Charts ready');
                     # downstream five-engine observers. Never mark it LIVE.
                     if interval in ("1m","3m"):
                         publish_five_engine_historical(sym,interval,historical)
-            historical_mode_selected=(prefs.get("market_display_mode")=="HISTORICAL")
+            historical_mode_selected=False  # Automatic LIVE/HIST source selection
             # A connected SSK or a recently fetched Dhan candle is NOT
             # authenticated exchange-verified LIVE evidence. AUTO falls back
             # to actual validated last-completed HIST even on a weekday
