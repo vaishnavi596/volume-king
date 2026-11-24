@@ -136,6 +136,42 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
                 self.assertEqual(replay["provider_requests"],0)
                 self.assertEqual(replay["orders_sent"],0)
 
+    def test_injected_news_and_option_integers_cannot_change_live_T(self):
+        from five_engine import scanner_snapshot
+        for frame in ("1m","3m","5m"):
+            with self.subTest(frame=frame):
+                scan={"votes":[{"name":"EMA 9/21","vote":1},
+                               {"name":"RSI 14","vote":1},
+                               {"name":"MACD","vote":-1}],
+                      "source":"Dhan","timestamp":1795000000,
+                      "timeframe":frame,"live_verified":True,
+                      "freshness":"verified_live","historical":False}
+                clean=scanner_snapshot(scan)
+                polluted=dict(scan,votes=scan["votes"]+[
+                    {"name":name,"vote":1} for name in OPTION_FILTERS
+                ]+[{"name":"News Headlines","vote":-1}])
+                actual=scanner_snapshot(polluted)
+                self.assertEqual(actual["engines"][0],clean["engines"][0])
+                self.assertEqual((actual["engines"][0].bullish,
+                                  actual["engines"][0].bearish),(67,33))
+                self.assertEqual(actual["combined"]["coverage"],1)
+                self.assertEqual(actual["combined"]["state"],"WAIT")
+                self.assertTrue(all(not e.eligible for e in actual["engines"][1:]))
+
+    def test_independent_context_integer_cannot_create_technical_quorum(self):
+        from five_engine import scanner_snapshot
+        scan={"votes":[{"name":"MACD","vote":1},
+                       {"name":"OI Support","vote":1},
+                       {"name":"OI Resistance","vote":1},
+                       {"name":"News Headlines","vote":1}],
+              "source":"Dhan","timestamp":1795000000,
+              "live_verified":True,"freshness":"verified_live",
+              "historical":False}
+        result=scanner_snapshot(scan)
+        self.assertEqual(result["combined"]["coverage"],0)
+        self.assertEqual(result["combined"]["state"],"WAIT")
+        self.assertFalse(result["engines"][0].eligible)
+
     def test_no_legacy_context_can_promote_news_futures_options(self):
         bars=completed_fixture("1m")
         raw=analyze(bars,selected=ALL_FILTERS,timeframe="1m")

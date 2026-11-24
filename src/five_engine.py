@@ -212,6 +212,7 @@ def scanner_snapshot(scan_result):
     raw = scan_result.get("votes") or []
     if not isinstance(raw, (list, tuple)):
         return compose_snapshot()
+    from scanner_engine import OPTION_FILTERS
     labels = []
     seen_filters = set()
     for vote in raw:
@@ -224,6 +225,11 @@ def scanner_snapshot(scan_result):
         if canonical_name in seen_filters:
             return compose_snapshot()
         seen_filters.add(canonical_name)
+        # Option OI/max-pain and RSS news are independent CONTEXT sources,
+        # never extra technical votes even if an upstream row is malformed
+        # or accidentally carries a directional integer.
+        if name.strip() in OPTION_FILTERS or name.strip()=="News Headlines":
+            continue
         direction = vote.get("vote")
         if direction is None:
             # An unavailable filter is not a malformed filter. Retain valid
