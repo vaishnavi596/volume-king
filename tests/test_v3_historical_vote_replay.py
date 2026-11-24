@@ -312,7 +312,7 @@ class HistoricalVotingTests(unittest.TestCase):
         s=(ROOT/"src/main.py").read_text()
         ast.parse(s)
         cache=s.split("    def cached_historical_final_replay(",1)[1].split(
-            "    def scanner_historical_final_vote(",1)[0]
+            "    def canonical_live_final_note(",1)[0]
         self.assertIn('key=(sym,frame)',cache)
         self.assertIn('provider_generation[0]',cache)
         self.assertIn('prefs.get("source")',cache)
