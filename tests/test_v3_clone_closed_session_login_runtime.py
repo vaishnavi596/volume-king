@@ -26,7 +26,7 @@ class FakeField:
         self.color=None
 
 class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
-    def setup_flow(self,market_open=False,authenticated=True):
+    def setup_flow(self,market_open=False,authenticated=True,pending=False):
         self.assertEqual(len(NODES),1)
         program=ast.fix_missing_locations(ast.Module(body=[NODES[0]],type_ignores=[]))
         calls=[]
@@ -46,7 +46,10 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
         server_access=FakeField("secret-stays-private")
         status=FakeField()
         busy=[False]
-        page=types.SimpleNamespace(update=lambda:None)
+        page=types.SimpleNamespace(update=lambda:None,
+            run_task=lambda fn,*args:calls.append((fn.__name__,args)))
+        async def resume_interrupted_closed_watch_history(authenticated_reconnect=False):
+            raise AssertionError('Task must be scheduled, not executed by login fixture')
         class FeedError(Exception):pass
         ctx={
             "clone_v2_connect_busy":busy,"broker_connect_busy":[False],
@@ -60,6 +63,9 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "all_watch_symbols":lambda: ["RELIANCE"],
             "equity_session_closed_detail":lambda:" • NSE/BSE trading holiday",
             "FeedError":FeedError,"log_error":lambda *a:None,
+            "watch_closed_hist_resume_pending":[pending],
+            "watch_closed_hist_loading":[False],
+            "resume_interrupted_closed_watch_history":resume_interrupted_closed_watch_history,
         }
         exec(compile(program,str(ROOT/"src"/"main.py"),"exec"),ctx)
         return ctx["check_clone_v2_connection"],calls,status,server_access,busy,doctor
@@ -78,8 +84,17 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("gateway_authorized_closed_session",doctor.events)
         self.assertNotIn("login_failed",doctor.events)
 
+    async def test_authenticated_reconnect_schedules_only_existing_hist_intent(self):
+        f,calls,status,server,busy,doctor=self.setup_flow(pending=True)
+        await f()
+        self.assertEqual([x[0] for x in calls],['connect','resume_interrupted_closed_watch_history'])
+        self.assertEqual(calls[-1][1],(True,))
+        self.assertIn('Clone SSK connected',status.value)
+        self.assertNotIn('login_failed',doctor.events)
+        self.assertFalse(busy[0])
+
     async def test_failed_ssk_authentication_does_not_enter_closed_session(self):
-        f,calls,status,server,busy,doctor=self.setup_flow(authenticated=False)
+        f,calls,status,server,busy,doctor=self.setup_flow(authenticated=False,pending=True)
         await f()
         self.assertEqual([x[0] for x in calls],["connect"])
         self.assertEqual(status.color,"red")

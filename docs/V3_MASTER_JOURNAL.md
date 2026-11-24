@@ -2274,3 +2274,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Exact 3d3b5b4 verified all four workflows completed/success: B1 45458379264, B2 45458379215, Adapter 45458379201, B3 45458379182. Latest three changed paths inspected. Previous sentinel regression resolved.
 - Preserve interrupted explicit HIST intent on unexpected gateway loss only for same generation/list/search/selected symbols; authenticated closed-session SSK reconnect may resume it across foreground tabs, without auto-login or new holiday quote proof. Explicit disconnect clears intent. Busy guards and existing pacing retained. Added source contract checks for scope and connect/disconnect hooks.
 - Actual token entitlement, server response, runtime reconnect timing, retry continuity across interruptions and phone data recovery remain unverified; no server changes, APK, live request or orders. Exact-source CI pending.
+
+
+### 25 नवंबर 2026 — Deep Batch 1E regression repair
+- Exact 59a5b41 B1 45459460452, B2 45459460675, Adapter 45459460848 PASS; B3 45459460535 FAIL, 1900 tests with 1 failure (job 138677729243). Extracted isolated AST runtime fixture for check_clone_v2_connection lacked the new resume state globals, causing exception and false failure status in mock. Source review supports missing fixture dependencies; no live auth failure proven.
+- Updated offline runtime fixture to supply actual new pending/loading state and record scheduled tasks. Added positive pending reconnect scheduling assertion and rejected-auth with pending intent test; original no-quote/no-task normal holiday assertion preserved. Production source unchanged. Exact CI and real phone/Oracle verification pending. No deployment/APK/provider calls.
