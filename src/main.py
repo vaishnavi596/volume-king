@@ -6769,6 +6769,24 @@ console.log('BOT KING Lightweight Charts ready');
             one_minute=[item for item in one_minute
                         if item.get("source")=="Dhan" and item.get("bars")
                         and item.get("_scanner_timeframe")=="1m"]
+            # On a holiday/restart Scanner may have persisted only 1m Dhan
+            # history, whereas Watchlist requests completed 3m. Reopen that
+            # exact 1m source locally before deriving 3m; never invent or
+            # relabel 3m rows, activate LIVE, or contact the provider.
+            if not one_minute:
+                for saved_range in ("7d","2d","5d","1mo","1d"):
+                    try:
+                        saved_1m=market_store.get("market","Dhan",sym,"1m",saved_range)
+                    except NameError:
+                        break
+                    if (saved_1m and saved_1m.get("source")=="Dhan"
+                            and saved_1m.get("_scanner_timeframe")=="1m"
+                            and valid_candle_history(saved_1m.get("bars"))
+                            and saved_1m.get("live_verified") is False):
+                        one_minute.append(dict(
+                            saved_1m,historical=True,live_verified=False,
+                            freshness="historical_unverified",cached=True))
+                        break
             if one_minute:
                 source_1m=max(one_minute,key=lambda item: (
                     len(item.get("bars") or []),
