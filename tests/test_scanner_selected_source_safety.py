@@ -95,7 +95,8 @@ class ScannerSelectedSourceSafetyTests(unittest.TestCase):
 
     def test_scanner_oi_context_explains_connection_and_expiry(self):
         view=function_source("scanner_option_context")
-        self.assertIn('Dhan session not connected',view)
+        self.assertIn('LIVE option snapshot not verified',view)
+        self.assertIn('SSK/Oracle CONNECTED',view)
         self.assertIn('differs from Options',view)
         self.assertIn('auto-refresh pauses after market hours',view)
         self.assertIn('use explicit Retry Data',view)
