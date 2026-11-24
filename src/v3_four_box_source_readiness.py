@@ -36,8 +36,29 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
                if exact_history else None)
     candles = history.get("bars") if exact_history else []
     news = news_cache.get("items")
-    headlines = len(news) if isinstance(news, (tuple, list)) else 0
-    # The current news source is RSS context; no verified price-impact source.
+    # Count only source-shaped, time-bounded RSS rows, never arbitrary items,
+    # future headlines, repeated titles or stale persisted cache records.
+    seen_headlines=set()
+    headlines=0
+    if isinstance(news,(tuple,list)):
+        for item in news:
+            if not isinstance(item,dict):
+                continue
+            title=item.get("title")
+            url=item.get("url")
+            publisher=item.get("source")
+            published=item.get("published")
+            if (not isinstance(title,str) or not title.strip()
+                    or not isinstance(url,str) or not url.startswith("https://")
+                    or not isinstance(publisher,str) or not publisher.strip()
+                    or not _positive_stamp(published)
+                    or not 0<=now-published<=86400):
+                continue
+            key=" ".join(title.split()).casefold()
+            if key not in seen_headlines:
+                seen_headlines.add(key)
+                headlines+=1
+    # RSS is only a headline context, never verified market impact.
     # An expired or malformed option expiry cannot count as usable context.
     # This is only cache-presence validation; it never authorizes a vote.
     observed_ist_day=datetime.fromtimestamp(

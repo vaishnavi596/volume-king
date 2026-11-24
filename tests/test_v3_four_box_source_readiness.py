@@ -24,7 +24,8 @@ class FourBoxSourceContracts(unittest.TestCase):
         last=h["bars"][-1][0]+60
         x=four_box_source_readiness(
             symbol="NIFTY",timeframe="1m",generation=3,history=h,
-            news_cache={"items":[{"title":"One"}]},
+            news_cache={"items":[{"title":"One", "url":"https://example.org/a",
+                                  "published":last-60,"source":"RSS Publisher"}]},
             futures_cache=dict(source="Dhan",symbol="NIFTY",underlying="NIFTY",
                                exchange_segment="NSE_FNO",expiry="2026-12-31",
                                mapping_verified=True,contract="NIFTY-FUT",
@@ -41,6 +42,34 @@ class FourBoxSourceContracts(unittest.TestCase):
             self.assertFalse(x["box_sources"][name]["historical_direction_available"])
             self.assertFalse(x["box_sources"][name]["live_direction_verified"])
         self.assertEqual(x["live_vote_count"],0)
+        self.assertEqual(x["provider_requests"],0)
+        self.assertEqual(x["orders_sent"],0)
+
+    def test_news_context_requires_valid_recent_unique_rss_rows(self):
+        h=history()
+        now=h["bars"][-1][0]+60
+        valid={"title":"Nifty earnings","url":"https://example.org/a",
+               "source":"RSS Publisher","published":now-60}
+        invalid=[42,{"title":"no date","url":"https://example.org/b",
+                     "source":"RSS","published":None},
+                 dict(valid,published=now-86401),dict(valid,published=now+30),
+                 dict(valid,url="http://unsafe.example/a"),
+                 dict(valid,source=""),dict(valid,title=" ")]
+        x=four_box_source_readiness(
+            symbol="NIFTY",timeframe="1m",generation=3,history=h,
+            news_cache={"items":invalid+[valid,dict(valid,title=" NIFTY   EARNINGS ")]},
+            now=now)
+        self.assertEqual(x["box_sources"]["N"]["context_count"],1)
+        self.assertTrue(x["box_sources"]["N"]["cache_present"])
+        self.assertFalse(x["box_sources"]["N"]["live_direction_verified"])
+        self.assertEqual(x["live_vote_count"],0)
+        x=four_box_source_readiness(
+            symbol="NIFTY",timeframe="1m",generation=3,history=h,
+            news_cache={"items":invalid},now=now)
+        self.assertEqual(x["box_sources"]["N"]["context_count"],0)
+        self.assertFalse(x["box_sources"]["N"]["cache_present"])
+        self.assertEqual(x["box_sources"]["N"]["blocker"],
+                         "SYMBOL_NEWS_HEADLINES_MISSING")
         self.assertEqual(x["provider_requests"],0)
         self.assertEqual(x["orders_sent"],0)
 
