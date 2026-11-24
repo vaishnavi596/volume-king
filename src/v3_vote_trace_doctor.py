@@ -100,7 +100,11 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
         matches_published=(evidence is not None and evidence.eligible and
                            evidence.source.strip().casefold()=="dhan" and
                            num==evidence.bullish and opposite==evidence.bearish)
-        eligible=(market_open and matches_published and
+        expected_direction=("BULLISH" if type(num) is int and type(opposite) is int and num>opposite
+                            else "BEARISH" if type(num) is int and type(opposite) is int and opposite>num
+                            else "NEUTRAL" if type(num) is int and type(opposite) is int and num==opposite
+                            else None)
+        eligible=(market_open and matches_published and row.get("status")==expected_direction and
                   type(num) is int and type(opposite) is int and
                   num+opposite==100 and row.get("raw_verified") is True and
                   row.get("raw_source")=="Dhan" and
