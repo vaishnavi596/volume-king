@@ -11,9 +11,10 @@ class CloneB1StatusContract(unittest.TestCase):
         ast.parse(cls.source)
 
     def test_off_market_and_stale_unverified_label(self):
-        self.assertIn('STALE • exchange timestamps unverified', self.source)
-        self.assertIn('OFF • last available prices (not live)', self.source)
+        self.assertIn('AUTO • LIVE unverified until fresh exchange evidence', self.source)
+        self.assertIn('AUTO • HIST fallback • LIVE OFF', self.source)
         self.assertIn('if regular_hours() else', self.source)
+        self.assertIn('LIVE ONLY • WAIT • market closed', self.source)
 
     def test_mounted_watchlist_compact_status(self):
         self.assertIn('label=("OFF" if not regular_hours() else "STALE")', self.source)
