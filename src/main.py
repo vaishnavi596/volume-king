@@ -5304,7 +5304,10 @@ def app_main(page:ft.Page):
                         for i in range(7)))
                 diagnostic_context["last_eight_constant_nonzero_volume"]=(
                     constant_volume_last_eight)
-                valid_volume_rows=[c[5] for c in bars[-20:]
+                # An empty/offline Dhan cache yields bars=None; Doctor must
+                # report WAIT instead of slicing None and raising TypeError.
+                valid_volume_rows=[c[5] for c in (
+                                   bars[-20:] if isinstance(bars,(list,tuple)) else [])
                                    if isinstance(c,(list,tuple)) and len(c)>=6
                                    and type(c[5]) in (int,float) and
                                    math.isfinite(c[5]) and c[5]>=0]
