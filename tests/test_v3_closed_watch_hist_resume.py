@@ -32,6 +32,18 @@ class ClosedWatchResumeContract(unittest.TestCase):
     def test_navigation_and_resume_hook(self):
         self.assertIn("if changed and i==4 and watch_closed_hist_resume_pending[0]:",body("render_page"))
         self.assertIn("if current[0]==4 and watch_closed_hist_resume_pending[0]:",body("lifecycle_changed"))
+    def test_authenticated_reconnect_requires_original_manual_scope(self):
+        helper=body("resume_interrupted_closed_watch_history")
+        self.assertIn("watch_closed_hist_resume_scope[0]!=scope",helper)
+        self.assertIn("current[0]==4 or authenticated_reconnect",helper)
+        queue=body("continue_closed_watch_history")
+        self.assertIn("or not clone_v2_gateway.connected))",queue)
+        self.assertIn("(generation,list_index,search_scope,tuple(selected))",queue)
+        connect=body("check_clone_v2_connection")
+        self.assertIn("page.run_task(resume_interrupted_closed_watch_history,True)",connect)
+        disconnect=body("disconnect_clone_v2_gateway")
+        self.assertIn("watch_closed_hist_resume_scope[0]=None",disconnect)
+
     def test_no_unsolicited_closed_session_auto_scan(self):
         self.assertIn("if not initial and not refresh_hours()",body("refresh_market"))
         self.assertIn("if not refresh_hours():",body("refresh_after_resume"))

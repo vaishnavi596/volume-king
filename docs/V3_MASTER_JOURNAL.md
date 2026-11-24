@@ -2268,3 +2268,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — Deep Batch 1D regression repair
 - Exact df9ca6f B1 45457437267, B2 45457437301, Adapter 45457437404 PASS; B3 45457437263 FAIL (1899 tests, 1 failure). Job 138670591502: test_periodic_and_early_warmups_both_handle_unset_clock_sentinels rejects get(key,0) in new retry guard. No evidence of live provider failure from this offline test.
 - Replaced implicit zero timestamp fallback in retry guard with explicit key membership then indexed comparison. Existing sentinel guard retained; new retry source contract updated, no relaxation of old test. Pacing unchanged. Batch 1E held pending exact-source regression. No server/APK/provider calls.
+
+
+### 25 नवंबर 2026 — Deep Batch 1E: scoped HIST reconnect
+- Exact 3d3b5b4 verified all four workflows completed/success: B1 45458379264, B2 45458379215, Adapter 45458379201, B3 45458379182. Latest three changed paths inspected. Previous sentinel regression resolved.
+- Preserve interrupted explicit HIST intent on unexpected gateway loss only for same generation/list/search/selected symbols; authenticated closed-session SSK reconnect may resume it across foreground tabs, without auto-login or new holiday quote proof. Explicit disconnect clears intent. Busy guards and existing pacing retained. Added source contract checks for scope and connect/disconnect hooks.
+- Actual token entitlement, server response, runtime reconnect timing, retry continuity across interruptions and phone data recovery remain unverified; no server changes, APK, live request or orders. Exact-source CI pending.

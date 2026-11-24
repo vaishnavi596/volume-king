@@ -2738,16 +2738,26 @@ def app_main(page:ft.Page):
     # Resume only a previously user-requested HIST queue; no unsolicited
     # closed-session provider polling when the user has not tapped Refresh.
     watch_closed_hist_resume_pending=[False]
-    async def resume_interrupted_closed_watch_history():
+    watch_closed_hist_resume_scope=[None]
+    async def resume_interrupted_closed_watch_history(authenticated_reconnect=False):
         for _ in range(15):
             if not watch_closed_hist_loading[0]:
                 break
             await asyncio.sleep(0.2)
         if (watch_closed_hist_resume_pending[0] and not watch_closed_hist_loading[0]
-                and current[0]==4 and app_active[0]
+                and (current[0]==4 or authenticated_reconnect) and app_active[0]
                 and not lifecycle_background[0] and not refresh_hours()
                 and prefs.get("source")=="Dhan" and clone_v2_gateway.connected):
-            watch_closed_hist_resume_pending[0]=False
+            scope=(provider_generation[0],active_watch[0],(search.value or "").upper(),
+                   tuple(sym for sym in watch_groups[active_watch[0]]
+                         if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                         and (not search.value or search.value.upper() in sym)))
+            if watch_closed_hist_resume_scope[0]!=scope:
+                watch_closed_hist_resume_pending[0]=False
+                watch_closed_hist_resume_scope[0]=None
+                return
+            if watch_batch_busy[0] or index_refresh_busy[0]:
+                return
             await refresh_all_dhan_quotes()
 
     async def continue_closed_watch_history(generation,list_index,selected,search_scope):
@@ -2768,7 +2778,13 @@ def app_main(page:ft.Page):
                     watch_closed_hist_resume_pending[0]=bool(
                         provider_generation[0]==generation
                         and prefs.get("source")=="Dhan" and not refresh_hours()
-                        and (not app_active[0] or lifecycle_background[0]))
+                        and active_watch[0]==list_index
+                        and (search.value or "").upper()==search_scope
+                        and (not app_active[0] or lifecycle_background[0]
+                             or not clone_v2_gateway.connected))
+                    watch_closed_hist_resume_scope[0]=(
+                        (generation,list_index,search_scope,tuple(selected))
+                        if watch_closed_hist_resume_pending[0] else None)
                     watch_batch_status[0]=(
                         "HIST paused • resumes on Watchlist return • NOT LIVE"
                         if watch_closed_hist_resume_pending[0] else
@@ -2795,6 +2811,7 @@ def app_main(page:ft.Page):
                             > retry_baseline[sym])
                 if finished+attempted>=total:
                     watch_closed_hist_resume_pending[0]=False
+                    watch_closed_hist_resume_scope[0]=None
                     watch_batch_status[0]=(
                         f"HIST loaded {finished}/{total} • unavailable after attempt {attempted} • NOT LIVE"
                         if attempted else f"HIST complete {finished}/{total} • NOT LIVE")
@@ -2854,6 +2871,7 @@ def app_main(page:ft.Page):
                     and (not search.value or search.value.upper() in sym))
                 if selected:
                     watch_closed_hist_resume_pending[0]=False
+                    watch_closed_hist_resume_scope[0]=None
                     watch_closed_hist_loading[0]=True
                     page.run_task(continue_closed_watch_history,
                                   provider_generation[0],active_watch[0],selected,
@@ -4192,6 +4210,8 @@ def app_main(page:ft.Page):
                     " • market-data quotes unverified • HIST cache only • LIVE OFF.")
                 connection_status.color=GOLD
                 building_doctor.milestone("gateway_authorized_closed_session")
+                if watch_closed_hist_resume_pending[0] or watch_closed_hist_loading[0]:
+                    page.run_task(resume_interrupted_closed_watch_history,True)
                 return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
@@ -4287,6 +4307,8 @@ def app_main(page:ft.Page):
         page.run_task(check_clone_v2_connection)
 
     def disconnect_clone_v2_gateway(e):
+        watch_closed_hist_resume_pending[0]=False
+        watch_closed_hist_resume_scope[0]=None
         dhan_feed.disconnect()
         provider_changed(None)
         server_access.value=""
