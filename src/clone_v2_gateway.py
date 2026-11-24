@@ -86,7 +86,8 @@ class CloneV2Gateway:
     def post_market(self, route, selection):
         if not self.connected:
             raise FeedError("Clone SSK connection required")
-        if route not in ("candles", "verify", "options/expiries", "options/chain"):
+        if route not in ("candles", "verify", "options/expiries", "options/chain",
+                         "futures/context"):
             raise FeedError("Unsupported Clone Dhan read-only route")
         url = self._origin + "/clone-v2/market/" + route
         req = Request(url, data=json.dumps(selection, allow_nan=False).encode("utf-8"),
@@ -437,6 +438,43 @@ class CloneDhanReadOnly:
                 not math.isfinite(response["pcr"]) or response["pcr"] < 0 or
                 not math.isfinite(response["max_pain"]) or response["max_pain"] <= 0):
             raise FeedError("Clone option evidence unavailable")
+        return response
+
+    def futures_context(self, symbol, expiry):
+        """Read mapped Dhan NSE_FNO context; never certify a directional vote.
+
+        Server mapping is operator-controlled. The phone supplies only the
+        requested underlying and expiry, never a security ID.
+        """
+        from datetime import date
+        if (not isinstance(symbol,str) or not symbol
+                or not isinstance(expiry,str)):
+            raise FeedError("Exact futures symbol and expiry required")
+        try:
+            parsed=date.fromisoformat(expiry)
+        except ValueError:
+            raise FeedError("Invalid futures expiry") from None
+        if parsed.isoformat()!=expiry:
+            raise FeedError("Invalid futures expiry")
+        response=self.gateway.post_market("futures/context", {
+            "symbol":symbol,"expiry":expiry})
+        price=response.get("ltp")
+        contract=response.get("contract")
+        if (response.get("source")!="dhan"
+                or response.get("symbol")!=symbol
+                or response.get("underlying")!=symbol
+                or response.get("expiry")!=expiry
+                or response.get("exchange_segment")!="NSE_FNO"
+                or response.get("mapping_verified") is not True
+                or not isinstance(contract,str) or not contract.strip()
+                or type(price) not in (int,float) or not math.isfinite(price)
+                or price<=0
+                or response.get("freshness")!="unverified"
+                or response.get("direction_verified") is not False
+                or response.get("signal_eligible") is not False
+                or response.get("live_orders_enabled") is not False
+                or response.get("direction") is not None):
+            raise FeedError("Clone futures context provenance unavailable")
         return response
 
     def server_readiness(self):
