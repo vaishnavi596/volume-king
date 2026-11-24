@@ -732,6 +732,11 @@ def app_main(page:ft.Page):
             raise
         if generation!=provider_generation[0] or prefs.get("source","Dhan")!=selected:
             raise RuntimeError("Provider changed while data was loading; obsolete response discarded.")
+        # Persist the EXACT source timeframe before disk validation.
+        # The outer shared-cache wrapper stamps it too, but persisted HIST
+        # must not depend on a caller's later wrapper.
+        if selected=="Dhan" and result.get("source")=="Dhan":
+            result=dict(result,_scanner_timeframe=interval)
         if not result.get("cached"):market_store.put("market",(selected,ticker,interval,range_),result)
         state="CACHED" if result.get("cached") else "FALLBACK" if result.get("fallback") else "AVAILABLE"
         quote_time=result.get("quote_timestamp")
