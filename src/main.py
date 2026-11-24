@@ -1538,7 +1538,7 @@ def app_main(page:ft.Page):
                                   if result["state"]!="WAIT" else " WAIT ("+str(result["reason"])+")"))
         # Stale/closed-market 5m publisher cannot hide last completed 5m
         # technical votes. Historical context is not a sixth/verified engine.
-        if snapshot["engines"][0].display()["state"]=="WAIT":
+        if exact_frame=="5m" and snapshot["engines"][0].display()["state"]=="WAIT":
             last_votes=historical_five_minute_technical(symbol)
             if last_votes:
                 pieces[0]=("Technical HIST 5m B"+str(round(last_votes[0]))+
