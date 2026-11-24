@@ -137,12 +137,40 @@ class HistoricalVotingTests(unittest.TestCase):
         before=[row[:] for row in arr]
         r=replay(bars=arr,history_timestamp=arr[-1][0]+10)
         self.assertEqual(r["excluded_forming_candle_bars"],1)
-        self.assertEqual(r["boxes"][0]["state"],"WAIT")
+        self.assertEqual(r["boxes"][0]["state"],"HIST_VOTE")
         self.assertEqual(r["boxes"][1]["state"],"HIST_VOTE")
         self.assertEqual(r["historical_session_bars"],374)
-        self.assertIn("TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED",r["blockers"])
+        self.assertTrue(r["technical_recomputed_from_completed_bars"])
+        self.assertNotIn("TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED",
+                         r["blockers"])
         self.assertEqual(r["orders_sent"],0)
         self.assertEqual(arr,before)
+
+    def test_forming_bar_recalculation_rejects_context_only_filter_votes(self):
+        arr=bars()
+        selected=[{"name":"MACD","vote":-1},
+                  {"name":"News Headlines","vote":1},
+                  {"name":"OI Support","vote":1},
+                  {"name":"Dhan Max Pain","vote":1}]
+        output=replay(bars=arr,filter_rows=selected,
+                      history_timestamp=arr[-1][0]+5)
+        self.assertTrue(output["technical_recomputed_from_completed_bars"])
+        self.assertLessEqual(output["technical_vote"]["directional_count"],1)
+        self.assertEqual(output["boxes"][2]["state"],"WAIT")
+        self.assertEqual(output["boxes"][4]["state"],"WAIT")
+        self.assertEqual(output["provider_requests"],0)
+        self.assertEqual(output["orders_sent"],0)
+
+    def test_forming_bar_without_selected_technical_keeps_T_wait(self):
+        arr=bars()
+        output=replay(bars=arr,
+                      filter_rows=[{"name":"News Headlines","vote":1}],
+                      history_timestamp=arr[-1][0]+5)
+        self.assertFalse(output["technical_recomputed_from_completed_bars"])
+        self.assertEqual(output["boxes"][0]["state"],"WAIT")
+        self.assertEqual(output["boxes"][1]["state"],"HIST_VOTE")
+        self.assertIn("TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED",
+                      output["blockers"])
 
     def test_future_dated_and_bad_observation_fail_closed(self):
         arr=bars()

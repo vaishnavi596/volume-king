@@ -8,6 +8,7 @@ from math import isfinite
 from five_engine import ENGINE_NAMES, historical_candle_balance, combine_evidence, EngineEvidence
 from historical_session_window import historical_regular_session_bars
 from filter_wiring_audit import CANDLE_FILTERS
+from scanner_engine import analyze
 
 OPTION_CONTEXT={"OI Support","OI Resistance","OI Profile","Dhan Max Pain"}
 TIMEFRAMES={"1m":60,"3m":180,"5m":300}
@@ -96,6 +97,25 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     if not valid:
         result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")
         return result
+    result["technical_recomputed_from_completed_bars"]=False
+    if result["excluded_forming_candle_bars"]:
+        # Recalculate all selected technical indicators from the exact
+        # completed in-session Dhan candles, not the caller's forming-bar
+        # votes. Keep N/option context separate and never fetch data.
+        selected=[row.get("name",row.get("filter"))
+                  for row in filter_rows if isinstance(row,dict)
+                  and row.get("name",row.get("filter")) in CANDLE_FILTERS]
+        if selected:
+            recomputed=analyze(session,selected,timeframe)
+            if (recomputed.get("timestamp")==session[-1][0]
+                    and recomputed.get("count")==len(session)
+                    and isinstance(recomputed.get("votes"),list)):
+                filter_rows=recomputed["votes"]
+                result["technical_recomputed_from_completed_bars"]=True
+                result["blockers"].remove(
+                    "TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED")
+            # An invalid or incomplete source stays WAIT rather than reusing
+            # an upstream technical vote calculated over the forming candle.
     unique=set()
     bull=bear=neutral=0
     for row in filter_rows:
@@ -117,7 +137,8 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
             bear+=vote==-1
             neutral+=vote==0
     technical=None
-    if bull+bear and result["excluded_forming_candle_bars"]==0:
+    if bull+bear and (result["excluded_forming_candle_bars"]==0
+                     or result["technical_recomputed_from_completed_bars"]):
         technical={"bullish":round(100*bull/(bull+bear)),
                    "bearish":100-round(100*bull/(bull+bear)),
                    "directional_count":bull+bear,"neutral_count":neutral,
