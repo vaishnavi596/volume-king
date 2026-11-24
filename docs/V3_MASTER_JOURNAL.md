@@ -2018,3 +2018,10 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Additional actual UI bug in Watchlist mounted 2-second tick: both global signature and individual symbol signature tracked quote and HIST vote but not the independently derived 3m historical close. If close changed without vote changing, price could remain stale until unrelated refresh. Fixed both signatures in main.py commit db388568.
 - Added focused AST regression test tests/test_v3_watch_hist_close_tick.py commit 82f4fcdd: both repaint triggers, historical label and no quote cache write/provider calls. B3 exact-head after these changes must pass before any APK release.
 - Existing B206 remains installed source ce129892; not a build with new HIST CLOSE changes. New APK NOT generated, phone validation pending, independent live LTP still unavailable in SSK-only close route.
+
+
+### 24 नवंबर 2026 — B207 स्वतंत्र Historical Close APK gate
+- Previous B3 #45399810123 on 82f4fcdd SUCCESS; source Hist Close module and Watchlist mounted signatures verified by tests, not yet physical phone certified.
+- Version 2.3.207 in pyproject (2311e6a8); new isolated APK workflow `.github/workflows/v3-b207-side-by-side-preview-apk.yml` in 945a5909, separate Android package/signing from B206; no production deployment, no V1/V2/Oracle change. It requires full tests and exact-SHA independent B3 SUCCESS before build/artifact.
+- Added final empty-history fail-closed test f2d1a160, triggering both exact-head B3 #45401266717 and B207 #45401267157. Earlier B207 workflow #45401211290 was cancelled by concurrency and is NOT the download source. Do not claim B207 artifact ready until final success and artifact upload verified.
+- Acceptance: three equity Watchlist prices may show HIST CLOSE only for completed exact-Dhan 3m candles, with time and NOT LIVE; still no authenticated LIVE quote. B206 stays installed, do not uninstall it. Dashboard, Super Five, options and multi-engine end votes remain separate unresolved tasks.
