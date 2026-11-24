@@ -836,7 +836,9 @@ def app_main(page:ft.Page):
             price=q.get("price")
             if type(price) in (int,float) and math.isfinite(price) and price>0:
                 return quote_price(sym), None
-        if prefs.get("source")=="Dhan" and not refresh_hours():
+        # A mid-session disconnect must retain the last completed candle,
+        # not wait for the clock/holiday calendar to permit HIST fallback.
+        if prefs.get("source")=="Dhan":
             from v3_hist_close_display import historical_close_display
             hist=shared_history(sym,"3m")
             historical=historical_close_display(hist,now=time.time())
