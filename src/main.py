@@ -2718,22 +2718,81 @@ def app_main(page:ft.Page):
                 request_view_refresh(current[0])
 
     manual_quote_last_attempt=[0.0]
+    # One explicit Watchlist tap schedules selected-only closed HIST warmup.
+    # No unbounded burst, automatic holiday boot, or actual quote promotion.
+    watch_closed_hist_loading=[False]
+    watch_closed_hist_key=[None]
+    async def continue_closed_watch_history(generation,list_index,selected):
+        if watch_closed_hist_loading[0]:
+            return
+        watch_closed_hist_loading[0]=True
+        watch_closed_hist_key[0]=(generation,list_index,tuple(selected))
+        try:
+            while True:
+                if (provider_generation[0]!=generation or current[0]!=4
+                        or active_watch[0]!=list_index or not app_active[0]
+                        or lifecycle_background[0] or not clone_v2_gateway.connected
+                        or refresh_hours() or prefs.get("source")!="Dhan"):
+                    watch_batch_status[0]="HIST loading paused • reopen Watchlist and tap Refresh"
+                    break
+                finished=0
+                attempted=0
+                for sym in selected:
+                    if valid_candle_history(shared_history(sym,"3m").get("bars")):
+                        finished+=1
+                    elif (generation,sym) in watch_three_minute_warm_attempts:
+                        attempted+=1
+                total=len(selected)
+                if finished+attempted>=total:
+                    watch_batch_status[0]=(
+                        f"HIST complete {finished}/{total} • unavailable/deferred {attempted} • NOT LIVE")
+                    break
+                watch_batch_status[0]=(
+                    f"HIST loading {finished}/{total} • attempted without data {attempted} • NOT LIVE")
+                if watch_status_text.page is not None:
+                    watch_status_text.value="Quote check • "+watch_batch_status[0]
+                    watch_status_text.update()
+                before=len(watch_three_minute_warm_attempts)
+                checked=await warm_selected_watch_three_minute_early(
+                    generation,explicit_closed=True)
+                # A request may be deferred by 30s/3-per-180s provider budget,
+                # existing workers or cooldown. One task simply waits and retries.
+                if not checked and len(watch_three_minute_warm_attempts)==before:
+                    await asyncio.sleep(10)
+                else:
+                    await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("closed_watch_history_queue",exc)
+            watch_batch_status[0]="HIST loading paused • error recorded • NOT LIVE"
+        finally:
+            watch_closed_hist_loading[0]=False
+            watch_closed_hist_key[0]=None
+            if current[0]==4:
+                request_view_refresh(4)
+
     async def refresh_all_dhan_quotes():
         if prefs.get("source")!="Dhan" or watch_batch_busy[0] or index_refresh_busy[0]:
             return
-        # SSK-authenticated market-closed HIST: exactly one selected equity
-        # 1m candle source check per manual tap; never fetch a LIVE LTP here.
+        # SSK-authenticated market-closed HIST: one tap starts a single
+        # cancellable, paced selected-only worker. It never fetches LIVE LTP.
         closed_ssk_hist=(clone_v2_gateway.connected and not refresh_hours()
                          and not dhan_feed.connected)
         if closed_ssk_hist:
-            if watch_three_minute_warm_busy[0]:
-                watch_batch_status[0]="Selected 3m HIST check in progress • LIVE OFF"
+            if not watch_closed_hist_loading[0]:
+                selected=tuple(sym for sym in watch_groups[active_watch[0]]
+                    if sym in DHAN_VERIFIED_SYMBOLS
+                    and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                    and (not search.value or search.value.upper() in sym))
+                if selected:
+                    page.run_task(continue_closed_watch_history,
+                                  provider_generation[0],active_watch[0],selected)
+                    watch_batch_status[0]=f"HIST loading requested for {len(selected)} equities • NOT LIVE"
+                else:
+                    watch_batch_status[0]="No selected equities for HIST loading"
             else:
-                checked=await warm_selected_watch_three_minute_early(
-                    provider_generation[0],explicit_closed=True)
-                watch_batch_status[0]=(
-                    "Selected 3m HIST source checked • NOT LIVE" if checked else
-                    "Selected 3m HIST cached/deferred/unavailable • LIVE OFF")
+                watch_batch_status[0]="HIST loading already in progress • NOT LIVE"
             if current[0]==4 and watch_status_text.page is not None:
                 watch_status_text.value="Quote check • "+watch_batch_status[0]
                 watch_status_text.update()
@@ -2912,6 +2971,7 @@ def app_main(page:ft.Page):
                 if button is not None:
                     should_disable=(watch_batch_busy[0] or index_refresh_busy[0]
                                     or prefs.get("source")!="Dhan"
+                                    or watch_closed_hist_loading[0]
                                     or not (dhan_feed.connected or
                                             (clone_v2_gateway.connected and not refresh_hours())))
                     if button.disabled!=should_disable:
@@ -3043,9 +3103,10 @@ def app_main(page:ft.Page):
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
         watch_status_text.value="Quote check • "+watch_batch_status[0]
         refresh_btn=ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
-                    tooltip="LIVE quotes require proof; when SSK connected and closed, tap for one selected 3m HIST candle check (NOT LIVE)",
+                    tooltip="LIVE quotes require proof; when SSK connected and closed, one tap progressively loads selected 3m HIST candles with pacing (NOT LIVE)",
                     on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                     disabled=(watch_batch_busy[0] or index_refresh_busy[0]
+                              or watch_closed_hist_loading[0]
                               or prefs.get("source")!="Dhan"
                               or not (dhan_feed.connected or
                                       (clone_v2_gateway.connected and not refresh_hours()))))
