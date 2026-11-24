@@ -87,11 +87,20 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
         else:
             raise ValueError("Malformed snapshot evidence")
     boxes=[]
+    evidence_by_name=(dict(zip(ENGINE_NAMES,snapshot["engines"]))
+                      if published and source_snapshot_valid else {})
     for name in ENGINE_NAMES:
         row=observed[name]
         num=row.get("bullish_percent")
         opposite=row.get("bearish_percent")
-        eligible=(market_open and published and source_snapshot_valid and
+        evidence=evidence_by_name.get(name)
+        # A display row cannot attest an independent live vote merely by
+        # claiming Dhan/raw_verified: its percentages must match the same
+        # published, eligible engine. A mismatched UI value is not a vote.
+        matches_published=(evidence is not None and evidence.eligible and
+                           evidence.source.strip().casefold()=="dhan" and
+                           num==evidence.bullish and opposite==evidence.bearish)
+        eligible=(market_open and matches_published and
                   type(num) is int and type(opposite) is int and
                   num+opposite==100 and row.get("raw_verified") is True and
                   row.get("raw_source")=="Dhan" and
