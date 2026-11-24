@@ -1625,6 +1625,34 @@ def app_main(page:ft.Page):
             historical=True,live_verified=False,
             freshness="historical_unverified"))
 
+    def scanner_historical_final_vote():
+        """Display read-only HIST final policy for selected Scanner frame only.
+
+        The replay recalculates the T lane from completed Dhan cache candles;
+        missing N/F/O inputs remain abstentions. Never report this as LIVE.
+        """
+        from v3_historical_vote_replay import historical_vote_replay
+        from filter_wiring_audit import CANDLE_FILTERS
+        sym=str(scan_symbol.value or "NIFTY")
+        frame=str(scan_tf.value or "1m")
+        history=shared_history(sym,frame)
+        if frame not in ("1m","3m","5m"):
+            return note("HIST FINAL • WAIT • unsupported selected timeframe • NOT LIVE")
+        selected=[{"name":name} for name in filter_selected
+                  if name in CANDLE_FILTERS and filter_modes.get(name,"Analysis")!="Chart"]
+        output=historical_vote_replay(
+            symbol=sym,timeframe=frame,generation=provider_generation[0],
+            source=history.get("source") if isinstance(history,dict) else None,
+            bars=history.get("bars") if isinstance(history,dict) else None,
+            filter_rows=selected,history_timestamp=time.time())
+        final=output["historical_combined"]
+        direction=final["state"]
+        confidence=(" B"+str(final["bullish"])+"% / S"+str(final["bearish"])+"%"
+                    if direction in ("BULLISH","BEARISH") else "")
+        return note("HIST FINAL • "+sym+" "+frame+" • "+direction+
+                    confidence+" • "+str(final["coverage"])+"/5 HIST sources"+
+                    " • "+str(final["reason"])+" • NOT LIVE")
+
     def five_engine_chips(sym, display_timeframe=None):
         """Five independent evidence slots; percentages only when justified."""
         from v3_four_box_source_readiness import valid_news_context_count
@@ -7397,7 +7425,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)],spacing=5))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),scanner_historical_final_vote()],spacing=5))),
             wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]

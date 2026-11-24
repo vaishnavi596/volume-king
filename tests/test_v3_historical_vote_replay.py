@@ -293,6 +293,20 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(s["results"]["THREE_BULL_TWO_BEAR"],"WAIT")
         self.assertEqual(s["results"]["FOUR_BEAR_ONE_BULL"],"BEARISH")
         self.assertFalse(s["live_verified"])
+    def test_scanner_renders_real_historical_final_replay_separately(self):
+        source=(ROOT/"src/main.py").read_text()
+        ast.parse(source)
+        self.assertIn("def scanner_historical_final_vote():",source)
+        self.assertIn('final=output["historical_combined"]',source)
+        self.assertIn('filter_rows=selected,history_timestamp=time.time()',source)
+        self.assertIn('scanner_historical_final_vote()],spacing=5)))',source)
+        self.assertIn('" • NOT LIVE")',source)
+        block=source.split("    def scanner_historical_final_vote():",1)[1].split("    def five_engine_chips(",1)[0]
+        self.assertIn('history=shared_history(sym,frame)',block)
+        self.assertNotIn('get_market_data(',block)
+        self.assertNotIn('dhan_feed.',block)
+        self.assertNotIn('orders_sent(',block)
+
     def test_b178_and_master_doctors_integrate_same_historical_replay(self):
         s=(ROOT/"src/main.py").read_text()
         ast.parse(s)
