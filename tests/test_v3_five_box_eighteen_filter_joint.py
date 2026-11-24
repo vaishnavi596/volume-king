@@ -30,6 +30,22 @@ def completed_fixture(timeframe):
 
 
 class JointFiveBoxesEighteenFilters(unittest.TestCase):
+    def test_display_summary_must_not_borrow_five_minute_hist_for_1m_or_3m(self):
+        """Reject cross-timeframe fallback even when LIVE technical is WAIT.
+
+        The exact-frame 1m/3m source may supply HIST on its own, but a
+        published 5m ranking cannot be relabeled as their T display.
+        """
+        from textwrap import dedent
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        summary=source.split("    def five_engine_summary(",1)[1].split(
+            "    def five_engine_chips(",1)[0]
+        self.assertIn(
+            'if exact_frame=="5m" and snapshot["engines"][0].display()["state"]=="WAIT":',
+            summary)
+        self.assertEqual(summary.count("last_votes=historical_five_minute_technical(symbol)"),1)
+        self.assertIn('exact_frame=display_timeframe or "5m"',summary)
+
     def test_canonical_eighteen_registry_and_exact_five_lanes(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(set(ALL_FILTERS)),18)
