@@ -8,7 +8,7 @@ run-name: BOT KING V3 B203 PREVIEW • separate Android identity • v2.3.203
 on:
   push:
     branches:
-      - pilot/v1-pure-original-clone-phone-20361120
+      - pilot/v1-pure-original-clone-phone-20261120
     paths:
       - .github/workflows/v3-live-building-doctor-apk.yml
       - tests/test_b1_five_engine_dhan_shared_option.py
