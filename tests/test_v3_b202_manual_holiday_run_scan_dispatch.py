@@ -35,7 +35,7 @@ class ManualHolidayRunScan(unittest.TestCase):
              "clone_v2_gateway":gateway,"regular_hours":lambda:not closed,
              "scan_status":status,"scan_busy":busy,"scan_live":types.SimpleNamespace(value=False),
              "scan_result":types.SimpleNamespace(controls=[]),
-             "card":lambda x:x,"txt":lambda *x:x,
+             "card":lambda x:x,"txt":lambda *x:x,"GOLD":"gold",
              "page":page,"scan_market":scan_market}
         exec(compile(program,"src/main.py","exec"),env)
         return env["run_scan"],status,busy,calls
