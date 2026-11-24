@@ -95,7 +95,7 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         status=views["canonical_live_final_note"]("NIFTY","1m").value
         self.assertIn("LIVE FINAL • WAIT",status)
         self.assertIn("0/5 verified",status)
-        self.assertIn("market closed or Dhan disconnected",status)
+        self.assertIn("LIVE quote/session unverified or market closed",status)
         self.assertIn("unsupported timeframe",
                       views["canonical_live_final_note"]("NIFTY","2m").value)
 
