@@ -7,7 +7,8 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from v3_vote_trace_doctor import audit_vote_trace
 from five_engine import EngineEvidence,compose_snapshot
-from scanner_engine import OPTION_FILTERS
+from scanner_engine import ALL_FILTERS,OPTION_FILTERS
+from filter_wiring_audit import CANDLE_FILTERS
 
 def boxes():
     return [{"engine":n,"status":"WAIT","raw_verified":False,
@@ -66,6 +67,56 @@ class VoteTraceDoctorTests(unittest.TestCase):
             base(filter_rows=[{"name":"EMA 9/21"},{"name":"EMA 9/21"}])
         with self.assertRaises(ValueError):
             base(box_rows=boxes()[:-1]+[boxes()[0]])
+    def test_context_vote_injection_never_inflates_technical_counts(self):
+        rows=[{"name":name,"vote":1,"status":"BULLISH"} for name in ALL_FILTERS]
+        result=base(filter_rows=rows)
+        c=result["filter_calculation"]
+        self.assertEqual(c["selected"],18)
+        self.assertEqual(c["calculated"],len(CANDLE_FILTERS))
+        self.assertEqual(c["directional"],len(CANDLE_FILTERS))
+        self.assertEqual(c["context_only"],len(OPTION_FILTERS)+1)
+        self.assertEqual(c["errors"],0)
+        self.assertEqual(result["box_vote_gate"]["eligible"],0)
+        self.assertEqual(result["box_vote_gate"]["sixth_M"],"STANDBY_NOT_SCORED")
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        reasons={row["name"]:row["stage"] for row in c["blocked_details"]}
+        self.assertEqual(reasons["News Headlines"],"NEWS_CONTEXT_NOT_INDEPENDENT_VOTE")
+        self.assertEqual(reasons["Dhan Max Pain"],"OPTION_CONTEXT_NOT_INDEPENDENT_VOTE")
+
+    def test_17_selected_and_18_registered_all_three_timeframes(self):
+        for frame in ("1m","3m","5m"):
+            for choice in (ALL_FILTERS,ALL_FILTERS[:-1]):
+                with self.subTest(frame=frame,count=len(choice)):
+                    rows=[{"name":name,"vote":1,"status":"BULLISH"} for name in choice]
+                    result=audit_vote_trace(
+                        symbol="NIFTY",timeframe=frame,generation=7,
+                        filter_rows=rows,box_rows=boxes(),market_open=False)
+                    counts=result["filter_calculation"]
+                    self.assertEqual(counts["selected"],len(choice))
+                    self.assertEqual(counts["calculated"],13)
+                    self.assertEqual(counts["context_only"],len(choice)-13)
+                    self.assertEqual(result["box_vote_gate"]["eligible"],0)
+                    self.assertEqual(len(result["box_vote_gate"]["boxes"]),5)
+                    self.assertEqual(result["box_vote_gate"]["sixth_M"],"STANDBY_NOT_SCORED")
+                    self.assertEqual(result["combined_vote"]["state"],"WAIT")
+                    self.assertEqual(result["provider_requests"],0)
+                    self.assertEqual(result["orders_sent"],0)
+
+    def test_unknown_and_wait_or_chart_votes_cannot_cast_technical_vote(self):
+        rows=[{"name":"Unlisted Technical","vote":1,"status":"BULLISH"},
+              {"name":"EMA 9/21","vote":1,"status":"WAIT"},
+              {"name":"RSI 14","vote":-1,"status":"CHART_ONLY"},
+              {"name":"News Headlines","vote":1,"status":"BULLISH"}]
+        result=base(filter_rows=rows)
+        counts=result["filter_calculation"]
+        self.assertEqual(counts["selected"],4)
+        self.assertEqual(counts["calculated"],0)
+        self.assertEqual(counts["directional"],0)
+        self.assertEqual(counts["context_only"],1)
+        self.assertEqual(counts["errors"],1)
+        self.assertEqual(counts["waiting"],2)
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+
     def test_wired_into_both_phone_doctors(self):
         source=(ROOT/"src/main.py").read_text()
         ast.parse(source)

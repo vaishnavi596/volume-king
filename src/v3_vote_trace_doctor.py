@@ -3,7 +3,8 @@
 Uses already computed Doctor rows and already published exact-frame snapshot.
 Never fetches data, recomputes directional market signals or authorizes trades.
 """
-from scanner_engine import OPTION_FILTERS
+from scanner_engine import ALL_FILTERS, OPTION_FILTERS
+from filter_wiring_audit import CANDLE_FILTERS
 from v3_vote_conflict_doctor import conflict_doctor
 from five_engine import ENGINE_NAMES, combine_evidence, EngineEvidence
 
@@ -29,16 +30,26 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
         vote=row.get("vote")
         status=row.get("status",row.get("state","WAIT"))
         computed=(type(vote) is int and vote in (-1,0,1))
-        if computed and name not in OPTION_FILTERS:
-            calculated+=1
-            directional+=vote!=0
-            neutral+=vote==0
-        elif name in OPTION_FILTERS or status in ("CONTEXT_ONLY","ADAPTER_NOT_DIRECTIONAL"):
+        # Only the canonical thirteen OHLCV-derived filters belong to the T
+        # calculation count. Context rows must not inflate technical votes
+        # even when an upstream stale/malformed adapter injects vote=1.
+        if name not in ALL_FILTERS:
+            error+=1
+            blocked_filters.append({"name":name,"stage":"UNKNOWN_FILTER_NOT_SCORABLE"})
+        elif name in OPTION_FILTERS:
             context+=1
             blocked_filters.append({"name":name,"stage":"OPTION_CONTEXT_NOT_INDEPENDENT_VOTE"})
+        elif name=="News Headlines":
+            context+=1
+            blocked_filters.append({"name":name,"stage":"NEWS_CONTEXT_NOT_INDEPENDENT_VOTE"})
         elif status=="ERROR":
             error+=1
             blocked_filters.append({"name":name,"stage":str(row.get("stage","ERROR"))[:100]})
+        elif name in CANDLE_FILTERS and computed and status not in (
+                "WAIT","CHART_ONLY","CONTEXT_ONLY","ADAPTER_NOT_DIRECTIONAL"):
+            calculated+=1
+            directional+=vote!=0
+            neutral+=vote==0
         else:
             waiting+=1
             blocked_filters.append({"name":name,"stage":str(row.get("stage","CALCULATION_NOT_READY"))[:100]})
