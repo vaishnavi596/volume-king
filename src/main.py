@@ -842,6 +842,21 @@ def app_main(page:ft.Page):
     def quote_price(sym):
         q=None if dhan_offline() else quotes.get(sym)
         return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
+    def watch_price_and_status(sym):
+        """Keep LTP and historical close distinct across SSK-only closed sessions."""
+        q=quotes.get(sym) or {}
+        if not dhan_offline() and q.get("source")=="Dhan":
+            price=q.get("price")
+            if type(price) in (int,float) and math.isfinite(price) and price>0:
+                return quote_price(sym), None
+        if prefs.get("source")=="Dhan" and not refresh_hours():
+            from v3_hist_close_display import historical_close_display
+            hist=shared_history(sym,"3m")
+            historical=historical_close_display(hist,now=time.time())
+            if historical is not None:
+                return historical
+        return "—",None
+
     def quote_change(sym):
         q=None if dhan_offline() else quotes.get(sym)
         v=q.get("change") if q and q.get("provider_status")!="provider_data_unavailable" else None
@@ -2345,7 +2360,7 @@ def app_main(page:ft.Page):
             visible_count+=1
             # Mounted controls retain identity during quote/filter changes.
             # The symbol label, action button, rows and scroll position stay put.
-            price_cell=txt(quote_price(sym) if quote_source==expected_quote_source else "—",
+            price_cell=txt(watch_price_and_status(sym)[0] if prefs.get("source")=="Dhan" else quote_price(sym) if quote_source==expected_quote_source else "—",
                            16,price_color(sym) if quote_source==expected_quote_source else MUTED,True)
             change_cell=txt("CONNECT DHAN" if dhan_offline() else
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
@@ -2355,7 +2370,7 @@ def app_main(page:ft.Page):
                 canonical_live_final_note(sym,"3m"),scanner_historical_final_vote(sym,"3m")],spacing=2))
             assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym,"watchlist")[0]))
             signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
-            freshness_cell=ft.Text(("LTP cached • not live" if not quote_fresh else "LTP time unverified")+
+            freshness_cell=ft.Text((watch_price_and_status(sym)[1] or ("LTP cached • not live" if not quote_fresh else "LTP time unverified"))+
                                    (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""),
                                    size=11,color=MUTED)
             watch_row_cells[sym]=(price_cell,change_cell,five_cell,assessment_cell,signal_cell,freshness_cell)
@@ -2960,13 +2975,17 @@ def app_main(page:ft.Page):
                     price,change,five,assessment,signal,freshness=cells
                     q=quotes.get(sym) or {}
                     same=q.get("source")==expected
-                    p=quote_price(sym) if same else "—"
+                    p=watch_price_and_status(sym)[0] if prefs.get("source")=="Dhan" else quote_price(sym) if same else "—"
                     c="CONNECT DHAN" if dhan_offline() else quote_change(sym) if same else "SOURCE MISMATCH"
                     color=price_color(sym) if same else MUTED
                     for cell,val,col in ((price,p,color),(change,c,color)):
                         if cell.value!=val or cell.color!=col:
                             cell.value=val;cell.color=col
                             if cell.page is not None:cell.update()
+                    historical_status=watch_price_and_status(sym)[1] if prefs.get("source")=="Dhan" else None
+                    if historical_status is not None and freshness.value!=historical_status:
+                        freshness.value=historical_status
+                        if freshness.page is not None:freshness.update()
                     row=signal_row
                     stamp=row.get("timestamp")
                     counts=signal_percentages(row)
