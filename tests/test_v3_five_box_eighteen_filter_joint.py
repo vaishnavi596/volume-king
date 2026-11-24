@@ -91,7 +91,10 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
                 report=four_box_source_readiness(
                     symbol="NIFTY",timeframe=frame,generation=7,
                     history={"source":"Dhan","_scanner_timeframe":frame,"bars":bars},
-                    news_cache={"items":[{"title":"Context"}]},
+                    news_cache={"items":[{"title":"Context",
+                                          "url":"https://example.org/context",
+                                          "source":"RSS Publisher",
+                                          "published":bars[-1][0]}]},
                     futures_cache=futures,
                     option_context={"source":"dhan","symbol":"NIFTY",
                                     "expiry":"2026-12-31","signal_eligible":False},
