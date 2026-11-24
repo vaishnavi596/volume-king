@@ -96,7 +96,10 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('value=str(prefs.get("scanner_refresh","60"))', source)
         self.assertIn('if prefs.get("source")=="Dhan" and not dhan_feed.connected:', source)
         self.assertIn('scan_status.value="Dhan login required • automatic scan paused"', source)
-        self.assertIn('scan_status.value="Dhan login required • scan paused"', source)
+        # Manual closed-session HIST is allowed only through authenticated SSK,
+        # while disconnected or unverified-live sessions still fail closed.
+        self.assertIn('scan_status.value="Dhan login required • SSK authorization required for historical scan"', source)
+        self.assertIn('clone_v2_gateway.connected and not regular_hours()', source)
         self.assertIn('scan_busy[0]=False\n            return', source)
 
     def test_super_five_ranking_rejects_previous_provider_candidates(self):
