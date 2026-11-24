@@ -7617,8 +7617,17 @@ console.log('BOT KING Lightweight Charts ready');
         # authorization as scan_market/get_market_data. On a holiday there
         # can be no verified LTP, but authenticated Dhan candles remain
         # eligible for strictly HIST-only analysis. LIVE stays quote-gated.
+        # Unexpected weekday closure or lost LIVE proof is not an official
+        # calendar holiday. AUTO/HISTORICAL may read already saved Dhan
+        # candles, but must not send an unverified weekday provider request.
+        weekday_hist_cache_only=(
+            prefs.get("source")=="Dhan"
+            and prefs.get("market_display_mode","AUTO") in ("AUTO","HISTORICAL")
+            and clone_v2_gateway.connected and not dhan_feed.connected
+            and regular_hours())
         if (prefs.get("source")=="Dhan" and not dhan_feed.connected
-                and not (clone_v2_gateway.connected and not regular_hours())):
+                and not (clone_v2_gateway.connected and not regular_hours())
+                and not weekday_hist_cache_only):
             scan_status.value="Dhan login required • SSK authorization required for historical scan"
             page.update()
             return
@@ -7627,7 +7636,12 @@ console.log('BOT KING Lightweight Charts ready');
         if not scan_live.value:
             scan_result.controls=[card(txt("Checking selected market data…",16,GOLD,True))]
         page.update()
-        page.run_task(scan_market)
+        if weekday_hist_cache_only:
+            # Uses scan_market(False) -> same-symbol/timeframe local cache only.
+            # Never bypass quote proof, call the provider or imply LIVE.
+            page.run_task(scan_market,False)
+        else:
+            page.run_task(scan_market)
     async def restart_latest_scan(allow_network=True):
         await asyncio.sleep(.05)
         if not scan_busy[0]:

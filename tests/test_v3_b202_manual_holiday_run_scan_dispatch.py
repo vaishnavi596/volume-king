@@ -16,7 +16,7 @@ NODES=[node for node in ast.walk(TREE)
 
 
 class ManualHolidayRunScan(unittest.TestCase):
-    def handler(self,*,ssk,connected,closed):
+    def handler(self,*,ssk,connected,closed,mode="AUTO"):
         self.assertEqual(len(NODES),1)
         program=ast.fix_missing_locations(ast.Module(body=[NODES[0]],type_ignores=[]))
         calls=[]
@@ -28,10 +28,10 @@ class ManualHolidayRunScan(unittest.TestCase):
         gateway=types.SimpleNamespace(connected=ssk)
         busy=[False]
         page=types.SimpleNamespace(update=lambda:calls.append("update"),
-                                   run_task=lambda fn:calls.append(("run_task",fn)))
+                                   run_task=lambda fn,*args:calls.append(("run_task",fn,*args)))
         def scan_market():
             return None
-        env={"prefs":{"source":"Dhan"},"dhan_feed":feed,
+        env={"prefs":{"source":"Dhan","market_display_mode":mode},"dhan_feed":feed,
              "clone_v2_gateway":gateway,"regular_hours":lambda:not closed,
              "scan_status":status,"scan_busy":busy,"scan_live":types.SimpleNamespace(value=False),
              "scan_result":types.SimpleNamespace(controls=[]),
@@ -54,8 +54,28 @@ class ManualHolidayRunScan(unittest.TestCase):
         self.assertIn("login required",status.value)
         self.assertFalse(any(isinstance(c,tuple) for c in calls))
 
-    def test_open_market_still_requires_quote_proof(self):
-        fn,status,busy,calls=self.handler(ssk=True,connected=False,closed=False)
+    def test_open_market_live_only_still_requires_quote_proof(self):
+        fn,status,busy,calls=self.handler(ssk=True,connected=False,closed=False,mode="LIVE_ONLY")
+        fn(None)
+        self.assertFalse(busy[0])
+        self.assertIn("login required",status.value)
+        self.assertFalse(any(isinstance(c,tuple) for c in calls))
+
+    def test_unscheduled_weekday_auto_uses_local_history_without_provider_request(self):
+        fn,status,busy,calls=self.handler(ssk=True,connected=False,closed=False,mode="AUTO")
+        fn(None)
+        self.assertTrue(busy[0])
+        self.assertIn(("run_task",calls[-1][1],False),calls)
+        self.assertNotIn("login required",status.value.lower())
+
+    def test_unscheduled_weekday_historical_mode_uses_local_history(self):
+        fn,status,busy,calls=self.handler(ssk=True,connected=False,closed=False,mode="HISTORICAL")
+        fn(None)
+        self.assertTrue(busy[0])
+        self.assertEqual(calls[-1][-1],False)
+
+    def test_weekday_without_ssk_does_not_fake_approved_source(self):
+        fn,status,busy,calls=self.handler(ssk=False,connected=False,closed=False,mode="AUTO")
         fn(None)
         self.assertFalse(busy[0])
         self.assertIn("login required",status.value)
