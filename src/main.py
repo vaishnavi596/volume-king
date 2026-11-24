@@ -660,7 +660,7 @@ def app_main(page:ft.Page):
                 # regular-session requests gated by actual market validation.
                 closed_hist_gateway=(clone_v2_gateway.connected and not regular_hours())
                 if not (dhan_feed.connected or closed_hist_gateway):
-                    raise FeedError("Dhan history requires authenticated Clone SSK in Settings")
+                    raise FeedError("Dhan disconnected; authenticated Clone SSK required for HIST")
                 if ticker not in DHAN_VERIFIED_SYMBOLS:
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
                 if interval not in ("1m","2m","3m","5m","10m","15m","30m","1h"):
@@ -6705,7 +6705,12 @@ console.log('BOT KING Lightweight Charts ready');
         # candles from local SnapshotStore; never turn them into LIVE quotes.
         if not candidates and expected=="Dhan":
             for saved_range in ("7d","2d","5d","1mo","1d"):
-                saved=market_store.get("market","Dhan",sym,tf,saved_range)
+                try:
+                    saved=market_store.get("market","Dhan",sym,tf,saved_range)
+                except NameError:
+                    # Standalone offline tests execute this nested function
+                    # without the phone's SnapshotStore closure.
+                    break
                 if (saved and saved.get("source")=="Dhan"
                         and saved.get("_scanner_timeframe")==tf
                         and valid_candle_history(saved.get("bars"))):
@@ -7577,9 +7582,9 @@ console.log('BOT KING Lightweight Charts ready');
         # Manual HIST Run Scan may use the SSK-authenticated gateway on a
         # closed exchange session, even when no LIVE LTP proof exists.
         # Automatic refresh remains disabled by the exchange calendar.
-        if (prefs.get("source")=="Dhan" and not dhan_feed.connected
-                and allow_network and not (clone_v2_gateway.connected and not regular_hours())):
-            scan_status.value="Dhan SSK authorization required • historical scan paused"
+        if (prefs.get("source")=="Dhan" and not dhan_feed.connected and allow_network
+                and not (clone_v2_gateway.connected and not regular_hours())):
+            scan_status.value="Dhan login required • SSK authorization required for historical scan"
             scan_busy[0]=False
             return
         generation=scan_generation[0]
@@ -8186,7 +8191,7 @@ console.log('BOT KING Lightweight Charts ready');
             # Opening Scanner starts the selected timeframe immediately instead
             # of waiting for the previous symbol's auto-refresh deadline.
             scan_next_refresh[0]=None
-            if prefs.get("source")=="Dhan" and not refresh_hours():
+            if prefs.get("source")=="Dhan" and (dhan_feed.connected and not refresh_hours() or not refresh_hours()):
                 # Off-hours automatic network polling is forbidden. Still
                 # hydrate the visible scanner from same-symbol/timeframe saved
                 # candles without requiring a trip through Settings > Retry.
