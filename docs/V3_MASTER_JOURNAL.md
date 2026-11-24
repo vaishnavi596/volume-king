@@ -2197,3 +2197,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - `src/main.py` में Doctor की `valid_volume_rows=[c[5] for c in bars[-20:] ...]` लाइन अनजाने में `bars=None` पर slice करती थी। OFFLINE/empty chart history में यही `TypeError: 'NoneType' object is not subscriptable` का ठोस code path है। 
 - Targeted guard commit `0490acd592a7b17a0e8bd6a94ed97d19c8419e0d`: `bars` list/tuple होने पर ही अंतिम 20 records देखें; अन्यथा खाली rows; no data => WAIT; no provider requests or order changes। समान Doctor में error origin fields commit `14f7f2b7` पहले लगा था।
 - तत्काल पिछले `14f7f2b7` पर B1/B2/Adapter audit PASS: runs `45448519224`, `45448519124`, `45448519123`; B3 `45448519306` उस समय running। **यह PASS नई `0490acd5` source commit का PASS नहीं है**; latest source regression और फोन में B178 error-free response अलग से प्रमाणित करना होगा।
+
+
+### 24 नवंबर 2026 — नवीनतम 0490acd5 regression audit और HTTP 502 सीमा
+- Latest targeted B178 `bars=None` guard source SHA `0490acd5` confirmed PASS across B1 #45448625851, B2 #45448625831, Adapter #45448625842, B3 #45448625828. Previous 14f7f2b7 B3 #45448519306 was cancelled by newer push; do not mislabel cancelled as code failure.
+- User reported older B200 phone HTTP 502 and B209 2/51 historical pacing, provided new B209 error report is pending. HTTP 502 means an upstream gateway failure but endpoint/server logs for this particular phone event have not been supplied or verified; neither 502 cure nor Android phone acceptance may be claimed from four offline test PASS outcomes.
+- The new `0490acd5` source is **not** built into previously completed B209 APK c9685766. Avoid repeated APK or server changes until 502 endpoint and new phone diagnostic evidence are captured. No live provider calls / orders sent during this GitHub audit.
