@@ -84,7 +84,8 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('def dhan_offline():', source)
         self.assertIn('q=None if dhan_offline() else quotes.get(sym)', source)
         self.assertIn('CONNECT DHAN', source)
-        self.assertIn('Dhan disconnected • saved prices hidden', source)
+        self.assertIn('SSK/Oracle CONNECTED • HIST candles available separately', source)
+        self.assertIn('q=None if dhan_offline() else quotes.get(sym)', source)
 
     def test_first_dhan_scan_not_blocked_by_stale_lifecycle(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
