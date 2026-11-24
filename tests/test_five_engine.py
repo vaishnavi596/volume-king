@@ -647,8 +647,10 @@ class FiveEngineNonFiveMinuteSnapshotSafety(unittest.TestCase):
         start = source.index("    def five_engine_chips(sym, display_timeframe=None):")
         end = source.index("    def ", start + 5)
         function = source[start:end]
-        self.assertIn('display_timeframe is None or display_timeframe=="5m"', function)
-        self.assertIn('read_five_engine_context(sym,"5m")', function)
+        self.assertIn('exact_frame=display_timeframe or "5m"', function)
+        self.assertIn('read_five_engine_context(sym,exact_frame)', function)
+        self.assertIn('exact_frame in ("1m","3m","5m")', function)
+        self.assertNotIn('read_five_engine_context(sym,"5m")', function)
         self.assertIn('ContextualFiveEngineCache()', source)
 
 class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
@@ -659,7 +661,9 @@ class FiveEngineScannerDetailsTimeframeContract(unittest.TestCase):
         start = source.index("    def five_engine_summary(symbol, display_timeframe=None):")
         end = source.index("    def five_engine_chips(", start)
         summary = source[start:end]
-        self.assertIn('display_timeframe is None or display_timeframe=="5m"', summary)
+        self.assertIn('exact_frame=display_timeframe or "5m"', summary)
+        self.assertIn('read_five_engine_context(symbol,exact_frame)', summary)
+        self.assertIn('not any(e.eligible and e.source=="Dhan"', summary)
         self.assertIn('candle_tf=(display_timeframe or ', summary)
 
 class FiveEngineOptionContextTimeframeSafety(unittest.TestCase):
@@ -839,8 +843,9 @@ class FiveEngineMainContextWiringContract(unittest.TestCase):
         self.assertIn('contextual_five_engine.publish(',source)
         self.assertIn('contextual_five_engine.read(',source)
         self.assertIn('symbol=sym,timeframe="5m",generation=provider_generation[0]',source)
-        self.assertIn('read_five_engine_context(symbol,"5m")',source)
-        self.assertIn('read_five_engine_context(sym,"5m")',source)
+        self.assertIn('read_five_engine_context(symbol,exact_frame)',source)
+        self.assertIn('read_five_engine_context(sym,exact_frame)',source)
+        self.assertIn('exact_frame=display_timeframe or "5m"',source)
         self.assertIn('contextual_five_engine.clear()',source)
         # Three direct scanner_snapshot calls plus one ranking dict adapter.
         self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),4)
