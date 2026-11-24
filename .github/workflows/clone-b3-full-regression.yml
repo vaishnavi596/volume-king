@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/clone-b3-full-regression.yml
       - .github/workflows/v3-b207-side-by-side-preview-apk.yml
+      - .github/workflows/v3-b208-side-by-side-preview-apk.yml
       - .github/workflows/v3-b196-regression-preflight.yml
       - .github/workflows/v3-live-building-doctor-apk.yml
       - src/**
