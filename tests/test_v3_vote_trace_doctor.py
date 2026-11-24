@@ -76,6 +76,27 @@ class VoteTraceDoctorTests(unittest.TestCase):
         self.assertEqual(result["provider_requests"],0)
         self.assertEqual(result["orders_sent"],0)
 
+    def test_display_direction_must_agree_with_verified_percentages(self):
+        rows=boxes()
+        engine_names=("technical","candle","news","futures","options")
+        evidence=[]
+        for i,n in enumerate(engine_names):
+            valid=i<3
+            evidence.append(EngineEvidence(n,70 if valid else None,30 if valid else None,
+                                           verified=valid,timestamp=1795000000 if valid else None,
+                                           source="Dhan" if valid else ""))
+            if valid:
+                rows[i].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                               bullish_percent=70,bearish_percent=30)
+        rows[2]["status"]="BEARISH"  # percentages stay 70/30, direction is forged
+        snapshot=compose_snapshot(**dict(zip(engine_names,evidence)))
+        result=base(market_open=True,box_rows=rows,snapshot=snapshot)
+        self.assertEqual(result["box_vote_gate"]["eligible"],2)
+        self.assertEqual(result["box_vote_gate"]["boxes"][2]["vote_state"],"BLOCKED")
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        self.assertEqual(result["provider_requests"],0)
+        self.assertEqual(result["orders_sent"],0)
+
     def test_missing_display_proof_does_not_turn_three_engine_snapshot_live(self):
         a=tuple(EngineEvidence(n,70 if i<3 else None,30 if i<3 else None,
                        verified=i<3,timestamp=1795000000 if i<3 else None,
