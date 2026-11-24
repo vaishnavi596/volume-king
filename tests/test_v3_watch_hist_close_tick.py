@@ -20,7 +20,8 @@ class WatchHistoricalCloseTick(unittest.TestCase):
     def test_source_is_separate_from_live_quote(self):
         src=function("watch_price_and_status")
         self.assertIn('not dhan_offline()',src)
-        self.assertIn('not refresh_hours()',src)
+        self.assertNotIn('and not refresh_hours()',src)
+        self.assertIn('if prefs.get("source")=="Dhan":',src)
         self.assertIn('shared_history(sym,"3m")',src)
         self.assertIn('historical_close_display',src)
         self.assertNotIn('quotes[sym]=',src)
