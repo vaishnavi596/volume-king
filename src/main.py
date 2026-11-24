@@ -420,14 +420,13 @@ def app_main(page:ft.Page):
             state=("ACTIVE" if area in display_failures else "RECOVERED") if area in ("chart","load_chart","dhan_index_ltp_batch") else "RECORDED"
             rows.append(state+" • "+entry)
         return "\n".join(rows) or "No errors recorded this session"
+    from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window
     def regular_hours(now=None):
-        # Exchange regular trading hours determine LIVE signal eligibility.
-        now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
-        return now.weekday()<5 and (9,15)<=(now.hour,now.minute)<(15,30)
+        # NSE/BSE equity calendar + IST; holiday means no LIVE vote eligibility.
+        return regular_equity_hours(now)
     def refresh_hours(now=None):
-        # BOT KING read-only polling: pre-open/post-close data is not LIVE.
-        now=now or datetime.now(timezone(timedelta(hours=5,minutes=30)))
-        return now.weekday()<5 and (9,10)<=(now.hour,now.minute)<(15,45)
+        # Calendar-gated automatic Dhan polls. Manual HIST reads remain separate.
+        return equity_refresh_window(now)
     def session_caption():
         return ("STALE • exchange timestamps unverified" if regular_hours() else
                 "OFF • last available prices (not live)")
