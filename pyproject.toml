@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.205" # V3 B205 isolated AUTO/HIST phone-test snapshot; Android versionCode 205; full test/signing gate required
+version = "2.3.206" # V3 B206 isolated SSK-HIST Watchlist phone-test; Android versionCode 206; full test/signing gate required
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
