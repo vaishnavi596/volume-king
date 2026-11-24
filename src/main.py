@@ -8050,11 +8050,52 @@ console.log('BOT KING Lightweight Charts ready');
             prefs["language"]=e.control.value;save();select(current[0])
         picker.on_change=change_language
         return picker
+    # Scan-result rendering can be expensive on Android. Never hold a
+    # bottom-nav click callback behind a full Scanner page rebuild. Coalesce
+    # rapid taps to the most recent destination and drain in the Flet
+    # page thread executor. The same direct path is used by offline harness
+    # pages without a thread runner.
+    nav_destination=[None]
+    nav_draining=[False]
+    def drain_navigation():
+        try:
+            while nav_destination[0] is not None:
+                requested=nav_destination[0]
+                nav_destination[0]=None
+                if requested!=current[0]:
+                    select(requested)
+        except Exception as exc:
+            log_error("bottom_navigation",exc)
+        finally:
+            nav_draining[0]=False
+            # A tap that arrived just as the worker finished is not dropped.
+            if nav_destination[0] is not None:
+                next_target=nav_destination[0]
+                nav_destination[0]=None
+                navigate_to(next_target)
+    def navigate_to(target):
+        if type(target) is not int or not 0<=target<len(pages):
+            return
+        nav_destination[0]=target
+        if nav_draining[0]:
+            return
+        nav_draining[0]=True
+        runner=getattr(page,"run_thread",None)
+        if callable(runner):
+            try:
+                runner(drain_navigation)
+            except Exception as exc:
+                nav_draining[0]=False
+                log_error("bottom_navigation_dispatch",exc)
+                # Do not drop the user's click when scheduling fails.
+                drain_navigation()
+        else:
+            drain_navigation()
     nav_items=[]
     for j in range(len(pages)):
         icon=ft.Icon(icons[j],color=MUTED,size=19)
         label=ft.Text(names[j],size=12,color=MUTED,max_lines=1,no_wrap=True,overflow=ft.TextOverflow.ELLIPSIS,text_align=ft.TextAlign.CENTER)
-        button=ft.TextButton(content=ft.Column([icon,label],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:select(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6)))
+        button=ft.TextButton(content=ft.Column([icon,label],horizontal_alignment=ft.CrossAxisAlignment.CENTER,spacing=2),on_click=lambda e,k=j:navigate_to(k),style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=0,vertical=6)))
         navbar.controls.append(ft.Container(content=button,expand=1))
         nav_items.append((icon,label))
     first_render=[True]
