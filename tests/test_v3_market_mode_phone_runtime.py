@@ -41,6 +41,21 @@ class MarketModePhoneRuntime(unittest.TestCase):
         self.assertFalse(any(" HIST " in label for label in labels),labels)
         self.assertIn("LIVE",ui["session_caption"]())
 
+    def test_scanner_open_day_historical_mode_suppresses_live_and_setup(self):
+        # Test the actual scanner nested function's safety contract.
+        import ast
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        matches=[n for n in ast.walk(ast.parse(source))
+                 if isinstance(n,ast.AsyncFunctionDef) and n.name=="scan_market"]
+        self.assertEqual(len(matches),1)
+        body=ast.get_source_segment(source,matches[0])
+        self.assertIn('historical_mode_selected=(prefs.get("market_display_mode")=="HISTORICAL")',body)
+        self.assertIn('or historical_mode_selected',body)
+        self.assertIn('and not historical_mode_selected',body)
+        self.assertIn('hist.get("live_verified") is True',body)
+        self.assertIn('hist.get("freshness")=="exchange_verified"',body)
+        self.assertIn('advanced=dict(advanced,bias="WAIT",score=0',body)
+
     def test_invalid_saved_mode_defaults_auto(self):
         _,ui=start({"source":"Dhan","scanner_live":False,
                     "market_display_mode":"INVALID"})

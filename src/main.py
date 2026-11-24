@@ -7835,12 +7835,13 @@ console.log('BOT KING Lightweight Charts ready');
                     # downstream five-engine observers. Never mark it LIVE.
                     if interval in ("1m","3m"):
                         publish_five_engine_historical(sym,interval,historical)
-            if hist.get("cached") or not regular_hours():
+            historical_mode_selected=(prefs.get("market_display_mode")=="HISTORICAL")
+            if hist.get("cached") or not regular_hours() or historical_mode_selected:
                 advanced=dict(advanced,bias="WAIT",score=0,
                               reason=advanced["reason"]+" • No new verified live signal")
             direction=advanced["bias"]
             basis=advanced["reason"]
-            if history_valid and (hist.get("cached") or not regular_hours()):
+            if history_valid and (hist.get("cached") or not regular_hours() or historical_mode_selected):
                 basis+=(" • LAST SESSION HIST "+datetime.fromtimestamp(
                     historical["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")+
                     " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)")
@@ -7850,7 +7851,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
             shown_analysis=(historical if history_valid and
-                            (hist.get("cached") or not regular_hours()) else advanced)
+                            (hist.get("cached") or not regular_hours() or historical_mode_selected) else advanced)
             report_rows=enrich_context_filter_rows(sym,complete_filter_rows(shown_analysis,filter_selected,filter_modes))
             lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "CONTEXT ONLY" if v.get("context_only") else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
                        GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]
@@ -7924,7 +7925,11 @@ console.log('BOT KING Lightweight Charts ready');
                 txt("Indicative annualized volatility: "+f"{volatility*100:.1f}%",12),
                 note("Rule-based scanner, not a trained AI model or calibrated probability."))]
             # Summary is a scenario calculator, never a live executable recommendation.
-            fresh=(not hist.get("cached") and 0<=age_hours*3600<=timeframe_spec(interval)["fresh_seconds"])
+            fresh=(not hist.get("cached") and not historical_mode_selected
+                   and regular_hours()
+                   and hist.get("live_verified") is True
+                   and hist.get("freshness")=="exchange_verified"
+                   and 0<=age_hours*3600<=timeframe_spec(interval)["fresh_seconds"])
             aligned_choices=[v for v in eligible if v["aligned"] and v["dist"]<=0.04]
             selected=aligned_choices[0] if aligned_choices else None
             if direction not in ("BULLISH","BEARISH") or not fresh or selected is None:
