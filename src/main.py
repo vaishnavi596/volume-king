@@ -2704,6 +2704,21 @@ def app_main(page:ft.Page):
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
     watch_closed_hist_key=[None]
+    # Resume only a previously user-requested HIST queue; no unsolicited
+    # closed-session provider polling when the user has not tapped Refresh.
+    watch_closed_hist_resume_pending=[False]
+    async def resume_interrupted_closed_watch_history():
+        for _ in range(15):
+            if not watch_closed_hist_loading[0]:
+                break
+            await asyncio.sleep(0.2)
+        if (watch_closed_hist_resume_pending[0] and not watch_closed_hist_loading[0]
+                and current[0]==4 and app_active[0]
+                and not lifecycle_background[0] and not refresh_hours()
+                and prefs.get("source")=="Dhan" and clone_v2_gateway.connected):
+            watch_closed_hist_resume_pending[0]=False
+            await refresh_all_dhan_quotes()
+
     async def continue_closed_watch_history(generation,list_index,selected,search_scope):
         watch_closed_hist_key[0]=(generation,list_index,tuple(selected))
         try:
@@ -2714,7 +2729,16 @@ def app_main(page:ft.Page):
                         or not app_active[0]
                         or lifecycle_background[0] or not clone_v2_gateway.connected
                         or refresh_hours() or prefs.get("source")!="Dhan"):
-                    watch_batch_status[0]="HIST loading paused • reopen Watchlist and tap Refresh"
+                    # Persist intent only for a queue already explicitly started
+                    # by the user; return to Watchlist can safely resume it.
+                    watch_closed_hist_resume_pending[0]=bool(
+                        provider_generation[0]==generation
+                        and prefs.get("source")=="Dhan" and not refresh_hours()
+                        and (current[0]!=4 or not app_active[0] or lifecycle_background[0]))
+                    watch_batch_status[0]=(
+                        "HIST paused • resumes on Watchlist return • NOT LIVE"
+                        if watch_closed_hist_resume_pending[0] else
+                        "HIST paused • connection/list changed • tap Refresh")
                     break
                 finished=0
                 attempted=0
@@ -2725,6 +2749,7 @@ def app_main(page:ft.Page):
                         attempted+=1
                 total=len(selected)
                 if finished+attempted>=total:
+                    watch_closed_hist_resume_pending[0]=False
                     watch_batch_status[0]=(
                         f"HIST loaded {finished}/{total} • unavailable after attempt {attempted} • NOT LIVE"
                         if attempted else f"HIST complete {finished}/{total} • NOT LIVE")
@@ -2768,6 +2793,7 @@ def app_main(page:ft.Page):
                     and sym not in ("NIFTY","BANKNIFTY","SENSEX")
                     and (not search.value or search.value.upper() in sym))
                 if selected:
+                    watch_closed_hist_resume_pending[0]=False
                     watch_closed_hist_loading[0]=True
                     page.run_task(continue_closed_watch_history,
                                   provider_generation[0],active_watch[0],selected,
@@ -8411,6 +8437,8 @@ console.log('BOT KING Lightweight Charts ready');
                 and dhan_feed.cooldown_remaining("/v2/snapshot")==0
                 and dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0):
             page.run_task(refresh_watch_batch)
+        if changed and i==4 and watch_closed_hist_resume_pending[0]:
+            page.run_task(resume_interrupted_closed_watch_history)
         if changed and i==5 and not chart_load_busy[0]:
             # A watchlist quote may carry 5m bars, but it is not necessarily
             # a loaded chart for the selected timeframe. Check the actual
@@ -9801,6 +9829,8 @@ console.log('BOT KING Lightweight Charts ready');
             if prefs.get("source")=="Dhan" and dhan_feed.connected:
                 scan_progress["state"]="Dhan resumed • checking cached quotes"
             page.run_task(refresh_after_resume)
+            if current[0]==4 and watch_closed_hist_resume_pending[0]:
+                page.run_task(resume_interrupted_closed_watch_history)
         page.update()
     page.on_app_lifecycle_state_change=lifecycle_changed
 
