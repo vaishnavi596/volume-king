@@ -5573,9 +5573,32 @@ def app_main(page:ft.Page):
                 output.value=json.dumps(report,indent=2,ensure_ascii=False)
             except Exception as exc:
                 log_error("filter_five_diagnostic",exc)
+                # Report the precise *local* failing site instead of hiding
+                # TypeError details. Only this app's own frames are exposed:
+                # no traceback arguments, tokens, URLs or broker credentials.
+                import traceback
+                local_frames=[frame for frame in traceback.extract_tb(exc.__traceback__)
+                              if frame.filename.replace("\\","/").endswith(
+                                  ("/main.py","/filter_wiring_audit.py",
+                                   "/v3_four_box_source_readiness.py",
+                                   "/v3_historical_vote_replay.py",
+                                   "/v3_vote_trace_doctor.py",
+                                   "/five_engine_endpoint_doctor.py"))]
+                fault=local_frames[-1] if local_frames else None
+                fault_message=str(exc)
+                if isinstance(exc,TypeError):
+                    # Python TypeErrors normally identify the wrong argument
+                    # count/type; redact any unexpected quoted value.
+                    fault_message=fault_message.split("\\n")[0][:180]
+                else:
+                    fault_message=type(exc).__name__
                 output.value=json.dumps({"test":"V3_B178_FILTER_17_FIVE_BOX_DOCTOR",
                     "status":"ERROR","stage":"LOCAL_ADAPTER",
                     "error_type":type(exc).__name__,
+                    "error_message":fault_message,
+                    "error_function":fault.name if fault else "UNRESOLVED",
+                    "error_source":fault.filename.rsplit("/",1)[-1].rsplit("\\\\",1)[-1] if fault else "UNRESOLVED",
+                    "error_line":fault.lineno if fault else None,
                     "error_field":str(exc).split("'")[1][:60] if isinstance(exc,NameError) and "'" in str(exc) else None,
                     "provider_requests":0,
                     "orders_sent":0},indent=2)
