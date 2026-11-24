@@ -123,6 +123,27 @@ class VoteTraceDoctorTests(unittest.TestCase):
         self.assertEqual(result["provider_requests"],0)
         self.assertEqual(result["orders_sent"],0)
 
+    def test_missing_published_combined_never_becomes_live_vote(self):
+        names=("technical","candle","news","futures","options")
+        rows=boxes()
+        evidence=[]
+        for i,name in enumerate(names):
+            active=i<3
+            evidence.append(EngineEvidence(name,70 if active else None,
+                                           30 if active else None,verified=active,
+                                           timestamp=1795000000 if active else None,
+                                           source="Dhan" if active else ""))
+            if active:
+                rows[i].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                               bullish_percent=70,bearish_percent=30)
+        result=base(market_open=True,box_rows=rows,snapshot={"engines":tuple(evidence)})
+        self.assertEqual(result["box_vote_gate"]["eligible"],3)
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        self.assertEqual(result["combined_vote"]["reason"],"PUBLISHED_COMBINED_VOTE_MISSING")
+        self.assertIsNone(result["combined_vote"]["bullish"])
+        self.assertEqual(result["provider_requests"],0)
+        self.assertEqual(result["orders_sent"],0)
+
     def test_missing_display_proof_does_not_turn_three_engine_snapshot_live(self):
         a=tuple(EngineEvidence(n,70 if i<3 else None,30 if i<3 else None,
                        verified=i<3,timestamp=1795000000 if i<3 else None,
