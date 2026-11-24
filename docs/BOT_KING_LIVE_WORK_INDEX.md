@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **24-Nov-2026 2027 HOLIDAY FAIL-CLOSED B3 GREEN:** [#45337696756](https://github.com/vaishnavi596/volume-king/actions/runs/45337696756) tested source `68855972`, **1805/1805 offline tests OK** incl. 2027+ unknown annual calendar cannot authorize LIVE or automatic polling. Full evidence recorded in [Hindi Work Log](BOT_KING_WORK_LOG.md). The missing official 2027 calendar remains OPEN; 2027+ auto-refresh intentionally blocked pending verified list, and no special sessions/Android phone proof is claimed. Do not repeat unchanged regression.
+
+
 > **24-Nov-2026 VERIFIED FULL B3 PASS:** [#45336410223](https://github.com/vaishnavi596/volume-king/actions/runs/45336410223), tested commit `fac4257d`, **1804/1804 offline tests OK** incl. NSE 2026 holiday/IST/automatic-refresh boundaries and V3 screen contracts; full [Hindi Work Log](BOT_KING_WORK_LOG.md). Earlier #298 test errors resolved. **NOT YET** live Dhan exchange validation or Android APK/phone proof. Static schedule excludes 2027+ and special/unannounced sessions. Avoid redundant rerun; branch docs-only commits after this test do not change executable files.
 
 
