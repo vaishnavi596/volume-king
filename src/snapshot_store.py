@@ -51,6 +51,18 @@ class SnapshotStore:
                            and p.get("freshness")=="historical_unverified"
                            and p.get("_scanner_timeframe") in ("1m","2m","3m","5m",
                                                                  "10m","15m","30m","1h"))
+                if hist_only:
+                    # A historical-only record must have a nontrivial,
+                    # correctly ordered, physically valid Dhan OHLCV series.
+                    if len(bars)<30 or any(
+                        type(row[0]) not in (int,float) or row[0]<=0
+                        or any(type(v) not in (int,float) for v in row[:6])
+                        or min(row[1],row[2],row[3],row[4])<=0
+                        or row[5]<0 or row[2]<max(row[1],row[4])
+                        or row[3]>min(row[1],row[4])
+                        for row in bars
+                    ) or any(bars[i][0]<=bars[i-1][0] for i in range(1,len(bars))):
+                        return False
                 if not hist_only and (type(price) not in (int,float)
                                        or not math.isfinite(price) or price<=0):
                     return False
@@ -119,7 +131,10 @@ class SnapshotStore:
             for key,record in sorted(self.records.items(),key=lambda p:p[1]["saved_at"]):
                 try:parts=json.loads(key)
                 except ValueError:continue
-                if len(parts)==5 and parts[0]=="market" and self.valid("market",record["payload"]):
+                if (len(parts)==5 and parts[0]=="market"
+                        and self.valid("market",record["payload"])
+                        and type(record["payload"].get("price")) in (int,float)):
+                    # HIST-only candles are not a last-good LTP quote.
                     result[parts[2]]=dict(copy.deepcopy(record["payload"]),cached=True)
             return result
 
