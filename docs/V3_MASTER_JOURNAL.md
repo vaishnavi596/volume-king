@@ -2169,3 +2169,10 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 24 नवंबर 2026 — पुराने B207/B208 के अनावश्यक APK ट्रिगर बंद (B209 के चल रहे SHA को नहीं छेड़ा)
 - GitHub exact SHA c9685766: B3 #45440020666 SUCCESS; B209 #45440020838 Build full app in_progress, upload artifact अभी नहीं हुआ (जाँच समय)। B207 #45440020667 और B208 #45440020464 Version Guard FAIL, क्योंकि उनकी `push.paths` सूची साझा clone-B3 workflow पर trigger होती थी, जबकि `pyproject.toml` अब 2.3.209 है।
 - केवल दो पुराने preview workflow फाइलों में `push` trigger हटाया, `workflow_dispatch` और original version/source signing guards बनाए रखे। पुराने B207/B208 के APK को overwrite नहीं किया; कोई server/client analysis code नहीं बदला। B3 का स्रोत path trigger इन workflow changes पर एक नया NO APK regression run दे सकता है; पुराने APK अब अनावश्यक स्वतः rebuild नहीं होंगे। नया B209 original c9685766 source run इसी SHA पर चलता रहेगा।
+
+
+### 24 नवंबर 2026 — B209 Android APK SIGNED + UPLOADED PASS (confirmed)
+- Source SHA c96857666cac2fd8021a3428cd5f6b6225b237dd; exact-source B3 #45440020666 SUCCESS; B209 phone preview workflow #45440020838 completed SUCCESS.
+- B209 APK job confirmed: exact-source B3 gate PASS, full Android build PASS, isolated APK signing and identity verification PASS, artifact upload PASS. Artifact `BOT-KING-V3-B209-SIDE-BY-SIDE-PREVIEW-APK`, artifact ID 14944190946, 65,902,996 bytes, expired=false at check. GitHub actions URL https://github.com/vaishnavi596/volume-king/actions/runs/45440020838 .
+- B209 APK contains user-started HIST queue foreground resume, saved exact-5m Super Five HIST fallback, and actual 3/180s quota countdown/Doctor. This is a completed build, NOT physical phone acceptance: user must verify Watchlist countdown then 4+/51 progression after quota interval, navigation/foreground queue resume, Super Five cache-only historical state; no invented LIVE. Oracle/server untouched; no real orders.
+- Old B207/B208 auto-trigger overlap was separately addressed in commit 5859aab5; it is workflow-only cleanup after B209 source SHA, not a new B209 build.
