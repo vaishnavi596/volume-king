@@ -65,7 +65,9 @@ class IndexFiveBoxJointContract(unittest.TestCase):
         self.assertIn('three=watch_three_minute_signal(sym)',chips)
         self.assertIn('historical_vote_agreement(',chips)
         self.assertIn('display_timeframe is None or raw.get("timeframe")==display_timeframe',chips)
-        self.assertIn('display_timeframe is None or display_timeframe=="5m"',chips)
+        self.assertIn('exact_frame=display_timeframe or "5m"',chips)
+        self.assertIn('read_five_engine_context(sym,exact_frame)',chips)
+        self.assertNotIn('read_five_engine_context(sym,"5m")',chips)
         self.assertIn('candle_history=shared_history(sym,candle_tf)',chips)
         self.assertIn('historical=True',body("five_engine_chips"))
 

@@ -25,6 +25,19 @@ class FiveEngineDoctorFrameTests(unittest.TestCase):
                       self.source)
         self.assertNotIn('scanner_engine_5m_eligible', self.source)
 
+    def test_display_chips_and_summary_read_exact_requested_frame(self):
+        chips=self.source.split("    def five_engine_chips(",1)[1].split("    def super_five_card(",1)[0]
+        summary=self.source.split("    def five_engine_summary(",1)[1].split("    def ensure_cached_historical_engine_publish(",1)[0]
+        self.assertIn('exact_frame=display_timeframe or "5m"',chips)
+        self.assertIn('read_five_engine_context(sym,exact_frame)',chips)
+        self.assertIn('read_five_engine_context(symbol,exact_frame)',summary)
+        self.assertIn('not any(e.eligible and e.source=="Dhan"',summary)
+        self.assertNotIn('read_five_engine_context(sym,"5m")',chips)
+        self.assertNotIn('read_five_engine_context(symbol,"5m")',summary)
+        for surface,frame in (('Dashboard','1m'),('Watchlist','3m'),('Super Five','5m')):
+            with self.subTest(surface=surface):
+                self.assertIn(frame,('"1m"','"3m"','"5m"'))
+
     def test_historical_engine_publishers_preserve_exact_timeframe(self):
         self.assertIn('symbol=sym,timeframe=timeframe,generation=provider_generation[0]',
                       self.source)

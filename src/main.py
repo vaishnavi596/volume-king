@@ -1486,8 +1486,16 @@ def app_main(page:ft.Page):
                                 " | N/F/O WAIT (independent evidence unavailable)")
             return note("5 engines • WAIT • Dhan connection required")
         # Read-only cache display. Never fetch five separate provider endpoints.
-        snapshot=(read_five_engine_context(symbol,"5m")
-                  if display_timeframe is None or display_timeframe=="5m" else None)
+        exact_frame=display_timeframe or "5m"
+        snapshot=(read_five_engine_context(symbol,exact_frame)
+                  if exact_frame in ("1m","3m","5m") else None)
+        # The read contract rejects stale/wrong-generation/non-Dhan evidence.
+        # A valid but HIST-only 1m/3m cache has no eligible LIVE engine; keep
+        # the established exact-frame historical T/C explanation instead.
+        if (snapshot and exact_frame in ("1m","3m") and
+                not any(e.eligible and e.source=="Dhan"
+                        for e in snapshot["engines"])):
+            snapshot=None
         if snapshot and not regular_hours():
             # Even an otherwise fresh verified engine is ineligible outside
             # market hours. The historical candle box below remains visible.
@@ -1626,12 +1634,13 @@ def app_main(page:ft.Page):
         # once so a closed market does not depend on a manual Run Scan.
         if display_timeframe in ("1m","3m") and prefs.get("source")=="Dhan":
             ensure_cached_historical_engine_publish(sym,display_timeframe)
-        # Shared five-engine publisher currently uses 5m scanner/ranking results.
-        # Do not display its symbol-only snapshot as verified 1m/3m evidence.
-        # Per-timeframe historical context below stays explicitly HIST.
-        snapshot=(read_five_engine_context(sym,"5m")
+        # Read the exact requested timeframe/generation, never the 5m rank
+        # snapshot for Dashboard 1m, Watchlist 3m or selected Scanner frame.
+        # Historical-only caches still render T/C HIST below, not LIVE votes.
+        exact_frame=display_timeframe or "5m"
+        snapshot=(read_five_engine_context(sym,exact_frame)
                   if prefs.get("source")=="Dhan" and dhan_feed.connected
-                  and (display_timeframe is None or display_timeframe=="5m") else None)
+                  and exact_frame in ("1m","3m","5m") else None)
         if snapshot and not regular_hours():
             # Session closure revokes LIVE eligibility but not the distinct
             # 1m/3m/5m completed-candle HIST display below.
