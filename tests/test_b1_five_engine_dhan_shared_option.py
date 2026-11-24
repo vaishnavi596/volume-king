@@ -29,7 +29,7 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         # Disconnected test page must never pretend it received a verified vote.
         self.assertEqual(len(values),6)
         self.assertEqual(values[5],"6  —")  # Blank, inert reserved display only.
-        self.assertTrue(all(("WAIT" in label or "HIST" in label or "OFF • market closed" in label) for label in values[:5]))
+        self.assertTrue(all(("WAIT" in label or "HIST" in label or label.endswith(" OFF")) for label in values[:5]))
         self.assertNotIn("O B", " ".join(values))
 
     def test_independent_candle_history_never_claims_verified_signal(self):

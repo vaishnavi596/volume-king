@@ -56,6 +56,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         scope={
             "current":[4],"app_active":[True],"lifecycle_background":[False],
             "prefs":{"source":"Dhan"},"dhan_feed":feed,
+            "clone_v2_gateway":SimpleNamespace(connected=True),
             "provider_generation":[0],"refresh_hours":lambda:window["open"],
             "watch_three_minute_warm_busy":[False],
             "watch_three_minute_upstream_times":times,

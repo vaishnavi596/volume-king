@@ -99,7 +99,7 @@ class A3RegressionTests(unittest.TestCase):
         ist=datetime.now(timezone(timedelta(hours=5,minutes=30)))
         from v3_equity_session_calendar import regular_equity_hours
         expected=(" WAIT" if regular_equity_hours(ist)
-                  else " LIVE WAIT • market closed")
+                  else " OFF")
         self.assertEqual(labels[:5],[name+expected for name in ("T","C","N","F","O")])
         # Reserved sixth visual slot is inert; the five engine states stay unchanged.
         self.assertEqual(len(labels[:5]),5)
