@@ -2025,3 +2025,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Version 2.3.207 in pyproject (2311e6a8); new isolated APK workflow `.github/workflows/v3-b207-side-by-side-preview-apk.yml` in 945a5909, separate Android package/signing from B206; no production deployment, no V1/V2/Oracle change. It requires full tests and exact-SHA independent B3 SUCCESS before build/artifact.
 - Added final empty-history fail-closed test f2d1a160, triggering both exact-head B3 #45401266717 and B207 #45401267157. Earlier B207 workflow #45401211290 was cancelled by concurrency and is NOT the download source. Do not claim B207 artifact ready until final success and artifact upload verified.
 - Acceptance: three equity Watchlist prices may show HIST CLOSE only for completed exact-Dhan 3m candles, with time and NOT LIVE; still no authenticated LIVE quote. B206 stays installed, do not uninstall it. Dashboard, Super Five, options and multi-engine end votes remain separate unresolved tasks.
+
+
+### 24 नवंबर 2026 — B207 अंतिम CI PASS और APK उपलब्ध
+- Exact-source commit f2d1a160 B3 #45401266717 **SUCCESS** और isolated B207 phone APK #45401267157 **SUCCESS**. Same source SHA on both workflows; prior cancelled workflow #45401211290 not used.
+- Published artifact ID 14924815602, name BOT-KING-V3-B207-SIDE-BY-SIDE-PREVIEW-APK, ZIP bytes 65901216 (~65.9MB), expires 2026-12-08, artifact digest sha256:54531f28282b06e04780bb65bd9fbbf3c6ce5539b52d1eb6cecd60e2eafcc028. Download via workflow page; extract zip to install APK.
+- Physical B207 test pending: check RELIANCE/HDFCBANK/ICICIBANK historical close price+time NOT LIVE and Watchlist 2s repaint with Scanner/Refresh unaffected. Live quote availability, Dashboard, Super Five, option-chain and combined engine voting remain unresolved; this PASS is not their physical acceptance.
