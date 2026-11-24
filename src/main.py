@@ -989,9 +989,24 @@ def app_main(page:ft.Page):
             market_open=regular_hours())
 
     def signal_percentages(row):
+        # Shared UI T percentages must use only canonical candle indicators.
+        # Saved/legacy OI or News integers are context, not technical votes.
+        from filter_wiring_audit import CANDLE_FILTERS
         votes=row.get("votes") or []
-        bulls=sum(v.get("vote")==1 for v in votes if isinstance(v,dict))
-        bears=sum(v.get("vote")==-1 for v in votes if isinstance(v,dict))
+        seen=set()
+        bulls=bears=0
+        for item in votes:
+            if not isinstance(item,dict):
+                continue
+            name=item.get("name")
+            if name not in CANDLE_FILTERS or name in seen:
+                continue
+            seen.add(name)
+            vote=item.get("vote")
+            if type(vote) is int and vote==1:
+                bulls+=1
+            elif type(vote) is int and vote==-1:
+                bears+=1
         total=bulls+bears
         return (round(100*bulls/total),round(100*bears/total),total) if total else None
     def vote_display(agreement, fresh=False, timeframe="5m"):

@@ -47,6 +47,39 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         self.assertIn('if prefs.get("source")=="Dhan" and display_timeframe in (None,"5m"):',summary)
         self.assertIn('exact_frame=display_timeframe or "5m"',summary)
 
+    def test_shared_phone_vote_display_rejects_context_and_duplicate_integers(self):
+        # Execute the actual application function isolated from app_main,
+        # detecting cross-lane B/S inflation in saved/restored reports.
+        import ast
+        source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        matches=[node for node in ast.walk(tree)
+                 if isinstance(node,ast.FunctionDef)
+                 and node.name=="signal_percentages"]
+        self.assertEqual(len(matches),1)
+        scope={}
+        exec(compile(ast.Module(body=[matches[0]],type_ignores=[]),
+                     "<v3-shared-filter-vote>", "exec"),scope)
+        count=scope["signal_percentages"]
+        clean=[{"name":"Supertrend","vote":1},
+               {"name":"EMA 9/21","vote":1},
+               {"name":"MACD","vote":-1}]
+        forged=clean+[
+            {"name":"OI Support","vote":1},
+            {"name":"OI Resistance","vote":1},
+            {"name":"OI Profile","vote":1},
+            {"name":"Dhan Max Pain","vote":1},
+            {"name":"News Headlines","vote":1},
+            {"name":"unknown","vote":1},
+            {"name":"Supertrend","vote":1},
+            {"name":"RSI 14","vote":True},
+        ]
+        self.assertEqual(count({"votes":clean}),(67,33,3))
+        self.assertEqual(count({"votes":forged}),count({"votes":clean}))
+        self.assertIsNone(count({"votes":forged[len(clean):]}))
+        self.assertIsNone(count({"votes":[]}))
+        self.assertEqual(count({"votes":clean[0:2]}),(100,0,2))
+
     def test_canonical_eighteen_registry_and_exact_five_lanes(self):
         self.assertEqual(len(ALL_FILTERS),18)
         self.assertEqual(len(set(ALL_FILTERS)),18)
