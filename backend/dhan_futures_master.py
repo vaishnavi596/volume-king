@@ -21,11 +21,13 @@ def futures_candidates_from_dhan_detailed(csv_text, *, max_bytes=8000000):
         raise ValueError("Dhan detailed master required columns missing")
     result=[]
     seen=set()
+    security_id_owner={}
+    contract_owner={}
     for index,row in enumerate(reader):
         if index>=500000:
             raise ValueError("Master exceeds safe row count")
         if not isinstance(row,dict) or None in row:
-            raise ValueError("Malformed Dhan compact master row")
+            raise ValueError("Malformed Dhan detailed master row")
         if row.get("EXCH_ID")!="NSE" or row.get("SEGMENT")!="D":
             continue
         if row.get("INSTRUMENT") not in ("FUTIDX","FUTSTK"):
@@ -49,6 +51,15 @@ def futures_candidates_from_dhan_detailed(csv_text, *, max_bytes=8000000):
         if identity in seen:
             raise ValueError("Duplicate Futures instrument master identity")
         seen.add(identity)
+        # Every NSE_FNO security ID must identify only ONE contract in the
+        # current snapshot; otherwise the source master is inconsistent.
+        if sid in security_id_owner:
+            raise ValueError("Conflicting Futures security ID across contracts")
+        security_id_owner[sid]=(symbol,expiry.isoformat(),contract)
+        contract_identity=(symbol,expiry.isoformat(),contract)
+        if contract_identity in contract_owner:
+            raise ValueError("Duplicate Futures contract with distinct security IDs")
+        contract_owner[contract_identity]=sid
         result.append({"source":"Dhan","master_verified":False,
                        "instrument_type":"FUT","exchange_segment":"NSE_FNO",
                        "underlying":symbol,"expiry":expiry.isoformat(),

@@ -44,6 +44,18 @@ class FuturesMasterTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     futures_candidates_from_dhan_detailed(raw)
 
+    def test_reused_security_id_across_futures_is_rejected(self):
+        conflict=(HEADER+GOOD+
+                  "NSE,D,FUTSTK,RELIANCE,12345,2026-12-31,RELIANCE FUT\\n")
+        with self.assertRaisesRegex(ValueError,"Conflicting Futures security ID"):
+            futures_candidates_from_dhan_detailed(conflict)
+
+    def test_same_contract_with_different_security_ids_is_rejected(self):
+        conflict=(HEADER+GOOD+
+                  "NSE,D,FUTIDX,NIFTY,45678,2026-12-31,NIFTY DEC FUT\\n")
+        with self.assertRaisesRegex(ValueError,"Duplicate Futures contract"):
+            futures_candidates_from_dhan_detailed(conflict)
+
     def test_no_future_contract_guessed_from_equities(self):
         self.assertEqual(futures_candidates_from_dhan_detailed(
             HEADER+"NSE,E,EQUITY,RELIANCE,2885,2026-12-31,RELIANCE\n"),[])
