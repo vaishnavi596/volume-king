@@ -455,6 +455,20 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     if isinstance(segment_data, dict) and isinstance(segment_data.get(str(sid)), dict):
                         market_diagnostic("quotes", symbol, "validation", "invalid_price")
             if not quotes:
+                # An HTTP-success Dhan payload containing empty segment objects
+                # is not valid quote proof. Bound repeated upstream retries.
+                # Do not substitute last-good/HIST prices or fabricated LIVE data.
+                empty_segments = all(
+                    isinstance(result["data"].get(known[sym][0]), dict)
+                    and not result["data"][known[sym][0]]
+                    for sym in symbols
+                )
+                if empty_segments:
+                    provider_cooldown_until[0] = time.monotonic() + 30
+                    raise HTTPException(502, "No validated clone quotes",
+                                        headers={"Retry-After": "30",
+                                                 "X-BotKing-Quote-Failure-Stage": "RESPONSE",
+                                                 "X-BotKing-Quote-Response-State": "EMPTY_SEGMENTS"})
                 raise HTTPException(502, "No validated clone quotes",
                                     headers={"X-BotKing-Quote-Failure-Stage": "RESPONSE"})
             payload = {"source": "dhan", "quotes": quotes,
