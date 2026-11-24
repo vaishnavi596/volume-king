@@ -1490,8 +1490,11 @@ def app_main(page:ft.Page):
         return historical_vote_agreement(shared_history(symbol,"5m"),"5m")
 
     def five_engine_summary(symbol, display_timeframe=None):
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
-            if prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m"):
+        # HISTORICAL mode must never borrow a cached LIVE publisher snapshot.
+        if (prefs.get("market_display_mode")=="HISTORICAL"
+                or prefs.get("source")!="Dhan" or not dhan_feed.connected):
+            if (prefs.get("source")=="Dhan" and display_timeframe in ("1m","3m")
+                    and prefs.get("market_display_mode")!="LIVE_ONLY"):
                 # A disconnected Dhan session must not erase exact-frame
                 # last-completed technical history or promote it to LIVE.
                 offline_history=shared_history(symbol,display_timeframe)
@@ -1513,7 +1516,8 @@ def app_main(page:ft.Page):
                     return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
                                 " | ".join(parts)+
                                 " | N/F/O WAIT (independent evidence unavailable)")
-            if prefs.get("source")=="Dhan" and display_timeframe in (None,"5m"):
+            if (prefs.get("source")=="Dhan" and display_timeframe in (None,"5m")
+                    and prefs.get("market_display_mode")!="LIVE_ONLY"):
                 last_votes=historical_five_minute_technical(symbol)
                 offline_5m=shared_history(symbol,"5m")
                 candle_5m=completed_timeframe_candle_balance(
@@ -1552,7 +1556,8 @@ def app_main(page:ft.Page):
             # The cached option context may exist before the first scanner snapshot.
             # Do not hide its unavailable reason or trigger a provider request.
             option_context=option_from_component(option_component(symbol, (display_timeframe or "5m")))
-            if display_timeframe in ("1m","3m"):
+            if (display_timeframe in ("1m","3m")
+                    and prefs.get("market_display_mode")!="LIVE_ONLY"):
                 # The symbol-only 5m publisher must never masquerade as LIVE
                 # evidence for an index 1m or Watchlist 3m report. Show their
                 # exact-frame saved technical/candle HIST context instead.
@@ -1788,6 +1793,7 @@ def app_main(page:ft.Page):
             bull=value.get("bullish");bear=value.get("bearish")
             historical=False
             if (name=="technical" and (bull is None or bear is None)
+                    and prefs.get("market_display_mode")!="LIVE_ONLY"
                     and prefs.get("source")=="Dhan"):
                 # Last-known completed-candle votes are still useful as HIST
                 # after expiry/disconnection. Never promote them as LIVE.
@@ -1847,7 +1853,8 @@ def app_main(page:ft.Page):
                             and type(data.get("pcr")) in (int,float)
                             and math.isfinite(data["pcr"]) and data["pcr"]>=0):
                         label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
-                elif name=="candle" and prefs.get("source")=="Dhan":
+                elif (name=="candle" and prefs.get("source")=="Dhan"
+                      and prefs.get("market_display_mode")!="LIVE_ONLY"):
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
                     candle_history=shared_history(sym,candle_tf)
                     if candle_history.get("source")=="Dhan":
