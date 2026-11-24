@@ -70,9 +70,14 @@ jobs:
               'special Muhurat session not enabled',
           ):
               assert marker in calendar, marker
-          assert 'equity_session_closed_detail())' in main
+          # The current contextual SSK caption renders the optional session
+          # explanation with strip(); it must not be confused with a
+          # holiday-based veto of source-verified LIVE/HIST evidence.
+          assert 'equity_session_closed_detail().strip(" •")' in main
+          assert 'historical_close_display(hist,now=time.time())' in main
+          assert 'historical=historical_close_display(hist,now=time.time())' in main
           print('V3_B207_PREVIEW_SOURCE_GUARD=PASS')
-          print('V3_2026_2027_HOLIDAY_AND_PHONE_OFF_GUARD=PASS')
+          print('V3_HIST_FALLBACK_AND_SESSION_CONTEXT_GUARD=PASS')
           PY
           python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
           # Validate CURRENT source, not a prior preview SHA. Fail before
