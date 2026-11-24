@@ -1,5 +1,8 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **24-Nov-2026 VERIFIED FULL B3 PASS:** [#45336410223](https://github.com/vaishnavi596/volume-king/actions/runs/45336410223), tested commit `fac4257d`, **1804/1804 offline tests OK** incl. NSE 2026 holiday/IST/automatic-refresh boundaries and V3 screen contracts; full [Hindi Work Log](BOT_KING_WORK_LOG.md). Earlier #298 test errors resolved. **NOT YET** live Dhan exchange validation or Android APK/phone proof. Static schedule excludes 2027+ and special/unannounced sessions. Avoid redundant rerun; branch docs-only commits after this test do not change executable files.
+
+
 > **24-Nov-2026 HOLIDAY/IST AUDIT:** Found actual `src/main.py` weekday-only LIVE/auto-refresh gate; 24-Nov Tuesday Guru Nanak Jayanti had been mistaken for an ordinary market weekday. New 2026 NSE equity holiday set + IST-aware `regular_equity_hours/equity_refresh_window` wired in source commits `ea9b76a0`/`947c62a6`; regression tests `0532a773`. B1/B2/Adapter PASS at source commit `947c62a6`, exact-head B3 [#45335224378](https://github.com/vaishnavi596/volume-king/actions/runs/45335224378) in progress at last check. 2026 16 weekday holidays, no special Muhurat activation; other years, extraordinary closures, BSE segment differences, derivative expiry shifts and on-device proof remain open. Prior B3 #45334600129 failed one test-only fallback count assumption (2 actual branches, not 1), corrected `0afa2500`; full ledger in [Work Log](BOT_KING_WORK_LOG.md). Do not claim current full CI PASS before final exact-run result; no APK/server mutation.
 
 
