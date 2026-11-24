@@ -151,7 +151,7 @@ class VoteTraceDoctorTests(unittest.TestCase):
                        for i,n in enumerate(("technical","candle","news","futures","options")))
         r=base(snapshot={"engines":a},market_open=True)
         self.assertEqual(r["combined_vote"]["state"],"WAIT")
-        self.assertEqual(r["combined_vote"]["reason"],"DISPLAY_SIDE_PROVENANCE_NOT_VERIFIED")
+        self.assertEqual(r["combined_vote"]["reason"],"PUBLISHED_COMBINED_VOTE_MISSING")
     def test_duplicate_filter_and_box_rejected(self):
         with self.assertRaises(ValueError):
             base(filter_rows=[{"name":"EMA 9/21"},{"name":"EMA 9/21"}])
