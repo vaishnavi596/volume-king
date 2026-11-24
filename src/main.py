@@ -654,8 +654,13 @@ def app_main(page:ft.Page):
             if selected!="Dhan":
                 raise FeedError("V3 Dhan-only provider required; reconnect Dhan in Settings")
             if selected=="Dhan":
-                if not dhan_feed.connected:
-                    raise FeedError("Dhan disconnected; reconnect with Server Access Key in Settings")
+                # Closed-market historical candles require an authenticated
+                # Clone SSK gateway, not LIVE quote proof. A new side-by-side
+                # install has no earlier phone cache to fall back to. Keep
+                # regular-session requests gated by actual market validation.
+                closed_hist_gateway=(clone_v2_gateway.connected and not regular_hours())
+                if not (dhan_feed.connected or closed_hist_gateway):
+                    raise FeedError("Dhan history requires authenticated Clone SSK in Settings")
                 if ticker not in DHAN_VERIFIED_SYMBOLS:
                     raise FeedError("Dhan mapping for "+str(ticker)[:32]+" not verified; no fabricated quote")
                 if interval not in ("1m","2m","3m","5m","10m","15m","30m","1h"):
@@ -7552,8 +7557,12 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.gather(task,return_exceptions=True)
     async def scan_market(allow_network=True):
         nonlocal market_status
-        if prefs.get("source")=="Dhan" and not dhan_feed.connected and allow_network:
-            scan_status.value="Dhan login required • live scan paused"
+        # Manual HIST Run Scan may use the SSK-authenticated gateway on a
+        # closed exchange session, even when no LIVE LTP proof exists.
+        # Automatic refresh remains disabled by the exchange calendar.
+        if (prefs.get("source")=="Dhan" and not dhan_feed.connected
+                and allow_network and not (clone_v2_gateway.connected and not regular_hours())):
+            scan_status.value="Dhan SSK authorization required • historical scan paused"
             scan_busy[0]=False
             return
         generation=scan_generation[0]
