@@ -1,23 +1,24 @@
-"""Phone-local display mode: no network, no market-open inference from stale data.
+"""Evidence-driven two-state data display.
 
-AUTO permits a last-good HIST fallback on an unexpected weekday outage, but
-never describes such an outage as an official exchange holiday.
+Only LIVE and HISTORICAL are data modes. WAIT is the lack of any validated
+display evidence, never a third mode. Manual legacy modes are migrated away.
+Holiday calendars may pace provider calls, but do not choose the display mode.
 """
-MODES=("AUTO","HISTORICAL","LIVE_ONLY")
+MODES=("LIVE","HISTORICAL")
 
 def normalized_mode(value):
-    return value if value in MODES else "AUTO"
+    """Migrate old phone preferences to automatic source selection."""
+    return "AUTO"
 
-def resolve_mode(value, *, session_eligible, live_verified, history_valid):
-    mode=normalized_mode(value)
-    live=bool(session_eligible and live_verified)
-    historical=bool(history_valid)
-    if mode=="HISTORICAL":
-        return "HIST" if historical else "WAIT"
-    if mode=="LIVE_ONLY":
-        return "LIVE" if live else "WAIT"
-    if live:
+def resolve_mode(value=None, *, session_eligible=None, live_verified=False,
+                 history_valid=False):
+    """Select source by evidence only, not weekday, calendar or manual setting.
+
+    Callers MUST independently validate broker, exact timeframe, source and
+    exchange timestamp before setting live_verified=True.
+    """
+    if live_verified is True:
         return "LIVE"
-    if historical:
+    if history_valid is True:
         return "HIST"
     return "WAIT"
