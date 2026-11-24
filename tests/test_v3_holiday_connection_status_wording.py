@@ -18,7 +18,7 @@ class HolidayConnectionStatusWording(unittest.TestCase):
     def test_live_and_hist_gates_remain_distinct(self):
         self.assertIn('if not (dhan_feed.connected or closed_hist_gateway):', MAIN)
         self.assertIn('and not (clone_v2_gateway.connected and not regular_hours())', MAIN)
-        self.assertIn('if prefs.get("source")!="Dhan" or not dhan_feed.connected or not regular_hours():',MAIN)
+        self.assertIn('if prefs.get("source")!="Dhan" or not dhan_feed.connected:',MAIN)
 
 if __name__=="__main__":
     unittest.main()
