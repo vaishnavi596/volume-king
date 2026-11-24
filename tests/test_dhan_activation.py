@@ -121,7 +121,10 @@ class DhanActivationTests(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
         block=source.split('    async def check_clone_v2_connection():',1)[1].split('    def check_clone_v2_gateway(e):',1)[0]
         self.assertIn('dhan_feed.paced_market_quotes,request_symbols',block)
-        self.assertIn('if "NIFTY" not in proof:',block)
+        # A verified equity quote may establish a partial connection even when
+        # all index quotes are unavailable. Zero validated quotes must still fail.
+        self.assertIn("if not proof:",block)
+        self.assertNotIn('if "NIFTY" not in proof:',block)
         self.assertIn("dhan_feed.activate_with_quote(proof)",block)
         self.assertIn('login_bootstrap.finish(provider_generation[0],"indices",received_indices,3)',block)
         self.assertIn("if received_indices==3:",block)
