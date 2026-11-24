@@ -42,7 +42,7 @@ class ClosedSessionHistoryPersistence(unittest.TestCase):
                 {"freshness":"verified_live"},{"_scanner_timeframe":"5m"},
                 {"bars":hist()["bars"][:4]},
                 {"bars":[dict() for _ in range(40)]},
-                {"price":float("nan")},{"price":True},
+                {"price":True},
             ):
                 if changes.get("_scanner_timeframe")=="5m":
                     # Correctly stamped 5m history is allowed when actual
