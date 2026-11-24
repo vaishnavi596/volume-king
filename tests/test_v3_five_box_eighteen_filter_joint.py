@@ -76,7 +76,9 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         ]
         self.assertEqual(count({"votes":clean}),(67,33,3))
         self.assertEqual(count({"votes":forged}),count({"votes":clean}))
-        self.assertIsNone(count({"votes":forged[len(clean):]}))
+        self.assertIsNone(count({"votes":forged[len(clean):len(clean)+6]}))
+        self.assertEqual(count({"votes":[{"name":"Supertrend","vote":1},
+                                         {"name":"Supertrend","vote":1}]}),(100,0,1))
         self.assertIsNone(count({"votes":[]}))
         self.assertEqual(count({"votes":clean[0:2]}),(100,0,2))
 

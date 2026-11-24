@@ -38,7 +38,7 @@ class JointLayoutRefreshTests(unittest.TestCase):
         self.assertIsNone(bar.controls[1].expand)
 
     def test_three_surfaces_use_identical_vote_layout(self):
-        row={'source':'Dhan','historical':True,'timestamp':1,'votes':[{'vote':1},{'vote':-1}]}
+        row={'source':'Dhan','historical':True,'timestamp':1,'votes':[{'name':'Supertrend','vote':1},{'name':'MACD','vote':-1}]}
         expected=texts(self.v['vote_display']((50,50,2)))
         self.assertEqual(texts(self.v['strength_widget'](row,'RELIANCE')),expected)
         self.assertIn("3m • WAIT", texts(self.v['compact_watch_signal'](row,True,False))[0])

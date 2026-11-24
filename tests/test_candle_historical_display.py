@@ -32,7 +32,7 @@ class HistoricalVoteUiTests(unittest.TestCase):
         v["watch_signal_cache"]["HDFCBANK"]={
             "source":"Dhan","symbol":"HDFCBANK","timestamp":time.time()-1000,
             "historical":True,"freshness":"unverified","live_verified":False,
-            "votes":[{"name":"RSI","vote":1},{"name":"MACD","vote":-1},
+            "votes":[{"name":"RSI 14","vote":1},{"name":"MACD","vote":-1},
                      {"name":"EMA 9/21","vote":1}]}
         # No authenticated Dhan session. Cached historical evidence must not
         # disappear or claim LIVE when broker is disconnected.

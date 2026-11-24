@@ -7,8 +7,11 @@ class StrengthBarTests(unittest.TestCase):
     def test_vote_percentage(self):
         _, v = start({"scanner_live": False})
         calc = v["signal_percentages"]
-        self.assertEqual(calc({"votes": [{"vote": 1}]*6 + [{"vote": -1}]*2}), (75, 25, 8))
-        self.assertEqual(calc({"votes": [{"vote": 1}]*8}), (100, 0, 8))
+        filters=("Supertrend","EMA 9/21","RSI 14","MACD","VWAP",
+                 "SMC Structure","Order Block","Pivot Points")
+        self.assertEqual(calc({"votes": [{"name":name,"vote":1 if i<6 else -1}
+                                          for i,name in enumerate(filters)]}), (75, 25, 8))
+        self.assertEqual(calc({"votes": [{"name":name,"vote":1} for name in filters]}), (100, 0, 8))
         self.assertIsNone(calc({"votes": [{"vote": 0}, {"vote": None}]}))
 
     def test_all_watchlists_render_without_signal_data(self):

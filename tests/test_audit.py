@@ -681,7 +681,7 @@ class AuditTests(unittest.TestCase):
     def test_historical_strength_widget_retains_direction_with_historical_label(self):
         _,v=start({'scanner_live':False,'source':'Dhan'})
         row={'source':'Dhan','timestamp':1,'historical':True,
-             'votes':[{'vote':1},{'vote':-1}]}
+             'votes':[{'name':'Supertrend','vote':1},{'name':'MACD','vote':-1}]}
         widget=v['strength_widget'](row,'NIFTY')
         values=[]
         colors=[]
