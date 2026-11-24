@@ -97,6 +97,32 @@ class VoteTraceDoctorTests(unittest.TestCase):
         self.assertEqual(result["provider_requests"],0)
         self.assertEqual(result["orders_sent"],0)
 
+    def test_published_combined_mismatch_blocks_final_trace_vote(self):
+        rows=boxes()
+        names=("technical","candle","news","futures","options")
+        evidence=[]
+        for i,name in enumerate(names):
+            verified=i<3
+            evidence.append(EngineEvidence(name,70 if verified else None,
+                                           30 if verified else None,verified=verified,
+                                           timestamp=1795000000 if verified else None,
+                                           source="Dhan" if verified else ""))
+            if verified:
+                rows[i].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                               bullish_percent=70,bearish_percent=30)
+        snapshot=compose_snapshot(**dict(zip(names,evidence)))
+        self.assertEqual(snapshot["combined"]["state"],"BULLISH")
+        snapshot["combined"]=dict(snapshot["combined"],state="BEARISH")
+        result=base(market_open=True,box_rows=rows,snapshot=snapshot)
+        self.assertEqual(result["box_vote_gate"]["eligible"],3)
+        self.assertEqual(result["voting_conflict_audit"]["issues"][0]["code"],
+                         "COMBINED_VOTE_PUBLISH_MISMATCH")
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        self.assertEqual(result["combined_vote"]["reason"],"COMBINED_VOTE_PUBLISH_MISMATCH")
+        self.assertIsNone(result["combined_vote"]["bullish"])
+        self.assertEqual(result["provider_requests"],0)
+        self.assertEqual(result["orders_sent"],0)
+
     def test_missing_display_proof_does_not_turn_three_engine_snapshot_live(self):
         a=tuple(EngineEvidence(n,70 if i<3 else None,30 if i<3 else None,
                        verified=i<3,timestamp=1795000000 if i<3 else None,
