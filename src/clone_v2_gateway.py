@@ -107,7 +107,7 @@ class CloneV2Gateway:
         except HTTPError as exc:
             if exc.code in (401, 403):
                 self.disconnect()
-                raise FeedError("Clone SSK authorization expired") from None
+                raise FeedError("Clone SSK authorization expired (HTTP " + str(exc.code) + ")") from None
             if exc.code == 424:
                 raise FeedError("Clone Dhan authorization required (HTTP 424)") from None
             if exc.code == 429:

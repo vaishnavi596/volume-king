@@ -19,7 +19,7 @@ def public_copy(value):
     raise ValueError("Unsupported snapshot value")
 
 class SnapshotStore:
-    def __init__(self,path,max_entries=160):
+    def __init__(self,path,max_entries=320):
         self.path=Path(path);self.max_entries=max_entries;self.lock=RLock();self.records={}
         self.status="No saved market snapshots"
         try:

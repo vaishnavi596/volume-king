@@ -57,6 +57,14 @@ def safe_error(exc):
         # Only exact, locally generated Clone adapter messages; never echo
         # raw upstream response, URL, access key, or arbitrary provider text.
         clone_diagnostics = {
+            "Clone SSK authorization expired": "Clone SSK authorization expired; reconnect",
+            "Clone SSK authorization expired (HTTP 401)": "Clone SSK authorization expired (HTTP 401); reconnect",
+            "Clone SSK authorization expired (HTTP 403)": "Clone SSK authorization expired (HTTP 403); reconnect",
+            "Clone Dhan authorization required (HTTP 424)": "Clone Dhan authorization required (HTTP 424)",
+            "Clone Dhan rate limit; retry later (HTTP 429)": "Clone Dhan rate limit; retry later (HTTP 429)",
+            "Clone Dhan upstream or gateway unavailable (HTTP 502)": "Clone Dhan upstream or gateway unavailable (HTTP 502)",
+            "Clone Dhan upstream or gateway unavailable (HTTP 503)": "Clone Dhan upstream or gateway unavailable (HTTP 503)",
+            "Clone Dhan upstream or gateway unavailable (HTTP 504)": "Clone Dhan upstream or gateway unavailable (HTTP 504)",
             "Clone Dhan candles unavailable": "Clone candle gateway unavailable; check Oracle/Dhan route",
             "Clone market candles HTTP 424": "Dhan authorization required for Clone candles",
             "Clone market candles HTTP 429": "Clone candle provider cooldown; retry later",
