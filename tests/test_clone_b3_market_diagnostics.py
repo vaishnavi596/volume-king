@@ -119,6 +119,29 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertEqual(res.headers["X-BotKing-429-Stage"], "PROVIDER_QUOTA")
         self.assertEqual(res.headers["Retry-After"], "30")
 
+    def test_empty_dhan_segments_are_paced_and_never_marked_live(self):
+        class Provider:
+            calls = 0
+            def batch_ltp(self, instruments):
+                self.calls += 1
+                return {"status": "success", "data": {"IDX_I": {}, "NSE_EQ": {}}}
+        provider = Provider()
+        http = self.client(provider)
+        with patch("backend.clone_v2_gateway.DIAGNOSTIC_LOGGER.warning"):
+            first = http.post("/clone-v2/market/quotes", headers=self.headers(),
+                              json={"symbols": ["NIFTY", "RELIANCE"]})
+            second = http.post("/clone-v2/market/quotes", headers=self.headers(),
+                               json={"symbols": ["NIFTY", "RELIANCE"]})
+        self.assertEqual(first.status_code, 502)
+        self.assertEqual(first.headers.get("X-BotKing-Quote-Failure-Stage"), "RESPONSE")
+        self.assertEqual(first.headers.get("X-BotKing-Quote-Response-State"), "EMPTY_SEGMENTS")
+        self.assertEqual(first.headers.get("Retry-After"), "30")
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual(second.headers.get("X-BotKing-429-Stage"), "PROVIDER_COOLDOWN")
+        self.assertEqual(provider.calls, 1)
+        self.assertNotIn("quotes", first.json())
+        self.assertNotIn("quotes", second.json())
+
     def test_unauthorized_call_never_logs_symbol(self):
         class Provider:
             def batch_ltp(self, instruments):
