@@ -44,7 +44,16 @@ class SnapshotStore:
             for row in bars:
                 if not isinstance(row,(list,tuple)) or len(row)<6:return False
                 if not all(isinstance(v,(int,float)) and math.isfinite(v) for v in row[:6]):return False
-            if kind=="market" and (not isinstance(p.get("price"),(int,float)) or not math.isfinite(p["price"])):return False
+            if kind=="market":
+                price=p.get("price")
+                hist_only=(price is None and p.get("source")=="Dhan"
+                           and p.get("live_verified") is False
+                           and p.get("freshness")=="historical_unverified"
+                           and p.get("_scanner_timeframe") in ("1m","2m","3m","5m",
+                                                                 "10m","15m","30m","1h"))
+                if not hist_only and (type(price) not in (int,float)
+                                       or not math.isfinite(price) or price<=0):
+                    return False
         elif kind=="ranking":
             rows=p.get("rows")
             if not isinstance(rows,list) or not rows or len(rows)>5:return False
@@ -73,7 +82,9 @@ class SnapshotStore:
         safe=public_copy(payload)
         if not safe:return False
         if not self.valid(kind,safe):return False
-        if kind=="market" and (not safe.get("bars") or safe.get("price") is None):return False
+        # Fully checked history-only Dhan payloads may be persisted without
+        # an LTP; SnapshotStore.valid verifies their exact-frame HIST identity.
+        if kind=="market" and not safe.get("bars"):return False
         if kind=="ranking" and not safe.get("rows"):return False
         if kind=="options" and not safe.get("rows"):return False
         if kind=="news" and not safe.get("items"):return False
