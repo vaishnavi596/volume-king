@@ -27,6 +27,6 @@ class CachedHistoricalPublisherTests(unittest.TestCase):
         for name in ("filter_five_diagnostic_panel","all_segments_doctor_panel"):
             if name in FUNCTIONS:
                 self.assertNotIn("publish_five_engine_historical(",body(name))
-        self.assertIn('market_open=regular_hours()',body("read_five_engine_context"))
+        self.assertIn('market_open=True',body("read_five_engine_context"))
         self.assertIn('live_verified") is not False',body("publish_five_engine_historical"))
 if __name__=="__main__": unittest.main()
