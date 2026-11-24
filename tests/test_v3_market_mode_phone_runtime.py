@@ -35,7 +35,9 @@ class MarketModePhoneRuntime(unittest.TestCase):
                       ui["scanner_historical_final_vote"]("NIFTY","1m").value)
         self.assertNotIn("HIST",ui["five_engine_summary"]("NIFTY","1m").value)
         # No independent publisher evidence or authenticated quote: chips stay WAIT.
-        labels=[str(row.content.value) for row in ui["five_engine_chips"]("NIFTY","1m").controls[:5]]
+        chips=ui["five_engine_chips"]("NIFTY","1m")
+        labels=[str(chip.content.value) for row in chips.controls
+                for chip in row.controls[:3]][:5]
         self.assertFalse(any(" HIST " in label for label in labels),labels)
         self.assertIn("LIVE",ui["session_caption"]())
 
