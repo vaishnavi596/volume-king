@@ -2744,7 +2744,8 @@ def app_main(page:ft.Page):
                 total=len(selected)
                 if finished+attempted>=total:
                     watch_batch_status[0]=(
-                        f"HIST complete {finished}/{total} • unavailable/deferred {attempted} • NOT LIVE")
+                        f"HIST loaded {finished}/{total} • unavailable after attempt {attempted} • NOT LIVE"
+                        if attempted else f"HIST complete {finished}/{total} • NOT LIVE")
                     break
                 watch_batch_status[0]=(
                     f"HIST loading {finished}/{total} • attempted without data {attempted} • NOT LIVE")
