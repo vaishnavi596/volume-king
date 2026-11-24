@@ -32,6 +32,17 @@ class TestPhoneStartup(unittest.TestCase):
         self.assertLess(body.index("dhan_feed.activate_with_quote(proof)"),
                         body.index("page.run_task(refresh_selected_options)"))
 
+    def test_real_equity_quotes_can_prove_login_when_indices_missing(self):
+        body=self.functions["check_clone_v2_connection"]
+        # Index-only failures must not block real Dhan equity quote proof.
+        self.assertIn("if not proof:",body)
+        self.assertNotIn('if "NIFTY" not in proof:',body)
+        self.assertIn('dhan_feed.activate_with_quote(proof)',body)
+        # Missing indices still remain unverified; no green all-clear.
+        self.assertIn("received_indices==3",body)
+        self.assertIn("else GOLD",body)
+        self.assertIn('"live_verified":False',body)
+
     def test_option_provider_rate_limit_still_enforced(self):
         body=self.functions["refresh_selected_options"]
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/option-expiries")',body)
