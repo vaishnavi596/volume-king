@@ -2279,3 +2279,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — Deep Batch 1E regression repair
 - Exact 59a5b41 B1 45459460452, B2 45459460675, Adapter 45459460848 PASS; B3 45459460535 FAIL, 1900 tests with 1 failure (job 138677729243). Extracted isolated AST runtime fixture for check_clone_v2_connection lacked the new resume state globals, causing exception and false failure status in mock. Source review supports missing fixture dependencies; no live auth failure proven.
 - Updated offline runtime fixture to supply actual new pending/loading state and record scheduled tasks. Added positive pending reconnect scheduling assertion and rejected-auth with pending intent test; original no-quote/no-task normal holiday assertion preserved. Production source unchanged. Exact CI and real phone/Oracle verification pending. No deployment/APK/provider calls.
+
+
+### 25 नवंबर 2026 — Deep Batch 2A: स्वतंत्र Candle evidence (पहला चरण)
+- Data Foundation 0835584 exact B3 45460543396 completed/success; test-only repair, preceding B1/B2/Adapter PASS at 59a5b41. No repeated prior change.
+- Added independent raw OHLC completed-body C adapter with explicit Dhan symbol/frame/live provenance, recent completed timestamp and matching T revision. Wired two existing 5m publishers (shared analysis and ranking); no new network requests, no T vote reuse, no quorum change. New executable tests for opposite T/C directions, stale/mismatch and missing quorum. Existing HIST context unchanged. Static source readiness report intentionally remains conservative until runtime proof.
+- 1m/3m live publishing, actual provider metadata compatibility, N/F/O, runtime phone and complete regression pending. No APK/server deployment or orders.

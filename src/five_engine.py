@@ -346,6 +346,48 @@ def completed_timeframe_candle_balance(history, timeframe, *, now):
     return historical_candle_balance(sample)
 
 
+def verified_candle_evidence(history, timeframe, *, now, symbol):
+    """Independent completed OHLC body direction, not technical filter votes."""
+    wait = EngineEvidence("candle", reason="Exact-frame verified Dhan candles required")
+    if (not isinstance(history, dict) or timeframe not in ("1m", "3m", "5m")
+            or history.get("source") != "Dhan"
+            or history.get("symbol") != symbol
+            or history.get("_scanner_timeframe") != timeframe
+            or history.get("live_verified") is not True
+            or history.get("historical") is not False
+            or history.get("cached")
+            or history.get("freshness") not in ("verified_live", "live_verified")
+            or type(now) not in (int, float) or not isfinite(now)):
+        return wait
+    bars = history.get("bars")
+    if not isinstance(bars, (list, tuple)) or not bars:
+        return wait
+    seconds = {"1m": 60, "3m": 180, "5m": 300}[timeframe]
+    balance = completed_timeframe_candle_balance(history, timeframe, now=now)
+    if balance is None:
+        return wait
+    last = bars[-1][0]
+    stamp = bars[-2][0] if last + seconds > now else last
+    if not 0 <= now - (stamp + seconds) <= seconds:
+        return wait
+    return EngineEvidence("candle", balance["bullish"], balance["bearish"],
+                          verified=True, timestamp=stamp + seconds, source="Dhan",
+                          reason="Completed OHLC body direction; not technical votes or win probability")
+
+
+def scanner_snapshot_with_candle(scan_result, history, *, symbol, timeframe, now):
+    """Join same-symbol/frame independently verified raw candles and T votes."""
+    technical = scanner_snapshot(scan_result)["engines"][0]
+    candle = EngineEvidence("candle", reason="Matching verified analysis revision required")
+    if (technical.eligible and scan_result.get("symbol") == symbol
+            and scan_result.get("timeframe") == timeframe):
+        candidate = verified_candle_evidence(history, timeframe, now=now, symbol=symbol)
+        seconds = {"1m": 60, "3m": 180, "5m": 300}.get(timeframe)
+        if candidate.eligible and technical.timestamp == candidate.timestamp - seconds:
+            candle = candidate
+    return compose_snapshot(technical=technical, candle=candle)
+
+
 def measured_directional_evidence(name, component, *, required_basis):
     """Accept only measured, authenticated Dhan directional percentages.
 

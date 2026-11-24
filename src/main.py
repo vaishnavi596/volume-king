@@ -7272,7 +7272,9 @@ console.log('BOT KING Lightweight Charts ready');
                 shared_analysis_seen[sym]=identity
                 shared_analysis_calculated[sym]=time.time()
                 watch_signal_cache[sym]=dict(result,symbol=sym)
-                publish_five_engine_5m(sym,scanner_snapshot(result))
+                from five_engine import scanner_snapshot_with_candle
+                publish_five_engine_5m(sym,scanner_snapshot_with_candle(
+                    result,data,symbol=sym,timeframe="5m",now=time.time()))
                 if sym==scan_symbol.value and scan_tf.value=="5m" and (not scan_busy[0] or scan_filter_ready[0]):
                     publish_selected_result(sym,"5m",result,shared_analysis_calculated[sym])
                     selected_report_identity[0]=report_identity
@@ -9278,10 +9280,12 @@ console.log('BOT KING Lightweight Charts ready');
                                   (data or {}).get("freshness") in ("verified_live","live_verified") and
                                   analyzed.get("historical") is False and
                                   (data or {}).get("historical") is False)
-                        publish_five_engine_5m(sym,scanner_snapshot(dict(analyzed,
+                        from five_engine import scanner_snapshot_with_candle
+                        publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,
                             source="Dhan" if source_ok else "",
                             freshness="verified_live" if verified else "unverified",
-                            live_verified=verified,historical=not verified)))
+                            live_verified=verified,historical=not verified),
+                            data,symbol=sym,timeframe="5m",now=time.time()))
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
