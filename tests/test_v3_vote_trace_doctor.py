@@ -54,6 +54,28 @@ class VoteTraceDoctorTests(unittest.TestCase):
         self.assertEqual(r["combined_vote"]["coverage"],3)
         self.assertEqual(r["box_vote_gate"]["eligible"],3)
         self.assertEqual(base(box_rows=rows,snapshot=snap)["combined_vote"]["state"],"WAIT")
+    def test_forged_display_percent_cannot_attest_published_engine(self):
+        rows=boxes()
+        source=[]
+        for i,n in enumerate(("technical","candle","news","futures","options")):
+            yes=i<3
+            source.append(EngineEvidence(n,70 if yes else None,30 if yes else None,
+                                         verified=yes,timestamp=1795000000 if yes else None,
+                                         source="Dhan" if yes else ""))
+            if yes:
+                rows[i].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                               bullish_percent=70,bearish_percent=30)
+        snapshot=compose_snapshot(**dict(zip(("technical","candle","news","futures","options"),source)))
+        rows[2]["bullish_percent"]=80
+        rows[2]["bearish_percent"]=20
+        result=base(market_open=True,box_rows=rows,snapshot=snapshot)
+        self.assertEqual(result["box_vote_gate"]["eligible"],2)
+        self.assertEqual(result["box_vote_gate"]["boxes"][2]["vote_state"],"BLOCKED")
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        self.assertEqual(result["combined_vote"]["reason"],"DISPLAY_SIDE_PROVENANCE_NOT_VERIFIED")
+        self.assertEqual(result["provider_requests"],0)
+        self.assertEqual(result["orders_sent"],0)
+
     def test_missing_display_proof_does_not_turn_three_engine_snapshot_live(self):
         a=tuple(EngineEvidence(n,70 if i<3 else None,30 if i<3 else None,
                        verified=i<3,timestamp=1795000000 if i<3 else None,
