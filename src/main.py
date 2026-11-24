@@ -3028,6 +3028,7 @@ def app_main(page:ft.Page):
                            and math.isfinite(q["price"]) and q["price"]>0)
                     label=("OFF" if not regular_hours() else "STALE")+(
                         " • ERROR" if watch_batch_status[0].startswith("Dhan batch failed:") else "")
+                    label=historical_status or label
                     if freshness.value!=label:
                         freshness.value=label
                         if freshness.page is not None:freshness.update()
