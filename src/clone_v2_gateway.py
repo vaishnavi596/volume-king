@@ -170,6 +170,10 @@ class CloneV2Gateway:
                 # Only our own fixed gateway stage header can distinguish it.
                 stage=(exc.headers.get("X-BotKing-Quote-Failure-Stage", "")
                        if getattr(exc, "headers", None) is not None else "")
+                state=(exc.headers.get("X-BotKing-Quote-Response-State", "")
+                       if getattr(exc, "headers", None) is not None else "")
+                if stage=="RESPONSE" and state=="EMPTY_SEGMENTS":
+                    raise FeedError("Clone Dhan quote provider data empty; retry later") from None
                 if stage in ("PROVIDER", "RESPONSE"):
                     raise FeedError("Clone Dhan quote upstream " + stage.lower() +
                                     " failed (HTTP " + str(exc.code) + ")") from None
@@ -313,7 +317,8 @@ class CloneDhanReadOnly:
             try:
                 return self.gateway.market_quotes(list(symbols))
             except FeedError as exc:
-                if "paced" in str(exc) or "rate limit" in str(exc):
+                if ("paced" in str(exc) or "rate limit" in str(exc)
+                        or "provider data empty" in str(exc)):
                     # Only local gateway pacing uses 2s. Actual or unknown
                     # provider quota failures retain the full 30s safety floor.
                     cooldown_seconds = 2 if "quote lane paced" in str(exc) else 30
