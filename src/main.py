@@ -1871,7 +1871,9 @@ def app_main(page:ft.Page):
             # Market-closed is a session state, not an unresolved live fetch.
             # Preserve historical context, but label unavailable live boxes OFF.
             if not regular_hours() and "WAIT" in label:
-                label=label.replace("WAIT","LIVE WAIT • market closed")
+                # Session caption already conveys market closure; avoid
+                # vertical, clipped "LIVE WAIT • market closed" in phone chips.
+                label=short+" OFF"
             cards.append(ft.Container(
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD,
                                 text_align=ft.TextAlign.CENTER),
@@ -2702,7 +2704,27 @@ def app_main(page:ft.Page):
 
     manual_quote_last_attempt=[0.0]
     async def refresh_all_dhan_quotes():
-        if prefs.get("source")!="Dhan" or not dhan_feed.connected or watch_batch_busy[0] or index_refresh_busy[0]:
+        if prefs.get("source")!="Dhan" or watch_batch_busy[0] or index_refresh_busy[0]:
+            return
+        # SSK-authenticated market-closed HIST: exactly one selected equity
+        # 1m candle source check per manual tap; never fetch a LIVE LTP here.
+        closed_ssk_hist=(clone_v2_gateway.connected and not refresh_hours()
+                         and not dhan_feed.connected)
+        if closed_ssk_hist:
+            if watch_three_minute_warm_busy[0]:
+                watch_batch_status[0]="Selected 3m HIST check in progress • LIVE OFF"
+            else:
+                checked=await warm_selected_watch_three_minute_early(
+                    provider_generation[0],explicit_closed=True)
+                watch_batch_status[0]=(
+                    "Selected 3m HIST source checked • NOT LIVE" if checked else
+                    "Selected 3m HIST cached/deferred/unavailable • LIVE OFF")
+            if current[0]==4 and watch_status_text.page is not None:
+                watch_status_text.value="Quote check • "+watch_batch_status[0]
+                watch_status_text.update()
+            return
+        if not dhan_feed.connected:
+            watch_batch_status[0]="Dhan LIVE proof unavailable • HIST cache only"
             return
         now=time.monotonic()
         # 0.0 means never attempted; permit the first explicit manual refresh.
@@ -2873,7 +2895,9 @@ def app_main(page:ft.Page):
                 button=watch_refresh_button[0]
                 if button is not None:
                     should_disable=(watch_batch_busy[0] or index_refresh_busy[0]
-                                    or prefs.get("source")!="Dhan" or not dhan_feed.connected)
+                                    or prefs.get("source")!="Dhan"
+                                    or not (dhan_feed.connected or
+                                            (clone_v2_gateway.connected and not refresh_hours())))
                     if button.disabled!=should_disable:
                         button.disabled=should_disable
                         if button.page is not None:button.update()
@@ -2997,9 +3021,12 @@ def app_main(page:ft.Page):
             field.content_padding=ft.padding.symmetric(horizontal=10,vertical=9)
         watch_status_text.value="Quote check • "+watch_batch_status[0]
         refresh_btn=ft.TextButton("Refresh data",icon=ft.Icons.REFRESH,
-                    tooltip="Check Dhan quotes now (30s cooldown); after close, one selected 3m HIST candle check if broker budget allows",
+                    tooltip="LIVE quotes require proof; when SSK connected and closed, tap for one selected 3m HIST candle check (NOT LIVE)",
                     on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
-                    disabled=watch_batch_busy[0] or index_refresh_busy[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected)
+                    disabled=(watch_batch_busy[0] or index_refresh_busy[0]
+                              or prefs.get("source")!="Dhan"
+                              or not (dhan_feed.connected or
+                                      (clone_v2_gateway.connected and not refresh_hours()))))
         watch_refresh_button[0]=refresh_btn
         return [ft.Row([heading("Watchlist"),refresh_btn],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -8388,9 +8415,12 @@ console.log('BOT KING Lightweight Charts ready');
         # A closed-session 1m history read is allowed only through the explicit
         # Watchlist manual callback, never through either automatic scheduler.
         if (current[0]!=4 or not app_active[0] or lifecycle_background[0]
-                or prefs.get("source")!="Dhan" or not dhan_feed.connected
+                or prefs.get("source")!="Dhan"
+                or not (dhan_feed.connected or
+                        (explicit_closed and clone_v2_gateway.connected and not refresh_hours()))
                 or generation!=provider_generation[0]
                 or (not refresh_hours() and not explicit_closed)
+                or (explicit_closed and refresh_hours())
                 or (explicit_closed and dhan_history_scan_active[0])
                 or watch_three_minute_warm_busy[0] or index_one_minute_busy[0]
                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
@@ -8432,7 +8462,8 @@ console.log('BOT KING Lightweight Charts ready');
                 if (generation!=provider_generation[0] or current[0]!=4
                         or not app_active[0] or lifecycle_background[0]
                         or (not refresh_hours() and not explicit_closed)
-                        or (explicit_closed and dhan_history_scan_active[0])
+                        or (explicit_closed and (refresh_hours() or
+                            not clone_v2_gateway.connected or dhan_history_scan_active[0]))
                         or index_one_minute_busy[0]
                         or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
                     return False
