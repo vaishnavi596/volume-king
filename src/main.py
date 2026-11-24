@@ -7836,12 +7836,30 @@ console.log('BOT KING Lightweight Charts ready');
                     if interval in ("1m","3m"):
                         publish_five_engine_historical(sym,interval,historical)
             historical_mode_selected=(prefs.get("market_display_mode")=="HISTORICAL")
-            if hist.get("cached") or not regular_hours() or historical_mode_selected:
+            # A connected SSK or a recently fetched Dhan candle is NOT
+            # authenticated exchange-verified LIVE evidence. AUTO falls back
+            # to actual validated last-completed HIST even on a weekday
+            # when the quote/candle provenance is unverified or stale.
+            candle_age_seconds=time.time()-bars[-1][0]
+            live_source_verified=(
+                prefs.get("source")=="Dhan" and dhan_feed.connected
+                and hist.get("source")=="Dhan"
+                and hist.get("_scanner_timeframe")==interval
+                and not hist.get("cached")
+                and hist.get("live_verified") is True
+                and hist.get("freshness")=="exchange_verified"
+                and 0<=candle_age_seconds<=timeframe_spec(interval)["fresh_seconds"])
+            display_mode=resolve_mode(
+                prefs.get("market_display_mode","AUTO"),
+                session_eligible=regular_hours(),
+                live_verified=live_source_verified,
+                history_valid=history_valid)
+            if display_mode!="LIVE":
                 advanced=dict(advanced,bias="WAIT",score=0,
                               reason=advanced["reason"]+" • No new verified live signal")
             direction=advanced["bias"]
             basis=advanced["reason"]
-            if history_valid and (hist.get("cached") or not regular_hours() or historical_mode_selected):
+            if history_valid and display_mode=="HIST":
                 basis+=(" • LAST SESSION HIST "+datetime.fromtimestamp(
                     historical["timestamp"],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")+
                     " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)")
@@ -7851,7 +7869,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
             shown_analysis=(historical if history_valid and
-                            (hist.get("cached") or not regular_hours() or historical_mode_selected) else advanced)
+                            display_mode=="HIST" else advanced)
             report_rows=enrich_context_filter_rows(sym,complete_filter_rows(shown_analysis,filter_selected,filter_modes))
             lines=[txt(str(v.get("name","Unknown filter"))+" • "+("BULLISH" if v.get("vote")==1 else "BEARISH" if v.get("vote")==-1 else "NEUTRAL" if v.get("vote")==0 else "CONTEXT ONLY" if v.get("context_only") else "UNAVAILABLE")+" • "+str(v.get("detail","No indicator detail available")),11,
                        GREEN if v.get("vote")==1 else RED if v.get("vote")==-1 else MUTED) for v in report_rows if isinstance(v,dict)]

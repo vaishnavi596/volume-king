@@ -50,10 +50,13 @@ class MarketModePhoneRuntime(unittest.TestCase):
         self.assertEqual(len(matches),1)
         body=ast.get_source_segment(source,matches[0])
         self.assertIn('historical_mode_selected=(prefs.get("market_display_mode")=="HISTORICAL")',body)
-        self.assertIn('or historical_mode_selected',body)
-        self.assertIn('and not historical_mode_selected',body)
+        self.assertIn('display_mode=resolve_mode(',body)
+        self.assertIn('if display_mode!="LIVE":',body)
+        self.assertIn('if history_valid and display_mode=="HIST":',body)
         self.assertIn('hist.get("live_verified") is True',body)
         self.assertIn('hist.get("freshness")=="exchange_verified"',body)
+        self.assertIn('and dhan_feed.connected',body)
+        self.assertIn('0<=candle_age_seconds<=timeframe_spec(interval)["fresh_seconds"]',body)
         self.assertIn('advanced=dict(advanced,bias="WAIT",score=0',body)
 
     def test_invalid_saved_mode_defaults_auto(self):

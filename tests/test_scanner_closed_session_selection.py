@@ -122,7 +122,11 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('shown_analysis=(historical if history_valid',scan)
         self.assertIn('LAST SESSION HIST',scan)
         self.assertIn('live_verified=False,freshness="historical_unverified"',scan)
-        self.assertIn('if hist.get("cached") or not regular_hours():',scan)
+        self.assertIn('display_mode=resolve_mode(',scan)
+        self.assertIn('session_eligible=regular_hours()',scan)
+        self.assertIn('live_verified=live_source_verified',scan)
+        self.assertIn('if display_mode!="LIVE":',scan)
+        self.assertIn('if history_valid and display_mode=="HIST":',scan)
 
     def test_plain_max_pain_is_not_an_independent_filter(self):
         from scanner_engine import ALL_FILTERS, OPTION_FILTERS
