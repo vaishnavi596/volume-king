@@ -2164,3 +2164,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 24 नवंबर 2026 — B209 exact SHA gate PASS, APK build running; legacy workflows blocked
 - Current B209 source c9685766: B3 #45440020666 completed SUCCESS. B209 #45440020838 in progress: source safety, exact-SHA B3 gate, isolated preview signer generated PASS; `Build full app with separate preview package` in progress at status check. Artifact count zero; do not claim signed APK available until signer verification and upload complete.
 - Old B207 #45440020667 and B208 #45440020464 are FAILURE under B209 project-version head (their own old-version guard), not B209 regression results. Future cleanup should remove obsolete APK push trigger overlap, but do not change/build SHA midway while B209 is in progress.
+
+
+### 24 नवंबर 2026 — पुराने B207/B208 के अनावश्यक APK ट्रिगर बंद (B209 के चल रहे SHA को नहीं छेड़ा)
+- GitHub exact SHA c9685766: B3 #45440020666 SUCCESS; B209 #45440020838 Build full app in_progress, upload artifact अभी नहीं हुआ (जाँच समय)। B207 #45440020667 और B208 #45440020464 Version Guard FAIL, क्योंकि उनकी `push.paths` सूची साझा clone-B3 workflow पर trigger होती थी, जबकि `pyproject.toml` अब 2.3.209 है।
+- केवल दो पुराने preview workflow फाइलों में `push` trigger हटाया, `workflow_dispatch` और original version/source signing guards बनाए रखे। पुराने B207/B208 के APK को overwrite नहीं किया; कोई server/client analysis code नहीं बदला। B3 का स्रोत path trigger इन workflow changes पर एक नया NO APK regression run दे सकता है; पुराने APK अब अनावश्यक स्वतः rebuild नहीं होंगे। नया B209 original c9685766 source run इसी SHA पर चलता रहेगा।
