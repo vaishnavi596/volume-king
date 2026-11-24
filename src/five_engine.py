@@ -386,6 +386,19 @@ def option_from_component(component):
     timestamp = component.get("timestamp")
     if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
         return EngineEvidence("options", reason="Option flow timestamp unavailable")
+    # A supplied expiry must name a canonical non-expired contract relative
+    # to this measured evidence, not a date parsed from phone wall-clock time.
+    expiry=component.get("expiry")
+    if expiry is not None:
+        from datetime import date, datetime, timezone, timedelta
+        try:
+            expiry_day=date.fromisoformat(expiry)
+            measured_day=datetime.fromtimestamp(
+                timestamp,timezone(timedelta(hours=5,minutes=30))).date()
+            if type(expiry) is not str or expiry_day.isoformat()!=expiry or expiry_day<measured_day:
+                raise ValueError("Expired or noncanonical option contract")
+        except (TypeError, ValueError, OverflowError):
+            return EngineEvidence("options", reason="Option contract expiry invalid or expired")
     # A supplied BULLISH/BEARISH label may not contradict the independently
     # measured trade-side strengths; otherwise it could mislead the 3/5 vote.
     measured = measured_directional_evidence(

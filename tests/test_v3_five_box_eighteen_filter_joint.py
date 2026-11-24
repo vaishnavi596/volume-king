@@ -197,6 +197,26 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         self.assertTrue(reverse.eligible)
         self.assertEqual(reverse.display()["state"],"BEARISH")
 
+    def test_option_expiry_when_supplied_must_be_valid_at_evidence_time(self):
+        from datetime import datetime,timezone,timedelta
+        from five_engine import option_from_component
+        ist=timezone(timedelta(hours=5,minutes=30))
+        stamp=int(datetime(2026,11,24,14,20,tzinfo=ist).timestamp())
+        sample=dict(source="Dhan",available=True,verified=True,
+                    contract="NIFTY-CE",direction_basis="validated_trade_flow",
+                    bias="BULLISH",bullish=75,bearish=25,timestamp=stamp)
+        for expiry in ("2026-11-24","2026-11-26"):
+            self.assertTrue(option_from_component(dict(sample,expiry=expiry)).eligible)
+        for expiry in ("2026-11-23","2026-11-24T00:00:00",
+                       "2026-11-24xyz",True,""):
+            with self.subTest(expiry=expiry):
+                bad=option_from_component(dict(sample,expiry=expiry))
+                self.assertFalse(bad.eligible)
+                self.assertEqual(bad.display()["state"],"WAIT")
+        # An absent expiry is retained as a legacy adapter contract, but
+        # does not itself assert that the provider populated a current expiry.
+        self.assertTrue(option_from_component(sample).eligible)
+
     def test_no_legacy_context_can_promote_news_futures_options(self):
         bars=completed_fixture("1m")
         raw=analyze(bars,selected=ALL_FILTERS,timeframe="1m")
