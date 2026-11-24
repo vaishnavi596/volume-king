@@ -142,6 +142,30 @@ class CloneV2GatewayB2Tests(unittest.TestCase):
                 self.assertFalse(gateway.connected)
 
 
+    def test_quote_http_502_diagnostic_stages_are_safe_and_bounded(self):
+        class FailedQuotes:
+            def __init__(self, stage=None):
+                self.stage=stage
+            def open(self, req, timeout):
+                headers=({"X-BotKing-Quote-Failure-Stage":self.stage}
+                         if self.stage else {})
+                raise HTTPError(req.full_url,502,"failed",headers,io.BytesIO())
+        gateway=CloneV2Gateway()
+        gateway._origin,gateway._key="https://example.org","not-printed-key"
+        for stage,expected in (
+            (None,"failure stage unverified; check gateway and proxy logs"),
+            ("PROVIDER","Dhan quote upstream provider failed"),
+            ("RESPONSE","Dhan quote upstream response failed"),
+            ("UNKNOWN","failure stage unverified; check gateway and proxy logs"),
+        ):
+            with self.subTest(stage=stage):
+                gateway._opener=FailedQuotes(stage)
+                with self.assertRaises(FeedError) as caught:
+                    gateway.market_quotes(["NIFTY"])
+                self.assertIn(expected,str(caught.exception))
+                self.assertNotIn("not-printed-key",str(caught.exception))
+                self.assertTrue(gateway.connected)
+
     def test_clone_b3_market_request_response_never_fake_data(self):
         class QuoteOpener:
             def __init__(self, result):

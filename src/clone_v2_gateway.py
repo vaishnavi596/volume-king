@@ -165,6 +165,16 @@ class CloneV2Gateway:
                 if stage in ("PROVIDER_QUOTA","PROVIDER_COOLDOWN"):
                     raise FeedError("Clone Dhan provider rate limit; retry later") from None
                 raise FeedError("Clone Dhan quote rate limit; retry later") from None
+            if exc.code in (502, 503, 504):
+                # A proxy-generated 502 may not have reached FastAPI at all.
+                # Only our own fixed gateway stage header can distinguish it.
+                stage=(exc.headers.get("X-BotKing-Quote-Failure-Stage", "")
+                       if getattr(exc, "headers", None) is not None else "")
+                if stage in ("PROVIDER", "RESPONSE"):
+                    raise FeedError("Clone Dhan quote upstream " + stage.lower() +
+                                    " failed (HTTP " + str(exc.code) + ")") from None
+                raise FeedError("Clone Oracle/quote route HTTP " + str(exc.code) +
+                                " • failure stage unverified; check gateway and proxy logs") from None
             raise FeedError("Clone market route not ready (HTTP " + str(exc.code) + ")") from None
         except (URLError, OSError, TimeoutError, ValueError, UnicodeError):
             raise FeedError("Clone market data unavailable") from None

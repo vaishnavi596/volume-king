@@ -429,11 +429,13 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     provider_cooldown_until[0] = time.monotonic() + 30
                     raise HTTPException(429, "Clone Dhan quota cooldown",
                                         headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}) from None
-                raise HTTPException(502, "Clone read-only Dhan quote unavailable") from None
+                raise HTTPException(502, "Clone read-only Dhan quote unavailable",
+                                    headers={"X-BotKing-Quote-Failure-Stage": "PROVIDER"}) from None
             if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
                 for sym in symbols:
                     market_diagnostic("quotes", sym, "shape", "invalid_shape")
-                raise HTTPException(502, "Invalid clone Dhan quote response")
+                raise HTTPException(502, "Invalid clone Dhan quote response",
+                                    headers={"X-BotKing-Quote-Failure-Stage": "RESPONSE"})
             quotes = {}
             for symbol in symbols:
                 seg, sid = known[symbol]

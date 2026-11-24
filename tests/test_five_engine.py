@@ -612,7 +612,7 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         self.assertIn('wrap_delta_section("scanner_five"', source)
         self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
         self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
-        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),scanner_historical_final_vote()]', source)
+        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value),scanner_historical_final_vote()]', source)
         self.assertIn('def scanner_historical_final_vote(symbol=None, timeframe=None):', source)
 
     def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
