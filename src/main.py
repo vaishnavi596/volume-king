@@ -1508,7 +1508,10 @@ def app_main(page:ft.Page):
                     return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
                                 " | ".join(parts)+
                                 " | N/F/O WAIT (independent evidence unavailable)")
-            return note("5 engines • WAIT • Dhan connection required")
+            return note("5 engines • WAIT • "+(
+                "SSK/Oracle CONNECTED • historical source separate • LIVE evidence unverified"
+                if prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours()
+                else "Dhan LIVE quote/session verification required"))
         # Read-only cache display. Never fetch five separate provider endpoints.
         exact_frame=display_timeframe or "5m"
         snapshot=(read_five_engine_context(symbol,exact_frame)
@@ -1693,7 +1696,10 @@ def app_main(page:ft.Page):
         if timeframe not in ("1m","3m","5m"):
             return note("LIVE FINAL • WAIT • unsupported timeframe • 0/5 verified")
         if prefs.get("source")!="Dhan" or not dhan_feed.connected or not regular_hours():
-            return note("LIVE FINAL • WAIT • market closed or Dhan disconnected • 0/5 verified")
+            return note("LIVE FINAL • WAIT • "+(
+                "SSK/Oracle connected • HIST available separately • LIVE quote unverified"
+                if prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours()
+                else "LIVE quote/session unverified or market closed")+" • 0/5 verified")
         snapshot=read_five_engine_context(symbol,timeframe)
         combined=snapshot["combined"]
         state=combined["state"]
@@ -3484,7 +3490,10 @@ def app_main(page:ft.Page):
             note(option_feed_status[0])
         ],spacing=6))
     def quote_caption(sym):
-        if dhan_offline():return "Dhan disconnected • saved prices hidden • connect to verify"
+        if dhan_offline():
+            return ("SSK/Oracle CONNECTED • HIST candles available separately • "
+                    "LIVE quote not verified" if clone_v2_gateway.connected
+                    else "SSK/Oracle not connected • LIVE quote not verified")
         q=quotes.get(sym) or {}
         stamp=q.get("quote_timestamp");source_name=q.get("source","No data")
         # A recent timestamp alone does not prove exchange-verified live data.
@@ -7403,7 +7412,10 @@ console.log('BOT KING Lightweight Charts ready');
         if symbol not in DHAN_VERIFIED_OPTION_SYMBOLS:
             message="OI / PCR / Dhan Max Pain: no verified Dhan underlying mapping for "+symbol
         elif prefs.get("source")!="Dhan" or not dhan_feed.connected:
-            message="OI / PCR / Dhan Max Pain: Dhan session not connected • check Clone SSK and Dhan authorization in Settings"
+            message=("OI / PCR / Dhan Max Pain: SSK/Oracle CONNECTED • "
+                     "LIVE option snapshot not verified • HIST Scanner remains available"
+                     if prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours()
+                     else "OI / PCR / Dhan Max Pain: Dhan LIVE session not verified • check authorization in Settings")
         elif not data and symbol!=chain_symbol.value:
             message=("OI / PCR / Dhan Max Pain: Scanner "+symbol+" differs from Options "+
                      str(chain_symbol.value)+" • no cached matching Dhan expiry; open Options for "+symbol)
