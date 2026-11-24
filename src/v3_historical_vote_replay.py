@@ -98,24 +98,28 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
         result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")
         return result
     result["technical_recomputed_from_completed_bars"]=False
-    if result["excluded_forming_candle_bars"]:
-        # Recalculate all selected technical indicators from the exact
-        # completed in-session Dhan candles, not the caller's forming-bar
-        # votes. Keep N/option context separate and never fetch data.
+    if history_timestamp is not None:
+        # In real B178/Master phone doctors the clock is always supplied.
+        # Recalculate technical input from the validated completed Dhan
+        # series, even when its final bar was already closed. Never trust an
+        # upstream cached integer vote from another scan or generation.
         selected=[row.get("name",row.get("filter"))
                   for row in filter_rows if isinstance(row,dict)
                   and row.get("name",row.get("filter")) in CANDLE_FILTERS]
-        if selected:
-            recomputed=analyze(session,selected,timeframe)
-            if (recomputed.get("timestamp")==session[-1][0]
-                    and recomputed.get("count")==len(session)
-                    and isinstance(recomputed.get("votes"),list)):
-                filter_rows=recomputed["votes"]
-                result["technical_recomputed_from_completed_bars"]=True
+        recomputed=(analyze(session,selected,timeframe) if selected else {})
+        if (recomputed.get("timestamp")==session[-1][0]
+                and recomputed.get("count")==len(session)
+                and isinstance(recomputed.get("votes"),list)):
+            filter_rows=recomputed["votes"]
+            result["technical_recomputed_from_completed_bars"]=True
+            if result["excluded_forming_candle_bars"]:
                 result["blockers"].remove(
                     "TECHNICAL_FILTERS_RECALC_ON_COMPLETED_BARS_REQUIRED")
-            # An invalid or incomplete source stays WAIT rather than reusing
-            # an upstream technical vote calculated over the forming candle.
+        else:
+            # A failed recomputation must not reuse stale upstream votes.
+            # Preserve selected row names for transparent replay diagnostics.
+            filter_rows=[{"name":row.get("name",row.get("filter"))}
+                         for row in filter_rows if isinstance(row,dict)]
     unique=set()
     bull=bear=neutral=0
     for row in filter_rows:
@@ -137,7 +141,7 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
             bear+=vote==-1
             neutral+=vote==0
     technical=None
-    if bull+bear and (result["excluded_forming_candle_bars"]==0
+    if bull+bear and (history_timestamp is None
                      or result["technical_recomputed_from_completed_bars"]):
         technical={"bullish":round(100*bull/(bull+bear)),
                    "bearish":100-round(100*bull/(bull+bear)),

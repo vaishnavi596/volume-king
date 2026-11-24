@@ -146,6 +146,37 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(r["orders_sent"],0)
         self.assertEqual(arr,before)
 
+    def test_completed_phone_replay_recalculates_without_stale_filter_votes(self):
+        arr=bars()
+        bogus=[{"name":"MACD","vote":1},
+               {"name":"EMA 9/21","vote":1},
+               {"name":"RSI 14","vote":1},
+               {"name":"News Headlines","vote":1},
+               {"name":"OI Support","vote":1}]
+        result=replay(bars=arr,filter_rows=bogus,
+                      history_timestamp=arr[-1][0]+60)
+        self.assertTrue(result["technical_recomputed_from_completed_bars"])
+        from scanner_engine import analyze
+        expected=analyze(arr,["MACD","EMA 9/21","RSI 14"],"1m")
+        directional=[row["vote"] for row in expected["votes"]
+                     if row.get("vote") in (-1,1)]
+        self.assertEqual(result["technical_vote"]["directional_count"],
+                         len(directional))
+        self.assertEqual(result["technical_vote"]["bullish"],
+                         round(100*sum(v==1 for v in directional)/len(directional)))
+        self.assertEqual(result["boxes"][2]["state"],"WAIT")
+        self.assertEqual(result["boxes"][4]["state"],"WAIT")
+        self.assertEqual(result["provider_requests"],0)
+
+    def test_phone_replay_malformed_technical_series_stays_wait(self):
+        arr=bars()
+        arr[-25][2]=arr[-25][1]-1  # high below open, invalid historic OHLC
+        result=replay(bars=arr,
+                      history_timestamp=arr[-1][0]+60)
+        self.assertFalse(result["technical_recomputed_from_completed_bars"])
+        self.assertEqual(result["boxes"][0]["state"],"WAIT")
+        self.assertEqual(result["orders_sent"],0)
+
     def test_forming_bar_recalculation_rejects_context_only_filter_votes(self):
         arr=bars()
         selected=[{"name":"MACD","vote":-1},
