@@ -166,6 +166,20 @@ class CloneV2GatewayB2Tests(unittest.TestCase):
                 self.assertNotIn("not-printed-key",str(caught.exception))
                 self.assertTrue(gateway.connected)
 
+    def test_empty_segments_502_is_classified_without_quotes(self):
+        class EmptySegments:
+            def open(self, req, timeout):
+                raise HTTPError(req.full_url, 502, "upstream empty", {
+                    "X-BotKing-Quote-Failure-Stage": "RESPONSE",
+                    "X-BotKing-Quote-Response-State": "EMPTY_SEGMENTS",
+                    "Retry-After": "30",
+                }, io.BytesIO())
+        gateway=CloneV2Gateway(opener=EmptySegments())
+        gateway._origin,gateway._key="https://example.org","private-in-memory"
+        with self.assertRaisesRegex(FeedError, "provider data empty; retry later"):
+            gateway.market_quotes(["NIFTY"])
+        self.assertTrue(gateway.connected)
+
     def test_clone_b3_market_request_response_never_fake_data(self):
         class QuoteOpener:
             def __init__(self, result):
