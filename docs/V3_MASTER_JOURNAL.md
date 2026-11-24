@@ -2005,3 +2005,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Previous Doctor confirms oracle_connected=true, dhan_connected=false, selected_valid_dhan_prices=0 out of 51 equities. One ICICIBANK history FeedError was recorded independently; do not infer all history broken.
 - Fix acceptance: source-validated historical last-close may be displayed as HIST CLOSE with source time and NOT LIVE, never mislabeled LTP; restore actual current LTP only on verified Dhan quote path. Diagnose SSK source/history, quote cache and UI independently with dynamic 51/70 selected-only budget; keep indices separate and respect 429 pacing.
 - Finding documented only. Production code, Oracle and APK not changed in this commit.
+
+
+### 24 नवंबर 2026 — Historical Close price display implementation
+- Source patch: src/v3_hist_close_display.py validates exact Dhan 3m completed OHLC (finite positive prices, OHLC consistency, nonfuture timestamp) and generates `HIST <price>` with timestamp, NOT LIVE, source unverified. Does not insert candle close into LIVE quotes, rate limits, source data or order flow.
+- src/main.py Watchlist initial rows and mounted 2s price tick use distinct historical close only for closed Dhan sessions without valid LTP; normal quote display remains unchanged, and the HIST label is retained after tick. Existing SSK closed refresh, scanner, Doctor, options and index functionality not changed.
+- tests/test_v3_hist_close_display.py added safety tests including partial/future bars, bad OHLC, source/timeframe isolation and newest completed bar. Latest implementation commit sequence c9ba5dc, f2e1a51, a4c5681, db83dfc. Regression gate outcome must be independently confirmed; phone acceptance pending. This is a narrow price-display fix, NOT a fix for missing Dhan quote collection, six-engine votes or Super Five.
