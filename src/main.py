@@ -271,6 +271,8 @@ def app_main(page:ft.Page):
     # override the Dhan-only adapter shown in Settings.
     if prefs.get("source")!="Dhan":
         prefs["source"]="Dhan"
+    from v3_market_display_mode import normalized_mode, resolve_mode
+    prefs["market_display_mode"]=normalized_mode(prefs.get("market_display_mode","AUTO"))
     prefs["schema_version"]=2
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
     stock_diagnostic_registry=DiagnosticRegistry()  # Keep recovery across Settings re-entry.
@@ -427,9 +429,28 @@ def app_main(page:ft.Page):
     def refresh_hours(now=None):
         # Calendar-gated automatic Dhan polls. Manual HIST reads remain separate.
         return equity_refresh_window(now)
+    market_display_choice=ft.Dropdown(
+        label="Market analysis • AUTO / HISTORICAL / LIVE ONLY",
+        value=prefs["market_display_mode"],
+        options=[ft.dropdown.Option(v) for v in ("AUTO","HISTORICAL","LIVE_ONLY")],
+        width=315)
+    def change_market_display_mode(e):
+        new_mode=normalized_mode(e.control.value)
+        if new_mode!=prefs.get("market_display_mode"):
+            prefs["market_display_mode"]=new_mode
+            save()
+            # A settings change repaints but never initiates a provider request.
+            select(2)
+    market_display_choice.on_change=change_market_display_mode
     def session_caption():
-        return ("STALE • exchange timestamps unverified" if regular_hours() else
-                "OFF • last available prices (not live)"+equity_session_closed_detail())
+        mode=prefs.get("market_display_mode","AUTO")
+        if mode=="HISTORICAL":
+            return "HISTORICAL ONLY • last completed Dhan session • NOT LIVE"
+        if mode=="LIVE_ONLY":
+            return ("LIVE ONLY • evidence freshness required" if regular_hours() else
+                    "LIVE ONLY • WAIT • market closed"+equity_session_closed_detail())
+        return ("AUTO • LIVE unverified until fresh exchange evidence • HIST fallback allowed"
+                if regular_hours() else "AUTO • HIST fallback • LIVE OFF"+equity_session_closed_detail())
     market_store=SnapshotStore(CACHE_FILE)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
@@ -1693,6 +1714,8 @@ def app_main(page:ft.Page):
         Dhan connection, market session and evidence freshness at read time.
         No source requests, guessed engine votes or broker orders here.
         """
+        if prefs.get("market_display_mode")=="HISTORICAL":
+            return note("LIVE FINAL • DISABLED BY HISTORICAL MODE • NOT LIVE")
         if timeframe not in ("1m","3m","5m"):
             return note("LIVE FINAL • WAIT • unsupported timeframe • 0/5 verified")
         if prefs.get("source")!="Dhan" or not dhan_feed.connected or not regular_hours():
@@ -1717,6 +1740,8 @@ def app_main(page:ft.Page):
         missing N/F/O inputs remain abstentions. Never report this as LIVE.
         """
         from filter_wiring_audit import CANDLE_FILTERS
+        if prefs.get("market_display_mode")=="LIVE_ONLY":
+            return note("HIST FINAL • HIDDEN BY LIVE ONLY MODE • LIVE remains evidence gated")
         sym=str(symbol or scan_symbol.value or "NIFTY")
         frame=str(timeframe or scan_tf.value or "1m")
         history=shared_history(sym,frame)
@@ -1741,14 +1766,16 @@ def app_main(page:ft.Page):
                ("futures","F"),("options","O"))
         # Normal UI hydration, not Doctor: publish existing exact-frame HIST
         # once so a closed market does not depend on a manual Run Scan.
-        if display_timeframe in ("1m","3m") and prefs.get("source")=="Dhan":
+        if (display_timeframe in ("1m","3m") and prefs.get("source")=="Dhan"
+                and prefs.get("market_display_mode")!="LIVE_ONLY"):
             ensure_cached_historical_engine_publish(sym,display_timeframe)
         # Read the exact requested timeframe/generation, never the 5m rank
         # snapshot for Dashboard 1m, Watchlist 3m or selected Scanner frame.
         # Historical-only caches still render T/C HIST below, not LIVE votes.
         exact_frame=display_timeframe or "5m"
         snapshot=(read_five_engine_context(sym,exact_frame)
-                  if prefs.get("source")=="Dhan" and dhan_feed.connected
+                  if prefs.get("market_display_mode")!="HISTORICAL"
+                  and prefs.get("source")=="Dhan" and dhan_feed.connected
                   and exact_frame in ("1m","3m","5m") else None)
         if snapshot and not regular_hours():
             # Session closure revokes LIVE eligibility but not the distinct
@@ -6225,6 +6252,11 @@ def app_main(page:ft.Page):
         content.append(v3_live_building_panel())  # Easy-access front-visible capacity test after login.
         # Old SENSEX-only probe removed; filter/engine errors now live in main Doctor.
         content.append(central_filter_settings())
+        content.append(section("MARKET DISPLAY • LIVE / HIST",ft.Column([
+            market_display_choice,
+            note("AUTO: fresh verified LIVE or last-good HIST on holiday/stale/outage. "
+                 "HISTORICAL: completed candles only. LIVE ONLY: no HIST final. "
+                 "Saved quote prices never become live proof; no orders.")],spacing=5)))
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
