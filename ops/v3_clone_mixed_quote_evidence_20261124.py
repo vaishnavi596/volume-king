@@ -41,9 +41,9 @@ def classify(response):
     if response.get("status") != "success" or not isinstance(response.get("data"), dict):
         return "INVALID_ENVELOPE", {}
     seg = response["data"].get("IDX_I")
-    if not isinstance(seg, dict):
-        return "IDX_I_MISSING", {}
     statuses = {}
+    if not isinstance(seg, dict):
+        seg = {}
     for name, sid in EXPECTED.items():
         value = seg.get(str(sid))
         if not isinstance(value, dict):
