@@ -96,8 +96,8 @@ class AuditTests(unittest.TestCase):
         t=int(datetime(2026,11,3,9,15,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp())
         bars=[(t+i*60,100+i,103+i,99+i,102+i,10) for i in range(6)]
         self.assertEqual(v['aggregate_3m'](bars),[[t,100.,105.,99.,104.,30.],[t+180,103.,108.,102.,107.,30.]])
-        self.assertFalse(v['regular_hours'](datetime(2026,11,7,10,0)))
-        self.assertTrue(v['regular_hours'](datetime(2026,11,3,10,0)))
+        self.assertFalse(v['regular_hours'](datetime(2026,11,7,10,0,tzinfo=timezone(timedelta(hours=5,minutes=30)))))
+        self.assertTrue(v['regular_hours'](datetime(2026,11,3,10,0,tzinfo=timezone(timedelta(hours=5,minutes=30)))))
         v['prefs']['source']='Broker API'
         with self.assertRaises(RuntimeError):v['get_market_data']('NIFTY')
         result=v['analyze_current'](bars*6,None,'1m')

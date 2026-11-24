@@ -97,7 +97,8 @@ class A3RegressionTests(unittest.TestCase):
         # show LIVE WAIT (without hiding HIST), while open market without evidence shows WAIT.
         from datetime import datetime, timezone, timedelta
         ist=datetime.now(timezone(timedelta(hours=5,minutes=30)))
-        expected=(" WAIT" if ist.weekday()<5 and (9,15)<=(ist.hour,ist.minute)<(15,30)
+        from v3_equity_session_calendar import regular_equity_hours
+        expected=(" WAIT" if regular_equity_hours(ist)
                   else " LIVE WAIT • market closed")
         self.assertEqual(labels[:5],[name+expected for name in ("T","C","N","F","O")])
         # Reserved sixth visual slot is inert; the five engine states stay unchanged.

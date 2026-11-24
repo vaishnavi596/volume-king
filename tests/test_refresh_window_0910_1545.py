@@ -3,6 +3,9 @@ import ast
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import unittest
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
+from v3_equity_session_calendar import regular_equity_hours, equity_refresh_window
 
 MAIN=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
 TREE=ast.parse(MAIN)
@@ -12,7 +15,8 @@ def get_local_function(name):
     matches=[n for n in ast.walk(TREE) if isinstance(n,ast.FunctionDef) and n.name==name]
     assert len(matches)==1, (name,len(matches))
     module=ast.Module(body=[matches[0]],type_ignores=[])
-    ns={"datetime":datetime,"timezone":timezone,"timedelta":timedelta}
+    ns={"datetime":datetime,"timezone":timezone,"timedelta":timedelta,
+        "regular_equity_hours":regular_equity_hours,"equity_refresh_window":equity_refresh_window}
     exec(compile(module,"<market-hours-isolated>","exec"),ns)
     return ns[name]
 
