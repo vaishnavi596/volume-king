@@ -30,9 +30,10 @@ class HolidayHistorySourceGate(unittest.TestCase):
 
     def test_scanner_holiday_auto_selection_cache_only_independent_of_ltp(self):
         source=body("render_page")
-        self.assertIn('if prefs.get("source")=="Dhan" and not refresh_hours():',source)
+        self.assertIn('dhan_feed.connected and not refresh_hours()',source)
+        self.assertIn('or not refresh_hours()',source)
         self.assertIn("page.run_task(scan_market,False)",source)
-        snippet=source.split('if prefs.get("source")=="Dhan" and not refresh_hours():',1)[1]
+        snippet=source.split('or not refresh_hours()',1)[1]
         self.assertLess(snippet.index("page.run_task(scan_market,False)"),1500)
 
     def test_open_market_does_not_bypass_real_quote_proof(self):
