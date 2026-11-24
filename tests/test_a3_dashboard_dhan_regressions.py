@@ -79,7 +79,7 @@ class A3RegressionTests(unittest.TestCase):
     def test_five_engine_chips_are_safe_and_consistent(self):
         source=MAIN.read_text(encoding="utf-8")
         area=source.split("    def five_engine_chips(sym, display_timeframe=None):",1)[1].split("    def super_five_card():",1)[0]
-        self.assertIn('snapshot_for_display(',area)
+        self.assertIn('read_five_engine_context(',area)
         self.assertIn('raw.get("source")=="Dhan"',area)
         self.assertIn('label=short+" WAIT"',area)
         self.assertIn('historical=True',area)
