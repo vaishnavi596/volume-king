@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.95" # Dhan option expiry and read-only metrics integration release
+version = "2.3.99" # Rebuild after B1 index UI regression repair; tests green
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

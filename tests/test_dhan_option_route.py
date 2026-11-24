@@ -13,7 +13,7 @@ class DhanOptionRouteTests(unittest.TestCase):
         self.client = TestClient(create_app(pairing_key=self.key))
 
     def test_auth_and_mapping_reject_before_dhan_request(self):
-        payload = {"symbol": "BANKNIFTY", "expiry": "2099-12-31"}
+        payload = {"symbol": "UNVERIFIEDINDEX", "expiry": "2099-12-31"}
         response = self.client.post("/dhan/option-chain", json=payload)
         self.assertEqual(response.status_code, 403)
         response = self.client.post("/dhan/option-chain", json=payload,

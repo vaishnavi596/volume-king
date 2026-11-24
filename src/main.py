@@ -25,7 +25,7 @@ from importlib.metadata import version as package_version, PackageNotFoundError
 try:
     APP_VERSION = package_version("bot-king")
 except PackageNotFoundError:
-    APP_VERSION = "2.3.95"  # Release fallback; CI verifies equality with pyproject.toml.
+    APP_VERSION = "2.3.99"  # Release fallback; CI verifies equality with pyproject.toml.
 from pathlib import Path
 
 #                                  Apache License
@@ -640,11 +640,11 @@ def app_main(page:ft.Page):
         return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
     def quote_change(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
+        v=q.get("change") if q and q.get("provider_status")!="provider_data_unavailable" else None
         return f'{v:+.2f}%' if v is not None else "—"
     def price_color(sym):
         q=None if dhan_offline() else quotes.get(sym)
-        v=q.get("change") if q else None
+        v=q.get("change") if q and q.get("provider_status")!="provider_data_unavailable" else None
         return GREEN if v is not None and v>=0 else RED if v is not None else MUTED
     def tiny_chart(sym,snapshot=None):
         q=snapshot if snapshot is not None else (quotes.get(sym) or {})
@@ -1072,22 +1072,45 @@ def app_main(page:ft.Page):
             if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and (not valid_source or not isinstance(snapshot.get("price"),(int,float))
                     or isinstance(snapshot.get("price"),bool) or not math.isfinite(snapshot["price"])
                     or snapshot["price"]<=0):
-                rows_note=(("NIFTY mapping exists; individual Dhan index LTP not available yet • "
-                            "51-equity snapshot does not contain index prices") if sym=="NIFTY" else
-                           ("BANK NIFTY / SENSEX instrument mapping not verified • "
-                            "51-equity snapshot does not contain index prices"))
+                rows_note=("Index Dhan LTP unavailable • no verified quote returned for this index • "
+                           "51-equity snapshot does not include indexes")
             else:
                 rows_note=None
             rows=[picker,ft.Row([txt(sym,13,GOLD,True),
                           ft.Container(content=txt(quote_price(sym),15,GOLD,True),expand=True),
                           txt(quote_change(sym),11,price_color(sym),True)],spacing=8)]
-            if rows_note:
+            if prefs.get("source")=="Dhan" and sym in ("NIFTY","BANKNIFTY","SENSEX") and snapshot.get("provider_status")=="provider_data_unavailable":
+                rows.append(note("Dhan index provider data unavailable • displayed price is LAST KNOWN, not a fresh live quote"))
+            elif rows_note:
                 rows.append(note(rows_note))
-            if not valid_source or not snapshot.get("bars"):
-                rows.append(note("Candle signal: UNAVAILABLE • no verified 5m candle series"))
+            # Reuse an already-loaded 5m candle series, never an index LTP
+            # snapshot (which contains no historical bars). Do not issue a
+            # network request while building the dashboard.
+            candle_data=snapshot if snapshot.get("bars") else (
+                chart_snapshots.get((sym,"5m",provider_generation[0])) or
+                candles.get("scanner_chart_"+sym) or {})
+            candle_tf=candle_data.get("_scanner_timeframe","5m")
+            if candle_tf!="5m" or candle_data.get("source")!=source:
+                candle_data={}
+            if not valid_source or not candle_data.get("bars"):
+                rows.append(note("Candle bias: UNAVAILABLE • no verified 5m candle series • open 5m Scanner chart to load candles"))
             else:
                 try:
-                    analysis=display_analysis(sym,snapshot)
+                    indicator=analyze_current(candle_data["bars"],filter_selected[:],"5m")
+                    votes=[v for v in indicator.get("votes",[]) if isinstance(v,dict)]
+                    bulls=sum(v.get("vote")==1 for v in votes)
+                    bears=sum(v.get("vote")==-1 for v in votes)
+                    total=bulls+bears
+                    quality=indicator.get("quality") or {}
+                    if total and quality.get("usable"):
+                        rows.append(ft.Row([
+                            txt("BULLISH "+str(round(100*bulls/total))+"%",11,GREEN,True),
+                            txt("BEARISH "+str(round(100*bears/total))+"%",11,RED,True)
+                        ],spacing=12))
+                        rows.append(note("5m technical vote agreement • historical/unverified, NOT a live trading signal"))
+                    else:
+                        rows.append(note("5m technical vote agreement unavailable • insufficient or invalid completed candles"))
+                    analysis=display_analysis(sym,candle_data)
                     if not analysis.get("timestamp"):
                         rows.append(note("Candle signal: UNAVAILABLE • insufficient completed candles"))
                     else:
@@ -1256,10 +1279,10 @@ def app_main(page:ft.Page):
                          and isinstance(quote_row.get("price"),(int,float)) and not isinstance(quote_row["price"],bool)
                           and math.isfinite(quote_row["price"]) and quote_row["price"]>0
                          and not dhan_offline())
-            quote_label=("Last cached Dhan LTP • latest batch failed • exchange timestamp unverified"
+            quote_label=("Cached Dhan LTP • refresh failed • exchange time unverified"
                          if prefs.get("source")=="Dhan" and watch_batch_status[0].startswith("Dhan batch failed:") else
-                         ("Oracle LTP fetched recently • exchange timestamp unverified" if prefs.get("source")=="Dhan" else
-                          "Recently fetched • verify exchange timestamp") if quote_fresh else "Cached/stale or unverified quote")
+                         ("Recent Dhan LTP • exchange time unverified" if prefs.get("source")=="Dhan" else
+                          "Recent quote • exchange time unverified") if quote_fresh else "Cached/unverified quote")
             signal_row=watch_signal_cache.get(sym,{})
             signal_counts=signal_percentages(signal_row)
             signal_stamp=signal_row.get("timestamp")
@@ -1276,7 +1299,7 @@ def app_main(page:ft.Page):
             if watch_filter[0]!="All" and watch_filter[0]!=signal_direction:continue
             visible_count+=1
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • change derived from provider quote" if valid_change else "Price direction unavailable • Dhan change/reference price not verified")),note("Candle filter: "+(signal_direction if signal_fresh else "Historical votes only • NOT a live signal")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
+                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),ft.Column([txt(sym,12,WHITE,True),note(("Price "+direction+" • provider change" if valid_change else "Price change unavailable • reference unverified")),note("Candle: "+(signal_direction if signal_fresh else "Historical • not live")),note(quote_label),strength_widget(signal_row,sym)],expand=True,spacing=3),ft.Column([txt(quote_price(sym) if quote_source==expected_quote_source else "—",13,price_color(sym) if quote_source==expected_quote_source else MUTED,True),txt("CONNECT DHAN" if dhan_offline() else quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",10,price_color(sym) if quote_source==expected_quote_source else MUTED)],horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),bgcolor=PANEL,border_radius=9,padding=6,expand=True,on_click=lambda e,v=sym:open_stock(v)),
                 ft.IconButton(icon=ft.Icons.CLOSE,icon_color=RED,tooltip="Remove from this list",on_click=lambda e,v=sym:remove_stock(v))
             ],spacing=2))
         if visible_count==0:
@@ -1383,6 +1406,64 @@ def app_main(page:ft.Page):
         finally:
             watch_batch_busy[0]=False
             request_view_refresh(4)
+    index_refresh_busy=[False]
+    index_last_attempt=[0.0]
+    index_refresh_generation=[None]
+    async def refresh_dhan_index_quotes(force=False):
+        """One serialized three-index cycle, independently throttled from equity snapshots."""
+        if not app_active[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return
+        if index_refresh_busy[0]:
+            return
+        generation=provider_generation[0]
+        now=time.monotonic()
+        if (not force and index_refresh_generation[0]==generation
+                and now-index_last_attempt[0]<60):
+            return
+        index_refresh_busy[0]=True
+        index_last_attempt[0]=now
+        index_refresh_generation[0]=generation
+        try:
+            snapshots=await asyncio.to_thread(dhan_feed.index_batch_quotes)
+            if not app_active[0] or generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                return
+            for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
+                snapshot=snapshots.get(ticker)
+                if snapshot is None:
+                    # A successful batch can omit BSE_I quotes. Preserve the last
+                    # known Dhan price, but explicitly mark provider unavailability.
+                    old=quotes.get(ticker)
+                    if isinstance(old,dict) and old.get("source")=="Dhan":
+                        quotes[ticker]=dict(old,provider_status="provider_data_unavailable",
+                            freshness="unverified",live_verified=False)
+                    continue
+                price=snapshot.get("price")
+                if (snapshot.get("source")=="Dhan"
+                        and isinstance(price,(int,float)) and not isinstance(price,bool)
+                        and math.isfinite(price) and price>0):
+                    old=quotes.get(ticker) or {}
+                    quotes[ticker]=dict(snapshot,change=None,
+                        bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                        fetched_at=time.time(),live_verified=False)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("dhan_index_ltp_batch",exc)
+            for ticker in ("NIFTY", "BANKNIFTY", "SENSEX"):
+                old=quotes.get(ticker)
+                if isinstance(old,dict) and old.get("source")=="Dhan":
+                    quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
+        finally:
+            index_refresh_busy[0]=False
+            if current[0] in (0,4,5):
+                request_view_refresh(current[0])
+
+    async def refresh_all_dhan_quotes():
+        if prefs.get("source")!="Dhan" or not dhan_feed.connected:
+            return
+        await refresh_watch_batch()
+        await refresh_dhan_index_quotes()
+
     async def dhan_quote_poll():
         # Quote cadence is independent of the expensive 51-symbol candle-history scan.
         # Only poll while the Android app is foregrounded and Dhan is connected.
@@ -1400,6 +1481,9 @@ def app_main(page:ft.Page):
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
+                    # Index LTP is a separate mapped endpoint: snapshot cooldown
+                    # must not block three index cards from refreshing.
+                    await refresh_dhan_index_quotes()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -1420,7 +1504,7 @@ def app_main(page:ft.Page):
                 last_visible_signature=None
                 continue
             try:
-                visible=tuple(watch_groups[active_watch[0]])
+                visible=tuple(watch_groups[active_watch[0]])+("NIFTY","BANKNIFTY","SENSEX")
                 signature=(active_watch[0],watch_batch_status[0],scan_progress.get("state"),tuple((sym,(quotes.get(sym) or {}).get("fetched_at"),
                             (quotes.get(sym) or {}).get("price"),
                             (watch_signal_cache.get(sym) or {}).get("timestamp")) for sym in visible))
@@ -1431,14 +1515,32 @@ def app_main(page:ft.Page):
 
     def watchlist():
         fill_watch()
+        index_symbols=("NIFTY", "BANKNIFTY", "SENSEX")
+        index_cards=[]
+        for index_name in index_symbols:
+            index_quote=quotes.get(index_name) or {}
+            valid=(prefs.get("source")=="Dhan" and index_quote.get("source")=="Dhan"
+                   and isinstance(index_quote.get("price"),(int,float))
+                   and not isinstance(index_quote.get("price"),bool)
+                   and math.isfinite(index_quote["price"]) and index_quote["price"]>0)
+            provider_missing=index_quote.get("provider_status")=="provider_data_unavailable"
+            index_cards.append(ft.Container(
+                content=ft.Column([txt(index_name,11,WHITE,True),
+                    txt(f'{index_quote["price"]:,.2f}' if valid else "—",14,MUTED if provider_missing else GOLD if valid else MUTED,True),
+                    note(("Dhan unavailable • LAST KNOWN, not live" if valid else "Dhan index provider unavailable") if provider_missing else
+                         ("Dhan LTP • cached/unverified" if time.time()-index_quote.get("fetched_at",0)>120 else "Dhan LTP • exchange time unverified") if valid else "Dhan LTP unavailable")],
+                    spacing=3),bgcolor=PANEL,border_radius=9,padding=8,expand=True,
+                on_click=lambda e,v=index_name:open_stock(v)))
         return [heading("Watchlist • 5 Lists"),
+            note("Market indexes (3) + equity universe ("+str(len(watch_symbols))+") = "+str(len(watch_symbols)+3)+" instruments • indexes excluded from equity scan"),
+            ft.Row(index_cards,spacing=5),
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             note("List "+str(active_watch[0]+1)+" • "+str(len(watch_groups[active_watch[0]]))+" symbols • tap a row for details"),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),note("Bullish/Bearish filters use fresh candle-filter votes, not daily price movement. Neutral includes unavailable signals."),ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO),
             ft.Row([add_symbol,ft.ElevatedButton("Add",on_click=add_watch,bgcolor=GOLD,color=BG)]),feedback,
             note(("Dhan quote refresh • every 30 sec while foreground • "+watch_batch_status[0]) if prefs.get("source")=="Dhan" else market_status+" • Quotes may be delayed"),
             note("Candle scan • "+str(scan_progress.get("state","Not started"))+" • "+str(scan_progress.get("valid",0))+" valid / "+str(scan_progress.get("failed",0))+" failed • candle signals are independent of LTP refresh") if prefs.get("source")=="Dhan" else note(""),
-            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_watch_batch),
+            ft.Row([ft.ElevatedButton("Refresh Dhan LTP",on_click=lambda e:page.run_task(refresh_all_dhan_quotes),
                 disabled=watch_batch_busy[0] or prefs.get("source")!="Dhan"),
                 note(watch_batch_status[0] if prefs.get("source")=="Dhan" else "Select Dhan for batch quotes")],
                 wrap=True),note("Quote refresh is independent of historical analysis • latest batch status above"),watch_list]
@@ -3495,8 +3597,25 @@ console.log('BOT KING Lightweight Charts ready');
             else:parts.append(note("Chart will appear after a successful scanner fetch."))
             parts.append(ft.Column([ft.Checkbox(label=x,value=x in scanner_chart_indicators,data=x,on_change=scanner_chart_filter) for x in chart_filter_names],spacing=0))
             parts.append(note("Chart switches affect display only. The 10 analysis filters below work independently. EMA is plotted; RSI/MACD show values; Supertrend shows analysis status."))
-            parts.append(note("OI / PCR / Max Pain: unavailable until verified option-chain API is connected."))
+            parts.append(note("OI / PCR / Max Pain context is shown below when a matching Dhan Options snapshot exists; not a live scanner vote."))
         return section("COMPACT CHART • "+sym,ft.Column(parts,spacing=4))
+    def scanner_option_context():
+        """Display cached Dhan option metrics without treating them as scanner votes."""
+        symbol=scan_symbol.value or "NIFTY"
+        data=dhan_option_metrics
+        if symbol!="NIFTY":
+            message="OI / PCR / Max Pain: unavailable for "+symbol+" • Dhan option mapping verified only for NIFTY"
+        elif (prefs.get("source")!="Dhan" or not dhan_feed.connected
+              or data.get("symbol")!="NIFTY" or data.get("expiry")!=expiry.value):
+            message="OI / PCR / Max Pain: no matching Dhan expiry snapshot • open Options and refresh selected data"
+        else:
+            message=("Dhan NIFTY • expiry "+str(data["expiry"])
+                     +" • PCR "+f'{data["pcr"]:.3f}'
+                     +" • Max Pain "+f'{data["max_pain"]:,.0f}'
+                     +" • OI strike levels unavailable")
+        return section("OI / PCR / MAX PAIN • INFORMATION ONLY",
+                       ft.Column([note(message),
+                                  note("Freshness UNVERIFIED • no OI/PCR/Max Pain scanner vote or live trade signal")],spacing=4))
     def scanner():
         fusion_selected.controls=[fusion_card(scan_symbol.value or "NIFTY",scan_tf.value or "5m")]
         filter_checklist.controls=[ft.Container(content=ft.Column([ft.Checkbox(label=x,value=x in filter_selected,data=x,on_change=filter_checkbox_changed),filter_mode_control(x)],spacing=5),padding=ft.padding.symmetric(horizontal=6,vertical=9),border=ft.border.only(bottom=ft.BorderSide(1,BORDER))) for x in DEFAULT_FILTERS]
@@ -3512,7 +3631,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             card(symbol_search(scan_symbol),scan_symbol,scan_tf,scan_budget,scan_period,scan_min,scan_max,scan_expiry,scan_refresh,
                  scan_live,ft.ElevatedButton("Refresh history now",on_click=run_scan),scan_status,scan_age_display),
-            scanner_compact_chart(),fusion_selected,
+            scanner_compact_chart(),fusion_selected,scanner_option_context(),
             section("10 DEFAULT ANALYSIS FILTERS • ON/OFF",ft.Column([note("These control background scanner votes and Top 5 ranking, not chart visibility."),filter_checklist,ft.OutlinedButton("Restore default 10",on_click=reset_default_filters),note("Additional indicators: choose below; OI/PCR require verified exchange data.")],spacing=4)),section("ADDED FILTERS • "+str(len(added_filters))+" saved • "+str(sum(n in filter_selected for n in added_filters))+" ON",added_filter_list),section("ADD EXTRA FILTERS • Saved",ft.Column([filter_query,filter_choice,ft.Row([ft.ElevatedButton("Add",on_click=lambda e:filter_edit(True)),ft.OutlinedButton("Remove",on_click=lambda e:filter_edit(False))]),filter_feedback,note("Unavailable data cannot vote. Adding a filter does not imply a plotted overlay.")],spacing=5)),
             scan_result,help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
@@ -4295,9 +4414,11 @@ console.log('BOT KING Lightweight Charts ready');
             # Resume the fast shared quote path before expensive candle history.
             # The background poll is suspended, so waiting up to 45 seconds
             # for its next tick unnecessarily delays the visible watchlist.
-            if (app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected
-                    and dhan_feed.cooldown_remaining("/v2/snapshot")==0):
-                await refresh_watch_batch()
+            if app_active[0] and prefs.get("source")=="Dhan" and dhan_feed.connected:
+                if dhan_feed.cooldown_remaining("/v2/snapshot")==0:
+                    await refresh_watch_batch()
+                # A cooling-down equity snapshot must not suppress index recovery.
+                await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
             if current[0]==1:await refresh_selected_options()
