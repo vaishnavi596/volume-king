@@ -7544,8 +7544,13 @@ console.log('BOT KING Lightweight Charts ready');
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
     def run_scan(e):
-        if prefs.get("source")=="Dhan" and not dhan_feed.connected:
-            scan_status.value="Dhan login required • scan paused"
+        # The manual Run Scan button must use the SAME closed-session SSK
+        # authorization as scan_market/get_market_data. On a holiday there
+        # can be no verified LTP, but authenticated Dhan candles remain
+        # eligible for strictly HIST-only analysis. LIVE stays quote-gated.
+        if (prefs.get("source")=="Dhan" and not dhan_feed.connected
+                and not (clone_v2_gateway.connected and not regular_hours())):
+            scan_status.value="Dhan login required • SSK authorization required for historical scan"
             page.update()
             return
         if scan_busy[0]:return
