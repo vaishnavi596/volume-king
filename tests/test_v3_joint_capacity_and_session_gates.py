@@ -104,10 +104,10 @@ class V3JointCapacityAndSessionGates(unittest.TestCase):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         summary=source.split("    def five_engine_summary(",1)[1].split("    def five_engine_chips(",1)[0]
         chips=source.split("    def five_engine_chips(",1)[1].split("    def super_five_card(",1)[0]
-        self.assertIn("if snapshot and not regular_hours():",summary)
-        self.assertIn("if snapshot and not regular_hours():",chips)
-        self.assertIn("snapshot=snapshot_for_display(None,now=time.time())",summary)
-        self.assertIn("snapshot=snapshot_for_display(None,now=time.time())",chips)
+        self.assertNotIn("if snapshot and not regular_hours():",summary)
+        self.assertNotIn("if snapshot and not regular_hours():",chips)
+        self.assertNotIn("snapshot=snapshot_for_display(None,now=time.time())",summary)
+        self.assertNotIn("snapshot=snapshot_for_display(None,now=time.time())",chips)
         self.assertIn('historical_vote_agreement(shared_history(sym,"1m"),"1m")',chips)
 
     def test_unverified_1m_3m_summary_uses_matching_historical_cache(self):
