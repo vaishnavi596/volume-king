@@ -2245,3 +2245,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 24 नवंबर 2026 — Deep Batch 1A: सीमित source सुधार
 - B210 exact-source regression/APK PASS rechecked; phone data failure remains. Changed default SnapshotStore cap 160→320 (24 MiB safety cap unchanged); 73×3 minimum histories restart regression added. This is capacity mitigation, not full per-kind retention or proof of phone recovery.
 - Clone market auth 401/403 now retain explicit status; safe_error exact allowlist retains 424/429/502/503/504 from existing gateway client. No raw payload/credentials; unknown origin remains unknown. Added tests for statuses and secret redaction. No server deployment, Dhan login changes, provider calls or APK. CI and live source validation pending. Next: newest exact-frame recovery, retention policy, actual Oracle auth/status evidence.
+
+
+### 24 नवंबर 2026 — Deep Batch 1B: exact-frame disk recovery
+- Batch 1A e95b70c दोनों exact-SHA workflows completed/success: Adapter 45454276813, Full B3 45454276800. पाँच changed files verified; no repeated successful fix.
+- shared_history now checks every existing allowed saved range on disk fallback, chooses newest complete exact-frame candles rather than first range. 1m→3m fallback prioritizes newest validated complete input, not merely longest series. Existing source/timeframe gates and explicit historical-only disk derivation retained. New executable regression covers older 7d vs newer 2d and partial 5d; no provider requests or live promotion.
+- This is bounded recovery selection, not full cache retention redesign. In-memory vs disk comparison when valid memory exists, real Dhan/Oracle auth, deployed gateway and phone recovery remain unverified. No server deployment/APK. CI pending before next batch.

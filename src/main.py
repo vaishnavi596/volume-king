@@ -6957,7 +6957,6 @@ console.log('BOT KING Lightweight Charts ready');
                         and valid_candle_history(saved.get("bars"))):
                     candidates.append(dict(saved,historical=True,live_verified=False,
                                            freshness="historical_unverified",cached=True))
-                    break
         # B2: If a Dhan 1m candle history is ALREADY present, derive the
         # matching 3m series locally. This does not initiate any new request,
         # nor borrow unlabeled 5m ranking/quote candles.
@@ -6986,9 +6985,10 @@ console.log('BOT KING Lightweight Charts ready');
                         one_minute.append(dict(
                             saved_1m,historical=True,live_verified=False,
                             freshness="historical_unverified",cached=True))
-                        break
             if one_minute:
-                source_1m=max(one_minute,key=lambda item: (
+                complete_1m=[item for item in one_minute if valid_candle_history(item.get("bars"))]
+                source_1m=max(complete_1m or one_minute,key=lambda item: (
+                    item["bars"][-1][0] if valid_candle_history(item.get("bars")) else 0,
                     len(item.get("bars") or []),
                     item.get("candle_fetched_at") or 0))
                 bars_1m=source_1m["bars"]

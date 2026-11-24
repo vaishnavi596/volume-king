@@ -64,6 +64,23 @@ class HolidayWatchlist3mFromDisk(unittest.TestCase):
         self.assertTrue(any(x[:4]==("market","Dhan","NIFTY","1m")
                             for x in store.gets))
 
+    def test_newest_valid_disk_range_wins_for_exact_and_derived_frame(self):
+        old=fake_hist()
+        new=dict(old,bars=[[r[0]+180,*r[1:]] for r in old["bars"]])
+        partial=dict(new,bars=new["bars"][-4:])
+        shared,store=load_shared(old)
+        def ranges(*parts):
+            if parts[:4]==("market","Dhan","NIFTY","1m"):
+                return {"7d":old,"2d":new,"5d":partial}.get(parts[4])
+            return None
+        store.get=ranges
+        exact=shared("NIFTY","1m")
+        self.assertEqual(exact["bars"][-1][0],new["bars"][-1][0])
+        self.assertFalse(exact["live_verified"])
+        derived=shared("NIFTY","3m")
+        self.assertEqual(derived["bars"][-1][0],new["bars"][-3][0])
+        self.assertFalse(derived["live_verified"])
+
     def test_wrong_source_and_live_cache_cannot_be_relabelled(self):
         for changed in ({"source":"Yahoo Finance"},{"live_verified":True},
                         {"_scanner_timeframe":"5m"},{"bars":[]},):
