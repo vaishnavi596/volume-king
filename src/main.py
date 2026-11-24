@@ -1900,6 +1900,26 @@ def app_main(page:ft.Page):
         rows=(
             [row for row in top5_candidates if row.get("symbol") in set(all_watch_symbols())]
             if prefs.get("source")=="Dhan" else top5_candidates[:])
+        if not rows and prefs.get("source")=="Dhan":
+            # A disconnected or not-yet-completed 5m ranking scan must not
+            # hide previously saved same-source 5m analyses. Reuse only
+            # persisted, time-stamped, selected equities, never 1m/3m votes.
+            # These are strictly HIST reference rows, not actionable picks.
+            selected_equities=set(all_watch_symbols())
+            saved_hist=[
+                dict(row,historical=True,live_verified=False,
+                     freshness="historical_unverified")
+                for sym,row in watch_signal_cache.items()
+                if (sym in selected_equities and isinstance(row,dict)
+                    and row.get("source")=="Dhan"
+                    and row.get("timeframe")=="5m"
+                    and type(row.get("timestamp")) in (int,float)
+                    and math.isfinite(row["timestamp"])
+                    and 0<row["timestamp"]<=time.time()
+                    and row.get("bias") in ("BULLISH","BEARISH","WAIT"))
+            ]
+            saved_hist.sort(key=lambda row:row["timestamp"],reverse=True)
+            rows=saved_hist[:5]
         if not rows:
             rows=[{"symbol":sym,"bias":"DATA UNAVAILABLE","reason":"No saved analysis; waiting for first successful fetch","timestamp":None} for sym in (all_watch_symbols() if prefs.get("source")=="Dhan" else watch_symbols)[:5]]
         controls=[note(("Dhan: 51 verified equity mappings • freshness unverified" if prefs.get("source")=="Dhan" else "Configured 51-company watchlist") +" • last completed-candle analysis • not a trade order"),
