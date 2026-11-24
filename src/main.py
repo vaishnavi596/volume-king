@@ -1866,12 +1866,9 @@ def app_main(page:ft.Page):
                     items=data.get("items") or []
                     valid_count=valid_news_context_count(data,now=time.time())
                     if valid_count:label="N "+str(valid_count)+" news • WAIT"
-            # Market-closed is a session state, not an unresolved live fetch.
-            # Preserve historical context, but label unavailable live boxes OFF.
-            if not regular_hours() and "WAIT" in label:
-                # Session caption already conveys market closure; avoid
-                # vertical, clipped "LIVE WAIT • market closed" in phone chips.
-                label=short+" OFF"
+            # A missing engine remains WAIT regardless of calendar date.
+            # The last valid technical/candle historical vote remains visible;
+            # do not replace its evidence status with an inferred holiday OFF.
             cards.append(ft.Container(
                 content=ft.Text(label,size=10,color=color,weight=ft.FontWeight.BOLD,
                                 text_align=ft.TextAlign.CENTER),
