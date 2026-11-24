@@ -30,6 +30,10 @@ class HistoricalCloseDisplayTests(unittest.TestCase):
                     [1700000000,100,105,98,float("nan"),100]):
             self.assertIsNone(historical_close_display(dict(self.hist,bars=[bar]),now=self.now))
 
+    def test_empty_or_missing_history_does_not_invent_price(self):
+        self.assertIsNone(historical_close_display({},now=self.now))
+        self.assertIsNone(historical_close_display(dict(self.hist,bars=[]),now=self.now))
+
     def test_latest_completed_candle_used_without_network(self):
         h=dict(self.hist,bars=self.hist["bars"]+[[1700000180,102,110,101,109,200]])
         self.assertEqual(historical_close_display(h,now=1700000400)[0],"HIST 109.00")
