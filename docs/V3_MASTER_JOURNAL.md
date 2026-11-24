@@ -2285,3 +2285,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Data Foundation 0835584 exact B3 45460543396 completed/success; test-only repair, preceding B1/B2/Adapter PASS at 59a5b41. No repeated prior change.
 - Added independent raw OHLC completed-body C adapter with explicit Dhan symbol/frame/live provenance, recent completed timestamp and matching T revision. Wired two existing 5m publishers (shared analysis and ranking); no new network requests, no T vote reuse, no quorum change. New executable tests for opposite T/C directions, stale/mismatch and missing quorum. Existing HIST context unchanged. Static source readiness report intentionally remains conservative until runtime proof.
 - 1m/3m live publishing, actual provider metadata compatibility, N/F/O, runtime phone and complete regression pending. No APK/server deployment or orders.
+
+
+### 25 नवंबर 2026 — Deep Batch 2A regression repair
+- Exact d66e078: B1 45462818279, B2 45462818283, Adapter 45462818376 PASS; B3 45462818351 FAIL, 1904 tests, 2 failures (job 138689732735). Both failures are obsolete source assertions expecting four technical-only publishers or the old shared 5m call. Independent C adapter executable tests had no reported failure.
+- Updated both source contracts to require exactly two technical-only failure publishers and two independent T/C publishers, correct 5m raw input, both shared and ranking paths, no cross-frame Watchlist wiring. Production code unchanged; no weakening of provenance or quorum gates. Actual provider metadata and phone evidence still pending. Next exact-source B3 gate before further implementation. No APK or server change.

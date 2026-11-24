@@ -850,9 +850,13 @@ class FiveEngineMainContextWiringContract(unittest.TestCase):
         self.assertIn('read_five_engine_context(sym,exact_frame)',source)
         self.assertIn('exact_frame=display_timeframe or "5m"',source)
         self.assertIn('contextual_five_engine.clear()',source)
-        # Three direct scanner_snapshot calls plus one ranking dict adapter.
-        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),4)
-        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot(dict(analyzed,',source)
+        # Both failure publishers remain technical-only; both successful
+        # publishers join independent C evidence with their actual 5m input.
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),2)
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot(watch_signal_cache[sym]))'),2)
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot_with_candle('),2)
+        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,',source)
+        self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time()))'),2)
         self.assertNotIn('five_engine_snapshots[sym]=scanner_snapshot(',source)
 
 
