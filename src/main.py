@@ -3962,8 +3962,10 @@ def app_main(page:ft.Page):
                 "missing_symbols_sample":[sym for sym in request_symbols if sym not in received_symbols][:12],
                 "quote_source":"Dhan via existing Oracle SSK gateway",
                 "exchange_timestamp_verified":False}
-            if "NIFTY" not in proof:
-                raise FeedError("Clone B3 Dhan index quote unavailable; SSK-only connection")
+            # A missing index quote must not block independently validated Dhan equities.
+            # Zero actual quotes still fail closed: SSK status alone is not market proof.
+            if not proof:
+                raise FeedError("Clone B3 Dhan quote proof unavailable; SSK-only connection")
             dhan_feed.activate_with_quote(proof)
             source.value="Dhan"
             prefs["source"]="Dhan"
@@ -4020,7 +4022,8 @@ def app_main(page:ft.Page):
                 str(received_indices)+"/3 indices • "+
                 str(found)+"/"+str(total)+
                 " selected equities; timestamps unverified; live orders OFF.")
-            connection_status.color=GREEN if not dhan_batch_issue[0] else GOLD
+            connection_status.color=(GREEN if not dhan_batch_issue[0] and received_indices==3
+                                     else GOLD)
         except FeedError as exc:
             building_doctor.milestone("login_failed")
             connection_status.value="Clone V2: "+str(exc)
