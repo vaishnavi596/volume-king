@@ -79,7 +79,7 @@ class WatchlistWiringTests(unittest.TestCase):
 
     def test_dhan_batch_ltp_survives_history_refresh(self):
         self.assertIn('latest=dhan_batch_cache["quotes"].get(sym)', self.source)
-        self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=None,', self.source)
+        self.assertIn('data=dict(data,price=latest["price"],quote_timestamp=latest.get("quote_timestamp"),', self.source)
         self.assertIn('freshness="unverified",fetched_at=time.time())', self.source)
 
     def test_dhan_connect_settings_displays_partial_count(self):
