@@ -7348,6 +7348,7 @@ console.log('BOT KING Lightweight Charts ready');
             result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)
             latest=watch_three_minute_worker_input(sym)
             if latest is None or latest[0]!=identity:return
+            if sym not in all_watch_symbols() or not app_active[0] or lifecycle_background[0]:return
             if not result or not signal_percentages(result):return
             result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
                         historical=True,live_verified=False,freshness="unverified")
@@ -7355,6 +7356,25 @@ console.log('BOT KING Lightweight Charts ready');
             publish_five_engine_historical(sym,"3m",result)
         except Exception as exc:
             log_error("watch_three_minute_worker",exc)
+    async def watch_all_local_analysis():
+        # Cache-only processing includes every saved list, even off-screen.
+        while True:
+            await asyncio.sleep(5)
+            if not app_active[0] or lifecycle_background[0] or prefs.get("source")!="Dhan":
+                continue
+            try:
+                generation=provider_generation[0]
+                visible=set(watch_groups[active_watch[0]]) if current[0]==4 else set()
+                selected=[sym for sym in all_watch_symbols() if sym not in visible]
+                for offset in range(0,len(selected),local_analysis_pool.workers):
+                    if (generation!=provider_generation[0] or not app_active[0]
+                            or lifecycle_background[0] or prefs.get("source")!="Dhan"):break
+                    roster=set(all_watch_symbols())
+                    await asyncio.gather(*(prepare_watch_three_minute_signal(sym)
+                        for sym in selected[offset:offset+local_analysis_pool.workers]
+                        if sym in roster and (current[0]!=4 or sym not in watch_groups[active_watch[0]])))
+            except Exception as exc:
+                log_error("watch_all_local_analysis",exc)
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__+" • "+str(safe_error(exc))[:140]
         # Numeric status only, read from the original error: safe_error() rewrites
@@ -10002,6 +10022,7 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(watch_three_minute_warmup)
     page.run_task(dhan_index_candle_poll)
     page.run_task(watch_visible_tick)
+    page.run_task(watch_all_local_analysis)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def oracle_assessment_poll():
