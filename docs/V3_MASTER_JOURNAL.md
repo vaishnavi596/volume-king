@@ -2360,3 +2360,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — Active Doctor P1 freshness measurement
 - a06c668 exact B1 45550426820, B2 45550426736, Adapter 45550426837, B3 45550426718 all PASS. Active Doctor now reports quote batch success age separately from attempt age, cached analyzed completed 3m candle end age, missing timestamps, oldest five and count older than diagnostic 360s threshold. Batch clock may include partial success; not per-symbol exchange proof. No extra history derivation, provider calls or LIVE certification. Added behavior test. Full audit retained. CI pending; no APK/server changes/orders. Actual successful per-symbol transport telemetry remains separate.
+
+
+### 25 नवंबर 2026 — P2-B Scanner/Watchlist serialized coordination
+- 14c39d1 exact B1 45551397764, B2 45551399477, Adapter 45551400875, B3 45551398065 all PASS. Existing 5m tail now offers one eligible Watchlist 1m slot after every five completed results, using existing guarded helper, rolling 12/180s, 10s spacing, 180s symbol retry and provider cooldown; no new parallel worker. Active Doctor includes existing ranking progress and recent budget count. Added structural regression assertions; actual device freshness and latency pending. No server change, APK or orders. CI pending.

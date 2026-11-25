@@ -6261,7 +6261,12 @@ def app_main(page:ft.Page):
                               if gen==generation},
                     now_monotonic=mono,market_open=bool(refresh_hours()),
                     errors=[str(key)[:100] for key,value in display_failures.items() if value],
-                    progress={"history_scan_busy":bool(dhan_history_scan_active[0])},
+                    progress={"history_scan_busy":bool(dhan_history_scan_active[0]),
+                              "scanner":{key:scan_progress.get(key) for key in
+                                  ("checked","total","valid","failed","cached","state","timeframe")},
+                              "watchlist_interleave_every_five":True,
+                              "watchlist_recent_budget_used":sum(
+                                  0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)},
                     candle_stamps={sym:watch_three_minute_cache[sym][0][4][-1][0]+180
                         for sym in selected_equities if sym in watch_three_minute_cache
                         and watch_three_minute_cache[sym][0][0]==generation
@@ -9231,6 +9236,10 @@ console.log('BOT KING Lightweight Charts ready');
                             background_interrupted=True
                             break
                         results.append(await load_one(sym))
+                        # Yield a serialized Watchlist slot after every five
+                        # completed tail items; existing budget/guards still own IO.
+                        if len(results)%5==0:
+                            await warm_selected_watch_three_minute_early(generation)
                 else:
                     results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 # A background-interrupted Dhan pass is incomplete. Do not

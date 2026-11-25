@@ -294,6 +294,10 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         helper=method_source("warm_selected_watch_three_minute_early")
         self.assertLess(scan.index("await warm_selected_watch_three_minute_early(generation)"),
                         scan.index("for sym in symbols[1:]:"))
+        self.assertIn("if len(results)%5==0:",scan)
+        self.assertIn("results.append(await load_one(sym))",scan)
+        self.assertGreater(scan.rindex("await warm_selected_watch_three_minute_early(generation)"),
+                           scan.index("for sym in symbols[1:]:"))
         self.assertIn('get_market_data,sym,"1m","2d"',helper)
         self.assertIn('await asyncio.sleep(1.5)',helper)
         self.assertNotIn('asyncio.gather(',helper)
