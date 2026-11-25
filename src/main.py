@@ -577,7 +577,7 @@ def app_main(page:ft.Page):
         local_news,world_news=await asyncio.gather(asyncio.to_thread(fetch_news,symbol),asyncio.to_thread(fetch_news,symbol,True))
         result=combine_analysis(symbol,interval,candle,local_news,world_news)
         if not candle.get("historical") and candle.get("timestamp"):
-            market_store.put("fusion",(symbol,interval),result)
+            await asyncio.to_thread(market_store.put,"fusion",(symbol,interval),result)
         return result
     def fusion_card(symbol,interval,compact=False):
         data=fusion_cache.get(symbol+":"+interval) or market_store.get("fusion",symbol,interval)
@@ -3835,7 +3835,8 @@ def app_main(page:ft.Page):
             if (data.get("source")=="dhan" and data.get("symbol")==sym
                     and data.get("expiry")==chosen and
                     data.get("signal_eligible") is False):
-                market_store.put("option_context_last_good",("Dhan",sym,chosen),dict(data))
+                await asyncio.to_thread(market_store.put,"option_context_last_good",("Dhan",sym,chosen),dict(data))
+                if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             while len(dhan_option_context_cache)>16:
                 del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
             option_feed.clear()  # Do not show legacy Angel One contract rows.
