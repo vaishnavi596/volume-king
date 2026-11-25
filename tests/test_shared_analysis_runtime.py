@@ -129,3 +129,39 @@ class HistoricalAgreementMemoTests(unittest.TestCase):
             self.assertIsNotNone(first)
             v["historical_vote_agreement"](dict(history,bars=changed),"5m")
             self.assertEqual(compute.call_count,2)
+
+
+class HistoricalEngineRevisionTests(unittest.TestCase):
+    def test_same_timestamp_and_filter_changes_republish_historical_engine(self):
+        from datetime import datetime, timezone, timedelta
+        from unittest.mock import Mock
+        _, v, _=SharedAnalysisRuntimeTests().setup_app()
+        end=int(datetime(2026,11,23,14,10,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp())
+        bars=[[end-(59-i)*60,100+i,102+i,99+i,101+i,1000] for i in range(60)]
+        key=("TCS","1m",v["provider_generation"][0])
+        v["chart_snapshots"][key]={"source":"Dhan","_scanner_timeframe":"1m","bars":bars}
+        fn=v["ensure_cached_historical_engine_publish"]
+        env=fn.__globals__
+        compute=Mock(wraps=env["analyze"])
+        with patch.dict(env,{"analyze":compute}):
+            self.assertTrue(fn("TCS","1m"))
+            self.assertTrue(fn("TCS","1m"))
+            self.assertEqual(compute.call_count,1)
+            bars[5][4]-=.1
+            self.assertTrue(fn("TCS","1m"))
+            self.assertEqual(compute.call_count,2)
+            v["filter_selected"][:]=["MACD"]
+            self.assertTrue(fn("TCS","1m"))
+            self.assertEqual(compute.call_count,3)
+
+    def test_watchlist_worker_identity_includes_older_candle_correction(self):
+        from datetime import datetime, timezone, timedelta
+        _, v, _=SharedAnalysisRuntimeTests().setup_app()
+        end=int(datetime(2026,11,23,14,9,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp())
+        bars=[[end-(59-i)*180,100+i,102+i,99+i,101+i,1000] for i in range(60)]
+        v["chart_snapshots"][("TCS","3m",v["provider_generation"][0])]={"source":"Dhan","_scanner_timeframe":"3m","bars":bars,"candle_fetched_at":1}
+        before=v["watch_three_minute_worker_input"]("TCS")[0]
+        bars[5][4]-=.1
+        after=v["watch_three_minute_worker_input"]("TCS")[0]
+        self.assertNotEqual(before,after)
+        self.assertEqual(before[:7],after[:7])

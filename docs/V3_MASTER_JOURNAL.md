@@ -2620,3 +2620,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B215 संयुक्त फोन टेस्ट संस्करण
 - Owner requested version-only new APK with all current improvements preserved for version-wise reports. Existing B211–B214 workflow identities already exist; use new B215 (2.3.215, code 215), separate preview package and isolated signer, same source metadata and generated build version. Reuse B214 full safety gate and exact SHA B3 requirement. No app logic/server/order changes. Latest functional regression abfc57b 1948/1948 PASS; ea8d6b0 CI-only gate superseded by requested release metadata commit if still running. B215 exact-head gate, APK signature and phone tests pending. C3 not closed.
+
+
+### 25 नवंबर 2026 — B1/B2/B3 संयुक्त candle revision consistency repair
+- B215 exact 0096478 regression 45609505163 PASS, APK 45609505142 job 139189072294 all safety/signing/upload steps PASS. Owner will test B215 later; continue software closure before next version.
+- Fixed historical 1m/3m publisher timestamp-only shortcut with full validated OHLCV/filter/generation identity and matching snapshot instance. Avoid replacing currently eligible LIVE evidence with HIST hydration. Bounded memo. Watchlist reader/worker now include full completed revision, preserving last-four Doctor indexing and receipt-time contract. Added runtime tests for same timestamp earlier OHLCV correction and filter change; local tests NOT EXECUTED, CI pending. No version bump, server/order change or APK request. B1–B3 remain open pending remaining software and real data acceptance.

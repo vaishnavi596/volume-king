@@ -1654,6 +1654,7 @@ def app_main(page:ft.Page):
         return ft.ExpansionTile(title=note("5 engines • "+str(combined["coverage"])+"/5 verified • overall "+combined["state"]),
             controls=[*[note(piece) for piece in pieces],note(combined["reason"])])
 
+    historical_engine_revision_cache={}
     def ensure_cached_historical_engine_publish(sym, tf):
         """Publish a validated exact-frame HIST snapshot from existing cache.
 
@@ -1686,22 +1687,32 @@ def app_main(page:ft.Page):
         timestamp=completed[-1][0]
         existing=contextual_five_engine.peek(
             symbol=sym,timeframe=tf,generation=provider_generation[0])
-        if existing:
-            technical=next((e for e in existing.get("engines",())
-                            if getattr(e,"name",None)=="technical"),None)
-            if technical and technical.timestamp==timestamp:
-                return True
+        # HIST hydration must not overwrite currently eligible LIVE evidence.
+        if existing and any(e.eligible for e in read_five_engine_context(sym,tf)["engines"]):
+            return True
         selected=[name for name in filter_selected
                   if filter_modes.get(name,"Analysis")!="Chart"]
+        key=(sym,tf)
+        identity=(provider_generation[0],tuple(selected),
+                  tuple(tuple(bar[:6]) for bar in quality["bars"]))
+        prior=historical_engine_revision_cache.get(key)
+        if prior and prior[0]==identity and prior[1] is existing:
+            return True
         result=analyze(quality["bars"],selected,tf)
         if (result.get("timestamp")!=timestamp
                 or result.get("count",0)<30
                 or not signal_percentages(result)):
             return False
-        return publish_five_engine_historical(sym,tf,dict(
+        published=publish_five_engine_historical(sym,tf,dict(
             result,source="Dhan",symbol=sym,timeframe=tf,
             historical=True,live_verified=False,
             freshness="historical_unverified"))
+        if published:
+            if len(historical_engine_revision_cache)>=220 and key not in historical_engine_revision_cache:
+                historical_engine_revision_cache.clear()
+            historical_engine_revision_cache[key]=(identity,contextual_five_engine.peek(
+                symbol=sym,timeframe=tf,generation=provider_generation[0]))
+        return published
 
     # One completed-bar replay per immutable input revision, not one per
     # quote-only screen repaint. Keys cannot mix symbol, timeframe or session.
@@ -7318,7 +7329,8 @@ console.log('BOT KING Lightweight Charts ready');
         # Propagate recent 3m OHLCV revisions to the Watchlist signal cache,
         # even if the final timestamp/last row did not change.
         recent_three=tuple(tuple(row) for row in completed[-4:])
-        identity=context+(recent_three,len(completed),data.get("candle_fetched_at"))
+        identity=context+(recent_three,len(completed),data.get("candle_fetched_at"),
+                          tuple(tuple(row) for row in completed))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
         return historical_or_wait("3m local worker pending or unavailable")
@@ -7333,7 +7345,7 @@ console.log('BOT KING Lightweight Charts ready');
                    and len(bar)>=6 and type(bar[0]) in (int,float)
                    and math.isfinite(bar[0]) and bar[0]+180<=now]
         if not completed:return None
-        identity=context+(tuple(completed[-4:]),len(completed),data.get("candle_fetched_at"))
+        identity=context+(tuple(completed[-4:]),len(completed),data.get("candle_fetched_at"),tuple(completed))
         return identity,completed,list(active_analysis_filters())
     def compute_watch_three_minute_worker(completed,selected):
         quality=quality_check(completed,180,now=completed[-1][0]+180)
