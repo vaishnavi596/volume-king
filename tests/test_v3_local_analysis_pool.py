@@ -25,3 +25,22 @@ class LocalPoolTests(unittest.TestCase):
             self.assertEqual(stats["running"],0)
             self.assertEqual(stats["provider_requests"],0)
         finally:pool.close()
+
+    def test_super_five_worker_keeps_publication_on_app_lane(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        rank=next(n for n in ast.walk(tree) if isinstance(n,ast.AsyncFunctionDef) and n.name=="rank_one")
+        body=ast.get_source_segment(source,rank)
+        worker="result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)"
+        self.assertIn(worker,body)
+        before,after=body.split(worker,1)
+        self.assertIn('snapshot=dict(data,bars=[tuple(row)',before)
+        guard=after.split("record_analysis(",1)[0]
+        self.assertIn("generation!=provider_generation[0]",guard)
+        self.assertIn("frozen!=",guard)
+        self.assertIn("return sym,None",guard)
+        self.assertIn("publish_five_engine_5m",after)
+        display=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=="display_analysis")
+        self.assertIn('if frozen is None:record_analysis',ast.get_source_segment(source,display))
