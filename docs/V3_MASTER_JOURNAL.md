@@ -2497,3 +2497,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C1 CI trigger repair
 - Owner Actions screenshot still shows B3 #483. Confirmed clone-b3-full-regression.yml push paths exclude docs/**; C1 source/test commits used skip ci, final journal-only commit could not trigger B3. Correct sequencing: journal first, then matching workflow path commit without skip ci. No change to test execution, provider, app or orders. Exact new head CI remains pending.
+
+
+### 25 नवंबर 2026 — ML5-CACHE C1 PASS / C2 app integration
+- Exact 48ae3ec B3 #484 run 45573591668/job 139065931928 and incidental B210 #6 run 45573591720/job 139065934137 all steps PASS. C2: SQLite import fallback, corrupt DB recovery into separate JSON preserving original legacy file, valid row restore and pruning, physical storage telemetry separate from logical byte cap; shared-instance concurrent writes and corruption fixtures added. Main app enables incremental store in following final source commit (normal CI trigger). Recovery JSON may be older than last SQLite data; no LIVE certification, physical bytes are measured not a physical cap. Adaptive CPU/RAM and parallel analysis still pending; no server/orders change. Phone runtime and speed unverified. 
