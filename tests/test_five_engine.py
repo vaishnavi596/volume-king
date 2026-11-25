@@ -701,11 +701,26 @@ class FiveEngineOptionContextTimeframeSafety(unittest.TestCase):
                if isinstance(n,ast.FunctionDef) and n.name=="five_engine_chips"]
         self.assertEqual(len(chips),1)
         chip_source=ast.get_source_segment(source,chips[0])
-        self.assertIn('data.get("freshness")=="unverified"',chip_source)
-        self.assertIn('type(data.get("pcr")) in (int,float)',chip_source)
-        self.assertIn('math.isfinite(data["pcr"])',chip_source)
-        self.assertIn('data["pcr"]>=0',chip_source)
-        self.assertNotIn('isinstance(data.get("pcr"),(int,float))',chip_source)
+        self.assertIn('matching_option_context_for_symbol(sym)',chip_source)
+        self.assertIn('historical_option_position(data,symbol=sym',chip_source)
+        self.assertIn('position["available"]',chip_source)
+        self.assertIn('!="LIVE_ONLY"',chip_source)
+        self.assertIn(' • WAIT',chip_source)
+        self.assertNotIn('data["pcr"]',chip_source)
+        from v3_option_position import historical_option_position
+        rows=[{"strike":i,"ce":{"oi":10},"pe":{"oi":20}} for i in range(100,107)]
+        data={"source":"dhan","symbol":"TCS","expiry":"2099-12-31",
+              "freshness":"unverified","signal_eligible":False,
+              "atm_window":{"source":"dhan","freshness":"unverified",
+                            "signal_eligible":False,"atm":103,"rows":rows}}
+        for bad in (None,True,float("nan"),-1):
+            result=historical_option_position(dict(data,pcr=bad),symbol="TCS",
+                       expiry="2099-12-31",now=1795600000)
+            self.assertFalse(result["live_vote_eligible"])
+            self.assertNotIn("pcr",result)
+        for freshness in ("live","verified",None):
+            self.assertFalse(historical_option_position(dict(data,freshness=freshness),
+                symbol="TCS",expiry="2099-12-31",now=1795600000)["available"])
 
 
 class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
