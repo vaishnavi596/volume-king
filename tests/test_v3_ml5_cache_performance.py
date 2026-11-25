@@ -91,3 +91,17 @@ class ML5CachePerformanceTests(unittest.TestCase):
             self.assertEqual(s.diagnostics()["entries"],70)
             self.assertGreater(s.diagnostics()["physical_storage_bytes"],0)
             self.assertEqual(SnapshotStore(path,incremental=True).diagnostics()["restored_entries"],70)
+
+    def test_cache_latency_telemetry(self):
+        with tempfile.TemporaryDirectory() as d:
+            s=SnapshotStore(Path(d)/"cache.json",incremental=True)
+            row=dict(items=[dict(title="t",url="u",published=1,source="s")],fetched=1)
+            self.assertTrue(s.put("news",("a",),row))
+            self.assertEqual(s.get("news","a"),row)
+            self.assertIsNone(s.get("news","missing"))
+            stats=s.diagnostics()
+            self.assertEqual(stats["read_count"],2)
+            self.assertGreaterEqual(stats["read_max_ms"],stats["read_last_ms"])
+            self.assertGreaterEqual(stats["write_lock_wait_max_ms"],stats["write_lock_wait_last_ms"])
+            self.assertGreaterEqual(stats["write_lock_wait_last_ms"],0)
+            self.assertEqual(stats["write_count"],1)
