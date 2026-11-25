@@ -3456,7 +3456,7 @@ def app_main(page:ft.Page):
         last_filtered_membership=[None]
         while True:
             await asyncio.sleep(2)
-            if current[0]!=4 or not app_active[0]:
+            if current[0]!=4 or not app_active[0] or lifecycle_background[0]:
                 last_visible_signature=None
                 last_cell_signatures.clear()
                 last_evidence_signatures.clear()
@@ -3467,9 +3467,15 @@ def app_main(page:ft.Page):
                 # Reuse the same analyzed 3m result across signatures and row repaint.
                 tick_started=time.perf_counter()
                 tick_generation=provider_generation[0]
-                await asyncio.gather(*(prepare_watch_three_minute_signal(sym) for sym in visible))
-                if (current[0]!=4 or not app_active[0] or tick_generation!=provider_generation[0]
-                        or visible!=tuple(watch_groups[active_watch[0]])):continue
+                def tick_owner_current():
+                    return (current[0]==4 and app_active[0] and not lifecycle_background[0]
+                        and tick_generation==provider_generation[0]
+                        and visible==tuple(watch_groups[active_watch[0]]))
+                for offset in range(0,len(visible),local_analysis_pool.workers):
+                    if not tick_owner_current():break
+                    await asyncio.gather(*(prepare_watch_three_minute_signal(sym)
+                        for sym in visible[offset:offset+local_analysis_pool.workers]))
+                if not tick_owner_current():continue
                 tick_signals={sym:watch_three_minute_signal(sym) for sym in visible}
                 signal_ms=round((time.perf_counter()-tick_started)*1000,2)
                 watch_3m_tick_profile["sample_count"]+=1
@@ -6685,6 +6691,8 @@ def app_main(page:ft.Page):
                     "quote_timestamp_observation":__import__("v3_smart_active_doctor").quote_timestamp_observation(
                         symbol=scanner_sym,quote=quotes.get(scanner_sym),now=time.time()),
                     "dashboard_bar_errors_only":dashboard_bar_errors,
+                    "local_analysis_workers":local_analysis_pool.diagnostics(),
+                    "ranking_persistence":dict(ranking_persist_stats),
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
@@ -6895,16 +6903,33 @@ def app_main(page:ft.Page):
                 test_status.update()
                 return
             busy[0]=True
-            building_doctor.milestone("cached_test_clicked")
-            test_status.value="Measuring existing cache for "+str(count)+" equities • no Dhan request..."
-            test_status.update()
+            generation=provider_generation[0]
+            refresh_owner=refreshed[0]
+            def diagnostic_owner_current():
+                return (generation==provider_generation[0] and refreshed[0]==refresh_owner
+                    and app_active[0] and not lifecycle_background[0]
+                    and dhan_feed.connected and prefs.get("source")=="Dhan")
             try:
+                building_doctor.milestone("cached_test_clicked")
                 import copy
                 stage0=time.perf_counter()
                 chosen=list(dict.fromkeys(all_watch_symbols()))[:70]
                 count=len(chosen)
+                test_status.value="Measuring existing cache for "+str(count)+" equities • no Dhan request..."
+                test_status.update()
                 names=("NIFTY","BANKNIFTY","SENSEX",*chosen)
-                generation=provider_generation[0]
+                diagnostic_symbol=str(scan_symbol.value or "NIFTY")
+                diagnostic_tf=str(scan_tf.value or "1m")
+                diagnostic_policy=(tuple(filter_selected),tuple(sorted(filter_modes.items())),
+                                   list(active_analysis_filters()))
+                def input_current():
+                    return (diagnostic_owner_current()
+                        and chosen==list(dict.fromkeys(all_watch_symbols()))[:70]
+                        and diagnostic_symbol==str(scan_symbol.value or "NIFTY")
+                        and diagnostic_tf==str(scan_tf.value or "1m")
+                        and diagnostic_policy==(tuple(filter_selected),tuple(sorted(filter_modes.items())),
+                                                list(active_analysis_filters())))
+                if not input_current():return
                 # Materialize one consistent snapshot on UI thread; do not use
                 # mutable live dictionaries inside background calculations.
                 stock_quotes=copy.deepcopy({sym:quotes.get(sym) for sym in names})
@@ -6912,8 +6937,11 @@ def app_main(page:ft.Page):
                     if isinstance(key,tuple) and len(key)==3
                     and key[0] in names and key[1] in ("1m","3m","5m","10m","15m","30m") and key[2]==generation})
                 capture_ms=round((time.perf_counter()-stage0)*1000,3)
-                outcome=await asyncio.to_thread(benchmark_cached_capacity,
+                outcome=await local_analysis_pool.run(benchmark_cached_capacity,
                     chosen,stock_quotes,stock_histories,generation,count)
+                if not input_current():return
+                with news_lock:
+                    diagnostic_news=copy.deepcopy(news_cache)
                 # One-pass full-app status, read from existing mounted session.
                 # These checks do not issue any broker requests or imply
                 # successful exchange-live five-filter evidence.
@@ -6921,7 +6949,7 @@ def app_main(page:ft.Page):
                 # Inspect already-cached RSS, Dhan chain and Oracle assessment:
                 # these diagnostics do not fetch any new headline/market request.
                 outcome["news_pcr_maxpain_oi_diagnostic"]=audit_features(
-                    news_cache=dict(news_cache),
+                    news_cache=diagnostic_news,
                     option_metrics=dict(dhan_option_metrics),
                     assessment_cache=dict(oracle_assessment_cache),
                     selected_symbol=str(chain_symbol.value or "NIFTY"),
@@ -6980,8 +7008,7 @@ def app_main(page:ft.Page):
                 building_doctor.milestone("cached_test_calculation_complete")
                 outcome["phone_snapshot_capture_ms"]=capture_ms
                 outcome["test_elapsed_since_login_seconds"]=dict(building_doctor.milestones)
-                outcome["health_doctor"]=stock_diagnostic_registry.reconcile(
-                    outcome["stock_states"],generation)
+                # Reconcile only after all worker results pass ownership checks.
                 # Already displayed stock errors become RESOLVED on the next
                 # successful stock diagnosis; there is no extra provider poll.
                 outcome["login_stages_seconds"]=dict(building_doctor.milestones)
@@ -6992,8 +7019,6 @@ def app_main(page:ft.Page):
                 # Filter inventory is independent from the 5 verified-live
                 # engine slots: show ALL saved indicators together, not 10/15.
                 from v3_compact_doctor import compact_doctor
-                diagnostic_symbol=str(scan_symbol.value or "NIFTY")
-                diagnostic_tf=str(scan_tf.value or "1m")
                 selected_history=(stock_histories.get((diagnostic_symbol,diagnostic_tf,generation))
                                   or shared_history(diagnostic_symbol,diagnostic_tf) or {})
                 selected_bars=selected_history.get("bars") if isinstance(selected_history,dict) else None
@@ -7007,10 +7032,14 @@ def app_main(page:ft.Page):
                     and selected_history.get("source")=="Dhan"
                     and selected_history.get("_scanner_timeframe")==diagnostic_tf
                     else selected_bars)
-                diagnostic_analysis=(diagnostic_analyze(diagnostic_hist_bars,
-                    selected=active_analysis_filters(),timeframe=diagnostic_tf)
+                diagnostic_analysis=(await local_analysis_pool.run(diagnostic_analyze,
+                    copy.deepcopy(diagnostic_hist_bars),
+                    selected=diagnostic_policy[2],timeframe=diagnostic_tf)
                     if diagnostic_hist_bars and diagnostic_tf in scanner_intervals
                     else {"reason":"Selected timeframe candles unavailable","votes":[]})
+                if not input_current():return
+                outcome["health_doctor"]=stock_diagnostic_registry.reconcile(
+                    outcome["stock_states"],generation)
                 diagnostic_rows=enrich_context_filter_rows(diagnostic_symbol,
                     diagnostic_filter_rows(diagnostic_analysis,filter_selected,filter_modes))
                 outcome["errors_only"]=compact_doctor(
@@ -7043,6 +7072,7 @@ def app_main(page:ft.Page):
                     "active_unique_equities_tested":count,
                     "indices_tested":3,
                     "unused_capacity_slots_not_errors":70-count,
+                    "local_analysis_workers":local_analysis_pool.diagnostics(),
                     "no_provider_requests":True}
                 report.value=json.dumps(condensed,indent=2,ensure_ascii=False)
                 test_status.value=("Active unique test "+str(count)+"/70 equities • "+str(
@@ -7053,12 +7083,17 @@ def app_main(page:ft.Page):
                 test_status.update()
             except Exception as exc:
                 log_error("v3_capacity_benchmark",exc)
-                test_status.value="Building Doctor Error: "+type(exc).__name__
-                test_status.update()
+                if diagnostic_owner_current():
+                    test_status.value="Building Doctor Error: "+type(exc).__name__
+                    test_status.update()
             finally:
-                v3_diag_report[0]=report.value
-                v3_diag_status[0]=test_status.value
                 busy[0]=False
+                if diagnostic_owner_current():
+                    if test_status.value.startswith("Measuring existing cache"):
+                        test_status.value="Diagnostic input changed • run TEST ACTIVE again."
+                        test_status.update()
+                    v3_diag_report[0]=report.value
+                    v3_diag_status[0]=test_status.value
         return section("PLATINUM SMART DOCTOR",ft.Column([
             ft.ExpansionTile(title=note("System Health • current issues"),initially_expanded=False,
                 controls=[data_overview()]),
@@ -7774,6 +7809,7 @@ console.log('BOT KING Lightweight Charts ready');
         bars=quality["bars"]
         return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")
     async def prepare_watch_three_minute_signal(sym):
+        if not app_active[0] or lifecycle_background[0] or sym not in all_watch_symbols():return
         captured=watch_three_minute_worker_input(sym)
         if captured is None:return
         identity,completed,selected=captured
@@ -7885,7 +7921,7 @@ console.log('BOT KING Lightweight Charts ready');
         refresh_scan_age()
     async def refresh_shared_analysis(only=None):
         # Local only: reuse completed candles; price polling cadence is unchanged.
-        if not app_active[0] or prefs.get("source")!="Dhan":
+        if not app_active[0] or lifecycle_background[0] or prefs.get("source")!="Dhan":
             return
         if not dhan_feed.connected:
             sym=scan_symbol.value or "NIFTY"
@@ -7899,7 +7935,18 @@ console.log('BOT KING Lightweight Charts ready');
             return
         universe=([only] if only else list(dict.fromkeys([scan_symbol.value or "NIFTY","NIFTY","BANKNIFTY","SENSEX"]+watch_symbols)))
         updated=False
+        cycle_generation=provider_generation[0]
+        cycle_roster=tuple(all_watch_symbols())
+        def shared_owner_current():
+            return (cycle_generation==provider_generation[0] and app_active[0]
+                and not lifecycle_background[0] and prefs.get("source")=="Dhan"
+                and dhan_feed.connected and cycle_roster==tuple(all_watch_symbols()))
+        def shared_symbol_current(sym):
+            return shared_owner_current() and (sym in cycle_roster or sym in
+                ("NIFTY","BANKNIFTY","SENSEX",scan_symbol.value or "NIFTY"))
         for sym in universe:
+            if not shared_owner_current():return
+            if not shared_symbol_current(sym):continue
             data=shared_history(sym)
             if data.get("source")!="Dhan" or not data.get("bars"):
                 continue
@@ -7931,7 +7978,7 @@ console.log('BOT KING Lightweight Charts ready');
                 frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))
                 snapshot=deepcopy(data)
                 result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
-                if (generation!=provider_generation[0] or not app_active[0] or prefs.get("source")!="Dhan"
+                if (generation!=provider_generation[0] or not shared_symbol_current(sym)
                         or not dhan_feed.connected or shared_history(sym)!=snapshot
                         or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
                     continue
@@ -7941,7 +7988,7 @@ console.log('BOT KING Lightweight Charts ready');
                 from five_engine import scanner_snapshot_with_candle
                 engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,
                     deepcopy(result),snapshot,symbol=sym,timeframe="5m",now=time.time())
-                if (generation!=provider_generation[0] or not app_active[0] or prefs.get("source")!="Dhan"
+                if (generation!=provider_generation[0] or not shared_symbol_current(sym)
                         or not dhan_feed.connected or shared_history(sym)!=snapshot
                         or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
                     continue
@@ -7955,6 +8002,7 @@ console.log('BOT KING Lightweight Charts ready');
                     selected_report_identity[0]=report_identity
                 updated=True
             except Exception as exc:
+                if not shared_symbol_current(sym):continue
                 record_analysis(sym,"5m",stage="local analysis",error=type(exc).__name__)
                 prior=watch_signal_cache.get(sym)
                 if prior:
@@ -7964,7 +8012,7 @@ console.log('BOT KING Lightweight Charts ready');
                     publish_selected_result(sym,"5m",{"source":"Dhan","bias":"WAIT",
                         "reason":"Local analysis failed • "+type(exc).__name__})
                 log_error("shared_analysis",exc)
-        if updated:
+        if updated and shared_owner_current():
             # Index analysis shares the cache, but Super Five retains its
             # existing 51-equity universe.
             publish_partial_ranking({sym:row for sym,row in watch_signal_cache.items() if sym in watch_symbols})
@@ -9206,7 +9254,7 @@ console.log('BOT KING Lightweight Charts ready');
                 await asyncio.sleep(.25)
         target=refresh_target[0];refresh_pending[0]=False;refresh_target[0]=None
         # Navigation can invalidate the queued target before this task wakes.
-        if target is None or target!=current[0]:return
+        if target is None or target!=current[0] or not app_active[0] or lifecycle_background[0]:return
         if target==4 and current[0]==4 and watch_list.page is not None:
             # Quotes and filters are repainted by watch_visible_tick in-place.
             return

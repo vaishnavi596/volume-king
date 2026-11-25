@@ -406,3 +406,24 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("deepcopy(advanced),persist=False",source)
         self.assertIn("if done:return task.result() if owner() else None",source)
         self.assertIn("if restored or combined_age<0",source)
+
+    def test_r1_capacity_and_visible_worker_ownership_contract(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        funcs={n.name:ast.get_source_segment(source,n) for n in ast.walk(ast.parse(source))
+               if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
+        doctor=funcs["run_cached_test"]
+        self.assertLess(doctor.index("count=len(chosen)"),doctor.index("str(count)"))
+        self.assertLess(doctor.index("try:"),doctor.index("str(count)"))
+        self.assertIn("await local_analysis_pool.run(benchmark_cached_capacity",doctor)
+        self.assertIn("await local_analysis_pool.run(diagnostic_analyze",doctor)
+        self.assertIn("if not input_current():return",doctor)
+        self.assertLess(doctor.rindex("if not input_current():return"),doctor.index("stock_diagnostic_registry.reconcile"))
+        self.assertIn("busy[0]=False",doctor)
+        self.assertIn("with news_lock:",doctor)
+        self.assertIn("visible[offset:offset+local_analysis_pool.workers]",funcs["watch_visible_tick"])
+        self.assertIn("if not tick_owner_current():continue",funcs["watch_visible_tick"])
+        self.assertIn("if not shared_symbol_current(sym):continue",funcs["refresh_shared_analysis"])
+        self.assertIn("if updated and shared_owner_current():",funcs["refresh_shared_analysis"])
+        self.assertIn("lifecycle_background[0]",funcs["flush_view_refresh"])
