@@ -81,3 +81,23 @@ class LocalPoolTests(unittest.TestCase):
         self.assertFalse(timing["candle_checked"])
         for key in ("candle_adapter_ms","news_adapter_ms","futures_adapter_ms","options_adapter_ms"):
             self.assertIsNone(timing[key])
+
+    def test_remaining_scanner_and_ranking_writes_are_awaited(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        funcs={n.name:n for n in ast.walk(tree) if isinstance(n,ast.AsyncFunctionDef)}
+        scan=ast.get_source_segment(source,funcs["scan_market"])
+        self.assertEqual(scan.count('await asyncio.to_thread(market_store.put,"analysis",'),2)
+        self.assertEqual(scan.count('await asyncio.to_thread(market_store.put,"analysis_last_good",'),1)
+        self.assertNotIn('market_store.put("analysis',scan)
+        for part in scan.split('await asyncio.to_thread(market_store.put,"analysis')[1:]:
+            guard=part.split('):return',1)[0]
+            for check in ("generation!=scan_generation[0]","sym!=scan_symbol.value","interval!=scan_tf.value","provider_generation[0]"):
+                self.assertIn(check,guard)
+        retry=ast.get_source_segment(source,funcs["retry_failed_symbol"])
+        self.assertIn('await asyncio.to_thread(market_store.put,"ranking"',retry)
+        self.assertIn("if generation!=provider_generation[0]:return",retry.split('await asyncio.to_thread(market_store.put,"ranking"',1)[1])
+        self.assertEqual(source.count('await asyncio.to_thread(market_store.put,"ranking"'),2)
+        self.assertNotIn('market_store.put("ranking"',source)
