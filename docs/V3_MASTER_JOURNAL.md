@@ -2616,3 +2616,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — पूर्ण Regression PASS और पुराने APK trigger सुधार
 - Exact abfc57b B3 45607762631 job 139182978708: 1948/1948 PASS in 232.965s; previous Flet launch hang and clock-sensitive memo fixture resolved.
 - Reviewed failed 44e18fa APK runs B209 45606714912 (version mismatch, guard line 3) and B210 45606714870 (same memo fixture failure). Both triggered accidentally by B3 workflow edit. Convert only these two obsolete previews to explicit workflow_dispatch; retain all release safety/version/signer checks. No APK requested or built by this change. Exact new B3 verification pending if triggered; C3 remains OPEN for remaining engine/worker/capacity and device acceptance.
+
+
+### 25 नवंबर 2026 — B215 संयुक्त फोन टेस्ट संस्करण
+- Owner requested version-only new APK with all current improvements preserved for version-wise reports. Existing B211–B214 workflow identities already exist; use new B215 (2.3.215, code 215), separate preview package and isolated signer, same source metadata and generated build version. Reuse B214 full safety gate and exact SHA B3 requirement. No app logic/server/order changes. Latest functional regression abfc57b 1948/1948 PASS; ea8d6b0 CI-only gate superseded by requested release metadata commit if still running. B215 exact-head gate, APK signature and phone tests pending. C3 not closed.
