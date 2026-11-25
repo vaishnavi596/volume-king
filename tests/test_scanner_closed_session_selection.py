@@ -111,7 +111,7 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
 
     def test_last_session_analysis_is_separate_from_live_wait(self):
         scan=ast.get_source_segment(source,functions["scan_market"])
-        self.assertIn('market_store.put("analysis_last_good",("Dhan",sym,interval),historical)',scan)
+        self.assertIn('await asyncio.to_thread(market_store.put,"analysis_last_good",("Dhan",sym,interval),dict(historical))',scan)
         self.assertIn('market_store.get("analysis_last_good","Dhan",sym,interval)',scan)
         self.assertIn('historical_bars=historical_regular_session_bars(bars,interval)',scan)
         worker='historical=await local_analysis_pool.run(analyze,[tuple(row) for row in historical_bars],selected=historical_filter_selection,timeframe=interval)'
@@ -156,7 +156,7 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertNotIn("Max Pain",ALL_FILTERS)
         body=ast.get_source_segment(source,functions["scan_market"])
         self.assertIn("enrich_context_filter_rows",body)
-        self.assertIn('market_store.put("analysis_last_good"',body)
+        self.assertIn('await asyncio.to_thread(market_store.put,"analysis_last_good"',body)
 
     def test_option_context_never_votes_without_verified_evidence(self):
         from scanner_engine import OPTION_FILTERS
