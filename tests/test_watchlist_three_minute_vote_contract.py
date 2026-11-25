@@ -23,8 +23,11 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
         fn = self.functions["watch_three_minute_signal"]
         self.assertIn('data=shared_history(sym,"3m")', fn)
         self.assertIn('bar[0]+180<=now', fn)
-        self.assertIn('quality_check(completed,180', fn)
-        self.assertIn('analyze(quality["bars"],selected,"3m")', fn)
+        self.assertNotIn("quality_check(", fn)
+        self.assertNotIn("analyze(", fn)
+        worker=self.functions["compute_watch_three_minute_worker"]
+        self.assertIn('quality_check(completed,180',worker)
+        self.assertIn('analyze(quality["bars"],selected,"3m")',worker)
         self.assertNotIn("get_market_data(", fn)
         self.assertNotIn("dhan_feed.intraday", fn)
         self.assertNotIn("watch_signal_cache", fn)

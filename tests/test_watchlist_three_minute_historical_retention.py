@@ -4,6 +4,7 @@ No broker transport, no UI framework, no network calls. Test real retention poli
 and historical safety rather than merely searching for source text.
 """
 import ast
+import asyncio
 import math
 import sys
 import textwrap
@@ -58,6 +59,15 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
                "log_error":lambda label,exc:calls.append("error"),
                "publish_five_engine_historical":publish_five_engine_historical,
                "published_historical":published}
+        class Pool:
+            async def run(self,fn,*args):
+                return fn(*args)
+        scope.update(local_analysis_pool=Pool(),active_analysis_filters=lambda:chosen,
+                     all_watch_symbols=lambda:["RELIANCE"],app_active=[True],
+                     lifecycle_background=[False],watch_three_minute_inflight=set())
+        for name in ("watch_three_minute_worker_input","compute_watch_three_minute_worker","prepare_watch_three_minute_signal"):
+            node=next(n for n in ast.walk(ast.parse(SOURCE)) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==name)
+            exec(compile(textwrap.dedent(ast.get_source_segment(SOURCE,node)),str(ROOT/"src"/"main.py"),"exec"),scope)
         exec(compile(FUNCTION,str(ROOT/"src"/"main.py"),"exec"),scope)
         return scope,calls
 
@@ -137,6 +147,8 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         self.assertEqual(row["votes"],old["votes"])
         self.assertTrue(row["historical"])
         self.assertEqual(row["bias"],"WAIT")
+        self.assertFalse(calls)
+        asyncio.run(scope["prepare_watch_three_minute_signal"]("RELIANCE"))
         self.assertIn("quality",calls)
         self.assertNotIn("analyze",calls)
 
@@ -148,6 +160,10 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
                      "bars":[(now-600,100,101,99,100,100)],"candle_fetched_at":now},
             usable=True,current_votes=new_votes)
         self.store_prior(scope)
+        pending=scope["watch_three_minute_signal"]("RELIANCE")
+        self.assertTrue(pending["_last_votes_retained"])
+        self.assertFalse(calls)
+        asyncio.run(scope["prepare_watch_three_minute_signal"]("RELIANCE"))
         row=scope["watch_three_minute_signal"]("RELIANCE")
         self.assertEqual(row["votes"],new_votes)
         self.assertEqual(row["bias"],"BEARISH")

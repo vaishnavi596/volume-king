@@ -101,3 +101,22 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("if generation!=provider_generation[0]:return",retry.split('await asyncio.to_thread(market_store.put,"ranking"',1)[1])
         self.assertEqual(source.count('await asyncio.to_thread(market_store.put,"ranking"'),2)
         self.assertNotIn('market_store.put("ranking"',source)
+
+    def test_watchlist_offscreen_worker_and_single_flight(self):
+        from pathlib import Path
+        import ast
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        funcs={n.name:ast.get_source_segment(source,n) for n in ast.walk(ast.parse(source)) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
+        reader=funcs["watch_three_minute_signal"]
+        self.assertNotIn("analyze(",reader)
+        self.assertNotIn("quality_check(",reader)
+        worker=funcs["prepare_watch_three_minute_signal"]
+        self.assertIn("if key in watch_three_minute_inflight:return",worker)
+        self.assertIn("finally:",worker)
+        self.assertIn("watch_three_minute_inflight.discard(key)",worker)
+        loop=funcs["watch_all_local_analysis"]
+        self.assertIn("all_watch_symbols()",loop)
+        self.assertIn("local_analysis_pool.workers",loop)
+        self.assertIn("lifecycle_background[0]",loop)
+        self.assertNotIn("get_market_data(",loop)
+        self.assertIn("page.run_task(watch_all_local_analysis)",source)

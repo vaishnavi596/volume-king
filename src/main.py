@@ -7269,6 +7269,7 @@ console.log('BOT KING Lightweight Charts ready');
                           if valid_candle_history(item.get("bars"))]
         return max(verified_history or candidates,key=revision_order) if candidates else {}
     watch_three_minute_cache={}
+    watch_three_minute_inflight=set()
     def watch_three_minute_signal(sym):
         """Use matching 3m Dhan history; retain prior HIST votes on transient gaps."""
         pending={"source":"Dhan","timeframe":"3m","historical":True,
@@ -7306,22 +7307,7 @@ console.log('BOT KING Lightweight Charts ready');
         identity=context+(recent_three,len(completed),data.get("candle_fetched_at"))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
-        try:
-            quality=quality_check(completed,180,now=completed[-1][0]+180)
-            if not quality.get("usable"):
-                return historical_or_wait("Latest 3m candle quality check unavailable")
-            selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
-            result=analyze(quality["bars"],selected,"3m")
-            result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
-                        historical=True,live_verified=False,freshness="unverified")
-            if not signal_percentages(result):
-                return historical_or_wait("Latest 3m directional votes unavailable")
-            watch_three_minute_cache[sym]=(identity,result)
-            publish_five_engine_historical(sym,"3m",result)
-            return result
-        except Exception as exc:
-            log_error("watch_three_minute_analysis",exc)
-            return historical_or_wait("3m analysis failed; last historical votes retained")
+        return historical_or_wait("3m local worker pending or unavailable")
     def watch_three_minute_worker_input(sym):
         if prefs.get("source")!="Dhan":return None
         context=(provider_generation[0],tuple(filter_selected),
@@ -7344,6 +7330,9 @@ console.log('BOT KING Lightweight Charts ready');
         identity,completed,selected=captured
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return
+        key=(sym,identity)
+        if key in watch_three_minute_inflight:return
+        watch_three_minute_inflight.add(key)
         try:
             result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)
             latest=watch_three_minute_worker_input(sym)
@@ -7356,6 +7345,8 @@ console.log('BOT KING Lightweight Charts ready');
             publish_five_engine_historical(sym,"3m",result)
         except Exception as exc:
             log_error("watch_three_minute_worker",exc)
+        finally:
+            watch_three_minute_inflight.discard(key)
     async def watch_all_local_analysis():
         # Cache-only processing includes every saved list, even off-screen.
         while True:
