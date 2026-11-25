@@ -328,6 +328,36 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertNotIn('get_market_data(',cache)
         self.assertNotIn('dhan_feed.',cache)
 
+    def test_shared_final_cache_rejects_wrong_frame_and_source(self):
+        import math
+        import textwrap
+        from unittest.mock import patch
+        source=(ROOT/"src/main.py").read_text()
+        node=next(n for n in ast.walk(ast.parse(source))
+                  if isinstance(n,ast.FunctionDef) and n.name=="cached_historical_final_replay")
+        scope=dict(math=math,provider_generation=[1],prefs={"source":"Dhan"},
+                   historical_final_replay_cache={})
+        exec(compile(textwrap.dedent(ast.get_source_segment(source,node)),"replay","exec"),scope)
+        fn=scope[node.name]
+        data={"source":"Dhan","_scanner_timeframe":"1m","bars":bars()}
+        stamp=data["bars"][-1][0]
+        selected=[{"name":"MACD"}]
+        with patch("v3_historical_vote_replay.historical_vote_replay",
+                   side_effect=lambda **kw:kw) as replay_mock:
+            good=fn("NIFTY","1m",data,selected,stamp+60)
+            self.assertEqual(good["source"],"Dhan")
+            self.assertIs(fn("NIFTY","1m",data,selected,stamp+60),good)
+            wrong=fn("NIFTY","1m",dict(data,_scanner_timeframe="5m"),selected,stamp+60)
+            self.assertIsNone(wrong["source"])
+            self.assertIsNone(wrong["bars"])
+            scope["prefs"]["source"]="Yahoo Finance"
+            self.assertIsNone(fn("NIFTY","1m",data,selected,stamp+60)["source"])
+            scope["prefs"]["source"]="Dhan"
+            future=fn("NIFTY","1m",data,selected,stamp-1)
+            forming=fn("NIFTY","1m",data,selected,stamp+1)
+            self.assertIsNot(future,forming)
+            self.assertEqual(replay_mock.call_count,6)
+
     def test_historical_final_is_same_function_on_all_four_surfaces(self):
         source=(ROOT/"src/main.py").read_text()
         ast.parse(source)

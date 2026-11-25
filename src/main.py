@@ -1995,7 +1995,12 @@ def app_main(page:ft.Page):
     historical_final_replay_cache={}
     def cached_historical_final_replay(sym,frame,history,selected,now):
         from v3_historical_vote_replay import historical_vote_replay
-        bars=history.get("bars") if isinstance(history,dict) else None
+        # Reject a mismatched history tag before replay. A cached 5m series
+        # must never be relabelled as 1m/3m merely because the caller asks.
+        history_matches=(isinstance(history,dict) and prefs.get("source")=="Dhan"
+                         and history.get("source")=="Dhan"
+                         and history.get("_scanner_timeframe","5m")==frame)
+        bars=history.get("bars") if history_matches else None
         seconds={"1m":60,"3m":180,"5m":300}[frame]
         # A complete fingerprint detects revisions ANYWHERE in the OHLCV
         # series, not just appends/final timestamps or the last four candles.
@@ -2008,15 +2013,16 @@ def app_main(page:ft.Page):
         # A candle can become complete without any cache/feed mutation.
         completion=(last_stamp is not None and last_stamp+seconds<=now)
         identity=(provider_generation[0],prefs.get("source"),
-                  history.get("source") if isinstance(history,dict) else None,
-                  tuple(row["name"] for row in selected),fingerprint,completion)
+                  history.get("source") if history_matches else None,
+                  tuple(row["name"] for row in selected),fingerprint,completion,
+                  last_stamp is not None and last_stamp>now)
         key=(sym,frame)
         cached=historical_final_replay_cache.get(key)
         if cached and cached[0]==identity:
             return cached[1]
         result=historical_vote_replay(
             symbol=sym,timeframe=frame,generation=provider_generation[0],
-            source=history.get("source") if isinstance(history,dict) else None,
+            source=history.get("source") if history_matches else None,
             bars=bars,filter_rows=selected,history_timestamp=now)
         # Bounded for 70 equities × three timeframes, plus three indexes.
         if len(historical_final_replay_cache)>=220 and key not in historical_final_replay_cache:
