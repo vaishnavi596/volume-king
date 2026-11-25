@@ -379,17 +379,32 @@ def verified_candle_evidence(history, timeframe, *, now, symbol):
                           reason="Completed OHLC body direction; not technical votes or win probability")
 
 
-def scanner_snapshot_with_candle(scan_result, history, *, symbol, timeframe, now):
+def scanner_snapshot_with_candle(scan_result, history, *, symbol, timeframe, now, timing=None):
     """Join same-symbol/frame independently verified raw candles and T votes."""
+    from time import perf_counter
+    began=perf_counter()
     technical = scanner_snapshot(scan_result)["engines"][0]
+    technical_ms=(perf_counter()-began)*1000
+    began=perf_counter()
     candle = EngineEvidence("candle", reason="Matching verified analysis revision required")
+    candle_checked=False
     if (technical.eligible and scan_result.get("symbol") == symbol
             and scan_result.get("timeframe") == timeframe):
+        candle_checked=True
         candidate = verified_candle_evidence(history, timeframe, now=now, symbol=symbol)
         seconds = {"1m": 60, "3m": 180, "5m": 300}.get(timeframe)
         if candidate.eligible and technical.timestamp == candidate.timestamp - seconds:
             candle = candidate
-    return compose_snapshot(technical=technical, candle=candle)
+    candle_ms=(perf_counter()-began)*1000
+    began=perf_counter()
+    snapshot=compose_snapshot(technical=technical, candle=candle)
+    if timing is not None:
+        timing.update(technical_adapter_ms=round(technical_ms,3),
+                      candle_adapter_ms=round(candle_ms,3) if candle_checked else None,
+                      compose_vote_ms=round((perf_counter()-began)*1000,3),
+                      candle_checked=candle_checked,
+                      news_adapter_ms=None,futures_adapter_ms=None,options_adapter_ms=None)
+    return snapshot
 
 
 def measured_directional_evidence(name, component, *, required_basis):
