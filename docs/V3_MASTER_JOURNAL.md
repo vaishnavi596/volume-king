@@ -2611,3 +2611,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B3 hang resolved; clock-independent memo fixture
 - Exact 44e18fa B3 45606714641 job 139179506665 ran all 1948 tests in 216.174s, no hang; one failure HistoricalAgreementMemoTests expected 2 calls, observed 1. Inspected historical_regular_session_bars: post-close suffix may be excluded from actual completed regular-session revision, so changing the last wall-clock-generated bar is not a reliable invalidation fixture. Use fixed 23 Nov 2026 09:15–14:10 IST completed regular-session bars; verify nonempty initial result and repeated corrected revision reuse. Production unchanged. Local targeted execution NOT EXECUTED; exact new CI pending. No new APK/server/orders changes. C3 OPEN.
+
+
+### 25 नवंबर 2026 — पूर्ण Regression PASS और पुराने APK trigger सुधार
+- Exact abfc57b B3 45607762631 job 139182978708: 1948/1948 PASS in 232.965s; previous Flet launch hang and clock-sensitive memo fixture resolved.
+- Reviewed failed 44e18fa APK runs B209 45606714912 (version mismatch, guard line 3) and B210 45606714870 (same memo fixture failure). Both triggered accidentally by B3 workflow edit. Convert only these two obsolete previews to explicit workflow_dispatch; retain all release safety/version/signer checks. No APK requested or built by this change. Exact new B3 verification pending if triggered; C3 remains OPEN for remaining engine/worker/capacity and device acceptance.
