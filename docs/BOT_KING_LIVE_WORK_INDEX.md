@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT:** B3 [#535](https://github.com/vaishnavi596/volume-king/actions/runs/45663182925) 2 FAIL / 1984 at 8f98103; B1/B2/Adapter PASS. Historical cache test contract repair prepared; exact CI pending. No APK.
+
 > **25-Nov-2026 CURRENT:** B3 [#534](https://github.com/vaishnavi596/volume-king/actions/runs/45661711551) PASS at c97ede3. Shared HIST FINAL source/timeframe and clock identity guard prepared; full CI and physical cross-screen acceptance pending.
 
 > **25-Nov-2026 CURRENT:** B3 [#533](https://github.com/vaishnavi596/volume-king/actions/runs/45660098036) PASS at d7e0df8. Canonical candle-filter vote allowlist patch prepared; exact CI pending. Full cross-screen parity remains OPEN.

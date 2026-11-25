@@ -2777,3 +2777,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — SMART 4.0: shared HIST FINAL exact identity guard
 - PR #122 merged c97ede3; B3 #534 run 45661711551 job 139372999592 raw proof 2026-11-25T17:14:10.1756060Z Ran 1983 tests in 250.323s / 2026-11-25T17:14:10.1756452Z OK. No competing gate.
 - B4.05: shared HIST FINAL cache used by Dashboard, Watchlist, Scanner and Super Five now rejects mismatched source/timeframe tags before replay, separates future vs forming completion cache identity. Existing 5m untagged compatibility preserved. Added actual nested function test for identity/source/frame and clock transition; no new broker requests, no votes invented. Cross-screen physical acceptance and independent N/F/O/M remain OPEN. Local execution NOT RUN; exact CI pending. No APK/Oracle/orders change.
+
+
+### 25 नवंबर 2026 — SMART 4.0: HIST FINAL regression contract repair
+- PR #123 merge 8f98103: B3 #535 run 45663182925 job 139378200731: 1984 tests, 2 failures (210 != 211; 5 != 6). B1/B2/Adapter same revision PASS.
+- B4.05: 70×3 और eviction fixtures में exact timeframe tags, accepted source/bars assertions; wrong incoming provider और wrong frame rejection, shared invalid cache hit, provider switch और valid recovery के अलग assertions. Production source/Doctor behavior unchanged; no safety bypass or lowered expected final call count. केवल test contract repair; local execution NOT RUN, exact CI pending. Phone/cross-screen and independent N/F/O/M acceptance OPEN. No APK/Oracle/provider/order change.

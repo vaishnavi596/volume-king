@@ -350,9 +350,22 @@ class HistoricalVotingTests(unittest.TestCase):
             wrong=fn("NIFTY","1m",dict(data,_scanner_timeframe="5m"),selected,stamp+60)
             self.assertIsNone(wrong["source"])
             self.assertIsNone(wrong["bars"])
+            self.assertEqual(replay_mock.call_count,2)
+            # Wrong incoming provider and wrong frame share the same rejected evidence.
+            foreign=fn("NIFTY","1m",dict(data,source="Yahoo Finance"),selected,stamp+60)
+            self.assertIs(foreign,wrong)
+            self.assertIsNone(foreign["bars"])
+            self.assertEqual(replay_mock.call_count,2)
             scope["prefs"]["source"]="Yahoo Finance"
-            self.assertIsNone(fn("NIFTY","1m",data,selected,stamp+60)["source"])
+            inactive=fn("NIFTY","1m",data,selected,stamp+60)
+            self.assertIsNone(inactive["source"])
+            self.assertIsNone(inactive["bars"])
+            self.assertEqual(replay_mock.call_count,3)
             scope["prefs"]["source"]="Dhan"
+            recovered=fn("NIFTY","1m",data,selected,stamp+60)
+            self.assertEqual(recovered["source"],"Dhan")
+            self.assertEqual(recovered["bars"],data["bars"])
+            self.assertEqual(replay_mock.call_count,4)
             future=fn("NIFTY","1m",data,selected,stamp-1)
             forming=fn("NIFTY","1m",data,selected,stamp+1)
             self.assertIsNot(future,forming)

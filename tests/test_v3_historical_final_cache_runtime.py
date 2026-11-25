@@ -50,11 +50,12 @@ class HistoricalFinalCacheRuntimeTests(unittest.TestCase):
             for frame in ("1m","3m","5m"):
                 bars=[[now-600,100.0,101.0,99.0,100.5,20],
                       [now,100.5,101.0,100.0,100.8,21]]
-                history={"source":"Dhan","bars":bars}
+                history={"source":"Dhan","_scanner_timeframe":frame,"bars":bars}
                 histories[symbol,frame]=history
                 result=self.run(symbol,frame,history,selected,now+10)
                 self.assertEqual(result["identity"],(symbol,frame))
         self.assertEqual(len(self.calls),210)
+        self.assertTrue(all(call["source"]=="Dhan" and call["bars"] is not None for call in self.calls))
         self.assertEqual(len(self.env["historical_final_replay_cache"]),210)
         # A quote-only refresh isn't part of historical candle revision identity.
         for (sym,frame),history in histories.items():
@@ -83,11 +84,12 @@ class HistoricalFinalCacheRuntimeTests(unittest.TestCase):
 
     def test_bounded_cache_eviction_after_70_times_three_plus_indexes(self):
         now=1795000000
-        history={"source":"Dhan","bars":[[now-60,100,101,99,100,1]]}
+        history={"source":"Dhan","_scanner_timeframe":"1m","bars":[[now-60,100,101,99,100,1]]}
         for i in range(230):
             self.run(f"EQ{i:03d}","1m",history,[{"name":"MACD"}],now+65)
         self.assertLessEqual(len(self.env["historical_final_replay_cache"]),220)
         self.assertEqual(len(self.calls),230)
+        self.assertTrue(all(c["source"]=="Dhan" and c["bars"] is not None for c in self.calls))
         self.assertTrue(all("live_verified" not in c for c in self.calls))
 
 
