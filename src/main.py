@@ -719,7 +719,7 @@ def app_main(page:ft.Page):
                 # turn a 51-symbol candle scan into 51 extra individual LTP
                 # requests when the batch cache expires during scanning.
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
-                        "bars":bars,"source":"Dhan","quote_timestamp":None,
+                        "bars":bars,"source":"Dhan","quote_timestamp":quote.get("quote_timestamp") if quote else None,
                         "symbol":candle_result.get("symbol"),"historical":True,
                         "candle_transport_integrity":(
                             "DERIVED_FROM_TRANSPORT_SHA256_MATCH" if interval in ("2m","3m","10m","30m")
@@ -2643,9 +2643,11 @@ def app_main(page:ft.Page):
                         and isinstance(price,(int,float)) and not isinstance(price,bool)
                         and math.isfinite(price) and price>0):
                     old=quotes.get(ticker) or {}
-                    quotes[ticker]=dict(snapshot,change=None,
-                        bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
-                        candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time(),live_verified=False)
+                    from clone_smart_refresh_priority import accept_newer_dhan_quote
+                    if accept_newer_dhan_quote(old,snapshot):
+                        quotes[ticker]=dict(snapshot,change=None,
+                            bars=old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                            candle_fetched_at=old.get("candle_fetched_at",0),fetched_at=time.time(),live_verified=False)
                 else:
                     # An invalid OR missing response must never leave an old index
                     # quote appearing recently verified. Keep its last good price.
@@ -9142,7 +9144,7 @@ console.log('BOT KING Lightweight Charts ready');
                                         isinstance(latest.get("price"),(int,float)) and
                                         not isinstance(latest.get("price"),bool) and
                                         math.isfinite(latest["price"]) and latest["price"]>0):
-                                    data=dict(data,price=latest["price"],quote_timestamp=None,
+                                    data=dict(data,price=latest["price"],quote_timestamp=latest.get("quote_timestamp"),
                                               freshness="unverified",fetched_at=time.time())
                             # Historical scans must never overwrite a newer live LTP
                             # published by the independent 30-second quote poll.
@@ -9178,7 +9180,8 @@ console.log('BOT KING Lightweight Charts ready');
                             # can arrive after quote batch TTL and must never
                             # erase an independently fetched last-good Dhan price.
                             if (prefs.get("source")=="Dhan" and saved_has_quote
-                                    and (not incoming_has_quote
+                                    and (not accept_newer_dhan_quote(previous_quote,data)
+                                         or not incoming_has_quote
                                          or (isinstance(previous_stamp,(int,float))
                                              and (not isinstance(data_stamp,(int,float))
                                                   or previous_stamp>data_stamp)))):

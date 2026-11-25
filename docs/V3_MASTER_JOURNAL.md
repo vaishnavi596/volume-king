@@ -2472,3 +2472,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — ML5-1B quote trade timestamp (joint flexible development)
 - Exact 5fc2708 B1 45567142162, B2 45567142238, Adapter 45567142522, B3 45567142247 all PASS. ML5 groups may progress jointly; every build compare observed outcomes, never certify unavailable evidence. Quote path uses one Dhan /marketfeed/quote instead of /marketfeed/ltp on real DhanFeed, same shared pacing/cooldown, existing injected legacy feed remains LTP. Parse explicit last_trade_time as IST, reject placeholder/future/malformed, pass optional per-symbol trade timestamp to phone preserving symbol→float contract and unverified live flags. Old deployed gateway remains compatible. Tests added. No deployment, actual broker payload/timezone validation or new APK yet; server entitlement and live timestamp test pending. No orders. T/C/O independent source proof and main cache propagation audit remain pending. CI pending.
+
+
+### 25 नवंबर 2026 — ML5-1C quote cache preservation
+- Exact dcb8193 Adapter 45568248372 and B3 45568248426 PASS. Preserve actual optional quote timestamp on candle result and scanner batch overlay; existing saved timestamp precedence now also enforced in index and scanner cache writes. No new requests or LIVE certification. Added wiring regression test. CI pending. Server still not deployed; actual Dhan quote entitlement, timestamp format and phone validation remain pending. No APK/orders change.
