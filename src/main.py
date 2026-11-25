@@ -1080,7 +1080,7 @@ def app_main(page:ft.Page):
     def strength_widget(row, symbol=None):
         # Do not present cached Yahoo/Angel signals as Dhan watchlist signals.
         if prefs.get("source")=="Dhan" and (symbol not in tuple(["NIFTY"]+watch_symbols) or (row or {}).get("source")!="Dhan"):
-            return note("Unsupported Dhan symbol" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Candle analysis pending • see System Health")
+            return note("Unsupported Dhan symbol" if symbol not in tuple(["NIFTY"]+watch_symbols) else "Candle analysis pending • see Platinum Doctor")
         counts=signal_percentages(row or {})
         if not counts:return note("Signal agreement unavailable")
         bull,bear,total=counts
@@ -1218,7 +1218,7 @@ def app_main(page:ft.Page):
             note(login_bootstrap.label("indices")),
             *feature_details
         ]
-        return section("SYSTEM HEALTH",ft.Column([
+        return ft.Column([
             ft.Row([ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED if problems else ft.Icons.CHECK_CIRCLE_OUTLINE,color=RED if problems else GREEN,size=17),ft.Container(content=txt(str(len(problems))+" issue(s) need attention" if problems else "No active errors reported",11,RED if problems else GREEN,True),expand=True),txt(prefs.get("source",""),10,MUTED)],spacing=5),
             *[txt(item,11,RED) for item in problems[:3]],
             note("54-symbol filters • "+str(coverage_counts["ANALYZED"])+" analyzed • "+
@@ -1226,7 +1226,7 @@ def app_main(page:ft.Page):
                  " insufficient • "+str(coverage_counts["PENDING"])+" pending") if dhan else note("Selected-feed analysis coverage"),
             ft.ExpansionTile(title=note("Diagnostics • 51 equities + 3 indices"),initially_expanded=False,controls=details),
             ft.TextButton("Retry data",on_click=lambda e:page.run_task(retry_selected_data))
-        ],spacing=2))
+        ],spacing=2)
     def news_event_overview():
         # News must not depend on Scanner's fusion calculation having run.
         # The separate RSS bootstrap may already have populated news_cache.
@@ -2051,10 +2051,10 @@ def app_main(page:ft.Page):
             controls.insert(0,note("Dhan disconnected • saved historical analysis only; no live signal or verified prices."))
         # Keep Super Five focused on five candidates, not a scrolling wall
         # of up to 51 provider errors and retry buttons. Full per-symbol
-        # diagnostics remain in System Health / Scanner.
+        # diagnostics remain in Platinum Doctor / Scanner.
         if failed_symbols:
             controls.append(note(str(len(failed_symbols))+
-                " candle histories unavailable • details in System Health / Scanner"))
+                " candle histories unavailable • details in Platinum Doctor / Scanner"))
 
         now=datetime.now(timezone.utc).timestamp()
         for row in rows:
@@ -6786,7 +6786,7 @@ def app_main(page:ft.Page):
                 test_status.value=("Active unique test "+str(count)+"/70 equities • "+str(
                     outcome["observed_instruments"])+"/"+str(outcome["requested_instruments"])+
                     " checked • "+str(outcome["stock_error_count"])+
-                    " stock errors. Inspect ERROR codes and Health Doctor below.")
+                    " stock errors. Inspect ERROR codes and Platinum Doctor.")
                 report.update()
                 test_status.update()
             except Exception as exc:
@@ -6797,8 +6797,15 @@ def app_main(page:ft.Page):
                 v3_diag_report[0]=report.value
                 v3_diag_status[0]=test_status.value
                 busy[0]=False
-        return section("V3 LIVE BUILDING DOCTOR • PHONE TEST",ft.Column([
-            note("Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
+        return section("PLATINUM SMART DOCTOR",ft.Column([
+            ft.ExpansionTile(title=note("System Health • current issues"),initially_expanded=False,
+                controls=[data_overview()]),
+            ft.ExpansionTile(title=note("Error & Repair History"),initially_expanded=False,
+                controls=[txt(error_history_text(),10,MUTED),
+                    ft.Text(json.dumps(super_five_recovery.report(time.monotonic()),indent=2,ensure_ascii=False),
+                            size=10,selectable=True),
+                    note("Session error history and bounded local repair audit; not a complete server log.")]),
+            note("PHONE TEST • Login with existing Clone SSK first. Missing/invalid data shows typed ERROR; signals remain unavailable."),
             note("One refresh, then one cache-only active-roster test. 70 is the maximum unique-equity limit; do not schedule inactive equity slots. Three indices are separate."),
             ft.ElevatedButton("REFRESH DIAGNOSTICS • then TEST ACTIVE",on_click=lambda e:page.run_task(check_again,e)),
             ft.OutlinedButton("TEST ACTIVE • MAX 70 EQUITIES (+3 INDICES)",
@@ -6836,8 +6843,7 @@ def app_main(page:ft.Page):
             note("Live broker orders OFF")
         ])
         content.append(section("APP VERSION",note("BOT KING v"+APP_VERSION+" • Live orders OFF")))
-        content.append(data_overview())  # Unified System Health + Error Doctor at Settings bottom.
-        content.append(section("ERROR HISTORY",txt(error_history_text(),10,MUTED)))
+ 
         return content
 
 
