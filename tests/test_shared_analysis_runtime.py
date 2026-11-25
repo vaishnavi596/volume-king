@@ -109,6 +109,10 @@ class HistoricalAgreementMemoTests(unittest.TestCase):
         _, v, bars=SharedAnalysisRuntimeTests().setup_app()
         from unittest.mock import patch
         from unittest.mock import Mock
+        # Fixed completed regular-session candles, independent of CI wall clock.
+        from datetime import datetime, timezone, timedelta
+        end=int(datetime(2026,11,23,14,10,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp())
+        bars=[[end-(59-i)*300,100+i,102+i,99+i,101+i,1000] for i in range(60)]
         history={"source":"Dhan","_scanner_timeframe":"5m","bars":bars}
         # The offline harness executes main.py without its Flet launch call.
         # Importing main directly starts ft.app and can block CI indefinitely.
@@ -120,5 +124,8 @@ class HistoricalAgreementMemoTests(unittest.TestCase):
             self.assertEqual(compute.call_count,1)
             changed=[row[:] for row in bars]
             changed[-1][4]-=.1
+            v["historical_vote_agreement"](dict(history,bars=changed),"5m")
+            self.assertEqual(compute.call_count,2)
+            self.assertIsNotNone(first)
             v["historical_vote_agreement"](dict(history,bars=changed),"5m")
             self.assertEqual(compute.call_count,2)
