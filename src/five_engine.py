@@ -363,6 +363,10 @@ def verified_candle_evidence(history, timeframe, *, now, symbol):
     if not isinstance(bars, (list, tuple)) or not bars:
         return wait
     seconds = {"1m": 60, "3m": 180, "5m": 300}[timeframe]
+    # LIVE evidence must not use a HIST-only trimmed session suffix.
+    # The exact bars used for direction and the revision timestamp must match.
+    if historical_regular_session_bars(bars, timeframe) is not bars:
+        return wait
     balance = completed_timeframe_candle_balance(history, timeframe, now=now)
     if balance is None:
         return wait

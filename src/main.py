@@ -719,6 +719,7 @@ def app_main(page:ft.Page):
                 # requests when the batch cache expires during scanning.
                 result={"price":quote["price"] if quote else None,"change":None,"high":None,"low":None,
                         "bars":bars,"source":"Dhan","quote_timestamp":None,
+                        "symbol":candle_result.get("symbol"),"historical":True,
                         "candle_transport_integrity":(
                             "DERIVED_FROM_TRANSPORT_SHA256_MATCH" if interval in ("2m","3m","10m","30m")
                             and candle_result.get("normalized_transport_integrity")=="SHA256_MATCH" else

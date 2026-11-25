@@ -33,3 +33,17 @@ class IndependentCandleAdapterTest(unittest.TestCase):
         self.assertEqual(snap["combined"]["state"],"WAIT")
         scan["timestamp"]-=300
         self.assertFalse(scanner_snapshot_with_candle(scan,h,symbol="NIFTY",timeframe="5m",now=now)["engines"][1].eligible)
+
+    def test_gateway_historical_shape_cannot_vote_live(self):
+        h,now=self.fixture()
+        h.update(historical=True,live_verified=False,freshness='historical_unverified',
+                 candle_transport_integrity='SHA256_MATCH',
+                 candle_raw_provider_provenance='UNVERIFIED')
+        self.assertFalse(verified_candle_evidence(h,'5m',now=now,symbol='NIFTY').eligible)
+
+    def test_historical_suffix_cannot_supply_live_revision(self):
+        h,now=self.fixture()
+        end=datetime(2026,11,23,15,25,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp()
+        h['bars']=[[end-(29-i)*300,100,103,99,102,50] for i in range(30)]
+        h['bars'].append([end+300,100,103,99,102,50])
+        self.assertFalse(verified_candle_evidence(h,'5m',now=end+600,symbol='NIFTY').eligible)
