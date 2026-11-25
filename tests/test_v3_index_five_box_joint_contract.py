@@ -49,8 +49,9 @@ class IndexFiveBoxJointContract(unittest.TestCase):
         self.assertIn("spacing_remaining=1.05-(now-last_request[0])",GATEWAY)
         self.assertIn("time.sleep(spacing_remaining)",GATEWAY)
         self.assertIn("last_request[0] = now",GATEWAY)
-        self.assertIn("provider_cooldown_until[0] = time.monotonic() + 30",GATEWAY)
-        self.assertIn('headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}',GATEWAY)
+        self.assertIn("provider_cooldown_until[0] = max(",GATEWAY)
+        self.assertIn('stage, seconds = "PROVIDER_QUOTA", 30',GATEWAY)
+        self.assertIn('"X-BotKing-429-Stage": stage',GATEWAY)
         self.assertIn('market_cache[selection] = (time.monotonic(), payload)',GATEWAY)
 
     def test_scanner_context_is_not_a_directional_signal(self):

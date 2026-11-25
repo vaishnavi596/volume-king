@@ -156,3 +156,6 @@ Official Dhan Market Quote supports up to 1000 instruments per request at 1 quot
 | [Documentation Index](README.md) | Topic routing; do not create duplicate journals |
 
 **Historical index preservation:** The previous long Live Index (old V2/FT-1 “CURRENT” headings and all old snapshots) remains fully recoverable in [Git history at 542468d](https://github.com/vaishnavi596/volume-king/blob/542468d888d9badc97f520941b56f8236163ea1b/docs/BOT_KING_LIVE_WORK_INDEX.md). It was trimmed from this **current** view, not rewritten as false current status. For a detail absent from canonical Work Log, read that archived revision. Source-only journal cleanup ≠ CI PASS/APK/phone proof.
+
+### R1 quota contract regression reconciliation
+- Exact ede1413285d21ecdac4a8705dee59e89851e7559 Adapter #371 run 45693609689 and Full #551 run 45693609777 FAIL; 2002 tests, 3 failures, all obsolete static assertions of literal quota assignment/header. New behavioral cross-route tests passed within suite; no claim of full PASS. Updated three static checks to verify fixed enum, 30s fresh quota, dynamic remaining and shared helper; runtime unchanged. Local execution NOT RUN. Next exact CI required before Oracle deployment. Token renewal and physical acceptance OPEN.
