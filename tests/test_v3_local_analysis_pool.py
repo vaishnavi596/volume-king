@@ -156,3 +156,19 @@ class LocalPoolTests(unittest.TestCase):
         retry=funcs["retry_failed_symbol"]
         self.assertIn("await local_analysis_pool.run(display_analysis,symbol,snapshot,frozen=frozen)",retry)
         self.assertIn("generation!=provider_generation[0]",retry)
+
+    def test_super_five_local_observer_offloads_and_rejects_stale_revision(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        node=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.AsyncFunctionDef) and n.name=="super_five_minute_refresh")
+        body=ast.get_source_segment(source,node)
+        worker="await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)"
+        self.assertIn(worker,body)
+        self.assertIn("tuple(tuple(row) for row in bars)",body)
+        self.assertIn("snapshot=deepcopy(data)",body)
+        guard=body.split(worker,1)[1].split("publish_partial_ranking(results)",1)[0]
+        for check in ("generation!=provider_generation[0]","policy()!=selected_policy","revision(capture())!=fingerprint[-1]","current[0]!=0"):
+            self.assertIn(check,guard)
+        self.assertIn("record_analysis",guard)
+        self.assertNotIn("get_market_data(",body)

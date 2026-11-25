@@ -1492,35 +1492,57 @@ def app_main(page:ft.Page):
                 if not expected_source:
                     last_fingerprint=None
                     continue
-                available=[]
-                for sym in (all_watch_symbols() if expected_source=="Dhan" else watch_symbols):
-                    # A failed LTP poll may leave quotes without bars while the
-                    # matching 5m history survives in the chart/shared cache.
-                    # This loop is LOCAL ONLY, including while disconnected.
-                    snapshot=(shared_history(sym) if expected_source=="Dhan"
-                              else quotes.get(sym) or {})
-                    bars=snapshot.get("bars") or []
-                    if (snapshot.get("source")==expected_source
-                            and valid_candle_history(bars)):
-                        available.append((sym,snapshot,bars))
-                # Filter-mode/confidence changes need a fresh LOCAL calculation
-                # even when the last 5m candle has not changed.
-                fingerprint=(generation,expected_source,tuple(filter_selected),
-                             tuple(sorted(filter_modes.items())),prefs.get("confidence",75),
-                             tuple((sym,len(bars),repr(bars[-1])) for sym,_,bars in available))
+                from copy import deepcopy
+                def roster():
+                    return tuple(all_watch_symbols() if expected_source=="Dhan" else watch_symbols)
+                def policy():
+                    return (tuple(filter_selected),tuple(sorted(filter_modes.items())),
+                            float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),
+                            prefs.get("source"),roster())
+                def capture():
+                    available=[]
+                    for sym in roster():
+                        data=(shared_history(sym) if expected_source=="Dhan" else quotes.get(sym) or {})
+                        bars=data.get("bars") or []
+                        if data.get("source")==expected_source and valid_candle_history(bars):
+                            available.append((sym,data,bars))
+                    return available
+                def revision(available):
+                    return tuple((sym,tuple(tuple(row) for row in bars),
+                        snapshot.get("freshness"),snapshot.get("live_verified"),
+                        bool(snapshot.get("cached")),
+                        repr(scan_fetch_failure.get((generation,sym,"5m"))),
+                        bool(bars[-1][0]+300<=time.time()),
+                        bool(0<=time.time()-bars[-1][0]<=timeframe_spec("5m")["fresh_seconds"]))
+                        for sym,snapshot,bars in available)
+                selected_policy=policy()
+                available=capture()
+                fingerprint=(generation,expected_source,selected_policy,revision(available))
                 if fingerprint==last_fingerprint:
                     continue
                 results={}
-                for sym,snapshot,_ in available:
-                    result=display_analysis(sym,snapshot)
+                measurements={}
+                for sym,data,_ in available:
+                    if generation!=provider_generation[0] or not app_active[0] or current[0]!=0 or policy()!=selected_policy:
+                        break
+                    frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),
+                            bool(dhan_feed.historical_only),deepcopy(scan_fetch_failure.get((generation,sym,"5m"))))
+                    snapshot=deepcopy(data)
+                    began=time.monotonic()
+                    result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
+                    if generation!=provider_generation[0] or not app_active[0] or current[0]!=0 or policy()!=selected_policy:
+                        break
                     if expected_source=="Dhan":
-                        result=retain_last_filter_votes(
-                            result,watch_signal_cache.get(sym),
-                            selected_filters=active_analysis_filters(),provider="Dhan")
+                        result=retain_last_filter_votes(result,watch_signal_cache.get(sym),
+                            selected_filters=frozen[0],provider="Dhan")
+                    measurements[sym]=(result,time.monotonic()-began,len(snapshot.get("bars") or []))
                     if result.get("timestamp"):
                         results[sym]=result
-                if generation!=provider_generation[0] or not results:
+                if (generation!=provider_generation[0] or not app_active[0] or current[0]!=0
+                        or policy()!=selected_policy or revision(capture())!=fingerprint[-1] or not results):
                     continue
+                for sym,(result,elapsed,count) in measurements.items():
+                    record_analysis(sym,"5m",result=result,elapsed=elapsed,candle_count=count)
                 publish_partial_ranking(results)
                 last_fingerprint=fingerprint
                 if current[0]==0:
