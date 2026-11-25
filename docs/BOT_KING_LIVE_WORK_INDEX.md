@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — B2.03 persistence:** #546 1997/1997 PASS; serialized historical ranking persistence and Doctor counters; exact CI pending. Remaining audit and physical acceptance OPEN.
+
 > **CURRENT — B2.03 aggregate:** #545 SUCCESS; aggregate ownership and detached news guard; exact CI pending. Remaining diagnostics/cache audit and physical acceptance OPEN.
 
 > **CURRENT — R1.2 B2.03:** #544 1995/1995 PASS; scoped ranking worker ownership patch; new exact CI pending. Physical acceptance OPEN.

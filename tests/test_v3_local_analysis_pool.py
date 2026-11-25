@@ -329,3 +329,42 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn('persist=False),timeout=20)',source)
         self.assertIn('if not any(row is candidate for row in top5_candidates):continue',source)
         self.assertIn('if available and ranking_owner_current():',source)
+
+    def test_ranking_persistence_serializes_and_restores_historical_only(self):
+        import ast
+        from pathlib import Path
+        from types import SimpleNamespace
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        node=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.AsyncFunctionDef) and n.name=="persist_current_ranking")
+        writes=[]
+        current=[True]
+        row={"symbol":"TCS","source":"Dhan","bias":"BULLISH","live_verified":True}
+        removed=dict(row,symbol="INFY")
+        async def check():
+            stats={"skipped_owner":0,"saved":0,"failed":0}
+            lock=asyncio.Lock()
+            env=dict(asyncio=asyncio,ranking_persist_lock=lock,ranking_persist_stats=stats,
+                     prefs={"source":"Dhan"},top5_candidates=[row,removed],
+                     watch_signal_cache={"TCS":row,"INFY":removed},
+                     market_store=SimpleNamespace(put=lambda *args: writes.append(args) or True))
+            exec(compile(ast.Module(body=[node],type_ignores=[]),"<ranking persistence>","exec"),env)
+            persist=env["persist_current_ranking"]
+            async with lock:
+                task=asyncio.create_task(persist(lambda:current[0],["TCS"],"now"))
+                await asyncio.sleep(0)
+                current[0]=False
+            self.assertFalse(await task)
+            self.assertFalse(writes)
+            current[0]=True
+            self.assertTrue(await persist(lambda:current[0],["TCS"],"now"))
+            payload=writes[0][2]
+            for key in ("rows","all_rows"):
+                self.assertEqual([r["symbol"] for r in payload[key]],["TCS"])
+                self.assertTrue(payload[key][0]["historical"])
+                self.assertFalse(payload[key][0]["live_verified"])
+            self.assertTrue(row["live_verified"])
+            self.assertEqual(stats,{"skipped_owner":1,"saved":1,"failed":0})
+        asyncio.run(check())
+        self.assertIn("await persist_current_ranking(retry_owner_current,roster,",source)
+        self.assertIn("await persist_current_ranking(ranking_owner_current,ranking_symbols,",source)
+        self.assertIn('data["ranking_persistence"]=dict(ranking_persist_stats)',source)

@@ -2272,25 +2272,58 @@ def app_main(page:ft.Page):
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP unavailable • Dhan disconnected" if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
+    ranking_persist_lock=asyncio.Lock()
+    ranking_persist_stats={"skipped_owner":0,"saved":0,"failed":0}
+    async def persist_current_ranking(owner_current,roster,checked_at):
+        # Serialize both publishers; capture only after acquiring the lock.
+        async with ranking_persist_lock:
+            if not owner_current():
+                ranking_persist_stats["skipped_owner"]+=1
+                return False
+            selected=set(roster)
+            expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
+            def historical_row(row):
+                return dict(row,historical=True,live_verified=False,freshness="historical_unverified")
+            rows=[historical_row(row) for row in top5_candidates
+                  if row.get("symbol") in selected and row.get("source")==expected]
+            all_rows=[historical_row(row) for row in watch_signal_cache.values()
+                      if row.get("symbol") in selected and row.get("source")==expected]
+            if not rows:return False
+            saved=await asyncio.to_thread(market_store.put,"ranking",("configured51",),
+                {"rows":rows,"all_rows":all_rows,"checked_at":checked_at})
+            ranking_persist_stats["saved" if saved else "failed"]+=1
+            if not owner_current():
+                ranking_persist_stats["skipped_owner"]+=1
+                return False
+            return bool(saved)
     async def retry_failed_symbol(symbol):
         generation=provider_generation[0]
+        source=prefs.get("source")
+        roster=tuple(all_watch_symbols())
+        def retry_owner_current():
+            return (generation==provider_generation[0] and prefs.get("source")==source
+                    and app_active[0] and not lifecycle_background[0]
+                    and (source!="Dhan" or dhan_feed.connected)
+                    and symbol in roster and set(roster)==set(all_watch_symbols()))
+        if not retry_owner_current():return
         try:
             data=await asyncio.to_thread(get_market_data,symbol,"5m","5d")
-            if generation!=provider_generation[0]:return
+            if not retry_owner_current():return
             from copy import deepcopy
             frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,symbol,"5m")))
             snapshot=deepcopy(data)
             result=await local_analysis_pool.run(display_analysis,symbol,snapshot,frozen=frozen)
-            if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,symbol,"5m")))):return
+            if (not retry_owner_current() or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,symbol,"5m")))):return
             if not result.get("timestamp"):raise ValueError("No completed candle analysis")
             record_analysis(symbol,"5m",result=result,candle_count=len(snapshot.get("bars") or []))
             quotes[symbol]=data;failed_symbols.pop(symbol,None)
             existing={r["symbol"]:r for r in top5_candidates if r.get("timestamp")}
             existing[symbol]=result;publish_partial_ranking(existing)
-            await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"checked_at":datetime.now().strftime("%d %b %H:%M")})
-            if generation!=provider_generation[0]:return
-        except Exception as exc:failed_symbols[symbol]=safe_error(exc)
-        if current[0]==0:request_view_refresh(0)
+            await persist_current_ranking(retry_owner_current,roster,datetime.now().strftime("%d %b %H:%M"))
+            if not retry_owner_current():return
+        except Exception as exc:
+            if retry_owner_current():failed_symbols[symbol]=safe_error(exc)
+        if retry_owner_current() and current[0]==0:request_view_refresh(0)
     from v3_dashboard_bar_monitor import DashboardBarMonitor
     from v3_dashboard_last_good import LastGoodHistoricalAgreement
     dashboard_bar_monitor=DashboardBarMonitor()
@@ -2543,6 +2576,13 @@ def app_main(page:ft.Page):
         for i,group in enumerate(watch_groups,1):
             prefs["watchlist_"+str(i)]=list(group)
         save()
+    # Restored ranking is historical and limited to the actual selected roster.
+    restored_roster={sym for group in watch_groups for sym in group}
+    top5_candidates[:]=[dict(row,historical=True,live_verified=False,freshness="historical_unverified")
+                       for row in top5_candidates if row.get("symbol") in restored_roster]
+    watch_signal_cache={sym:dict(row,historical=True,live_verified=False,freshness="historical_unverified")
+                        for sym,row in watch_signal_cache.items() if sym in restored_roster}
+    if not top5_candidates:top5_last_update[0]="—"
     active_watch=[0]
     watch_list=ft.Column(spacing=4,scroll=ft.ScrollMode.AUTO)
     selected_watch=[""]
@@ -6755,6 +6795,7 @@ def app_main(page:ft.Page):
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["persistent_cache"]=market_store.diagnostics()
+                data["ranking_persistence"]=dict(ranking_persist_stats)
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
                 data["five_engine_adapter_timing"]=(dict(five_engine_timing) if five_engine_timing.get("generation")==provider_generation[0] else {})
                 data["capture_elapsed_ms"]=round((time.perf_counter()-started)*1000,2)
@@ -10072,8 +10113,10 @@ console.log('BOT KING Lightweight Charts ready');
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 if available and ranking_owner_current():
-                    await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"all_rows":[dict(row) for row in watch_signal_cache.values() if row.get("symbol") in ranking_symbols],"checked_at":top5_last_update[0]})
-                    if generation!=provider_generation[0] or prefs.get("source")!="Dhan":continue
+                    await persist_current_ranking(ranking_owner_current,ranking_symbols,top5_last_update[0])
+                    if not ranking_owner_current():
+                        last_scanned_generation=None
+                        continue
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
