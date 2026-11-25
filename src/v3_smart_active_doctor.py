@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -79,6 +79,18 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     issues.append({"check": "SCANNER_RANKING", "status": "TESTING", "progress": progress})
     if engine_observation is not None:
         issues.append(dict(check="ML5_FIVE_ENGINE_READINESS",status="TESTING",**engine_observation))
+    if historical_indicator_observation is not None:
+        observed=historical_indicator_observation
+        matching=observed.get("generation")==generation
+        if not matching or not observed.get("successes") or observed.get("last_error"):
+            issues.append({"check":"HISTORICAL_INDICATOR_RUNTIME",
+                "code":"BK-HIST-001" if matching and observed.get("last_error") else "BK-HIST-002",
+                "status":"ERROR" if matching and observed.get("last_error") else "UNVERIFIED",
+                "module":"main.py","function":"historical_indicator_result",
+                "evidence":dict(observed) if matching else {},
+                "scope":"local calculation only; not live source or complete wiring proof"})
+        else:
+            hidden.append("HISTORICAL_INDICATOR_RUNTIME")
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})

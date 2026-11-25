@@ -1327,14 +1327,38 @@ def app_main(page:ft.Page):
     historical_agreement_cache={}
     # Shared validated result, not separate UI/publisher indicator executions.
     historical_indicator_cache={}
+    historical_indicator_profile={}
     def historical_indicator_result(bars,selected,tf):
+        generation=provider_generation[0]
+        if historical_indicator_profile.get("generation")!=generation:
+            historical_indicator_profile.clear()
+            historical_indicator_profile.update(generation=generation,hits=0,misses=0,
+                successes=0,failures=0,evictions=0,last_ms=None,max_ms=None,last_error=None)
         identity=(provider_generation[0],tf,tuple(selected),
                   tuple(tuple(bar[:6]) for bar in bars))
-        if identity not in historical_indicator_cache:
+        if identity in historical_indicator_cache:
+            historical_indicator_profile["hits"]+=1
+            return historical_indicator_cache[identity]
+        historical_indicator_profile["misses"]+=1
+        started=time.perf_counter()
+        try:
+            result=analyze(bars,selected,tf)
             if len(historical_indicator_cache)>=220:
                 historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
-            historical_indicator_cache[identity]=analyze(bars,selected,tf)
-        return historical_indicator_cache[identity]
+                historical_indicator_profile["evictions"]+=1
+            historical_indicator_cache[identity]=result
+            historical_indicator_profile["successes"]+=1
+            historical_indicator_profile["last_error"]=None
+            return result
+        except Exception as exc:
+            historical_indicator_profile["failures"]+=1
+            historical_indicator_profile["last_error"]=type(exc).__name__
+            raise
+        finally:
+            elapsed=round((time.perf_counter()-started)*1000,2)
+            historical_indicator_profile.update(last_ms=elapsed,
+                max_ms=max(historical_indicator_profile["max_ms"] or 0,elapsed),
+                timeframe=tf)
     def historical_vote_agreement(data,tf="5m"):
         """Completed exact-timeframe Dhan votes; historical never equals live."""
         if tf not in ("1m","3m","5m") or data.get("_scanner_timeframe","5m")!=tf:
@@ -6344,6 +6368,7 @@ def app_main(page:ft.Page):
                     quote=quotes.get(ml5_symbol))
                 data=active_report(
                     engine_observation=ml5_observation,
+                    historical_indicator_observation=dict(historical_indicator_profile),
                     generation=generation,symbols=selected_equities,
                     quote_present=[sym for sym in selected_equities if cached_price(sym)],
                     index_present=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if cached_price(sym)],
