@@ -99,9 +99,13 @@ class LocalPoolTests(unittest.TestCase):
             for check in ("generation!=scan_generation[0]","sym!=scan_symbol.value","interval!=scan_tf.value","provider_generation[0]"):
                 self.assertIn(check,guard)
         retry=ast.get_source_segment(source,funcs["retry_failed_symbol"])
-        self.assertIn('await asyncio.to_thread(market_store.put,"ranking"',retry)
-        self.assertIn("if generation!=provider_generation[0]:return",retry.split('await asyncio.to_thread(market_store.put,"ranking"',1)[1])
-        self.assertEqual(source.count('await asyncio.to_thread(market_store.put,"ranking"'),2)
+        persist=ast.get_source_segment(source,funcs["persist_current_ranking"])
+        self.assertIn("await persist_current_ranking(retry_owner_current,roster,",retry)
+        self.assertIn("if not retry_owner_current():return",retry.split("await persist_current_ranking(",1)[1])
+        self.assertIn('await asyncio.to_thread(market_store.put,"ranking"',persist)
+        self.assertIn("async with ranking_persist_lock:",persist)
+        self.assertIn("if not owner_current():",persist.split('await asyncio.to_thread(market_store.put,"ranking"',1)[1])
+        self.assertEqual(source.count('await asyncio.to_thread(market_store.put,"ranking"'),1)
         self.assertNotIn('market_store.put("ranking"',source)
 
     def test_watchlist_offscreen_worker_and_single_flight(self):
@@ -157,7 +161,11 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("publish_five_engine_5m(sym,engine_snapshot)",shared)
         retry=funcs["retry_failed_symbol"]
         self.assertIn("await local_analysis_pool.run(display_analysis,symbol,snapshot,frozen=frozen)",retry)
-        self.assertIn("generation!=provider_generation[0]",retry)
+        self.assertIn("generation==provider_generation[0]",retry)
+        self.assertIn("if not retry_owner_current():return",retry)
+        self.assertIn("if (not retry_owner_current() or frozen!=",retry)
+        for check in ('prefs.get("source")==source',"app_active[0]","not lifecycle_background[0]","set(roster)==set(all_watch_symbols())"):
+            self.assertIn(check,retry)
 
     def test_super_five_local_observer_offloads_and_rejects_stale_revision(self):
         import ast
