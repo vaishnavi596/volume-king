@@ -33,6 +33,22 @@ PROTOCOL = "botking-clone-v2"
 DIAGNOSTIC_LOGGER = logging.getLogger("botking.clone.market")
 
 
+def observed_trade_timestamp(value, *, now):
+    """Dhan quote wall-clock IST; reject placeholders/future values, not old HIST.
+    A trade timestamp is not a verified candle or independent LIVE vote.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        stamp = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(
+            tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp()
+        if stamp < 946684800 or stamp > now:
+            return None
+        return stamp
+    except (ValueError, OverflowError, OSError):
+        return None
+
+
 def private_ssk(path):
     """Load an operator-protected key without exposing bytes in logs."""
     if (type(path) is not str or not path.startswith("/home/opc/")
@@ -401,7 +417,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                                         headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
             last_request[0] = now
             try:
-                result = provider().batch_ltp([known[s] for s in symbols])
+                feed = provider()
+                # One request, same quota gate. Legacy injected feeds remain LTP-only.
+                quote_reader = getattr(feed, "batch_quote", None)
+                result = (quote_reader if callable(quote_reader) else feed.batch_ltp)([known[s] for s in symbols])
             except HTTPException:
                 raise
             except Exception as exc:
@@ -451,6 +470,11 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                         continue
                     quotes[symbol] = {"symbol": symbol, "ltp": float(raw),
                                       "source": "dhan", "freshness": "unverified"}
+                    if callable(quote_reader):
+                        stamp = observed_trade_timestamp(result["data"][seg][str(sid)].get("last_trade_time"), now=time.time())
+                        if stamp is not None:
+                            quotes[symbol].update(exchange_trade_timestamp=stamp,
+                                timestamp_origin="DHAN_QUOTE_LAST_TRADE_TIME")
                 except (KeyError, TypeError, ValueError, OverflowError):
                     if isinstance(segment_data, dict) and isinstance(segment_data.get(str(sid)), dict):
                         market_diagnostic("quotes", symbol, "validation", "invalid_price")

@@ -6,6 +6,7 @@ The server must independently implement and authorize /clone-v2/status before
 the clone may claim it is connected. No fallback to original V1 server paths.
 """
 from __future__ import annotations
+import time
 
 import json
 import math
@@ -188,7 +189,7 @@ class CloneV2Gateway:
                 or not isinstance(payload.get("quotes"), dict)
                 or not isinstance(payload.get("unavailable"), list)):
             raise FeedError("Clone market contract invalid")
-        validated = {}
+        validated = QuotePriceBatch()
         for name, item in payload["quotes"].items():
             if (name not in symbols or not isinstance(item, dict)
                     or item.get("symbol") != name or item.get("source") != "dhan"
@@ -198,6 +199,11 @@ class CloneV2Gateway:
             if type(price) not in (int, float) or not math.isfinite(price) or price <= 0:
                 raise FeedError("Clone market invalid quote")
             validated[name] = float(price)
+            stamp = item.get("exchange_trade_timestamp")
+            if (item.get("timestamp_origin")=="DHAN_QUOTE_LAST_TRADE_TIME"
+                    and type(stamp) in (int,float) and math.isfinite(stamp)
+                    and 946684800<=stamp<=time.time()):
+                validated.trade_timestamps[name]=stamp
         if (not validated or len(payload["unavailable"]) != len(set(payload["unavailable"]))
                 or any(not isinstance(x, str) or x not in symbols for x in payload["unavailable"])
                 or set(validated).intersection(payload["unavailable"])
@@ -252,6 +258,19 @@ class CloneV2Gateway:
             raise FeedError("Clone V2 gateway authorization not verified")
         self._origin, self._key = origin, key
         return {"status": "connected_read_only", "live_market_data_verified": False}
+
+
+class QuotePriceBatch(dict):
+    """Keep the established symbol→float contract with per-response metadata."""
+    def __init__(self):
+        super().__init__()
+        self.trade_timestamps = {}
+
+
+def observed_quote_fields(prices, symbol):
+    stamp = getattr(prices, "trade_timestamps", {}).get(symbol)
+    return {"quote_timestamp": stamp, "freshness": "unverified",
+            "live_verified": False}
 
 
 class CloneDhanReadOnly:
@@ -332,14 +351,13 @@ class CloneDhanReadOnly:
         if symbol not in result:
             raise FeedError("Verified Clone Dhan symbol unavailable")
         return {"symbol": symbol, "price": result[symbol],
-                "source": "Dhan", "freshness": "unverified", "quote_timestamp": None}
+                "source": "Dhan", **observed_quote_fields(result, symbol)}
 
     def index_batch_quotes(self):
         names = ("NIFTY", "BANKNIFTY", "SENSEX")
         prices = self._fetch(names)
         return {s: {"symbol": s, "price": p, "source": "Dhan",
-                    "quote_timestamp": None, "freshness": "unverified",
-                    "live_verified": False}
+                    **observed_quote_fields(prices, s)}
                 for s, p in prices.items() if s in names}
 
     def selected_equity_quotes(self, symbols):
@@ -349,8 +367,7 @@ class CloneDhanReadOnly:
             raise FeedError("Invalid Clone selected equity symbols")
         prices = self._fetch(symbols)
         return {s: {"symbol": s, "price": p, "source": "Dhan",
-                    "quote_timestamp": None, "freshness": "unverified",
-                    "live_verified": False}
+                    **observed_quote_fields(prices, s)}
                 for s, p in prices.items()}
 
     def equity_quotes_for_watchlist(self, symbols):

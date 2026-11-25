@@ -72,7 +72,7 @@ class DhanFeed:
             raise DhanFeedError("Dhan credentials are not configured")
 
     def _post(self, endpoint, payload):
-        if endpoint not in ("/marketfeed/ltp", "/charts/intraday", "/charts/historical", "/optionchain", "/optionchain/expirylist"):
+        if endpoint not in ("/marketfeed/ltp", "/marketfeed/quote", "/charts/intraday", "/charts/historical", "/optionchain", "/optionchain/expirylist"):
             raise DhanFeedError("Unsupported read-only endpoint")
         with self._rate_lock:
             if time.monotonic() < self._retry_after:
@@ -90,7 +90,7 @@ class DhanFeed:
             method="POST",
         )
         try:
-            is_quote = endpoint == "/marketfeed/ltp"
+            is_quote = endpoint in ("/marketfeed/ltp", "/marketfeed/quote")
             is_history = endpoint in ("/charts/intraday", "/charts/historical")
             gate = self._quote_lock if is_quote else self._history_lock if is_history else nullcontext()
             with gate:
@@ -139,6 +139,12 @@ class DhanFeed:
         return result
 
     def batch_ltp(self, instruments):
+        return self._batch_market_quote(instruments, "/marketfeed/ltp")
+
+    def batch_quote(self, instruments):
+        return self._batch_market_quote(instruments, "/marketfeed/quote")
+
+    def _batch_market_quote(self, instruments, endpoint):
         """Fetch multiple instruments in one read-only request.
 
         Accepts an iterable of (exchange_segment, security_id) pairs.
@@ -176,7 +182,7 @@ class DhanFeed:
                 raise DhanFeedError("Too many instruments in one LTP request")
         if not total:
             raise DhanFeedError("At least one instrument required")
-        return self._post("/marketfeed/ltp", payload)
+        return self._post(endpoint, payload)
 
     def ltp(self, exchange_segment, security_id):
         return self.batch_ltp([(exchange_segment, security_id)])
