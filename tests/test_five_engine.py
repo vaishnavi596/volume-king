@@ -856,7 +856,9 @@ class FiveEngineMainContextWiringContract(unittest.TestCase):
         self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot(watch_signal_cache[sym]))'),2)
         self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot_with_candle('),2)
         self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,',source)
-        self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time()))'),2)
+        self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time()))'),1)
+        self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time(),timing=engine_timing))'),1)
+        self.assertIn('five_engine_timing.update(engine_timing,symbol=sym,timeframe="5m",generation=generation)',source)
         self.assertNotIn('five_engine_snapshots[sym]=scanner_snapshot(',source)
 
 
