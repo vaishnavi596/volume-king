@@ -2267,7 +2267,12 @@ def app_main(page:ft.Page):
             dialog.actions=[ft.TextButton("Close",on_click=lambda e:page.close(dialog))]
             page.open(dialog)
         def repair_now(e):
-            # Observer already owns the safe retry. No cooldown bypass or extra task.
+            result=super_five_recovery.request_retry(provider_generation[0],time.monotonic())
+            message={"NO_PENDING_REPAIR":"No pending local repair",
+                "COOLDOWN":"Safe cooldown active; automatic retry remains scheduled",
+                "ALREADY_RUNNING":"Repair is already running",
+                "QUEUED_EXISTING_OBSERVER":"Existing observer will retry on its next eligible tick"}[result]
+            page.open(ft.SnackBar(content=ft.Text(message)))
             update_repair_board()
         labels={"UNOBSERVED":"NOT OBSERVED","OBSERVED":"LOCAL OBSERVED",
                 "COOLDOWN":"RETRY COOLDOWN","ESCALATED":"FAILED / ESCALATED",
@@ -2282,7 +2287,7 @@ def app_main(page:ft.Page):
             rows.append(note("Cooldown "+str(round(data["retry_after_seconds"]))+"s"))
         if data["persistence_error"]:
             rows.append(note("Audit storage error: "+data["persistence_error"]))
-        rows.append(ft.Row([ft.TextButton("Repair status",on_click=repair_now),
+        rows.append(ft.Row([ft.TextButton("Repair now",on_click=repair_now),
                             ft.TextButton("Repair logs",on_click=show_logs)],wrap=True))
         return section("PLATINUM SMART DOCTOR",ft.Column(rows,spacing=3))
     def update_repair_board():

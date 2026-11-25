@@ -49,7 +49,12 @@ class LocalObserverRecoveryTests(unittest.TestCase):
         self.assertIn("super_five_recovery.failed",body)
         self.assertIn("super_five_recovery.succeeded",body)
         self.assertIn("generation==provider_generation[0]",body)
-        self.assertEqual(s.count("super_five_recovery.report(time.monotonic())"),2)
+        master=s.split('"test":"V3_MASTER_ALL_SEGMENTS_DOCTOR"',1)[1].split("report.value=json.dumps(report_data",1)[0]
+        active=s.split("def inspect_active(_):",1)[1].split("return ft.Column([",1)[0]
+        board=s.split("def repair_board():",1)[1].split("def update_repair_board():",1)[0]
+        self.assertIn('"local_auto_recovery":super_five_recovery.report(time.monotonic())',master)
+        self.assertIn('data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())',active)
+        self.assertIn("payload=super_five_recovery.report(time.monotonic())",board)
 
     def test_persistent_audit_does_not_restore_recovery_authority(self):
         from pathlib import Path
@@ -105,3 +110,16 @@ class LocalObserverRecoveryTests(unittest.TestCase):
         self.assertNotIn("get_market_data(",board)
         self.assertNotIn("dhan_feed.",board)
         self.assertIn("host.update()",board)
+
+    def test_manual_request_never_bypasses_cooldown_or_duplicates_worker(self):
+        r=LocalObserverRecovery()
+        self.assertEqual(r.request_retry(1,99),"NO_PENDING_REPAIR")
+        r.failed(1,100,ValueError(),"capture")
+        self.assertEqual(r.request_retry(1,114),"COOLDOWN")
+        self.assertFalse(r.ready(1,114))
+        self.assertEqual(r.request_retry(2,115),"NO_PENDING_REPAIR")
+        self.assertEqual(r.request_retry(1,115),"QUEUED_EXISTING_OBSERVER")
+        r.advance(1,115,"REPAIRING")
+        self.assertEqual(r.request_retry(1,116),"ALREADY_RUNNING")
+        self.assertEqual(r.report(116)["events"][-1]["state"],"MANUAL_RETRY_REQUESTED")
+        self.assertTrue(r.report(116)["pending"])

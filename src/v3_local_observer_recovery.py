@@ -101,6 +101,20 @@ class LocalObserverRecovery:
         if generation == self._generation and self._pending and phase in ("REPAIRING", "RETESTING", "WAIT_DATA"):
             self._phase = phase
 
+    def request_retry(self, generation, now):
+        # The existing observer is the sole owner. A manual request cannot
+        # bypass the cooldown, create a second worker or authorize a new repair.
+        if generation != self._generation or not self._pending:
+            return "NO_PENDING_REPAIR"
+        if now < self._next:
+            return "COOLDOWN"
+        if self._phase in ("REPAIRING", "RETESTING"):
+            return "ALREADY_RUNNING"
+        self._event("MANUAL_RETRY_REQUESTED", now,
+            action="existing observer will retry on its next eligible tick",
+            verified=False)
+        return "QUEUED_EXISTING_OBSERVER"
+
     def board(self, generation, now):
         matching = generation == self._generation
         phase = self._phase if matching else "UNOBSERVED"
@@ -130,7 +144,8 @@ class LocalObserverRecovery:
                 raise ValueError("journal events")
             # Disk contents are untrusted. Reconstruct only allowlisted fields.
             valid_states = {"RETRY_SCHEDULED", "ESCALATED_COOLDOWN",
-                            "LOCAL_RETEST_PASS", "ABANDONED_GENERATION_CHANGED"}
+                            "LOCAL_RETEST_PASS", "ABANDONED_GENERATION_CHANGED",
+                            "MANUAL_RETRY_REQUESTED"}
             self._previous = []
             for row in rows[-40:]:
                 if not isinstance(row, dict) or row.get("state") not in valid_states:
