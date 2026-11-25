@@ -27,6 +27,10 @@ class LocalObserverRecovery:
         self._next = 0.0
         self._pending = False
         self._sequence = 0
+        self._phase = "UNOBSERVED"
+        self._error_count = 0
+        self._success_count = 0
+        self._escalation_count = 0
 
     def _event(self, state, now, **fields):
         self._sequence += 1
@@ -43,6 +47,7 @@ class LocalObserverRecovery:
             self._failures = 0
             self._next = 0.0
             self._pending = False
+            self._phase = "UNOBSERVED"
 
     def ready(self, generation, now):
         self._scope(generation, now)
@@ -51,6 +56,7 @@ class LocalObserverRecovery:
     def failed(self, generation, now, exc, stage):
         self._scope(generation, now)
         self._failures += 1
+        self._error_count += 1
         self._pending = True
         delay = (15, 30, 300)[min(self._failures - 1, 2)]
         self._next = now + delay
@@ -69,7 +75,9 @@ class LocalObserverRecovery:
             verified=False, rollback="not applicable; no destructive repair",
             not_done=["provider reconnect", "cache deletion", "source change",
                       "voting override", "order execution"])
+        self._phase = "ESCALATED" if self._failures >= 3 else "COOLDOWN"
         if self._failures >= 3:
+            self._escalation_count += 1
             self._failures = 0
 
     def succeeded(self, generation, now, published_count):
@@ -77,13 +85,33 @@ class LocalObserverRecovery:
         if type(published_count) is not int or published_count <= 0:
             return
         if self._pending:
+            self._success_count += 1
+            self._phase = "SUCCESS"
             self._event("LOCAL_RETEST_PASS", now,
                 action="existing guarded ranking publication completed",
                 published_count=published_count, verified=True,
                 scope="local ranking publication only; not LIVE or UI acceptance")
+        if self._phase != "SUCCESS":
+            self._phase = "OBSERVED"
         self._pending = False
         self._failures = 0
         self._next = 0.0
+
+    def advance(self, generation, now, phase):
+        if generation == self._generation and self._pending and phase in ("REPAIRING", "RETESTING", "WAIT_DATA"):
+            self._phase = phase
+
+    def board(self, generation, now):
+        matching = generation == self._generation
+        phase = self._phase if matching else "UNOBSERVED"
+        # Stages, not a probability: detected, retry executing, retest, verified.
+        progress = {"COOLDOWN":25,"ESCALATED":25,"REPAIRING":50,
+                    "WAIT_DATA":50,"RETESTING":75,"SUCCESS":100}.get(phase)
+        return dict(status=phase, progress=progress, errors=self._error_count,
+                    repaired=self._success_count, escalations=self._escalation_count,
+                    pending=int(matching and self._pending),
+                    retry_after_seconds=round(max(0,self._next-now),1) if matching else 0,
+                    persistence_error=self._disk_error, scope="Super Five only; session counts")
 
     def load_audit(self):
         """Read previous evidence only; never restore cooldown or authorize repair."""

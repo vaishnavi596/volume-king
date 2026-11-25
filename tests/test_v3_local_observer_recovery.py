@@ -81,3 +81,27 @@ class LocalObserverRecoveryTests(unittest.TestCase):
             self.assertEqual(r.report(100)["persistence_error"],"JSONDecodeError")
             self.assertFalse(r.report(100)["pending"])
             self.assertEqual(path.read_text(),"not json")
+
+    def test_board_reports_actual_stages_not_global_health(self):
+        r=LocalObserverRecovery()
+        self.assertIsNone(r.board(1,100)["progress"])
+        r.failed(1,100,ValueError(),"capture")
+        self.assertEqual(r.board(1,100)["progress"],25)
+        r.advance(1,115,"REPAIRING")
+        self.assertEqual(r.board(1,115)["progress"],50)
+        r.advance(1,116,"RETESTING")
+        self.assertEqual(r.board(1,116)["progress"],75)
+        r.succeeded(1,117,2)
+        self.assertEqual(r.board(1,117)["progress"],100)
+        self.assertEqual(r.board(1,117)["repaired"],1)
+        self.assertEqual(r.board(2,117)["status"],"UNOBSERVED")
+
+    def test_board_is_first_dashboard_section_and_cache_only(self):
+        from pathlib import Path
+        s=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        body=s.split("    def dashboard():",1)[1].split("    search=",1)[0]
+        self.assertLess(body.index('wrap_delta_section("dashboard_repair"'),body.index('wrap_delta_section("dashboard_indices"'))
+        board=s.split("    def repair_board():",1)[1].split("    def dashboard():",1)[0]
+        self.assertNotIn("get_market_data(",board)
+        self.assertNotIn("dhan_feed.",board)
+        self.assertIn("host.update()",board)

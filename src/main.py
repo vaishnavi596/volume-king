@@ -1503,7 +1503,10 @@ def app_main(page:ft.Page):
                     last_fingerprint=None
                     continue
                 if not super_five_recovery.ready(generation,time.monotonic()):
+                    update_repair_board()
                     continue
+                super_five_recovery.advance(generation,time.monotonic(),"REPAIRING")
+                update_repair_board()
                 from copy import deepcopy
                 def roster():
                     return tuple(all_watch_symbols() if expected_source=="Dhan" else watch_symbols)
@@ -1554,7 +1557,11 @@ def app_main(page:ft.Page):
                         results[sym]=result
                 if (generation!=provider_generation[0] or not app_active[0] or current[0]!=0
                         or policy()!=selected_policy or revision(capture())!=fingerprint[-1] or not results):
+                    super_five_recovery.advance(generation,time.monotonic(),"WAIT_DATA")
+                    update_repair_board()
                     continue
+                super_five_recovery.advance(generation,time.monotonic(),"RETESTING")
+                update_repair_board()
                 stage="ranking_publication"
                 for sym,(result,elapsed,count) in measurements.items():
                     record_analysis(sym,"5m",result=result,elapsed=elapsed,candle_count=count)
@@ -1564,6 +1571,7 @@ def app_main(page:ft.Page):
                 if current[0]==0:
                     request_view_refresh(0)
                 super_five_recovery.succeeded(generation,time.monotonic(),len(results))
+                update_repair_board()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -1571,6 +1579,7 @@ def app_main(page:ft.Page):
                 last_fingerprint=None
                 if generation==provider_generation[0]:
                     super_five_recovery.failed(generation,time.monotonic(),exc,stage)
+                    update_repair_board()
     def historical_five_minute_technical(symbol):
         """Only saved exact-5m Dhan votes; historical display, never LIVE."""
         saved=watch_signal_cache.get(symbol) or {}
@@ -2244,12 +2253,64 @@ def app_main(page:ft.Page):
                 on_click=lambda e,v=index_name:open_stock(v)))
         return ft.Column(index_cards,spacing=5)
 
+    repair_board_signature=[None]
+    def repair_board():
+        data=super_five_recovery.board(provider_generation[0],time.monotonic())
+        status=data["status"]
+        percent=data["progress"]
+        color=RED if status=="ESCALATED" else GREEN if status=="SUCCESS" else GOLD
+        def show_logs(e):
+            payload=super_five_recovery.report(time.monotonic())
+            dialog=ft.AlertDialog(title=txt("PLATINUM REPAIR LOG",16,GOLD,True),
+                content=ft.Container(content=ft.Column([ft.Text(json.dumps(payload,indent=2,ensure_ascii=False),
+                    size=11,selectable=True)],scroll=ft.ScrollMode.AUTO),height=300))
+            dialog.actions=[ft.TextButton("Close",on_click=lambda e:page.close(dialog))]
+            page.open(dialog)
+        def repair_now(e):
+            # Observer already owns the safe retry. No cooldown bypass or extra task.
+            update_repair_board()
+        labels={"UNOBSERVED":"NOT OBSERVED","OBSERVED":"LOCAL OBSERVED",
+                "COOLDOWN":"RETRY COOLDOWN","ESCALATED":"FAILED / ESCALATED",
+                "REPAIRING":"REPAIRING","WAIT_DATA":"WAIT DATA / REVISION",
+                "RETESTING":"RE-TESTING","SUCCESS":"REPAIR SUCCESS"}
+        rows=[txt(labels.get(status,status)+" • "+(str(percent)+"%" if percent is not None else "—"),14,color,True),
+              note("Super Five only • automatic safe retry"),
+              note("Errors "+str(data["errors"])+" | Repaired "+str(data["repaired"])+" | Escalations "+str(data["escalations"])+" | Pending "+str(data["pending"]))]
+        if percent is not None:
+            rows.append(ft.ProgressBar(value=percent/100,color=color,bgcolor=BORDER))
+        if data["retry_after_seconds"]>0:
+            rows.append(note("Cooldown "+str(round(data["retry_after_seconds"]))+"s"))
+        if data["persistence_error"]:
+            rows.append(note("Audit storage error: "+data["persistence_error"]))
+        rows.append(ft.Row([ft.TextButton("Repair status",on_click=repair_now),
+                            ft.TextButton("Repair logs",on_click=show_logs)],wrap=True))
+        return section("PLATINUM SMART DOCTOR",ft.Column(rows,spacing=3))
+    def update_repair_board():
+        # Only repaint this lightweight mounted section, never the full dashboard.
+        if current[0]!=0 or not app_active[0]:
+            return
+        entry=delta_hosts.get("dashboard_repair")
+        if entry is None or entry[0].page is None:
+            return
+        state=super_five_recovery.board(provider_generation[0],time.monotonic())
+        signature=dict(state,retry_after_seconds=round(state["retry_after_seconds"]))
+        if signature==repair_board_signature[0]:
+            return
+        try:
+            host,factory=entry
+            host.content=factory()
+            host.update()
+            repair_board_signature[0]=signature
+        except (AssertionError,RuntimeError) as exc:
+            log_error("dashboard_repair_board",exc)
     def dashboard():
         # Keep one canonical three-slot index analysis panel. Duplicate market
         # overview, error-monitor and news cards cluttered the Home screen and
         # made ordinary card taps look like an implicit refresh action.
         # Diagnostics and news data remain available in their dedicated views.
+        repair_board_signature[0]=None
         return [
+            wrap_delta_section("dashboard_repair",repair_board),
             wrap_delta_section("dashboard_indices",dashboard_market_indices(),dashboard_market_indices),
             wrap_delta_section("dashboard_analysis",dashboard_index_analysis(),dashboard_index_analysis),
             note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
@@ -8802,7 +8863,7 @@ console.log('BOT KING Lightweight Charts ready');
     def refresh_mounted_data_sections(target):
         start_refresh=time.perf_counter()
         if target==0:
-            names=("dashboard_indices", "dashboard_analysis", "dashboard_scan",
+            names=("dashboard_repair", "dashboard_indices", "dashboard_analysis", "dashboard_scan",
                    "dashboard_options", "dashboard_super_five", "dashboard_risk")
         elif target==3:
             # Scanner control/search/auto timer and chart WebView stay mounted.
