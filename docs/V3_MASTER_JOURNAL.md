@@ -2332,3 +2332,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — Watchlist P0 regression alignment
 - c0626e6 exact B1 45541256931 और B2 45541257183 PASS; B3 45541257008 FAIL (1910 tests, 7 failures). पाँच test files में पुराने 3/180s और 30s assertions तथा दो boundary fixtures (12th sample exactly 180s old, expired by execution) सुधारे। New 12/180s, 10s policy unchanged. No production source changes; exact CI pending. Super Five user reports no refresh: local observer 5m cache dependent; disconnected ranking worker gate and HIST display need next scoped audit after PASS. No server changes, orders or APK.
+
+
+### 25 नवंबर 2026 — साझा डेटा रिकवरी P1
+- d7046e7 exact B3 45541803212 PASS. User: Super Five और Option Chain refresh नहीं।
+- Super Five selected-only local observer; existing exact 1m Dhan OHLCV से session-aligned completed 5m fallback, केवल HIST, no upstream request. Existing ranking WAIT/live safety unchanged.
+- Options visible tab SSK-only read-only one attempt per generation/symbol/expiry choice even without quote activation; explicit selection can retry; 424 backoff 300s, existing 3.25s spacing and exact expiry gates retained. No LIVE proof, no orders. Tests/CI pending; actual provider entitlement and phone validation unresolved. No server change.

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from math import isfinite
 
 IST=timezone(timedelta(hours=5,minutes=30))
-PAIRS={"10m":("5m",5,2),"30m":("15m",15,2)}
+PAIRS={"5m":("1m",1,5),"10m":("5m",5,2),"30m":("15m",15,2)}
 
 def completed_derived_bars(rows, target, *, now_epoch):
     if target not in PAIRS:

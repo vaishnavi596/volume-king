@@ -1444,7 +1444,7 @@ def app_main(page:ft.Page):
                     last_fingerprint=None
                     continue
                 available=[]
-                for sym in watch_symbols:
+                for sym in (all_watch_symbols() if expected_source=="Dhan" else watch_symbols):
                     # A failed LTP poll may leave quotes without bars while the
                     # matching 5m history survives in the chart/shared cache.
                     # This loop is LOCAL ONLY, including while disconnected.
@@ -3660,7 +3660,7 @@ def app_main(page:ft.Page):
                                    else "Dhan disconnected • auto-refresh resumes on Connect / Check")
             option_refresh_pending[0]=True
             select(1)
-            if prefs.get("source")=="Dhan" and dhan_feed.connected and not option_feed_busy[0]:
+            if prefs.get("source")=="Dhan" and (dhan_feed.connected or clone_v2_gateway.connected) and not option_feed_busy[0]:
                 page.run_task(refresh_selected_options)
     def add_option_symbol(e):
         sym=(option_add_symbol.value or "").strip().upper().replace(".NS","")
@@ -3756,12 +3756,13 @@ def app_main(page:ft.Page):
     # the three Dashboard indices or the 51-equity candle scan roster.
     DHAN_VERIFIED_OPTION_SYMBOLS = DHAN_VERIFIED_SYMBOLS | {"FINNIFTY"}
 
+    option_ssk_attempted=set()
     async def refresh_selected_options():
         # Dhan-only read-only option metrics. No Angel One fallback.
         if option_feed_busy[0]:
             option_refresh_pending[0]=True
             return
-        if not dhan_feed.connected:
+        if not dhan_feed.connected and not (clone_v2_gateway.connected and current[0]==1 and app_active[0] and not lifecycle_background[0]):
             option_feed_status[0]="Dhan disconnected • Connect / Check in Settings; option auto-refresh will resume."
             if current[0]==1:request_view_refresh(1)
             return
@@ -3774,6 +3775,8 @@ def app_main(page:ft.Page):
             option_feed_status[0]=f"Dhan {chain_symbol.value} option cooldown • retry in {math.ceil(wait)}s • last saved context unverified"
             if current[0]==1:request_view_refresh(1)
             return
+        if not dhan_feed.connected:
+            option_ssk_attempted.add(option_key)
         option_feed_busy[0]=True
         option_refresh_pending[0]=False
         dhan_option_last_attempt[0]=time.monotonic()
@@ -3843,7 +3846,7 @@ def app_main(page:ft.Page):
             detail=safe_error(exc)
             if (generation==provider_generation[0] and sym==chain_symbol.value
                     and choice==option_expiry_choice.value):
-                delay=(300 if "422" in detail else
+                delay=(300 if "422" in detail or "424" in detail else
                        max(30,dhan_feed.cooldown_remaining("/dhan/option-expiries"),
                            dhan_feed.cooldown_remaining("/dhan/option-chain"))
                        if "429" in detail or "cooldown" in detail.lower() else 0)
@@ -3887,6 +3890,12 @@ def app_main(page:ft.Page):
                          expiry.value if option_expiry_choice.value=="Manual" else ""),0.0)
                     and dhan_feed.cooldown_remaining("/dhan/option-expiries")==0
                     and dhan_feed.cooldown_remaining("/dhan/option-chain")==0):
+                await refresh_selected_options()
+            elif (current[0]==1 and prefs.get("source")=="Dhan"
+                    and clone_v2_gateway.connected and not dhan_feed.connected
+                    and not lifecycle_background[0] and not option_feed_busy[0]
+                    and (provider_generation[0],chain_symbol.value,option_expiry_choice.value,
+                         expiry.value if option_expiry_choice.value=="Manual" else "") not in option_ssk_attempted):
                 await refresh_selected_options()
             await asyncio.sleep(15)
     def selected_option_rows():
@@ -7076,6 +7085,17 @@ console.log('BOT KING Lightweight Charts ready');
                         freshness="historical_unverified",cached=True,
                         candle_transport_integrity="RETAINED_DERIVED_HISTORY_UNVERIFIED",
                         _candle_retained=True))
+        # Recover exact completed 5m bars from already-held 1m Dhan data.
+        # No provider request and never LIVE promotion.
+        if tf=="5m" and not any(valid_candle_history(item.get("bars")) for item in candidates) and expected=="Dhan":
+            one=shared_history(sym,"1m")
+            if valid_candle_history(one.get("bars")):
+                from dhan_multi_timeframe import completed_derived_bars
+                completed=completed_derived_bars(one["bars"],"5m",now_epoch=time.time())
+                if valid_candle_history(completed):
+                    candidates.append(dict(one,bars=[list(row) for row in completed],
+                        _scanner_timeframe="5m",historical=True,live_verified=False,
+                        freshness="historical_unverified",candle_transport_integrity="DERIVED_FROM_1M_UNVERIFIED"))
         # 10m and 30m are built only from their exact existing 5m/15m
         # matching-generation Dhan histories; no hidden broker requests.
         if tf in ("10m","30m") and not candidates and expected=="Dhan":
