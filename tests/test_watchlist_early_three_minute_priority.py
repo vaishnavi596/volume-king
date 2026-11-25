@@ -82,6 +82,10 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 sleep=fast_sleep,to_thread=fake_to_thread,
                 wait_for=asyncio.wait_for,CancelledError=asyncio.CancelledError)
         }
+        priority=next(n for n in ast.walk(TREE)
+                      if isinstance(n,ast.FunctionDef) and n.name=="watch_refresh_priority")
+        exec(compile(textwrap.dedent(ast.get_source_segment(SOURCE,priority)),
+                     str(ROOT/"src"/"main.py"),"exec"),scope)
         exec(compile(method_source("warm_selected_watch_three_minute_early"),
                      str(ROOT/"src"/"main.py"),"exec"),scope)
         return scope,calls,errors,window,rows,prior,now
