@@ -193,3 +193,13 @@ def option_filter_context_readiness(data, *, symbol, now, window_available=False
         result["OI Support"]=True
         result["OI Resistance"]=True
     return result
+
+
+def normalized_vote_trace_rows(matrix):
+    """Map authoritative readiness rows to the same trace status as Scanner."""
+    result=[]
+    for entry in matrix:
+        name=entry["name"]
+        row=doctor_filter_rows([{"filter":name}], [entry])[0]
+        result.append(dict(row,vote=entry.get("vote") if row["stage"]=="CALCULATED" else None))
+    return result

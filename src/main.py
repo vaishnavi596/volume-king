@@ -5753,7 +5753,8 @@ def app_main(page:ft.Page):
                 filter_names=list(filter_selected)
                 scanner_sym=str(scan_symbol.value or "NIFTY")
                 scanner_tf=str(scan_tf.value or "1m")
-                scanner_data=shared_history(scanner_sym,scanner_tf)
+                scanner_data=(chart_snapshots.get((scanner_sym,scanner_tf,generation))
+                              or shared_history(scanner_sym,scanner_tf) or {})
                 scanner_bars=scanner_data.get("bars") or []
                 scanner_valid=bool(scanner_bars and valid_candle_history(scanner_bars))
                 # Master and B178/B147 must calculate from the same exact
@@ -5763,17 +5764,41 @@ def app_main(page:ft.Page):
                     if scanner_data.get("source")=="Dhan"
                     and scanner_data.get("_scanner_timeframe")==scanner_tf
                     else scanner_bars)
-                scanner_hist_result=(analyze(scanner_hist_bars,
+                from filter_wiring_audit import (diagnostic_candle_readiness,
+                    filter_wiring_matrix, option_filter_context_readiness,
+                    has_recent_news_context, normalized_vote_trace_rows)
+                scanner_stage=diagnostic_candle_readiness(scanner_data,scanner_tf,now=now)
+                scanner_seconds={"1m":60,"2m":120,"3m":180,"5m":300,
+                    "10m":600,"15m":900,"30m":1800}.get(scanner_tf)
+                scanner_completed=[bar for bar in scanner_hist_bars
+                    if isinstance(bar,(list,tuple)) and len(bar)>=6
+                    and type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                    and scanner_seconds and 0<bar[0] and bar[0]+scanner_seconds<=now]
+                scanner_hist_result=(analyze(scanner_completed,
                     selected=active_analysis_filters(),timeframe=scanner_tf)
-                    if scanner_valid and scanner_hist_bars else {"votes":[]})
+                    if scanner_stage=="READY_FOR_QUALITY_AND_CALCULATION"
+                    and valid_candle_history(scanner_completed) else {"votes":[]})
                 scanner_rows=complete_filter_rows(
                     scanner_hist_result,filter_names,filter_modes)
                 scanner_rows=enrich_context_filter_rows(scanner_sym,scanner_rows)
                 non_directional=sum(row.get("name") in OPTION_FILTERS and
                     row.get("vote") is None and "unverified" in str(row.get("detail",""))
                     for row in scanner_rows)
-                scanner_calc=sum(type(row.get("vote")) is int and
-                                 row.get("vote") in (-1,0,1) for row in scanner_rows)
+                scanner_option=matching_option_context_for_symbol(scanner_sym)
+                scanner_window=option_chain_display_context(scanner_option) if scanner_option else {}
+                with news_lock:
+                    scanner_news=dict(news_cache.get(scanner_sym) or {})
+                scanner_matrix=filter_wiring_matrix(
+                    filter_names,scanner_rows,source=scanner_data.get("source"),
+                    timeframe=scanner_tf,candle_ready=bool(
+                        scanner_stage=="READY_FOR_QUALITY_AND_CALCULATION"
+                        and scanner_hist_result.get("timestamp") and scanner_hist_result.get("count",0)>=30),
+                    options_context=option_filter_context_readiness(
+                        scanner_option,symbol=scanner_sym,now=now,window_context=scanner_window),
+                    news_context=has_recent_news_context(scanner_news,now=now),modes=filter_modes)
+                scanner_trace_rows=normalized_vote_trace_rows(scanner_matrix)
+                scanner_calc=sum(row["stage"]=="CALCULATED" for row in scanner_trace_rows)
+                non_directional=sum(row["status"]=="CONTEXT_ONLY" for row in scanner_trace_rows)
                 from five_engine import snapshot_for_display
                 # The shared publisher is 5m and symbol-only. Never count
                 # its evidence as Scanner 1m/3m (or closed-session) VERIFIED.
@@ -5858,6 +5883,9 @@ def app_main(page:ft.Page):
                         "scanner_selected":scanner_tf,
                         "scanner_matching_history":scanner_valid,
                         "selected_scanner_history_bars":len(scanner_bars),
+                         "scanner_completed_analysis_bars":len(scanner_completed),
+                         "scanner_analysis_stage":scanner_stage,
+                         "scanner_exact_snapshot_present":bool(chart_snapshots.get((scanner_sym,scanner_tf,generation))),
                         "history_scan_busy":bool(dhan_history_scan_active[0]),
                         "last_eight_ohlc_body_counts":{
                             "up":sum(isinstance(c,(list,tuple)) and len(c)>=5 and
@@ -6187,7 +6215,7 @@ def app_main(page:ft.Page):
                 from v3_vote_trace_doctor import audit_vote_trace
                 master_vote_trace=audit_vote_trace(
                     symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
-                    filter_rows=scanner_rows,box_rows=engine_rows,
+                    filter_rows=scanner_trace_rows,box_rows=engine_rows,
                     snapshot=snap,market_open=regular_hours())
                 from v3_historical_vote_replay import historical_vote_replay
                 master_historical_replay=historical_vote_replay(
