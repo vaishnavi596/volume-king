@@ -96,3 +96,14 @@ class SmartActiveDoctorTests(unittest.TestCase):
             self.assertIn('quote_contract_observation.recovered("'+lane+'",generation,provider_generation[0])',source)
         self.assertIn('"quote_contract_errors":quote_contract_observation.active(generation)',source)
         self.assertIn('quote_contract_errors=quote_contract_observation.active(generation)',source)
+
+
+class R3DoctorIdentityTests(unittest.TestCase):
+    def test_equal_counts_of_foreign_symbols_are_not_healthy(self):
+        r=active_report(generation=1,symbols=["TCS"],quote_present=["INFY"],
+            index_present=["A","B","C"],connected={},signal_present=["INFY"],
+            attempts={},now_monotonic=50,market_open=False,errors=[],
+            progress={},performance={},quote_attempt_age=None)
+        checks={row["check"] for row in r["active"]}
+        self.assertTrue({"CONNECTION","EQUITY_QUOTE_COVERAGE","INDEX_QUOTE_COVERAGE",
+                         "WATCHLIST_SIGNAL_CACHE"}.issubset(checks))

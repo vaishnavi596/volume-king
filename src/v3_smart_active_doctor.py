@@ -13,14 +13,14 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
         else:
             issues.append(dict(check=name, status="PENDING_OR_ERROR", **detail))
     total = len(symbols)
-    check("CONNECTION", all(connected.values()), {"connected": connected})
-    check("EQUITY_QUOTE_COVERAGE", bool(total) and len(quote_present)==total,
+    check("CONNECTION", bool(connected) and all(v is True for v in connected.values()), {"connected": connected})
+    check("EQUITY_QUOTE_COVERAGE", bool(total) and set(quote_present)==set(symbols),
           {"available": len(quote_present), "selected": total})
-    check("INDEX_QUOTE_COVERAGE", len(index_present)==3,
+    check("INDEX_QUOTE_COVERAGE", set(index_present)=={"NIFTY","BANKNIFTY","SENSEX"},
           {"available": len(index_present), "required": 3})
     check("WATCHLIST_ROSTER", len(set(symbols))==total and 0<total<=70,
           {"selected": total, "unique": len(set(symbols)), "limit": 70})
-    check("WATCHLIST_SIGNAL_CACHE", bool(total) and len(signal_present)==total,
+    check("WATCHLIST_SIGNAL_CACHE", bool(total) and set(signal_present)==set(symbols),
           {"available": len(signal_present), "selected": total,
            "scope": "existing signal entries only, not candle validation"})
     check("OBSERVED_ERRORS", not errors, {"errors": errors})

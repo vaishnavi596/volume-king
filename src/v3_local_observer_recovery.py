@@ -50,10 +50,14 @@ class LocalObserverRecovery:
             self._phase = "UNOBSERVED"
 
     def ready(self, generation, now):
+        if self._generation is not None and generation < self._generation:
+            return False
         self._scope(generation, now)
         return now >= self._next
 
     def failed(self, generation, now, exc, stage):
+        if self._generation is not None and generation < self._generation:
+            return
         self._scope(generation, now)
         self._failures += 1
         self._error_count += 1
@@ -81,6 +85,8 @@ class LocalObserverRecovery:
             self._failures = 0
 
     def succeeded(self, generation, now, published_count):
+        if self._generation is not None and generation < self._generation:
+            return
         self._scope(generation, now)
         if type(published_count) is not int or published_count <= 0:
             return
@@ -208,6 +214,8 @@ class LocalObserverRecovery:
                     pass
 
     def audit_written(self, sequence, error):
+        if sequence < self._persisted_sequence or sequence > self._sequence:
+            return
         self._disk_error = error
         if error is None:
             self._persisted_sequence = sequence

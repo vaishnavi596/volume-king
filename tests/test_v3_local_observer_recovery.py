@@ -123,3 +123,22 @@ class LocalObserverRecoveryTests(unittest.TestCase):
         self.assertEqual(r.request_retry(1,116),"ALREADY_RUNNING")
         self.assertEqual(r.report(116)["events"][-1]["state"],"MANUAL_RETRY_REQUESTED")
         self.assertTrue(r.report(116)["pending"])
+
+
+class R3RecoveryGenerationTests(unittest.TestCase):
+    def test_old_generation_cannot_reset_pending_repair(self):
+        r=LocalObserverRecovery()
+        r.failed(2,100,ValueError(),"capture")
+        before=r.report(101)
+        self.assertFalse(r.ready(1,101))
+        r.failed(1,101,ValueError(),"capture")
+        r.succeeded(1,101,3)
+        self.assertEqual(r.report(101),before)
+    def test_stale_disk_completion_does_not_regress_newer_audit(self):
+        r=LocalObserverRecovery()
+        r.failed(1,100,ValueError(),"capture")
+        r.failed(1,115,ValueError(),"capture")
+        r.audit_written(2,None)
+        r.audit_written(1,"OSError")
+        self.assertEqual(r.report(115)["persisted_sequence"],2)
+        self.assertIsNone(r.report(115)["persistence_error"])

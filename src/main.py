@@ -10757,7 +10757,9 @@ console.log('BOT KING Lightweight Charts ready');
             else:
                 selected_tf=scan_tf.value or "1m"
                 data=await asyncio.to_thread(get_market_data,sym,selected_tf,scan_period.value or "7d")
-                if generation==provider_generation[0] and sym==scan_symbol.value:
+                if (generation==provider_generation[0] and app_active[0]
+                        and not lifecycle_background[0] and sym==scan_symbol.value
+                        and selected_tf==(scan_tf.value or "1m")):
                     # Resume only updates the cache for the actual timeframe.
                     # A 1m/3m history must NEVER enter the legacy 5m quote slot.
                     if prefs.get("source")=="Dhan" and data.get("source")=="Dhan":
@@ -10790,11 +10792,14 @@ console.log('BOT KING Lightweight Charts ready');
                         else:
                             quotes[sym]=dict(data,historical=True,live_verified=False,
                                              freshness="historical_unverified")
-                if current[0]==5:
+                if (current[0]==5 and app_active[0] and not lifecycle_background[0]
+                        and generation==provider_generation[0]):
                     chart_sym=symbol.value
                     chart_tf=timeframe.value
                     chart_data=await asyncio.to_thread(get_market_data,chart_sym,chart_tf,"5d" if chart_tf in ("1m","5m","15m") else "1mo")
-                    if generation==provider_generation[0] and chart_sym==symbol.value and chart_tf==timeframe.value:
+                    if (generation==provider_generation[0] and app_active[0]
+                            and not lifecycle_background[0] and chart_sym==symbol.value
+                            and chart_tf==timeframe.value):
                         prior_chart=chart_snapshots.get((chart_sym,chart_tf,generation)) or {}
                         if prefs.get("source")=="Dhan" and chart_data.get("source")=="Dhan":
                             chart_data=retain_candle_history(chart_data,prior_chart,provider="Dhan")
@@ -10807,9 +10812,10 @@ console.log('BOT KING Lightweight Charts ready');
                 runtime_status.value="App resumed • selected data checked • no automatic broker order"
                 select(current[0])
         except Exception as exc:
-            log_error("resume",exc)
-            runtime_status.value="App resumed • refresh failed; last saved data remains visible"
-            page.update()
+            if generation==provider_generation[0] and app_active[0] and not lifecycle_background[0]:
+                log_error("resume",exc)
+                runtime_status.value="App resumed • refresh failed; last saved data remains visible"
+                page.update()
         finally:resume_busy[0]=False
     def lifecycle_changed(e):
         # Flet lifecycle events differ across Android/Flet versions: the state
