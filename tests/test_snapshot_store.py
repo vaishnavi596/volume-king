@@ -99,3 +99,25 @@ class SnapshotTests(unittest.TestCase):
             asyncio.run(v['scan_market']())
         self.assertEqual(v['scan_shared']['direction'],'WAIT')
         self.assertIsNone(v['market_store'].get('analysis','NIFTY','5m'))
+
+    def test_analysis_and_fusion_cache_exact_symbol_frame_identity(self):
+        for incremental in (False,True):
+            with self.subTest(incremental=incremental), tempfile.TemporaryDirectory() as d:
+                path=Path(d)/"cache.json"
+                store=SnapshotStore(path,incremental=incremental)
+                analysis={"symbol":"TCS","tf":"3m","direction":"WAIT","basis":"historical"}
+                fusion={"symbol":"TCS","timeframe":"3m","candle":{},"options":{},"news":{},
+                        "overall":"WAIT","coverage":0,"reason":"historical","headlines":[],
+                        "global_headlines":[],"news_status":"Unavailable","global_status":"Unavailable"}
+                for kind,payload in (("analysis",analysis),("fusion",fusion)):
+                    self.assertTrue(store.put(kind,("TCS","3m"),payload))
+                    self.assertFalse(store.put(kind,("INFY","3m"),payload))
+                    self.assertFalse(store.put(kind,("TCS","5m"),payload))
+                    self.assertFalse(store.put(kind,("TCS",),payload))
+                    self.assertIsNone(store.get(kind,"INFY","3m"))
+                    self.assertEqual(store.get(kind,"TCS","3m"),payload)
+                self.assertEqual(store.diagnostics()["rejected_since_start"],6)
+                restored=SnapshotStore(path,incremental=incremental)
+                self.assertEqual(restored.get("analysis","TCS","3m"),analysis)
+                self.assertEqual(restored.get("fusion","TCS","3m"),fusion)
+                self.assertIsNone(restored.get("fusion","TCS","5m"))

@@ -218,6 +218,12 @@ class SnapshotStore:
         return True
     @staticmethod
     def identity_valid(kind,parts,p):
+        if kind in ("analysis","fusion"):
+            frame=p.get("tf" if kind=="analysis" else "timeframe")
+            symbol=p.get("symbol")
+            return (isinstance(symbol,str) and bool(symbol.strip())
+                    and frame in ("1m","2m","3m","5m","10m","15m","30m","1h")
+                    and tuple(parts)==(symbol,frame))
         if kind=="analysis_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("timeframe"))
         if kind=="option_context_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("expiry"))
         return True
