@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None, final_vote_observation=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -113,6 +113,14 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                 "scope":"3m/5m local cache prewarm; synchronous fallback remains"})
         else:
             hidden.append("HISTORICAL_EQUITY_WORKER")
+    if final_vote_observation is not None:
+        if final_vote_observation.get("generation") != generation:
+            issues.append({"check":"FINAL_VOTE_FRAME_GUARD","status":"UNVERIFIED",
+                           "code":"BK-FINAL-FRAME-002","scope":"selected frame observation generation mismatch"})
+        elif final_vote_observation.get("status") == "FRAME_SUPPORTED":
+            hidden.append("FINAL_VOTE_FRAME_GUARD")
+        else:
+            issues.append(dict(check="FINAL_VOTE_FRAME_GUARD",**final_vote_observation))
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})
@@ -170,3 +178,17 @@ def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futu
             "comparison_status":"UNVERIFIED",
             "comparison_scope":"compare same symbol/frame/roster/session across build reports",
             "provider_requests":0,"orders_sent":0}
+
+
+def final_vote_frame_observation(*, symbol, timeframe, generation, display_mode):
+    """Selected-frame policy observation only; never certify screen parity."""
+    supported = timeframe in ("1m", "3m", "5m")
+    return {"feature_id":"B4.05", "symbol":symbol, "timeframe":timeframe,
+            "generation":generation, "display_mode":display_mode,
+            "status":"FRAME_SUPPORTED" if supported else "UNVERIFIED",
+            "code":None if supported else "BK-FINAL-FRAME-001",
+            "module":"main.py", "function":"scanner_historical_final_vote",
+            "expected_frames":["1m","3m","5m"],
+            "scope":"selected frame eligibility only; actual four-screen parity not measured",
+            "next":None if supported else "Select 1m, 3m or 5m for final voting",
+            "provider_requests":0, "orders_sent":0}

@@ -310,6 +310,28 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertNotIn('dhan_feed.',block)
         self.assertNotIn('orders_sent(',block)
 
+    def test_unsupported_final_frame_returns_before_history_read(self):
+        import textwrap
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        source=(ROOT/"src/main.py").read_text()
+        node=next(n for n in ast.walk(ast.parse(source))
+                  if isinstance(n,ast.FunctionDef) and n.name=="scanner_historical_final_vote")
+        history=Mock(side_effect=AssertionError("unsupported frame must not read history"))
+        replay=Mock(side_effect=AssertionError("unsupported frame must not replay"))
+        scope=dict(prefs={},note=lambda s:s,shared_history=history,
+                   cached_historical_final_replay=replay,
+                   scan_symbol=SimpleNamespace(value="NIFTY"),
+                   scan_tf=SimpleNamespace(value="15m"))
+        exec(compile(textwrap.dedent(ast.get_source_segment(source,node)),"final_vote","exec"),scope)
+        fn=scope[node.name]
+        for frame in ("2m","10m","15m","30m","1h","invalid"):
+            with self.subTest(frame=frame):
+                self.assertIn("unsupported selected timeframe",fn("NIFTY",frame))
+        self.assertIn("NOT LIVE",fn())
+        history.assert_not_called()
+        replay.assert_not_called()
+
     def test_historical_final_replay_cache_bounds_and_revision_gates(self):
         s=(ROOT/"src/main.py").read_text()
         ast.parse(s)

@@ -50,3 +50,7 @@ Owner directive: सारे पुराने/नए अधूरे का�
 | Total | B1–B6 | 32 | 128 |
 
 P01–P15 हर window पर लागू। Existing scoped PASS evidence reuse; missing/blocked/unverified explicitly retain. Dependencies first; current active A03/B4.05 may continue existing read-only audit without claiming A01/A02 closure. No new production patch until related source/Doctor/tests reviewed. Source review found scanner_historical_final_vote reads shared_history before unsupported frame guard; actual impact and all affected tests/Doctor require review; not yet fixed. B3 #536 exact 44d1561, 1984/1984 PASS remains last gate. Registry VERIFIED={} remains unreconciled, no invented progress. A05 closure requires all applicable B1–B5 evidence, signed APK, physical phone/paper observation; no real orders. This is policy/ledger grouping only, not runtime implementation or completed audit of all windows.
+
+
+### SMART 4.0 — 4×25 remaining-work execution frame (25 नवंबर 2026)
+R1=B1+B2 (data/performance), R2=B3+B4 (engines/voting), R3=B5 (Doctor/recovery/background), R4=B6 (final acceptance). Supersedes 5×20 as execution grouping only; original 32 IDs/128 checkpoints and P01–P15 preserved. Four equal planning windows are not equal effort or certified progress. Prior 54/46 provisional; 56/44 not evidenced. Each applicable original checkpoint needs exact evidence; no duplicated credit. R2/B4.05 already active; dependent R1 evidence must still close before final acceptance.

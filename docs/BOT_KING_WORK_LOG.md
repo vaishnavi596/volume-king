@@ -2712,3 +2712,12 @@ Owner directive: सारे पुराने/नए अधूरे का�
 | Total | B1–B6 | 32 | 128 |
 
 P01–P15 हर window पर लागू। Existing scoped PASS evidence reuse; missing/blocked/unverified explicitly retain. Dependencies first; current active A03/B4.05 may continue existing read-only audit without claiming A01/A02 closure. No new production patch until related source/Doctor/tests reviewed. Source review found scanner_historical_final_vote reads shared_history before unsupported frame guard; actual impact and all affected tests/Doctor require review; not yet fixed. B3 #536 exact 44d1561, 1984/1984 PASS remains last gate. Registry VERIFIED={} remains unreconciled, no invented progress. A05 closure requires all applicable B1–B5 evidence, signed APK, physical phone/paper observation; no real orders. This is policy/ledger grouping only, not runtime implementation or completed audit of all windows.
+
+
+### SMART 4.0 — 4×25 remaining-work execution frame (25 नवंबर 2026)
+R1=B1+B2 (data/performance), R2=B3+B4 (engines/voting), R3=B5 (Doctor/recovery/background), R4=B6 (final acceptance). Supersedes 5×20 as execution grouping only; original 32 IDs/128 checkpoints and P01–P15 preserved. Four equal planning windows are not equal effort or certified progress. Prior 54/46 provisional; 56/44 not evidenced. Each applicable original checkpoint needs exact evidence; no duplicated credit. R2/B4.05 already active; dependent R1 evidence must still close before final acceptance.
+
+
+### 25 नवंबर 2026 — R2/B4.05 exact frame guard and Doctor evidence
+- Previous exact B3 #536 (44d1561) 1984/1984 PASS; no competing CI observed. Source audit found shared_history could perform unnecessary local cache/store reads for frames not supported by HIST FINAL. Move guard before history read; supported 1m/3m/5m logic unchanged. No provider traffic or votes added.
+- Master and Active Doctor now share selected-frame observation, BK-FINAL-FRAME-001 unsupported and BK-FINAL-FRAME-002 stale generation. Unsupported is UNVERIFIED, not proof of runtime failure. Supported frame is hidden in compact Active report; no parity certification. Two targeted offline fixtures cover early return and Doctor status/generation. Local execution NOT RUN; exact new CI pending. Actual four-screen parity, LIVE evidence, independent O/N/F/M and phone acceptance OPEN; no APK/server/orders change. No project progress credit awarded.

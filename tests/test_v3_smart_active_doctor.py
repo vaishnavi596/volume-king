@@ -36,3 +36,27 @@ class SmartActiveDoctorTests(unittest.TestCase):
         self.assertEqual(row["missing_completed_3m_timestamp_count"],1)
         self.assertEqual(row["oldest_candles"][0]["symbol"],"A")
         self.assertFalse(row["exchange_live_verified"])
+
+    def test_final_vote_frame_observation_is_scoped_and_generation_safe(self):
+        from v3_smart_active_doctor import final_vote_frame_observation
+        args=dict(generation=1,symbols=["TCS"],quote_present=["TCS"],
+                  index_present=["NIFTY","BANKNIFTY","SENSEX"],
+                  connected={"Dhan":True},signal_present=["TCS"],attempts={},
+                  now_monotonic=50,market_open=False,errors=[],progress={},
+                  performance={},quote_attempt_age=None)
+        for frame in ("1m","3m","5m","15m"):
+            obs=final_vote_frame_observation(symbol="TCS",timeframe=frame,
+                      generation=1,display_mode="HISTORICAL")
+            report=active_report(**args,final_vote_observation=obs)
+            rows=[r for r in report["active"] if r["check"]=="FINAL_VOTE_FRAME_GUARD"]
+            self.assertEqual(obs["provider_requests"],0)
+            self.assertIn("parity not measured",obs["scope"])
+            if frame=="15m":
+                self.assertEqual(rows[0]["code"],"BK-FINAL-FRAME-001")
+                self.assertEqual(rows[0]["status"],"UNVERIFIED")
+            else:
+                self.assertEqual(rows,[])
+        obs["generation"]=0
+        report=active_report(**args,final_vote_observation=obs)
+        row=next(r for r in report["active"] if r["check"]=="FINAL_VOTE_FRAME_GUARD")
+        self.assertEqual(row["code"],"BK-FINAL-FRAME-002")

@@ -2064,9 +2064,9 @@ def app_main(page:ft.Page):
             return note("HIST FINAL • HIDDEN BY LIVE ONLY MODE • LIVE remains evidence gated")
         sym=str(symbol or scan_symbol.value or "NIFTY")
         frame=str(timeframe or scan_tf.value or "1m")
-        history=shared_history(sym,frame)
         if frame not in ("1m","3m","5m"):
             return note("HIST FINAL • WAIT • unsupported selected timeframe • NOT LIVE")
+        history=shared_history(sym,frame)
         selected=[{"name":name} for name in filter_selected
                   if name in CANDLE_FILTERS and filter_modes.get(name,"Analysis")!="Chart"]
         output=cached_historical_final_replay(
@@ -6629,6 +6629,9 @@ def app_main(page:ft.Page):
                     "calculation_to_vote_trace":master_vote_trace,
                     "four_box_source_readiness":master_four_box_readiness,
                     "historical_vote_replay":master_historical_replay,
+                    "final_vote_frame_guard":__import__("v3_smart_active_doctor").final_vote_frame_observation(
+                        symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
+                        display_mode=prefs.get("market_display_mode")),
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
@@ -6683,6 +6686,9 @@ def app_main(page:ft.Page):
                     quote=quotes.get(ml5_symbol))
                 data=active_report(
                     engine_observation=ml5_observation,
+                    final_vote_observation=__import__("v3_smart_active_doctor").final_vote_frame_observation(
+                        symbol=ml5_symbol,timeframe=ml5_tf,generation=generation,
+                        display_mode=prefs.get("market_display_mode")),
                     historical_indicator_observation=dict(historical_indicator_profile),
                     historical_prewarm_observation=dict(historical_prewarm_profile),
                     historical_equity_worker_observation=dict(historical_equity_worker_profile),
