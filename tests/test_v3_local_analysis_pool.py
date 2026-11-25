@@ -44,3 +44,26 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("publish_five_engine_5m",after)
         display=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=="display_analysis")
         self.assertIn('if frozen is None:record_analysis',ast.get_source_segment(source,display))
+
+    def test_watchlist_worker_rechecks_identity_before_publication(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        funcs={n.name:n for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
+        body=ast.get_source_segment(source,funcs["prepare_watch_three_minute_signal"])
+        worker="result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)"
+        self.assertIn(worker,body)
+        before,after=body.split(worker,1)
+        self.assertIn("saved[0]==identity:return",before)
+        self.assertIn("latest is None or latest[0]!=identity:return",after.split("watch_three_minute_cache[sym]",1)[0])
+        self.assertIn("live_verified=False",after)
+        self.assertIn('publish_five_engine_historical(sym,"3m",result)',after)
+        capture=ast.get_source_segment(source,funcs["watch_three_minute_worker_input"])
+        self.assertIn("provider_generation[0]",capture)
+        self.assertIn("tuple(completed[-4:])",capture)
+        self.assertIn('bar[0]+180<=now',capture)
+        tick=ast.get_source_segment(source,funcs["watch_visible_tick"])
+        self.assertIn("await asyncio.gather(*(prepare_watch_three_minute_signal(sym) for sym in visible))",tick)
+        self.assertIn("tick_generation!=provider_generation[0]",tick)
+        self.assertIn("visible!=tuple(watch_groups[active_watch[0]])",tick)
