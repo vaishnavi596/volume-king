@@ -2533,3 +2533,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3-C2-B PASS / C3-C3-A engine adapter telemetry
 - Exact 6d47a14 B3 #492 run 45584022385 completed/success verified via REST. Source 4ae7526 and 83ba0f1 measure actual T adapter, conditional independent C adapter and vote composition durations in Super Five 5m publisher, expose last matching-generation timing in Smart Doctor. N/F/O timing explicitly unavailable, not zero; no new eligibility or quorum changes. This is telemetry only, not independent five-engine parallel execution. Remaining: genuine independent N/F/O inputs, worker wiring and phone measurements. No provider/server/APK/orders changes. CI pending; final regression fixture triggers CI.
+
+
+### 25 नवंबर 2026 — C3-C3-A regression repair
+- Exact 28708e2 B3 #493 run 45585502698/job 139105934249: source validation PASS, 1943 tests, one failure in test_legacy_5m_publisher_mirrored_and_main_display_reads_context, old exact call count excludes new optional timing argument. Repair assertion to require both actual 5m history publishers, one with timing, retaining independent candle and context contracts. Production unchanged, new CI pending. No server/APK/orders changes.
