@@ -392,7 +392,14 @@ def scanner_snapshot_with_candle(scan_result, history, *, symbol, timeframe, now
     """Join same-symbol/frame independently verified raw candles and T votes."""
     from time import perf_counter
     began=perf_counter()
-    technical = scanner_snapshot(scan_result)["engines"][0]
+    # Reject the entire technical lane if its identity does not match the
+    # requested context; rejecting only C would still leak a cross-frame T vote.
+    matches = (isinstance(scan_result, dict) and isinstance(symbol, str)
+               and bool(symbol.strip()) and timeframe in ("1m", "3m", "5m")
+               and scan_result.get("symbol") == symbol
+               and scan_result.get("timeframe") == timeframe)
+    technical = (scanner_snapshot(scan_result)["engines"][0] if matches else
+                 EngineEvidence("technical", reason="Matching symbol/timeframe required"))
     technical_ms=(perf_counter()-began)*1000
     began=perf_counter()
     candle = EngineEvidence("candle", reason="Matching verified analysis revision required")

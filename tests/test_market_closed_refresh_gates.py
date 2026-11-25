@@ -55,8 +55,13 @@ class ClosedSessionRefreshGates(unittest.TestCase):
         self.assertIn('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0',resume)
         self.assertLess(resume.index('dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0'),
                         resume.index("await refresh_watch_batch()"))
-        self.assertLess(resume.index("await refresh_watch_batch()"),
-                        resume.index("await refresh_dhan_index_quotes()"))
+        # Index recovery owns its own gate and precedes equity-only gates.
+        self.assertLess(resume.index("await refresh_dhan_index_quotes()"),
+                        resume.index("and not watch_batch_busy[0]"))
+        self.assertLess(resume.index("await refresh_dhan_index_quotes()"),
+                        resume.index('dhan_feed.cooldown_remaining("/v2/snapshot")==0'))
+        self.assertLess(resume.index("await refresh_dhan_index_quotes()"),
+                        resume.index("await refresh_watch_batch()"))
         index=section("    async def refresh_dhan_index_quotes(force=False):","    manual_quote_last_attempt=")
         self.assertIn('index_cooldown=dhan_feed.cooldown_remaining("/dhan/index-ltp-batch")',index)
         self.assertIn("if index_cooldown>0:",index)

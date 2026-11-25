@@ -958,3 +958,28 @@ class ContextualFiveEngineCacheContract(unittest.TestCase):
         with self.assertRaises(ValueError):
             cache.read(symbol="NIFTY",timeframe="1d",generation=0,
                        now=1234567900,connected=True,market_open=True)
+
+
+class R2CombinedIdentityContract(unittest.TestCase):
+    def test_wrong_symbol_or_frame_cannot_publish_technical_or_candle_vote(self):
+        from five_engine import scanner_snapshot_with_candle
+        scan={"symbol":"NIFTY","timeframe":"1m","source":"Dhan",
+              "timestamp":1800000000,"historical":False,"live_verified":True,
+              "freshness":"verified_live",
+              "votes":[{"name":"EMA 9/21","vote":1},
+                       {"name":"RSI 14","vote":1},
+                       {"name":"MACD","vote":1}]}
+        self.assertTrue(scanner_snapshot(scan)["engines"][0].eligible)
+        for symbol,frame in (("BANKNIFTY","1m"),("NIFTY","3m"),
+                             ("NIFTY","2m"),("","1m")):
+            with self.subTest(symbol=symbol,frame=frame):
+                output=scanner_snapshot_with_candle(
+                    scan,None,symbol=symbol,timeframe=frame,now=1800000060)
+                self.assertFalse(output["engines"][0].eligible)
+                self.assertFalse(output["engines"][1].eligible)
+                self.assertEqual(output["combined"]["coverage"],0)
+        matched=scanner_snapshot_with_candle(
+            scan,None,symbol="NIFTY",timeframe="1m",now=1800000060)
+        self.assertTrue(matched["engines"][0].eligible)
+        self.assertEqual(matched["combined"]["coverage"],1)
+        self.assertEqual(matched["combined"]["state"],"WAIT")
