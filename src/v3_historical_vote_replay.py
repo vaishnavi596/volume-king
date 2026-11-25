@@ -83,7 +83,18 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     if source!="Dhan" or not isinstance(bars,(list,tuple)):
         result["blockers"].append("MATCHING_DHAN_HISTORY_REQUIRED")
         return result
-    session=historical_regular_session_bars(list(bars),timeframe)
+    # Validate row shape before any session/timestamp indexing. Malformed
+    # cache payloads must abstain, not crash the shared HIST renderer.
+    if any(not isinstance(row,(list,tuple)) or len(row)<6
+           or type(row[0]) not in (int,float) or not isfinite(row[0])
+           or row[0]<=0 for row in bars):
+        result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")
+        return result
+    try:
+        session=historical_regular_session_bars(list(bars),timeframe)
+    except (ValueError, OverflowError, OSError):
+        result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")
+        return result
     result["excluded_forming_candle_bars"]=0
     if history_timestamp is not None:
         if (type(history_timestamp) not in (int,float)

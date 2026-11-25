@@ -215,3 +215,30 @@ class VoteTraceDoctorTests(unittest.TestCase):
         self.assertIn("from v3_vote_trace_doctor import audit_vote_trace",source)
 
 if __name__=="__main__":unittest.main()
+
+
+class R2FullDisplayProvenanceTests(unittest.TestCase):
+    def test_partial_display_cannot_certify_full_published_direction(self):
+        rows=boxes()
+        names=("technical","candle","news","futures","options")
+        evidence=[]
+        for i,name in enumerate(names):
+            active=i<4
+            evidence.append(EngineEvidence(name,80 if active else None,
+                                           20 if active else None,verified=active,
+                                           timestamp=1795000000 if active else None,
+                                           source="Dhan" if active else ""))
+            if i<3:
+                rows[i].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                               bullish_percent=80,bearish_percent=20)
+        snap=compose_snapshot(**dict(zip(names,evidence)))
+        self.assertEqual(snap["combined"]["coverage"],4)
+        self.assertEqual(snap["combined"]["state"],"BULLISH")
+        result=base(market_open=True,box_rows=rows,snapshot=snap)
+        self.assertEqual(result["box_vote_gate"]["eligible"],3)
+        self.assertEqual(result["combined_vote"]["state"],"WAIT")
+        self.assertEqual(result["combined_vote"]["reason"],"DISPLAY_SIDE_PROVENANCE_NOT_VERIFIED")
+        rows[3].update(status="BULLISH",raw_verified=True,raw_source="Dhan",
+                       bullish_percent=80,bearish_percent=20)
+        self.assertEqual(base(market_open=True,box_rows=rows,snapshot=snap)
+                         ["combined_vote"]["state"],"BULLISH")

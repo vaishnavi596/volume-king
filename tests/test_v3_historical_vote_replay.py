@@ -487,3 +487,21 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertIn('"historical_vote_replay":master_historical_replay',s)
         self.assertIn('"voting_policy_self_test":simulated_conflict_policy_matrix()',s)
 if __name__=="__main__":unittest.main()
+
+
+class R2MalformedHistoricalInputTests(unittest.TestCase):
+    def test_malformed_last_or_interior_row_abstains_without_crashing(self):
+        for index in (-1,-2,30):
+            for bad in (None,[],["bad",1,2,1,2,3],
+                        [float("nan"),1,2,1,2,3],
+                        [float("inf"),1,2,1,2,3]):
+                with self.subTest(index=index,bad=bad):
+                    sample=bars()
+                    cutoff=sample[-1][0]+60
+                    sample[index]=bad
+                    result=replay(bars=sample,history_timestamp=cutoff)
+                    self.assertEqual(result["combined"]["state"],"WAIT")
+                    self.assertEqual(result["historical_combined"]["coverage"],0)
+                    self.assertIn("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30",
+                                  result["blockers"])
+                    self.assertFalse(result["verified_live"])

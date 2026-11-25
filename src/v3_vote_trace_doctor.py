@@ -128,7 +128,8 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
              for issue in conflict.get("issues",[])):
         combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
                   "bearish":None,"reason":"COMBINED_VOTE_PUBLISH_MISMATCH"}
-    elif eligible_count<3 and combined.get("state")!="WAIT":
+    elif (market_open and combined.get("state")!="WAIT"
+          and (eligible_count<3 or eligible_count!=combined.get("coverage"))):
         combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
                   "bearish":None,"reason":"DISPLAY_SIDE_PROVENANCE_NOT_VERIFIED"}
     return {
