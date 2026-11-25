@@ -1545,7 +1545,16 @@ def app_main(page:ft.Page):
         # This is strictly HIST, never a fresh independent LIVE engine.
         return historical_vote_agreement(shared_history(symbol,"5m"),"5m")
 
+    def historical_option_summary(sym):
+        from v3_option_position import historical_option_position, option_position_label
+        if prefs.get("source")!="Dhan" or prefs.get("market_display_mode")=="LIVE_ONLY":
+            return ""
+        data=matching_option_context_for_symbol(sym)
+        position=historical_option_position(data,symbol=sym,expiry=data.get("expiry"),now=time.time())
+        return option_position_label(position)
+
     def five_engine_summary(symbol, display_timeframe=None):
+        historical_options=historical_option_summary(symbol)
         # HISTORICAL mode must never borrow a cached LIVE publisher snapshot.
         if (prefs.get("market_display_mode")=="HISTORICAL"
                 or prefs.get("source")!="Dhan" or not dhan_feed.connected):
@@ -1571,7 +1580,7 @@ def app_main(page:ft.Page):
                 if parts:
                     return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
                                 " | ".join(parts)+
-                                " | N/F/O WAIT (independent evidence unavailable)")
+                                " | N/F/O WAIT (independent evidence unavailable)"+(" | "+historical_options if historical_options else ""))
             if (prefs.get("source")=="Dhan" and display_timeframe in (None,"5m")
                     and prefs.get("market_display_mode")!="LIVE_ONLY"):
                 last_votes=historical_five_minute_technical(symbol)
@@ -1588,7 +1597,7 @@ def app_main(page:ft.Page):
                 if parts:
                     return note("5 engines • OFFLINE • LIVE 0/5 verified • "+
                                 " | ".join(parts)+
-                                " | N/F/O WAIT (independent evidence unavailable)")
+                                " | N/F/O WAIT (independent evidence unavailable)"+(" | "+historical_options if historical_options else ""))
             return note("5 engines • WAIT • "+(
                 "SSK/Oracle CONNECTED • historical source separate • LIVE evidence unverified"
                 if prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours()
@@ -1633,7 +1642,7 @@ def app_main(page:ft.Page):
                                      str(balance["bullish"])+"% / S"+str(balance["bearish"])+"%")
                 if parts:
                     return note("5 engines • 0/5 LIVE verified • "+" | ".join(parts)+
-                                " | News HIST WAIT (verified impact missing) | Futures HIST WAIT (measured flow missing) | Options HIST WAIT (expiry-specific trade flow missing; "+option_context.reason+")")
+                                " | News HIST WAIT (verified impact missing) | Futures HIST WAIT (measured flow missing) | Options HIST WAIT (expiry-specific trade flow missing; "+option_context.reason+")"+(" | "+historical_options if historical_options else ""))
             return note("5 engine slots • LIVE 0/5 verified • T/C await exact-frame HIST; N verified impact WAIT; F measured futures flow WAIT; O expiry-scoped flow WAIT ("+
                         option_context.reason+")")
         names={"technical":"Technical","candle":"Candle","news":"News",
@@ -1672,6 +1681,8 @@ def app_main(page:ft.Page):
                         " • unverified context, not a directional vote")
         else:
             pieces[-1]="Options "+option_context.display()["state"]+" ("+option_context.reason+")"
+        if historical_options and snapshot["engines"][4].display()["state"]=="WAIT":
+            pieces[-1]+=" | "+historical_options
         combined=snapshot["combined"]
         # Dashboard indexes use 1m; never read legacy 5m for their C engine.
         candle_tf=(display_timeframe or ("1m" if symbol in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
@@ -7617,7 +7628,7 @@ console.log('BOT KING Lightweight Charts ready');
                     if name=="Dhan Max Pain" and isinstance(data.get("max_pain"),(int,float)):
                         row["detail"]="Strike "+format(data["max_pain"],",.0f")+" • unverified option-chain context, display only"
                     elif name=="OI Profile" and context.get("available"):
-                        row["detail"]="Dhan ATM ±3 listed strikes available • unverified, display only"
+                        row["detail"]=historical_option_summary(sym) or "Dhan ATM ±3 listed strikes available • unverified, display only"
                     elif name in ("OI Support","OI Resistance") and context.get("available"):
                         side="pe" if name=="OI Support" else "ce"
                         best=max(context["rows"],key=lambda item:item[side].get("oi",0))

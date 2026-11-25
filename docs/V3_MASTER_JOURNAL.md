@@ -2652,3 +2652,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B3 #510 corrective contract gate
 - Exact a4552c4 B1 45618617501, B2 45618617454, Adapter 45618617511 PASS. B3 #510 45618617457 job 139220487108: 1956 tests in 226.050s, two failures, both structural contracts still expect removed inline PCR chip and inline option cache lookup. New shared OI context deliberately does not display PCR as readiness, validates freshness via option_chain_display_context; update tests to verify shared helper, no live eligibility, bad PCR non-use, invalid freshness, exact generation/symbol/expiry and persisted lookup. Production unchanged. Local execution NOT EXECUTED, new CI pending. Directional options and other B1–B6 dependencies remain OPEN; no APK/server/orders.
+
+
+### 25 नवंबर 2026 — #511 PASS / shared Options summary and filter context
+- Exact 1cba72b B3 #511 45619536463 job 139223680380 raw log 1956 tests in 238.809s OK. Prior production a4552c4 B1/B2/Adapter PASS.
+- Share existing historical option positioning adapter with five-engine summary (offline and eligible fallback paths) and OI Profile filter detail. Explicit expiry, HIST, WAIT and not LIVE; source and LIVE_ONLY guard; no extra provider requests or voting authorization. Existing Doctor uses same underlying position adapter. Added label fixture. Local tests NOT EXECUTED; exact CI pending. Authenticated measured option directional input and final replay wiring still OPEN; no APK/server/order changes.

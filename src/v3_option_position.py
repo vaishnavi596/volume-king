@@ -28,3 +28,11 @@ def historical_option_position(metrics, *, symbol, expiry, now):
             "call_oi":call,"put_oi":put,"expiry":expiry,
             "reason":"ATM-window OI positioning; trade direction and exchange freshness unverified",
             "live_vote_eligible":False}
+
+
+def option_position_label(position):
+    """One explicit non-voting label for historical option context."""
+    if not position.get("available"):
+        return ""
+    return ("Options HIST "+position["position"].replace("_"," ")+
+            " • expiry "+position["expiry"]+" • WAIT • not LIVE")

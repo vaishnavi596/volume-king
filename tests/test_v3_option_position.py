@@ -21,3 +21,12 @@ class HistoricalOptionPositionTests(unittest.TestCase):
         data=self.fixture()
         del data["atm_window"]["rows"][0]["ce"]
         self.assertEqual(self.run_position(data)["code"],"BK-OPT-002")
+
+    def test_summary_label_discloses_expiry_and_abstention(self):
+        from v3_option_position import option_position_label
+        label=option_position_label(self.run_position(self.fixture()))
+        self.assertIn("HIST PUT OI HEAVY",label)
+        self.assertIn("2099-12-31",label)
+        self.assertIn("WAIT",label)
+        self.assertIn("not LIVE",label)
+        self.assertEqual(option_position_label({"available":False}),"")
