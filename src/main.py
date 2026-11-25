@@ -576,10 +576,10 @@ def app_main(page:ft.Page):
         overall=votes[0] if complete and len(set(votes))==1 else "WAIT"
         reason=("Experimental three-source agreement; not a win probability" if overall!="WAIT" else "Incomplete inputs or conflicting directions; no confirmed combined setup")
         return {"symbol":symbol,"timeframe":interval,"overall":overall,"coverage":sum(v is not None for v in votes),"reason":reason,"candle":candle,"options":options,"news":cues,"headlines":items[:5],"global_headlines":[x for x in global_news.get("items",[]) if 0<=now-x.get("published",0)<=86400][:3],"news_status":local_news.get("status","Unavailable") if items else "No recent matching headlines / feed unavailable","global_status":global_news.get("status","Unavailable"),"timestamp":now}
-    async def load_combined(symbol,interval,candle):
+    async def load_combined(symbol,interval,candle,*,persist=True):
         local_news,world_news=await asyncio.gather(asyncio.to_thread(fetch_news,symbol),asyncio.to_thread(fetch_news,symbol,True))
         result=combine_analysis(symbol,interval,candle,local_news,world_news)
-        if not candle.get("historical") and candle.get("timestamp"):
+        if persist and not candle.get("historical") and candle.get("timestamp"):
             await asyncio.to_thread(market_store.put,"fusion",(symbol,interval),result)
         return result
     def fusion_card(symbol,interval,compact=False):
@@ -10043,28 +10043,36 @@ console.log('BOT KING Lightweight Charts ready');
                             publish_partial_ranking(ranking_results)
                             if current[0] in (0,4):request_view_refresh(current[0])
                         return sym,result
+                def ranking_owner_current():
+                    return (generation==provider_generation[0] and prefs.get("source")=="Dhan"
+                            and app_active[0] and not lifecycle_background[0] and dhan_feed.connected
+                            and set(ranking_symbols)==set(all_watch_symbols()))
                 pairs=await asyncio.gather(*(rank_one(sym) for sym in ranking_symbols))
-                if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
+                if not ranking_owner_current():
+                    last_scanned_generation=None
                     await asyncio.sleep(.05)
                     continue
                 available=publish_partial_ranking(ranking_results)
                 scan_progress["state"]="5m ranking complete" if scan_progress["valid"] else "No valid 5m ranking candles; 1m/3m may still be available; last saved results retained"
                 async def enrich(candidate):
                     async with semaphore:
-                        try:combined=await asyncio.wait_for(load_combined(candidate["symbol"],"5m",candidate),timeout=20)
+                        try:combined=await asyncio.wait_for(load_combined(candidate["symbol"],"5m",dict(candidate),persist=False),timeout=20)
                         except Exception as exc:
                             log_error("ranking_news",exc)
                             missing={"items":[],"status":safe_error(exc)}
                             combined=combine_analysis(candidate["symbol"],"5m",candidate,missing,missing)
                         return candidate,combined
                 enriched=await asyncio.gather(*(enrich(candidate) for candidate in top5_candidates[:] if candidate.get("timestamp")))
-                if generation!=provider_generation[0] or prefs.get("source")!="Dhan":continue
+                if not ranking_owner_current():
+                    last_scanned_generation=None
+                    continue
                 for candidate,combined in enriched:
+                    if not any(row is candidate for row in top5_candidates):continue
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
-                if available:
-                    await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"all_rows":[dict(row) for row in watch_signal_cache.values()],"checked_at":top5_last_update[0]})
+                if available and ranking_owner_current():
+                    await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"all_rows":[dict(row) for row in watch_signal_cache.values() if row.get("symbol") in ranking_symbols],"checked_at":top5_last_update[0]})
                     if generation!=provider_generation[0] or prefs.get("source")!="Dhan":continue
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])

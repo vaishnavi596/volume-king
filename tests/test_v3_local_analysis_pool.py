@@ -306,3 +306,26 @@ class LocalPoolTests(unittest.TestCase):
         env["provider_generation"][0]=1
         env["dhan_feed"].connected=False
         self.assertFalse(env["input_current"]())
+
+    def test_rank_aggregate_rejects_stale_owner_and_detached_news(self):
+        import ast
+        from pathlib import Path
+        from types import SimpleNamespace
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        guard=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=="ranking_owner_current")
+        roster=["TCS"]
+        env=dict(generation=1,provider_generation=[1],prefs={"source":"Dhan"},app_active=[True],lifecycle_background=[False],dhan_feed=SimpleNamespace(connected=True),ranking_symbols=["TCS"],all_watch_symbols=lambda:roster)
+        exec(compile(ast.Module(body=[guard],type_ignores=[]),"<aggregate owner>","exec"),env)
+        self.assertTrue(env["ranking_owner_current"]())
+        roster.append("INFY")
+        self.assertFalse(env["ranking_owner_current"]())
+        roster.pop()
+        env["lifecycle_background"][0]=True
+        self.assertFalse(env["ranking_owner_current"]())
+        env["lifecycle_background"][0]=False
+        env["provider_generation"][0]=2
+        self.assertFalse(env["ranking_owner_current"]())
+        self.assertIn('persist=False),timeout=20)',source)
+        self.assertIn('if not any(row is candidate for row in top5_candidates):continue',source)
+        self.assertIn('if available and ranking_owner_current():',source)
