@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -43,10 +43,14 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     # Cache observation does not certify transport success.
     issues[-1]["gate_snapshot"] = progress.get("watchlist_gate_snapshot", {})
     issues[-1]["gate_scope"] = "instantaneous periodic scheduler gates, not recorded skip history; scanner interleave can still run"
+    outcomes = outcomes or {}
+    issues[-1]["recent_error_history"] = list(recent_errors or [])[-5:]
     issues[-1]["symbol_observations"] = [
         {"symbol":sym, "attempt_age_seconds":ages.get(sym),
          "cached_completed_3m_age_seconds":candle_ages.get(sym),
          "quote_cached":sym in quote_present,
+         "last_read_outcome":outcomes.get(sym,{}).get("state","NOT_OBSERVED"),
+         "last_read_age_seconds":round(max(0,now_monotonic-outcomes[sym]["at"]),1) if sym in outcomes else None,
          "transport_success":"UNVERIFIED"}
         for sym in symbols]
     issues.append({"check": "CONTINUOUS_QUOTE_AND_CANDLE_FRESHNESS",

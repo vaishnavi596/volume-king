@@ -82,6 +82,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 sleep=fast_sleep,to_thread=fake_to_thread,
                 wait_for=asyncio.wait_for,CancelledError=asyncio.CancelledError)
         }
+        scope["record_watch_outcome"]=lambda gen,sym,state:scope.setdefault("outcomes",{}).update({(gen,sym):state})
         scope["all_watch_symbols"]=lambda:list(dict.fromkeys(sym for group in scope["watch_groups"] for sym in group))
         recent=next(n for n in ast.walk(TREE) if isinstance(n,ast.FunctionDef) and n.name=="watch_candle_recent")
         exec(compile(textwrap.dedent(ast.get_source_segment(SOURCE,recent)),str(ROOT/"src"/"main.py"),"exec"),scope)
@@ -119,6 +120,14 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn(("repaint",4),calls)
         self.assertFalse(s["watch_three_minute_warm_busy"][0])
         self.assertFalse(errors)
+
+    def test_read_outcome_distinguishes_cache_and_uncached(self):
+        for origin in ("SHARED_CACHE","UNCACHED_RESPONSE"):
+            with self.subTest(origin=origin):
+                s,_,_,_,rows,_,_=self.fixture()
+                s["get_market_data"]=lambda *args:{"source":"Dhan","bars":rows,"_watch_read_origin":origin}
+                self.assertTrue(self.invoke(s))
+                self.assertEqual(s["outcomes"][(0,"TCS")],origin)
 
     def test_prior_attempt_cannot_repeat_same_symbol_in_same_budget_window(self):
         s,calls,_,_,_,_,_=self.fixture()

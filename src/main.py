@@ -634,7 +634,8 @@ def app_main(page:ft.Page):
             # Share recent same-provider candle results across Chart and Scanner.
             # Historical candles remain explicitly unverified, never live quotes.
             ttl=90 if key[3]=="Dhan" else 10
-            if cached and time.monotonic()-cached[0]<ttl:return copy.deepcopy(cached[1])
+            if cached and time.monotonic()-cached[0]<ttl:
+                return dict(copy.deepcopy(cached[1]),_watch_read_origin="SHARED_CACHE")
             result=fetch_market_data_uncached(ticker,interval,range_)
             if key[0]!=provider_generation[0]:raise RuntimeError("Obsolete market response")
             # The requested Dhan timeframe is proven by this exact cache key.
@@ -647,7 +648,7 @@ def app_main(page:ft.Page):
                 market_recent[key]=(time.monotonic(),copy.deepcopy(result))
                 for old in list(market_recent):
                     if time.monotonic()-market_recent[old][0]>(90 if old[3]=="Dhan" else 30):market_recent.pop(old,None)
-            return result
+            return dict(result,_watch_read_origin="UNCACHED_RESPONSE")
     def fetch_market_data_uncached(ticker,interval="5m",range_="1d"):
         import time
         selected=prefs.get("source","Dhan")
@@ -6260,6 +6261,8 @@ def app_main(page:ft.Page):
                     attempts={sym:stamp for (gen,sym),stamp in watch_three_minute_warm_attempts.items()
                               if gen==generation},
                     now_monotonic=mono,market_open=bool(refresh_hours()),
+                    outcomes={sym:row for (gen,sym),row in watch_refresh_outcomes.items() if gen==generation},
+                    recent_errors=diagnostics[-5:],
                     errors=[str(key)[:100] for key,value in display_failures.items() if value],
                     progress={"history_scan_busy":bool(dhan_history_scan_active[0]),
                               "scanner":{key:scan_progress.get(key) for key in
@@ -8702,6 +8705,13 @@ console.log('BOT KING Lightweight Charts ready');
     # 3m input until all 51 equities finish. Share the scheduler's *same* 1m
     # request budget; this is not a second uncontrolled polling lane.
     watch_three_minute_warm_attempts={}
+    watch_refresh_outcomes={}
+    def record_watch_outcome(generation,sym,state):
+        if generation!=provider_generation[0]:return
+        if len(watch_refresh_outcomes)>=280:
+            for key in list(watch_refresh_outcomes):
+                if key[0]!=generation:watch_refresh_outcomes.pop(key,None)
+        watch_refresh_outcomes[(generation,sym)]={"state":state,"at":time.monotonic()}
     watch_three_minute_upstream_times=[]
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
@@ -8809,7 +8819,9 @@ console.log('BOT KING Lightweight Charts ready');
                 if (generation!=provider_generation[0]
                         or prefs.get("source")!="Dhan"
                         or data.get("source")!="Dhan"):
+                    record_watch_outcome(generation,sym,"DISCARDED_RESPONSE")
                     return False
+                record_watch_outcome(generation,sym, data.get("_watch_read_origin","UNKNOWN_ORIGIN") if valid_candle_history(data.get("bars")) else "INVALID_RESPONSE")
                 prior=shared_history(sym,"1m")
                 data=retain_candle_history(data,prior,provider="Dhan")
                 if valid_candle_history(data.get("bars")):
@@ -8822,6 +8834,7 @@ console.log('BOT KING Lightweight Charts ready');
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                record_watch_outcome(generation,sym,"ERROR:"+type(exc).__name__)
                 log_error("watch_three_minute_early",exc)
                 if generation==provider_generation[0]:
                     remember_candle_failure(sym,"1m","early Watchlist 3m input",exc)
@@ -9675,7 +9688,9 @@ console.log('BOT KING Lightweight Charts ready');
                             data=await asyncio.wait_for(asyncio.to_thread(
                                 get_market_data,sym,"1m","2d"),timeout=25)
                             if generation!=provider_generation[0] or data.get("source")!="Dhan":
+                                record_watch_outcome(generation,sym,"DISCARDED_RESPONSE")
                                 break
+                            record_watch_outcome(generation,sym, data.get("_watch_read_origin","UNKNOWN_ORIGIN") if valid_candle_history(data.get("bars")) else "INVALID_RESPONSE")
                             prior=shared_history(sym,"1m")
                             data=retain_candle_history(data,prior,provider="Dhan")
                             if valid_candle_history(data.get("bars")):
@@ -9686,6 +9701,7 @@ console.log('BOT KING Lightweight Charts ready');
                         except asyncio.CancelledError:
                             raise
                         except Exception as exc:
+                            record_watch_outcome(generation,sym,"ERROR:"+type(exc).__name__)
                             log_error("watch_three_minute_warmup",exc)
                             if generation==provider_generation[0]:
                                 remember_candle_failure(sym,"1m","watchlist 3m input",exc)
