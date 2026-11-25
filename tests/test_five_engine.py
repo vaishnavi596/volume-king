@@ -1019,3 +1019,17 @@ class R2CandleTimestampSafetyTests(unittest.TestCase):
                 self.assertIsNone(completed_timeframe_candle_balance(history,tf,now=1800010000))
                 self.assertFalse(verified_candle_evidence(
                     history,tf,now=1800010000,symbol="NIFTY").eligible)
+
+
+class R2DirectionalSourceBoundaryTests(unittest.TestCase):
+    def test_explicit_historical_or_unverified_flow_never_votes_live(self):
+        from five_engine import futures_from_component, option_from_component
+        sample=dict(source="Dhan",verified=True,contract="NIFTY-CONTRACT",
+                    direction_basis="validated_trade_flow",bullish=75,bearish=25,
+                    timestamp=1795000000,available=True,bias="BULLISH")
+        for adapter in (futures_from_component,option_from_component):
+            self.assertTrue(adapter(sample).eligible)
+            for flags in (dict(historical=True),dict(live_verified=False),
+                          dict(historical=True,live_verified=True)):
+                with self.subTest(adapter=adapter.__name__,flags=flags):
+                    self.assertFalse(adapter(dict(sample,**flags)).eligible)

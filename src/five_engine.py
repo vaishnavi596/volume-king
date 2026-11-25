@@ -438,6 +438,8 @@ def measured_directional_evidence(name, component, *, required_basis):
         return EngineEvidence(name, reason="Measured Dhan directional evidence unavailable")
     if (component.get("source") != "Dhan" or component.get("verified") is not True
             or component.get("direction_basis") != required_basis
+            or component.get("historical") is True
+            or component.get("live_verified") is False
             or not isinstance(component.get("contract"), str)
             or not component["contract"].strip()):
         return EngineEvidence(name, reason="Verified Dhan directional provenance unavailable")
@@ -480,7 +482,7 @@ def option_from_component(component):
                 timestamp,timezone(timedelta(hours=5,minutes=30))).date()
             if type(expiry) is not str or expiry_day.isoformat()!=expiry or expiry_day<measured_day:
                 raise ValueError("Expired or noncanonical option contract")
-        except (TypeError, ValueError, OverflowError):
+        except (TypeError, ValueError, OverflowError, OSError):
             return EngineEvidence("options", reason="Option contract expiry invalid or expired")
     # A supplied BULLISH/BEARISH label may not contradict the independently
     # measured trade-side strengths; otherwise it could mislead the 3/5 vote.
