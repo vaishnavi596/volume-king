@@ -6268,7 +6268,7 @@ def app_main(page:ft.Page):
         def inspect_active(_):
             started=time.perf_counter()
             try:
-                from v3_smart_active_doctor import active_report
+                from v3_smart_active_doctor import active_report, ml5_engine_observation
                 generation=provider_generation[0]
                 configured=list(all_watch_symbols())
                 selected_equities=[sym for sym in configured if sym in DHAN_VERIFIED_SYMBOLS
@@ -6279,7 +6279,23 @@ def app_main(page:ft.Page):
                     return (row.get("source")=="Dhan" and type(price) in (int,float)
                             and math.isfinite(price) and price>0)
                 mono=time.monotonic()
+                ml5_symbol=str(scan_symbol.value or "NIFTY")
+                ml5_tf=str(scan_tf.value or "1m")
+                ml5_history=(chart_snapshots.get((ml5_symbol,ml5_tf,generation))
+                             or shared_history(ml5_symbol,ml5_tf) or {})
+                with news_lock:
+                    ml5_news=dict(news_cache.get(ml5_symbol) or {})
+                ml5_observation=ml5_engine_observation(symbol=ml5_symbol,timeframe=ml5_tf,
+                    generation=generation,history=ml5_history,news=ml5_news,
+                    futures=matching_futures_context_for_symbol(ml5_symbol),
+                    options=matching_option_context_for_symbol(ml5_symbol),
+                    snapshot=contextual_five_engine.peek(symbol=ml5_symbol,timeframe=ml5_tf,generation=generation)
+                        if ml5_tf in ("1m","3m","5m") else None,
+                    now=time.time(),connected=bool(dhan_feed.connected and prefs.get("source")=="Dhan"),
+                    technical_agreement=historical_vote_agreement(ml5_history,ml5_tf),
+                    quote=quotes.get(ml5_symbol))
                 data=active_report(
+                    engine_observation=ml5_observation,
                     generation=generation,symbols=selected_equities,
                     quote_present=[sym for sym in selected_equities if cached_price(sym)],
                     index_present=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if cached_price(sym)],

@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -77,6 +77,8 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                    "age_scope": "cached analyzed completed candle; 360s diagnostic threshold, not exchange proof",
                    "exchange_live_verified": False})
     issues.append({"check": "SCANNER_RANKING", "status": "TESTING", "progress": progress})
+    if engine_observation is not None:
+        issues.append(dict(check="ML5_FIVE_ENGINE_READINESS",status="TESTING",**engine_observation))
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})
@@ -84,3 +86,53 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
             "provider_generation": generation,"healthy_hidden_count":len(hidden),
             "active_count":len(issues),"active":issues,
             "source_live_verified":False,"provider_requests":0,"orders_sent":0}
+
+
+def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futures,
+                           options, snapshot, now, connected, technical_agreement=None,
+                           quote=None):
+    """Cache-only exact identity audit. No new signal or authorization."""
+    from five_engine import ENGINE_NAMES, snapshot_for_display, independent_engine_source_contract
+    from v3_four_box_source_readiness import four_box_source_readiness
+    from filter_wiring_audit import diagnostic_candle_readiness
+    from math import isfinite
+    identity={"symbol":symbol,"timeframe":timeframe,"generation":generation}
+    if timeframe not in ("1m","3m","5m"):
+        return {"identity":identity,"comparison_status":"UNVERIFIED",
+                "reason":"ML5 audit requires 1m/3m/5m","boxes":[]}
+    readiness=four_box_source_readiness(symbol=symbol,timeframe=timeframe,
+        generation=generation,history=history,news_cache=news,
+        futures_cache=futures,option_context=options,now=now)
+    stage=diagnostic_candle_readiness(history,timeframe,now=now)
+    rows=readiness["box_sources"]
+    rows["T"]={"cache_present":bool(history.get("bars")) and history.get("source")=="Dhan"
+              and history.get("_scanner_timeframe")==timeframe,
+              "historical_direction_available":technical_agreement is not None,
+              "historical_bullish":technical_agreement[0] if technical_agreement else None,
+              "historical_bearish":technical_agreement[1] if technical_agreement else None,
+              "blocker":stage}
+    display=snapshot_for_display(snapshot if connected else None,now=now)
+    contract=independent_engine_source_contract()
+    boxes=[]
+    for short,name,evidence in zip("TCNFO",ENGINE_NAMES,display["engines"]):
+        eligible=evidence.eligible and evidence.source=="Dhan"
+        row=dict(rows[short])
+        row.update(box=short,engine=name,adapter=contract[name]["adapter"],
+                   source_wiring=contract[name]["readiness"],
+                   live_vote_eligible=eligible,live_direction_verified=eligible,
+                   live_bullish=evidence.bullish if eligible else None,
+                   live_bearish=evidence.bearish if eligible else None,
+                   live_gate_reason=evidence.reason)
+        boxes.append(row)
+    q=quote or {}
+    stamp=q.get("quote_timestamp")
+    valid_stamp=(q.get("source")=="Dhan" and type(stamp) in (int,float)
+                 and isfinite(stamp) and 0<stamp<=now)
+    return {"identity":identity,"boxes":boxes,"combined":display["combined"],
+            "sixth_M":"INERT_NOT_SCORED",
+            "quote_timestamp_observed":bool(valid_stamp),
+            "quote_timestamp_age_seconds":round(now-stamp,1) if valid_stamp else None,
+            "quote_timestamp_scope":"existing cache field; not independent exchange proof",
+            "comparison_status":"UNVERIFIED",
+            "comparison_scope":"compare same symbol/frame/roster/session across build reports",
+            "provider_requests":0,"orders_sent":0}
