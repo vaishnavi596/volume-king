@@ -6263,6 +6263,7 @@ def app_main(page:ft.Page):
                     now_monotonic=mono,market_open=bool(refresh_hours()),
                     outcomes={sym:row for (gen,sym),row in watch_refresh_outcomes.items() if gen==generation},
                     recent_errors=diagnostics[-5:],
+                    skip_events=[row for row in watch_skip_events if row["generation"]==generation],
                     errors=[str(key)[:100] for key,value in display_failures.items() if value],
                     progress={"history_scan_busy":bool(dhan_history_scan_active[0]),
                               "scanner":{key:scan_progress.get(key) for key in
@@ -8706,6 +8707,12 @@ console.log('BOT KING Lightweight Charts ready');
     # request budget; this is not a second uncontrolled polling lane.
     watch_three_minute_warm_attempts={}
     watch_refresh_outcomes={}
+    watch_skip_events=[]
+    def record_watch_skip(generation,lane,reason,sym=None):
+        if generation!=provider_generation[0]:return
+        watch_skip_events.append({"generation":generation,"lane":lane,
+            "reason":reason,"symbol":sym,"at":time.monotonic()})
+        del watch_skip_events[:-120]
     def record_watch_outcome(generation,sym,state):
         if generation!=provider_generation[0]:return
         if len(watch_refresh_outcomes)>=280:
@@ -8748,6 +8755,7 @@ console.log('BOT KING Lightweight Charts ready');
                 or (explicit_closed and dhan_history_scan_active[0])
                 or watch_three_minute_warm_busy[0] or index_one_minute_busy[0]
                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+            record_watch_skip(generation,"early","INITIAL_GUARD")
             return False
         now=time.monotonic()
         # Same rolling 180s / 12-uncached / 10s floors as periodic warmup.
@@ -8768,6 +8776,7 @@ console.log('BOT KING Lightweight Charts ready');
                     and type(fetched) in (int,float)
                     and 0<=time.time()-fetched<180
                     and (explicit_closed or watch_candle_recent(prior_three))):
+                record_watch_skip(generation,"early","FRESH_CACHE",sym)
                 continue
             key=(generation,sym)
             if explicit_closed:
@@ -8784,6 +8793,7 @@ console.log('BOT KING Lightweight Charts ready');
                     continue
             if (key in watch_three_minute_warm_attempts
                     and now-watch_three_minute_warm_attempts[key]<180):
+                record_watch_skip(generation,"early","SYMBOL_RETRY_WINDOW",sym)
                 continue
             history_key=(generation,angel_feed.epoch,dhan_feed.connected,
                          "Dhan",sym,"1m","2d")
@@ -8794,6 +8804,7 @@ console.log('BOT KING Lightweight Charts ready');
                     len(watch_three_minute_upstream_times)>=12 or
                     (watch_three_minute_warm_last_provider[0]>0 and
                      now-watch_three_minute_warm_last_provider[0]<10)):
+                record_watch_skip(generation,"early","UPSTREAM_BUDGET_OR_SPACING",sym)
                 continue
             watch_three_minute_warm_busy[0]=True
             try:
@@ -8808,6 +8819,7 @@ console.log('BOT KING Lightweight Charts ready');
                             not clone_v2_gateway.connected or dhan_history_scan_active[0]))
                         or index_one_minute_busy[0]
                         or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                    record_watch_skip(generation,"early","GUARD_CHANGED_BEFORE_READ",sym)
                     return False
                 watch_three_minute_warm_attempts[key]=time.monotonic()
                 if not cache_ready:
@@ -9634,6 +9646,7 @@ console.log('BOT KING Lightweight Charts ready');
                         or not refresh_hours() or dhan_history_scan_active[0]
                         or index_one_minute_busy[0] or watch_three_minute_warm_busy[0]
                         or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                    record_watch_skip(provider_generation[0],"periodic","INITIAL_GUARD")
                     continue
                 generation=provider_generation[0]
                 now=time.monotonic()
@@ -9654,10 +9667,12 @@ console.log('BOT KING Lightweight Charts ready');
                     if (valid_candle_history(prior_three.get("bars"))
                             and type(fetched) in (int,float) and
                             0<=time.time()-fetched<180 and watch_candle_recent(prior_three)):
+                        record_watch_skip(provider_generation[0],"periodic","FRESH_CACHE",sym)
                         continue
                     key=(generation,sym)
                     if (key in watch_three_minute_warm_attempts
                             and now-watch_three_minute_warm_attempts[key]<180):
+                        record_watch_skip(provider_generation[0],"periodic","SYMBOL_RETRY_WINDOW",sym)
                         continue
                     history_key=(generation,angel_feed.epoch,dhan_feed.connected,
                                  "Dhan",sym,"1m","2d")
@@ -9668,6 +9683,7 @@ console.log('BOT KING Lightweight Charts ready');
                             len(watch_three_minute_upstream_times)>=12 or
                             (watch_three_minute_warm_last_provider[0]>0 and
                              now-watch_three_minute_warm_last_provider[0]<10)):
+                        record_watch_skip(provider_generation[0],"periodic","UPSTREAM_BUDGET_OR_SPACING",sym)
                         break
                     watch_three_minute_warm_busy[0]=True
                     try:
@@ -9678,6 +9694,7 @@ console.log('BOT KING Lightweight Charts ready');
                                 or not refresh_hours() or dhan_history_scan_active[0]
                                 or index_one_minute_busy[0]
                                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
+                            record_watch_skip(provider_generation[0],"periodic","GUARD_CHANGED_BEFORE_READ",sym)
                             break
                         watch_three_minute_warm_attempts[key]=time.monotonic()
                         if not cache_ready:

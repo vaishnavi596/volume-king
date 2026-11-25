@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -45,6 +45,18 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     issues[-1]["gate_scope"] = "instantaneous periodic scheduler gates, not recorded skip history; scanner interleave can still run"
     outcomes = outcomes or {}
     issues[-1]["recent_error_history"] = list(recent_errors or [])[-5:]
+    recent_skips = [row for row in (skip_events or []) if row.get("generation")==generation
+                    and 0<=now_monotonic-row["at"]<=180]
+    skip_counts = {}
+    for row in recent_skips:
+        reason=row["reason"]
+        skip_counts[reason]=skip_counts.get(reason,0)+1
+    issues[-1]["recorded_skip_counts_last_180s"] = skip_counts
+    issues[-1]["recent_skip_events"] = [
+        {"lane":row["lane"],"reason":row["reason"],"symbol":row["symbol"],
+         "age_seconds":round(now_monotonic-row["at"],1)}
+        for row in recent_skips[-12:]]
+    issues[-1]["skip_history_scope"] = "bounded last 120 events; grouped guards, not exhaustive individual causes"
     issues[-1]["symbol_observations"] = [
         {"symbol":sym, "attempt_age_seconds":ages.get(sym),
          "cached_completed_3m_age_seconds":candle_ages.get(sym),

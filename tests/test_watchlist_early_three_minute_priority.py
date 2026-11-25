@@ -82,6 +82,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 sleep=fast_sleep,to_thread=fake_to_thread,
                 wait_for=asyncio.wait_for,CancelledError=asyncio.CancelledError)
         }
+        scope["record_watch_skip"]=lambda gen,lane,reason,sym=None:scope.setdefault("skips",[]).append((gen,lane,reason,sym))
         scope["record_watch_outcome"]=lambda gen,sym,state:scope.setdefault("outcomes",{}).update({(gen,sym):state})
         scope["all_watch_symbols"]=lambda:list(dict.fromkeys(sym for group in scope["watch_groups"] for sym in group))
         recent=next(n for n in ast.walk(TREE) if isinstance(n,ast.FunctionDef) and n.name=="watch_candle_recent")
@@ -128,6 +129,17 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 s["get_market_data"]=lambda *args:{"source":"Dhan","bars":rows,"_watch_read_origin":origin}
                 self.assertTrue(self.invoke(s))
                 self.assertEqual(s["outcomes"][(0,"TCS")],origin)
+
+    def test_actual_budget_skip_and_foreground_guard_are_recorded(self):
+        s,calls,_,_,_,_,now=self.fixture()
+        s["watch_groups"][0]=["TCS"]
+        s["watch_three_minute_warm_last_provider"][0]=now-5
+        self.assertFalse(self.invoke(s))
+        self.assertIn((0,"early","UPSTREAM_BUDGET_OR_SPACING","TCS"),s["skips"])
+        self.assertFalse(self.requests(calls))
+        s["lifecycle_background"][0]=True
+        self.assertFalse(self.invoke(s))
+        self.assertIn((0,"early","INITIAL_GUARD",None),s["skips"])
 
     def test_prior_attempt_cannot_repeat_same_symbol_in_same_budget_window(self):
         s,calls,_,_,_,_,_=self.fixture()
