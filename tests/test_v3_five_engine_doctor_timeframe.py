@@ -21,8 +21,10 @@ class FiveEngineDoctorFrameTests(unittest.TestCase):
     def test_master_doctor_never_calls_5m_for_other_frame(self):
         self.assertIn('snap=(read_five_engine_context(scanner_sym,scanner_tf)',
                       self.source)
-        self.assertIn('if scanner_tf=="5m" and scanner_engine_frame_eligible else None)',
-                      self.source)
+        raw=self.source.split('raw_snapshot=(contextual_five_engine.peek(',1)[1].split('sections={',1)[0]
+        self.assertIn('symbol=scanner_sym,timeframe=scanner_tf,generation=generation)',raw)
+        self.assertIn('if scanner_engine_frame_eligible else None)',raw)
+        self.assertNotIn('five_engine_snapshots.get(scanner_sym)',raw)
         self.assertNotIn('scanner_engine_5m_eligible', self.source)
 
     def test_display_chips_and_summary_read_exact_requested_frame(self):

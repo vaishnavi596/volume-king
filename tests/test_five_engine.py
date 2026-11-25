@@ -1004,3 +1004,18 @@ class R2PublisherOwnershipTests(unittest.TestCase):
         self.assertTrue(cached["engines"][0].eligible)
         self.assertEqual(cache.read(**args,now=1234567900,connected=True,
                                     market_open=True)["combined"]["coverage"],1)
+
+
+class R2CandleTimestampSafetyTests(unittest.TestCase):
+    def test_out_of_range_session_timestamp_abstains_in_hist_and_live(self):
+        from five_engine import completed_timeframe_candle_balance, verified_candle_evidence
+        for tf,seconds in (("1m",60),("3m",180),("5m",300)):
+            with self.subTest(frame=tf):
+                bars=[[1800000000+i*seconds,100,103,99,102,12] for i in range(31)]
+                bars[-1][0]=1e30
+                history=dict(source="Dhan",symbol="NIFTY",_scanner_timeframe=tf,
+                             historical=False,live_verified=True,
+                             freshness="verified_live",bars=bars)
+                self.assertIsNone(completed_timeframe_candle_balance(history,tf,now=1800010000))
+                self.assertFalse(verified_candle_evidence(
+                    history,tf,now=1800010000,symbol="NIFTY").eligible)

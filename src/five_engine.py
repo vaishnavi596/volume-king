@@ -320,7 +320,10 @@ def completed_timeframe_candle_balance(history, timeframe, *, now):
         return None
     # HIST-only recovery from a provable after-close suffix.
     # Raw history remains unchanged; any interior gap still fails closed.
-    bars=historical_regular_session_bars(bars,timeframe)
+    try:
+        bars=historical_regular_session_bars(bars,timeframe)
+    except (ValueError, OverflowError, OSError):
+        return None
     # Only the newest forming bar may be excluded; do not silently skip
     # malformed interior candles and manufacture a clean-looking sample.
     last=bars[-1]
@@ -374,7 +377,10 @@ def verified_candle_evidence(history, timeframe, *, now, symbol):
     seconds = {"1m": 60, "3m": 180, "5m": 300}[timeframe]
     # LIVE evidence must not use a HIST-only trimmed session suffix.
     # The exact bars used for direction and the revision timestamp must match.
-    if historical_regular_session_bars(bars, timeframe) is not bars:
+    try:
+        if historical_regular_session_bars(bars, timeframe) is not bars:
+            return wait
+    except (ValueError, OverflowError, OSError):
         return wait
     balance = completed_timeframe_candle_balance(history, timeframe, now=now)
     if balance is None:
