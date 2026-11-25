@@ -2782,6 +2782,8 @@ def app_main(page:ft.Page):
     # Local phone timing only: never imply exchange freshness.
     watch_batch_last_duration_ms=[None]
     watch_batch_last_result=["NOT_ATTEMPTED"]
+    from v3_smart_active_doctor import QuoteContractObservation
+    quote_contract_observation=QuoteContractObservation()
     # A saved last-good quote does NOT prove this login generation fetched data.
     # Closed-session recovery follows successful network observations, not UI cache.
     watch_batch_success_generation=[None]
@@ -2886,6 +2888,7 @@ def app_main(page:ft.Page):
             watch_batch_last_success[0]=time.monotonic()
             if received==total_symbols:
                 watch_batch_success_generation[0]=generation
+                quote_contract_observation.recovered("equities",generation,provider_generation[0])
         except Exception as exc:
             selected_batch_issue[0]=safe_error(exc)[:120]
             # Android may suspend a network request when the app loses focus.
@@ -2904,6 +2907,7 @@ def app_main(page:ft.Page):
                 watch_batch_status[0]="Dhan quote refresh interrupted in background • retry on resume"
                 return
             log_error("watchlist_dhan_batch",exc)
+            quote_contract_observation.failed("equities",generation,provider_generation[0],exc)
             with dhan_batch_lock:
                 dhan_batch_cache.update(generation=None,updated=0.0,quotes={})
             # A failed poll must not blank the last valid displayed Dhan prices.
@@ -3043,6 +3047,7 @@ def app_main(page:ft.Page):
                    for key in ("NIFTY","BANKNIFTY","SENSEX")):
                 display_failures.pop("dhan_index_ltp_batch",None)
                 index_failure_code[0]="NONE_ALL_THREE_QUOTES_PRESENT"
+                quote_contract_observation.recovered("indices",generation,provider_generation[0])
                 index_failure_429_stage[0]="NOT_APPLICABLE"
                 index_last_result_state[0]="RESPONSE_VALID_ALL_THREE_UNVERIFIED_LIVE"
             else:
@@ -3063,6 +3068,8 @@ def app_main(page:ft.Page):
             raise
         except Exception as exc:
             log_error("dhan_index_ltp_batch",exc)
+            if prefs.get("source")=="Dhan":
+                quote_contract_observation.failed("indices",generation,provider_generation[0],exc)
             # Persist a sanitized route/stage error rather than a bare FeedError.
             detail=safe_error(exc)
             # Fixed-enum only. Do not expose arbitrary exception text,
@@ -6632,6 +6639,7 @@ def app_main(page:ft.Page):
                     "final_vote_frame_guard":__import__("v3_smart_active_doctor").final_vote_frame_observation(
                         symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                         display_mode=prefs.get("market_display_mode")),
+                    "quote_contract_errors":quote_contract_observation.active(generation),
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
@@ -6686,6 +6694,7 @@ def app_main(page:ft.Page):
                     quote=quotes.get(ml5_symbol))
                 data=active_report(
                     engine_observation=ml5_observation,
+                    quote_contract_errors=quote_contract_observation.active(generation),
                     final_vote_observation=__import__("v3_smart_active_doctor").final_vote_frame_observation(
                         symbol=ml5_symbol,timeframe=ml5_tf,generation=generation,
                         display_mode=prefs.get("market_display_mode")),

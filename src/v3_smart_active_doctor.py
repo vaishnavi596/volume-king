@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None, final_vote_observation=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None, final_vote_observation=None, quote_contract_errors=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -121,6 +121,9 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
             hidden.append("FINAL_VOTE_FRAME_GUARD")
         else:
             issues.append(dict(check="FINAL_VOTE_FRAME_GUARD",**final_vote_observation))
+    for row in quote_contract_errors or ():
+        if row.get("generation")==generation and row.get("code")=="BK-QUOTE-001":
+            issues.append(dict(check="QUOTE_CONTRACT",**row))
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})
@@ -192,3 +195,33 @@ def final_vote_frame_observation(*, symbol, timeframe, generation, display_mode)
             "scope":"selected frame eligibility only; actual four-screen parity not measured",
             "next":None if supported else "Select 1m, 3m or 5m for final voting",
             "provider_requests":0, "orders_sent":0}
+
+
+class QuoteContractObservation:
+    """Bounded two-lane runtime observation; no I/O, raw errors or LIVE proof."""
+    def __init__(self):
+        self._active = {}
+
+    def failed(self, lane, generation, current_generation, exc):
+        from clone_v2_gateway import FeedError
+        if (lane not in ("indices","equities") or generation != current_generation
+                or not isinstance(exc, FeedError)
+                or not str(exc).startswith("BK-QUOTE-001:")):
+            return
+        self._active[lane] = {"code":"BK-QUOTE-001","status":"ERROR",
+            "feature_id":"B1.03","generation":generation,"lane":lane,
+            "module":"clone_v2_gateway.py","function":"market_quotes",
+            "expected":"unavailable list contains requested symbol strings",
+            "observed":"invalid unavailable symbol rejected",
+            "scope":"local transport contract; not exchange proof",
+            "next":"Inspect sanitized gateway response contract; retain last good quotes"}
+
+    def recovered(self, lane, generation, current_generation):
+        if generation == current_generation:
+            row=self._active.get(lane)
+            if row and row["generation"]==generation:
+                self._active.pop(lane,None)
+
+    def active(self, generation):
+        return [dict(row) for row in self._active.values()
+                if row["generation"]==generation]

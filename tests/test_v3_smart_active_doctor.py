@@ -60,3 +60,39 @@ class SmartActiveDoctorTests(unittest.TestCase):
         report=active_report(**args,final_vote_observation=obs)
         row=next(r for r in report["active"] if r["check"]=="FINAL_VOTE_FRAME_GUARD")
         self.assertEqual(row["code"],"BK-FINAL-FRAME-002")
+
+    def test_quote_contract_lane_generation_recovery_and_redaction(self):
+        from clone_v2_gateway import FeedError
+        from v3_smart_active_doctor import QuoteContractObservation
+        tracker=QuoteContractObservation()
+        exc=FeedError("BK-QUOTE-001: private-value")
+        tracker.failed("indices",1,2,exc)
+        tracker.failed("equities",2,2,ValueError("BK-QUOTE-001: fake"))
+        self.assertEqual(tracker.active(2),[])
+        for lane in ("indices","equities"):
+            tracker.failed(lane,2,2,exc)
+        self.assertEqual(len(tracker.active(2)),2)
+        self.assertNotIn("private-value",str(tracker.active(2)))
+        self.assertEqual(tracker.active(3),[])
+        tracker.recovered("indices",2,3)
+        self.assertEqual(len(tracker.active(2)),2)
+        tracker.recovered("indices",2,2)
+        args=dict(generation=2,symbols=["TCS"],quote_present=["TCS"],
+                  index_present=[],connected={"Dhan":True},signal_present=[],
+                  attempts={},now_monotonic=50,market_open=False,
+                  errors=[],progress={},performance={},quote_attempt_age=None)
+        report=active_report(**args,quote_contract_errors=tracker.active(2))
+        rows=[r for r in report["active"] if r["check"]=="QUOTE_CONTRACT"]
+        self.assertEqual([r["lane"] for r in rows],["equities"])
+        self.assertFalse(report["source_live_verified"])
+        tracker.recovered("equities",2,2)
+        self.assertEqual(tracker.active(2),[])
+
+    def test_quote_contract_both_doctors_and_workers_wired(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src/main.py").read_text()
+        for lane in ("indices","equities"):
+            self.assertIn('quote_contract_observation.failed("'+lane+'",generation,provider_generation[0],exc)',source)
+            self.assertIn('quote_contract_observation.recovered("'+lane+'",generation,provider_generation[0])',source)
+        self.assertIn('"quote_contract_errors":quote_contract_observation.active(generation)',source)
+        self.assertIn('quote_contract_errors=quote_contract_observation.active(generation)',source)
