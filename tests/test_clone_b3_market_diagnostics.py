@@ -142,6 +142,47 @@ class CloneMarketDiagnosticsTests(unittest.TestCase):
         self.assertNotIn("quotes", first.json())
         self.assertNotIn("quotes", second.json())
 
+    def test_candle_quota_blocks_other_uncached_routes(self):
+        from backend.dhan_feed import DhanRateLimitError
+        class Provider:
+            calls = 0
+            def intraday(self, args):
+                self.calls += 1
+                raise DhanRateLimitError("sanitized")
+            def batch_ltp(self, instruments):
+                raise AssertionError("quota bypass")
+            def option_expiries(self, *args):
+                raise AssertionError("quota bypass")
+        p = Provider()
+        http = self.client(p)
+        today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date().isoformat()
+        request = {"symbol":"NIFTY","interval":1,"from_date":today,"to_date":today}
+        first = http.post("/clone-v2/market/candles", headers=self.headers(), json=request)
+        self.assertEqual(first.status_code, 429)
+        self.assertEqual(first.headers["X-BotKing-429-Stage"], "PROVIDER_QUOTA")
+        for path, body in (("candles",request),("quotes",{"symbols":["NIFTY"]}),
+                           ("options/expiries",{"symbol":"NIFTY"})):
+            res = http.post("/clone-v2/market/"+path, headers=self.headers(), json=body)
+            self.assertEqual(res.status_code,429)
+            self.assertEqual(res.headers["X-BotKing-429-Stage"],"PROVIDER_COOLDOWN")
+            self.assertTrue(1 <= int(res.headers["Retry-After"]) <= 30)
+        self.assertEqual(p.calls,1)
+
+    def test_option_local_pacing_does_not_block_quote_lane(self):
+        from backend.dhan_feed import DhanLocalPacingError
+        class Provider:
+            def option_expiries(self,*args):
+                raise DhanLocalPacingError(2)
+            def batch_ltp(self,instruments):
+                return {"status":"success","data":{"IDX_I":{"13":{"last_price":25000}}}}
+        http=self.client(Provider())
+        res=http.post("/clone-v2/market/options/expiries",headers=self.headers(),json={"symbol":"NIFTY"})
+        self.assertEqual(res.status_code,429)
+        self.assertEqual(res.headers["X-BotKing-429-Stage"],"LOCAL_PACING")
+        self.assertEqual(res.headers["Retry-After"],"2")
+        self.assertEqual(http.post("/clone-v2/market/quotes",headers=self.headers(),
+            json={"symbols":["NIFTY"]}).status_code,200)
+
     def test_unauthorized_call_never_logs_symbol(self):
         class Provider:
             def batch_ltp(self, instruments):

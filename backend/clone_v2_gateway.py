@@ -145,6 +145,39 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     market_cache = {}
     last_request = [0.0]
     provider_cooldown_until = [0.0]
+    quota_lock = threading.Lock()
+
+    def quota_remaining():
+        with quota_lock:
+            return max(0.0, provider_cooldown_until[0] - time.monotonic())
+
+    def quota_start(seconds=30):
+        with quota_lock:
+            provider_cooldown_until[0] = max(
+                provider_cooldown_until[0], time.monotonic() + seconds)
+
+    def quota_guard():
+        remaining = quota_remaining()
+        if remaining > 0:
+            raise HTTPException(429, "Clone Dhan provider cooldown",
+                headers={"Retry-After": str(max(1, math.ceil(remaining))),
+                         "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
+
+    def quota_error(exc):
+        try:
+            from .dhan_feed import DhanLocalPacingError, DhanCooldownError
+        except ImportError:
+            from dhan_feed import DhanLocalPacingError, DhanCooldownError
+        if isinstance(exc, DhanLocalPacingError):
+            stage, seconds = "LOCAL_PACING", exc.retry_seconds
+        elif isinstance(exc, DhanCooldownError):
+            stage, seconds = "PROVIDER_COOLDOWN", exc.retry_seconds
+        else:
+            quota_start()
+            stage, seconds = "PROVIDER_QUOTA", 30
+        raise HTTPException(429, "Clone Dhan request deferred",
+            headers={"Retry-After": str(seconds),
+                     "X-BotKing-429-Stage": stage}) from None
     # Clone-owned candle single-flight and validated, date-scoped history cache.
     # Kept independent of V1 server and files; only successful nonempty bars.
     candle_cache = {}
@@ -398,11 +431,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                          and not cache[1].get("unavailable") else 20)
             if cache and 0 <= now - cache[0] < cache_ttl:
                 return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})
-            if now < provider_cooldown_until[0]:
+            if quota_remaining() > 0:
                 for sym in symbols:
                     market_diagnostic("quotes", sym, "cooldown", "rate_limited")
-                raise HTTPException(429, "Clone Dhan provider cooldown",
-                                    headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
+                quota_guard()
             # Queue legitimate authenticated quote selections inside the
             # existing server-wide lock instead of returning a spurious 429
             # when two phones/index/equity lanes arrive within 1.05 seconds.
@@ -412,9 +444,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             if 0 < spacing_remaining <= 1.05:
                 time.sleep(spacing_remaining)
                 now=time.monotonic()
-                if now < provider_cooldown_until[0]:
-                    raise HTTPException(429, "Clone Dhan provider cooldown",
-                                        headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_COOLDOWN"})
+                quota_guard()
             last_request[0] = now
             try:
                 feed = provider()
@@ -445,9 +475,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     raise HTTPException(
                         424, "Dhan browser authorization or data permission required") from None
                 if category=="rate_limited":
-                    provider_cooldown_until[0] = time.monotonic() + 30
-                    raise HTTPException(429, "Clone Dhan quota cooldown",
-                                        headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}) from None
+                    quota_error(exc)
                 raise HTTPException(502, "Clone read-only Dhan quote unavailable",
                                     headers={"X-BotKing-Quote-Failure-Stage": "PROVIDER"}) from None
             if not isinstance(result, dict) or result.get("status") != "success" or not isinstance(result.get("data"), dict):
@@ -488,7 +516,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     for sym in symbols
                 )
                 if empty_segments:
-                    provider_cooldown_until[0] = time.monotonic() + 30
+                    quota_start()
                     raise HTTPException(502, "No validated clone quotes",
                                         headers={"Retry-After": "30",
                                                  "X-BotKing-Quote-Failure-Stage": "RESPONSE",
@@ -522,9 +550,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         except ImportError:
             from dhan_feed import DhanRateLimitError, DhanFeedError
         if isinstance(exc, DhanRateLimitError):
-            raise HTTPException(
-                429, "Clone Dhan provider cooldown",
-                headers={"Retry-After": "30", "X-BotKing-429-Stage": "PROVIDER_QUOTA"}) from None
+            quota_error(exc)
         if (isinstance(exc, DhanFeedError) and
                 "token expired or data access not entitled" in str(exc)):
             raise HTTPException(
@@ -557,6 +583,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     "fromDate": body.from_date.isoformat() + " 09:15:00",
                     "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
             try:
+                quota_guard()
                 result = provider().intraday(args)
             except HTTPException:
                 raise
@@ -642,15 +669,11 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             raise HTTPException(422,"Unique verified Dhan futures contract unavailable")
         with market_lock:
             now=time.monotonic()
-            if now < provider_cooldown_until[0]:
-                raise HTTPException(429,"Clone Dhan provider cooldown",
-                                    headers={"Retry-After":"30"})
+            quota_guard()
             remain=1.05-(now-last_request[0])
             if 0 < remain <= 1.05:
                 time.sleep(remain)
-                if time.monotonic() < provider_cooldown_until[0]:
-                    raise HTTPException(429,"Clone Dhan provider cooldown",
-                                        headers={"Retry-After":"30"})
+                quota_guard()
             last_request[0]=time.monotonic()
             try:
                 raw=provider().ltp("NSE_FNO",mapped["security_id"])
@@ -662,9 +685,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 except ImportError:
                     from dhan_feed import DhanRateLimitError
                 if isinstance(exc,DhanRateLimitError):
-                    provider_cooldown_until[0]=time.monotonic()+30
-                    raise HTTPException(429,"Clone Dhan quota cooldown",
-                                        headers={"Retry-After":"30"}) from None
+                    quota_error(exc)
                 raise HTTPException(502,"Dhan futures quote unavailable") from None
         context=normalize_futures_ltp(raw,mapped)
         if context is None:
@@ -678,6 +699,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         if body.symbol not in option_known or option_known[body.symbol][0] not in ("IDX_I", "BSE_I", "NSE_EQ"):
             raise HTTPException(422, "Unmapped Clone option underlying")
         try:
+            quota_guard()
             dates = provider().option_expiries(*option_known[body.symbol])
         except HTTPException:
             raise
@@ -704,6 +726,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             except ImportError:
                 from dhan_option_metrics import (calculate_option_metrics, listed_atm_window,
                                                  OptionMetricsUnavailable)
+            quota_guard()
             raw = provider().option_chain(*option_known[body.symbol], body.expiry.isoformat())
             metrics = calculate_option_metrics(raw)
             raw_data = raw.get("data", {})

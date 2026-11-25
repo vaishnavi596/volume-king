@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R1 Oracle:** #550 2000/2000 PASS; owner token monitor installed, source token 401 / Clone token valid at audit, renewal OPEN; cross-route quota patch CI pending. No deployment or APK.
+
 > **CURRENT — #549:** 1999/1999 PASS; selected fusion worker ownership and restored WAIT patch, exact CI pending. Physical acceptance OPEN.
 
 > **CURRENT — #548:** 1998/1998 PASS; B2.03 exact analysis/fusion persistent symbol/frame identity patch; new CI pending. Physical acceptance OPEN.

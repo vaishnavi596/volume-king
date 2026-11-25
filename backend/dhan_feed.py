@@ -33,6 +33,20 @@ class DhanRateLimitError(DhanFeedError):
     """Provider throttled requests; callers must not retry immediately."""
 
 
+class DhanLocalPacingError(DhanRateLimitError):
+    """Local option pacing, not an upstream quota rejection."""
+    def __init__(self, remaining):
+        super().__init__("Dhan option requests paced")
+        self.retry_seconds = max(1, int(remaining + 0.999999))
+
+
+class DhanCooldownError(DhanRateLimitError):
+    """An already-active quota cooldown; do not extend it on each caller."""
+    def __init__(self, remaining):
+        super().__init__("Dhan rate limit cooldown active")
+        self.retry_seconds = max(1, int(remaining + 0.999999))
+
+
 class DhanUpstreamError(DhanFeedError):
     """Allowlisted upstream classification; never store raw HTTP/body/token."""
     CATEGORIES = frozenset(("upstream_http_4xx", "upstream_http_5xx",
@@ -76,7 +90,7 @@ class DhanFeed:
             raise DhanFeedError("Unsupported read-only endpoint")
         with self._rate_lock:
             if time.monotonic() < self._retry_after:
-                raise DhanRateLimitError("Dhan rate limit cooldown active")
+                raise DhanCooldownError(self._retry_after - time.monotonic())
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         request = urllib.request.Request(
             self.ROOT + endpoint,
@@ -105,7 +119,7 @@ class DhanFeed:
                         time.sleep(remaining)
                     with self._rate_lock:
                         if time.monotonic() < self._retry_after:
-                            raise DhanRateLimitError("Dhan rate limit cooldown active")
+                            raise DhanCooldownError(self._retry_after - time.monotonic())
                     if is_quote:
                         type(self)._quote_next_allowed = (
                             time.monotonic() + self.QUOTE_MIN_INTERVAL_SECONDS)
@@ -207,7 +221,7 @@ class DhanFeed:
         with self._rate_lock:
             now = time.monotonic()
             if now < self._option_next_allowed:
-                raise DhanRateLimitError("Dhan option requests paced")
+                raise DhanLocalPacingError(self._option_next_allowed - now)
             type(self)._option_next_allowed = now + self.OPTION_CHAIN_INTERVAL_SECONDS
         response = self._post("/optionchain/expirylist", {
             "UnderlyingScrip": underlying_security_id,
@@ -252,7 +266,7 @@ class DhanFeed:
         with self._rate_lock:
             now = time.monotonic()
             if now < self._option_next_allowed:
-                raise DhanRateLimitError("Dhan option-chain pacing active")
+                raise DhanLocalPacingError(self._option_next_allowed - now)
             type(self)._option_next_allowed = now + self.OPTION_CHAIN_INTERVAL_SECONDS
         return self._post("/optionchain", {
             "UnderlyingScrip": int(underlying_security_id),
