@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R2 #538 verified:** 1987/1987 PASS at 233a90c; B4.05 scoped evidence added to registry, mounted/real parity OPEN. O/N/F directional provenance and M server/app acceptance remain OPEN; new registry fixture CI pending.
+
 > **CURRENT — R2 shared renderer fixture:** #537 1986/1986 PASS; new offline shared renderer identity/mode regression prepared. Exact new CI pending; mounted parity OPEN.
 
 > **CURRENT — R2 scoped gate:** B3 [#537](https://github.com/vaishnavi596/volume-king/actions/runs/45674120367) 1986/1986 PASS at 3f7c9ee; B1/B2/Adapter same SHA PASS. Next actual cross-screen final voting evidence; physical acceptance OPEN.

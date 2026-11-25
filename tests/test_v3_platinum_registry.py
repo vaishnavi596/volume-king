@@ -24,3 +24,10 @@ class PlatinumRegistryTests(unittest.TestCase):
         s=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
         self.assertIn('"platinum_feature_registry":__import__("v3_platinum_registry").registry_report()',s)
         self.assertIn('data["platinum_feature_registry"]=',s)
+
+    def test_b405_scoped_renderer_evidence_does_not_close_parity(self):
+        row=next(row for row in registry_report()["rows"] if row["id"]=="B4.05")
+        self.assertEqual(row["verified_subitem"]["ci_run"],45675931679)
+        self.assertEqual(row["verified_subitem"]["commit"],"233a90cea592aa95caa4669c540096eb5906ad71")
+        self.assertEqual(row["state"],"OPEN")
+        self.assertTrue(all(v["state"]=="UNRECONCILED" for v in row["checkpoints"].values()))

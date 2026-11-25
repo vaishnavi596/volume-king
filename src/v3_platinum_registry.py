@@ -40,6 +40,7 @@ SUBITEMS = {
     "B2.04": ("Super Five supervised local retry and manual request", "58f00d40271affc04975015c1d508ad6970bee8c", 45629761193),
     "B2.07": ("Local worker CPU timing and process RSS diagnostic, offline only", "4ab1d820f4e0ffe754d39441013e64ad07eb427e", 45657927264),
     "B2.03": ("Local worker cancellation ownership and exact historical cache reuse; adaptive tuning remains open", "b6d405cb0ff2bfc233ec235d32ecb27fe2146c8f", 45655842571),
+    "B4.05": ("Shared HIST/LIVE renderer exact-frame and mode fixtures; mounted UI parity and exchange evidence remain open", "233a90cea592aa95caa4669c540096eb5906ad71", 45675931679),
     "B5.05": ("Unified Doctor health/history and repair supervision UI", "da0008507ba8dce615390cc29a2c366287954133", 45630932150),
 }
 # Full checkpoints require evidence specific to the entire row and checkpoint.
