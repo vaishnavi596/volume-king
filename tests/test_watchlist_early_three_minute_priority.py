@@ -155,17 +155,17 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             self.assertIn("key in watch_three_minute_warm_attempts",source)
             self.assertIn("now-watch_three_minute_warm_attempts[key]<180",source)
             self.assertIn("watch_three_minute_warm_last_provider[0]>0",source)
-            self.assertIn("now-watch_three_minute_warm_last_provider[0]<30",source)
+            self.assertIn("now-watch_three_minute_warm_last_provider[0]<10",source)
             self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",source)
 
-    def test_exact_rolling_budget_and_global_30_second_spacing(self):
-        for budget in ("three_requests","recent_previous"):
+    def test_exact_rolling_budget_and_global_10_second_spacing(self):
+        for budget in ("twelve_requests","recent_previous"):
             with self.subTest(budget=budget):
                 s,calls,_,_,_,_,now=self.fixture()
-                if budget=="three_requests":
-                    s["watch_three_minute_upstream_times"][:]=[now-90,now-60,now-30]
+                if budget=="twelve_requests":
+                    s["watch_three_minute_upstream_times"][:]=[now-15*i for i in range(1,13)]
                 else:
-                    s["watch_three_minute_warm_last_provider"][0]=now-10
+                    s["watch_three_minute_warm_last_provider"][0]=now-5
                 self.assertFalse(self.invoke(s))
                 self.assertEqual(self.requests(calls),[])
                 self.assertEqual(s["chart_snapshots"],{})
@@ -218,17 +218,17 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertFalse(errors)
 
     def test_explicit_after_hours_never_competes_with_main_scan_or_cooldown(self):
-        for reason in ("main_scan","provider_cooldown","three_budget","thirty_gap",
+        for reason in ("main_scan","provider_cooldown","twelve_budget","ten_gap",
                        "wrong_provider","wrong_generation","background"):
             with self.subTest(reason=reason):
                 s,calls,errors,window,rows,prior,now=self.fixture()
                 window["open"]=False
                 if reason=="main_scan":s["dhan_history_scan_active"][0]=True
                 elif reason=="provider_cooldown":s["dhan_feed"].cooldown_remaining=lambda _:30
-                elif reason=="three_budget":
-                    s["watch_three_minute_upstream_times"][:]=[now-90,now-60,now-30]
-                elif reason=="thirty_gap":
-                    s["watch_three_minute_warm_last_provider"][0]=now-10
+                elif reason=="twelve_budget":
+                    s["watch_three_minute_upstream_times"][:]=[now-15*i for i in range(1,13)]
+                elif reason=="ten_gap":
+                    s["watch_three_minute_warm_last_provider"][0]=now-5
                 elif reason=="wrong_provider":s["prefs"]["source"]="Yahoo Finance"
                 elif reason=="wrong_generation":s["provider_generation"][0]=1
                 elif reason=="background":s["lifecycle_background"][0]=True
@@ -293,7 +293,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn('get_market_data,sym,"1m","2d"',helper)
         self.assertIn('await asyncio.sleep(1.5)',helper)
         self.assertNotIn('asyncio.gather(',helper)
-        self.assertIn('len(watch_three_minute_upstream_times)>=3',helper)
+        self.assertIn('len(watch_three_minute_upstream_times)>=12',helper)
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
         self.assertIn('watch_three_minute_warm_last_provider[0]<30',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)

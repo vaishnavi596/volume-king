@@ -2728,11 +2728,11 @@ def app_main(page:ft.Page):
     watch_closed_hist_wait_seconds=[0]
     def watch_hist_budget_wait_seconds():
         # Show the *actual* remaining local quota delay. Never guess that a
-        # source fetch failed merely because the 3/180s budget is exhausted.
+        # source fetch failed merely because the 12/180s budget is exhausted.
         now=time.monotonic()
         recent=[t for t in watch_three_minute_upstream_times if 0<=now-t<180]
-        budget_wait=(180-(now-min(recent))) if len(recent)>=3 else 0
-        floor_wait=(30-(now-watch_three_minute_warm_last_provider[0])
+        budget_wait=(180-(now-min(recent))) if len(recent)>=12 else 0
+        floor_wait=(10-(now-watch_three_minute_warm_last_provider[0])
                     if watch_three_minute_warm_last_provider[0]>0 else 0)
         return max(0,int(math.ceil(max(budget_wait,floor_wait,0))))
 
@@ -2826,7 +2826,7 @@ def app_main(page:ft.Page):
                 checked=await warm_selected_watch_three_minute_early(
                     generation,explicit_closed=True,
                     closed_retry_baseline=retry_baseline if retry_pass else None)
-                # A request may be deferred by 30s/3-per-180s provider budget,
+                # A request may be deferred by 10s/12-per-180s provider budget,
                 # existing workers or cooldown. One task simply waits and retries.
                 if not checked and watch_three_minute_warm_attempts==before:
                     wait=watch_hist_budget_wait_seconds()
@@ -5827,8 +5827,8 @@ def app_main(page:ft.Page):
                         "active_list_valid_dhan_prices":sum(quote_ok(sym) for sym in displayed),
                         "selected_valid_dhan_prices":price_count,
                         "visible_tick_seconds":2,
-                        "warmup_max_uncached_requests_per_180s":3,
-                        "warmup_floor_seconds":30,
+                        "warmup_max_uncached_requests_per_180s":12,
+                        "warmup_floor_seconds":10,
                         "recent_uncached_requests_in_180s":len(warm_times),
                         "closed_hist_queue_active":bool(watch_closed_hist_loading[0]),
                         "closed_hist_resume_pending":bool(watch_closed_hist_resume_pending[0]),
@@ -8633,7 +8633,7 @@ console.log('BOT KING Lightweight Charts ready');
                 or dhan_feed.cooldown_remaining("/dhan/intraday")>0):
             return False
         now=time.monotonic()
-        # Same rolling 180s / 3-uncached / 30s floors as periodic warmup.
+        # Same rolling 180s / 12-uncached / 10s floors as periodic warmup.
         watch_three_minute_upstream_times[:]=[
             t for t in watch_three_minute_upstream_times if now-t<180]
         selected=[sym for sym in watch_groups[active_watch[0]]
@@ -8670,9 +8670,9 @@ console.log('BOT KING Lightweight Charts ready');
                 prior_cache=market_recent.get(history_key)
                 cache_ready=bool(prior_cache and now-prior_cache[0]<87)
             if not cache_ready and (
-                    len(watch_three_minute_upstream_times)>=3 or
+                    len(watch_three_minute_upstream_times)>=12 or
                     (watch_three_minute_warm_last_provider[0]>0 and
-                     now-watch_three_minute_warm_last_provider[0]<30)):
+                     now-watch_three_minute_warm_last_provider[0]<10)):
                 continue
             watch_three_minute_warm_busy[0]=True
             try:
@@ -9512,8 +9512,8 @@ console.log('BOT KING Lightweight Charts ready');
                 # Rolling-window cap, not a fixed bucket that can burst at rollover.
                 watch_three_minute_upstream_times[:]=[
                     t for t in watch_three_minute_upstream_times if now-t<180]
-                # Hard budget: at most 3 *uncached* upstream 1m histories in any
-                # 180s window, spaced >=30s. Cache hits use no extra Dhan call.
+                # Hard budget: at most 12 *uncached* upstream 1m histories in any
+                # 180s window, spaced >=10s. Cache hits use no extra Dhan call.
                 selected=[sym for sym in watch_groups[active_watch[0]]
                           if sym in DHAN_VERIFIED_SYMBOLS
                           and (not search.value or search.value.upper() in sym)]
@@ -9536,9 +9536,9 @@ console.log('BOT KING Lightweight Charts ready');
                         prior_cache=market_recent.get(history_key)
                         cache_ready=bool(prior_cache and now-prior_cache[0]<87)
                     if not cache_ready and (
-                            len(watch_three_minute_upstream_times)>=3 or
+                            len(watch_three_minute_upstream_times)>=12 or
                             (watch_three_minute_warm_last_provider[0]>0 and
-                             now-watch_three_minute_warm_last_provider[0]<30)):
+                             now-watch_three_minute_warm_last_provider[0]<10)):
                         break
                     watch_three_minute_warm_busy[0]=True
                     try:

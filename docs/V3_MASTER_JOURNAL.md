@@ -2323,3 +2323,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - नया isolated B211 workflow auto-triggered only by its own file, B3 exact SHA gate retained; package com.botking.v3b211.bot_king_v3_b211_preview, version 2.3.211/211, disposable signer; पुराने ऐप और pyproject source version untouched. Preview override explicit. B211 is diagnostic phone build, NOT full API recovery or final release. No server deployment, provider requests, orders. Build and exact-head regression pending; phone HIST/LIVE validation required. Proposed three supervisors remain pending, not extra votes; P0 API first.
 
 - B211 initial workflow review caught escaped versionName regex still 2.3.210; corrected to 2.3.211 before accepting signing gate. No application source changes. New exact-head B3 and preview required; same-branch concurrency supersedes obsolete run.
+
+
+### 25 नवंबर 2026 — Watchlist P0 नियंत्रित गति सुधार
+- B211 exact eeae49f: B3 45535143411 और APK 45535143431 PASS; पुराने B210 exact-source gate fail, दोहराया नहीं। फोन रिपोर्ट HIST 18/51, 3/180s budget exhausted, 23s wait, Dhan flag false, Oracle true, quote cache 0/51; historical readiness और quotes अलग।
+- दोनों मौजूदा Watchlist 1m warmup lanes और Doctor countdown की साझा स्थानीय सीमा 3/180s व 30s से 12/180s व 10s की गई। Server source DhanFeed shared historical lock 1.1s और 429 cooldown 30s अपरिवर्तित; actual deployed server प्रमाणित नहीं। Per-symbol retry 180s, one bounded retry, last-good, foreground/auth/generation guards तथा no LIVE promotion बरकरार। संबंधित tests updated for new quota boundaries; CI pending. यह नियंत्रित पहला चरण है, 2s pacing या 51/51 runtime PASS का दावा नहीं। No server deployment, provider requests or orders.
