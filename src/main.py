@@ -6500,6 +6500,7 @@ def app_main(page:ft.Page):
                     "historical_vote_replay":master_historical_replay,
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
+                    "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
@@ -6597,6 +6598,9 @@ def app_main(page:ft.Page):
                     performance=dict(watch_3m_tick_profile),
                     quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
                         if watch_batch_last_attempt[0]>0 else None)
+                from v3_platinum_registry import registry_report
+                registry=registry_report()
+                data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["persistent_cache"]=market_store.diagnostics()
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
