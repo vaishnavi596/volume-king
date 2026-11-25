@@ -43,7 +43,13 @@ class SnapshotStore:
             self.incremental=False
             self.fallback_reason="sqlite_restore_failed"
             # Do not overwrite the original migration backup after a failed DB restore.
+            legacy_path=self.path
             self.path=self.path.with_name(self.path.name+".recovery.json")
+            if not self.path.exists():
+                legacy=SnapshotStore(legacy_path,self.max_entries)
+                self.records=legacy.records;self.restored=legacy.restored
+                self.file_bytes=legacy.file_bytes
+                return
         try:
             if self.path.exists():
                 if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
