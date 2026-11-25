@@ -395,9 +395,11 @@ class MobileRegressionTests(unittest.TestCase):
         start = source.index("    async def super_five_minute_refresh():")
         end = source.index("    def super_five_card():", start)
         refresh = source[start:end]
-        self.assertIn('snapshot=(shared_history(sym) if expected_source=="Dhan"', refresh)
+        self.assertIn('data=(shared_history(sym) if expected_source=="Dhan"', refresh)
+        self.assertIn("snapshot=deepcopy(data)", refresh)
+        self.assertIn("revision(capture())!=fingerprint[-1]", refresh)
         self.assertIn('valid_candle_history(bars)', refresh)
-        self.assertIn('snapshot.get("bars")', refresh)
+        self.assertIn('bars=data.get("bars") or []', refresh)
         self.assertIn("publish_partial_ranking(results)", refresh)
         self.assertNotIn("get_market_data(", refresh)
         self.assertNotIn("dhan_feed.intraday(", refresh)

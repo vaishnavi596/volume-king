@@ -84,7 +84,8 @@ class ClosedSessionRefreshGates(unittest.TestCase):
     def test_super_five_local_loop_reuses_candles_after_close_without_network(self):
         loop=section("    async def super_five_minute_refresh():","    def five_engine_summary(symbol, display_timeframe=None):")
         self.assertNotIn("not refresh_hours()",loop)
-        self.assertIn('bars=snapshot.get("bars") or []',loop)
+        self.assertIn('bars=data.get("bars") or []',loop)
+        self.assertIn("await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)",loop)
         self.assertIn("fingerprint==last_fingerprint",loop)
         self.assertIn("publish_partial_ranking(results)",loop)
         self.assertNotIn("dhan_feed.batch_quotes",loop)

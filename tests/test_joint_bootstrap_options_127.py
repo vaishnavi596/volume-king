@@ -20,7 +20,9 @@ class JointSessionRepairTests(unittest.TestCase):
     def test_closed_market_cached_top_five_requires_no_provider_call(self):
         body=segment("    async def super_five_minute_refresh():","    def five_engine_summary(symbol, display_timeframe=None):")
         self.assertNotIn("not regular_hours()",body)
-        self.assertIn('bars=snapshot.get("bars") or []',body)
+        self.assertIn('bars=data.get("bars") or []',body)
+        self.assertIn("await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)",body)
+        self.assertIn("revision(capture())!=fingerprint[-1]",body)
         self.assertIn("publish_partial_ranking(results)",body)
         # Cached completed Dhan candles must remain available as HIST even after disconnect.
         # Local recomputation must not invoke any provider endpoint.

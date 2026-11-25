@@ -277,6 +277,8 @@ def app_main(page:ft.Page):
     prefs["schema_version"]=2
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
     stock_diagnostic_registry=DiagnosticRegistry()  # Keep recovery across Settings re-entry.
+    from v3_local_observer_recovery import LocalObserverRecovery
+    super_five_recovery=LocalObserverRecovery()
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
@@ -1480,6 +1482,8 @@ def app_main(page:ft.Page):
         last_fingerprint=None
         while True:
             await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)
+            generation=provider_generation[0]
+            stage="capture"
             try:
                 if not app_active[0] or current[0]!=0:
                     # Dashboard/Super Five local rankings only when visible;
@@ -1491,6 +1495,8 @@ def app_main(page:ft.Page):
                                  "Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
                 if not expected_source:
                     last_fingerprint=None
+                    continue
+                if not super_five_recovery.ready(generation,time.monotonic()):
                     continue
                 from copy import deepcopy
                 def roster():
@@ -1529,7 +1535,9 @@ def app_main(page:ft.Page):
                             bool(dhan_feed.historical_only),deepcopy(scan_fetch_failure.get((generation,sym,"5m"))))
                     snapshot=deepcopy(data)
                     began=time.monotonic()
+                    stage="local_worker"
                     result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
+                    stage="revision_guard"
                     if generation!=provider_generation[0] or not app_active[0] or current[0]!=0 or policy()!=selected_policy:
                         break
                     if expected_source=="Dhan":
@@ -1541,18 +1549,22 @@ def app_main(page:ft.Page):
                 if (generation!=provider_generation[0] or not app_active[0] or current[0]!=0
                         or policy()!=selected_policy or revision(capture())!=fingerprint[-1] or not results):
                     continue
+                stage="ranking_publication"
                 for sym,(result,elapsed,count) in measurements.items():
                     record_analysis(sym,"5m",result=result,elapsed=elapsed,candle_count=count)
                 publish_partial_ranking(results)
                 last_fingerprint=fingerprint
+                stage="ui_refresh_schedule"
                 if current[0]==0:
                     request_view_refresh(0)
+                super_five_recovery.succeeded(generation,time.monotonic(),len(results))
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 log_error("super_five_minute_refresh",exc)
-                if current[0]==0:
-                    request_view_refresh(0)
+                last_fingerprint=None
+                if generation==provider_generation[0]:
+                    super_five_recovery.failed(generation,time.monotonic(),exc,stage)
     def historical_five_minute_technical(symbol):
         """Only saved exact-5m Dhan votes; historical display, never LIVE."""
         saved=watch_signal_cache.get(symbol) or {}
@@ -6354,6 +6366,7 @@ def app_main(page:ft.Page):
                     "four_box_source_readiness":master_four_box_readiness,
                     "historical_vote_replay":master_historical_replay,
                     "dashboard_bar_errors_only":dashboard_bar_errors,
+                    "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
@@ -6449,6 +6462,7 @@ def app_main(page:ft.Page):
                     performance=dict(watch_3m_tick_profile),
                     quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
                         if watch_batch_last_attempt[0]>0 else None)
+                data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["persistent_cache"]=market_store.diagnostics()
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
                 data["five_engine_adapter_timing"]=(dict(five_engine_timing) if five_engine_timing.get("generation")==provider_generation[0] else {})
