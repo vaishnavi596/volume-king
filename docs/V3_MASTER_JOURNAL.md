@@ -2720,3 +2720,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — Platinum 3m/5m historical cache worker extension
 - Exact 97495ee B1 45637269256, B2 45637269636, Adapter 45637270110, B3 45637269548 job 139285995309 raw log 1973/1973 in 228.570s OK. Registry initial wiring offline PASS.
 - Existing Watchlist 3m and rank 5m owners now prewarm exact completed historical indicator cache via shared local pool, bounded inflight/revisions and exact immutable keys, generation/filter/lifecycle checks, no provider requests. Active/Master worker evidence and typed errors BK-HIST-WORKER-003/004; two structural/report tests. This adds a separate prewarm calculation, not proof of faster phone runtime or full synchronous removal; measure duplication/cost in follow-up. Local tests NOT EXECUTED, new exact CI pending. Prior 54% provisional estimate unchanged; 128 checkpoint reconciliation OPEN. No APK/server/orders changes.
+
+
+### 25 नवंबर 2026 — Super Force / SMART 4.0 Platinum: 3m retention regression repair
+- Exact 47a93f5 B3 #523 run 45640328798 job 139296854277: 1975 tests, 1974 PASS / 1 FAIL in 233.512s. Source validation PASS. Failed test test_valid_new_three_minute_votes_replace_retained_snapshot; unexpected error after new prewarm handoff, isolated AST harness missing new dependency.
+- 85970f8: पुराने assertions सुरक्षित रखकर async prewarm collaborator और exact handoff assertion जोड़ा। d2936d4: actual worker function का isolated runtime test, same revision cache reuse, generation/timeframe/background guards. No production change, no extra Dhan requests, no APK/server/orders change.
+- Local execution NOT EXECUTED; exact CI PASS अभी सत्यापित नहीं। अगले production optimization से पहले gate आवश्यक। Duplicate computation and phone latency still OPEN; 54% provisional, 128 checkpoint reconciliation pending.
