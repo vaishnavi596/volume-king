@@ -27,3 +27,40 @@ class ML5CachePerformanceTests(unittest.TestCase):
             for n in range(4):
                 self.assertTrue(s.put("news",(str(n),),dict(items=[dict(title="t",url="u",published=1,source="s")],fetched=1)))
             self.assertTrue(s.diagnostics()["capacity_warning"])
+
+    def test_incremental_migration_restart_and_eviction(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/"cache.json"
+            payload=lambda n: dict(items=[dict(title=str(n),url="u",published=1,source="s")],fetched=n)
+            old=SnapshotStore(path,max_entries=3)
+            self.assertTrue(old.put("news",("a",),payload(1)))
+            original=path.read_bytes()
+            s=SnapshotStore(path,max_entries=3,incremental=True)
+            self.assertEqual(s.get("news","a"),payload(1))
+            for n in range(2,5):
+                self.assertTrue(s.put("news",(str(n),),payload(n)))
+            self.assertEqual(path.read_bytes(),original)
+            self.assertIsNone(s.get("news","a"))
+            self.assertTrue(s.put("news",("4",),payload(4)))
+            self.assertEqual(s.diagnostics()["unchanged_writes_skipped"],1)
+            self.assertEqual(s.diagnostics()["storage_backend"],"sqlite_incremental")
+            restored=SnapshotStore(path,max_entries=3,incremental=True)
+            self.assertEqual(restored.get("news","4"),payload(4))
+            self.assertIsNone(restored.get("news","a"))
+            self.assertFalse(restored.diagnostics()["restored_cache_live_proof"])
+            with sqlite3.connect(str(s.db_path)) as db:
+                self.assertEqual(db.execute("SELECT count(*) FROM snapshots").fetchone()[0],3)
+
+    def test_incremental_roster_scaling(self):
+        with tempfile.TemporaryDirectory() as d:
+            for count in (5,34,51,70):
+                s=SnapshotStore(Path(d)/("cache%d.json"%count),incremental=True)
+                for n in range(count):
+                    for frame in ("1m","3m","5m"):
+                        row=dict(source="Dhan",price=100,quote_timestamp=1000,
+                                 bars=[[900,99,101,98,100,10]],live_verified=False)
+                        self.assertTrue(s.put("market",("Dhan",str(n),frame,"5d"),row))
+                self.assertEqual(s.diagnostics()["entries"],count*3)
+                self.assertEqual(s.diagnostics()["write_count"],count*3)
+                self.assertEqual(SnapshotStore(s.path,incremental=True).diagnostics()["restored_entries"],count*3)
