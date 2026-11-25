@@ -38,7 +38,9 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
         queue=function("continue_closed_watch_history")
         self.assertNotIn("or current[0]!=4",queue)
         warm=function("warm_selected_watch_three_minute_early")
-        self.assertEqual(warm.count("current[0]!=4 and not explicit_closed"),2)
+        self.assertNotIn("current[0]!=4",warm)
+        self.assertIn("generation!=provider_generation[0]",warm)
+        self.assertIn("not refresh_hours() and not explicit_closed",warm)
         self.assertIn("explicit_closed and scope!=",warm)
         self.assertIn("not app_active[0] or lifecycle_background[0]",warm)
 

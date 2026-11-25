@@ -31,11 +31,16 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def test_watchlist_three_minute_warmup_is_bounded_and_foreground_only(self):
         body=self.source.split("    async def watch_three_minute_warmup():",1)[1].split(
             "    page.run_task(watch_three_minute_warmup)",1)[0]
-        for guard in ('current[0]!=4','lifecycle_background[0]',
+        for guard in ('not app_active[0]','lifecycle_background[0]',
+                      'generation!=provider_generation[0]', 'not dhan_feed.connected',
                       'not refresh_hours()','dhan_history_scan_active[0]',
                       'index_one_minute_busy[0]',
                       'dhan_feed.cooldown_remaining("/dhan/intraday")>0'):
             self.assertIn(guard,body)
+        self.assertNotIn("current[0]!=4",body)
+        self.assertIn("if current[0]==4:",body)  # UI repaint only
+        self.assertIn("selected=[sym for sym in all_watch_symbols()",body)
+        self.assertIn("watch_candle_recent(prior_three)",body)
         self.assertIn("len(watch_three_minute_upstream_times)>=12",body)
         self.assertIn("watch_three_minute_upstream_times.append(attempt_time)",body)
         self.assertIn("watch_three_minute_warm_last_provider[0]<10",body)
