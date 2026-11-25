@@ -5871,7 +5871,7 @@ def app_main(page:ft.Page):
                         "watchlist_3m_signal_cache_symbols":len(watch_three_minute_cache),
                         "warmup_busy":bool(watch_three_minute_warm_busy[0]),
                         "refresh_speed_diagnosis":"3m source candle waits for bounded warmup; 2s UI tick is not 2s provider polling",
-                        "data_priority":"Only selected/current list should be prioritized; do not fan out 70",
+                        "data_priority":"All selected unique equities across lists; serialized, no unselected-symbol fanout",
                         "ui_signal_reuse":"A single 3m analysis per symbol per 2s tick; price and age flags reuse the analyzed result",
                         "mounted_3m_signal_tick_performance":dict(watch_3m_tick_profile),
                         "performance_scope":"Local 3m signal selection/analysis only; not Dhan request latency or Flutter repaint"},
@@ -5908,7 +5908,8 @@ def app_main(page:ft.Page):
                         "scan_busy":bool(scan_busy[0]),
                         "scan_status":str(scan_status.value or "")[:160],
                         "scanner_progress":{k:scan_progress.get(k) for k in
-                            ("checked","total","valid","failed","cached","state","timeframe")}},
+                            ("checked","total","valid","failed","cached","state","timeframe",
+                              "history_checked","history_total","history_valid","history_failed","history_cached")}},
                     "SUPER_FIVE_ENGINES":{
                         "selected_symbol":scanner_sym,
                         "five_box_status":engine_rows,
@@ -6164,12 +6165,12 @@ def app_main(page:ft.Page):
                         "evidence":"Selected equity count or cross-list duplication",
                         "solution":"Deduplicate watchlist ownership and apply the 70 unique-equity cap",
                         "confidence":"CACHE_CONFIRMED"})
-                if len(warm_times)>=3:
+                if len(warm_times)>=12:
                     remedies.append({"segment":"WATCHLIST_54_70",
                         "code":"3M_WARMUP_RATE_BUDGET_FULL",
                         "source":"src/main.py:warm_selected_watch_three_minute_early",
-                        "evidence":"Three uncached provider requests in rolling 180s",
-                        "solution":"Prioritize visible equities and reuse exact 1m histories to derive completed 3m candles locally; do not increase Dhan quota blindly",
+                        "evidence":"12 or more uncached provider requests in rolling 180s",
+                        "solution":"Prioritize least-recently attempted selected equities and reuse exact 1m histories; do not increase Dhan quota blindly",
                         "confidence":"CACHE_CONFIRMED"})
                 if index_failure_code[0] not in ("NOT_TESTED","NONE_ALL_THREE_QUOTES_PRESENT"):
                     remedies.append({"segment":"GATEWAY_REFRESH",
@@ -6295,7 +6296,8 @@ def app_main(page:ft.Page):
                     errors=[str(key)[:100] for key,value in display_failures.items() if value],
                     progress={"history_scan_busy":bool(dhan_history_scan_active[0]),
                               "scanner":{key:scan_progress.get(key) for key in
-                                  ("checked","total","valid","failed","cached","state","timeframe")},
+                                  ("checked","total","valid","failed","cached","state","timeframe",
+                                   "history_checked","history_total","history_valid","history_failed","history_cached")},
                               "watchlist_interleave_every_five":True,
                               "watchlist_gate_snapshot":{
                                   "inactive":not app_active[0],
@@ -9093,7 +9095,9 @@ console.log('BOT KING Lightweight Charts ready');
                     symbols=([equities[0]]+indices+equities[1:]) if equities else indices
                 # Dhan candle calls are rate-sensitive; quote LTP is already batched.
                 semaphore=asyncio.Semaphore(2 if prefs.get("source")=="Dhan" else 5)
-                scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,state="Loading candle histories: 0 / "+str(len(symbols)))
+                scan_progress.update(checked=0,total=len(symbols),valid=0,failed=0,cached=0,
+                    history_checked=0,history_total=len(symbols),history_valid=0,history_failed=0,history_cached=0,
+                    state="Loading candle histories: 0 / "+str(len(symbols)))
                 dhan_history_scan_active[0]=(prefs.get("source")=="Dhan")
                 market_completed=[0]
                 history_failed=[0]
@@ -9174,6 +9178,8 @@ console.log('BOT KING Lightweight Charts ready');
                             refresh_shared_analysis(sym)
                             market_completed[0]+=1
                             history_cached[0]+=int(bool(data.get("cached")))
+                            scan_progress.update(history_checked=market_completed[0],history_total=len(symbols),
+                                history_valid=market_completed[0]-history_failed[0],history_failed=history_failed[0],history_cached=history_cached[0])
                             scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed • "+str(history_cached[0])+" cached"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                             if current[0] in (0,4,5) and market_completed[0]%5==0:request_view_refresh(current[0])
                             return not data.get("cached")
@@ -9193,6 +9199,8 @@ console.log('BOT KING Lightweight Charts ready');
                                     "phone scanner candle timeout (25s)" if timed_out else "candle fetch",exc)
                                 history_failed[0]+=1
                                 market_completed[0]+=1
+                                scan_progress.update(history_checked=market_completed[0],history_total=len(symbols),
+                                    history_valid=market_completed[0]-history_failed[0],history_failed=history_failed[0],history_cached=history_cached[0])
                                 scan_progress["state"]="Loading histories: "+str(market_completed[0])+" / "+str(len(symbols))+" • "+str(history_failed[0])+" failed"+(" • first: "+next(iter(failed_symbols.items()))[0]+": "+next(iter(failed_symbols.values()))[:75] if failed_symbols else "")+"; ranking follows"
                                 if current[0] in (0,4,5):request_view_refresh(current[0])
                             return False

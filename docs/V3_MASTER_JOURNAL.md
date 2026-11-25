@@ -2453,3 +2453,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 **मालिक के लंबित निर्णय:** (1) LIVE की परिभाषा; (2) कोर्म 3 या 2; (3) छठा बॉक्स M क्या मापे; (4) ऑर्डर पहले चरण में केवल मैन्युअल पुष्टि के साथ ठीक हैं या नहीं।
 
 सीमा: यह रिपोर्ट-आधारित विश्लेषण है; कोई LIVE प्रमाण, सर्वर पहुँच या नया APK नहीं। ऑर्डर नहीं भेजे गए।
+
+
+### 25 नवंबर 2026 — B214 फोन Active Doctor + Claude audit संयुक्त P3-B/D1
+- B214 Master (12:25 IST, Claude journal summary): Dhan/Oracle connected, 51/51 prices and effective 3m, 13/13 technical calculations, LIVE 0/5, quorum 0/3. Active Doctor supplied separately: 18/51 attempted, 33 unattempted, 48/51 completed cached 3m older than 360s, oldest 854.9s, quote batch attempt 4.3s/success 4.0s, 18 uncached responses not exchange proof, scanner 47/54 history loading with 1 ULTRACEMCO local 25s timeout (HTTP unknown), 13 grouped INITIAL_GUARD skips, scanner busy, cooldown 0, rolling budget 5/12, spacing active. Doctor 1.79ms; local tick last 177.82ms/max 1864.41ms. Separate captures, not continuous freshness proof. No provider requests/orders by Doctor.
+- P3-B/D1: correct confirmed stale Master budget diagnostic >=3 to actual >=12, selected-all-list wording; add separate structured history progress counters for success/failure and expose in both Doctors without changing ranking counters. New source regression checks. P3-A timestamp provenance, P3-C actual fair scheduling, timeout worker lifecycle and analyzed cache freshness remain pending; no rate increase, server changes, live certification or orders. B214 exact ec222a1 B3 and APK previously verified PASS; current preceding Claude change journal-only. New CI pending.
