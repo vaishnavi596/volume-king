@@ -1445,18 +1445,21 @@ def app_main(page:ft.Page):
         revision=(generation,tf,selected,frozen,
                   tuple(type(bar[0]) in (int,float) and math.isfinite(bar[0])
                         and bar[0]+seconds<=now for bar in frozen))
+        if historical_equity_worker_profile.get("generation")!=generation:
+            historical_equity_worker_profile.clear()
+            historical_equity_worker_profile.update(generation=generation,attempts=0,
+                successes=0,failures=0,discarded=0,last_ms=None,last_error=None,
+                cache_hits=0,cache_misses=0,revision_hits=0,analysis_runs=0)
         slot=(sym,tf)
         prior=historical_equity_worker_revision.get(slot)
         if prior and prior[0]==revision and prior[1] in historical_indicator_cache:
+            historical_equity_worker_profile["revision_hits"]+=1
+            historical_equity_worker_profile["cache_hits"]+=1
             return True
         key=(slot,revision)
         if key in historical_equity_worker_inflight or len(historical_equity_worker_inflight)>=local_analysis_pool.workers:
             return False
         historical_equity_worker_inflight.add(key)
-        if historical_equity_worker_profile.get("generation")!=generation:
-            historical_equity_worker_profile.clear()
-            historical_equity_worker_profile.update(generation=generation,attempts=0,
-                successes=0,failures=0,discarded=0,last_ms=None,last_error=None)
         historical_equity_worker_profile["attempts"]+=1
         started=time.perf_counter()
         def compute():
@@ -1469,7 +1472,7 @@ def app_main(page:ft.Page):
             if not quality.get("usable"):
                 return None
             identity=(generation,tf,selected,tuple(tuple(bar[:6]) for bar in quality["bars"]))
-            return identity,analyze(quality["bars"],list(selected),tf)
+            return identity,quality["bars"]
         try:
             computed=await local_analysis_pool.run(compute)
             if generation!=provider_generation[0]:
@@ -1479,12 +1482,25 @@ def app_main(page:ft.Page):
                          if filter_modes.get(name,"Analysis")!="Chart") or computed is None):
                 historical_equity_worker_profile["discarded"]+=1
                 return False
-            identity,result=computed
-            # Immutable exact key can be reused only by matching completed history.
-            if identity not in historical_indicator_cache:
-                if len(historical_indicator_cache)>=220:
-                    historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
-                historical_indicator_cache[identity]=result
+            identity,bars=computed
+            # Read the shared cache on the owning event loop, not inside a worker thread.
+            if identity in historical_indicator_cache:
+                historical_equity_worker_profile["cache_hits"]+=1
+            else:
+                historical_equity_worker_profile["cache_misses"]+=1
+                historical_equity_worker_profile["analysis_runs"]+=1
+                result=await local_analysis_pool.run(lambda:analyze(bars,list(selected),tf))
+                if generation!=provider_generation[0]:
+                    return False
+                if (not app_active[0] or lifecycle_background[0] or prefs.get("source")!="Dhan"
+                        or selected!=tuple(name for name in filter_selected
+                            if filter_modes.get(name,"Analysis")!="Chart")):
+                    historical_equity_worker_profile["discarded"]+=1
+                    return False
+                if identity not in historical_indicator_cache:
+                    if len(historical_indicator_cache)>=220:
+                        historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
+                    historical_indicator_cache[identity]=result
             if len(historical_equity_worker_revision)>=150 and slot not in historical_equity_worker_revision:
                 historical_equity_worker_revision.pop(next(iter(historical_equity_worker_revision)))
             historical_equity_worker_revision[slot]=(revision,identity)

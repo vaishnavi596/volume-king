@@ -2726,3 +2726,9 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Exact 47a93f5 B3 #523 run 45640328798 job 139296854277: 1975 tests, 1974 PASS / 1 FAIL in 233.512s. Source validation PASS. Failed test test_valid_new_three_minute_votes_replace_retained_snapshot; unexpected error after new prewarm handoff, isolated AST harness missing new dependency.
 - 85970f8: पुराने assertions सुरक्षित रखकर async prewarm collaborator और exact handoff assertion जोड़ा। d2936d4: actual worker function का isolated runtime test, same revision cache reuse, generation/timeframe/background guards. No production change, no extra Dhan requests, no APK/server/orders change.
 - Local execution NOT EXECUTED; exact CI PASS अभी सत्यापित नहीं। अगले production optimization से पहले gate आवश्यक। Duplicate computation and phone latency still OPEN; 54% provisional, 128 checkpoint reconciliation pending.
+
+
+### 25 नवंबर 2026 — SMART 4.0: exact historical cache reuse
+- B3 #525 run 45643736126 job 139309150540 exact d2936d4: 1976/1976 PASS, 244.040s. #524 cancelled; #523 historical FAIL retained. HEAD 2d20a46 docs-only. No active competing gate in latest branch runs.
+- BK-4G source-only: Dhan completed validated 3m/5m input and Oracle transport unchanged; actual live/phone data not measured. Cache owner now checks exact generation/timeframe/filter/OHLCV key before analyze; revision and shared hits, misses, actual analysis starts exposed via existing Master/Active profile. No new provider request or order. Watchlist/Scanner/Dashboard/Super Five HIST consumers retain same cache contract; LIVE, options, chart, paper untouched. Recheck lifecycle/filter/generation after worker await. Concurrent cross-owner computation and phone timing remain OPEN; no blanket dedup claim.
+- Existing real-function regression extended for shared hit after revision removal and counters. Local execution NOT RUN; exact CI pending. 128 checkpoint reconciliation and device evidence OPEN.

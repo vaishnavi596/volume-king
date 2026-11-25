@@ -103,6 +103,12 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
             self.assertTrue(await worker("RELIANCE",data,"3m",1))
             self.assertEqual(calls,["3m"])
             self.assertEqual(len(cache),1)
+            # Lose the per-symbol revision but retain the exact shared indicator.
+            scope["historical_equity_worker_revision"].clear()
+            self.assertTrue(await worker("RELIANCE",data,"3m",1))
+            self.assertEqual(calls,["3m"])
+            profile=scope["historical_equity_worker_profile"]
+            self.assertEqual((profile["cache_hits"],profile["cache_misses"],profile["revision_hits"],profile["analysis_runs"]),(2,1,1,1))
             self.assertFalse(await worker("RELIANCE",data,"3m",2))
             self.assertFalse(await worker("RELIANCE",data,"5m",1))
             scope["lifecycle_background"][0]=True
