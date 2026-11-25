@@ -2338,3 +2338,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - d7046e7 exact B3 45541803212 PASS. User: Super Five और Option Chain refresh नहीं।
 - Super Five selected-only local observer; existing exact 1m Dhan OHLCV से session-aligned completed 5m fallback, केवल HIST, no upstream request. Existing ranking WAIT/live safety unchanged.
 - Options visible tab SSK-only read-only one attempt per generation/symbol/expiry choice even without quote activation; explicit selection can retry; 424 backoff 300s, existing 3.25s spacing and exact expiry gates retained. No LIVE proof, no orders. Tests/CI pending; actual provider entitlement and phone validation unresolved. No server change.
+
+
+### 25 नवंबर 2026 — B212 संयुक्त फोन परीक्षण
+- fd1c6ac exact B1 45542375434, B2 45542375442, Adapter 45542375421, B3 45542375449 सभी PASS. B212 separate package v2.3.212/versionCode 212; source metadata remains 2.3.210. Existing isolated disposable signer and exact-head B3 gate retained. New workflow push triggers B3 and APK; final runtime validation pending. B211/V1/server unchanged. New app identity means previous app local cache/settings do not automatically transfer.
