@@ -154,7 +154,14 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
     def test_dhan_option_history_persists_only_exact_expiry_context(self):
         refresh=ast.get_source_segment(source,functions["refresh_selected_options"])
         match=ast.get_source_segment(source,functions["matching_option_context_for_symbol"])
-        self.assertIn('market_store.put("option_context_last_good",("Dhan",sym,chosen),dict(data))',refresh)
+        worker='await asyncio.to_thread(market_store.put,"option_context_last_good",("Dhan",sym,chosen),dict(data))'
+        self.assertIn(worker,refresh)
+        before,after=refresh.split(worker,1)
+        self.assertIn('data.get("source")=="dhan"',before)
+        self.assertIn('data.get("symbol")==sym',before)
+        self.assertIn('data.get("expiry")==chosen',before)
+        self.assertIn('data.get("signal_eligible") is False',before)
+        self.assertIn('if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return',after)
         self.assertIn('data.get("signal_eligible") is False',refresh)
         self.assertIn('market_store.get("option_context_last_good","Dhan",sym,listed)',match)
         self.assertIn('saved.get("expiry")==listed',match)
