@@ -49,7 +49,14 @@ class DashboardIndexVoteFallbackTests(unittest.TestCase):
         self.assertIn('seconds=timeframe_spec(tf)["seconds"]', source)
         self.assertIn('bar[0]+seconds<=now', source)
         self.assertIn('quality_check(completed,seconds', source)
-        self.assertIn('analyze(quality["bars"],selected,tf)', source)
+        self.assertIn('historical_indicator_result(quality["bars"],selected,tf)', source)
+        helper = self.functions["historical_indicator_result"]
+        self.assertIn('analyze(bars,selected,tf)', helper)
+        self.assertIn('provider_generation[0],tf,tuple(selected)', helper)
+        self.assertIn('tuple(tuple(bar[:6]) for bar in bars)', helper)
+        self.assertIn('historical_indicator_result(quality["bars"],selected,tf)',
+                      self.functions["ensure_cached_historical_engine_publish"])
+        self.assertIn('signal_percentages(result)', source)
         self.assertIn('data.get("_scanner_timeframe","5m")!=tf', source)
 
     def test_index_candle_poller_reuses_existing_cadence(self):
