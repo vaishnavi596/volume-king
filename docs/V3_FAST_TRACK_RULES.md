@@ -39,3 +39,11 @@ Latest OI seven-strike structural window contract का exact-head B3 outcome �
 - पिछला Workflow अभी चल रहा हो तो बिना तत्काल सुरक्षा-कारण नए source Push से उसे अनावश्यक cancel न करें। Docs-only updates must not trigger B3.
 - B200 Phone-Test artifact ऐतिहासिक signed checkpoint है; उसके बाद के patches उसमें मौजूद नहीं। नया APK explicit release gate और परीक्षण-उद्देश्य पर ही, Oracle/V1/V2 सुरक्षित।
 - हर result—PASS, FAIL, CANCELLED, PENDING, NOT EXECUTED—को उसी रूप में हिंदी मास्टर जर्नल में दर्ज करें; अगली कार्रवाई तभी चुनें।
+
+
+## 25 नवंबर 2026 — OWNER APPROVED: SMART 3.0 TURBO COMPACT (अनिवार्य)
+यह वर्तमान कार्यप्रणाली SMART 2.0 को supersede करती है; पुराने सुरक्षा, सत्यापन और source-isolation नियम बरकरार हैं।
+पाँच चरण: REVERSE SCAN → JOINT FIX → JOINT TEST → AUTO CONTINUE → FINAL CLOSE.
+सात नियम: ZERO SKIP, ZERO INCOMPLETE, ZERO DUPLICATE, ZERO IDLE (उपलब्ध सक्रिय सत्र में), MAXIMUM JOINT WORK, MINIMUM CI COST, MINIMUM TALK.
+**STRICT DEPENDENCY CLOSURE / NO BYPASS:** जिस कार्यसमूह को शुरू किया है, उसके सभी आवश्यक dependencies (app, server/gateway, Dhan source, owner phone/install/permissions/report, wiring, tests, evidence) का वास्तविक समापन और verification किए बिना आगे का dependent कार्य या अगला मुख्य Batch शुरू नहीं होगा। प्रत्येक dependency को owner/AI/server, exact action, evidence और PASS/FAIL/BLOCKED/PENDING से register करें। Owner/server action जरूरी हो तो एक बार स्पष्ट, संक्षिप्त निर्देश दें; उसी gate पर BLOCKED रखें; समाधान का प्रमाण जाँचकर ही खोलें। बिना अनुमति server production, credentials या real orders न बदलें। BLOCKED को PASS, skip या defer करके batch बंद न करें।
+एक सुरक्षित संयुक्त source+test+journal commit; fail-fast targeted tests फिर आवश्यक exact-SHA full gate; Workflow चलते समय केवल non-conflicting read-only तैयारी, नया competing push नहीं। वास्तविक logs और फोन evidence से closure; छह मूल ML5 Batch ही रखें। प्रत्येक batch की सभी acceptance rows PASS तभी CLOSED; अन्यथा OPEN/BLOCKED। बार-बार OK नहीं; सिर्फ आवश्यक user action, unresolved blocker या completed batch की compact report। Chat session के बाहर autonomous AI coding उपलब्ध मानकर न चलें। GitHub automated controller अभी प्रस्तावित, implementation अलग सत्यापन के अधीन।

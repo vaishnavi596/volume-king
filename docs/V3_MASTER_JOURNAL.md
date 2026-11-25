@@ -2563,3 +2563,16 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3 Watchlist PASS / engine adapter offload
 - Exact 22d176d B1/B2/Adapter and B3 45595142731 job 139139109369 verified SUCCESS, 1945 tests in 220.723s, OK. Super Five rank_one existing T/C adapter+composition now awaited on local worker using deep-copied inputs, policy and generation guard before snapshot publication. Existing vote eligibility unchanged; independent N/F/O source and per-engine parallel scheduling, retry adapter and phone capacity remain OPEN. Updated two test files; local targeted Python NOT EXECUTED; exact new CI pending. No server, APK, provider pacing or orders change.
+
+
+### 25 नवंबर 2026 — SMART 3.0 TURBO COMPACT स्वीकृत
+
+
+## 25 नवंबर 2026 — OWNER APPROVED: SMART 3.0 TURBO COMPACT (अनिवार्य)
+यह वर्तमान कार्यप्रणाली SMART 2.0 को supersede करती है; पुराने सुरक्षा, सत्यापन और source-isolation नियम बरकरार हैं।
+पाँच चरण: REVERSE SCAN → JOINT FIX → JOINT TEST → AUTO CONTINUE → FINAL CLOSE.
+सात नियम: ZERO SKIP, ZERO INCOMPLETE, ZERO DUPLICATE, ZERO IDLE (उपलब्ध सक्रिय सत्र में), MAXIMUM JOINT WORK, MINIMUM CI COST, MINIMUM TALK.
+**STRICT DEPENDENCY CLOSURE / NO BYPASS:** जिस कार्यसमूह को शुरू किया है, उसके सभी आवश्यक dependencies (app, server/gateway, Dhan source, owner phone/install/permissions/report, wiring, tests, evidence) का वास्तविक समापन और verification किए बिना आगे का dependent कार्य या अगला मुख्य Batch शुरू नहीं होगा। प्रत्येक dependency को owner/AI/server, exact action, evidence और PASS/FAIL/BLOCKED/PENDING से register करें। Owner/server action जरूरी हो तो एक बार स्पष्ट, संक्षिप्त निर्देश दें; उसी gate पर BLOCKED रखें; समाधान का प्रमाण जाँचकर ही खोलें। बिना अनुमति server production, credentials या real orders न बदलें। BLOCKED को PASS, skip या defer करके batch बंद न करें।
+एक सुरक्षित संयुक्त source+test+journal commit; fail-fast targeted tests फिर आवश्यक exact-SHA full gate; Workflow चलते समय केवल non-conflicting read-only तैयारी, नया competing push नहीं। वास्तविक logs और फोन evidence से closure; छह मूल ML5 Batch ही रखें। प्रत्येक batch की सभी acceptance rows PASS तभी CLOSED; अन्यथा OPEN/BLOCKED। बार-बार OK नहीं; सिर्फ आवश्यक user action, unresolved blocker या completed batch की compact report। Chat session के बाहर autonomous AI coding उपलब्ध मानकर न चलें। GitHub automated controller अभी प्रस्तावित, implementation अलग सत्यापन के अधीन।
+
+- Current C3 source e5c4884 CI status अलग से सत्यापित करना बाकी। यह docs-only policy update है, न नया source/APK/server change, न controller implementation.
