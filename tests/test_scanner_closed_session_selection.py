@@ -114,7 +114,15 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('market_store.put("analysis_last_good",("Dhan",sym,interval),historical)',scan)
         self.assertIn('market_store.get("analysis_last_good","Dhan",sym,interval)',scan)
         self.assertIn('historical_bars=historical_regular_session_bars(bars,interval)',scan)
-        self.assertIn('historical=analyze(historical_bars,selected=active_analysis_filters(),timeframe=interval)',scan)
+        worker='historical=await local_analysis_pool.run(analyze,[tuple(row) for row in historical_bars],selected=historical_filter_selection,timeframe=interval)'
+        self.assertIn(worker,scan)
+        before,after=scan.split(worker,1)
+        self.assertIn('historical_filter_selection=list(active_analysis_filters())',before)
+        self.assertIn('historical_provider_generation=provider_generation[0]',before)
+        guard=after.split('history_valid=',1)[0]
+        for check in ('generation!=scan_generation[0]','sym!=scan_symbol.value','interval!=scan_tf.value','historical_provider_generation!=provider_generation[0]','historical_filter_selection!=list(active_analysis_filters())'):
+            self.assertIn(check,guard)
+        self.assertIn('):return',guard)
         self.assertIn('historical.get("count",0)>=30',scan)
         self.assertIn('now=historical_bars[-1][0]+timeframe_spec(interval)["seconds"]',scan)
         self.assertIn('historical.get("timestamp")==historical_bars[-1][0]',scan)
