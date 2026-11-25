@@ -2356,3 +2356,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — Smart Active Doctor P0
 - d4e3688 exact B3 45547985324 PASS; previous fixture 12 errors resolved. New separate first-position SMART ACTIVE DOCTOR button uses existing cache fields only, no shared_history/analyze/full audit invocation. Six lightweight checks hide healthy rows and automatically show failures again; unmeasured freshness, fairness, scanner and functional wiring remain visible. Attempt age is not success age. Full Master Audit unchanged and available. New executable compact-report test added. CI pending. No server changes, provider requests, orders or APK. Further per-symbol successful candle age and segment-specific regression probes still required.
+
+
+### 25 नवंबर 2026 — Active Doctor P1 freshness measurement
+- a06c668 exact B1 45550426820, B2 45550426736, Adapter 45550426837, B3 45550426718 all PASS. Active Doctor now reports quote batch success age separately from attempt age, cached analyzed completed 3m candle end age, missing timestamps, oldest five and count older than diagnostic 360s threshold. Batch clock may include partial success; not per-symbol exchange proof. No extra history derivation, provider calls or LIVE certification. Added behavior test. Full audit retained. CI pending; no APK/server changes/orders. Actual successful per-symbol transport telemetry remains separate.

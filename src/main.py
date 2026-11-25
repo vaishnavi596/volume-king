@@ -6262,6 +6262,14 @@ def app_main(page:ft.Page):
                     now_monotonic=mono,market_open=bool(refresh_hours()),
                     errors=[str(key)[:100] for key,value in display_failures.items() if value],
                     progress={"history_scan_busy":bool(dhan_history_scan_active[0])},
+                    candle_stamps={sym:watch_three_minute_cache[sym][0][4][-1][0]+180
+                        for sym in selected_equities if sym in watch_three_minute_cache
+                        and watch_three_minute_cache[sym][0][0]==generation
+                        and watch_three_minute_cache[sym][0][4]},
+                    now_epoch=time.time(),
+                    quote_success_age=round(max(0,mono-watch_batch_last_success[0]),1)
+                        if watch_batch_last_success[0]>0 and
+                        watch_batch_success_generation[0]==generation else None,
                     performance=dict(watch_3m_tick_profile),
                     quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
                         if watch_batch_last_attempt[0]>0 else None)

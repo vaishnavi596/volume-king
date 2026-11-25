@@ -21,3 +21,18 @@ class SmartActiveDoctorTests(unittest.TestCase):
         self.assertIn("EQUITY_QUOTE_COVERAGE",[r["check"] for r in report["active"]])
         self.assertIn("OBSERVED_ERRORS",[r["check"] for r in report["active"]])
         self.assertIn("FULL_FUNCTIONAL_WIRING",[r["check"] for r in report["active"]])
+
+    def test_freshness_separates_attempt_success_and_completed_candle(self):
+        report=active_report(generation=1,symbols=["A","B","C"],
+            quote_present=["A","B"],index_present=[],connected={"Dhan":True},
+            signal_present=["A","B"],attempts={"A":99},now_monotonic=100,
+            market_open=True,errors=[],progress={},performance={},
+            quote_attempt_age=1,quote_success_age=40,
+            candle_stamps={"A":500,"B":900,"C":1100},now_epoch=1000)
+        row=next(r for r in report["active"] if r["check"]=="CONTINUOUS_QUOTE_AND_CANDLE_FRESHNESS")
+        self.assertEqual(row["last_quote_success_age_seconds"],40)
+        self.assertEqual(row["completed_3m_timestamp_count"],2)
+        self.assertEqual(row["older_than_360s_count"],1)
+        self.assertEqual(row["missing_completed_3m_timestamp_count"],1)
+        self.assertEqual(row["oldest_candles"][0]["symbol"],"A")
+        self.assertFalse(row["exchange_live_verified"])
