@@ -53,6 +53,7 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
             return (100*bull//(bull+bear),100*bear//(bull+bear),bull+bear) if bull+bear else None
         scope={"prefs":prefs,"filter_selected":chosen,"filter_modes":modes,
                "provider_generation":generated,"watch_three_minute_cache":cache,
+               "historical_indicator_cache":{},
                "shared_history":lambda sym,tf:bars,"time":time,"math":math,
                "quality_check":quality,"analyze":analyze,
                "signal_percentages":percentages,"retain_last_filter_votes":retain_last_filter_votes,
@@ -62,6 +63,10 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         prewarm_calls=[]
         async def prewarm_equity_historical_indicator(sym,data,tf,generation):
             prewarm_calls.append((sym,data,tf,generation))
+            key=(generation,tf,tuple(chosen),tuple(tuple(bar[:6]) for bar in data["bars"]))
+            # Simulate the downstream exact-key lookup, not another analysis.
+            self.assertIn(key,scope["historical_indicator_cache"])
+            self.assertNotIn("symbol",scope["historical_indicator_cache"][key])
             return True
         scope.update(prewarm_equity_historical_indicator=prewarm_equity_historical_indicator,
                      prewarm_calls=prewarm_calls)
@@ -157,6 +162,7 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         asyncio.run(scope["prepare_watch_three_minute_signal"]("RELIANCE"))
         self.assertIn("quality",calls)
         self.assertNotIn("analyze",calls)
+        self.assertFalse(scope["historical_indicator_cache"])
 
     def test_valid_new_three_minute_votes_replace_retained_snapshot(self):
         now=time.time()
@@ -176,8 +182,9 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         self.assertFalse(row.get("_last_votes_retained",False))
         self.assertTrue(row["historical"])
         self.assertFalse(row["live_verified"])
-        self.assertIn("analyze",calls)
+        self.assertEqual(calls.count("analyze"),1)
         self.assertNotIn("error",calls)
+        self.assertEqual(len(scope["historical_indicator_cache"]),1)
         self.assertEqual(scope["prewarm_calls"],[("RELIANCE",scope["shared_history"]("RELIANCE","3m"),"3m",1)])
         self.assertEqual(len(scope["published_historical"]),1)
         symbol,tf,snapshot=scope["published_historical"][0]

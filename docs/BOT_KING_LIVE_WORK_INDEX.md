@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT SMART 4.0:** B3 [#528](https://github.com/vaishnavi596/volume-king/actions/runs/45651403133) 1977/1977 PASS at 1358a9e4; B1/B2/Adapter PASS. Watchlist 3m exact validated result handoff prepared; new gate pending. See Master Journal and Work Log. No APK/server change.
+
 > **25-Nov-2026 CURRENT SMART 4.0:** [B3 #527](https://github.com/vaishnavi596/volume-king/actions/runs/45649645915) 1976/1976 PASS at 81a37cd, B1/B2/Adapter also PASS. Index 1m exact historical cache reuse and measured counters in next joint change; new CI pending. Remaining synchronous fallback, cancellation ownership, phone evidence and registry reconciliation OPEN.
 
 > **25-Nov-2026 CURRENT SMART 4.0:** [B3 #526](https://github.com/vaishnavi596/volume-king/actions/runs/45647815150) 1976/1976 PASS at d8a8463. Next scoped concurrent equity prewarm ownership and counter implemented; exact new CI pending. Sync fallback, cancellation edge and phone performance still OPEN. See canonical journals.
