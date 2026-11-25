@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT:** B3 [#530](https://github.com/vaishnavi596/volume-king/actions/runs/45654256856) 1977/1977 PASS at 98d43b8. Local CPU cancellation ownership patch and two runtime tests prepared; new full CI pending. Phone evidence OPEN.
+
 > **25-Nov-2026 CURRENT:** B3 [#529](https://github.com/vaishnavi596/volume-king/actions/runs/45652813434) 3 source guard FAIL at 0eb9870, other three gates PASS. Atomic test contract correction prepared, full regression pending.
 
 > **25-Nov-2026 CURRENT SMART 4.0:** B3 [#528](https://github.com/vaishnavi596/volume-king/actions/runs/45651403133) 1977/1977 PASS at 1358a9e4; B1/B2/Adapter PASS. Watchlist 3m exact validated result handoff prepared; new gate pending. See Master Journal and Work Log. No APK/server change.

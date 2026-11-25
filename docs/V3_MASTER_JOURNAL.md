@@ -2752,3 +2752,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B3 #529 regression repair
 - PR #117 merged 0eb9870; B1 #348, B2 #332, Adapter #360 PASS. B3 run 45652813434 job 139341481568 source validation PASS; 1977 tests, 3 FAIL, 271.454s. Actual retention fixture passed. Three source guards still expected old variable/return expression after exact validated bars+result handoff. Updated all three assertions to preserve and strengthen quality, identity, raw-cache-before-metadata and exact 3m contracts. No production change, no skipped tests. New full gate pending; local execution NOT RUN. Phone evidence pending.
+
+
+### 25 नवंबर 2026 — SMART 4.0: local worker cancellation ownership
+- PR #118 merged 98d43b8; B3 #530 run 45654256856 job 139346577543 raw log 1977/1977 PASS in 178.638s. Prior three source guards repaired; B1/B2/Adapter passed on preceding production revision, not rerun on test-only merge. No competing gate.
+- Shared local CPU pool now cancels queued work immediately but retains awaiting caller ownership during already-running thread cancellation, even repeated cancel; consumes abandoned exception and re-raises cancellation. Adds running_cancel_waits diagnostic counter. Existing caller finally blocks therefore do not release in-flight keys prematurely. Two real thread/event tests exercise queued and running cancel. No transport, LIVE, paper, orders, APK or Oracle change. Tradeoff: cancellation completion may wait for running CPU function; no thread kill or background guarantee. Local execution NOT RUN; new CI pending. Phone timing and broader duplicate work still OPEN.
