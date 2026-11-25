@@ -6235,7 +6235,49 @@ def app_main(page:ft.Page):
                 status.value="Master Doctor failed • inspect error type"
             if report.page is not None:report.update()
             if status.page is not None:status.update()
+        def inspect_active(_):
+            started=time.perf_counter()
+            try:
+                from v3_smart_active_doctor import active_report
+                generation=provider_generation[0]
+                configured=list(all_watch_symbols())
+                selected_equities=[sym for sym in configured if sym in DHAN_VERIFIED_SYMBOLS
+                                   and sym not in ("NIFTY","BANKNIFTY","SENSEX")]
+                def cached_price(sym):
+                    row=quotes.get(sym) or {}
+                    price=row.get("price")
+                    return (row.get("source")=="Dhan" and type(price) in (int,float)
+                            and math.isfinite(price) and price>0)
+                mono=time.monotonic()
+                data=active_report(
+                    generation=generation,symbols=selected_equities,
+                    quote_present=[sym for sym in selected_equities if cached_price(sym)],
+                    index_present=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if cached_price(sym)],
+                    connected={"Dhan":bool(dhan_feed.connected),"Oracle":bool(clone_v2_gateway.connected)},
+                    signal_present=[sym for sym in selected_equities
+                        if sym in watch_three_minute_cache
+                        and watch_three_minute_cache[sym][0][0]==generation],
+                    attempts={sym:stamp for (gen,sym),stamp in watch_three_minute_warm_attempts.items()
+                              if gen==generation},
+                    now_monotonic=mono,market_open=bool(refresh_hours()),
+                    errors=[str(key)[:100] for key,value in display_failures.items() if value],
+                    progress={"history_scan_busy":bool(dhan_history_scan_active[0])},
+                    performance=dict(watch_3m_tick_profile),
+                    quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
+                        if watch_batch_last_attempt[0]>0 else None)
+                data["capture_elapsed_ms"]=round((time.perf_counter()-started)*1000,2)
+                report.value=json.dumps(data,indent=2,ensure_ascii=False)
+                status.value="Active Doctor complete • "+str(data["active_count"])+" visible checks"
+            except Exception as exc:
+                log_error("v3_smart_active_doctor",exc)
+                report.value=json.dumps({"test":"V3_SMART_ACTIVE_DOCTOR","status":"ERROR",
+                    "error_type":type(exc).__name__,"provider_requests":0,"orders_sent":0},indent=2)
+                status.value="Active Doctor failed • use Master Audit"
+            if report.page is not None:report.update()
+            if status.page is not None:status.update()
         return ft.Column([
+            note("Active Doctor: lightweight unresolved checks. Full Master Audit remains available."),
+            ft.OutlinedButton("SMART ACTIVE DOCTOR (read-only)",on_click=inspect_active),
             note("All segments in one JSON, or select one segment. Current cache only; does not refresh Dhan."),
             ft.Row([selected,ft.OutlinedButton("MASTER DIAG • ALL SEGMENTS (read-only)",
                 on_click=inspect)],wrap=True),
