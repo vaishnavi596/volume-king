@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R2 scoped gate:** B3 [#537](https://github.com/vaishnavi596/volume-king/actions/runs/45674120367) 1986/1986 PASS at 3f7c9ee; B1/B2/Adapter same SHA PASS. Next actual cross-screen final voting evidence; physical acceptance OPEN.
+
 > **CURRENT — SMART 4.0 R1–R4:** 4×25 remaining-work planning frame in policy and both journals. R2/B4.05 early HIST frame guard + shared Doctor evidence + tests prepared; exact new CI pending. #536 1984/1984 previous PASS. No full parity or percentage claim.
 
 > **25-Nov-2026 CURRENT — SMART 4.0 5×20:** All 32 original IDs / 128 checkpoints grouped into five audit windows; mapping in SMART_4_PLATINUM.md and both journals. #536 1984/1984 PASS. Current B4.05 read-only audit remains OPEN; no new source fix or certified progress.

@@ -2721,3 +2721,8 @@ R1=B1+B2 (data/performance), R2=B3+B4 (engines/voting), R3=B5 (Doctor/recovery/b
 ### 25 नवंबर 2026 — R2/B4.05 exact frame guard and Doctor evidence
 - Previous exact B3 #536 (44d1561) 1984/1984 PASS; no competing CI observed. Source audit found shared_history could perform unnecessary local cache/store reads for frames not supported by HIST FINAL. Move guard before history read; supported 1m/3m/5m logic unchanged. No provider traffic or votes added.
 - Master and Active Doctor now share selected-frame observation, BK-FINAL-FRAME-001 unsupported and BK-FINAL-FRAME-002 stale generation. Unsupported is UNVERIFIED, not proof of runtime failure. Supported frame is hidden in compact Active report; no parity certification. Two targeted offline fixtures cover early return and Doctor status/generation. Local execution NOT RUN; exact new CI pending. Actual four-screen parity, LIVE evidence, independent O/N/F/M and phone acceptance OPEN; no APK/server/orders change. No project progress credit awarded.
+
+
+### SMART 4.0 — R2/B4.05 scoped gate verified
+- Exact 3f7c9ee32c8329a7807c345ecb607db4eb050579: B1 #350 run 45674120418, B2 #334 run 45674120377, Adapter #362 run 45674120405 SUCCESS. B3 #537 run 45674120367 job 139416956863 raw proof 2026-11-25T18:24:10.2996773Z Ran 1986 tests in 202.440s / OK. Both new frame guard and Doctor generation tests individually PASS.
+- इस scoped fix का offline gate बंद; चारों screens की वास्तविक HIST/LIVE parity, independent O/N/F/M, phone/server acceptance और full registry reconciliation OPEN. Next: actual shared final voting function fixtures and screen wiring evidence, not repeat completed frame guard. No new APK or orders, no certified percent credit.
