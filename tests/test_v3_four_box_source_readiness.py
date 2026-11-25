@@ -190,3 +190,20 @@ class FourBoxSourceContracts(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+
+class R2SourceIdentityTests(unittest.TestCase):
+    def test_wrong_symbol_and_contradictory_context_fail_closed(self):
+        h=history()
+        now=h["bars"][-1][0]+60
+        news={"symbol":"BANKNIFTY","items":[{"title":"One","url":"https://example.org/a",
+              "published":now-60,"source":"RSS Publisher"}]}
+        option=dict(source="dhan",symbol="NIFTY",expiry="2026-11-26",
+                    freshness="unverified",live_verified=True,signal_eligible=False)
+        report=four_box_source_readiness(symbol="NIFTY",timeframe="1m",generation=3,
+            history=dict(h,symbol="BANKNIFTY"),news_cache=news,option_context=option,now=now)
+        for key in ("C","N","O"):
+            self.assertFalse(report["box_sources"][key]["cache_present"])
+        self.assertFalse(report["box_sources"]["O"]["historical_position"]["available"])
+        self.assertEqual(report["live_vote_count"],0)
+        self.assertEqual(valid_news_context_count(None,now=now),0)

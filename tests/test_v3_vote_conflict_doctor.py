@@ -60,3 +60,15 @@ class ConflictDoctorTests(unittest.TestCase):
         self.assertEqual(r["box_vote_gate"]["sixth_M"],"STANDBY_NOT_SCORED")
         self.assertEqual(r["provider_requests"],0)
 if __name__=="__main__":unittest.main()
+
+
+class R2ConflictPublicationTests(unittest.TestCase):
+    def test_conflicting_or_missing_aggregate_cannot_certify_final_direction(self):
+        original=snap("BBBBS")
+        self.assertEqual(conflict_doctor(original,market_open=True)["final_state"],"BULLISH")
+        broken=dict(original,combined=dict(original["combined"],state="BEARISH"))
+        self.assertEqual(conflict_doctor(broken,market_open=True)["final_state"],"WAIT")
+        self.assertEqual(conflict_doctor(broken,market_open=True)["status"],
+                         "COMBINED_VOTE_PUBLISH_MISMATCH")
+        self.assertEqual(conflict_doctor({"engines":original["engines"]},market_open=True)
+                         ["final_state"],"WAIT")

@@ -42,6 +42,10 @@ def conflict_doctor(snapshot, *, market_open):
     disagreement=bulls>0 and bears>0
     if not market_open:
         state="MARKET_CLOSED_NO_LIVE_VOTE"
+    elif issues:
+        state="COMBINED_VOTE_PUBLISH_MISMATCH"
+    elif existing is None:
+        state="WAIT_PUBLISHED_COMBINED_MISSING"
     elif expected["coverage"]<3:
         state="WAIT_INSUFFICIENT_VERIFIED_ENGINES"
     elif expected["state"]=="WAIT":
@@ -54,7 +58,7 @@ def conflict_doctor(snapshot, *, market_open):
     return dict(status,status=state,normal_disagreement=disagreement,
                 bullish_boxes=bulls,bearish_boxes=bears,neutral_boxes=neutral,
                 eligible_boxes=len(active),issues=issues,
-                final_state=expected["state"] if market_open else "WAIT",
+                final_state=expected["state"] if market_open and not issues and existing is not None else "WAIT",
                 min_engines=expected["required"],
                 policy_reason=expected["reason"],
                 raw_source_attestation="REQUIRES_SEPARATE_PROVIDER_PROOF",

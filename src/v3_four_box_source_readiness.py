@@ -16,7 +16,7 @@ def valid_news_context_count(news_cache, *, now):
     """One safe, deduplicated source-shaped RSS count for UI and both Doctors."""
     if not _positive_stamp(now):
         raise ValueError("Valid news observation time required")
-    news = news_cache.get("items")
+    news = news_cache.get("items") if isinstance(news_cache,dict) else None
     # Count only source-shaped, time-bounded RSS rows, never arbitrary items,
     # future headlines, repeated titles or stale persisted cache records.
     seen_headlines=set()
@@ -61,11 +61,13 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
     futures_cache = futures_cache if isinstance(futures_cache, dict) else {}
     exact_history = (history.get("source") == "Dhan"
                      and history.get("_scanner_timeframe") == timeframe
+                     and history.get("symbol",symbol) == symbol
                      and isinstance(history.get("bars"), (tuple, list)))
     balance = (completed_timeframe_candle_balance(history, timeframe, now=now)
                if exact_history else None)
     candles = history.get("bars") if exact_history else []
-    headlines=valid_news_context_count(news_cache,now=now)
+    headlines=(valid_news_context_count(news_cache,now=now)
+               if news_cache.get("symbol",symbol)==symbol else 0)
     # RSS is only a headline context, never verified market impact.
     # An expired or malformed option expiry cannot count as usable context.
     # This is only cache-presence validation; it never authorizes a vote.
@@ -82,6 +84,8 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
     option_match = (option_context.get("source") == "dhan"
                     and option_context.get("symbol") == symbol
                     and option_expiry_valid
+                    and option_context.get("freshness","unverified")=="unverified"
+                    and option_context.get("live_verified") is not True
                     and option_context.get("signal_eligible") is False)
     # Context futures LTP/OI without broker-certified trade side is not a vote.
     expiry=futures_cache.get("expiry")
@@ -133,7 +137,8 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
                           if option_match else "MATCHING_DHAN_OPTION_EXPIRY_CONTEXT_MISSING")},
     }
     from v3_option_position import historical_option_position, option_position_label
-    position=historical_option_position(option_context,symbol=symbol,
+    position=historical_option_position(
+        option_context if option_match else {},symbol=symbol,
         expiry=option_context.get("expiry"),now=now)
     sources["O"]["historical_position"]=position
     sources["O"]["error_code"]=position["code"]

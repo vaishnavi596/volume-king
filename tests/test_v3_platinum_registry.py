@@ -31,3 +31,15 @@ class PlatinumRegistryTests(unittest.TestCase):
         self.assertEqual(row["verified_subitem"]["commit"],"233a90cea592aa95caa4669c540096eb5906ad71")
         self.assertEqual(row["state"],"OPEN")
         self.assertTrue(all(v["state"]=="UNRECONCILED" for v in row["checkpoints"].values()))
+
+
+class R2FinalRegistryTests(unittest.TestCase):
+    def test_all_ten_r2_rows_have_explicit_remaining_evidence_without_false_credit(self):
+        r=registry_report()
+        rows=[row for row in r["rows"] if row["id"].startswith(("B3.","B4."))]
+        self.assertEqual(len(rows),10)
+        self.assertEqual(sum(len(row["checkpoints"]) for row in rows),40)
+        for row in rows:
+            self.assertTrue(row["remaining_evidence"]["implementation_integration_tests"])
+            self.assertTrue(row["remaining_evidence"]["real_acceptance"])
+            self.assertEqual(row["state"],"OPEN")

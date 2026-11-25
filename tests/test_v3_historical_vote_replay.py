@@ -505,3 +505,16 @@ class R2MalformedHistoricalInputTests(unittest.TestCase):
                     self.assertIn("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30",
                                   result["blockers"])
                     self.assertFalse(result["verified_live"])
+
+
+class R2HistoricalFlowModeTests(unittest.TestCase):
+    def test_contradictory_live_flags_do_not_enter_historical_quorum(self):
+        from v3_historical_vote_replay import _historical_measured, HIST_BASES
+        stamp=1795000000
+        row=dict(verified=True,source="Dhan",historical=True,
+                 direction_basis=HIST_BASES["futures"],symbol="NIFTY",timeframe="5m",
+                 generation=3,timestamp=stamp,contract="NIFTY-FUT",bullish=75,bearish=25)
+        args=dict(symbol="NIFTY",timeframe="5m",generation=3,last_bar=stamp)
+        self.assertIsNotNone(_historical_measured("futures",row,**args))
+        for flag in ("live_verified","verified_live"):
+            self.assertIsNone(_historical_measured("futures",dict(row,**{flag:True}),**args))

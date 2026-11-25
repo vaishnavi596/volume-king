@@ -45,6 +45,19 @@ SUBITEMS = {
 }
 # Full checkpoints require evidence specific to the entire row and checkpoint.
 VERIFIED = {}
+# R2 remaining evidence is not full checkpoint credit.
+R2_REMAINING = {
+    "B3.01": ("Exact selected filter calculation and publisher identity audit", "Observed exchange-qualified T across selected frames"),
+    "B3.02": ("Independent completed contiguous candle calculation and publisher audit", "Actual completed Dhan candle revision across frames"),
+    "B3.03": ("Authenticated expiry-specific trade-side adapter and publisher unavailable", "Matched underlying, expiry, contract and measured directional flow"),
+    "B3.04": ("Full policy and exact-mode integration evidence reconciliation", "Three independently eligible sources in actual session"),
+    "B3.05": ("Full diagnostic feature-to-probe/test linkage audit", "Mounted Doctor evidence matching the selected frame and generation"),
+    "B4.01": ("Verified symbol-specific impact source/adapter unavailable", "Authenticated directional impact rather than headline count"),
+    "B4.02": ("Authenticated mapped-contract trade-side adapter and publisher unavailable", "Measured directional flow for mapped unexpired contract"),
+    "B4.03": ("Full independent engine composition and publisher audit", "Actual five-source availability and eligible vote composition"),
+    "B4.04": ("Full six-box wiring and no-M-scoring checkpoint reconciliation", "Mounted six-box parity with M remaining standby"),
+    "B4.05": ("Shared renderer scoped offline PASS retained; mounted integration not certified", "Dashboard, Super Five, Scanner and Watchlist HIST/LIVE parity"),
+}
 def registry_report():
     rows = []
     for feature_id, name in FEATURES:
@@ -54,8 +67,12 @@ def registry_report():
             checkpoints[checkpoint] = {"state": "VERIFIED" if evidence else "UNRECONCILED",
                                        "evidence": evidence}
         sub = SUBITEMS.get(feature_id)
+        remaining = R2_REMAINING.get(feature_id)
         rows.append({"id": feature_id, "feature": name,
                      "checkpoints": checkpoints,
+                     "remaining_evidence": ({"implementation_integration_tests": remaining[0],
+                                             "real_acceptance": remaining[1]}
+                                            if remaining else None),
                      "verified_subitem": {"scope": sub[0], "commit": sub[1], "ci_run": sub[2]} if sub else None,
                      "state": "CLOSED" if all(v["state"] == "VERIFIED" for v in checkpoints.values()) else "OPEN"})
     batches = []

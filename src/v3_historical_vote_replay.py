@@ -30,6 +30,8 @@ def _historical_measured(name, component, *, symbol, timeframe, generation, last
         return None
     if (component.get("verified") is not True or component.get("source")!="Dhan"
             or component.get("historical") is not True
+            or component.get("live_verified") is True
+            or component.get("verified_live") is True
             or component.get("direction_basis")!=HIST_BASES[name]
             or component.get("symbol")!=symbol
             or component.get("timeframe")!=timeframe
