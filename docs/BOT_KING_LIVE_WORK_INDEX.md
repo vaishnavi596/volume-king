@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — #542:** exact f074046, run 45681490081 IN_PROGRESS; source validation PASS, full tests pending. Next R1.1 B1.04 HIST/LIVE/disconnect + B1.05; then R1.2. Owner completion signal → verify and proceed, no competing source push.
+
 > **CURRENT — R1.1 timestamp:** #541 1991/1991 and three targeted gates PASS; phone adapter and both Doctor timestamp validation patch; new exact CI pending. Physical Oracle/exchange acceptance OPEN.
 
 > **CURRENT — R1.1 quote Doctor:** #540 1989/1989 and Adapter #363 PASS; BK-QUOTE-001 two-lane Doctor wiring and tests applied in next patch, exact CI pending. Physical evidence OPEN.
