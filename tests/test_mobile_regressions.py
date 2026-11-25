@@ -444,7 +444,7 @@ class MobileRegressionTests(unittest.TestCase):
     def test_dhan_quote_caption_does_not_equate_recent_timestamp_with_live(self):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         section = source[source.index("    def quote_caption(sym):"):source.index("    def data_source_panel(", source.index("    def quote_caption(sym):"))]
-        self.assertIn('source_name=="Dhan" and q.get("freshness")!="exchange_verified"', section)
+        self.assertIn('source_name=="Dhan" and (q.get("freshness")!="exchange_verified" or q.get("live_verified") is not True or q.get("cached") is True)', section)
         self.assertIn('"quote timestamp unverified"', section)
         self.assertIn('" • NOT VERIFIED LIVE"', section)
 
@@ -496,7 +496,9 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('"live_verified":False,', source)
         self.assertIn('dict(old,freshness="unverified",live_verified=False)', source)
-        self.assertIn('dict(row,freshness="unverified",live_verified=False)', source)
+        self.assertIn('quotes=restored_quote_rows(market_store.latest_markets(), source="Dhan")', source)
+        self.assertIn('quotes.update(restored_quote_rows(previous_quotes,source=cached_source))', source)
+        self.assertIn('quotes.update(restored_quote_rows(market_store.latest_markets(),source=cached_source))', source)
         self.assertIn('live_verified=data.get("live_verified") is True', source)
 
     def test_dhan_super_five_requires_explicit_verified_live_flag(self):

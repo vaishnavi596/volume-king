@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — #543:** 1995 tests, 4 legacy assertion failures; fixture alignment only, next exact CI pending. R1.1 physical acceptance OPEN.
+
 > **CURRENT — R1.1 B1.04:** #542 1993/1993 PASS; shared startup/provider reset cached quote isolation and Doctor scope patch; new exact CI pending. Physical acceptance OPEN.
 
 > **CURRENT — #542:** exact f074046, run 45681490081 IN_PROGRESS; source validation PASS, full tests pending. Next R1.1 B1.04 HIST/LIVE/disconnect + B1.05; then R1.2. Owner completion signal → verify and proceed, no competing source push.
