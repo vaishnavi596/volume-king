@@ -59,6 +59,12 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
                "log_error":lambda label,exc:calls.append("error"),
                "publish_five_engine_historical":publish_five_engine_historical,
                "published_historical":published}
+        prewarm_calls=[]
+        async def prewarm_equity_historical_indicator(sym,data,tf,generation):
+            prewarm_calls.append((sym,data,tf,generation))
+            return True
+        scope.update(prewarm_equity_historical_indicator=prewarm_equity_historical_indicator,
+                     prewarm_calls=prewarm_calls)
         class Pool:
             async def run(self,fn,*args):
                 return fn(*args)
@@ -172,6 +178,7 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         self.assertFalse(row["live_verified"])
         self.assertIn("analyze",calls)
         self.assertNotIn("error",calls)
+        self.assertEqual(scope["prewarm_calls"],[("RELIANCE",scope["shared_history"]("RELIANCE","3m"),"3m",1)])
         self.assertEqual(len(scope["published_historical"]),1)
         symbol,tf,snapshot=scope["published_historical"][0]
         self.assertEqual((symbol,tf),("RELIANCE","3m"))
