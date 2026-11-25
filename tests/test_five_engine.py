@@ -126,7 +126,7 @@ class FiveEngineTests(unittest.TestCase):
 
 
     def test_scanner_adapter_reuses_votes_without_double_counting(self):
-        scan={"votes":[{"name":"Filter 1","vote":1},{"name":"Filter 2","vote":-1},{"name":"Filter 3","vote":1},{"name":"Filter 4","vote":0}],
+        scan={"votes":[{"name":"EMA 9/21","vote":1},{"name":"RSI 14","vote":-1},{"name":"MACD","vote":1},{"name":"Supertrend","vote":0}],
               "source":"Dhan","timestamp":1234567890,
               "freshness":"historical_unverified","historical":True,"live_verified":False}
         result=scanner_snapshot(scan)
@@ -172,6 +172,16 @@ class FiveEngineTests(unittest.TestCase):
                 self.assertEqual(snapshot["engines"][0].bullish, 67)
                 self.assertTrue(all(not engine.eligible for engine in snapshot["engines"][1:]))
 
+    def test_unknown_filter_cannot_supply_technical_evidence(self):
+        scan={"votes":[{"name":"EMA 9/21","vote":1},
+                       {"name":"RSI 14","vote":1},
+                       {"name":"Unknown plugin","vote":1}],
+              "source":"Dhan","timestamp":1234567890,
+              "freshness":"verified_live","historical":False,"live_verified":True}
+        self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
+        scan["votes"][2]["name"]="MACD"
+        self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],1)
+
     def test_context_aliases_cannot_inflate_technical_quorum(self):
         for name in (" oi support ", "OI resistance", "oi PROFILE",
                      " dhan max pain ", "Max Pain", " NEWS HEADLINES "):
@@ -188,7 +198,7 @@ class FiveEngineTests(unittest.TestCase):
                 self.assertEqual(result["engines"][0].bullish,67)
 
     def test_scanner_adapter_requires_explicit_verified_dhan(self):
-        scan={"votes":[{"name":"Filter 5","vote":1},{"name":"Filter 6","vote":1},{"name":"Filter 7","vote":-1}], "source":"Dhan",
+        scan={"votes":[{"name":"EMA 9/21","vote":1},{"name":"RSI 14","vote":1},{"name":"MACD","vote":-1}], "source":"Dhan",
               "timestamp":1234567890,"freshness":"verified_live",
               "historical":False,"live_verified":True}
         result=scanner_snapshot(scan)
@@ -198,7 +208,7 @@ class FiveEngineTests(unittest.TestCase):
         self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
 
     def test_scanner_adapter_rejects_boolean_votes(self):
-        result=scanner_snapshot({"votes":[{"name":"Filter 8","vote":True},{"name":"Filter 9","vote":False}]})
+        result=scanner_snapshot({"votes":[{"name":"Supertrend","vote":True},{"name":"EMA 9/21","vote":False}]})
         self.assertEqual(result["combined"]["coverage"],0)
 
 
@@ -238,7 +248,7 @@ class FiveEngineTests(unittest.TestCase):
 
 
     def test_malformed_vote_container_fails_closed(self):
-        for bad in ("BUY", {"name":"Filter 10","vote":1}, 123):
+        for bad in ("BUY", {"name":"RSI 14","vote":1}, 123):
             with self.subTest(bad=bad):
                 snap=scanner_snapshot({"votes":bad,"source":"Dhan",
                                        "timestamp":1234567890,"live_verified":True,
@@ -248,7 +258,7 @@ class FiveEngineTests(unittest.TestCase):
     def test_missing_or_invalid_scanner_timestamp_fails_closed(self):
         for bad in (None,0,-1,True,float("nan"),float("inf"),"1234567890"):
             with self.subTest(bad=bad):
-                snap=scanner_snapshot({"votes":[{"name":"Filter 11","vote":1}],
+                snap=scanner_snapshot({"votes":[{"name":"MACD","vote":1}],
                                        "timestamp":bad,"source":"Dhan",
                                        "live_verified":True,"freshness":"verified_live",
                                        "historical":False})
@@ -266,7 +276,7 @@ class FiveEngineTests(unittest.TestCase):
 
 
     def test_scanner_malformed_votes_fail_closed(self):
-        for bad in ("BUY",{"name":"Filter 12","vote":1},42,True):
+        for bad in ("BUY",{"name":"Supertrend","vote":1},42,True):
             with self.subTest(bad=bad):
                 snap=scanner_snapshot({"votes":bad,"source":"Dhan",
                     "freshness":"verified_live","live_verified":True,
@@ -287,7 +297,7 @@ class FiveEngineTests(unittest.TestCase):
 
 
     def test_scanner_mixed_malformed_votes_fail_closed(self):
-        snap=scanner_snapshot({"votes":[{"name":"Filter 13","vote":1},{"name":"Filter 14","vote":1},{"name":"Filter 15","vote":-1},None],
+        snap=scanner_snapshot({"votes":[{"name":"EMA 9/21","vote":1},{"name":"RSI 14","vote":1},{"name":"MACD","vote":-1},None],
             "source":"Dhan","timestamp":1234567890,"freshness":"verified_live",
             "live_verified":True,"historical":False})
         self.assertEqual(snap["combined"]["coverage"],0)
@@ -297,8 +307,8 @@ class FiveEngineTests(unittest.TestCase):
     def test_scanner_invalid_vote_values_fail_closed(self):
         for invalid in (True,False,2,-2,"BUY",None,1.0):
             with self.subTest(invalid=invalid):
-                snap=scanner_snapshot({"votes":[{"name":"Filter 16","vote":1},{"name":"Filter 17","vote":-1},
-                    {"name":"Filter 18","vote":1},{"name":"Filter 19","vote":invalid}],"source":"Dhan",
+                snap=scanner_snapshot({"votes":[{"name":"Supertrend","vote":1},{"name":"EMA 9/21","vote":-1},
+                    {"name":"RSI 14","vote":1},{"name":"MACD","vote":invalid}],"source":"Dhan",
                     "timestamp":1234567890,"freshness":"verified_live",
                     "live_verified":True,"historical":False})
                 self.assertEqual(snap["combined"]["coverage"],0)
