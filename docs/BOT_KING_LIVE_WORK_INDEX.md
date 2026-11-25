@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 HANDOFF — SMART 4.0:** B3 [#536](https://github.com/vaishnavi596/volume-king/actions/runs/45665310712) IN_PROGRESS at 44d1561; #535 की दो regression त्रुटियों का test-contract patch लागू। अगले चैट का पहला काम exact raw CI result और branch HEAD जाँचना; PASS से पहले नया checkpoint/APK नहीं। Master Journal / Work Log में शेष OPEN और नियम दर्ज।
+
 > **25-Nov-2026 CURRENT:** B3 [#535](https://github.com/vaishnavi596/volume-king/actions/runs/45663182925) 2 FAIL / 1984 at 8f98103; B1/B2/Adapter PASS. Historical cache test contract repair prepared; exact CI pending. No APK.
 
 > **25-Nov-2026 CURRENT:** B3 [#534](https://github.com/vaishnavi596/volume-king/actions/runs/45661711551) PASS at c97ede3. Shared HIST FINAL source/timeframe and clock identity guard prepared; full CI and physical cross-screen acceptance pending.
