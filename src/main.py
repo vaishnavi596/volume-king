@@ -22,6 +22,7 @@ from v3_stock_diagnostics import DiagnosticRegistry
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
+from v3_local_analysis_pool import local_analysis_pool
 from feed_health import FeedHealth,safe_error,retry_delay,http_status_from_exception
 from error_doctor import diagnose
 from preference_store import PreferenceWriter,load_preferences
@@ -6345,6 +6346,7 @@ def app_main(page:ft.Page):
                     quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
                         if watch_batch_last_attempt[0]>0 else None)
                 data["persistent_cache"]=market_store.diagnostics()
+                data["local_analysis_workers"]=local_analysis_pool.diagnostics()
                 data["capture_elapsed_ms"]=round((time.perf_counter()-started)*1000,2)
                 report.value=json.dumps(data,indent=2,ensure_ascii=False)
                 status.value="Active Doctor complete • "+str(data["active_count"])+" visible checks"
@@ -8179,7 +8181,12 @@ console.log('BOT KING Lightweight Charts ready');
             # Keep the actual completed-candle calculation distinct from live
             # eligibility. A closed market does not erase Friday's analysis.
             historical_bars=historical_regular_session_bars(bars,interval)
-            historical=analyze(historical_bars,selected=active_analysis_filters(),timeframe=interval)
+            historical_filter_selection=list(active_analysis_filters())
+            historical_provider_generation=provider_generation[0]
+            historical=await local_analysis_pool.run(analyze,[tuple(row) for row in historical_bars],selected=historical_filter_selection,timeframe=interval)
+            if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
+                    or historical_provider_generation!=provider_generation[0]
+                    or historical_filter_selection!=list(active_analysis_filters())):return
             history_valid=(hist.get("source")=="Dhan" and
                            valid_candle_history(historical_bars) and
                            # HIST quality is relative to the last completed session bar.
