@@ -1285,21 +1285,27 @@ def app_main(page:ft.Page):
                 note("Candles "+str(row.get("candle_count",0))+" • local calculation "+
                      (f'{row["elapsed"]:.3f}s' if row.get("elapsed") is not None else "not measured"))],spacing=2)
               for i,row in enumerate(rows)]])
-    def display_analysis(sym,data):
+    def display_analysis(sym,data,*,frozen=None):
         raw=data.get("bars") or []
-        live=analyze_current(raw,filter_selected[:],"5m")
+        if frozen is None:
+            selected=list(active_analysis_filters())
+            confidence=float(prefs.get("confidence",75))
+            historical_only=bool(dhan_feed.historical_only)
+            failure=scan_fetch_failure.get((provider_generation[0],sym,"5m"))
+        else:
+            selected,confidence,historical_only,failure=frozen
+        live=analyze_current(raw,selected,"5m",frozen_confidence=confidence)
         display=dict(live)
         completed=[bar for bar in raw if bar[0]+300<=datetime.now(timezone.utc).timestamp()]
         quality={"usable":False,"bars":[]}
         if completed:
             quality=quality_check(completed,300,now=completed[-1][0]+300)
             if quality["usable"]:
-                selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
                 display=analyze(quality["bars"],selected,"5m")
-                if display.get("score",0)<float(prefs.get("confidence",75)):display.update(bias="WAIT",score=0)
+                if display.get("score",0)<confidence:display.update(bias="WAIT",score=0)
         if not completed or not quality["usable"]:
             display.update(bias="DATA UNAVAILABLE",score=0,timestamp=None,reason="Insufficient or invalid completed candles; last valid result retained")
-        if data.get("source")=="Dhan" and (dhan_feed.historical_only or data.get("freshness")=="historical_unverified"):
+        if data.get("source")=="Dhan" and (historical_only or data.get("freshness")=="historical_unverified"):
             display.update(bias="WAIT",score=0,
                            reason=str(display.get("reason",""))+" • Dhan historical-only; live LTP not verified")
         age=datetime.now(timezone.utc).timestamp()-(display.get("timestamp") or 0)
@@ -1310,13 +1316,12 @@ def app_main(page:ft.Page):
                        freshness=data.get("freshness","unverified"),
                        live_verified=data.get("live_verified") is True,
                        historical=bool(data.get("cached")) or provider_unverified or
-                       (data.get("source")=="Dhan" and dhan_feed.historical_only) or
+                       (data.get("source")=="Dhan" and historical_only) or
                        not 0<=age<=timeframe_spec("5m")["fresh_seconds"],age=max(0,int(age)))
-        failure=scan_fetch_failure.get((provider_generation[0],sym,"5m"))
         if failure:
             display.update(historical=True,live_verified=False,freshness="unverified",
                            reason=str(display.get("reason",""))+" • Latest request failed: "+failure["detail"])
-        record_analysis(sym,"5m",result=display,candle_count=len(raw))
+        if frozen is None:record_analysis(sym,"5m",result=display,candle_count=len(raw))
         return display
     def historical_vote_agreement(data,tf="5m"):
         """Completed exact-timeframe Dhan votes; historical never equals live."""
@@ -9472,7 +9477,11 @@ console.log('BOT KING Lightweight Charts ready');
                                 # A selected chart may have delivered newer candles
                                 # while the serialized full scan was still running.
                                 data=shared_history(sym) or data
-                            result=display_analysis(sym,data)
+                            frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))
+                            snapshot=dict(data,bars=[tuple(row) for row in (data.get("bars") or [])])
+                            result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
+                            if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):return sym,None
+                            record_analysis(sym,"5m",result=result,candle_count=len(snapshot["bars"]))
                         except Exception as exc:
                             log_error("super_five",exc)
                             if generation==provider_generation[0] and sym not in failed_symbols:
