@@ -33,6 +33,8 @@ class SnapshotStore:
         self.file_bytes=0
         self.write_count=0;self.write_last_ms=0.0;self.write_max_ms=0.0
         self.unchanged_writes_skipped=0
+        self.read_count=0;self.read_last_ms=0.0;self.read_max_ms=0.0
+        self.write_lock_wait_last_ms=0.0;self.write_lock_wait_max_ms=0.0
         self.incremental=bool(incremental and sqlite3 is not None)
         self.fallback_reason="sqlite_unavailable" if incremental and sqlite3 is None else None
         self.db_path=self.path.with_name(self.path.name+".sqlite3")
@@ -241,6 +243,8 @@ class SnapshotStore:
                     "entry_utilization_pct":round(100*len(self.records)/max(1,self.max_entries),2),
                     "byte_utilization_pct":round(100*self.file_bytes/MAX_CACHE_BYTES,2),
                     "capacity_warning":len(self.records)>=0.8*self.max_entries or self.file_bytes>=0.8*MAX_CACHE_BYTES,
+                    "read_count":self.read_count,"read_last_ms":self.read_last_ms,"read_max_ms":self.read_max_ms,
+                    "write_lock_wait_last_ms":self.write_lock_wait_last_ms,"write_lock_wait_max_ms":self.write_lock_wait_max_ms,
                     "write_count":self.write_count,"write_last_ms":self.write_last_ms,
                     "write_max_ms":self.write_max_ms,"unchanged_writes_skipped":self.unchanged_writes_skipped,
                     "storage_backend":"sqlite_incremental" if self.incremental else "json_atomic",
@@ -248,9 +252,14 @@ class SnapshotStore:
                     "byte_metric":"logical_record_bytes" if self.incremental else "file_bytes",
                     "status":self.status,"restored_cache_live_proof":False}
     def get(self,kind,*parts):
+        started=time.perf_counter()
         with self.lock:
             item=self.records.get(self.key(kind,*parts))
-            return copy.deepcopy(item["payload"]) if item and self.valid(kind,item["payload"]) and self.identity_valid(kind,parts,item["payload"]) else None
+            result=copy.deepcopy(item["payload"]) if item and self.valid(kind,item["payload"]) and self.identity_valid(kind,parts,item["payload"]) else None
+            self.read_count+=1
+            self.read_last_ms=round((time.perf_counter()-started)*1000,3)
+            self.read_max_ms=max(self.read_max_ms,self.read_last_ms)
+            return result
     def put(self,kind,parts,payload):
         safe=public_copy(payload)
         if not safe:return False
@@ -265,7 +274,10 @@ class SnapshotStore:
         if kind=="news" and not safe.get("items"):return False
         if "bars" in safe:safe["bars"]=safe["bars"][-MAX_CACHE_BARS:]
         key=self.key(kind,*parts)
+        lock_started=time.perf_counter()
         with self.lock:
+            self.write_lock_wait_last_ms=round((time.perf_counter()-lock_started)*1000,3)
+            self.write_lock_wait_max_ms=max(self.write_lock_wait_max_ms,self.write_lock_wait_last_ms)
             previous=self.records.get(key,{}).get("payload")
             if kind=="market" and previous and self.valid(kind,previous):
                 # Exchange trade and completed candle clocks are independent.
