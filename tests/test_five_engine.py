@@ -854,10 +854,12 @@ class FiveEngineMainContextWiringContract(unittest.TestCase):
         # publishers join independent C evidence with their actual 5m input.
         self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot('),2)
         self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot(watch_signal_cache[sym]))'),2)
-        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot_with_candle('),2)
-        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,',source)
+        self.assertEqual(source.count('publish_five_engine_5m(sym,scanner_snapshot_with_candle('),1)
+        self.assertIn('engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,',source)
+        self.assertIn('publish_five_engine_5m(sym,engine_snapshot)',source)
         self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time()))'),1)
-        self.assertEqual(source.count('data,symbol=sym,timeframe="5m",now=time.time(),timing=engine_timing))'),1)
+        self.assertIn('deepcopy(engine_input),deepcopy(data),symbol=sym,timeframe="5m",',source)
+        self.assertIn('now=time.time(),timing=engine_timing)',source)
         self.assertIn('five_engine_timing.update(engine_timing,symbol=sym,timeframe="5m",generation=generation)',source)
         self.assertNotIn('five_engine_snapshots[sym]=scanner_snapshot(',source)
 

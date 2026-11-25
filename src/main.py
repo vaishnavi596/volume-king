@@ -9569,11 +9569,18 @@ console.log('BOT KING Lightweight Charts ready');
                                   (data or {}).get("historical") is False)
                         from five_engine import scanner_snapshot_with_candle
                         engine_timing={}
-                        publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,
-                            source="Dhan" if source_ok else "",
+                        engine_input=dict(analyzed,source="Dhan" if source_ok else "",
                             freshness="verified_live" if verified else "unverified",
-                            live_verified=verified,historical=not verified),
-                            data,symbol=sym,timeframe="5m",now=time.time(),timing=engine_timing))
+                            live_verified=verified,historical=not verified)
+                        from copy import deepcopy
+                        engine_policy=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))
+                        engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,
+                            deepcopy(engine_input),deepcopy(data),symbol=sym,timeframe="5m",
+                            now=time.time(),timing=engine_timing)
+                        if (generation!=provider_generation[0] or
+                                engine_policy!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
+                            return sym,None
+                        publish_five_engine_5m(sym,engine_snapshot)
                         five_engine_timing.update(engine_timing,symbol=sym,timeframe="5m",generation=generation)
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"

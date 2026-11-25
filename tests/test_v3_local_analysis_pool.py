@@ -120,3 +120,25 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("lifecycle_background[0]",loop)
         self.assertNotIn("get_market_data(",loop)
         self.assertIn("page.run_task(watch_all_local_analysis)",source)
+
+    def test_engine_snapshot_worker_preserves_vote_and_publish_guard(self):
+        import ast
+        from pathlib import Path
+        from five_engine import scanner_snapshot_with_candle
+        pool=LocalAnalysisPool(2)
+        try:
+            inputs=dict(symbol="NIFTY",timeframe="5m",now=1000)
+            timing={}
+            actual=asyncio.run(pool.run(scanner_snapshot_with_candle,{}, {},timing=timing,**inputs))
+            self.assertEqual(actual,scanner_snapshot_with_candle({}, {},**inputs))
+            self.assertEqual(actual["combined"]["state"],"WAIT")
+        finally:pool.close()
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        rank=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.AsyncFunctionDef) and n.name=="rank_one")
+        body=ast.get_source_segment(source,rank)
+        before,after=body.split("engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,",1)
+        guard=after.split("publish_five_engine_5m(sym,engine_snapshot)",1)[0]
+        self.assertIn("deepcopy(engine_input),deepcopy(data)",guard)
+        self.assertIn("generation!=provider_generation[0]",guard)
+        self.assertIn("engine_policy!=",guard)
+        self.assertIn("return sym,None",guard)
