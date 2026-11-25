@@ -2529,3 +2529,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3-C2-A PASS / C3-C2-B Watchlist local precompute
 - Exact d865be4 B3 #491 run 45582799256 completed/success verified via REST. C3-C2-B source cf94a68 precomputes visible Watchlist 3m signals with copied completed candles and frozen active filters via shared local worker pool. Rechecks identity (provider generation, filter policy, last four rows, count, fetched time) before cache/publication; visible tick checks tab, session and roster after await. Existing synchronous cache reader and fallback remain, so not all UI computation eliminated; no added Dhan requests. Tests cover wiring and stale-result guard. CI pending; independent engine worker scheduling, actual phone speed and nonvisible Watchlist processing remain pending. No server/APK/order changes.
+
+
+### 25 नवंबर 2026 — C3-C2-B PASS / C3-C3-A engine adapter telemetry
+- Exact 6d47a14 B3 #492 run 45584022385 completed/success verified via REST. Source 4ae7526 and 83ba0f1 measure actual T adapter, conditional independent C adapter and vote composition durations in Super Five 5m publisher, expose last matching-generation timing in Smart Doctor. N/F/O timing explicitly unavailable, not zero; no new eligibility or quorum changes. This is telemetry only, not independent five-engine parallel execution. Remaining: genuine independent N/F/O inputs, worker wiring and phone measurements. No provider/server/APK/orders changes. CI pending; final regression fixture triggers CI.
