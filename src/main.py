@@ -3049,6 +3049,10 @@ def app_main(page:ft.Page):
                 visible=tuple(watch_groups[active_watch[0]])
                 # Reuse the same analyzed 3m result across signatures and row repaint.
                 tick_started=time.perf_counter()
+                tick_generation=provider_generation[0]
+                await asyncio.gather(*(prepare_watch_three_minute_signal(sym) for sym in visible))
+                if (current[0]!=4 or not app_active[0] or tick_generation!=provider_generation[0]
+                        or visible!=tuple(watch_groups[active_watch[0]])):continue
                 tick_signals={sym:watch_three_minute_signal(sym) for sym in visible}
                 signal_ms=round((time.perf_counter()-tick_started)*1000,2)
                 watch_3m_tick_profile["sample_count"]+=1
@@ -7315,6 +7319,39 @@ console.log('BOT KING Lightweight Charts ready');
         except Exception as exc:
             log_error("watch_three_minute_analysis",exc)
             return historical_or_wait("3m analysis failed; last historical votes retained")
+    def watch_three_minute_worker_input(sym):
+        if prefs.get("source")!="Dhan":return None
+        context=(provider_generation[0],tuple(filter_selected),
+                 tuple(sorted(filter_modes.items())),prefs.get("confidence",75))
+        data=shared_history(sym,"3m")
+        if data.get("source")!="Dhan" or not data.get("bars"):return None
+        now=time.time()
+        completed=[tuple(bar) for bar in data["bars"] if isinstance(bar,(tuple,list))
+                   and len(bar)>=6 and type(bar[0]) in (int,float)
+                   and math.isfinite(bar[0]) and bar[0]+180<=now]
+        if not completed:return None
+        identity=context+(tuple(completed[-4:]),len(completed),data.get("candle_fetched_at"))
+        return identity,completed,list(active_analysis_filters())
+    def compute_watch_three_minute_worker(completed,selected):
+        quality=quality_check(completed,180,now=completed[-1][0]+180)
+        return analyze(quality["bars"],selected,"3m") if quality.get("usable") else None
+    async def prepare_watch_three_minute_signal(sym):
+        captured=watch_three_minute_worker_input(sym)
+        if captured is None:return
+        identity,completed,selected=captured
+        saved=watch_three_minute_cache.get(sym)
+        if saved and saved[0]==identity:return
+        try:
+            result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)
+            latest=watch_three_minute_worker_input(sym)
+            if latest is None or latest[0]!=identity:return
+            if not result or not signal_percentages(result):return
+            result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
+                        historical=True,live_verified=False,freshness="unverified")
+            watch_three_minute_cache[sym]=(identity,result)
+            publish_five_engine_historical(sym,"3m",result)
+        except Exception as exc:
+            log_error("watch_three_minute_worker",exc)
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__+" • "+str(safe_error(exc))[:140]
         # Numeric status only, read from the original error: safe_error() rewrites
