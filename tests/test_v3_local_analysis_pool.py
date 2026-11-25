@@ -427,3 +427,26 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("if not shared_symbol_current(sym):continue",funcs["refresh_shared_analysis"])
         self.assertIn("if updated and shared_owner_current():",funcs["refresh_shared_analysis"])
         self.assertIn("lifecycle_background[0]",funcs["flush_view_refresh"])
+
+    def test_r1_quote_lane_failure_and_resume_isolation(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        funcs={n.name:ast.get_source_segment(source,n) for n in ast.walk(ast.parse(source))
+               if isinstance(n,ast.AsyncFunctionDef)}
+        equity=funcs["refresh_watch_batch"]
+        failure=equity.split("except Exception as exc:",1)[1]
+        self.assertLess(failure.index("generation!=provider_generation[0]"),
+                        failure.index("selected_batch_issue[0]=safe_error"))
+        self.assertIn("for ticker in requested_symbols:",failure)
+        self.assertNotIn("list(quotes.items())",failure)
+        self.assertIn("if received==total_symbols:\n                watch_batch_last_success[0]",equity)
+        index=funcs["refresh_dhan_index_quotes"]
+        failure=index.split('except Exception as exc:',1)[1]
+        self.assertLess(failure.index("generation!=provider_generation[0]"),
+                        failure.index('log_error("dhan_index_ltp_batch"'))
+        self.assertIn("if generation==provider_generation[0]:",index.split("finally:",1)[1])
+        resume=funcs["refresh_after_resume"]
+        self.assertLess(resume.index("await refresh_dhan_index_quotes()"),
+                        resume.index("and not watch_batch_busy[0]"))
+        self.assertIn("not lifecycle_background[0]",resume)

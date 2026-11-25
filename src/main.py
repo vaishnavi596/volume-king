@@ -2863,6 +2863,8 @@ def app_main(page:ft.Page):
         request_view_refresh(4)
         try:
             batch=await asyncio.to_thread(dhan_feed.equity_quotes_for_watchlist,requested_symbols)
+            if generation!=provider_generation[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+                return
             selected_batch_issue[0]=(
                 "Selected batch route unavailable; using legacy 51-equity snapshot"
                 if dhan_feed._selected_batch_missing else "")
@@ -2927,19 +2929,20 @@ def app_main(page:ft.Page):
             market_status=watch_batch_status[0]
             watch_batch_last_result[0]=("COMPLETE" if received==total_symbols else "PARTIAL")
             login_bootstrap.finish(generation,"equities",received,total_symbols)
-            watch_batch_last_success[0]=time.monotonic()
             if received==total_symbols:
+                watch_batch_last_success[0]=time.monotonic()
                 watch_batch_success_generation[0]=generation
                 quote_contract_observation.recovered("equities",generation,provider_generation[0])
         except Exception as exc:
-            selected_batch_issue[0]=safe_error(exc)[:120]
             # Android may suspend a network request when the app loses focus.
             # Do not report that lifecycle interruption as a provider failure.
             if generation!=provider_generation[0] or prefs.get("source")!="Dhan":
                 return
+            selected_batch_issue[0]=safe_error(exc)[:120]
             # Interrupted and failed polls cannot certify that an old quote is live.
             # Retain valid same-provider prices, but downgrade their freshness.
-            for ticker,old in list(quotes.items()):
+            for ticker in requested_symbols:
+                old=quotes.get(ticker)
                 if (isinstance(old,dict) and old.get("source")=="Dhan"
                         and isinstance(old.get("price"),(int,float))
                         and not isinstance(old.get("price"),bool)
@@ -3109,6 +3112,8 @@ def app_main(page:ft.Page):
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            if generation!=provider_generation[0] or prefs.get("source")!="Dhan" or not dhan_feed.connected:
+                return
             log_error("dhan_index_ltp_batch",exc)
             if prefs.get("source")=="Dhan":
                 quote_contract_observation.failed("indices",generation,provider_generation[0],exc)
@@ -3142,8 +3147,9 @@ def app_main(page:ft.Page):
                 if isinstance(old,dict) and old.get("source")=="Dhan":
                     quotes[ticker]=dict(old,freshness="unverified",live_verified=False)
         finally:
-            index_last_result_at[0]=time.time()
-            index_last_result_generation[0]=generation
+            if generation==provider_generation[0]:
+                index_last_result_at[0]=time.time()
+                index_last_result_generation[0]=generation
             index_refresh_busy[0]=False
             if current[0] in (0,4,5):
                 request_view_refresh(current[0])
@@ -10726,17 +10732,20 @@ console.log('BOT KING Lightweight Charts ready');
             # for its next tick unnecessarily delays the visible watchlist.
             if app_active[0] and refresh_hours() and prefs.get("source")=="Dhan" and dhan_feed.connected:
                 await asyncio.sleep(10)
-                if (app_active[0] and generation==provider_generation[0]
-                        and (max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0
-                             or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
-                        and not watch_batch_busy[0] and not index_refresh_busy[0]):
-                    # Reuse the same request clock as Watchlist and the poller.
-                    if (dhan_feed.cooldown_remaining("/v2/snapshot")==0
+                if (app_active[0] and not lifecycle_background[0]
+                        and generation==provider_generation[0]
+                        and prefs.get("source")=="Dhan" and dhan_feed.connected):
+                    # Independent quote recovery: the index handler owns its own
+                    # clock/cooldown; an equity busy flag must not suppress it.
+                    await refresh_dhan_index_quotes()
+                    if (app_active[0] and not lifecycle_background[0]
+                            and generation==provider_generation[0]
+                            and (max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])<=0
+                                 or time.monotonic()-max(quote_auto_last_attempt[0],watch_batch_last_attempt[0])>=60)
+                            and not watch_batch_busy[0]
+                            and dhan_feed.cooldown_remaining("/v2/snapshot")==0
                             and dhan_feed.cooldown_remaining("/dhan/selected-ltp-batch")==0):
                         await refresh_watch_batch()
-                    # Route-specific equity cooldown never suppresses index recovery;
-                    # the index handler itself also honors global/index cooldowns.
-                    await refresh_dhan_index_quotes()
             if not app_active[0] or generation!=provider_generation[0]:
                 return
             if not refresh_hours():
