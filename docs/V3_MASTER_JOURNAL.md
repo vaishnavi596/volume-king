@@ -2545,3 +2545,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3 open batch: remaining durable writes
 - Baseline 4f1002e B3 #494 PASS. Source d879d95 offloads five remaining Scanner/ranking writes using awaited asyncio.to_thread and copied top-level payloads; rechecks relevant selection/provider generation before subsequent UI publication. Historical source-contract test updated fb33b35. In-flight disk writes cannot be cancelled by a subsequent generation change; no new live authority from saved data. Final joint write contract tests and CI pending; remaining Watchlist fallback/nonvisible and engine processing still OPEN. No server/APK/orders changes.
+
+
+### 25 नवंबर 2026 — C3 durable writes संयुक्त Regression PASS
+- Exact 4713fd72233bb38e823f746978323587cddb3f85 B3 #495 [run 45591716128](https://github.com/vaishnavi596/volume-king/actions/runs/45591716128), job 139127326611: GitHub job और raw log सत्यापित, source validation PASS, 1944 tests in 200.001s, OK, zero failures. Latest changed file tests/test_v3_local_analysis_pool.py में तीन Scanner और दो Ranking awaited durable writes तथा post-await guards का structural contract PASS; पुराना 5m publisher regression भी PASS. C3 अभी OPEN: synchronous Watchlist fallback/nonvisible processing, independent engine worker scheduling, वास्तविक Android latency/capacity और संबंधित source evidence शेष। कोई नया APK/server/order बदलाव नहीं। पुराने PASS दोबारा न चलाएँ।
