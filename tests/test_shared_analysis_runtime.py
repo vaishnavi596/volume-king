@@ -147,6 +147,8 @@ class HistoricalEngineRevisionTests(unittest.TestCase):
             self.assertTrue(fn("TCS","1m"))
             self.assertTrue(fn("TCS","1m"))
             self.assertEqual(compute.call_count,1)
+            self.assertIsNotNone(v["historical_vote_agreement"](v["chart_snapshots"][key],"1m"))
+            self.assertEqual(compute.call_count,1)
             bars[5][4]-=.1
             self.assertTrue(fn("TCS","1m"))
             self.assertEqual(compute.call_count,2)

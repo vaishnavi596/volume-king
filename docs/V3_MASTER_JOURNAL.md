@@ -2625,3 +2625,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — B1/B2/B3 संयुक्त candle revision consistency repair
 - B215 exact 0096478 regression 45609505163 PASS, APK 45609505142 job 139189072294 all safety/signing/upload steps PASS. Owner will test B215 later; continue software closure before next version.
 - Fixed historical 1m/3m publisher timestamp-only shortcut with full validated OHLCV/filter/generation identity and matching snapshot instance. Avoid replacing currently eligible LIVE evidence with HIST hydration. Bounded memo. Watchlist reader/worker now include full completed revision, preserving last-four Doctor indexing and receipt-time contract. Added runtime tests for same timestamp earlier OHLCV correction and filter change; local tests NOT EXECUTED, CI pending. No version bump, server/order change or APK request. B1–B3 remain open pending remaining software and real data acceptance.
+
+
+### 25 नवंबर 2026 — साझा HIST calculation / B1–B3
+- Exact b528a2a B1 45611399365, B2 45611399393, Adapter 45611399352 PASS; B3 45611399339 job 139195562510 1950/1950 PASS in 205.915s.
+- Joint improvement: HIST agreement and 1m/3m publisher reuse same validated full-revision indicator result keyed by generation/timeframe/filter selection; bounded 220. Agreement now uses canonical candle-only signal_percentages (no derivative context integer votes), validate before fingerprint to avoid malformed unhashable OHLCV. Added cross-consumer call-count assertion. First calculation still synchronous; worker/capacity and provider evidence remain OPEN. Local targeted tests NOT EXECUTED; CI pending. No APK/version/server/order changes.
