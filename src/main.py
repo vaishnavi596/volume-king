@@ -7701,7 +7701,10 @@ console.log('BOT KING Lightweight Charts ready');
         return identity,completed,list(active_analysis_filters())
     def compute_watch_three_minute_worker(completed,selected):
         quality=quality_check(completed,180,now=completed[-1][0]+180)
-        return analyze(quality["bars"],selected,"3m") if quality.get("usable") else None
+        if not quality.get("usable"):
+            return None
+        bars=quality["bars"]
+        return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")
     async def prepare_watch_three_minute_signal(sym):
         captured=watch_three_minute_worker_input(sym)
         if captured is None:return
@@ -7712,11 +7715,21 @@ console.log('BOT KING Lightweight Charts ready');
         if key in watch_three_minute_inflight:return
         watch_three_minute_inflight.add(key)
         try:
-            result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)
+            computed=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)
             latest=watch_three_minute_worker_input(sym)
             if latest is None or latest[0]!=identity:return
             if sym not in all_watch_symbols() or not app_active[0] or lifecycle_background[0]:return
+            if computed is None:return
+            validated_bars,result=computed
             if not result or not signal_percentages(result):return
+            # Share only the exact validated input to analyze, before adding
+            # symbol or presentation metadata. Different session-normalized bars
+            # deliberately miss this cache and are computed separately.
+            cache_key=(identity[0],"3m",tuple(selected),validated_bars)
+            if cache_key not in historical_indicator_cache:
+                if len(historical_indicator_cache)>=220:
+                    historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
+                historical_indicator_cache[cache_key]=result
             result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
                         historical=True,live_verified=False,freshness="unverified")
             watch_three_minute_cache[sym]=(identity,result)
