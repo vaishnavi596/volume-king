@@ -271,7 +271,11 @@ class QuotePriceBatch(dict):
 
 
 def observed_quote_fields(prices, symbol):
-    stamp = getattr(prices, "trade_timestamps", {}).get(symbol)
+    timestamps = getattr(prices, "trade_timestamps", {})
+    stamp = timestamps.get(symbol) if isinstance(timestamps, dict) and symbol in prices else None
+    if not (type(stamp) in (int,float) and math.isfinite(stamp)
+            and 946684800 <= stamp <= time.time()):
+        stamp = None
     return {"quote_timestamp": stamp, "freshness": "unverified",
             "live_verified": False}
 

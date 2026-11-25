@@ -6640,6 +6640,8 @@ def app_main(page:ft.Page):
                         symbol=scanner_sym,timeframe=scanner_tf,generation=generation,
                         display_mode=prefs.get("market_display_mode")),
                     "quote_contract_errors":quote_contract_observation.active(generation),
+                    "quote_timestamp_observation":__import__("v3_smart_active_doctor").quote_timestamp_observation(
+                        symbol=scanner_sym,quote=quotes.get(scanner_sym),now=time.time()),
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
@@ -6694,6 +6696,8 @@ def app_main(page:ft.Page):
                     quote=quotes.get(ml5_symbol))
                 data=active_report(
                     engine_observation=ml5_observation,
+                    quote_time_observation=__import__("v3_smart_active_doctor").quote_timestamp_observation(
+                        symbol=ml5_symbol,quote=quotes.get(ml5_symbol),now=time.time()),
                     quote_contract_errors=quote_contract_observation.active(generation),
                     final_vote_observation=__import__("v3_smart_active_doctor").final_vote_frame_observation(
                         symbol=ml5_symbol,timeframe=ml5_tf,generation=generation,

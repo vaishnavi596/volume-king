@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None, final_vote_observation=None, quote_contract_errors=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None, final_vote_observation=None, quote_contract_errors=None, quote_time_observation=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -121,6 +121,8 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
             hidden.append("FINAL_VOTE_FRAME_GUARD")
         else:
             issues.append(dict(check="FINAL_VOTE_FRAME_GUARD",**final_vote_observation))
+    if quote_time_observation is not None:
+        issues.append(dict(check="QUOTE_TIMESTAMP_OBSERVATION",**quote_time_observation))
     for row in quote_contract_errors or ():
         if row.get("generation")==generation and row.get("code")=="BK-QUOTE-001":
             issues.append(dict(check="QUOTE_CONTRACT",**row))
@@ -169,14 +171,12 @@ def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futu
                    live_bearish=evidence.bearish if eligible else None,
                    live_gate_reason=evidence.reason)
         boxes.append(row)
-    q=quote or {}
-    stamp=q.get("quote_timestamp")
-    valid_stamp=(q.get("source")=="Dhan" and type(stamp) in (int,float)
-                 and isfinite(stamp) and 0<stamp<=now)
+    timestamp_observation=quote_timestamp_observation(symbol=symbol,quote=quote,now=now)
+    valid_stamp=timestamp_observation["timestamp_observed"]
     return {"identity":identity,"boxes":boxes,"combined":display["combined"],
             "sixth_M":"INERT_NOT_SCORED",
             "quote_timestamp_observed":bool(valid_stamp),
-            "quote_timestamp_age_seconds":round(now-stamp,1) if valid_stamp else None,
+            "quote_timestamp_age_seconds":timestamp_observation["timestamp_age_seconds"],
             "quote_timestamp_scope":"existing cache field; not independent exchange proof",
             "comparison_status":"UNVERIFIED",
             "comparison_scope":"compare same symbol/frame/roster/session across build reports",
@@ -225,3 +225,20 @@ class QuoteContractObservation:
     def active(self, generation):
         return [dict(row) for row in self._active.values()
                 if row["generation"]==generation]
+
+
+def quote_timestamp_observation(*, symbol, quote, now):
+    """Read-only cached timestamp evidence; not independent exchange proof."""
+    q=quote if isinstance(quote,dict) else {}
+    stamp=q.get("quote_timestamp")
+    valid=(q.get("source")=="Dhan" and q.get("symbol",symbol)==symbol
+           and type(now) in (int,float) and math.isfinite(now)
+           and type(stamp) in (int,float) and math.isfinite(stamp)
+           and 946684800<=stamp<=now)
+    return {"symbol":symbol,"feature_id":"B1.01",
+            "code":None if valid else "BK-QUOTE-TIME-001",
+            "status":"OBSERVED_UNVERIFIED" if valid else "UNVERIFIED",
+            "timestamp_observed":valid,
+            "timestamp_age_seconds":round(now-stamp,1) if valid else None,
+            "scope":"cached Dhan trade timestamp only; not exchange or LIVE verification",
+            "source_live_verified":False,"provider_requests":0,"orders_sent":0}

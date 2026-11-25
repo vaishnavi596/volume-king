@@ -20,3 +20,31 @@ class ML5TradeTimestampTests(unittest.TestCase):
         self.assertEqual(observed_quote_fields(prices,"NIFTY")["quote_timestamp"],1795588200)
         self.assertFalse(observed_quote_fields(prices,"NIFTY")["live_verified"])
         self.assertIsNone(observed_quote_fields({"NIFTY":25000.0},"NIFTY")["quote_timestamp"])
+
+    def test_adapter_timestamp_rejects_invalid_or_unowned_metadata(self):
+        from unittest.mock import patch
+        prices=QuotePriceBatch()
+        prices["NIFTY"]=25000.0
+        with patch("clone_v2_gateway.time.time",return_value=1800000000):
+            for invalid in (True,1,946684799,1800000001,float("nan"),"1795588200",None):
+                prices.trade_timestamps["NIFTY"]=invalid
+                self.assertIsNone(observed_quote_fields(prices,"NIFTY")["quote_timestamp"])
+            prices.trade_timestamps["TCS"]=1795588200
+            self.assertIsNone(observed_quote_fields(prices,"TCS")["quote_timestamp"])
+            prices.trade_timestamps["NIFTY"]=1795588200
+            self.assertEqual(observed_quote_fields(prices,"NIFTY")["quote_timestamp"],1795588200)
+
+    def test_shared_doctor_timestamp_is_observed_not_live(self):
+        from v3_smart_active_doctor import quote_timestamp_observation
+        q=dict(source="Dhan",symbol="NIFTY",quote_timestamp=1795588200)
+        report=quote_timestamp_observation(symbol="NIFTY",quote=q,now=1800000000)
+        self.assertTrue(report["timestamp_observed"])
+        self.assertFalse(report["source_live_verified"])
+        for changed in (dict(q,symbol="TCS"),dict(q,source="Yahoo Finance"),
+                        dict(q,quote_timestamp=1),dict(q,quote_timestamp=1800000001)):
+            report=quote_timestamp_observation(symbol="NIFTY",quote=changed,now=1800000000)
+            self.assertEqual(report["code"],"BK-QUOTE-TIME-001")
+            self.assertIsNone(report["timestamp_age_seconds"])
+        source=(root/"src/main.py").read_text()
+        self.assertIn('"quote_timestamp_observation":__import__',source)
+        self.assertIn('quote_time_observation=__import__',source)

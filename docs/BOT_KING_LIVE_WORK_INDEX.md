@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R1.1 timestamp:** #541 1991/1991 and three targeted gates PASS; phone adapter and both Doctor timestamp validation patch; new exact CI pending. Physical Oracle/exchange acceptance OPEN.
+
 > **CURRENT — R1.1 quote Doctor:** #540 1989/1989 and Adapter #363 PASS; BK-QUOTE-001 two-lane Doctor wiring and tests applied in next patch, exact CI pending. Physical evidence OPEN.
 
 > **CURRENT — R1.1 B1.03:** #539 1988/1988 PASS; existing Clone quote response validation repaired with stable BK-QUOTE-001 and regression. New CI and Doctor propagation verification pending. Fixed R1 scope only.
