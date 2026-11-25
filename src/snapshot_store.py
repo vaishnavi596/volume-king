@@ -27,6 +27,8 @@ class SnapshotStore:
         self.status="No saved market snapshots"
         self.evicted=0;self.rejected=0;self.restored=0;self.save_failures=0
         self.file_bytes=0
+        self.write_count=0;self.write_last_ms=0.0;self.write_max_ms=0.0
+        self.unchanged_writes_skipped=0
         try:
             if self.path.exists():
                 if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
@@ -125,6 +127,11 @@ class SnapshotStore:
                     "max_file_bytes":MAX_CACHE_BYTES,"restored_entries":self.restored,
                     "evicted_since_start":self.evicted,"rejected_since_start":self.rejected,
                     "save_failures_since_start":self.save_failures,"by_kind":counts,
+                    "entry_utilization_pct":round(100*len(self.records)/max(1,self.max_entries),2),
+                    "byte_utilization_pct":round(100*self.file_bytes/MAX_CACHE_BYTES,2),
+                    "capacity_warning":len(self.records)>=0.8*self.max_entries or self.file_bytes>=0.8*MAX_CACHE_BYTES,
+                    "write_count":self.write_count,"write_last_ms":self.write_last_ms,
+                    "write_max_ms":self.write_max_ms,"unchanged_writes_skipped":self.unchanged_writes_skipped,
                     "status":self.status,"restored_cache_live_proof":False}
     def get(self,kind,*parts):
         with self.lock:
@@ -147,14 +154,34 @@ class SnapshotStore:
         with self.lock:
             previous=self.records.get(key,{}).get("payload")
             if kind=="market" and previous and self.valid(kind,previous):
-                old_time=previous.get("quote_timestamp") or previous["bars"][-1][0]
-                new_time=safe.get("quote_timestamp") or safe["bars"][-1][0]
-                if new_time<old_time:return False
+                # Exchange trade and completed candle clocks are independent.
+                if previous["bars"][-1][0]>safe["bars"][-1][0]:
+                    safe["bars"]=previous["bars"]
+                    for field in ("candle_fetched_at","candle_transport_integrity",
+                                  "candle_raw_provider_provenance","candle_transport_digest_scope"):
+                        safe.pop(field,None)
+                        if field in previous:safe[field]=previous[field]
+                old_ts=previous.get("quote_timestamp")
+                new_ts=safe.get("quote_timestamp")
+                old_valid=type(old_ts) in (int,float) and math.isfinite(old_ts) and old_ts>0
+                new_valid=type(new_ts) in (int,float) and math.isfinite(new_ts) and new_ts>0
+                if old_valid and (not new_valid or new_ts<old_ts):
+                    # An older quote cannot replace a last-good quote even if
+                    # a newer candle arrived in the same response.
+                    if safe["bars"]==previous["bars"]:return False
+                    for field in ("price","quote_timestamp","change","fetched_at"):
+                        safe.pop(field,None)
+                        if field in previous:safe[field]=previous[field]
+                    safe.update(live_verified=False,freshness="unverified")
             if kind=="analysis_last_good" and previous and self.valid(kind,previous) and safe["timestamp"]<previous["timestamp"]:
                 self.rejected+=1;return False
+            if previous==safe:
+                self.unchanged_writes_skipped+=1
+                return True
             records=dict(self.records);records[key]={"saved_at":time.time(),"payload":safe}
             records=dict(sorted(records.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
             temp=self.path.with_name(self.path.name+".tmp")
+            started=time.perf_counter()
             try:
                 raw=json.dumps({"version":1,"records":records},ensure_ascii=False,allow_nan=False)
                 size=len(raw.encode("utf-8"))
@@ -164,6 +191,9 @@ class SnapshotStore:
                     f.write(raw);f.flush();os.fsync(f.fileno())
                 os.replace(temp,self.path)
                 self.evicted+=len(set(self.records)-set(records));self.records=records;self.file_bytes=size
+                self.write_count+=1
+                self.write_last_ms=round((time.perf_counter()-started)*1000,3)
+                self.write_max_ms=max(self.write_max_ms,self.write_last_ms)
                 self.status="Last successful market data saved"
                 return True
             except (OSError,ValueError):
