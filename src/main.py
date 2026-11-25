@@ -8693,17 +8693,29 @@ console.log('BOT KING Lightweight Charts ready');
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
     index_one_minute_busy=[False]
+    def watch_candle_recent(history):
+        # A recently downloaded old candle is not fresh market data.
+        bars=history.get("bars") or []
+        if not bars:return False
+        stamp=bars[-1][0]
+        return type(stamp) in (int,float) and 0<=time.time()-(stamp+180)<=360
+
     def watch_refresh_priority(symbols,generation):
         # Never let the first stale symbols monopolize the rolling budget.
         # Unattempted symbols first; otherwise least recently attempted.
         # Stable sort preserves the saved list order for equal priorities.
-        return sorted(symbols,key=lambda sym:
-            watch_three_minute_warm_attempts.get((generation,sym),-1.0))
+        def priority(sym):
+            attempt=watch_three_minute_warm_attempts.get((generation,sym),-1.0)
+            history=shared_history(sym,"3m")
+            bars=history.get("bars") or []
+            stamp=bars[-1][0] if bars else 0
+            return (attempt,stamp)
+        return sorted(symbols,key=priority)
 
     async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False,closed_retry_baseline=None):
         # A closed-session 1m history read is allowed only through the explicit
         # Watchlist manual callback, never through either automatic scheduler.
-        if ((current[0]!=4 and not explicit_closed) or not app_active[0] or lifecycle_background[0]
+        if (not app_active[0] or lifecycle_background[0]
                 or prefs.get("source")!="Dhan"
                 or not (dhan_feed.connected or
                         (explicit_closed and clone_v2_gateway.connected and not refresh_hours()))
@@ -8724,13 +8736,15 @@ console.log('BOT KING Lightweight Charts ready');
                   and (not search.value or search.value.upper() in sym)]
         scope=(active_watch[0],(search.value or "").upper())
         if not explicit_closed:
-            selected=watch_refresh_priority(selected,generation)
+            selected=watch_refresh_priority([sym for sym in all_watch_symbols()
+                if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")],generation)
         for sym in selected:
             prior_three=shared_history(sym,"3m")
             fetched=prior_three.get("candle_fetched_at")
             if (valid_candle_history(prior_three.get("bars"))
                     and type(fetched) in (int,float)
-                    and 0<=time.time()-fetched<180):
+                    and 0<=time.time()-fetched<180
+                    and (explicit_closed or watch_candle_recent(prior_three))):
                 continue
             key=(generation,sym)
             if explicit_closed:
@@ -8763,7 +8777,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if not cache_ready:
                     # Existing 5m scan uses the same 1.5s provider gap.
                     await asyncio.sleep(1.5)
-                if (generation!=provider_generation[0] or (current[0]!=4 and not explicit_closed)
+                if (generation!=provider_generation[0]
                         or (explicit_closed and scope!=(active_watch[0],(search.value or "").upper()))
                         or not app_active[0] or lifecycle_background[0]
                         or (not refresh_hours() and not explicit_closed)
@@ -9589,7 +9603,7 @@ console.log('BOT KING Lightweight Charts ready');
         while True:
             await asyncio.sleep(5)
             try:
-                if (current[0]!=4 or not app_active[0] or lifecycle_background[0]
+                if (not app_active[0] or lifecycle_background[0]
                         or prefs.get("source")!="Dhan" or not dhan_feed.connected
                         or not refresh_hours() or dhan_history_scan_active[0]
                         or index_one_minute_busy[0] or watch_three_minute_warm_busy[0]
@@ -9602,18 +9616,18 @@ console.log('BOT KING Lightweight Charts ready');
                     t for t in watch_three_minute_upstream_times if now-t<180]
                 # Hard budget: at most 12 *uncached* upstream 1m histories in any
                 # 180s window, spaced >=10s. Cache hits use no extra Dhan call.
-                selected=[sym for sym in watch_groups[active_watch[0]]
+                selected=[sym for sym in all_watch_symbols()
                           if sym in DHAN_VERIFIED_SYMBOLS
-                          and (not search.value or search.value.upper() in sym)]
+                          and sym not in ("NIFTY","BANKNIFTY","SENSEX")]
                 selected=watch_refresh_priority(selected,generation)
                 for sym in selected:
-                    if generation!=provider_generation[0] or current[0]!=4:
+                    if generation!=provider_generation[0]:
                         break
                     prior_three=shared_history(sym,"3m")
                     fetched=prior_three.get("candle_fetched_at")
                     if (valid_candle_history(prior_three.get("bars"))
                             and type(fetched) in (int,float) and
-                            0<=time.time()-fetched<180):
+                            0<=time.time()-fetched<180 and watch_candle_recent(prior_three)):
                         continue
                     key=(generation,sym)
                     if (key in watch_three_minute_warm_attempts
@@ -9633,7 +9647,7 @@ console.log('BOT KING Lightweight Charts ready');
                     try:
                         if not cache_ready:
                             await asyncio.sleep(1.5)
-                        if (generation!=provider_generation[0] or current[0]!=4
+                        if (generation!=provider_generation[0]
                                 or not app_active[0] or lifecycle_background[0]
                                 or not refresh_hours() or dhan_history_scan_active[0]
                                 or index_one_minute_busy[0]

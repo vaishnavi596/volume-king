@@ -82,6 +82,9 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 sleep=fast_sleep,to_thread=fake_to_thread,
                 wait_for=asyncio.wait_for,CancelledError=asyncio.CancelledError)
         }
+        scope["all_watch_symbols"]=lambda:list(dict.fromkeys(sym for group in scope["watch_groups"] for sym in group))
+        recent=next(n for n in ast.walk(TREE) if isinstance(n,ast.FunctionDef) and n.name=="watch_candle_recent")
+        exec(compile(textwrap.dedent(ast.get_source_segment(SOURCE,recent)),str(ROOT/"src"/"main.py"),"exec"),scope)
         priority=next(n for n in ast.walk(TREE)
                       if isinstance(n,ast.FunctionDef) and n.name=="watch_refresh_priority")
         exec(compile(textwrap.dedent(ast.get_source_segment(SOURCE,priority)),
@@ -190,7 +193,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertNotIn(("spacing",1.5),calls)
 
     def test_closed_disconnected_cooldown_background_or_wrong_generation_never_fetch(self):
-        for reason in ("closed","disconnected","cooldown","background","generation","index_busy","not_watchlist"):
+        for reason in ("closed","disconnected","cooldown","background","generation","index_busy"):
             with self.subTest(reason=reason):
                 s,calls,_,window,_,_,_=self.fixture()
                 if reason=="closed":window["open"]=False
@@ -199,10 +202,18 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 elif reason=="background":s["lifecycle_background"][0]=True
                 elif reason=="generation":s["provider_generation"][0]=1
                 elif reason=="index_busy":s["index_one_minute_busy"][0]=True
-                elif reason=="not_watchlist":s["current"][0]=0
                 self.assertFalse(self.invoke(s))
                 self.assertFalse(self.requests(calls))
                 self.assertFalse(s["watch_three_minute_warm_busy"][0])
+
+    def test_foreground_other_tab_and_old_candle_not_skipped(self):
+        s,calls,_,_,rows,prior,_=self.fixture()
+        s["current"][0]=2
+        s["watch_groups"][0]=[]
+        s["watch_groups"][1]=["TCS"]
+        prior[("TCS","3m")]={"bars":rows,"source":"Dhan","candle_fetched_at":time.time()}
+        self.assertTrue(self.invoke(s))
+        self.assertEqual(self.requests(calls)[0][1],("TCS","1m","2d"))
 
     def test_after_hours_history_requires_explicit_manual_flag_and_is_historical(self):
         s,calls,errors,window,rows,prior,now=self.fixture()

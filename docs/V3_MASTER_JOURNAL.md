@@ -2382,3 +2382,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B213 रिलीज परिणाम
 - Exact source 91eeef338f9bb5d07dad8c47d1943e233982f6b4: B3 45552544192 और B213 APK 45552544615 completed/success. Build job के source safety, full offline suite, exact-head B3 gate, Android build, explicit signing, package/signature verification और artifact upload सभी PASS. Artifact 14993934605 (65907718 bytes, not expired): https://github.com/vaishnavi596/volume-king/actions/runs/45552544615/artifacts/14993934605 . B213 2.3.213 स्वतंत्र preview; B212 सुरक्षित रखें। वास्तविक फोन Smart Active Doctor और लगातार automatic refresh test अभी pending. कोई server change या real orders नहीं।
+
+
+### 25 नवंबर 2026 — B213 फोन परिणाम और P2-C foreground continuity
+- B213 Active Doctor capture 2.78ms, 6 healthy hidden/4 active, 51/51 cached completed 3m timestamps, 36 older than360s, oldest 607.7s, 7 attempted/44 unattempted, quote attempt41.7s/success40.7s, 5m loading40/54 zero failed, recent budget0. Full Master recent errors2 (details unknown), 54/54 1m, 51/51 3m, scanner13 calculated vs Master trace0; LIVE0/5. Manual quote 51+3 not auto proof.
+- Both automatic Watchlist lanes now foreground across tabs, selected unique all lists only, no search gating; explicit closed manual remains original scope. Fresh fetch timestamp alone cannot skip stale completed 3m bars; least-recent attempt remains primary, oldest candle breaks ties. Existing 12/180s,10s,180s retry and cooldown unchanged. Added fixture coverage for other tab/other list/old candle. CI pending; actual speed, skip reason and per-symbol success telemetry remain pending. No server changes/orders/APK.
