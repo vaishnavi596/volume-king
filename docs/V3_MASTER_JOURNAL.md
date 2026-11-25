@@ -2414,3 +2414,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — P2-D3 PASS और P2-D4 Scanner/Master trace parity
 - Exact 1bc566c B1 45559233343, B2 45559233507, Adapter 45559233293, B3 45559233297 all PASS. Root cause: Master passed raw filter rows lacking explicit status into audit_vote_trace (default WAIT), while Scanner supplied normalized status; also Master preferred shared_history rather than exact chart snapshot and did not filter completed bars identically. Master now prefers exact frame/generation, applies matching completed candle preflight and authoritative readiness matrix, maps normalized trace rows, counts calculated/context rows consistently and reports completed analysis bar count/stage. Added normalization parity test; no fabricated votes or LIVE permission. Separate capture times can still differ; phone parity and CI pending. No server/APK/orders change.
+
+
+### 25 नवंबर 2026 — P2-D4 regression contract repair
+- Exact ca93053 B1 45560000756, B2 45560000759, Adapter 45560000745 PASS; B3 45560000797/job 139021158179 FAIL: 1921 tests, 1 failure, old structural assertion expected analyze(scanner_hist_bars) instead of completed subset. Updated test to require historical window, completed timestamp, readiness gate, valid history, normalized trace wiring; production code unchanged. New exact-head B3 pending. No APK/server/orders change.

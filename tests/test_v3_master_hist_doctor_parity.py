@@ -10,7 +10,13 @@ class MasterDoctorHistoricalParityTests(unittest.TestCase):
     def test_master_scanner_uses_shared_hist_window(self):
         self.assertIn("scanner_hist_bars=(historical_regular_session_bars(scanner_bars,scanner_tf)",SRC)
         self.assertIn('scanner_data.get("_scanner_timeframe")==scanner_tf',SRC)
-        self.assertIn("scanner_hist_result=(analyze(scanner_hist_bars,",SRC)
+        self.assertIn("scanner_completed=[bar for bar in scanner_hist_bars",SRC)
+        self.assertIn("bar[0]+scanner_seconds<=now",SRC)
+        self.assertIn("scanner_hist_result=(analyze(scanner_completed,",SRC)
+        self.assertIn('scanner_stage=="READY_FOR_QUALITY_AND_CALCULATION"',SRC)
+        self.assertIn("and valid_candle_history(scanner_completed)",SRC)
+        self.assertIn("scanner_trace_rows=normalized_vote_trace_rows(scanner_matrix)",SRC)
+        self.assertIn("filter_rows=scanner_trace_rows,box_rows=engine_rows",SRC)
         self.assertIn("scanner_rows=complete_filter_rows(\n                    scanner_hist_result,",SRC)
         # Neither master nor B178 changes the original raw provider series.
         self.assertIn('diagnostic_bars=(historical_regular_session_bars(bars,tf)',SRC)
