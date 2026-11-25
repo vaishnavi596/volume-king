@@ -3,6 +3,7 @@ import copy
 import json
 import math
 import os
+import sqlite3
 from pathlib import Path
 from threading import RLock
 import time
@@ -22,13 +23,19 @@ MAX_CACHE_BYTES=64*1024*1024
 MAX_CACHE_BARS=1200
 
 class SnapshotStore:
-    def __init__(self,path,max_entries=1200):
+    def __init__(self,path,max_entries=1200,*,incremental=False):
         self.path=Path(path);self.max_entries=max_entries;self.lock=RLock();self.records={}
         self.status="No saved market snapshots"
         self.evicted=0;self.rejected=0;self.restored=0;self.save_failures=0
         self.file_bytes=0
         self.write_count=0;self.write_last_ms=0.0;self.write_max_ms=0.0
         self.unchanged_writes_skipped=0
+        self.incremental=bool(incremental)
+        self.db_path=self.path.with_name(self.path.name+".sqlite3")
+        self._record_sizes={}
+        if self.incremental:
+            self._restore_incremental()
+            return
         try:
             if self.path.exists():
                 if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
@@ -41,6 +48,83 @@ class SnapshotStore:
                 self.restored=len(self.records);self.file_bytes=self.path.stat().st_size
                 self.status="Saved market snapshots restored"
         except (OSError,ValueError,TypeError):self.records={};self.status="Saved cache unreadable; fresh data can restore it"
+    def _connect_incremental(self):
+        self.db_path.parent.mkdir(parents=True,exist_ok=True)
+        db=sqlite3.connect(str(self.db_path),timeout=5)
+        try:
+            db.execute("CREATE TABLE IF NOT EXISTS snapshots (key TEXT PRIMARY KEY, record TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            db.commit()
+            return db
+        except Exception:
+            db.close()
+            raise
+    @staticmethod
+    def _encode_record(record):
+        return json.dumps(record,ensure_ascii=False,allow_nan=False,separators=(",",":"))
+    def _restore_incremental(self):
+        db=None
+        try:
+            db=self._connect_incremental()
+            initialized=db.execute("SELECT value FROM metadata WHERE key='initialized'").fetchone()
+            if not initialized:
+                # Preserve the original JSON file as rollback material.
+                legacy=SnapshotStore(self.path,self.max_entries)
+                if self.path.exists() and legacy.status!="Saved market snapshots restored":
+                    raise ValueError("Legacy cache unreadable")
+                with db:
+                    db.executemany("INSERT OR REPLACE INTO snapshots VALUES (?,?)",
+                        [(k,self._encode_record(v)) for k,v in legacy.records.items()])
+                    db.execute("INSERT INTO metadata VALUES ('initialized','1')")
+            rows={}
+            for key,raw in db.execute("SELECT key,record FROM snapshots"):
+                record=public_copy(json.loads(raw))
+                parts=json.loads(key)
+                if (isinstance(parts,list) and parts and isinstance(record,dict)
+                        and type(record.get("saved_at")) in (int,float)
+                        and math.isfinite(record["saved_at"])
+                        and self.valid(parts[0],record.get("payload"))
+                        and self.identity_valid(parts[0],parts[1:],record["payload"])):
+                    rows[key]=record
+            self.records=dict(sorted(rows.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
+            self._record_sizes={k:len(k.encode("utf-8"))+len(self._encode_record(v).encode("utf-8")) for k,v in self.records.items()}
+            self.file_bytes=sum(self._record_sizes.values())
+            self.restored=len(self.records)
+            self.status="Incremental market snapshots restored"
+        except (OSError,ValueError,TypeError,sqlite3.Error):
+            self.records={};self._record_sizes={}
+            self.status="Incremental cache unreadable; original JSON preserved"
+            self.save_failures+=1
+        finally:
+            if db is not None:db.close()
+    def _save_incremental(self,key,record,records):
+        started=time.perf_counter()
+        db=None
+        try:
+            raw=self._encode_record(record)
+            sizes={k:v for k,v in self._record_sizes.items() if k in records}
+            sizes[key]=len(key.encode("utf-8"))+len(raw.encode("utf-8"))
+            size=sum(sizes.values())
+            if size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
+            db=self._connect_incremental()
+            if not db.execute("SELECT value FROM metadata WHERE key='initialized'").fetchone():
+                raise ValueError("Incremental migration incomplete")
+            with db:
+                db.execute("INSERT OR REPLACE INTO snapshots VALUES (?,?)",(key,raw))
+                db.executemany("DELETE FROM snapshots WHERE key=?",[(k,) for k in self.records if k not in records])
+            self.evicted+=len(set(self.records)-set(records))
+            self.records=records;self._record_sizes=sizes;self.file_bytes=size
+            self.write_count+=1
+            self.write_last_ms=round((time.perf_counter()-started)*1000,3)
+            self.write_max_ms=max(self.write_max_ms,self.write_last_ms)
+            self.status="Last successful market data saved"
+            return True
+        except (OSError,ValueError,sqlite3.Error):
+            self.save_failures+=1
+            self.status="Incremental cache save failed; current data remains on screen"
+            return False
+        finally:
+            if db is not None:db.close()
     @staticmethod
     def key(kind,*parts):return json.dumps([kind]+list(parts),ensure_ascii=False,separators=(",",":"))
     @staticmethod
@@ -132,6 +216,8 @@ class SnapshotStore:
                     "capacity_warning":len(self.records)>=0.8*self.max_entries or self.file_bytes>=0.8*MAX_CACHE_BYTES,
                     "write_count":self.write_count,"write_last_ms":self.write_last_ms,
                     "write_max_ms":self.write_max_ms,"unchanged_writes_skipped":self.unchanged_writes_skipped,
+                    "storage_backend":"sqlite_incremental" if self.incremental else "json_atomic",
+                    "byte_metric":"logical_record_bytes" if self.incremental else "file_bytes",
                     "status":self.status,"restored_cache_live_proof":False}
     def get(self,kind,*parts):
         with self.lock:
@@ -179,7 +265,10 @@ class SnapshotStore:
                 self.unchanged_writes_skipped+=1
                 return True
             records=dict(self.records);records[key]={"saved_at":time.time(),"payload":safe}
-            records=dict(sorted(records.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
+            if len(records)>self.max_entries:
+                records=dict(sorted(records.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
+            if self.incremental:
+                return self._save_incremental(key,records[key],records)
             temp=self.path.with_name(self.path.name+".tmp")
             started=time.perf_counter()
             try:
