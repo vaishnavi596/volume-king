@@ -47,3 +47,22 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
         self.assertNotIn("get_market_data(",worker)
         poll=s.split("async def dhan_index_candle_poll():",1)[1].split("async def watch_three_minute_warmup():",1)[0]
         self.assertLess(poll.index("await prewarm_index_historical_indicator"),poll.index('chart_snapshots[(index_sym,"1m",generation)]=index_history'))
+
+    def test_equity_worker_is_wired_and_bounded(self):
+        from pathlib import Path
+        s=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        body=s.split("async def prewarm_equity_historical_indicator(",1)[1].split("def historical_vote_agreement(",1)[0]
+        self.assertIn('tf not in ("3m","5m")',body)
+        self.assertIn("await local_analysis_pool.run(compute)",body)
+        self.assertIn("generation!=provider_generation[0]",body)
+        self.assertIn("len(historical_equity_worker_inflight)>=local_analysis_pool.workers",body)
+        self.assertNotIn("get_market_data(",body)
+        self.assertIn('await prewarm_equity_historical_indicator(sym,shared_history(sym,"3m"),"3m",identity[0])',s)
+        self.assertIn('await prewarm_equity_historical_indicator(sym,snapshot,"5m",generation)',s)
+
+    def test_equity_worker_error_code(self):
+        r=active_report(generation=1,symbols=[],quote_present=[],index_present=[],
+            connected={},signal_present=[],attempts={},now_monotonic=1,market_open=False,
+            errors=[],progress={},performance={},quote_attempt_age=None,
+            historical_equity_worker_observation={"generation":1,"last_error":"ValueError"})
+        self.assertEqual(next(x for x in r["active"] if x["check"]=="HISTORICAL_EQUITY_WORKER")["code"],"BK-HIST-WORKER-003")

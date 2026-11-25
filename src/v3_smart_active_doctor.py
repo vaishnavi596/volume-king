@@ -3,7 +3,7 @@ import math
 def active_report(*, generation, symbols, quote_present, index_present, connected,
                   signal_present, attempts, now_monotonic, market_open,
                   errors, progress, performance, quote_attempt_age,
-                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None):
+                  candle_stamps=None, now_epoch=None, quote_success_age=None, outcomes=None, recent_errors=None, skip_events=None, engine_observation=None, historical_indicator_observation=None, historical_prewarm_observation=None, historical_equity_worker_observation=None):
     """Compact cache-only observation; never certify unmeasured functionality."""
     issues = []
     hidden = []
@@ -102,6 +102,17 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                 "scope":"index 1m local prewarm only; synchronous fallback remains"})
         else:
             hidden.append("HISTORICAL_INDEX_WORKER")
+    if historical_equity_worker_observation is not None:
+        worker=historical_equity_worker_observation
+        matching=worker.get("generation")==generation
+        if not matching or not worker.get("successes") or worker.get("last_error"):
+            issues.append({"check":"HISTORICAL_EQUITY_WORKER","status":"ERROR" if matching and worker.get("last_error") else "UNVERIFIED",
+                "code":"BK-HIST-WORKER-003" if matching and worker.get("last_error") else "BK-HIST-WORKER-004",
+                "module":"main.py","function":"prewarm_equity_historical_indicator",
+                "evidence":dict(worker) if matching else {},
+                "scope":"3m/5m local cache prewarm; synchronous fallback remains"})
+        else:
+            hidden.append("HISTORICAL_EQUITY_WORKER")
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})

@@ -1422,6 +1422,89 @@ def app_main(page:ft.Page):
             if historical_prewarm_profile.get("generation")==generation:
                 historical_prewarm_profile["last_ms"]=round((time.perf_counter()-started)*1000,2)
 
+    historical_equity_worker_profile={}
+    historical_equity_worker_inflight=set()
+    historical_equity_worker_revision={}
+    async def prewarm_equity_historical_indicator(sym,data,tf,generation):
+        if (tf not in ("3m","5m") or generation!=provider_generation[0]
+                or prefs.get("source")!="Dhan" or data.get("source")!="Dhan"
+                or data.get("_scanner_timeframe","5m")!=tf
+                or not app_active[0] or lifecycle_background[0]):
+            return False
+        selected=tuple(name for name in filter_selected
+                       if filter_modes.get(name,"Analysis")!="Chart")
+        raw=data.get("bars") or []
+        if not isinstance(raw,(list,tuple)) or not raw:
+            return False
+        seconds=timeframe_spec(tf)["seconds"]
+        now=time.time()
+        # Freeze OHLCV and completion state; no reference to mutable feed rows.
+        frozen=tuple(tuple(bar) for bar in raw if isinstance(bar,(tuple,list)) and len(bar)>=6)
+        if not frozen:
+            return False
+        revision=(generation,tf,selected,frozen,
+                  tuple(type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                        and bar[0]+seconds<=now for bar in frozen))
+        slot=(sym,tf)
+        prior=historical_equity_worker_revision.get(slot)
+        if prior and prior[0]==revision and prior[1] in historical_indicator_cache:
+            return True
+        key=(slot,revision)
+        if key in historical_equity_worker_inflight or len(historical_equity_worker_inflight)>=local_analysis_pool.workers:
+            return False
+        historical_equity_worker_inflight.add(key)
+        if historical_equity_worker_profile.get("generation")!=generation:
+            historical_equity_worker_profile.clear()
+            historical_equity_worker_profile.update(generation=generation,attempts=0,
+                successes=0,failures=0,discarded=0,last_ms=None,last_error=None)
+        historical_equity_worker_profile["attempts"]+=1
+        started=time.perf_counter()
+        def compute():
+            regular=historical_regular_session_bars([list(bar) for bar in frozen],tf)
+            completed=[bar for bar in regular if type(bar[0]) in (int,float)
+                       and math.isfinite(bar[0]) and bar[0]+seconds<=now]
+            if not completed:
+                return None
+            quality=quality_check(completed,seconds,now=completed[-1][0]+seconds)
+            if not quality.get("usable"):
+                return None
+            identity=(generation,tf,selected,tuple(tuple(bar[:6]) for bar in quality["bars"]))
+            return identity,analyze(quality["bars"],list(selected),tf)
+        try:
+            computed=await local_analysis_pool.run(compute)
+            if generation!=provider_generation[0]:
+                return False
+            if (not app_active[0] or lifecycle_background[0] or prefs.get("source")!="Dhan"
+                    or selected!=tuple(name for name in filter_selected
+                         if filter_modes.get(name,"Analysis")!="Chart") or computed is None):
+                historical_equity_worker_profile["discarded"]+=1
+                return False
+            identity,result=computed
+            # Immutable exact key can be reused only by matching completed history.
+            if identity not in historical_indicator_cache:
+                if len(historical_indicator_cache)>=220:
+                    historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
+                historical_indicator_cache[identity]=result
+            if len(historical_equity_worker_revision)>=150 and slot not in historical_equity_worker_revision:
+                historical_equity_worker_revision.pop(next(iter(historical_equity_worker_revision)))
+            historical_equity_worker_revision[slot]=(revision,identity)
+            historical_equity_worker_profile["successes"]+=1
+            historical_equity_worker_profile["last_error"]=None
+            historical_equity_worker_profile["timeframe"]=tf
+            return True
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if generation==provider_generation[0]:
+                historical_equity_worker_profile["failures"]+=1
+                historical_equity_worker_profile["last_error"]=type(exc).__name__
+                log_error("historical_equity_prewarm",exc)
+            return False
+        finally:
+            historical_equity_worker_inflight.discard(key)
+            if historical_equity_worker_profile.get("generation")==generation:
+                historical_equity_worker_profile["last_ms"]=round((time.perf_counter()-started)*1000,2)
+
     def historical_vote_agreement(data,tf="5m"):
         """Completed exact-timeframe Dhan votes; historical never equals live."""
         if tf not in ("1m","3m","5m") or data.get("_scanner_timeframe","5m")!=tf:
@@ -6500,6 +6583,7 @@ def app_main(page:ft.Page):
                     "historical_vote_replay":master_historical_replay,
                     "dashboard_bar_errors_only":dashboard_bar_errors,
                     "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
+                    "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
@@ -6553,6 +6637,7 @@ def app_main(page:ft.Page):
                     engine_observation=ml5_observation,
                     historical_indicator_observation=dict(historical_indicator_profile),
                     historical_prewarm_observation=dict(historical_prewarm_profile),
+                    historical_equity_worker_observation=dict(historical_equity_worker_profile),
                     generation=generation,symbols=selected_equities,
                     quote_present=[sym for sym in selected_equities if cached_price(sym)],
                     index_present=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if cached_price(sym)],
@@ -7594,6 +7679,7 @@ console.log('BOT KING Lightweight Charts ready');
                         historical=True,live_verified=False,freshness="unverified")
             watch_three_minute_cache[sym]=(identity,result)
             publish_five_engine_historical(sym,"3m",result)
+            await prewarm_equity_historical_indicator(sym,shared_history(sym,"3m"),"3m",identity[0])
         except Exception as exc:
             log_error("watch_three_minute_worker",exc)
         finally:
@@ -9810,6 +9896,8 @@ console.log('BOT KING Lightweight Charts ready');
                             result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
                             if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):return sym,None
                             record_analysis(sym,"5m",result=result,candle_count=len(snapshot["bars"]))
+                            await prewarm_equity_historical_indicator(sym,snapshot,"5m",generation)
+                            if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):return sym,None
                         except Exception as exc:
                             log_error("super_five",exc)
                             if generation==provider_generation[0] and sym not in failed_symbols:

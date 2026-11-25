@@ -2715,3 +2715,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — Platinum fixed runtime acceptance registry
 - Exact dee0bdd B1 45634574615, B2 45634574501, Adapter 45634574505, B3 45634574700 job 139276473538 raw log 1971/1971 in 185.922s OK.
 - Actual runtime registry: fixed 32 unique IDs, 128 checkpoints, per-batch counts, full Master rows and compact Active summary. Four scoped prior software evidence entries; no full checkpoint falsely closed. Initial ledger 0/128 mapped full-checkpoint evidence, 128 unreconciled; not a claim of zero implemented work. Previous 54% provisional estimate is not certified. Further reconciliation, per-feature runtime probes and remaining HIST worker migration OPEN. Tests added, local execution NOT EXECUTED, exact CI pending. No APK/server/orders changes.
+
+
+### 25 नवंबर 2026 — Platinum 3m/5m historical cache worker extension
+- Exact 97495ee B1 45637269256, B2 45637269636, Adapter 45637270110, B3 45637269548 job 139285995309 raw log 1973/1973 in 228.570s OK. Registry initial wiring offline PASS.
+- Existing Watchlist 3m and rank 5m owners now prewarm exact completed historical indicator cache via shared local pool, bounded inflight/revisions and exact immutable keys, generation/filter/lifecycle checks, no provider requests. Active/Master worker evidence and typed errors BK-HIST-WORKER-003/004; two structural/report tests. This adds a separate prewarm calculation, not proof of faster phone runtime or full synchronous removal; measure duplication/cost in follow-up. Local tests NOT EXECUTED, new exact CI pending. Prior 54% provisional estimate unchanged; 128 checkpoint reconciliation OPEN. No APK/server/orders changes.
