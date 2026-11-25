@@ -786,8 +786,10 @@ def app_main(page:ft.Page):
         seconds,bars_per_day,horizon=specs[interval]
         return {"seconds":seconds,"annual_bars":bars_per_day*252,
                 "fresh_seconds":max(120,seconds*2+30),"horizon":horizon}
-    def analyze_current(bars,selected=None,timeframe="5m"):
-        selected=[name for name in (filter_selected if selected is None else selected) if filter_modes.get(name,"Analysis")!="Chart"]
+    def analyze_current(bars,selected=None,timeframe="5m",*,frozen_confidence=None):
+        if frozen_confidence is None:
+            selected=[name for name in (filter_selected if selected is None else selected) if filter_modes.get(name,"Analysis")!="Chart"]
+            frozen_confidence=float(prefs.get("confidence",75))
         quality=quality_check(bars,timeframe_spec(timeframe)["seconds"])
         result=analyze(quality["bars"],selected,timeframe)
         result["quality"]={k:v for k,v in quality.items() if k!="bars"}
@@ -799,7 +801,7 @@ def app_main(page:ft.Page):
         if age<0 or age>fresh_seconds:
             reason="source timestamp is in the future" if age<0 else "last candle is too old for this timeframe; historical only"
             return dict(result,bias="WAIT",score=0,reason=result["reason"]+" • "+reason)
-        if result.get("score",0)<float(prefs.get("confidence",75)):
+        if result.get("score",0)<frozen_confidence:
             result=dict(result,bias="WAIT",score=0,reason=result["reason"]+" • below saved agreement threshold")
         return result
     def get_yahoo(ticker,interval="5m",range_="1d"):
@@ -8175,7 +8177,14 @@ console.log('BOT KING Lightweight Charts ready');
             up=sum(v==1 for _,v,_ in votes);down=sum(v==-1 for _,v,_ in votes)
             direction="BULLISH" if up>=2 and up>=2*down else "BEARISH" if down>=2 and down>=2*up else "SIDEWAYS / WAIT"
             stage="filter calculation"
-            advanced=analyze_current(bars,filter_selected,interval)
+            current_filter_selection=list(active_analysis_filters())
+            current_confidence=float(prefs.get("confidence",75))
+            current_provider_generation=provider_generation[0]
+            advanced=await local_analysis_pool.run(analyze_current,[tuple(row) for row in bars],current_filter_selection,interval,frozen_confidence=current_confidence)
+            if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
+                    or current_provider_generation!=provider_generation[0]
+                    or current_filter_selection!=list(active_analysis_filters())
+                    or current_confidence!=float(prefs.get("confidence",75))):return
             record_analysis(sym,interval,result=advanced,candle_count=len(bars))
             scan_last_candle[0]=advanced.get("timestamp")
             # Keep the actual completed-candle calculation distinct from live
@@ -8186,7 +8195,8 @@ console.log('BOT KING Lightweight Charts ready');
             historical=await local_analysis_pool.run(analyze,[tuple(row) for row in historical_bars],selected=historical_filter_selection,timeframe=interval)
             if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
                     or historical_provider_generation!=provider_generation[0]
-                    or historical_filter_selection!=list(active_analysis_filters())):return
+                    or historical_filter_selection!=list(active_analysis_filters())
+                    or current_confidence!=float(prefs.get("confidence",75))):return
             history_valid=(hist.get("source")=="Dhan" and
                            valid_candle_history(historical_bars) and
                            # HIST quality is relative to the last completed session bar.
