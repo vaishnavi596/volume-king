@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R1.2 B2.03:** #544 1995/1995 PASS; scoped ranking worker ownership patch; new exact CI pending. Physical acceptance OPEN.
+
 > **CURRENT — #543:** 1995 tests, 4 legacy assertion failures; fixture alignment only, next exact CI pending. R1.1 physical acceptance OPEN.
 
 > **CURRENT — R1.1 B1.04:** #542 1993/1993 PASS; shared startup/provider reset cached quote isolation and Doctor scope patch; new exact CI pending. Physical acceptance OPEN.

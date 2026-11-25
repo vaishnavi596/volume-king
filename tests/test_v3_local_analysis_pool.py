@@ -272,3 +272,37 @@ class LocalPoolTests(unittest.TestCase):
                     self.assertGreaterEqual(stats["thread_cpu_last_ms"],0)
         finally:
             pool.close()
+
+    def test_rank_worker_rechecks_owner_and_exact_input_before_publication(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        rank=next(n for n in ast.walk(ast.parse(source)) if isinstance(n,ast.AsyncFunctionDef) and n.name=="rank_one")
+        body=ast.get_source_segment(source,rank)
+        self.assertIn("captured=deepcopy(data)",body)
+        self.assertIn("sym in all_watch_symbols()",body)
+        self.assertIn("(shared_history(sym) or cycle_data.get(sym))==captured",body)
+        final=body.split("engine_snapshot=await local_analysis_pool.run(",1)[1]
+        for write in ('record_analysis(', 'ranking_results[sym]=result', 'watch_signal_cache[sym]', 'publish_five_engine_5m('):
+            self.assertLess(final.index("if not input_current():return sym,None"),final.index(write))
+        self.assertNotIn("ranking_results[sym]=result",body.split("engine_snapshot=await",1)[0])
+        owner=next(n for n in ast.walk(rank) if isinstance(n,ast.FunctionDef) and n.name=="owner_current")
+        guard=next(n for n in ast.walk(rank) if isinstance(n,ast.FunctionDef) and n.name=="input_current")
+        from types import SimpleNamespace
+        captured={"bars":[[1,2,3,4,5,6]]}
+        latest={"bars":[[1,2,3,4,5,6]]}
+        roster=["TCS"]
+        env=dict(generation=1,provider_generation=[1],app_active=[True],lifecycle_background=[False],prefs={"source":"Dhan"},dhan_feed=SimpleNamespace(connected=True),sym="TCS",all_watch_symbols=lambda:roster,captured=captured,shared_history=lambda sym:latest,cycle_data={})
+        exec(compile(ast.Module(body=[owner,guard],type_ignores=[]),"<rank guards>","exec"),env)
+        self.assertTrue(env["input_current"]())
+        latest["bars"][0][-1]=7
+        self.assertFalse(env["input_current"]())
+        latest["bars"][0][-1]=6
+        roster.clear()
+        self.assertFalse(env["input_current"]())
+        roster.append("TCS")
+        env["provider_generation"][0]=2
+        self.assertFalse(env["input_current"]())
+        env["provider_generation"][0]=1
+        env["dhan_feed"].connected=False
+        self.assertFalse(env["input_current"]())

@@ -9957,6 +9957,16 @@ console.log('BOT KING Lightweight Charts ready');
                 async def rank_one(sym):
                     async with semaphore:
                         data=None;result=None
+                        from copy import deepcopy
+                        captured=None
+                        def owner_current():
+                            return (generation==provider_generation[0] and app_active[0]
+                                    and not lifecycle_background[0] and prefs.get("source")=="Dhan"
+                                    and dhan_feed.connected and sym in all_watch_symbols())
+                        def input_current():
+                            return (owner_current() and captured is not None
+                                    and (shared_history(sym) or cycle_data.get(sym))==captured)
+                        if not owner_current():return sym,None
                         try:
                             data=cycle_data.get(sym)
                             if data is None:
@@ -9969,19 +9979,24 @@ console.log('BOT KING Lightweight Charts ready');
                                 # while the serialized full scan was still running.
                                 data=shared_history(sym) or data
                             frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))
+                            captured=deepcopy(data)
+                            data=deepcopy(captured)
                             snapshot=dict(data,bars=[tuple(row) for row in (data.get("bars") or [])])
+                            if not input_current():return sym,None
                             result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
                             if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):return sym,None
-                            record_analysis(sym,"5m",result=result,candle_count=len(snapshot["bars"]))
+                            if not input_current():return sym,None
                             await prewarm_equity_historical_indicator(sym,snapshot,"5m",generation)
                             if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):return sym,None
                         except Exception as exc:
+                            if not owner_current() or (captured is not None and not input_current()):return sym,None
                             log_error("super_five",exc)
                             if generation==provider_generation[0] and sym not in failed_symbols:
                                 failed_symbols[sym]=safe_error(exc)
-                        if generation!=provider_generation[0]:return sym,None
-                        ranking_results[sym]=result
-                        if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
+                            scan_progress["checked"]+=1
+                            scan_progress["failed"]+=1
+                            return sym,None
+                        if generation!=provider_generation[0] or not input_current():return sym,None
                         # Reuse the existing scanner result; no extra Dhan request.
                         # Both the analyzed result and its input must independently
                         # establish the same Dhan provenance; an LTP quote is not
@@ -10009,6 +10024,10 @@ console.log('BOT KING Lightweight Charts ready');
                         if (generation!=provider_generation[0] or
                                 engine_policy!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
                             return sym,None
+                        if not input_current():return sym,None
+                        record_analysis(sym,"5m",result=result,candle_count=len(snapshot["bars"]))
+                        ranking_results[sym]=result
+                        if result and result.get("timestamp"):watch_signal_cache[sym]=dict(result,symbol=sym)
                         publish_five_engine_5m(sym,engine_snapshot)
                         five_engine_timing.update(engine_timing,symbol=sym,timeframe="5m",generation=generation)
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
