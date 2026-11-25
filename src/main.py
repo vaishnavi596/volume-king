@@ -6244,18 +6244,20 @@ def app_main(page:ft.Page):
                 scanner_calc=sum(row["stage"]=="CALCULATED" for row in scanner_trace_rows)
                 non_directional=sum(row["status"]=="CONTEXT_ONLY" for row in scanner_trace_rows)
                 from five_engine import snapshot_for_display
-                # The shared publisher is 5m and symbol-only. Never count
-                # its evidence as Scanner 1m/3m (or closed-session) VERIFIED.
+                # Inspect the same exact-frame, current-generation publisher
+                # used by the display; raw evidence is diagnostic, not LIVE proof.
                 scanner_engine_frame_eligible=(scanner_tf in ("1m","3m","5m")
                     and prefs.get("source")=="Dhan" and dhan_feed.connected
                     and regular_hours())
                 snap=(read_five_engine_context(scanner_sym,scanner_tf)
                       if scanner_engine_frame_eligible else None)
+                raw_snapshot=(contextual_five_engine.peek(
+                    symbol=scanner_sym,timeframe=scanner_tf,generation=generation)
+                    if scanner_engine_frame_eligible else None)
                 engine_rows=[]
                 for name in ("technical","candle","news","futures","options"):
-                    raw=(next((row for row in (five_engine_snapshots.get(scanner_sym) or {}).get("engines",())
-                               if getattr(row,"name",None)==name),None)
-                         if scanner_tf=="5m" and scanner_engine_frame_eligible else None)
+                    raw=next((row for row in (raw_snapshot or {}).get("engines",())
+                              if getattr(row,"name",None)==name),None)
                     shown=(next((row for row in snap["engines"] if row.name==name),None)
                            if snap else None)
                     disp=shown.display() if shown else {}

@@ -714,7 +714,11 @@ class ContextualFiveEngineCache:
                 any(not isinstance(e, EngineEvidence) or e.name != name
                     for e, name in zip(snapshot["engines"], ENGINE_NAMES))):
             raise ValueError("Canonical five-engine snapshot required")
-        self._snapshots[key] = snapshot
+        # Detach caller-owned mutable engine lists and recompute the aggregate
+        # from the canonical evidence rather than trusting a supplied summary.
+        rows = tuple(snapshot["engines"])
+        self._snapshots[key] = {**snapshot, "engines": rows,
+                                "combined": combine_evidence(rows)}
 
     def peek(self, *, symbol, timeframe, generation):
         """Read cached evidence before LIVE/session gating; never certify it."""

@@ -983,3 +983,24 @@ class R2CombinedIdentityContract(unittest.TestCase):
         self.assertTrue(matched["engines"][0].eligible)
         self.assertEqual(matched["combined"]["coverage"],1)
         self.assertEqual(matched["combined"]["state"],"WAIT")
+
+
+class R2PublisherOwnershipTests(unittest.TestCase):
+    def test_mutable_caller_snapshot_cannot_change_cached_engine_evidence(self):
+        from five_engine import ContextualFiveEngineCache
+        cache=ContextualFiveEngineCache()
+        rows=list(compose_snapshot(technical=EngineEvidence(
+            "technical",80,20,verified=True,timestamp=1234567890,
+            source="Dhan"))["engines"])
+        snapshot={"engines":rows,"combined":{"state":"BEARISH","coverage":5}}
+        args=dict(symbol="NIFTY",timeframe="5m",generation=1)
+        cache.publish(**args,snapshot=snapshot)
+        rows[0]=EngineEvidence("technical")
+        snapshot["engines"]=[]
+        snapshot["combined"]["coverage"]=0
+        cached=cache.peek(**args)
+        self.assertEqual(cached["combined"]["coverage"],1)
+        self.assertEqual(cached["combined"]["state"],"WAIT")
+        self.assertTrue(cached["engines"][0].eligible)
+        self.assertEqual(cache.read(**args,now=1234567900,connected=True,
+                                    market_open=True)["combined"]["coverage"],1)
