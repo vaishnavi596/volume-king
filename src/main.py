@@ -8638,6 +8638,13 @@ console.log('BOT KING Lightweight Charts ready');
     watch_three_minute_warm_last_provider=[0.0]
     watch_three_minute_warm_busy=[False]
     index_one_minute_busy=[False]
+    def watch_refresh_priority(symbols,generation):
+        # Never let the first stale symbols monopolize the rolling budget.
+        # Unattempted symbols first; otherwise least recently attempted.
+        # Stable sort preserves the saved list order for equal priorities.
+        return sorted(symbols,key=lambda sym:
+            watch_three_minute_warm_attempts.get((generation,sym),-1.0))
+
     async def warm_selected_watch_three_minute_early(generation,*,explicit_closed=False,closed_retry_baseline=None):
         # A closed-session 1m history read is allowed only through the explicit
         # Watchlist manual callback, never through either automatic scheduler.
@@ -8661,6 +8668,8 @@ console.log('BOT KING Lightweight Charts ready');
                   and sym not in ("NIFTY","BANKNIFTY","SENSEX")
                   and (not search.value or search.value.upper() in sym)]
         scope=(active_watch[0],(search.value or "").upper())
+        if not explicit_closed:
+            selected=watch_refresh_priority(selected,generation)
         for sym in selected:
             prior_three=shared_history(sym,"3m")
             fetched=prior_three.get("candle_fetched_at")
@@ -9537,6 +9546,7 @@ console.log('BOT KING Lightweight Charts ready');
                 selected=[sym for sym in watch_groups[active_watch[0]]
                           if sym in DHAN_VERIFIED_SYMBOLS
                           and (not search.value or search.value.upper() in sym)]
+                selected=watch_refresh_priority(selected,generation)
                 for sym in selected:
                     if generation!=provider_generation[0] or current[0]!=4:
                         break

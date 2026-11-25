@@ -2342,3 +2342,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B212 संयुक्त फोन परीक्षण
 - fd1c6ac exact B1 45542375434, B2 45542375442, Adapter 45542375421, B3 45542375449 सभी PASS. B212 separate package v2.3.212/versionCode 212; source metadata remains 2.3.210. Existing isolated disposable signer and exact-head B3 gate retained. New workflow push triggers B3 and APK; final runtime validation pending. B211/V1/server unchanged. New app identity means previous app local cache/settings do not automatically transfer.
+
+
+### 25 नवंबर 2026 — P2 Watchlist निष्पक्ष निरंतर Refresh
+- B212 exact a8639e9: B3 45543131918 और APK 45543132031 PASS; फोन 51/51 3m, 51/51 equity + 3/3 index quotes (manual), 12/180s, 10s, zero recent errors. Local tick sample 161.92ms vs B211 607ms; not network speed proof. Automatic continuous quote freshness unverified.
+- दोनों live Watchlist warmup lanes में generation-scoped least-recently-attempted stable priority, unattempted first. Closed explicit queue unchanged; 12/180s, 10s, 180s retry, cooldown, cache/source guards unchanged. Behavioral fairness + wiring tests added. Existing 3m revision cache retained. This does not yet resolve 5m worker contention, full freshness telemetry or LIVE verification. CI pending; no server changes, orders or APK.
