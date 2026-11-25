@@ -2418,3 +2418,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — P2-D4 regression contract repair
 - Exact ca93053 B1 45560000756, B2 45560000759, Adapter 45560000745 PASS; B3 45560000797/job 139021158179 FAIL: 1921 tests, 1 failure, old structural assertion expected analyze(scanner_hist_bars) instead of completed subset. Updated test to require historical window, completed timestamp, readiness gate, valid history, normalized trace wiring; production code unchanged. New exact-head B3 pending. No APK/server/orders change.
+
+
+### 25 नवंबर 2026 — P2-D4 PASS और B214 संयुक्त फोन preview
+- Exact 61a147d B3 45560692177 completed/success. P2-C/D1–D4 combined phone preview B214 version 2.3.214/214, distinct package and disposable test certificate, B213/B212 unchanged. Reuse verified B213 workflow pattern; add independent B3 push trigger for B214 workflow and explicit current P2 source markers. New exact-head B3 and build full offline gates required before Android build/sign/upload. CI/build pending, phone validation pending. Existing source metadata 2.3.210 unchanged; no server changes/orders. Phone test: automatic Watchlist all selected tabs, ages and read outcomes, skip history, recent errors, Scanner/Master same-frame calculated parity, independent box and final vote evidence; no manual tap as automatic proof. Separate preview settings/cache do not transfer automatically.
