@@ -20,7 +20,7 @@ class TestSinglePhoneFeatureAudit(unittest.TestCase):
         self.assertIn('count=len(chosen)',MAIN)
         self.assertNotIn('ft.OutlinedButton("TEST 54',MAIN)
         self.assertNotIn('ft.OutlinedButton("TEST 70 SHARES',MAIN)
-        self.assertIn('asyncio.to_thread(benchmark_cached_capacity',MAIN)
+        self.assertIn('local_analysis_pool.run(benchmark_cached_capacity',MAIN)
         self.assertIn('stock_diagnostic_registry.reconcile(',MAIN)
     def test_one_pass_live_feature_inventory(self):
         for key in ('"dhan_connected"','"oracle_gateway_connected"',

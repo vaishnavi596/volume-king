@@ -52,7 +52,7 @@ class TestPhoneStartup(unittest.TestCase):
     def test_no_automatic_network_from_capacity_buttons(self):
         body=self.functions["v3_live_building_panel"]
         self.assertIn("benchmark_cached_capacity",body)
-        self.assertIn("asyncio.to_thread(benchmark_cached_capacity",body)
+        self.assertIn("local_analysis_pool.run(benchmark_cached_capacity",body)
         self.assertNotIn("dhan_feed.intraday(",body)
         self.assertNotIn("clone_v2_gateway.market_quotes(",body)
 

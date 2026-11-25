@@ -66,9 +66,9 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("tuple(completed[-4:])",capture)
         self.assertIn('bar[0]+180<=now',capture)
         tick=ast.get_source_segment(source,funcs["watch_visible_tick"])
-        self.assertIn("await asyncio.gather(*(prepare_watch_three_minute_signal(sym) for sym in visible))",tick)
-        self.assertIn("tick_generation!=provider_generation[0]",tick)
-        self.assertIn("visible!=tuple(watch_groups[active_watch[0]])",tick)
+        self.assertIn("visible[offset:offset+local_analysis_pool.workers]",tick)
+        self.assertIn("tick_generation==provider_generation[0]",tick)
+        self.assertIn("visible==tuple(watch_groups[active_watch[0]])",tick)
 
     def test_engine_adapter_timing_does_not_change_vote_or_invent_work(self):
         from five_engine import scanner_snapshot_with_candle

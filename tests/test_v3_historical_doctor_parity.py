@@ -9,7 +9,7 @@ class HistoricalDoctorParityTests(unittest.TestCase):
         self.assertIn("completed_bars=([bar for bar in diagnostic_bars",SRC)
         self.assertIn("if isinstance(diagnostic_bars,(list,tuple)) else [])",SRC)
         self.assertIn("diagnostic_hist_bars=(historical_regular_session_bars(",SRC)
-        self.assertIn("diagnostic_analysis=(diagnostic_analyze(diagnostic_hist_bars,",SRC)
+        self.assertIn("diagnostic_analysis=(await local_analysis_pool.run(diagnostic_analyze,",SRC)
         # Inspection must not publish a fake scanner/engine snapshot.
         doctor=next(n for n in ast.walk(TREE) if isinstance(n,ast.FunctionDef)
                     and n.name=="filter_five_diagnostic_panel")

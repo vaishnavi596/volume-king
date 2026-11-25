@@ -53,7 +53,7 @@ class ScannerBatchGuards(unittest.TestCase):
             self.assertIn(check,options)
     def test_auto_off_and_stale_refresh_guards(self):
         self.assertIn("if scan_live.value:\n        page.run_task(auto_scan_loop",SOURCE)
-        self.assertIn("if target is None or target!=current[0]:return",SOURCE)
+        self.assertIn("if target is None or target!=current[0] or not app_active[0] or lifecycle_background[0]:return",SOURCE)
 
 if __name__=="__main__":
     unittest.main()

@@ -36,7 +36,7 @@ class CloneB1StatusContract(unittest.TestCase):
 
     def test_watchlist_updates_in_place_and_no_fake_live(self):
         self.assertIn('async def watch_visible_tick()', self.source)
-        self.assertIn('if current[0]!=4 or not app_active[0]:', self.source)
+        self.assertIn('if current[0]!=4 or not app_active[0] or lifecycle_background[0]:', self.source)
         self.assertIn('"live_verified":False', self.source)
 
 
