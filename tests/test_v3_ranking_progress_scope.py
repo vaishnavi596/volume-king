@@ -9,7 +9,9 @@ class RankingProgressScopeTests(unittest.TestCase):
         self.assertIn('scan_progress={"checked":0,"total":51,"valid":0,"failed":0,"cached":0,"state":"Waiting","timeframe":"5m"}', main)
         self.assertIn('scan_progress.update(checked=0,total=len(ranking_symbols),valid=0,failed=0,cached=0,timeframe="5m"', main)
         self.assertIn('"No valid 5m ranking candles; 1m/3m may still be available; last saved results retained"', main)
-        self.assertGreaterEqual(main.count('("checked","total","valid","failed","cached","state","timeframe")'), 2)
+        import re
+        self.assertGreaterEqual(len(re.findall(r'\("checked","total","valid","failed","cached","state","timeframe"(?:,\s*"history_checked","history_total","history_valid","history_failed","history_cached")?\)',main)),2)
+        self.assertGreaterEqual(main.count('"history_checked","history_total","history_valid","history_failed","history_cached"'),2)
         self.assertNotIn('scan_progress["state"]="Complete" if scan_progress["valid"]', main)
 
 
