@@ -2517,3 +2517,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3-B regression repair
 - Exact cd72480: B1 45578915315, B2 45578915495, Adapter 45578915480 PASS; B3 #488 45578915281/job 139083698577 source validation PASS, 1939 tests, one failure: old synchronous historical analyze assertion. Repair test to require awaited local worker, copied candles, captured filter selection, post-await scanner/provider generation and symbol/frame/filter guards; retain historical quality and LIVE separation assertions. Production unchanged, new CI pending. No server/APK/orders changes.
+
+
+### 25 नवंबर 2026 — C3-B PASS / C3-C1 current Scanner worker
+- Exact 68b07b8 B3 #489 run 45579855827 completed/success verified through REST. C3-C1 source 618aed4 offloads current Scanner analysis using copied candles, captured active filters and confidence, with post-await symbol/frame/scanner/provider generation and settings guards. Existing synchronous callers retain default behavior. Historical calculation remains separately awaited, not simultaneous; no proof of multicore acceleration. Final regression tests require frozen settings and stale-result guards before publication; CI pending. Five-engine and Watchlist parallel wiring, runtime worker tuning and phone measurements remain pending. No server, provider pacing, APK or orders changes.
