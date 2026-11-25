@@ -2513,3 +2513,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3-A PASS / C3-B adaptive local analysis worker
 - Exact e089aa9 B3 #487 run 45577943707 completed/success confirmed by REST Actions query. New C3-B: process-wide local-only worker pool, startup sizing from available CPU affinity and OS free-memory estimate, conservative 1–8 workers (not measured phone optimum), queue/compute/failed/cancelled counters; 70-task and sizing unit fixtures. Main Scanner historical calculation offload with selection/generation recheck and Doctor diagnostics in final source commit. Current/live calculation and other engines unchanged; Python thread GIL limits CPU parallelism, actual throughput/thermal/memory and runtime resizing remain unverified. No provider rate or orders/server changes; new CI pending.
+
+
+### 25 नवंबर 2026 — C3-B regression repair
+- Exact cd72480: B1 45578915315, B2 45578915495, Adapter 45578915480 PASS; B3 #488 45578915281/job 139083698577 source validation PASS, 1939 tests, one failure: old synchronous historical analyze assertion. Repair test to require awaited local worker, copied candles, captured filter selection, post-await scanner/provider generation and symbol/frame/filter guards; retain historical quality and LIVE separation assertions. Production unchanged, new CI pending. No server/APK/orders changes.
