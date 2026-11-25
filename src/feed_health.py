@@ -111,5 +111,20 @@ def safe_error(exc):
             return "Dhan batch response missing or invalid"
     return "Data request failed ("+type(exc).__name__+")"
 
+def http_status_from_exception(exc):
+    """Return only a numeric HTTP 4xx/5xx status, never raw exception text.
+
+    safe_error() deliberately rewrites 502/503/504 into a user message that no
+    longer contains the number, so status must be read from the original error.
+    """
+    from urllib.error import HTTPError
+    import re
+    if isinstance(exc,HTTPError):
+        code=exc.code
+        return code if isinstance(code,int) and 400<=code<=599 else None
+    match=re.search(r"\bHTTP ([45][0-9]{2})\b",str(exc))
+    return int(match.group(1)) if match else None
+
+
 def retry_delay(failures):
     return min(300,30*2**min(max(int(failures)-1,0),4))

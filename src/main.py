@@ -22,7 +22,7 @@ from v3_stock_diagnostics import DiagnosticRegistry
 from help_content import describe
 from i18n import localize_tree,translate
 from snapshot_store import SnapshotStore,age_label
-from feed_health import FeedHealth,safe_error,retry_delay
+from feed_health import FeedHealth,safe_error,retry_delay,http_status_from_exception
 from error_doctor import diagnose
 from preference_store import PreferenceWriter,load_preferences
 from storage_paths import storage_paths
@@ -7166,12 +7166,11 @@ console.log('BOT KING Lightweight Charts ready');
             return historical_or_wait("3m analysis failed; last historical votes retained")
     def remember_candle_failure(sym,tf,stage,exc):
         detail=stage+" • "+type(exc).__name__+" • "+str(safe_error(exc))[:140]
-        import re
-        # Extract only explicit HTTP status from sanitized gateway errors.
-        match=re.search(r"\bHTTP ([45][0-9]{2})\b", str(safe_error(exc)))
+        # Numeric status only, read from the original error: safe_error() rewrites
+        # 502/503/504 into text without the number (Doctor showed UNKNOWN).
         scan_fetch_failure[(provider_generation[0],sym,tf)]={
             "at":time.time(),"stage":stage,"code":type(exc).__name__,"detail":detail,
-            "http_status":int(match.group(1)) if match else None}
+            "http_status":http_status_from_exception(exc)}
         record_analysis(sym,tf,stage=stage,error=detail)
         prior=watch_signal_cache.get(sym) if tf=="5m" else None
         if prior:
