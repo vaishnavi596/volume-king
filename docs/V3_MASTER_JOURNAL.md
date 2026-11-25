@@ -2595,3 +2595,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — Shared/Retry corrective gate
 - Exact 6299584 B1 45598827964, B2 45598827800, Adapter 45598827880 PASS; B3 45598827837 job 139151966211 source PASS, 1947 tests, one error in test_remaining_filter_batch: old synchronous calls to now async refresh_shared_analysis left TCS absent. Updated all four calls in this fixture, including awaited nested fake I/O callback; failure retention and recovery assertions unchanged. Local targeted execution NOT EXECUTED; exact new CI pending. No production/APK/server/orders changes; C3 remains OPEN.
+
+
+### 25 नवंबर 2026 — Shared/Retry exact gate PASS
+- Exact edbf32a9a1b56ee360382cc91036afeb85b46748 B3 run 45599882674 job 139155680164 completed SUCCESS; raw logs 1947 tests in 202.934s, OK. Earlier B1/B2/Adapter at production SHA 6299584 PASS. Shared/Retry worker offline gate verified; no fresh phone performance proof. C3 OPEN for independent adapter integration and runtime capacity; no APK/server/order changes. Next inspect actual N/F/O source and adapter wiring, without inventing evidence.
