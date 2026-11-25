@@ -35,3 +35,18 @@ P15 Final closure: feature only CLOSED when every applicable checkpoint passed a
 - Dashboard supervision: first mounted compact Repair Board, measured stage progress (not chance of success or project completion), actual session counters, scope, cooldown, escalation and selectable logs. UI updates only local section; no cooldown override. Manual repair action requires separate allowlisted validated scheduling, no duplicate worker.
 
 - ONE SYSTEM / ONE DOCTOR UI: merge existing health, active errors, history, recovery and full audits into the Platinum Settings panel; keep dashboard compact repair board. Preserve old probes, history, retry controls and tests before removing standalone panels. UI consolidation does not imply a single runtime error registry or deduplicated compute until separately verified.
+
+
+## SMART 4.0 — संयुक्त 5×20 Audit Set (25 नवंबर 2026)
+Owner directive: सारे पुराने/नए अधूरे काम एक ही set में; 20-20 audit scope, zero skip, zero duplicate. ये पांच समान audit windows हैं, वास्तविक completion percentages नहीं। मूल 32 IDs और 128 checkpoints अपरिवर्तित; हर ID एक बार primary mapping में, dependencies cross-reference only.
+
+| Audit window | Primary IDs | Features | Checkpoints |
+|---|---|---:|---:|
+| A01 Data/connection/freshness | B1.01–05, B2.04 | 6 | 24 |
+| A02 Performance/cache/capacity | B2.01–03, B2.05–07 | 6 | 24 |
+| A03 Six boxes/filter/voting | B3.01–05, B4.01–05 | 10 | 40 |
+| A04 Background/recovery/Doctor | B5.01–05 | 5 | 20 |
+| A05 Final/security/APK/acceptance | B6.01–05 | 5 | 20 |
+| Total | B1–B6 | 32 | 128 |
+
+P01–P15 हर window पर लागू। Existing scoped PASS evidence reuse; missing/blocked/unverified explicitly retain. Dependencies first; current active A03/B4.05 may continue existing read-only audit without claiming A01/A02 closure. No new production patch until related source/Doctor/tests reviewed. Source review found scanner_historical_final_vote reads shared_history before unsupported frame guard; actual impact and all affected tests/Doctor require review; not yet fixed. B3 #536 exact 44d1561, 1984/1984 PASS remains last gate. Registry VERIFIED={} remains unreconciled, no invented progress. A05 closure requires all applicable B1–B5 evidence, signed APK, physical phone/paper observation; no real orders. This is policy/ledger grouping only, not runtime implementation or completed audit of all windows.

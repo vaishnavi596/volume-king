@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT — SMART 4.0 5×20:** All 32 original IDs / 128 checkpoints grouped into five audit windows; mapping in SMART_4_PLATINUM.md and both journals. #536 1984/1984 PASS. Current B4.05 read-only audit remains OPEN; no new source fix or certified progress.
+
 > **25-Nov-2026 CURRENT — संयुक्त B1–B6 चार्ट:** B3 [#536](https://github.com/vaishnavi596/volume-king/actions/runs/45665310712) 1984/1984 PASS at 44d1561. 32 features /128 acceptance checkpoints; 54% पुराने अनुमान को प्रमाणित नहीं माना। B4.05 parity audit NEXT; सभी शेष dependencies दोनों journals में।
 
 > **25-Nov-2026 HANDOFF — SMART 4.0:** B3 [#536](https://github.com/vaishnavi596/volume-king/actions/runs/45665310712) IN_PROGRESS at 44d1561; #535 की दो regression त्रुटियों का test-contract patch लागू। अगले चैट का पहला काम exact raw CI result और branch HEAD जाँचना; PASS से पहले नया checkpoint/APK नहीं। Master Journal / Work Log में शेष OPEN और नियम दर्ज।

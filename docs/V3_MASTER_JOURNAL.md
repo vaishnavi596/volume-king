@@ -2796,3 +2796,18 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 - Fixed registry: B1 5/20 (data), B2 7/28 (performance), B3 5/20 (T/C/O), B4 5/20 (N/F/five engines/sixth M/parity), B5 5/20 (background/alerts/recovery/restart/Doctor), B6 5/20 (acceptance/regression/signing/phone/paper). कुल 32 features, 128 checkpoints. VERIFIED={} और 5 scoped evidence entries; 0/128 reconciled full checkpoints का अर्थ zero implemented work नहीं। पिछला 54% पूर्ण /46% शेष अनुमान अप्रमाणित, नया प्रतिशत नहीं बनाया।
 - B2.01/03/04/07 और B5.05 registry में scoped evidence है; पूर्ण checkpoint credit नहीं। B4.05 prior HIST exact source/frame/clock guard and cache regression offline PASS, actual four-screen HIST/LIVE parity अभी OPEN। B3 independent O तथा B4 independent N/F/M evidence, B1 live/server proof, B2 device throughput, B5 background/restart/alerts और B6 physical acceptance/signing pending audit/verification. Existing implemented work must not be repeated.
 - अगला कार्य B4.05 actual cross-screen parity audit and targeted correction if needed, then independent N/F/O/M checks, other open B1–B5 dependencies, B6 final acceptance. Every production fix requires Doctor+tests+journals. No APK, Oracle or order action here. This is journal/registry review, not a new comprehensive runtime audit or production patch.
+
+
+## SMART 4.0 — संयुक्त 5×20 Audit Set (25 नवंबर 2026)
+Owner directive: सारे पुराने/नए अधूरे काम एक ही set में; 20-20 audit scope, zero skip, zero duplicate. ये पांच समान audit windows हैं, वास्तविक completion percentages नहीं। मूल 32 IDs और 128 checkpoints अपरिवर्तित; हर ID एक बार primary mapping में, dependencies cross-reference only.
+
+| Audit window | Primary IDs | Features | Checkpoints |
+|---|---|---:|---:|
+| A01 Data/connection/freshness | B1.01–05, B2.04 | 6 | 24 |
+| A02 Performance/cache/capacity | B2.01–03, B2.05–07 | 6 | 24 |
+| A03 Six boxes/filter/voting | B3.01–05, B4.01–05 | 10 | 40 |
+| A04 Background/recovery/Doctor | B5.01–05 | 5 | 20 |
+| A05 Final/security/APK/acceptance | B6.01–05 | 5 | 20 |
+| Total | B1–B6 | 32 | 128 |
+
+P01–P15 हर window पर लागू। Existing scoped PASS evidence reuse; missing/blocked/unverified explicitly retain. Dependencies first; current active A03/B4.05 may continue existing read-only audit without claiming A01/A02 closure. No new production patch until related source/Doctor/tests reviewed. Source review found scanner_historical_final_vote reads shared_history before unsupported frame guard; actual impact and all affected tests/Doctor require review; not yet fixed. B3 #536 exact 44d1561, 1984/1984 PASS remains last gate. Registry VERIFIED={} remains unreconciled, no invented progress. A05 closure requires all applicable B1–B5 evidence, signed APK, physical phone/paper observation; no real orders. This is policy/ledger grouping only, not runtime implementation or completed audit of all windows.
