@@ -1424,6 +1424,7 @@ def app_main(page:ft.Page):
 
     historical_equity_worker_profile={}
     historical_equity_worker_inflight=set()
+    historical_equity_analysis_inflight=set()
     historical_equity_worker_revision={}
     async def prewarm_equity_historical_indicator(sym,data,tf,generation):
         if (tf not in ("3m","5m") or generation!=provider_generation[0]
@@ -1449,7 +1450,8 @@ def app_main(page:ft.Page):
             historical_equity_worker_profile.clear()
             historical_equity_worker_profile.update(generation=generation,attempts=0,
                 successes=0,failures=0,discarded=0,last_ms=None,last_error=None,
-                cache_hits=0,cache_misses=0,revision_hits=0,analysis_runs=0)
+                cache_hits=0,cache_misses=0,revision_hits=0,analysis_runs=0,
+                concurrent_skips=0)
         slot=(sym,tf)
         prior=historical_equity_worker_revision.get(slot)
         if prior and prior[0]==revision and prior[1] in historical_indicator_cache:
@@ -1462,6 +1464,7 @@ def app_main(page:ft.Page):
         historical_equity_worker_inflight.add(key)
         historical_equity_worker_profile["attempts"]+=1
         started=time.perf_counter()
+        owned_identity=None
         def compute():
             regular=historical_regular_session_bars([list(bar) for bar in frozen],tf)
             completed=[bar for bar in regular if type(bar[0]) in (int,float)
@@ -1488,6 +1491,13 @@ def app_main(page:ft.Page):
                 historical_equity_worker_profile["cache_hits"]+=1
             else:
                 historical_equity_worker_profile["cache_misses"]+=1
+                # Only one equity prewarm owns an exact validated identity at a time.
+                # A duplicate is deferred, never reported as a completed cache hit.
+                if identity in historical_equity_analysis_inflight:
+                    historical_equity_worker_profile["concurrent_skips"]+=1
+                    return False
+                historical_equity_analysis_inflight.add(identity)
+                owned_identity=identity
                 historical_equity_worker_profile["analysis_runs"]+=1
                 result=await local_analysis_pool.run(lambda:analyze(bars,list(selected),tf))
                 if generation!=provider_generation[0]:
@@ -1517,6 +1527,8 @@ def app_main(page:ft.Page):
                 log_error("historical_equity_prewarm",exc)
             return False
         finally:
+            if owned_identity is not None:
+                historical_equity_analysis_inflight.discard(owned_identity)
             historical_equity_worker_inflight.discard(key)
             if historical_equity_worker_profile.get("generation")==generation:
                 historical_equity_worker_profile["last_ms"]=round((time.perf_counter()-started)*1000,2)

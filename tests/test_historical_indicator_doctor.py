@@ -94,6 +94,7 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
                    analyze=lambda bars,selected,tf:(calls.append(tf) or {"bias":"BEARISH"}),
                    historical_indicator_cache=cache,historical_equity_worker_profile={},
                    historical_equity_worker_inflight=set(),historical_equity_worker_revision={},
+                   historical_equity_analysis_inflight=set(),
                    local_analysis_pool=Pool(),log_error=lambda *args:self.fail(str(args)))
         exec(compile(textwrap.dedent(ast.get_source_segment(source,node)),"worker","exec"),scope)
         worker=scope["prewarm_equity_historical_indicator"]
@@ -111,6 +112,30 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
             self.assertEqual((profile["cache_hits"],profile["cache_misses"],profile["revision_hits"],profile["analysis_runs"]),(2,1,1,1))
             self.assertFalse(await worker("RELIANCE",data,"3m",2))
             self.assertFalse(await worker("RELIANCE",data,"5m",1))
+            # Exercise an overlapping exact key from two distinct owners.
+            cache.clear()
+            scope["historical_equity_worker_revision"].clear()
+            entered=asyncio.Event()
+            release=asyncio.Event()
+            class BlockingPool(Pool):
+                async def run(self,fn):
+                    if fn.__name__=="<lambda>":
+                        entered.set()
+                        await release.wait()
+                    return fn()
+            scope["local_analysis_pool"]=BlockingPool()
+            first=asyncio.create_task(worker("RELIANCE",data,"3m",1))
+            try:
+                await asyncio.wait_for(entered.wait(),2)
+                self.assertFalse(await worker("TCS",data,"3m",1))
+                self.assertEqual(profile["concurrent_skips"],1)
+            finally:
+                release.set()
+                await first
+            self.assertTrue(first.result())
+            self.assertTrue(await worker("TCS",data,"3m",1))
+            self.assertEqual(calls,["3m","3m"])
+            self.assertFalse(scope["historical_equity_analysis_inflight"])
             scope["lifecycle_background"][0]=True
             self.assertFalse(await worker("RELIANCE",data,"3m",1))
             self.assertFalse(scope["historical_equity_worker_inflight"])
