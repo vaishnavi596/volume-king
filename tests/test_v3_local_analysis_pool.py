@@ -67,3 +67,17 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("await asyncio.gather(*(prepare_watch_three_minute_signal(sym) for sym in visible))",tick)
         self.assertIn("tick_generation!=provider_generation[0]",tick)
         self.assertIn("visible!=tuple(watch_groups[active_watch[0]])",tick)
+
+    def test_engine_adapter_timing_does_not_change_vote_or_invent_work(self):
+        from five_engine import scanner_snapshot_with_candle
+        timing={}
+        args=dict(symbol="NIFTY",timeframe="5m",now=1000)
+        baseline=scanner_snapshot_with_candle({}, {}, **args)
+        actual=scanner_snapshot_with_candle({}, {}, timing=timing, **args)
+        self.assertEqual(baseline,actual)
+        self.assertEqual(actual["combined"]["state"],"WAIT")
+        self.assertGreaterEqual(timing["technical_adapter_ms"],0)
+        self.assertGreaterEqual(timing["compose_vote_ms"],0)
+        self.assertFalse(timing["candle_checked"])
+        for key in ("candle_adapter_ms","news_adapter_ms","futures_adapter_ms","options_adapter_ms"):
+            self.assertIsNone(timing[key])
