@@ -48,3 +48,29 @@ class ML5TradeTimestampTests(unittest.TestCase):
         source=(root/"src/main.py").read_text()
         self.assertIn('"quote_timestamp_observation":__import__',source)
         self.assertIn('quote_time_observation=__import__',source)
+
+    def test_restored_quote_rows_cannot_carry_live_authority(self):
+        from v3_market_display_mode import restored_quote_rows
+        original=dict(source="Dhan",symbol="NIFTY",price=25000.0,
+                      quote_timestamp=1795588200,freshness="exchange_verified",live_verified=True)
+        rows=restored_quote_rows({"NIFTY":original,"TCS":dict(original),
+            "INFY":dict(original,symbol="INFY",source="Yahoo Finance"),
+            "SBIN":dict(original,symbol="SBIN",price=True)},source="Dhan")
+        self.assertEqual(set(rows),{"NIFTY"})
+        self.assertEqual(rows["NIFTY"]["price"],25000.0)
+        self.assertEqual(rows["NIFTY"]["quote_timestamp"],1795588200)
+        self.assertTrue(rows["NIFTY"]["cached"])
+        self.assertFalse(rows["NIFTY"]["live_verified"])
+        self.assertEqual(rows["NIFTY"]["freshness"],"unverified")
+        self.assertTrue(original["live_verified"])
+        from v3_smart_active_doctor import quote_timestamp_observation
+        report=quote_timestamp_observation(symbol="NIFTY",quote=rows["NIFTY"],now=1800000000)
+        self.assertEqual(report["quote_session_scope"],"RESTORED_CACHE")
+        self.assertFalse(report["source_live_verified"])
+
+    def test_startup_and_provider_reset_use_same_restore_guard(self):
+        source=(root/"src/main.py").read_text()
+        self.assertIn('quotes=restored_quote_rows(market_store.latest_markets(), source="Dhan")',source)
+        self.assertIn('quotes.update(restored_quote_rows(previous_quotes,source=cached_source))',source)
+        self.assertIn('quotes.update(restored_quote_rows(market_store.latest_markets(),source=cached_source))',source)
+        self.assertIn('q.get("live_verified") is not True or q.get("cached") is True',source)

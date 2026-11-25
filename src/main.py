@@ -272,7 +272,7 @@ def app_main(page:ft.Page):
     # override the Dhan-only adapter shown in Settings.
     if prefs.get("source")!="Dhan":
         prefs["source"]="Dhan"
-    from v3_market_display_mode import normalized_mode, resolve_mode
+    from v3_market_display_mode import normalized_mode, resolve_mode, restored_quote_rows
     prefs["market_display_mode"]=normalized_mode(prefs.get("market_display_mode","AUTO"))
     prefs["schema_version"]=2
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
@@ -443,7 +443,7 @@ def app_main(page:ft.Page):
                 "if completed Dhan candles exist • NEVER fake LIVE")
     market_store=SnapshotStore(CACHE_FILE,incremental=True)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
-    quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
+    quotes=restored_quote_rows(market_store.latest_markets(), source="Dhan")
     candles={}
     news_cache={}
     for cache_key in (prefs.get("scanner_symbol","NIFTY"),"GLOBAL"):
@@ -4120,7 +4120,7 @@ def app_main(page:ft.Page):
         q=quotes.get(sym) or {}
         stamp=q.get("quote_timestamp");source_name=q.get("source","No data")
         # A recent timestamp alone does not prove exchange-verified live data.
-        if source_name=="Dhan" and q.get("freshness")!="exchange_verified":
+        if source_name=="Dhan" and (q.get("freshness")!="exchange_verified" or q.get("live_verified") is not True or q.get("cached") is True):
             return "Dhan • "+("quote timestamp unavailable" if not stamp else "quote timestamp unverified")+" • NOT VERIFIED LIVE"
         if not stamp:return source_name+" • quote timestamp unavailable • NOT VERIFIED LIVE"
         try:
@@ -8987,12 +8987,9 @@ console.log('BOT KING Lightweight Charts ready');
         failed_symbols.clear()
         top5_candidates.clear()
         cached_source={"Broker API":"Angel One","Yahoo Finance":"Yahoo Finance","Dhan":"Dhan"}.get(source.value,"")
-        quotes.update({sym:dict(row,freshness="unverified",live_verified=False) for sym,row in previous_quotes.items()
-                       if isinstance(row,dict) and row.get("source")==cached_source
-                       and isinstance(row.get("price"),(int,float))
-                       and not isinstance(row.get("price"),bool) and math.isfinite(row["price"])})
+        quotes.update(restored_quote_rows(previous_quotes,source=cached_source))
         # Prefer last known snapshots from the newly selected provider.
-        quotes.update({sym:row for sym,row in market_store.latest_markets().items() if row.get("source")==cached_source})
+        quotes.update(restored_quote_rows(market_store.latest_markets(),source=cached_source))
         # Restore the five last-known Dhan candidates without waiting for the
         # paced 51-symbol history scan. All are WAIT/historical, never live.
         if source.value=="Dhan":

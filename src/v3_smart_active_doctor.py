@@ -239,6 +239,8 @@ def quote_timestamp_observation(*, symbol, quote, now):
             "code":None if valid else "BK-QUOTE-TIME-001",
             "status":"OBSERVED_UNVERIFIED" if valid else "UNVERIFIED",
             "timestamp_observed":valid,
+            "cached_quote":q.get("cached") is True,
+            "quote_session_scope":"RESTORED_CACHE" if q.get("cached") is True else "UNVERIFIED_CURRENT_SESSION",
             "timestamp_age_seconds":round(now-stamp,1) if valid else None,
             "scope":"cached Dhan trade timestamp only; not exchange or LIVE verification",
             "source_live_verified":False,"provider_requests":0,"orders_sent":0}
