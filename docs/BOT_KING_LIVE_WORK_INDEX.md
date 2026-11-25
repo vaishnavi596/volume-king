@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R2 shared renderer fixture:** #537 1986/1986 PASS; new offline shared renderer identity/mode regression prepared. Exact new CI pending; mounted parity OPEN.
+
 > **CURRENT — R2 scoped gate:** B3 [#537](https://github.com/vaishnavi596/volume-king/actions/runs/45674120367) 1986/1986 PASS at 3f7c9ee; B1/B2/Adapter same SHA PASS. Next actual cross-screen final voting evidence; physical acceptance OPEN.
 
 > **CURRENT — SMART 4.0 R1–R4:** 4×25 remaining-work planning frame in policy and both journals. R2/B4.05 early HIST frame guard + shared Doctor evidence + tests prepared; exact new CI pending. #536 1984/1984 previous PASS. No full parity or percentage claim.

@@ -393,6 +393,68 @@ class HistoricalVotingTests(unittest.TestCase):
             self.assertIsNot(future,forming)
             self.assertEqual(replay_mock.call_count,6)
 
+    def test_shared_final_renderers_preserve_exact_identity_and_modes(self):
+        import math
+        import textwrap
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from filter_wiring_audit import CANDLE_FILTERS
+        source=(ROOT/"src/main.py").read_text()
+        tree=ast.parse(source)
+        names=("cached_historical_final_replay","canonical_live_final_note",
+               "scanner_historical_final_vote")
+        stamp=bars()[-1][0]+300
+        history=Mock(side_effect=lambda sym,frame:{
+            "source":"Dhan","_scanner_timeframe":frame,"bars":bars()})
+        live=Mock(return_value={"combined":{"state":"WAIT","coverage":0,
+                    "reason":"fixture missing live evidence"}})
+        selected=[name for name in ("MACD","VWAP") if name in CANDLE_FILTERS]
+        scope=dict(math=math,provider_generation=[1],prefs={"source":"Dhan"},
+                   historical_final_replay_cache={},note=lambda s:s,
+                   shared_history=history,read_five_engine_context=live,
+                   dhan_feed=SimpleNamespace(connected=True),
+                   scan_symbol=SimpleNamespace(value="NIFTY"),
+                   scan_tf=SimpleNamespace(value="1m"),
+                   filter_selected=selected,filter_modes={},
+                   historical_option_summary=lambda sym:"",
+                   time=SimpleNamespace(time=lambda:stamp))
+        for name in names:
+            node=next(n for n in ast.walk(tree)
+                      if isinstance(n,ast.FunctionDef) and n.name==name)
+            exec(compile(textwrap.dedent(ast.get_source_segment(source,node)),
+                         name,"exec"),scope)
+        hist=scope[names[2]]
+        live_note=scope[names[1]]
+        # Explicit calls match the shared Dashboard/Watchlist/Super Five
+        # contracts; Scanner supplies its current selection by default.
+        for frame in ("1m","3m","5m"):
+            with self.subTest(frame=frame):
+                scope["scan_tf"].value=frame
+                explicit=hist("NIFTY",frame)
+                self.assertEqual(explicit,hist())
+                self.assertIn("NIFTY "+frame,explicit)
+                self.assertIn("NOT LIVE",explicit)
+                history.assert_called_with("NIFTY",frame)
+                self.assertIn("NIFTY "+frame,live_note("NIFTY",frame))
+                live.assert_called_with("NIFTY",frame)
+        self.assertEqual(set(scope["historical_final_replay_cache"]),
+                         {("NIFTY",f) for f in ("1m","3m","5m")})
+        # Disconnection must not destroy HIST or request live evidence.
+        previous=hist("NIFTY","3m")
+        scope["dhan_feed"].connected=False
+        live.reset_mock()
+        self.assertIn("0/5 verified",live_note("NIFTY","3m"))
+        live.assert_not_called()
+        self.assertEqual(previous,hist("NIFTY","3m"))
+        scope["dhan_feed"].connected=True
+        scope["prefs"]["market_display_mode"]="HISTORICAL"
+        self.assertIn("DISABLED",live_note("NIFTY","3m"))
+        live.assert_not_called()
+        scope["prefs"]["market_display_mode"]="LIVE_ONLY"
+        history.reset_mock()
+        self.assertIn("HIDDEN",hist("NIFTY","3m"))
+        history.assert_not_called()
+
     def test_historical_final_is_same_function_on_all_four_surfaces(self):
         source=(ROOT/"src/main.py").read_text()
         ast.parse(source)

@@ -2825,3 +2825,8 @@ R1=B1+B2 (data/performance), R2=B3+B4 (engines/voting), R3=B5 (Doctor/recovery/b
 ### SMART 4.0 — R2/B4.05 scoped gate verified
 - Exact 3f7c9ee32c8329a7807c345ecb607db4eb050579: B1 #350 run 45674120418, B2 #334 run 45674120377, Adapter #362 run 45674120405 SUCCESS. B3 #537 run 45674120367 job 139416956863 raw proof 2026-11-25T18:24:10.2996773Z Ran 1986 tests in 202.440s / OK. Both new frame guard and Doctor generation tests individually PASS.
 - इस scoped fix का offline gate बंद; चारों screens की वास्तविक HIST/LIVE parity, independent O/N/F/M, phone/server acceptance और full registry reconciliation OPEN. Next: actual shared final voting function fixtures and screen wiring evidence, not repeat completed frame guard. No new APK or orders, no certified percent credit.
+
+
+### SMART 4.0 — R2/B4.05 shared renderer offline fixture
+- Previous exact 3f7c9ee: all four gates PASS, B3 #537 1986/1986. No competing CI observed.
+- Added actual nested shared HIST cache, HIST renderer and LIVE renderer execution fixture for 1m/3m/5m explicit versus Scanner default identity, historical cache keys, disconnected LIVE abstention and retained HIST, HISTORICAL/LIVE_ONLY separation. Historical replay uses actual offline implementation; LIVE context is mocked, not exchange proof. Existing structural four-screen call-site tests retained. No production or Doctor behavior change; no new provider requests/orders/APK. Local execution NOT RUN; exact new CI pending. Mounted UI parity, independent O/N/F/M and device/server acceptance remain OPEN. No certified progress credit.
