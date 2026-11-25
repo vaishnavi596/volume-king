@@ -1904,16 +1904,14 @@ def app_main(page:ft.Page):
                 # Show independent data readiness, never fabricated B/S ratios.
                 label=short+" WAIT";color=MUTED
                 if name=="options":
-                    data=(dhan_option_metrics if sym==chain_symbol.value else
-                          next((row for (gen,underlying,listed),row in reversed(list(dhan_option_context_cache.items()))
-                                if gen==provider_generation[0] and underlying==sym),{}))
-                    if (data.get("source")=="dhan" and data.get("symbol")==sym
-                            and (sym!=chain_symbol.value or data.get("expiry")==expiry.value)
-                            and data.get("freshness")=="unverified"
-                            and data.get("signal_eligible") is False
-                            and type(data.get("pcr")) in (int,float)
-                            and math.isfinite(data["pcr"]) and data["pcr"]>=0):
-                        label="O PCR "+format(data["pcr"],".2f")+" • WAIT"
+                    from v3_option_position import historical_option_position
+                    data=(matching_option_context_for_symbol(sym)
+                          if prefs.get("source")=="Dhan" else {})
+                    position=historical_option_position(data,symbol=sym,expiry=data.get("expiry"),now=time.time())
+                    if (position["available"] and prefs.get("market_display_mode")!="LIVE_ONLY"):
+                        label="O HIST "+position["position"].replace("_"," ")+" • WAIT"
+                    elif prefs.get("market_display_mode")!="LIVE_ONLY":
+                        label="O WAIT"
                 elif (name=="candle" and prefs.get("source")=="Dhan"
                       and prefs.get("market_display_mode")!="LIVE_ONLY"):
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))

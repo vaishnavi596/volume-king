@@ -132,6 +132,11 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
               "blocker": ("INDEPENDENT_EXPIRY_SCOPED_OPTION_TRADE_FLOW_NOT_WIRED"
                           if option_match else "MATCHING_DHAN_OPTION_EXPIRY_CONTEXT_MISSING")},
     }
+    from v3_option_position import historical_option_position
+    position=historical_option_position(option_context,symbol=symbol,
+        expiry=option_context.get("expiry"),now=now)
+    sources["O"]["historical_position"]=position
+    sources["O"]["error_code"]=position["code"]
     for row in sources.values():
         row["live_direction_verified"] = False
         row["source_evidence_mode"] = "HIST_ONLY" if row.get("historical_direction_available") else "CONTEXT_ONLY"
