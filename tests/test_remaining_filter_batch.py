@@ -70,10 +70,10 @@ class RemainingFilterBatchTests(unittest.TestCase):
 
     def test_background_failure_remains_active_until_new_candle_response(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["remember_candle_failure"]("TCS", "5m", "candle fetch", RuntimeError("secret-not-for-log"))
         self.assertNotIn("secret-not-for-log", repr(v["scan_fetch_failure"]))
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["current_filter_coverage"]()[1]["ERROR"], 1)
         health = text_values(v["data_overview"]())
         self.assertIn("1 active failure(s)", health)
@@ -83,7 +83,7 @@ class RemainingFilterBatchTests(unittest.TestCase):
         failure = v["scan_fetch_failure"][(v["provider_generation"][0], "TCS", "5m")]
         v["failed_symbols"]["TCS"] = "previous failure"
         v["quotes"]["TCS"]["candle_fetched_at"] = failure["at"]+1
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["current_filter_coverage"]()[1]["ERROR"], 0)
         self.assertNotIn("TCS", v["failed_symbols"])
 
@@ -103,7 +103,7 @@ class RemainingFilterBatchTests(unittest.TestCase):
                     v["chart_snapshots"][("TCS","5m",v["provider_generation"][0])] = {
                         "source":"Dhan","bars":falling,"candle_fetched_at":time.time()+1,
                         "freshness":"unverified","live_verified":False}
-                    v["refresh_shared_analysis"]("TCS")
+                    await v["refresh_shared_analysis"]("TCS")
                 return {"source": "Dhan", "bars": bars, "cached": False,
                         "fetched_at": time.time(), "candle_fetched_at": time.time(),
                         "freshness": "unverified", "live_verified": False}

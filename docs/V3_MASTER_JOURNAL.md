@@ -2591,3 +2591,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — C3 संयुक्त Shared/Retry processing
 - Baseline 40c07ed B3 1946 PASS, docs head 3e7a097. Shared 5m refresh becomes awaited local display + engine adapter with copied input, generation/filter/freshness revision checks before publication. All three runtime calls awaited. Retry analysis worker with frozen policy and generation guard; existing ranking persistence preserved. Updated runtime and structural tests together. Local targeted execution NOT EXECUTED; exact CI pending. N/F/O and actual phone measurements remain OPEN; no server/APK/provider/order changes. Owner instruction: report after real work/trigger, no status-only repeated turns.
+
+
+### 25 नवंबर 2026 — Shared/Retry corrective gate
+- Exact 6299584 B1 45598827964, B2 45598827800, Adapter 45598827880 PASS; B3 45598827837 job 139151966211 source PASS, 1947 tests, one error in test_remaining_filter_batch: old synchronous calls to now async refresh_shared_analysis left TCS absent. Updated all four calls in this fixture, including awaited nested fake I/O callback; failure retention and recovery assertions unchanged. Local targeted execution NOT EXECUTED; exact new CI pending. No production/APK/server/orders changes; C3 remains OPEN.
