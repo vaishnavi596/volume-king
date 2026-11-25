@@ -301,8 +301,10 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertIn('output=cached_historical_final_replay(',source)
         self.assertIn('filter_rows=selected,history_timestamp=now)',source)
         self.assertIn('scanner_historical_final_vote()],spacing=5)))',source)
-        self.assertIn('" • NOT LIVE")',source)
         block=source.split("    def scanner_historical_final_vote(symbol=None, timeframe=None):",1)[1].split("    def five_engine_chips(",1)[0]
+        self.assertIn('" • NOT LIVE"',block)
+        self.assertIn('option_label=historical_option_summary(sym)',block)
+        self.assertIn('(" | "+option_label if option_label else "")',block)
         self.assertIn('history=shared_history(sym,frame)',block)
         self.assertNotIn('get_market_data(',block)
         self.assertNotIn('dhan_feed.',block)
