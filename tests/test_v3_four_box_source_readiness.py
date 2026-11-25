@@ -147,6 +147,28 @@ class FourBoxSourceContracts(unittest.TestCase):
                 self.assertEqual(x["provider_requests"],0)
                 self.assertEqual(x["orders_sent"],0)
 
+    def test_final_replay_option_context_and_doctor_share_nonvoting_label(self):
+        h=history()
+        rows=[{"strike":i,"ce":{"oi":10},"pe":{"oi":20}} for i in range(100,107)]
+        context=dict(source="dhan",symbol="NIFTY",expiry="2026-11-26",
+                     freshness="unverified",signal_eligible=False,
+                     atm_window=dict(source="dhan",freshness="unverified",
+                                     signal_eligible=False,atm=103,rows=rows))
+        result=four_box_source_readiness(symbol="NIFTY",timeframe="1m",
+            generation=3,history=h,option_context=context,now=h["bars"][-1][0]+60)
+        opt=result["box_sources"]["O"]
+        self.assertIn("HIST PUT OI HEAVY",opt["historical_context_label"])
+        self.assertIn("WAIT",opt["historical_context_label"])
+        self.assertFalse(opt["historical_vote_eligible"])
+        self.assertFalse(opt["historical_direction_available"])
+        self.assertEqual(result["provider_requests"],0)
+        self.assertEqual(result["orders_sent"],0)
+        text=(ROOT/"src"/"main.py").read_text()
+        final=text.split("def scanner_historical_final_vote(",1)[1].split("def five_engine_chips(",1)[0]
+        self.assertIn("option_label=historical_option_summary(sym)",final)
+        self.assertIn("str(final[\"coverage\"])",final)
+        self.assertIn("if option_label else",final)
+
     def test_real_cached_all_doji_is_wait_not_bearish(self):
         h=history()
         for row in h["bars"][-8:]:

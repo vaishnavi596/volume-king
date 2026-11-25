@@ -2657,3 +2657,8 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — #511 PASS / shared Options summary and filter context
 - Exact 1cba72b B3 #511 45619536463 job 139223680380 raw log 1956 tests in 238.809s OK. Prior production a4552c4 B1/B2/Adapter PASS.
 - Share existing historical option positioning adapter with five-engine summary (offline and eligible fallback paths) and OI Profile filter detail. Explicit expiry, HIST, WAIT and not LIVE; source and LIVE_ONLY guard; no extra provider requests or voting authorization. Existing Doctor uses same underlying position adapter. Added label fixture. Local tests NOT EXECUTED; exact CI pending. Authenticated measured option directional input and final replay wiring still OPEN; no APK/server/order changes.
+
+
+### 25 नवंबर 2026 — SMART 3.0 / साझा HIST Final और Doctor option context
+- Exact bdfbefe B1 45620660216, B2 45620659630, Adapter 45620659859, B3 45620659569 job 139227596231 SUCCESS; raw log 1957 tests in 199.913s OK.
+- Actual gap: historical replay can accept authenticated directional components but current Dhan chain supplies unverified OI context only. Connect shared non-voting historical option label to canonical HIST final display across four surfaces and both Doctors via shared readiness; explicit historical_vote_eligible=false. Context is read separately from memoized replay and cannot alter quorum. Add positive fixture and display contract. No provider requests or orders added. Local tests NOT EXECUTED; new exact CI pending. Genuine measured N/F/O directional ingress, replay vote integration, phone and server evidence and B1–B6 closure remain OPEN. No APK/server changes.

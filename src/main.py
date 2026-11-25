@@ -1831,12 +1831,16 @@ def app_main(page:ft.Page):
         output=cached_historical_final_replay(
             sym,frame,history,selected,time.time())
         final=output["historical_combined"]
+        # Display-only option context is read separately from memoized replay.
+        # It cannot increase quorum or become a historical directional vote.
+        option_label=historical_option_summary(sym)
         direction=final["state"]
         confidence=(" B"+str(final["bullish"])+"% / S"+str(final["bearish"])+"%"
                     if direction in ("BULLISH","BEARISH") else "")
         return note("HIST FINAL • "+sym+" "+frame+" • "+direction+
                     confidence+" • "+str(final["coverage"])+"/5 HIST sources"+
-                    " • "+str(final["reason"])+" • NOT LIVE")
+                    " • "+str(final["reason"])+" • NOT LIVE"+
+                    (" | "+option_label if option_label else ""))
 
     def five_engine_chips(sym, display_timeframe=None):
         """Five independent evidence slots; percentages only when justified."""
