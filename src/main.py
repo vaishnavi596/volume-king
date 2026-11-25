@@ -990,6 +990,7 @@ def app_main(page:ft.Page):
     five_engine_snapshots={}
     contextual_five_engine=ContextualFiveEngineCache()
 
+    five_engine_timing={}
     def publish_five_engine_5m(sym, snapshot):
         """Mirror the existing verified/WAIT 5m publisher without provider I/O."""
         five_engine_snapshots[sym]=snapshot
@@ -6358,6 +6359,7 @@ def app_main(page:ft.Page):
                         if watch_batch_last_attempt[0]>0 else None)
                 data["persistent_cache"]=market_store.diagnostics()
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
+                data["five_engine_adapter_timing"]=(dict(five_engine_timing) if five_engine_timing.get("generation")==provider_generation[0] else {})
                 data["capture_elapsed_ms"]=round((time.perf_counter()-started)*1000,2)
                 report.value=json.dumps(data,indent=2,ensure_ascii=False)
                 status.value="Active Doctor complete • "+str(data["active_count"])+" visible checks"
@@ -9541,11 +9543,13 @@ console.log('BOT KING Lightweight Charts ready');
                                   analyzed.get("historical") is False and
                                   (data or {}).get("historical") is False)
                         from five_engine import scanner_snapshot_with_candle
+                        engine_timing={}
                         publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,
                             source="Dhan" if source_ok else "",
                             freshness="verified_live" if verified else "unverified",
                             live_verified=verified,historical=not verified),
-                            data,symbol=sym,timeframe="5m",now=time.time()))
+                            data,symbol=sym,timeframe="5m",now=time.time(),timing=engine_timing))
+                        five_engine_timing.update(engine_timing,symbol=sym,timeframe="5m",generation=generation)
                         if result and result.get("timestamp"):failed_symbols.pop(sym,None)
                         elif sym not in failed_symbols:failed_symbols[sym]="Insufficient completed candles"
                         scan_progress["checked"]+=1
