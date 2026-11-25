@@ -438,7 +438,7 @@ def app_main(page:ft.Page):
         # Exchange-verified LIVE is assessed per symbol/timeframe downstream.
         return ("LIVE when exchange-verified • otherwise HISTORICAL "
                 "if completed Dhan candles exist • NEVER fake LIVE")
-    market_store=SnapshotStore(CACHE_FILE)
+    market_store=SnapshotStore(CACHE_FILE,incremental=True)
     # Legacy Yahoo snapshots must not be shown as Angel One market data.
     quotes={symbol:row for symbol,row in market_store.latest_markets().items() if row.get("source")==({"Broker API":"Angel One","Dhan":"Dhan","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Dhan"))}
     candles={}
