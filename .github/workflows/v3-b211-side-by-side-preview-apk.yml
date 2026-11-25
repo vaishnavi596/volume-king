@@ -187,7 +187,7 @@ jobs:
           AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
           SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
           test -x "$AAPT" && test -x "$SIGNER"
-          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3b211\\.bot_king_v3_b211_preview' versionCode='211' versionName='2\\.3\\.210'"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3b211\\.bot_king_v3_b211_preview' versionCode='211' versionName='2\\.3\\.211'"
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B211 PREVIEW'"
           "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v3-b211-preview-sign/apk-info"
           PASS="$(cat "$RUNNER_TEMP/v3-b211-preview-sign/password")"
