@@ -250,3 +250,25 @@ class LocalPoolTests(unittest.TestCase):
             asyncio.run(check())
         finally:
             pool.close()
+
+
+    def test_worker_cpu_and_process_rss_measurements_are_truthful(self):
+        from unittest.mock import patch, mock_open
+        import time
+        pool=LocalAnalysisPool(1)
+        try:
+            with patch("builtins.open",mock_open(read_data="VmRSS: 1234 kB\n")):
+                initial=pool.diagnostics()
+                self.assertEqual(initial["process_rss_bytes"],1234*1024)
+                self.assertIsNone(initial["thread_cpu_total_ms"])
+            self.assertEqual(asyncio.run(pool.run(sum,range(10000))),49995000)
+            with patch("builtins.open",side_effect=OSError("unsupported")):
+                stats=pool.diagnostics()
+                self.assertIsNone(stats["process_rss_bytes"])
+                self.assertEqual(stats["provider_requests"],0)
+                if hasattr(time,"thread_time"):
+                    self.assertEqual(stats["thread_cpu_samples"],1)
+                    self.assertGreaterEqual(stats["thread_cpu_total_ms"],0)
+                    self.assertGreaterEqual(stats["thread_cpu_last_ms"],0)
+        finally:
+            pool.close()

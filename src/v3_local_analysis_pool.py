@@ -36,11 +36,16 @@ class LocalAnalysisPool:
         self._queue_max_ms=0.0
         self._compute_last_ms=0.0
         self._compute_max_ms=0.0
+        self._thread_cpu_total_seconds=0.0
+        self._thread_cpu_samples=0
+        self._thread_cpu_last_ms=None
     async def run(self,fn,*args,**kwargs):
         queued=time.perf_counter()
         with self._lock:self._pending+=1
         def execute():
             began=time.perf_counter()
+            clock=getattr(time,"thread_time",None)
+            cpu_began=clock() if clock is not None else None
             with self._lock:
                 self._pending-=1
                 self._running+=1
@@ -52,7 +57,12 @@ class LocalAnalysisPool:
                 with self._lock:self._failed+=1
                 raise
             finally:
+                cpu_elapsed=max(0.0,clock()-cpu_began) if cpu_began is not None else None
                 with self._lock:
+                    if cpu_elapsed is not None:
+                        self._thread_cpu_samples+=1
+                        self._thread_cpu_total_seconds+=cpu_elapsed
+                        self._thread_cpu_last_ms=round(cpu_elapsed*1000,3)
                     self._running-=1
                     self._completed+=1
                     self._compute_last_ms=round((time.perf_counter()-began)*1000,3)
@@ -87,12 +97,28 @@ class LocalAnalysisPool:
                     wrapped.exception()  # consume abandoned failure
             raise
     def diagnostics(self):
+        # Linux/Android process RSS, not system-wide memory or Python heap.
+        rss_bytes=None
+        try:
+            with open('/proc/self/status',encoding='ascii') as status:
+                for line in status:
+                    if line.startswith('VmRSS:'):
+                        parts=line.split()
+                        if len(parts)==3 and parts[2]=='kB':
+                            rss_bytes=int(parts[1])*1024
+                        break
+        except (OSError,ValueError,UnicodeError):
+            pass
         with self._lock:
             return {"workers":self.workers,"pending":self._pending,"running":self._running,
                     "completed":self._completed,"failed":self._failed,"cancelled":self._cancelled,
                     "running_cancel_waits":self._running_cancel_waits,
                     "queue_last_ms":self._queue_last_ms,"queue_max_ms":self._queue_max_ms,
                     "compute_last_ms":self._compute_last_ms,"compute_max_ms":self._compute_max_ms,
+                    "thread_cpu_samples":self._thread_cpu_samples,
+                    "thread_cpu_total_ms":round(self._thread_cpu_total_seconds*1000,3) if self._thread_cpu_samples else None,
+                    "thread_cpu_last_ms":self._thread_cpu_last_ms,
+                    "process_rss_bytes":rss_bytes,
                     "scope":"local_analysis_only","provider_requests":0}
     def close(self):
         self._executor.shutdown(wait=False,cancel_futures=True)
