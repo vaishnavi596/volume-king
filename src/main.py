@@ -1361,6 +1361,67 @@ def app_main(page:ft.Page):
             historical_indicator_profile.update(last_ms=elapsed,
                 max_ms=max(historical_indicator_profile["max_ms"] or 0,elapsed),
                 timeframe=tf)
+    historical_prewarm_profile={}
+    async def prewarm_index_historical_indicator(data,generation):
+        """Prepare the same completed 1m HIST result before index UI refresh."""
+        if (generation!=provider_generation[0] or data.get("source")!="Dhan"
+                or data.get("_scanner_timeframe")!="1m"):
+            return False
+        from copy import deepcopy
+        raw=deepcopy(data.get("bars") or [])
+        selected=tuple(name for name in filter_selected
+                       if filter_modes.get(name,"Analysis")!="Chart")
+        now=time.time()
+        if historical_prewarm_profile.get("generation")!=generation:
+            historical_prewarm_profile.clear()
+            historical_prewarm_profile.update(generation=generation,attempts=0,
+                successes=0,failures=0,discarded=0,last_ms=None,last_error=None)
+        historical_prewarm_profile["attempts"]+=1
+        started=time.perf_counter()
+        def compute():
+            regular=historical_regular_session_bars(raw,"1m")
+            completed=[bar for bar in regular if isinstance(bar,(list,tuple)) and len(bar)>=6
+                       and type(bar[0]) in (int,float) and math.isfinite(bar[0])
+                       and bar[0]+60<=now]
+            if not completed:
+                return None
+            quality=quality_check(completed,60,now=completed[-1][0]+60)
+            if not quality.get("usable"):
+                return None
+            identity=(generation,"1m",selected,tuple(tuple(bar[:6]) for bar in quality["bars"]))
+            return identity,analyze(quality["bars"],list(selected),"1m")
+        try:
+            computed=await local_analysis_pool.run(compute)
+            if generation!=provider_generation[0]:
+                return False
+            if (selected!=tuple(name for name in filter_selected
+                    if filter_modes.get(name,"Analysis")!="Chart") or not app_active[0]
+                    or lifecycle_background[0] or prefs.get("source")!="Dhan"):
+                historical_prewarm_profile["discarded"]+=1
+                return False
+            if computed is None:
+                historical_prewarm_profile["discarded"]+=1
+                return False
+            identity,result=computed
+            if identity not in historical_indicator_cache:
+                if len(historical_indicator_cache)>=220:
+                    historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
+                historical_indicator_cache[identity]=result
+            historical_prewarm_profile["successes"]+=1
+            historical_prewarm_profile["last_error"]=None
+            return True
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if generation==provider_generation[0]:
+                historical_prewarm_profile["failures"]+=1
+                historical_prewarm_profile["last_error"]=type(exc).__name__
+                log_error("historical_index_prewarm",exc)
+            return False
+        finally:
+            if historical_prewarm_profile.get("generation")==generation:
+                historical_prewarm_profile["last_ms"]=round((time.perf_counter()-started)*1000,2)
+
     def historical_vote_agreement(data,tf="5m"):
         """Completed exact-timeframe Dhan votes; historical never equals live."""
         if tf not in ("1m","3m","5m") or data.get("_scanner_timeframe","5m")!=tf:
@@ -6438,6 +6499,7 @@ def app_main(page:ft.Page):
                     "four_box_source_readiness":master_four_box_readiness,
                     "historical_vote_replay":master_historical_replay,
                     "dashboard_bar_errors_only":dashboard_bar_errors,
+                    "historical_index_worker":dict(historical_prewarm_profile) if historical_prewarm_profile.get("generation")==generation else {},
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
@@ -6489,6 +6551,7 @@ def app_main(page:ft.Page):
                 data=active_report(
                     engine_observation=ml5_observation,
                     historical_indicator_observation=dict(historical_indicator_profile),
+                    historical_prewarm_observation=dict(historical_prewarm_profile),
                     generation=generation,symbols=selected_equities,
                     quote_present=[sym for sym in selected_equities if cached_price(sym)],
                     index_present=[sym for sym in ("NIFTY","BANKNIFTY","SENSEX") if cached_price(sym)],
@@ -9963,9 +10026,13 @@ console.log('BOT KING Lightweight Charts ready');
                             if (data.get("source")=="Dhan"
                                     and valid_candle_history(data.get("bars"))
                                     and generation==provider_generation[0]):
-                                chart_snapshots[(index_sym,"1m",generation)]=dict(
-                                    data,_scanner_timeframe="1m",historical=True,
+                                index_history=dict(data,_scanner_timeframe="1m",historical=True,
                                     live_verified=False,freshness="historical_unverified")
+                                await prewarm_index_historical_indicator(index_history,generation)
+                                if (generation!=provider_generation[0] or not app_active[0]
+                                        or lifecycle_background[0] or prefs.get("source")!="Dhan"):
+                                    break
+                                chart_snapshots[(index_sym,"1m",generation)]=index_history
                                 index_history_ready+=1
                                 # 5m Super Five/Watchlist ranking remains independent.
                                 if current[0] in (0,4,5):
