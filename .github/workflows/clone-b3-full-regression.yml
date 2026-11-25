@@ -9,6 +9,7 @@ on:
       - .github/workflows/clone-b3-full-regression.yml
       - .github/workflows/v3-b211-side-by-side-preview-apk.yml
       - .github/workflows/v3-b212-side-by-side-preview-apk.yml
+      - .github/workflows/v3-b213-side-by-side-preview-apk.yml
       - .github/workflows/v3-b207-side-by-side-preview-apk.yml
       - .github/workflows/v3-b208-side-by-side-preview-apk.yml
       - .github/workflows/v3-b209-side-by-side-preview-apk.yml

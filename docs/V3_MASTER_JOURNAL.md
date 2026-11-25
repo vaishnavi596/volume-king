@@ -2364,3 +2364,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — P2-B Scanner/Watchlist serialized coordination
 - 14c39d1 exact B1 45551397764, B2 45551399477, Adapter 45551400875, B3 45551398065 all PASS. Existing 5m tail now offers one eligible Watchlist 1m slot after every five completed results, using existing guarded helper, rolling 12/180s, 10s spacing, 180s symbol retry and provider cooldown; no new parallel worker. Active Doctor includes existing ranking progress and recent budget count. Added structural regression assertions; actual device freshness and latency pending. No server change, APK or orders. CI pending.
+
+
+### 25 नवंबर 2026 — B213 संयुक्त फोन परीक्षण
+- 87230c6 exact B1 45551978467, B2 45551978510, Adapter 45551978437, B3 45551978503 all PASS. B213 isolated preview includes fair Watchlist refresh, compact Active Doctor, cached candle age and serialized Scanner interleave. Independent exact-head B3 and build offline gates retained; separate package and disposable preview signer, version 2.3.213/213, source 2.3.210 unchanged. B212 remains installed independently; local settings/cache do not transfer automatically. No server change or orders. APK build and real phone validation pending.
