@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT:** B3 [#532](https://github.com/vaishnavi596/volume-king/actions/runs/45657927264) 1980/1980 PASS at 4ab1d82. Context alias directional exclusion patch and scoped registry evidence prepared; full CI pending. No full checkpoint credit or phone acceptance yet.
+
 > **25-Nov-2026 CURRENT:** B3 [#531](https://github.com/vaishnavi596/volume-king/actions/runs/45655842571) PASS at b6d405c. Local CPU thread timing and process RSS diagnostic patch prepared; exact CI pending, phone evidence OPEN.
 
 > **25-Nov-2026 CURRENT:** B3 [#530](https://github.com/vaishnavi596/volume-king/actions/runs/45654256856) 1977/1977 PASS at 98d43b8. Local CPU cancellation ownership patch and two runtime tests prepared; new full CI pending. Phone evidence OPEN.

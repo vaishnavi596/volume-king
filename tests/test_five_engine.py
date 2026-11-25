@@ -172,6 +172,21 @@ class FiveEngineTests(unittest.TestCase):
                 self.assertEqual(snapshot["engines"][0].bullish, 67)
                 self.assertTrue(all(not engine.eligible for engine in snapshot["engines"][1:]))
 
+    def test_context_aliases_cannot_inflate_technical_quorum(self):
+        for name in (" oi support ", "OI resistance", "oi PROFILE",
+                     " dhan max pain ", "Max Pain", " NEWS HEADLINES "):
+            with self.subTest(name=name):
+                scan={"votes":[{"name":"RSI 14","vote":1},
+                               {"name":"MACD","vote":1},
+                               {"name":name,"vote":1}],
+                      "source":"Dhan","timestamp":1234567890,
+                      "freshness":"verified_live","historical":False,"live_verified":True}
+                self.assertEqual(scanner_snapshot(scan)["combined"]["coverage"],0)
+                scan["votes"].append({"name":"EMA 9/21","vote":-1})
+                result=scanner_snapshot(scan)
+                self.assertEqual(result["combined"]["coverage"],1)
+                self.assertEqual(result["engines"][0].bullish,67)
+
     def test_scanner_adapter_requires_explicit_verified_dhan(self):
         scan={"votes":[{"name":"Filter 5","vote":1},{"name":"Filter 6","vote":1},{"name":"Filter 7","vote":-1}], "source":"Dhan",
               "timestamp":1234567890,"freshness":"verified_live",

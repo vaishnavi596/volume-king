@@ -213,6 +213,9 @@ def scanner_snapshot(scan_result):
     if not isinstance(raw, (list, tuple)):
         return compose_snapshot()
     from scanner_engine import OPTION_FILTERS
+    # Match context identities using the same normalization as duplicate detection.
+    # Legacy Max Pain is context-only too, never a technical vote.
+    context_names={name.casefold() for name in OPTION_FILTERS}|{"news headlines","max pain"}
     labels = []
     seen_filters = set()
     for vote in raw:
@@ -228,7 +231,7 @@ def scanner_snapshot(scan_result):
         # Option OI/max-pain and RSS news are independent CONTEXT sources,
         # never extra technical votes even if an upstream row is malformed
         # or accidentally carries a directional integer.
-        if name.strip() in OPTION_FILTERS or name.strip()=="News Headlines":
+        if canonical_name in context_names:
             continue
         direction = vote.get("vote")
         if direction is None:
