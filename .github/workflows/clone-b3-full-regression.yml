@@ -153,3 +153,5 @@ jobs:
 # B160 combined SENSEX safe upstream classes + 17 filter readiness + Dashboard T/C index 1m wiring.
 
 # B161 full source-head gate: corrected Doctor WAIT label assertion, 3-track B160 safety.
+
+# ML5-CACHE C1: exact-head regression after skipped implementation commits; journal-only changes do not trigger this gate.
