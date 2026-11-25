@@ -2328,3 +2328,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 ### 25 नवंबर 2026 — Watchlist P0 नियंत्रित गति सुधार
 - B211 exact eeae49f: B3 45535143411 और APK 45535143431 PASS; पुराने B210 exact-source gate fail, दोहराया नहीं। फोन रिपोर्ट HIST 18/51, 3/180s budget exhausted, 23s wait, Dhan flag false, Oracle true, quote cache 0/51; historical readiness और quotes अलग।
 - दोनों मौजूदा Watchlist 1m warmup lanes और Doctor countdown की साझा स्थानीय सीमा 3/180s व 30s से 12/180s व 10s की गई। Server source DhanFeed shared historical lock 1.1s और 429 cooldown 30s अपरिवर्तित; actual deployed server प्रमाणित नहीं। Per-symbol retry 180s, one bounded retry, last-good, foreground/auth/generation guards तथा no LIVE promotion बरकरार। संबंधित tests updated for new quota boundaries; CI pending. यह नियंत्रित पहला चरण है, 2s pacing या 51/51 runtime PASS का दावा नहीं। No server deployment, provider requests or orders.
+
+
+### 25 नवंबर 2026 — Watchlist P0 regression alignment
+- c0626e6 exact B1 45541256931 और B2 45541257183 PASS; B3 45541257008 FAIL (1910 tests, 7 failures). पाँच test files में पुराने 3/180s और 30s assertions तथा दो boundary fixtures (12th sample exactly 180s old, expired by execution) सुधारे। New 12/180s, 10s policy unchanged. No production source changes; exact CI pending. Super Five user reports no refresh: local observer 5m cache dependent; disconnected ranking worker gate and HIST display need next scoped audit after PASS. No server changes, orders or APK.

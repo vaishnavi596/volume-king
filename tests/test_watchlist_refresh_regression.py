@@ -36,9 +36,9 @@ class WatchlistRefreshRegression(unittest.TestCase):
                       'index_one_minute_busy[0]',
                       'dhan_feed.cooldown_remaining("/dhan/intraday")>0'):
             self.assertIn(guard,body)
-        self.assertIn("len(watch_three_minute_upstream_times)>=3",body)
+        self.assertIn("len(watch_three_minute_upstream_times)>=12",body)
         self.assertIn("watch_three_minute_upstream_times.append(attempt_time)",body)
-        self.assertIn("watch_three_minute_warm_last_provider[0]<30",body)
+        self.assertIn("watch_three_minute_warm_last_provider[0]<10",body)
         self.assertIn('get_market_data,sym,"1m","2d"',body)
         self.assertIn('chart_snapshots[(sym,"1m",generation)]',body)
         self.assertIn('data=retain_candle_history(data,prior,provider="Dhan")',body)

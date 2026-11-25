@@ -23,8 +23,8 @@ class B205PhoneSSKWatchlist(unittest.TestCase):
         for q in ('explicit_closed and clone_v2_gateway.connected and not refresh_hours()',
                   'explicit_closed and refresh_hours()',
                   'not clone_v2_gateway.connected',
-                  'len(watch_three_minute_upstream_times)>=3',
-                  'now-watch_three_minute_warm_last_provider[0]<30',
+                  'len(watch_three_minute_upstream_times)>=12',
+                  'now-watch_three_minute_warm_last_provider[0]<10',
                   'get_market_data,sym,"1m","2d"'):
             self.assertIn(q,s)
     def test_watchlist_button_and_mounted_tick_allow_ssk(self):

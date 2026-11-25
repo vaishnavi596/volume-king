@@ -12,7 +12,7 @@ class WatchHistoryBudgetUX(unittest.TestCase):
     def test_quota_wait_uses_actual_time_and_floor(self):
         body=fn("watch_hist_budget_wait_seconds")
         self.assertIn("time.monotonic()",body)
-        self.assertIn("len(recent)>=3",body)
+        self.assertIn("len(recent)>=12",body)
         self.assertIn("180-(now-min(recent))",body)
         self.assertIn("watch_three_minute_warm_last_provider[0]",body)
     def test_queue_wait_is_reported_without_new_provider_requests(self):

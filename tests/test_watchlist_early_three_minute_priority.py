@@ -163,7 +163,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             with self.subTest(budget=budget):
                 s,calls,_,_,_,_,now=self.fixture()
                 if budget=="twelve_requests":
-                    s["watch_three_minute_upstream_times"][:]=[now-15*i for i in range(1,13)]
+                    s["watch_three_minute_upstream_times"][:]=[now-14*i for i in range(1,13)]
                 else:
                     s["watch_three_minute_warm_last_provider"][0]=now-5
                 self.assertFalse(self.invoke(s))
@@ -226,7 +226,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 if reason=="main_scan":s["dhan_history_scan_active"][0]=True
                 elif reason=="provider_cooldown":s["dhan_feed"].cooldown_remaining=lambda _:30
                 elif reason=="twelve_budget":
-                    s["watch_three_minute_upstream_times"][:]=[now-15*i for i in range(1,13)]
+                    s["watch_three_minute_upstream_times"][:]=[now-14*i for i in range(1,13)]
                 elif reason=="ten_gap":
                     s["watch_three_minute_warm_last_provider"][0]=now-5
                 elif reason=="wrong_provider":s["prefs"]["source"]="Yahoo Finance"
@@ -295,7 +295,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertNotIn('asyncio.gather(',helper)
         self.assertIn('len(watch_three_minute_upstream_times)>=12',helper)
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
-        self.assertIn('watch_three_minute_warm_last_provider[0]<30',helper)
+        self.assertIn('watch_three_minute_warm_last_provider[0]<10',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)
         self.assertIn('(not refresh_hours() and not explicit_closed)',helper)
         self.assertNotIn('get_market_data,sym,"3m"',helper)

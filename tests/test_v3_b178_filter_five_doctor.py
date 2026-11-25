@@ -97,7 +97,7 @@ class FilterFiveDoctorContract(unittest.TestCase):
                          '"provider_requests":0,"orders_sent":0',
                          '"global_equity_limit":70',
                          '"visible_tick_seconds":2',
-                         '"warmup_floor_seconds":30',
+                         '"warmup_floor_seconds":10',
                          '"watchlist_default":"3m"',
                          '"dashboard_index_default":"1m"',
                          '"sixth_placeholder":"INERT_NOT_SCORED"',
