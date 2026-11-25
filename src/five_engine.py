@@ -213,6 +213,8 @@ def scanner_snapshot(scan_result):
     if not isinstance(raw, (list, tuple)):
         return compose_snapshot()
     from scanner_engine import OPTION_FILTERS
+    from filter_wiring_audit import CANDLE_FILTERS
+    technical_names={name.casefold() for name in CANDLE_FILTERS}
     # Match context identities using the same normalization as duplicate detection.
     # Legacy Max Pain is context-only too, never a technical vote.
     context_names={name.casefold() for name in OPTION_FILTERS}|{"news headlines","max pain"}
@@ -233,6 +235,10 @@ def scanner_snapshot(scan_result):
         # or accidentally carries a directional integer.
         if canonical_name in context_names:
             continue
+        # Only configured candle indicators may supply technical evidence.
+        # Unknown or stale plugin labels must not satisfy directional quorum.
+        if canonical_name not in technical_names:
+            return compose_snapshot()
         direction = vote.get("vote")
         if direction is None:
             # An unavailable filter is not a malformed filter. Retain valid
@@ -243,7 +249,7 @@ def scanner_snapshot(scan_result):
             # Context enrichment can replace the literal WAIT text with
             # Dhan expiry/OI details. Only an explicitly known data-dependent
             # filter may remain unavailable; never infer its direction.
-            if name.strip() not in unavailable:
+            if canonical_name not in {item.casefold() for item in unavailable}:
                 return compose_snapshot()
             continue
         if type(direction) is not int or direction not in (-1, 0, 1):
