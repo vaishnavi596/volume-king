@@ -107,7 +107,9 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertNotIn('completed[-1][0],len(completed),data.get("candle_fetched_at")',body)
         reader=body.split("    def watch_three_minute_worker_input",1)[0]
         self.assertNotIn("analyze(",reader)
-        self.assertIn('return analyze(quality["bars"],selected,"3m")',body)
+        self.assertIn('bars=quality["bars"]',body)
+        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")',body)
+        self.assertIn('cache_key=(identity[0],"3m",tuple(selected),validated_bars)',body)
 
     def test_python_syntax(self):
         ast.parse(self.source, filename=str(SOURCE))

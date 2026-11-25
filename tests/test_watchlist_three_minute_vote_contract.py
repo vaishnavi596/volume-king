@@ -27,7 +27,9 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
         self.assertNotIn("analyze(", fn)
         worker=self.functions["compute_watch_three_minute_worker"]
         self.assertIn('quality_check(completed,180',worker)
-        self.assertIn('analyze(quality["bars"],selected,"3m")',worker)
+        self.assertIn('bars=quality["bars"]',worker)
+        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")',worker)
+        self.assertLess(worker.index('if not quality.get("usable"):'),worker.index('analyze(bars,selected,"3m")'))
         self.assertNotIn("get_market_data(", fn)
         self.assertNotIn("dhan_feed.intraday", fn)
         self.assertNotIn("watch_signal_cache", fn)

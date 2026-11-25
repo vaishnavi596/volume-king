@@ -52,11 +52,13 @@ class LocalPoolTests(unittest.TestCase):
         tree=ast.parse(source)
         funcs={n.name:n for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
         body=ast.get_source_segment(source,funcs["prepare_watch_three_minute_signal"])
-        worker="result=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)"
+        worker="computed=await local_analysis_pool.run(compute_watch_three_minute_worker,completed,selected)"
         self.assertIn(worker,body)
         before,after=body.split(worker,1)
         self.assertIn("saved[0]==identity:return",before)
         self.assertIn("latest is None or latest[0]!=identity:return",after.split("watch_three_minute_cache[sym]",1)[0])
+        self.assertLess(after.index("latest is None or latest[0]!=identity:return"),after.index("historical_indicator_cache[cache_key]=result"))
+        self.assertLess(after.index("historical_indicator_cache[cache_key]=result"),after.index("result=dict(result,source="))
         self.assertIn("live_verified=False",after)
         self.assertIn('publish_five_engine_historical(sym,"3m",result)',after)
         capture=ast.get_source_segment(source,funcs["watch_three_minute_worker_input"])
