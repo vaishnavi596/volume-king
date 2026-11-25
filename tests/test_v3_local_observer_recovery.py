@@ -50,3 +50,34 @@ class LocalObserverRecoveryTests(unittest.TestCase):
         self.assertIn("super_five_recovery.succeeded",body)
         self.assertIn("generation==provider_generation[0]",body)
         self.assertEqual(s.count("super_five_recovery.report(time.monotonic())"),2)
+
+    def test_persistent_audit_does_not_restore_recovery_authority(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            path=Path(directory)/"repair.json"
+            r=LocalObserverRecovery(path)
+            r.failed(1,100,ValueError("secret"),"local_worker")
+            sequence,doc=r.audit_snapshot()
+            r.audit_written(sequence,r.write_audit(doc))
+            self.assertIsNone(r.audit_snapshot())
+            reopened=LocalObserverRecovery(path)
+            reopened.load_audit()
+            report=reopened.report(101)
+            self.assertEqual(len(report["previous_events"]),1)
+            self.assertEqual(report["previous_events"][0]["state"],"RETRY_SCHEDULED")
+            self.assertFalse(report["pending"])
+            self.assertTrue(reopened.ready(1,101))
+            self.assertNotIn("secret",path.read_text())
+
+    def test_corrupt_audit_is_reported_without_recovery_or_data_deletion(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            path=Path(directory)/"repair.json"
+            path.write_text("not json")
+            r=LocalObserverRecovery(path)
+            r.load_audit()
+            self.assertEqual(r.report(100)["persistence_error"],"JSONDecodeError")
+            self.assertFalse(r.report(100)["pending"])
+            self.assertEqual(path.read_text(),"not json")

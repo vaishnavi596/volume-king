@@ -6,14 +6,7 @@ run-name: BOT KING V3 B204 PREVIEW • separate Android identity • v2.3.204
 # The full independent exact-head B3 gate must PASS before signing this preview.
 # B204 final regression checkpoint: exact-head complete offline suite, holiday manual HIST and signer guards.
 on:
-  push:
-    branches:
-      - pilot/v1-pure-original-clone-phone-20261120
-    paths:
-      - .github/workflows/v3-live-building-doctor-apk.yml
-      - tests/test_b1_five_engine_dhan_shared_option.py
-      - tests/test_market_closed_refresh_gates.py
-      - tests/test_candle_historical_display.py
+  # Archived version-specific preview; manual dispatch only.
   workflow_dispatch:
 permissions:
   contents: read

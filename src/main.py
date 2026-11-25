@@ -278,7 +278,7 @@ def app_main(page:ft.Page):
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
     stock_diagnostic_registry=DiagnosticRegistry()  # Keep recovery across Settings re-entry.
     from v3_local_observer_recovery import LocalObserverRecovery
-    super_five_recovery=LocalObserverRecovery()
+    super_five_recovery=LocalObserverRecovery(Path(STATE).parent / "platinum_repair_audit.json")
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
     original_page_update=page.update
     def localized_update(*args,**kwargs):
@@ -1480,8 +1480,14 @@ def app_main(page:ft.Page):
         # Re-analyze only when candles or filter choices change, without
         # issuing extra broker/Oracle historical or quote requests.
         last_fingerprint=None
+        await asyncio.to_thread(super_five_recovery.load_audit)
         while True:
             await asyncio.sleep(SUPER_FIVE_LOCAL_TICK_SECONDS)
+            audit=super_five_recovery.audit_snapshot()
+            if audit is not None:
+                sequence,document=audit
+                error=await asyncio.to_thread(super_five_recovery.write_audit,document)
+                super_five_recovery.audit_written(sequence,error)
             generation=provider_generation[0]
             stage="capture"
             try:
