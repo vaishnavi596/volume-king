@@ -2599,3 +2599,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — Shared/Retry exact gate PASS
 - Exact edbf32a9a1b56ee360382cc91036afeb85b46748 B3 run 45599882674 job 139155680164 completed SUCCESS; raw logs 1947 tests in 202.934s, OK. Earlier B1/B2/Adapter at production SHA 6299584 PASS. Shared/Retry worker offline gate verified; no fresh phone performance proof. C3 OPEN for independent adapter integration and runtime capacity; no APK/server/order changes. Next inspect actual N/F/O source and adapter wiring, without inventing evidence.
+
+
+### 25 नवंबर 2026 — C3 historical agreement duplicate calculation removal
+- Baseline edbf32a 1947 PASS, docs dff632c. Add bounded 220-entry exact completed OHLCV+frame+filter+generation memo to historical_vote_agreement shared by Dashboard, Watchlist, summary, Doctor. Same full input reuse, corrected candles invalidate; no LIVE evidence promoted. First calculation remains synchronous; remaining UI historical publisher and independent N/F/O data still OPEN. Added runtime regression. Local targeted execution NOT EXECUTED; exact CI pending. No server/APK/orders changes.

@@ -1324,6 +1324,7 @@ def app_main(page:ft.Page):
                            reason=str(display.get("reason",""))+" • Latest request failed: "+failure["detail"])
         if frozen is None:record_analysis(sym,"5m",result=display,candle_count=len(raw))
         return display
+    historical_agreement_cache={}
     def historical_vote_agreement(data,tf="5m"):
         """Completed exact-timeframe Dhan votes; historical never equals live."""
         if tf not in ("1m","3m","5m") or data.get("_scanner_timeframe","5m")!=tf:
@@ -1339,18 +1340,26 @@ def app_main(page:ft.Page):
                    and bar[0]+seconds<=now]
         if not completed:
             return None
+        selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
+        # Identical completed OHLCV revisions share HIST calculations across
+        # chips, summaries and Doctor, without sharing LIVE authority.
+        identity=(provider_generation[0],tf,tuple(selected),
+                  tuple(tuple(bar) for bar in completed))
+        if identity in historical_agreement_cache:
+            return historical_agreement_cache[identity]
         quality=quality_check(completed,seconds,now=completed[-1][0]+seconds)
         if not quality.get("usable"):
             return None
-        selected=[name for name in filter_selected if filter_modes.get(name,"Analysis")!="Chart"]
         result=analyze(quality["bars"],selected,tf)
         votes=[v.get("vote") for v in result.get("votes",[]) if isinstance(v,dict)]
         bulls=votes.count(1)
         bears=votes.count(-1)
         total=bulls+bears
-        if not total:
-            return None
-        return (round(100*bulls/total),round(100*bears/total),total)
+        agreement=(round(100*bulls/total),round(100*bears/total),total) if total else None
+        if len(historical_agreement_cache)>=220:
+            historical_agreement_cache.pop(next(iter(historical_agreement_cache)))
+        historical_agreement_cache[identity]=agreement
+        return agreement
 
     def historical_vote_bar(agreement,tf="5m"):
         if agreement is None:

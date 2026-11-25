@@ -102,3 +102,20 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         field.visible = False
         self.assertFalse(v["decorate_help"](wrapper).visible)
         self.assertGreaterEqual(v["txt"]("Caption", 11).size, 14)
+
+
+class HistoricalAgreementMemoTests(unittest.TestCase):
+    def test_identical_history_reuses_analysis_and_revision_invalidates(self):
+        _, v, bars=SharedAnalysisRuntimeTests().setup_app()
+        from unittest.mock import patch
+        import main
+        history={"source":"Dhan","_scanner_timeframe":"5m","bars":bars}
+        original=main.analyze
+        with patch.object(main,"analyze",wraps=original) as compute:
+            first=v["historical_vote_agreement"](history,"5m")
+            self.assertEqual(v["historical_vote_agreement"](history,"5m"),first)
+            self.assertEqual(compute.call_count,1)
+            changed=[row[:] for row in bars]
+            changed[-1][4]-=.1
+            v["historical_vote_agreement"](dict(history,bars=changed),"5m")
+            self.assertEqual(compute.call_count,2)
