@@ -108,10 +108,13 @@ class HistoricalAgreementMemoTests(unittest.TestCase):
     def test_identical_history_reuses_analysis_and_revision_invalidates(self):
         _, v, bars=SharedAnalysisRuntimeTests().setup_app()
         from unittest.mock import patch
-        import main
+        from unittest.mock import Mock
         history={"source":"Dhan","_scanner_timeframe":"5m","bars":bars}
-        original=main.analyze
-        with patch.object(main,"analyze",wraps=original) as compute:
+        # The offline harness executes main.py without its Flet launch call.
+        # Importing main directly starts ft.app and can block CI indefinitely.
+        env=v["historical_vote_agreement"].__globals__
+        compute=Mock(wraps=env["analyze"])
+        with patch.dict(env,{"analyze":compute}):
             first=v["historical_vote_agreement"](history,"5m")
             self.assertEqual(v["historical_vote_agreement"](history,"5m"),first)
             self.assertEqual(compute.call_count,1)
