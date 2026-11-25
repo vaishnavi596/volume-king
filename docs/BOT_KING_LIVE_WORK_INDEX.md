@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — #549:** 1999/1999 PASS; selected fusion worker ownership and restored WAIT patch, exact CI pending. Physical acceptance OPEN.
+
 > **CURRENT — #548:** 1998/1998 PASS; B2.03 exact analysis/fusion persistent symbol/frame identity patch; new CI pending. Physical acceptance OPEN.
 
 > **CURRENT — #547:** 1998 tests, two stale test contracts FAIL; both corrected against shared ranking writer and expanded ownership guard. Exact CI pending; no runtime change.

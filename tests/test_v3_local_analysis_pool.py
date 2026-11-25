@@ -376,3 +376,33 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("await persist_current_ranking(retry_owner_current,roster,",source)
         self.assertIn("await persist_current_ranking(ranking_owner_current,ranking_symbols,",source)
         self.assertIn('data["ranking_persistence"]=dict(ranking_persist_stats)',source)
+
+    def test_selected_fusion_owner_rejects_provider_policy_and_lifecycle_changes(self):
+        import ast
+        from pathlib import Path
+        from types import SimpleNamespace
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        guard=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=="selected_fusion_owner")
+        filters=["one"]
+        env=dict(scan_generation=[2],provider_generation=[3],scan_symbol=SimpleNamespace(value="TCS"),
+                 scan_tf=SimpleNamespace(value="3m"),active_analysis_filters=lambda:filters,
+                 prefs={"source":"Dhan","confidence":75},app_active=[True],
+                 lifecycle_background=[False],dhan_feed=SimpleNamespace(connected=True))
+        exec(compile(ast.Module(body=[guard],type_ignores=[]),"<fusion owner>","exec"),env)
+        def current():return env["selected_fusion_owner"]("TCS","3m",2,3,["one"],75)
+        self.assertTrue(current())
+        env["provider_generation"][0]=4
+        self.assertFalse(current())
+        env["provider_generation"][0]=3
+        filters.append("two")
+        self.assertFalse(current())
+        filters.pop()
+        env["lifecycle_background"][0]=True
+        self.assertFalse(current())
+        env["lifecycle_background"][0]=False
+        env["dhan_feed"].connected=False
+        self.assertFalse(current())
+        self.assertIn("deepcopy(advanced),persist=False",source)
+        self.assertIn("if done:return task.result() if owner() else None",source)
+        self.assertIn("if restored or combined_age<0",source)

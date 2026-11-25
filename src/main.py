@@ -583,13 +583,15 @@ def app_main(page:ft.Page):
             await asyncio.to_thread(market_store.put,"fusion",(symbol,interval),result)
         return result
     def fusion_card(symbol,interval,compact=False):
-        data=fusion_cache.get(symbol+":"+interval) or market_store.get("fusion",symbol,interval)
+        data=fusion_cache.get(symbol+":"+interval)
+        restored=data is None
+        if restored:data=market_store.get("fusion",symbol,interval)
         if not data:
             candle_note=("Candles: "+str(scan_shared.get("direction","WAIT"))+" • "+str(scan_shared.get("basis","Analysis unavailable")) if isinstance(scan_shared,dict) and scan_shared.get("symbol")==symbol and scan_shared.get("tf")==interval else "Candle analysis not available for this selection yet")
             return section("COMBINED ANALYSIS • "+symbol,ft.Column([note(candle_note),note("News analysis pending or unavailable. Options require a verified broker feed.")],spacing=5))
         data=dict(data)
         combined_age=datetime.now(timezone.utc).timestamp()-(data.get("timestamp") or 0)
-        if combined_age<0 or combined_age>timeframe_spec(interval)["fresh_seconds"]:
+        if restored or combined_age<0 or combined_age>timeframe_spec(interval)["fresh_seconds"]:
             previous_direction=data.get("overall","WAIT")
             data.update(overall="WAIT",reason="HISTORICAL combined result: "+age_label(data.get("timestamp"))+
                         " • previous direction "+previous_direction+" is not a current signal. "+data.get("reason",""))
@@ -8555,17 +8557,30 @@ console.log('BOT KING Lightweight Charts ready');
             # merely because a prior selected-symbol scan was superseded.
             await scan_market(allow_network and not
                 (prefs.get("source")=="Dhan" and not refresh_hours()))
+    def selected_fusion_owner(sym,interval,generation,provider,filters,confidence):
+        return (generation==scan_generation[0] and provider==provider_generation[0]
+                and sym==scan_symbol.value and interval==scan_tf.value
+                and filters==list(active_analysis_filters())
+                and confidence==float(prefs.get("confidence",75))
+                and app_active[0] and not lifecycle_background[0]
+                and (prefs.get("source")!="Dhan" or dhan_feed.connected))
     async def selected_combined(sym,interval,advanced,generation):
         # Optional news must not keep a newly selected symbol waiting for the
         # previous symbol's 20-second timeout. Cancelling does not stop a worker
         # thread already fetching RSS, but it prevents publishing its old result.
-        task=asyncio.create_task(load_combined(sym,interval,advanced))
+        from copy import deepcopy
+        provider=provider_generation[0]
+        filters=list(active_analysis_filters())
+        confidence=float(prefs.get("confidence",75))
+        def owner():
+            return selected_fusion_owner(sym,interval,generation,provider,filters,confidence)
+        if not owner():return None
+        task=asyncio.create_task(load_combined(sym,interval,deepcopy(advanced),persist=False))
         try:
             while True:
-                if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value):
-                    return None
+                if not owner():return None
                 done,_=await asyncio.wait({task},timeout=.1)
-                if done:return task.result()
+                if done:return task.result() if owner() else None
         finally:
             if not task.done():
                 task.cancel()
@@ -8925,8 +8940,15 @@ console.log('BOT KING Lightweight Charts ready');
                 log_error("combined_news",exc)
                 missing={"items":[],"status":safe_error(exc)}
                 combined=combine_analysis(sym,interval,advanced,missing,missing)
-            if generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value:return
+            if not selected_fusion_owner(sym,interval,generation,current_provider_generation,
+                                         current_filter_selection,current_confidence):return
             fusion_cache[sym+":"+interval]=combined
+            # Disk fusion is reference-only; never persist a result from a detached worker.
+            if not advanced.get("historical") and advanced.get("timestamp") and not hist.get("cached"):
+                await asyncio.to_thread(market_store.put,"fusion",(sym,interval),
+                                        dict(combined,overall="WAIT",historical=True,live_verified=False))
+                if not selected_fusion_owner(sym,interval,generation,current_provider_generation,
+                                             current_filter_selection,current_confidence):return
             fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(sym,interval))]
             if not hist.get("cached"):
                 scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
