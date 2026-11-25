@@ -2673,3 +2673,8 @@ Owner-approved execution order: **BATCH-1 BUILDING/STRUCTURE → BATCH-2 TIMEFRA
 ### 25 नवंबर 2026 — SMART 4.0: canonical technical vote identity
 - PR #121 merged d7e0df8; exact B3 #533 run 45660098036 job 139367312779 raw proof 2026-11-25T17:05:01.6408023Z Ran 1982 tests in 231.095s / 2026-11-25T17:05:01.6408297Z OK. No competing gate observed.
 - B3/B4: shared five-engine adapter now accepts only canonical candle-filter identities from filter_wiring_audit.CANDLE_FILTERS; unknown plugin/legacy labels fail closed, context-only names remain excluded. Existing test placeholders replaced with real distinct configured filter names; added unknown-label quorum regression. No new direction fabricated, no change to independent N/F/O/M readiness or provider traffic. This is one parity prerequisite, not full four-screen acceptance; cross-screen parity, phone acceptance and registry checkpoints remain OPEN. Local execution NOT RUN; exact full CI pending. No APK/Oracle/orders change.
+
+
+### 25 नवंबर 2026 — SMART 4.0: shared HIST FINAL exact identity guard
+- PR #122 merged c97ede3; B3 #534 run 45661711551 job 139372999592 raw proof 2026-11-25T17:14:10.1756060Z Ran 1983 tests in 250.323s / 2026-11-25T17:14:10.1756452Z OK. No competing gate.
+- B4.05: shared HIST FINAL cache used by Dashboard, Watchlist, Scanner and Super Five now rejects mismatched source/timeframe tags before replay, separates future vs forming completion cache identity. Existing 5m untagged compatibility preserved. Added actual nested function test for identity/source/frame and clock transition; no new broker requests, no votes invented. Cross-screen physical acceptance and independent N/F/O/M remain OPEN. Local execution NOT RUN; exact CI pending. No APK/Oracle/orders change.

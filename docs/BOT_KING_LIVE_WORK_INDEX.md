@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **25-Nov-2026 CURRENT:** B3 [#534](https://github.com/vaishnavi596/volume-king/actions/runs/45661711551) PASS at c97ede3. Shared HIST FINAL source/timeframe and clock identity guard prepared; full CI and physical cross-screen acceptance pending.
+
 > **25-Nov-2026 CURRENT:** B3 [#533](https://github.com/vaishnavi596/volume-king/actions/runs/45660098036) PASS at d7e0df8. Canonical candle-filter vote allowlist patch prepared; exact CI pending. Full cross-screen parity remains OPEN.
 
 > **25-Nov-2026 CURRENT:** B3 [#532](https://github.com/vaishnavi596/volume-king/actions/runs/45657927264) 1980/1980 PASS at 4ab1d82. Context alias directional exclusion patch and scoped registry evidence prepared; full CI pending. No full checkpoint credit or phone acceptance yet.
