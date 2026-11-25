@@ -6265,6 +6265,19 @@ def app_main(page:ft.Page):
                               "scanner":{key:scan_progress.get(key) for key in
                                   ("checked","total","valid","failed","cached","state","timeframe")},
                               "watchlist_interleave_every_five":True,
+                              "watchlist_gate_snapshot":{
+                                  "inactive":not app_active[0],
+                                  "background":bool(lifecycle_background[0]),
+                                  "source_not_dhan":prefs.get("source")!="Dhan",
+                                  "dhan_disconnected":not dhan_feed.connected,
+                                  "outside_refresh_hours":not refresh_hours(),
+                                  "scanner_busy":bool(dhan_history_scan_active[0]),
+                                  "index_busy":bool(index_one_minute_busy[0]),
+                                  "watchlist_busy":bool(watch_three_minute_warm_busy[0]),
+                                  "cooldown_seconds":round(dhan_feed.cooldown_remaining("/dhan/intraday"),1),
+                                  "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=12,
+                                  "provider_spacing":watch_three_minute_warm_last_provider[0]>0 and
+                                      0<=mono-watch_three_minute_warm_last_provider[0]<10},
                               "watchlist_recent_budget_used":sum(
                                   0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)},
                     candle_stamps={sym:watch_three_minute_cache[sym][0][4][-1][0]+180

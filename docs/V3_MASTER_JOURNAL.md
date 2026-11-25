@@ -2398,3 +2398,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — P2-C regression contract repair
 - B3 #468 exact 812519c, run 45555373291/job 139006037146: 1917 tests, 2 failures, 1915 non-failing; both stale tab-restriction structural assertions (closed queue and periodic Watchlist warmup). Source validation PASS. Updated both test contracts to forbid tab-dependent scheduling, retain foreground/generation/closed scope, pacing/cooldown guards and visible-tab-only repaint; added selected-roster and completed-candle freshness assertions. Production source unchanged. New exact-head CI pending; phone and P2-D remain gated. No server/order/APK change.
+
+
+### 25 नवंबर 2026 — P2-C PASS और P2-D1 cache-only diagnostics
+- Exact 7a3561b B3 run 45556022461 completed/success verified via Actions API. P2-D1 adds instantaneous periodic scheduler gate snapshot (foreground, connection, source, session, contention, cooldown, rolling budget, spacing) and selected-symbol attempt age, cached completed 3m age, cached quote presence. No claim of recorded skip history, successful transport or LIVE; scanner interleave may run while periodic gate is blocked. No extra provider requests or pacing change. Test covers 5/51/70 and missing evidence. P2-D2 actual transport outcomes, error trace, snapshot parity and device continuity remain pending; CI pending. No server/APK/orders change.

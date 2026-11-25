@@ -40,6 +40,15 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                    and math.isfinite(candle_stamps[sym])
                    and 0<candle_stamps[sym]<=now_epoch}
     stale = [sym for sym in candle_ages if candle_ages[sym]>360]
+    # Cache observation does not certify transport success.
+    issues[-1]["gate_snapshot"] = progress.get("watchlist_gate_snapshot", {})
+    issues[-1]["gate_scope"] = "instantaneous periodic scheduler gates, not recorded skip history; scanner interleave can still run"
+    issues[-1]["symbol_observations"] = [
+        {"symbol":sym, "attempt_age_seconds":ages.get(sym),
+         "cached_completed_3m_age_seconds":candle_ages.get(sym),
+         "quote_cached":sym in quote_present,
+         "transport_success":"UNVERIFIED"}
+        for sym in symbols]
     issues.append({"check": "CONTINUOUS_QUOTE_AND_CANDLE_FRESHNESS",
                    "status": "UNVERIFIED", "last_quote_attempt_age_seconds": quote_attempt_age,
                    "last_quote_success_age_seconds": quote_success_age,
