@@ -2576,3 +2576,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 एक सुरक्षित संयुक्त source+test+journal commit; fail-fast targeted tests फिर आवश्यक exact-SHA full gate; Workflow चलते समय केवल non-conflicting read-only तैयारी, नया competing push नहीं। वास्तविक logs और फोन evidence से closure; छह मूल ML5 Batch ही रखें। प्रत्येक batch की सभी acceptance rows PASS तभी CLOSED; अन्यथा OPEN/BLOCKED। बार-बार OK नहीं; सिर्फ आवश्यक user action, unresolved blocker या completed batch की compact report। Chat session के बाहर autonomous AI coding उपलब्ध मानकर न चलें। GitHub automated controller अभी प्रस्तावित, implementation अलग सत्यापन के अधीन।
 
 - Current C3 source e5c4884 CI status अलग से सत्यापित करना बाकी। यह docs-only policy update है, न नया source/APK/server change, न controller implementation.
+
+
+### 25 नवंबर 2026 — SMART 3.0 पहला corrective gate
+- Exact e5c4884 B1 45596174376, B2 45596174330, Adapter 45596174388 PASS; B3 45596174282 job 139142704404 source PASS, 1946 tests, 1 failure: test_super_five_shared_five_minute_path_remains पुरानी synchronous call assertion. Current actual worker wiring inspected: 5m copied inputs, source verification, policy/generation guards and publish preserved. Update remaining structural contract to verify actual awaited path and provenance/guard; no production changes. Local targeted execution NOT EXECUTED; exact new CI pending. C3 OPEN, no dependent next batch, no APK/server/order changes.

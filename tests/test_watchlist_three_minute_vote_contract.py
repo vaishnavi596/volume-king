@@ -68,8 +68,17 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
         ranking = self.functions["rank_one"]
         self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(', shared)
         self.assertIn('result,data,symbol=sym,timeframe="5m",now=time.time()', shared)
-        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(dict(analyzed,', ranking)
-        self.assertIn('data,symbol=sym,timeframe="5m",now=time.time()', ranking)
+        self.assertIn('engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,', ranking)
+        self.assertIn('deepcopy(engine_input),deepcopy(data),symbol=sym,timeframe="5m",', ranking)
+        self.assertIn('now=time.time(),timing=engine_timing)', ranking)
+        self.assertIn('source="Dhan" if source_ok else ""', ranking)
+        self.assertIn('live_verified=verified,historical=not verified', ranking)
+        after=ranking.split('engine_snapshot=await local_analysis_pool.run(',1)[1]
+        guard=after.split('publish_five_engine_5m(sym,engine_snapshot)',1)[0]
+        self.assertIn('generation!=provider_generation[0]', guard)
+        self.assertIn('engine_policy!=', guard)
+        self.assertIn('return sym,None', guard)
+        self.assertIn('publish_five_engine_5m(sym,engine_snapshot)', after)
         self.assertNotIn('scanner_snapshot_with_candle', self.functions["watch_three_minute_signal"])
         self.assertIn('symbol=sym,timeframe="5m",generation=provider_generation[0]', source)
 
