@@ -64,3 +64,30 @@ class ML5CachePerformanceTests(unittest.TestCase):
                 self.assertEqual(s.diagnostics()["entries"],count*3)
                 self.assertEqual(s.diagnostics()["write_count"],count*3)
                 self.assertEqual(SnapshotStore(s.path,incremental=True).diagnostics()["restored_entries"],count*3)
+
+    def test_incremental_corrupt_db_preserves_legacy(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/"cache.json"
+            old=SnapshotStore(path)
+            row=dict(items=[dict(title="t",url="u",published=1,source="s")],fetched=1)
+            self.assertTrue(old.put("news",("a",),row))
+            original=path.read_bytes()
+            Path(str(path)+".sqlite3").write_bytes(b"not a sqlite database")
+            s=SnapshotStore(path,incremental=True)
+            self.assertEqual(s.get("news","a"),row)
+            self.assertEqual(s.diagnostics()["fallback_reason"],"sqlite_restore_failed")
+            self.assertTrue(s.put("news",("b",),row))
+            self.assertEqual(path.read_bytes(),original)
+            self.assertGreater(s.diagnostics()["physical_storage_bytes"],0)
+
+    def test_incremental_physical_bytes_and_concurrent_writes(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/"cache.json"
+            s=SnapshotStore(path,incremental=True)
+            row=dict(items=[dict(title="t",url="u",published=1,source="s")],fetched=1)
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                self.assertTrue(all(pool.map(lambda n:s.put("news",(str(n),),row),range(70))))
+            self.assertEqual(s.diagnostics()["entries"],70)
+            self.assertGreater(s.diagnostics()["physical_storage_bytes"],0)
+            self.assertEqual(SnapshotStore(path,incremental=True).diagnostics()["restored_entries"],70)
