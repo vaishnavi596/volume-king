@@ -136,6 +136,19 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('if display_mode!="LIVE":',scan)
         self.assertIn('if history_valid and display_mode=="HIST":',scan)
 
+    def test_current_scanner_worker_freezes_settings_before_publication(self):
+        scan=ast.get_source_segment(source,functions["scan_market"])
+        worker='advanced=await local_analysis_pool.run(analyze_current,[tuple(row) for row in bars],current_filter_selection,interval,frozen_confidence=current_confidence)'
+        self.assertIn(worker,scan)
+        before,after=scan.split(worker,1)
+        self.assertIn('current_filter_selection=list(active_analysis_filters())',before)
+        self.assertIn('current_confidence=float(prefs.get("confidence",75))',before)
+        self.assertIn('current_provider_generation=provider_generation[0]',before)
+        guard=after.split('record_analysis(',1)[0]
+        for check in ('generation!=scan_generation[0]','sym!=scan_symbol.value','interval!=scan_tf.value','current_provider_generation!=provider_generation[0]','current_filter_selection!=list(active_analysis_filters())','current_confidence!=float(prefs.get("confidence",75))'):
+            self.assertIn(check,guard)
+        self.assertIn('):return',guard)
+
     def test_plain_max_pain_is_not_an_independent_filter(self):
         from scanner_engine import ALL_FILTERS, OPTION_FILTERS
         self.assertIn("Dhan Max Pain",OPTION_FILTERS)
