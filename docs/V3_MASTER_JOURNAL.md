@@ -2493,3 +2493,7 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — ML5-CACHE C1 incremental SQLite प्रारंभिक गेट
 - Exact 71287cb B3 #483 run 45571479845/job 139058927378 completed/success verified; source validation and all offline regression PASS. C1 source fa54aff: optional incremental=True SQLite per-record transactional writes, legacy JSON retained, migration marker, restore validation, logical byte accounting, write telemetry, skip unnecessary sorting below capacity. Default app remains JSON until integration gate; no phone speed claim. Test 7749fbe: migration, restart, eviction, unchanged writes, 5/34/51/70 x three frames. New full CI pending; intermediate commits requested skip CI, final journal commit triggers normal configured CI. Physical DB size/recovery, concurrency, actual app wiring, dynamic RAM/CPU and phone benchmarks pending; no server/APK/order changes.
+
+
+### 25 नवंबर 2026 — C1 CI trigger repair
+- Owner Actions screenshot still shows B3 #483. Confirmed clone-b3-full-regression.yml push paths exclude docs/**; C1 source/test commits used skip ci, final journal-only commit could not trigger B3. Correct sequencing: journal first, then matching workflow path commit without skip ci. No change to test execution, provider, app or orders. Exact new head CI remains pending.
