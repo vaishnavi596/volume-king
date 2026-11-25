@@ -174,3 +174,79 @@ class LocalPoolTests(unittest.TestCase):
             self.assertIn(check,guard)
         self.assertIn("record_analysis",guard)
         self.assertNotIn("get_market_data(",body)
+
+
+    def test_cancel_running_worker_retains_owner_until_thread_exits(self):
+        from threading import Event
+        pool=LocalAnalysisPool(1)
+        started=Event()
+        release=Event()
+        owners=set()
+        def work():
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("fixture timeout")
+        async def caller():
+            owners.add("same-analysis")
+            try:
+                await pool.run(work)
+            finally:
+                owners.discard("same-analysis")
+        async def check():
+            task=asyncio.create_task(caller())
+            try:
+                self.assertTrue(await asyncio.to_thread(started.wait,2))
+                task.cancel()
+                await asyncio.sleep(0)
+                self.assertFalse(task.done())
+                self.assertIn("same-analysis",owners)
+                task.cancel()
+                await asyncio.sleep(0)
+                self.assertIn("same-analysis",owners)
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):
+                    await asyncio.wait_for(task,2)
+                self.assertFalse(owners)
+                stats=pool.diagnostics()
+                self.assertEqual(stats["running"],0)
+                self.assertEqual(stats["running_cancel_waits"],1)
+            finally:
+                release.set()
+                await asyncio.gather(task,return_exceptions=True)
+        try:
+            asyncio.run(check())
+        finally:
+            pool.close()
+
+    def test_cancel_queued_worker_does_not_execute(self):
+        from threading import Event
+        pool=LocalAnalysisPool(1)
+        started=Event()
+        release=Event()
+        calls=[]
+        def work():
+            started.set()
+            release.wait(5)
+        async def check():
+            first=asyncio.create_task(pool.run(work))
+            second=None
+            try:
+                self.assertTrue(await asyncio.to_thread(started.wait,2))
+                second=asyncio.create_task(pool.run(lambda:calls.append("unexpected")))
+                await asyncio.sleep(0)
+                self.assertEqual(pool.diagnostics()["pending"],1)
+                second.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await second
+                self.assertEqual(pool.diagnostics()["pending"],0)
+                self.assertEqual(pool.diagnostics()["cancelled"],1)
+                self.assertFalse(calls)
+            finally:
+                release.set()
+                await first
+                if second is not None:
+                    await asyncio.gather(second,return_exceptions=True)
+        try:
+            asyncio.run(check())
+        finally:
+            pool.close()

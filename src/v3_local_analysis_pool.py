@@ -31,6 +31,7 @@ class LocalAnalysisPool:
         self._completed=0
         self._failed=0
         self._cancelled=0
+        self._running_cancel_waits=0
         self._queue_last_ms=0.0
         self._queue_max_ms=0.0
         self._compute_last_ms=0.0
@@ -67,11 +68,29 @@ class LocalAnalysisPool:
                     self._pending-=1
                     self._cancelled+=1
         future.add_done_callback(done)
-        return await asyncio.wrap_future(future)
+        wrapped=asyncio.wrap_future(future)
+        try:
+            return await asyncio.shield(wrapped)
+        except asyncio.CancelledError:
+            # Queued jobs can be cancelled immediately. A running thread cannot
+            # be killed safely; retain the caller's ownership until it exits.
+            if not future.cancel():
+                with self._lock:self._running_cancel_waits+=1
+                while not wrapped.done():
+                    try:
+                        await asyncio.shield(wrapped)
+                    except asyncio.CancelledError:
+                        continue
+                    except Exception:
+                        break
+                if wrapped.done() and not wrapped.cancelled():
+                    wrapped.exception()  # consume abandoned failure
+            raise
     def diagnostics(self):
         with self._lock:
             return {"workers":self.workers,"pending":self._pending,"running":self._running,
                     "completed":self._completed,"failed":self._failed,"cancelled":self._cancelled,
+                    "running_cancel_waits":self._running_cancel_waits,
                     "queue_last_ms":self._queue_last_ms,"queue_max_ms":self._queue_max_ms,
                     "compute_last_ms":self._compute_last_ms,"compute_max_ms":self._compute_max_ms,
                     "scope":"local_analysis_only","provider_requests":0}
