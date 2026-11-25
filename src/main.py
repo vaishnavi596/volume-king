@@ -1978,7 +1978,8 @@ def app_main(page:ft.Page):
             quotes[symbol]=data;failed_symbols.pop(symbol,None)
             existing={r["symbol"]:r for r in top5_candidates if r.get("timestamp")}
             existing[symbol]=result;publish_partial_ranking(existing)
-            market_store.put("ranking",("configured51",),{"rows":top5_candidates,"checked_at":datetime.now().strftime("%d %b %H:%M")})
+            await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"checked_at":datetime.now().strftime("%d %b %H:%M")})
+            if generation!=provider_generation[0]:return
         except Exception as exc:failed_symbols[symbol]=safe_error(exc)
         if current[0]==0:request_view_refresh(0)
     from v3_dashboard_bar_monitor import DashboardBarMonitor
@@ -8253,7 +8254,11 @@ console.log('BOT KING Lightweight Charts ready');
                 historical=dict(historical,source="Dhan",historical=True,
                                 live_verified=False,freshness="historical_unverified",
                                 symbol=sym,timeframe=interval)
-                market_store.put("analysis_last_good",("Dhan",sym,interval),historical)
+                await asyncio.to_thread(market_store.put,"analysis_last_good",("Dhan",sym,interval),dict(historical))
+                if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
+                        or historical_provider_generation!=provider_generation[0]
+                        or historical_filter_selection!=list(active_analysis_filters())
+                        or current_confidence!=float(prefs.get("confidence",75))):return
                 if interval in ("1m","3m"):
                     publish_five_engine_historical(sym,interval,historical)
             elif hist.get("cached"):
@@ -8300,7 +8305,12 @@ console.log('BOT KING Lightweight Charts ready');
                     " • calculated "+str(historical.get("bias","WAIT"))+" (not LIVE)")
             # Publish candle results before RSS requests so missing/slow news cannot hide them.
             scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
-            if not hist.get("cached"):market_store.put("analysis",(sym,interval),scan_shared)
+            if not hist.get("cached"):
+                await asyncio.to_thread(market_store.put,"analysis",(sym,interval),dict(scan_shared))
+                if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
+                        or current_provider_generation!=provider_generation[0]
+                        or current_filter_selection!=list(active_analysis_filters())
+                        or current_confidence!=float(prefs.get("confidence",75))):return
             scan_last_success[0]=datetime.now().timestamp()
             if current[0]==0:request_view_refresh(0)
             shown_analysis=(historical if history_valid and
@@ -8438,7 +8448,11 @@ console.log('BOT KING Lightweight Charts ready');
             fusion_selected.controls=[safe_scanner_widget("Combined Analysis",lambda:fusion_card(sym,interval))]
             if not hist.get("cached"):
                 scan_shared.update(direction=direction,basis=basis,tf=interval,symbol=sym,timestamp=advanced.get("timestamp"))
-                market_store.put("analysis",(sym,interval),scan_shared)
+                await asyncio.to_thread(market_store.put,"analysis",(sym,interval),dict(scan_shared))
+                if (generation!=scan_generation[0] or sym!=scan_symbol.value or interval!=scan_tf.value
+                        or current_provider_generation!=provider_generation[0]
+                        or current_filter_selection!=list(active_analysis_filters())
+                        or current_confidence!=float(prefs.get("confidence",75))):return
             scan_result.controls=controls
             scan_last_success[0]=datetime.now().timestamp()
             scan_next_refresh[0]=(scan_last_success[0]+int(scan_refresh.value or "60")) if scan_live.value else None
@@ -9584,7 +9598,8 @@ console.log('BOT KING Lightweight Charts ready');
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
                 if available:
-                    market_store.put("ranking",("configured51",),{"rows":top5_candidates,"all_rows":list(watch_signal_cache.values()),"checked_at":top5_last_update[0]})
+                    await asyncio.to_thread(market_store.put,"ranking",("configured51",),{"rows":[dict(row) for row in top5_candidates],"all_rows":[dict(row) for row in watch_signal_cache.values()],"checked_at":top5_last_update[0]})
+                    if generation!=provider_generation[0] or prefs.get("source")!="Dhan":continue
                 try:
                     if current[0] in (0,1,4,5):request_view_refresh(current[0])
                 except Exception:pass
