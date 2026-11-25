@@ -1973,8 +1973,13 @@ def app_main(page:ft.Page):
         try:
             data=await asyncio.to_thread(get_market_data,symbol,"5m","5d")
             if generation!=provider_generation[0]:return
-            result=display_analysis(symbol,data)
+            from copy import deepcopy
+            frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,symbol,"5m")))
+            snapshot=deepcopy(data)
+            result=await local_analysis_pool.run(display_analysis,symbol,snapshot,frozen=frozen)
+            if (generation!=provider_generation[0] or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,symbol,"5m")))):return
             if not result.get("timestamp"):raise ValueError("No completed candle analysis")
+            record_analysis(symbol,"5m",result=result,candle_count=len(snapshot.get("bars") or []))
             quotes[symbol]=data;failed_symbols.pop(symbol,None)
             existing={r["symbol"]:r for r in top5_candidates if r.get("timestamp")}
             existing[symbol]=result;publish_partial_ranking(existing)
@@ -7423,7 +7428,7 @@ console.log('BOT KING Lightweight Charts ready');
         scan_result.controls=[shared_filter_report(sym,tf,shown)]
         scan_status.value=sym+" • "+shown["display_state"]+" • automatic analysis"
         refresh_scan_age()
-    def refresh_shared_analysis(only=None):
+    async def refresh_shared_analysis(only=None):
         # Local only: reuse completed candles; price polling cadence is unchanged.
         if not app_active[0] or prefs.get("source")!="Dhan":
             return
@@ -7466,17 +7471,30 @@ console.log('BOT KING Lightweight Charts ready');
                             updated=True
                     continue
                 began=time.monotonic()
-                result=display_analysis(sym,data)
+                from copy import deepcopy
+                generation=provider_generation[0]
+                frozen=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))
+                snapshot=deepcopy(data)
+                result=await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)
+                if (generation!=provider_generation[0] or not app_active[0] or prefs.get("source")!="Dhan"
+                        or not dhan_feed.connected or shared_history(sym)!=snapshot
+                        or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
+                    continue
                 result=retain_last_filter_votes(
                     result,watch_signal_cache.get(sym),
                     selected_filters=active_analysis_filters(),provider="Dhan")
+                from five_engine import scanner_snapshot_with_candle
+                engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,
+                    deepcopy(result),snapshot,symbol=sym,timeframe="5m",now=time.time())
+                if (generation!=provider_generation[0] or not app_active[0] or prefs.get("source")!="Dhan"
+                        or not dhan_feed.connected or shared_history(sym)!=snapshot
+                        or frozen!=(list(active_analysis_filters()),float(prefs.get("confidence",75)),bool(dhan_feed.historical_only),scan_fetch_failure.get((generation,sym,"5m")))):
+                    continue
                 record_analysis(sym,"5m",result=result,elapsed=time.monotonic()-began,candle_count=len(raw))
                 shared_analysis_seen[sym]=identity
                 shared_analysis_calculated[sym]=time.time()
                 watch_signal_cache[sym]=dict(result,symbol=sym)
-                from five_engine import scanner_snapshot_with_candle
-                publish_five_engine_5m(sym,scanner_snapshot_with_candle(
-                    result,data,symbol=sym,timeframe="5m",now=time.time()))
+                publish_five_engine_5m(sym,engine_snapshot)
                 if sym==scan_symbol.value and scan_tf.value=="5m" and (not scan_busy[0] or scan_filter_ready[0]):
                     publish_selected_result(sym,"5m",result,shared_analysis_calculated[sym])
                     selected_report_identity[0]=report_identity
@@ -7647,7 +7665,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if regular_hours() and app_active[0] and current[0] in (0,3):
                     # Do not recompute the entire shared 5m universe for
                     # inactive dashboard/scanner pages every 2 seconds.
-                    refresh_shared_analysis(only=scan_symbol.value if current[0]==3 else None)
+                    await refresh_shared_analysis(only=scan_symbol.value if current[0]==3 else None)
                 if current[0]==3 and app_active[0]:
                     await sync_visible_chart()
             except Exception as exc:
@@ -8489,7 +8507,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_busy[0]=False;scan_filter_ready[0]=False
             if generation==scan_generation[0] and prefs.get("source")=="Dhan" and scan_tf.value=="5m":
                 selected_report_identity[0]=None
-                refresh_shared_analysis(scan_symbol.value or "NIFTY")
+                await refresh_shared_analysis(scan_symbol.value or "NIFTY")
             refresh_scan_age()
             if generation!=scan_generation[0]:
                 page.run_task(restart_latest_scan,allow_network)
@@ -9282,7 +9300,7 @@ console.log('BOT KING Lightweight Charts ready');
                             else:
                                 quotes[sym]=data
                             # Shared local analysis publishes immediately; it performs no HTTP calls.
-                            refresh_shared_analysis(sym)
+                            await refresh_shared_analysis(sym)
                             market_completed[0]+=1
                             history_cached[0]+=int(bool(data.get("cached")))
                             scan_progress.update(history_checked=market_completed[0],history_total=len(symbols),

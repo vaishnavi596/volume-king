@@ -1,4 +1,5 @@
 """Actual Flet controls and app callbacks with supplied candles, no broker I/O."""
+import asyncio
 import time
 import unittest
 from unittest.mock import patch
@@ -26,7 +27,7 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
     def test_all_54_update_without_network_and_unchanged_data_is_not_recalculated(self):
         _, v, _ = self.setup_app()
         with patch.object(v["dhan_feed"], "_call", side_effect=AssertionError("unexpected HTTP")):
-            v["refresh_shared_analysis"]()
+            asyncio.run(v["refresh_shared_analysis"]())
             self.assertEqual(len(v["watch_signal_cache"]), 54)
             self.assertTrue(all(row["symbol"] in v["watch_symbols"] for row in v["top5_candidates"]))
             rows, counts = v["analysis_audit"].coverage(DHAN_VERIFIED_SYMBOLS)
@@ -35,20 +36,20 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
             self.assertTrue(all(r["unavailable_filters"] >= 4 for r in rows))  # derivative evidence remains WAIT
             self.assertTrue(all(r["historical"] for r in v["watch_signal_cache"].values()))
             before = {r["symbol"]: r["received_at"] for r in rows}
-            v["refresh_shared_analysis"]()
+            asyncio.run(v["refresh_shared_analysis"]())
             self.assertEqual(before, {r["symbol"]: r["received_at"] for r in v["analysis_audit"].coverage(DHAN_VERIFIED_SYMBOLS)[0]})
 
     def test_same_timestamp_correction_and_filter_change_invalidate_analysis(self):
         _, v, bars = self.setup_app()
-        v["refresh_shared_analysis"]()
+        asyncio.run(v["refresh_shared_analysis"]())
         previous = v["shared_analysis_seen"]["TCS"]
         corrected = [b[:] for b in bars]
         corrected[-1][4] -= .5
         v["quotes"]["TCS"]["bars"] = corrected
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertNotEqual(v["shared_analysis_seen"]["TCS"], previous)
         v["filter_selected"][:] = ["MACD"]
-        v["refresh_shared_analysis"]()
+        asyncio.run(v["refresh_shared_analysis"]())
         rows, counts = v["analysis_audit"].coverage(DHAN_VERIFIED_SYMBOLS)
         self.assertEqual(counts["ANALYZED"], 54)
         self.assertTrue(all(r["available_filters"] == 1 for r in rows))
@@ -57,16 +58,16 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         _, v, bars = self.setup_app()
         v["candles"]["scanner_chart_TCS"] = dict(v["quotes"]["TCS"],
             bars=bars[:-1], _scanner_timeframe="5m", _scanner_generation=v["scan_generation"][0])
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["watch_signal_cache"]["TCS"]["timestamp"], bars[-1][0])
 
     def test_busy_selection_receives_cached_result_after_work_finishes(self):
         _, v, _ = self.setup_app()
         v["scan_busy"][0] = True
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertIsNone(v["selected_report_identity"][0])
         v["scan_busy"][0] = False
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["selected_report_identity"][0][0], "TCS")
         self.assertTrue(v["scan_result"].controls)
 
@@ -78,7 +79,7 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         v["chart_snapshots"][("TCS", "5m", v["provider_generation"][0])] = {
             "source": "Dhan", "bars": bars, "candle_fetched_at": 2,
             "freshness": "unverified", "live_verified": False}
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertIn('160',v["shared_analysis_seen"]["TCS"][4])
         self.assertEqual(v["watch_signal_cache"]["TCS"]["price"], 160)
 

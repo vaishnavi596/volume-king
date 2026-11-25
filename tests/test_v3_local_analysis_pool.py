@@ -142,3 +142,17 @@ class LocalPoolTests(unittest.TestCase):
         self.assertIn("generation!=provider_generation[0]",guard)
         self.assertIn("engine_policy!=",guard)
         self.assertIn("return sym,None",guard)
+
+    def test_shared_and_retry_analysis_are_awaited(self):
+        import ast
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding="utf-8")
+        funcs={n.name:ast.get_source_segment(source,n) for n in ast.walk(ast.parse(source)) if isinstance(n,ast.AsyncFunctionDef)}
+        shared=funcs["refresh_shared_analysis"]
+        self.assertIn("await local_analysis_pool.run(display_analysis,sym,snapshot,frozen=frozen)",shared)
+        self.assertIn("await local_analysis_pool.run(scanner_snapshot_with_candle,",shared)
+        self.assertIn("shared_history(sym)!=snapshot",shared)
+        self.assertIn("publish_five_engine_5m(sym,engine_snapshot)",shared)
+        retry=funcs["retry_failed_symbol"]
+        self.assertIn("await local_analysis_pool.run(display_analysis,symbol,snapshot,frozen=frozen)",retry)
+        self.assertIn("generation!=provider_generation[0]",retry)

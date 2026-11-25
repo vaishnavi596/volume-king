@@ -66,8 +66,9 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
         self.assertIn('report_identity=(sym,"5m",identity)', source)
         shared = self.functions["refresh_shared_analysis"]
         ranking = self.functions["rank_one"]
-        self.assertIn('publish_five_engine_5m(sym,scanner_snapshot_with_candle(', shared)
-        self.assertIn('result,data,symbol=sym,timeframe="5m",now=time.time()', shared)
+        self.assertIn('engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,', shared)
+        self.assertIn('deepcopy(result),snapshot,symbol=sym,timeframe="5m",now=time.time()', shared)
+        self.assertIn('publish_five_engine_5m(sym,engine_snapshot)',shared)
         self.assertIn('engine_snapshot=await local_analysis_pool.run(scanner_snapshot_with_candle,', ranking)
         self.assertIn('deepcopy(engine_input),deepcopy(data),symbol=sym,timeframe="5m",', ranking)
         self.assertIn('now=time.time(),timing=engine_timing)', ranking)

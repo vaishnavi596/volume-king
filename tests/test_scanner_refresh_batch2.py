@@ -19,19 +19,19 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_shared_update_updates_home_summary_and_completed_candle_clock(self):
         _, v, bars = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["scan_shared"]["symbol"], "TCS")
         self.assertEqual(v["scan_shared"]["timestamp"], bars[-1][0])
         self.assertEqual(v["scan_last_candle"][0], bars[-1][0])
         checked = v["scan_last_success"][0]
         self.assertIsNotNone(checked)
         v["selected_report_identity"][0] = None
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["scan_last_success"][0], checked)
 
     def test_switch_to_unloaded_symbol_clears_previous_report_clocks(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["quotes"].pop("INFY")
         v["scan_busy"][0] = True
         v["scan_symbol"].value = "INFY"
@@ -43,7 +43,7 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_super_five_tap_invalidates_busy_scan_without_a_dropdown_event(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["scan_busy"][0] = True
         generation = v["scan_generation"][0]
         v["open_candidate_chart"]("INFY")
@@ -62,7 +62,7 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_cached_handoff_uses_newest_candle_series_not_newest_price(self):
         _, v, bars = self.setup_app()
-        v["refresh_shared_analysis"]()
+        asyncio.run(v["refresh_shared_analysis"]())
         old = [row[:] for row in bars]
         old[-1][4] -= .5
         v["quotes"]["INFY"].update(bars=old, fetched_at=time.time(), candle_fetched_at=1)
@@ -76,7 +76,7 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_provider_change_invalidates_home_result_and_clocks(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["source"].value = "Yahoo Finance"
         v["source"].on_change(event(v["source"]))
         self.assertEqual(v["scan_shared"]["direction"], "WAIT")
@@ -96,10 +96,10 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_disconnection_demotes_selected_report_without_http(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["dhan_feed"].disconnect()
         with patch.object(v["dhan_feed"], "_call", side_effect=AssertionError("HTTP forbidden")):
-            v["refresh_shared_analysis"]()
+            asyncio.run(v["refresh_shared_analysis"]())
         self.assertIn("DISCONNECTED", v["scan_shared"]["basis"])
         self.assertTrue(v["scan_shared"]["historical"])
 
@@ -116,7 +116,7 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
         _, v, bars = self.setup_app()
         v["scan_busy"][0] = True
         v["scan_filter_ready"][0] = True
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["scan_shared"]["timestamp"], bars[-1][0])
         self.assertEqual(v["selected_report_identity"][0][0], "TCS")
 
@@ -142,9 +142,9 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_bad_new_series_cannot_leave_previous_selected_result_active(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         v["quotes"]["TCS"]["bars"] = [["invalid", 1, 2, 1, 2, 100]]
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertEqual(v["scan_shared"]["direction"], "WAIT")
         self.assertIsNone(v["scan_shared"]["timestamp"])
         self.assertTrue(v["watch_signal_cache"]["TCS"]["historical"])
@@ -167,20 +167,20 @@ class ScannerRefreshBatch2Tests(unittest.TestCase):
 
     def test_old_cache_cannot_clear_request_failure_but_new_response_can(self):
         _, v, _ = self.setup_app()
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         key = (v["provider_generation"][0], "TCS", "5m")
         at = time.time()
         v["scan_fetch_failure"][key] = {"at": at, "detail": "candle fetch • FeedError"}
         v["quotes"]["TCS"].update(candle_fetched_at=at-10,
             live_verified=True, freshness="verified_live")
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertIn(key, v["scan_fetch_failure"])
         self.assertIn("REFRESH FAILED", v["scan_shared"]["basis"])
         self.assertTrue(v["watch_signal_cache"]["TCS"]["historical"])
         self.assertFalse(v["watch_signal_cache"]["TCS"]["live_verified"])
         self.assertEqual(v["analysis_audit"].coverage(["TCS"])[1]["ERROR"], 1)
         v["quotes"]["TCS"]["candle_fetched_at"] = at+1
-        v["refresh_shared_analysis"]("TCS")
+        asyncio.run(v["refresh_shared_analysis"]("TCS"))
         self.assertNotIn(key, v["scan_fetch_failure"])
         self.assertEqual(v["analysis_audit"].coverage(["TCS"])[1]["ANALYZED"], 1)
 
