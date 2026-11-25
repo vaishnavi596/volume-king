@@ -180,6 +180,27 @@ class CloneV2GatewayB2Tests(unittest.TestCase):
             gateway.market_quotes(["NIFTY"])
         self.assertTrue(gateway.connected)
 
+    def test_quote_unavailable_payload_is_type_checked_before_hashing(self):
+        good=dict(source="dhan",live_orders_enabled=False,freshness="unverified",
+                  quotes={"NIFTY":dict(symbol="NIFTY",ltp=25000.0,
+                                     source="dhan",freshness="unverified")},
+                  unavailable=["TCS"])
+        gateway=CloneV2Gateway(opener=FakeOpener(good))
+        gateway._origin,gateway._key="https://example.org","private-in-memory"
+        self.assertEqual(gateway.market_quotes(["NIFTY","TCS"]),{"NIFTY":25000.0})
+        for invalid in ([{}],[[]],[None],[123],["untrusted-response-value"]):
+            with self.subTest(invalid=invalid):
+                gateway._opener=FakeOpener({**good,"unavailable":invalid})
+                with self.assertRaisesRegex(FeedError,"BK-QUOTE-001") as caught:
+                    gateway.market_quotes(["NIFTY","TCS"])
+                self.assertNotIn("private-in-memory",str(caught.exception))
+                self.assertNotIn("untrusted-response-value",str(caught.exception))
+                self.assertTrue(gateway.connected)
+        for invalid in (["TCS","TCS"],["NIFTY"],[]):
+            gateway._opener=FakeOpener({**good,"unavailable":invalid})
+            with self.assertRaises(FeedError):
+                gateway.market_quotes(["NIFTY","TCS"])
+
     def test_clone_b3_market_request_response_never_fake_data(self):
         class QuoteOpener:
             def __init__(self, result):

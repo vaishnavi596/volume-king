@@ -1,5 +1,7 @@
 # BOT KING — LIVE WORK INDEX (नए चैट में सबसे पहले पढ़ें)
 
+> **CURRENT — R1.1 B1.03:** #539 1988/1988 PASS; existing Clone quote response validation repaired with stable BK-QUOTE-001 and regression. New CI and Doctor propagation verification pending. Fixed R1 scope only.
+
 > **CURRENT — P16 dependency-first:** R1 source/transport/session → cache/worker/scheduling → R2 independent T/C/O/N/F → quorum/M/parity → R3 recovery/background/alerts → R4 regression/signed candidate/phone/paper/final signoff. Existing PASS retained; #539 gate to reconcile. Doctor/tests/journal concurrent. See SMART_4_PLATINUM.md P16.
 
 > **CURRENT — R2 #538 verified:** 1987/1987 PASS at 233a90c; B4.05 scoped evidence added to registry, mounted/real parity OPEN. O/N/F directional provenance and M server/app acceptance remain OPEN; new registry fixture CI pending.

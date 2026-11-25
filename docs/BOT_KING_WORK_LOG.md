@@ -2752,3 +2752,8 @@ This is the authoritative execution order, superseding any conflicting earlier s
 
 
 Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 registry evidence gate status at audit: in_progress. No source push, no new progress credit. R1.1 prerequisite audit next; existing B4.05 scoped proof retained. Physical acceptance remains after signed test candidate, not an impossible prerequisite to candidate build.
+
+
+### R1.1 / B1.03 — existing transport contract repair (fixed scope)
+- #539 exact 6609db1046fccf8642393346f9c86c64cf7ee52c run 45677233996 job 139427910343 raw log 2026-11-25T18:42:33.0970349Z Ran 1988 tests in 211.201s / OK; B4.05 registry fixture PASS. P16 policy commit 7eeaf0f preserved.
+- Existing Clone market_quotes unavailable list previously hashed arbitrary JSON before validating member type; dict/list raised TypeError instead of bounded FeedError. Validate members first, stable BK-QUOTE-001 fixed message, existing FeedError path; valid partial quote and duplicate/overlap/missing partition contracts unchanged. Regression covers malformed values and redaction. No new scope or endpoint; no Oracle changes. Doctor end-to-end propagation of new code not independently verified, remains OPEN; local execution NOT RUN, new CI pending. Historical server deployment proof dated 24 Nov is not present deployment or live exchange proof. No certified checkpoint credit or orders.

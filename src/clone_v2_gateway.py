@@ -204,8 +204,11 @@ class CloneV2Gateway:
                     and type(stamp) in (int,float) and math.isfinite(stamp)
                     and 946684800<=stamp<=time.time()):
                 validated.trade_timestamps[name]=stamp
+        # Validate element types before hashing untrusted response values.
+        # Existing FeedError reporting must receive a bounded, redacted error.
+        if any(not isinstance(x, str) or x not in symbols for x in payload["unavailable"]):
+            raise FeedError("BK-QUOTE-001: Clone market no validated quotes; invalid unavailable symbol")
         if (not validated or len(payload["unavailable"]) != len(set(payload["unavailable"]))
-                or any(not isinstance(x, str) or x not in symbols for x in payload["unavailable"])
                 or set(validated).intersection(payload["unavailable"])
                 or set(validated).union(payload["unavailable"]) != set(symbols)):
             raise FeedError("Clone market no validated quotes")
