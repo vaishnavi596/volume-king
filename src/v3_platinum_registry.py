@@ -38,7 +38,8 @@ FEATURES = (
 SUBITEMS = {
     "B2.01": ("Index 1m local prewarm; synchronous fallback remains", "dee0bdd05cfcfb346e918ef06a0881f397650b39", 45634574700),
     "B2.04": ("Super Five supervised local retry and manual request", "58f00d40271affc04975015c1d508ad6970bee8c", 45629761193),
-    "B2.07": ("Index worker timing and error observation", "dee0bdd05cfcfb346e918ef06a0881f397650b39", 45634574700),
+    "B2.07": ("Local worker CPU timing and process RSS diagnostic, offline only", "4ab1d820f4e0ffe754d39441013e64ad07eb427e", 45657927264),
+    "B2.03": ("Local worker cancellation ownership and exact historical cache reuse; adaptive tuning remains open", "b6d405cb0ff2bfc233ec235d32ecb27fe2146c8f", 45655842571),
     "B5.05": ("Unified Doctor health/history and repair supervision UI", "da0008507ba8dce615390cc29a2c366287954133", 45630932150),
 }
 # Full checkpoints require evidence specific to the entire row and checkpoint.
