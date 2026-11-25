@@ -2426,3 +2426,30 @@ Owner instruction: finish Oracle Clone-only server first, then V3 Android. Every
 
 ### 25 नवंबर 2026 — B214 APK release verification
 - Exact ec222a1 B3 45561472109 and B214 build 45561472158 completed/success. Build job 139025951866: source safety/full offline suite, independent exact SHA B3, Android build, isolated explicit signer, package/signature verification, artifact upload all PASS. Artifact 14998048428, 65910894 bytes, not expired, expires 9 Dec 2026: https://github.com/vaishnavi596/volume-king/actions/runs/45561472158/artifacts/14998048428 . B210 incidental run 45561472124 PASS, obsolete B209 45561472051 FAIL (cause not investigated; not B214 gate). Real phone B214 test pending. Keep B213/B212 separate, no server/order changes. Journal-only update [skip ci].
+
+## 25 नवंबर 2026 — B214 MASTER DIAG रिपोर्ट: विश्लेषण और आगे का रास्ता (Claude)
+
+स्रोत: फ़ोन से भेजी गई V3_MASTER_ALL_SEGMENTS_DOCTOR रिपोर्ट (बाज़ार खुला, 12:25 IST, B214 प्रीव्यू)। सिर्फ़ विश्लेषण; कोई कोड, सर्वर या ऑर्डर बदलाव नहीं।
+
+**ठीक पाया गया:** Dhan और Oracle जुड़े; 51/51 भाव; कोई हालिया त्रुटि नहीं; 51/51 3m कैंडल 1m से ऐप के भीतर बने; Technical की 13/13 गणनाएँ (NIFTY 1m पर ऐतिहासिक 88/12, 8 दिशा वाले, 5 तटस्थ); Candle ऐतिहासिक 62/38; पेपर बॉट सिमुलेशन; असली ऑर्डर PERMANENTLY_LOCKED।
+
+**रुकावटें:**
+1. पाँचों बॉक्स 0 सत्यापित; कोर्म 0/3 (ऐतिहासिक रीप्ले में 2/3)। हर Dhan जवाब "एक्सचेंज टाइमस्टैम्प असत्यापित" माना जाता है। मुख्य अड़चन "LIVE" की परिभाषा है।
+2. N: सिर्फ़ NIFTY की 20 हेडलाइन, असर-मापन नहीं जुड़ा; BANKNIFTY/SENSEX पर 0।
+3. F: कोई कैश नहीं; फ्यूचर्स कॉन्ट्रैक्ट मैपिंग गायब।
+4. O: 1 ऑप्शन चेन कैश, केवल संदर्भ; दिशा-आधारित वोट नहीं।
+5. Scanner 5m लोडिंग 15/54 (0 असफल), अभी जारी।
+6. निदान-पाठ में विसंगति: root_cause "3M_WARMUP_RATE_BUDGET_FULL" कहता है जबकि आँकड़ा 12 में से 4 अनुरोध है। वास्तविक अड़चन Scanner चलते समय Watchlist लेन का रुकना (INITIAL_GUARD) है। टेक्स्ट सुधार प्रस्तावित।
+7. बैकग्राउंड: foreground service/WorkManager नहीं; स्क्रीन बंद होने पर स्कैन रुकता है।
+8. Alerts, Backtest, ऑप्शन प्रीमियम चार्ट जुड़े नहीं।
+
+**प्रस्तावित रास्ता (अनुमान, वादा नहीं):**
+- A. LIVE की परिभाषा तय करना (Dhan का अपना टाइमस्टैम्प + ≤300 सेकंड ताज़गी) और गेटवे/ऐप में देखना कि last_trade_time/कैंडल टाइमस्टैम्प कहाँ गिर रहा है; T व C सत्यापित: कुछ दिन।
+- B. केवल Scanner के टॉप-5 पर ऑप्शन चेन से मापी हुई दिशा (तीन सेकंड अंतराल, ~15 सेकंड) → कोर्म 3/3: लगभग 1 सप्ताह।
+- C. फ्यूचर्स (मैपिंग + मापा प्रवाह) और समाचार (असर-स्कोरिंग): 2–4 सप्ताह।
+- D. बाज़ार घंटों में पेपर सत्यापन: कम से कम 2–4 ट्रेडिंग सप्ताह।
+- E. ऑर्डर: अलग प्रोजेक्ट, अभी नियम से बंद। केवल मालिक के स्पष्ट निर्णय पर, D के बाद, मैन्युअल पुष्टि और दैनिक सीमा के साथ; Dhan ऑर्डर API शर्तों (संभावित स्थिर IP) की पुष्टि और सर्वर-साइड/नेटिव बैकग्राउंड ज़रूरी।
+
+**मालिक के लंबित निर्णय:** (1) LIVE की परिभाषा; (2) कोर्म 3 या 2; (3) छठा बॉक्स M क्या मापे; (4) ऑर्डर पहले चरण में केवल मैन्युअल पुष्टि के साथ ठीक हैं या नहीं।
+
+सीमा: यह रिपोर्ट-आधारित विश्लेषण है; कोई LIVE प्रमाण, सर्वर पहुँच या नया APK नहीं। ऑर्डर नहीं भेजे गए।
