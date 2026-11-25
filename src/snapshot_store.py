@@ -3,7 +3,10 @@ import copy
 import json
 import math
 import os
-import sqlite3
+try:
+    import sqlite3
+except ImportError:
+    sqlite3=None
 from pathlib import Path
 from threading import RLock
 import time
@@ -30,12 +33,17 @@ class SnapshotStore:
         self.file_bytes=0
         self.write_count=0;self.write_last_ms=0.0;self.write_max_ms=0.0
         self.unchanged_writes_skipped=0
-        self.incremental=bool(incremental)
+        self.incremental=bool(incremental and sqlite3 is not None)
+        self.fallback_reason="sqlite_unavailable" if incremental and sqlite3 is None else None
         self.db_path=self.path.with_name(self.path.name+".sqlite3")
         self._record_sizes={}
         if self.incremental:
             self._restore_incremental()
-            return
+            if not self.save_failures:return
+            self.incremental=False
+            self.fallback_reason="sqlite_restore_failed"
+            # Do not overwrite the original migration backup after a failed DB restore.
+            self.path=self.path.with_name(self.path.name+".recovery.json")
         try:
             if self.path.exists():
                 if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
@@ -78,8 +86,12 @@ class SnapshotStore:
                     db.execute("INSERT INTO metadata VALUES ('initialized','1')")
             rows={}
             for key,raw in db.execute("SELECT key,record FROM snapshots"):
-                record=public_copy(json.loads(raw))
-                parts=json.loads(key)
+                try:
+                    record=public_copy(json.loads(raw))
+                    parts=json.loads(key)
+                except (ValueError,TypeError):
+                    self.rejected+=1
+                    continue
                 if (isinstance(parts,list) and parts and isinstance(record,dict)
                         and type(record.get("saved_at")) in (int,float)
                         and math.isfinite(record["saved_at"])
@@ -87,6 +99,8 @@ class SnapshotStore:
                         and self.identity_valid(parts[0],parts[1:],record["payload"])):
                     rows[key]=record
             self.records=dict(sorted(rows.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
+            with db:
+                db.executemany("DELETE FROM snapshots WHERE key=?",[(k,) for (k,) in db.execute("SELECT key FROM snapshots").fetchall() if k not in self.records])
             self._record_sizes={k:len(k.encode("utf-8"))+len(self._encode_record(v).encode("utf-8")) for k,v in self.records.items()}
             self.file_bytes=sum(self._record_sizes.values())
             self.restored=len(self.records)
@@ -199,6 +213,13 @@ class SnapshotStore:
         if kind=="analysis_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("timeframe"))
         if kind=="option_context_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("expiry"))
         return True
+    def _physical_bytes(self):
+        paths=(self.db_path,Path(str(self.db_path)+"-wal"),Path(str(self.db_path)+"-shm"),Path(str(self.db_path)+"-journal")) if self.incremental else (self.path,)
+        total=0
+        for path in paths:
+            try:total+=path.stat().st_size
+            except OSError:pass
+        return total
     def diagnostics(self):
         with self.lock:
             counts={}
@@ -217,6 +238,7 @@ class SnapshotStore:
                     "write_count":self.write_count,"write_last_ms":self.write_last_ms,
                     "write_max_ms":self.write_max_ms,"unchanged_writes_skipped":self.unchanged_writes_skipped,
                     "storage_backend":"sqlite_incremental" if self.incremental else "json_atomic",
+                    "physical_storage_bytes":self._physical_bytes(),"fallback_reason":self.fallback_reason,
                     "byte_metric":"logical_record_bytes" if self.incremental else "file_bytes",
                     "status":self.status,"restored_cache_live_proof":False}
     def get(self,kind,*parts):
