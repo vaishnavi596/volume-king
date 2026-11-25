@@ -1375,7 +1375,8 @@ def app_main(page:ft.Page):
         if historical_prewarm_profile.get("generation")!=generation:
             historical_prewarm_profile.clear()
             historical_prewarm_profile.update(generation=generation,attempts=0,
-                successes=0,failures=0,discarded=0,last_ms=None,last_error=None)
+                successes=0,failures=0,discarded=0,last_ms=None,last_error=None,
+                cache_hits=0,cache_misses=0,analysis_runs=0)
         historical_prewarm_profile["attempts"]+=1
         started=time.perf_counter()
         def compute():
@@ -1389,7 +1390,7 @@ def app_main(page:ft.Page):
             if not quality.get("usable"):
                 return None
             identity=(generation,"1m",selected,tuple(tuple(bar[:6]) for bar in quality["bars"]))
-            return identity,analyze(quality["bars"],list(selected),"1m")
+            return identity,quality["bars"]
         try:
             computed=await local_analysis_pool.run(compute)
             if generation!=provider_generation[0]:
@@ -1402,11 +1403,24 @@ def app_main(page:ft.Page):
             if computed is None:
                 historical_prewarm_profile["discarded"]+=1
                 return False
-            identity,result=computed
-            if identity not in historical_indicator_cache:
-                if len(historical_indicator_cache)>=220:
-                    historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
-                historical_indicator_cache[identity]=result
+            identity,bars=computed
+            if identity in historical_indicator_cache:
+                historical_prewarm_profile["cache_hits"]+=1
+            else:
+                historical_prewarm_profile["cache_misses"]+=1
+                historical_prewarm_profile["analysis_runs"]+=1
+                result=await local_analysis_pool.run(lambda:analyze(bars,list(selected),"1m"))
+                if generation!=provider_generation[0]:
+                    return False
+                if (selected!=tuple(name for name in filter_selected
+                        if filter_modes.get(name,"Analysis")!="Chart") or not app_active[0]
+                        or lifecycle_background[0] or prefs.get("source")!="Dhan"):
+                    historical_prewarm_profile["discarded"]+=1
+                    return False
+                if identity not in historical_indicator_cache:
+                    if len(historical_indicator_cache)>=220:
+                        historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
+                    historical_indicator_cache[identity]=result
             historical_prewarm_profile["successes"]+=1
             historical_prewarm_profile["last_error"]=None
             return True

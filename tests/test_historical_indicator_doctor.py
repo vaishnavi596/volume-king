@@ -140,3 +140,43 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
             self.assertFalse(await worker("RELIANCE",data,"3m",1))
             self.assertFalse(scope["historical_equity_worker_inflight"])
         asyncio.run(check())
+
+
+    def test_index_worker_exact_cache_reuse(self):
+        import ast
+        import asyncio
+        import math
+        import textwrap
+        import time
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        node=next(n for n in ast.walk(ast.parse(source))
+                  if isinstance(n,ast.AsyncFunctionDef) and n.name=="prewarm_index_historical_indicator")
+        calls=[]
+        class Pool:
+            async def run(self, fn):
+                return fn()
+        scope=dict(asyncio=asyncio,math=math,time=time,provider_generation=[1],
+                   prefs={"source":"Dhan"},app_active=[True],lifecycle_background=[False],
+                   filter_selected=["RSI"],filter_modes={"RSI":"Analysis"},
+                   historical_regular_session_bars=lambda bars,tf:bars,
+                   quality_check=lambda bars,seconds,now:{"usable":True,"bars":bars},
+                   analyze=lambda bars,selected,tf:(calls.append(tf) or {"bias":"BEARISH"}),
+                   historical_indicator_cache={},historical_prewarm_profile={},
+                   local_analysis_pool=Pool(),log_error=lambda *args:self.fail(str(args)))
+        exec(compile(textwrap.dedent(ast.get_source_segment(source,node)),"worker","exec"),scope)
+        worker=scope["prewarm_index_historical_indicator"]
+        data={"source":"Dhan","_scanner_timeframe":"1m","bars":[(time.time()-600,100,101,99,100,10)]}
+        async def check():
+            self.assertTrue(await worker(data,1))
+            self.assertTrue(await worker(data,1))
+            self.assertEqual(calls,["1m"])
+            profile=scope["historical_prewarm_profile"]
+            self.assertEqual((profile["cache_hits"],profile["cache_misses"],profile["analysis_runs"]),(1,1,1))
+            self.assertFalse(await worker(data,2))
+            data["bars"]=[(data["bars"][0][0],100,102,99,101,10)]
+            self.assertTrue(await worker(data,1))
+            self.assertEqual(calls,["1m","1m"])
+            scope["lifecycle_background"][0]=True
+            self.assertFalse(await worker(data,1))
+        asyncio.run(check())
