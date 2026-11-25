@@ -18,19 +18,25 @@ def public_copy(value):
     if value is None or isinstance(value,(str,int,float,bool)):return value
     raise ValueError("Unsupported snapshot value")
 
+MAX_CACHE_BYTES=64*1024*1024
+MAX_CACHE_BARS=1200
+
 class SnapshotStore:
-    def __init__(self,path,max_entries=320):
+    def __init__(self,path,max_entries=1200):
         self.path=Path(path);self.max_entries=max_entries;self.lock=RLock();self.records={}
         self.status="No saved market snapshots"
+        self.evicted=0;self.rejected=0;self.restored=0;self.save_failures=0
+        self.file_bytes=0
         try:
             if self.path.exists():
-                if self.path.stat().st_size>24*1024*1024:raise ValueError("Cache too large")
+                if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
                 data=json.loads(self.path.read_text(encoding="utf-8"))
                 if data.get("version")!=1 or not isinstance(data.get("records"),dict):raise ValueError("Invalid cache")
                 for key,record in data["records"].items():
                     if isinstance(record,dict) and isinstance(record.get("saved_at"),(int,float)) and isinstance(record.get("payload"),dict):
                         self.records[key]=public_copy(record)
                 self.records=dict(sorted(self.records.items(),key=lambda p:p[1]["saved_at"])[-max_entries:])
+                self.restored=len(self.records);self.file_bytes=self.path.stat().st_size
                 self.status="Saved market snapshots restored"
         except (OSError,ValueError,TypeError):self.records={};self.status="Saved cache unreadable; fresh data can restore it"
     @staticmethod
@@ -76,6 +82,22 @@ class SnapshotStore:
             if not isinstance(rows,list) or not rows or len(rows)>50:return False
             if any(not isinstance(r,dict) or not all(k in r for k in ("side","strike","premium","timestamp")) or r["side"] not in ("CE","PE") for r in rows):return False
             if any(not isinstance(r.get(k),(int,float)) or not math.isfinite(r[k]) or r[k]<0 for r in rows for k in ("strike","premium")):return False
+        elif kind=="analysis_last_good":
+            if (p.get("source")!="Dhan" or p.get("historical") is not True
+                    or p.get("live_verified") is not False or p.get("freshness")!="historical_unverified"
+                    or not isinstance(p.get("symbol"),str) or not p["symbol"]
+                    or p.get("timeframe") not in ("1m","2m","3m","5m","10m","15m","30m","1h")
+                    or type(p.get("timestamp")) not in (int,float) or not math.isfinite(p["timestamp"])
+                    or p["timestamp"]<=0 or type(p.get("count")) is not int or p["count"]<30
+                    or not isinstance(p.get("votes"),list)):return False
+        elif kind=="option_context_last_good":
+            if (p.get("source")!="dhan" or p.get("signal_eligible") is not False
+                    or p.get("live_verified") is True or not isinstance(p.get("symbol"),str)
+                    or not p["symbol"] or not isinstance(p.get("expiry"),str)):return False
+            from datetime import date
+            try:
+                if date.fromisoformat(p["expiry"]).isoformat()!=p["expiry"]:return False
+            except ValueError:return False
         elif kind=="analysis":
             if not all(isinstance(p.get(k),str) for k in ("direction","basis","tf","symbol")):return False
         elif kind=="fusion":
@@ -86,21 +108,41 @@ class SnapshotStore:
             if any(not isinstance(r,dict) or not all(k in r for k in ("title","url","published","source")) for r in p["items"]):return False
         else:return False
         return True
+    @staticmethod
+    def identity_valid(kind,parts,p):
+        if kind=="analysis_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("timeframe"))
+        if kind=="option_context_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("expiry"))
+        return True
+    def diagnostics(self):
+        with self.lock:
+            counts={}
+            for key in self.records:
+                try:kind=json.loads(key)[0]
+                except (ValueError,IndexError,TypeError):continue
+                counts[kind]=counts.get(kind,0)+1
+            return {"entries":len(self.records),"max_entries":self.max_entries,
+                    "max_bars_per_record":MAX_CACHE_BARS,"file_bytes":self.file_bytes,
+                    "max_file_bytes":MAX_CACHE_BYTES,"restored_entries":self.restored,
+                    "evicted_since_start":self.evicted,"rejected_since_start":self.rejected,
+                    "save_failures_since_start":self.save_failures,"by_kind":counts,
+                    "status":self.status,"restored_cache_live_proof":False}
     def get(self,kind,*parts):
         with self.lock:
             item=self.records.get(self.key(kind,*parts))
-            return copy.deepcopy(item["payload"]) if item and self.valid(kind,item["payload"]) else None
+            return copy.deepcopy(item["payload"]) if item and self.valid(kind,item["payload"]) and self.identity_valid(kind,parts,item["payload"]) else None
     def put(self,kind,parts,payload):
         safe=public_copy(payload)
         if not safe:return False
-        if not self.valid(kind,safe):return False
+        if not self.valid(kind,safe) or not self.identity_valid(kind,parts,safe):
+            with self.lock:self.rejected+=1
+            return False
         # Fully checked history-only Dhan payloads may be persisted without
         # an LTP; SnapshotStore.valid verifies their exact-frame HIST identity.
         if kind=="market" and not safe.get("bars"):return False
         if kind=="ranking" and not safe.get("rows"):return False
         if kind=="options" and not safe.get("rows"):return False
         if kind=="news" and not safe.get("items"):return False
-        if "bars" in safe:safe["bars"]=safe["bars"][-600:]
+        if "bars" in safe:safe["bars"]=safe["bars"][-MAX_CACHE_BARS:]
         key=self.key(kind,*parts)
         with self.lock:
             previous=self.records.get(key,{}).get("payload")
@@ -108,19 +150,24 @@ class SnapshotStore:
                 old_time=previous.get("quote_timestamp") or previous["bars"][-1][0]
                 new_time=safe.get("quote_timestamp") or safe["bars"][-1][0]
                 if new_time<old_time:return False
+            if kind=="analysis_last_good" and previous and self.valid(kind,previous) and safe["timestamp"]<previous["timestamp"]:
+                self.rejected+=1;return False
             records=dict(self.records);records[key]={"saved_at":time.time(),"payload":safe}
             records=dict(sorted(records.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
             temp=self.path.with_name(self.path.name+".tmp")
             try:
                 raw=json.dumps({"version":1,"records":records},ensure_ascii=False,allow_nan=False)
-                if len(raw.encode("utf-8"))>24*1024*1024:raise ValueError("Cache too large")
+                size=len(raw.encode("utf-8"))
+                if size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
                 self.path.parent.mkdir(parents=True,exist_ok=True)
                 with temp.open("w",encoding="utf-8") as f:
                     f.write(raw);f.flush();os.fsync(f.fileno())
-                os.replace(temp,self.path);self.records=records
+                os.replace(temp,self.path)
+                self.evicted+=len(set(self.records)-set(records));self.records=records;self.file_bytes=size
                 self.status="Last successful market data saved"
                 return True
             except (OSError,ValueError):
+                self.save_failures+=1
                 self.status="Market cache save failed; current data remains on screen"
                 try:temp.unlink(missing_ok=True)
                 except OSError:pass

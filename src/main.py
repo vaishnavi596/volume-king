@@ -6343,6 +6343,7 @@ def app_main(page:ft.Page):
                     performance=dict(watch_3m_tick_profile),
                     quote_attempt_age=round(max(0,mono-watch_batch_last_attempt[0]),1)
                         if watch_batch_last_attempt[0]>0 else None)
+                data["persistent_cache"]=market_store.diagnostics()
                 data["capture_elapsed_ms"]=round((time.perf_counter()-started)*1000,2)
                 report.value=json.dumps(data,indent=2,ensure_ascii=False)
                 status.value="Active Doctor complete • "+str(data["active_count"])+" visible checks"
