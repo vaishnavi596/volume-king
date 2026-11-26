@@ -223,6 +223,10 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertFalse(result["technical_recomputed_from_completed_bars"])
         self.assertEqual(result["boxes"][0]["state"],"WAIT")
         self.assertEqual(result["orders_sent"],0)
+        self.assertEqual(len(result["boxes"]),5)
+        self.assertTrue(all(box["state"]=="WAIT" and not box["eligible_live"] for box in result["boxes"]))
+        self.assertIn("HIST_OHLCV_INVALID",result["blockers"])
+        self.assertEqual(result["historical_combined"]["state"],"WAIT")
 
     def test_forming_bar_recalculation_rejects_context_only_filter_votes(self):
         arr=bars()

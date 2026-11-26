@@ -75,6 +75,7 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
             "historical":True,"verified_live":False,"orders_sent":0,
             "provider_requests":0,"fifth_engine_policy":"EXACT_FIVE_SLOTS_SIXTH_M_STANDBY",
             "boxes":[],"technical_vote":None,"candle_vote":None,
+            "technical_recomputed_from_completed_bars":False,
             "combined":{"state":"WAIT","coverage":0,
                         "reason":"HIST replay needs three independent directional sources"},
             "historical_combined":{"state":"WAIT","coverage":0,"required":3,
@@ -118,12 +119,17 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     valid=(len(session)>=30 and all(
         isinstance(b,(tuple,list)) and len(b)>=6 and
         all(type(v) in (int,float) and isfinite(v) for v in b[:6])
-        and min(b[1:5])>0 and b[5]>=0 and b[2]>=max(b[1],b[3],b[4]) and b[3]<=min(b[1],b[4])
         for b in session))
     if not valid:
         result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")
         return result
-    result["technical_recomputed_from_completed_bars"]=False
+    if any(min(b[1:5])<=0 or b[5]<0 or b[2]<max(b[1],b[3],b[4]) or b[3]>min(b[1],b[4]) for b in session):
+        result["blockers"].append("HIST_OHLCV_INVALID")
+        result["boxes"]=[{"engine":name,"state":"WAIT","direction":"WAIT",
+                          "bullish":None,"bearish":None,
+                          "reason":"HIST_OHLCV_INVALID","eligible_live":False}
+                         for name in ENGINE_NAMES]
+        return result
     if history_timestamp is not None:
         # In real B178/Master phone doctors the clock is always supplied.
         # Recalculate technical input from the validated completed Dhan
