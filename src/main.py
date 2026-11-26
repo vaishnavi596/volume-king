@@ -8562,6 +8562,30 @@ console.log('BOT KING Lightweight Charts ready');
             refresh_scan_age()
             # Short ticks make source changes, refresh interval changes and resume responsive.
             await asyncio.sleep(1)
+    # Closed-session scanner refresh (owner 26 Nov): the shared loop above stays paused
+    # after the close, so this one-shot task loads HIST candles once per
+    # (generation, symbol, timeframe, period) while the Scanner is open. One bounded
+    # request, never LIVE, no orders.
+    scan_closed_auto_done=[None]
+    async def scan_closed_auto_hist():
+        while True:
+            await asyncio.sleep(4)
+            try:
+                if (current[0]!=3 or not app_active[0] or lifecycle_background[0]
+                        or not scan_live.value or prefs.get("source")!="Dhan"
+                        or not clone_v2_gateway.connected or dhan_feed.connected
+                        or regular_hours() or scan_busy[0] or dhan_history_scan_active[0]):
+                    continue
+                key=(provider_generation[0],scan_symbol.value,scan_tf.value,scan_period.value)
+                if scan_closed_auto_done[0]==key:
+                    continue
+                scan_closed_auto_done[0]=key
+                scan_busy[0]=True
+                try:await scan_market()
+                except Exception as exc:
+                    log_error("scan_closed_auto_hist",exc);scan_busy[0]=False
+            except Exception as exc:
+                log_error("scan_closed_auto_hist",exc)
     scan_live.on_change=auto_scan_changed
     scan_selection_context=[(scan_symbol.value,scan_tf.value,scan_period.value)]
     def trigger_scan(e=None):
@@ -10645,6 +10669,7 @@ console.log('BOT KING Lightweight Charts ready');
             await asyncio.sleep(10)
     page.run_task(dhan_index_poll)
     page.run_task(doctor_auto_repair_poll)
+    page.run_task(scan_closed_auto_hist)
     index_closed_history_complete_generation=[None]
     async def dhan_index_candle_poll():
         # Independent 180s Dhan 1m index history cadence. Avoid competing with the

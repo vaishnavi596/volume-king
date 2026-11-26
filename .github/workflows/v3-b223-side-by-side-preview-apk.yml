@@ -1,0 +1,215 @@
+name: BOT KING V3 B223 Current Joint Regression Phone-Test APK
+run-name: BOT KING V3 B223 CURRENT JOINT REGRESSION PREVIEW • v2.3.223
+# This PREVIEW has a distinct package ID and is NOT an upgrade to installed B198.
+# Never replace the protected same-package release workflow with a temporary key.
+# B223 is an isolated current-source phone-test candidate, not final acceptance.
+# The full independent exact-head B3 gate must PASS before signing this preview.
+# B223 adds the compact view (default on) and the closed-session Scanner auto HIST on top of B222; same exact-head gates and signer guards.
+on:
+  push:
+    branches:
+      - pilot/v1-pure-original-clone-phone-20261120
+    paths:
+      - .github/workflows/v3-b223-side-by-side-preview-apk.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: v3-b223-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-preview:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Check B223 Dhan-only full app and release safety
+        env:
+          PYTHONPATH: src:tests:backend
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast,pathlib,tomllib
+          meta=tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          assert meta['project']['version']=='2.3.223'  # aligned source and APK version
+          main=pathlib.Path('src/main.py').read_text()
+          for f in ('src/main.py','src/clone_v2_gateway.py','backend/clone_v2_gateway.py'):
+              ast.parse(pathlib.Path(f).read_text(),filename=f)
+          for guard in ('V3 Dhan-only provider required',
+                        'Yahoo Finance transport disabled in V3',
+                        'Angel One login disabled in V3',
+                        'CloneDhanReadOnly(clone_v2_gateway)'):
+              assert guard in main, guard
+          # Latest V3 phone-build must include verified 2026 holiday gate
+          # and explicit unavailable-calendar OFF reasons; no unsafe LIVE.
+          calendar=pathlib.Path('src/v3_equity_session_calendar.py').read_text()
+          for marker in (
+              'EQUITY_HOLIDAYS_2026',
+              'if clock.year>=2027:',
+              'official holiday calendar unavailable',
+              'special Muhurat session not enabled',
+          ):
+              assert marker in calendar, marker
+          # The current contextual SSK caption renders the optional session
+          # explanation with strip(); it must not be confused with a
+          # holiday-based veto of source-verified LIVE/HIST evidence.
+          assert 'equity_session_closed_detail().strip(" •")' in main
+          assert 'historical_close_display(hist,now=time.time())' in main
+          assert 'historical=historical_close_display(hist,now=time.time())' in main
+          # Guard the newly verified phone improvements against stale build.
+          for marker in (
+              'resume_interrupted_closed_watch_history',
+              'watch_closed_hist_resume_pending[0]',
+              'saved_hist.sort(key=lambda row:row["timestamp"],reverse=True)',
+              'closed_hist_pacing_wait_seconds',
+              'closed_hist_queue_active',
+              'provider pacing; next eligible',
+              'freshness="historical_unverified"',
+          ):
+              assert marker in main, marker
+          assert 'bars[-20:] if isinstance(bars,(list,tuple)) else []' in main
+          assert '"error_function":fault.name' in main
+          assert 'http_status_from_exception(exc)' in main
+          assert '"symbol":candle_result.get("symbol"),"historical":True' in main
+          for marker in ('"warmup_max_uncached_requests_per_180s":12','"warmup_floor_seconds":10','option_ssk_attempted.add(option_key)','DERIVED_FROM_1M_UNVERIFIED'):
+              assert marker in main, marker
+          for marker in ('SMART ACTIVE DOCTOR (read-only)','watch_refresh_priority(selected,generation)','if len(results)%5==0:', 'quote_success_age='):
+              assert marker in main, marker
+          for marker in ('watchlist_gate_snapshot','record_watch_outcome','record_watch_skip','scanner_trace_rows=normalized_vote_trace_rows(scanner_matrix)'):
+              assert marker in main, marker
+          ast.parse(pathlib.Path('src/v3_smart_active_doctor.py').read_text())
+          print('V3_B223_PREVIEW_SOURCE_GUARD=PASS')
+          print('V3_HIST_FALLBACK_AND_SESSION_CONTEXT_GUARD=PASS')
+          PY
+          python -m pip install --disable-pip-version-check -q -r backend/requirements.txt 'flet==0.25.2' 'flet-webview==0.1.0'
+          # Validate CURRENT source, not a prior preview SHA. Fail before
+          # signing/building if any cross-screen or gateway regression fails.
+          python -m unittest discover -s tests -v
+          echo V3_B223_PREVIEW_FULL_OFFLINE_GATE=PASS
+      # A phone-test APK may run a full local suite but must not bypass
+      # the independent exact-head B3 gate. Wait only a bounded period for
+      # the separately auto-triggered run, then fail closed if missing.
+      - name: Require exact-source B3 full regression success before Android build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json,os,time,urllib.parse,urllib.request
+          repo=os.environ["GITHUB_REPOSITORY"]
+          sha=os.environ["GITHUB_SHA"]
+          url=("https://api.github.com/repos/"+repo+
+               "/actions/workflows/clone-b3-full-regression.yml/runs?"+
+               urllib.parse.urlencode({"head_sha":sha,"per_page":100}))
+          for attempt in range(90):
+              req=urllib.request.Request(url,headers={
+                  "Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                  "Accept":"application/vnd.github+json",
+                  "X-GitHub-Api-Version":"2022-11-28"})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      runs=json.load(response).get("workflow_runs",[])
+              except Exception as exc:
+                  print("B3_GATE_API_UNAVAILABLE "+type(exc).__name__)
+                  runs=[]
+              matching=[r for r in runs if r.get("head_sha")==sha]
+              if any(r.get("status")=="completed" and
+                     r.get("conclusion")=="success" for r in matching):
+                  print("B3_EXACT_SHA_PASS="+sha)
+                  break
+              if any(r.get("status")=="completed" and
+                     r.get("conclusion") in ("failure","timed_out","action_required")
+                     for r in matching):
+                  raise SystemExit("B3_EXACT_SHA_FAILED: "+sha)
+              if attempt==89:
+                  raise SystemExit("B3_EXACT_SHA_NOT_VERIFIED: "+sha)
+              time.sleep(10)
+          PY
+      - name: Make isolated preview-only test signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/v3-b223-preview-sign"
+          PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASS"
+          printf '%s\n' "$PASS" > "$RUNNER_TEMP/v3-b223-preview-sign/password"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/v3-b223-preview-sign/preview.jks" -storetype PKCS12 -alias b223_preview -keyalg RSA -keysize 3072 -validity 90 -dname "CN=BOT KING V3 B223 ISOLATED PREVIEW" -storepass "$PASS" -keypass "$PASS"
+      - name: Build full app with separate preview package
+        shell: bash
+        env:
+          FLET_ANDROID_SIGNING_KEY_STORE: ${{ runner.temp }}/v3-b223-preview-sign/preview.jks
+          FLET_ANDROID_SIGNING_KEY_ALIAS: b223_preview
+        run: |
+          set -euo pipefail
+          export FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD="$(cat "$RUNNER_TEMP/v3-b223-preview-sign/password")"
+          export FLET_ANDROID_SIGNING_KEY_PASSWORD="$FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD"
+          python -m pip install --disable-pip-version-check 'flet==0.25.2' 'flet-cli==0.25.2' 'flet-webview==0.1.0'
+          printf "BUILD_VERSION = '2.3.223'\n" > src/_build_version.py
+          mkdir -p "$GITHUB_WORKSPACE/dist/v3-b223-preview"
+          flet build apk --project bot_king_v3_b223_preview --org com.botking.v3b223 --product "BOT KING V3 B223 PREVIEW" --build-number 222 --build-version 2.3.223 --output "$GITHUB_WORKSPACE/dist/v3-b223-preview" --verbose
+      - name: Apply isolated preview signer explicitly (never accept Flet debug signer)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v3-b223-preview -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$SIGNER"
+          KEYSTORE="$RUNNER_TEMP/v3-b223-preview-sign/preview.jks"
+          PASSWORD_FILE="$RUNNER_TEMP/v3-b223-preview-sign/password"
+          test -s "$KEYSTORE" && test -s "$PASSWORD_FILE"
+          export BOTKING_PREVIEW_KEY_PASSWORD="$(cat "$PASSWORD_FILE")"
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-key-alias b223_preview \
+            --ks-pass "file:$PASSWORD_FILE" --key-pass "env:BOTKING_PREVIEW_KEY_PASSWORD" \
+            --v1-signing-enabled true --v2-signing-enabled true \
+            --out "$RUNNER_TEMP/v3-b223-preview-explicit-signed.apk" "$APK"
+          unset BOTKING_PREVIEW_KEY_PASSWORD
+          mv "$RUNNER_TEMP/v3-b223-preview-explicit-signed.apk" "$APK"
+          echo B223_PREVIEW_APKSIGNER_EXPLICIT_SIGN=COMPLETE
+      - name: Verify identity and isolated APK signature before upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find dist/v3-b223-preview -type f -name '*.apk' | sort)
+          test "${#apks[@]}" -eq 1
+          APK="${apks[0]}"
+          SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          test -x "$AAPT" && test -x "$SIGNER"
+          "$AAPT" dump badging "$APK" | grep -E "^package: name='com\\.botking\\.v3b223\\.bot_king_v3_b223_preview' versionCode='222' versionName='2\\.3\\.222'"
+          "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING V3 B223 PREVIEW'"
+          "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v3-b223-preview-sign/apk-info"
+          PASS="$(cat "$RUNNER_TEMP/v3-b223-preview-sign/password")"
+          EXPECTED="$(keytool -list -v -keystore "$RUNNER_TEMP/v3-b223-preview-sign/preview.jks" -alias b223_preview -storepass "$PASS" | grep -m1 'SHA256:' | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v3-b223-preview-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
+          sha256sum "$APK"
+          echo B223_PREVIEW_SIGNATURE_AND_PACKAGE=PASS
+      - name: Delete disposable preview-only signer
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/v3-b223-preview-sign"
+      - name: Upload isolated preview Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOT-KING-V3-B223-SIDE-BY-SIDE-PREVIEW-APK
+          path: dist/v3-b223-preview/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
