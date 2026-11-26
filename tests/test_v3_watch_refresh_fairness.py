@@ -18,3 +18,13 @@ class WatchRefreshFairness(unittest.TestCase):
         src=(Path(__file__).resolve().parents[1]/"src/main.py").read_text()
         self.assertIn("if not explicit_closed:\n            selected=watch_refresh_priority([sym for sym in all_watch_symbols()",src)
         self.assertIn("                selected=watch_refresh_priority(selected,generation)\n                for sym in selected:",src)
+
+    def test_unattempted_roster_does_not_read_full_history(self):
+        tree=ast.parse((Path(__file__).resolve().parents[1]/"src/main.py").read_text())
+        node=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=="watch_refresh_priority")
+        calls=[]
+        ns={"shared_history":lambda sym,tf:calls.append(sym) or {},
+            "watch_three_minute_warm_attempts":{(1,"TCS"):100}}
+        exec(compile(ast.Module(body=[node],type_ignores=[]),"<priority>","exec"),ns)
+        self.assertEqual(ns["watch_refresh_priority"](["TCS","INFY","ITC"],1),["INFY","ITC","TCS"])
+        self.assertEqual(calls,["TCS"])

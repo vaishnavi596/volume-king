@@ -153,5 +153,19 @@ class RenewalTests(unittest.TestCase):
         with self.assertRaises(OSError):
             renew_web_token("12345",self.path,lambda req,timeout:self.fail("network called"))
 
+    def test_custom_lead_window_rechecked_under_lock(self):
+        metadata=self.path.with_name("expiry.json")
+        from backend.dhan_expiry_store import save_expiry_metadata
+        save_expiry_metadata(metadata,(datetime.now(timezone.utc)+timedelta(minutes=110)).isoformat())
+        seen=[]
+        expiry=(datetime.now(ZoneInfo("Asia/Kolkata"))+timedelta(hours=20)).strftime("%d/%m/%Y %H:%M")
+        def opener(req,timeout):
+            seen.append(req.full_url)
+            return Response({"accessToken":self.new} if req.full_url.endswith("/RenewToken")
+                else {"dhanClientId":"12345","tokenValidity":expiry})
+        result=renew_web_token("12345",self.path,opener,expiry_path=metadata,lead_minutes=120)
+        self.assertTrue(result["profile_verified"])
+        self.assertEqual(len(seen),2)
+
 if __name__ == "__main__":
     unittest.main()

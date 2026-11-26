@@ -36,7 +36,8 @@ def completed_live_history(response, bars, quote, *, symbol, timeframe, now):
         if not isinstance(row,(tuple,list)) or len(row)<6:
             return None
         t=row[0]
-        if type(t) not in (int,float) or not isfinite(t) or (previous is not None and t<=previous):
+        if (type(t) not in (int,float) or not isfinite(t) or t<=0 or t>now
+                or (previous is not None and t<=previous)):
             return None
         o,h,l,c,v=row[1:6]
         if (any(type(x) not in (int,float) or not isfinite(x) for x in (o,h,l,c,v))

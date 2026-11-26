@@ -59,7 +59,10 @@ def main(argv=None):
         if not args.expiry_file:
             raise ValueError("Execution requires owner-private expiry file for atomic update")
         client_id = os.environ.get(args.client_id_env, "").strip()
-        result = renew_web_token(client_id, Path(args.token_file), expiry_path=Path(args.expiry_file))
+        options={"expiry_path":Path(args.expiry_file)}
+        if args.lead_minutes!=90:
+            options["lead_minutes"]=args.lead_minutes
+        result = renew_web_token(client_id, Path(args.token_file), **options)
         if isinstance(result,dict) and result.get("status")=="not_due":
             print("Renewal no longer due after lock recheck")
             return 0

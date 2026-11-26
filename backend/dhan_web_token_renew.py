@@ -40,7 +40,7 @@ def request_json(url, headers, opener=direct_renewal_open):
         return json.loads(raw)
 
 
-def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None):
+def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None, lead_minutes=90):
     if not client_id or not client_id.strip():
         raise ValueError("Client ID required")
     path = Path(token_path)
@@ -62,7 +62,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open
     # when a timer decided 'due' before another process completed renewal.
     if expiry_path is not None and Path(expiry_path).exists():
         metadata=load_expiry_metadata(expiry_path)
-        decision=renewal_decision(metadata["source"],datetime.fromisoformat(metadata["expires_at"]))
+        decision=renewal_decision(metadata["source"],datetime.fromisoformat(metadata["expires_at"]),lead_minutes=lead_minutes)
         if decision["state"]=="valid":
             return {"status":"not_due","profile_verified":False}
         if decision["state"]!="renewal_due":
@@ -130,7 +130,7 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open
 
 
 
-def renew_web_token(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None):
+def renew_web_token(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None, *, lead_minutes=90):
     """Serialize all cooperating renewal processes before touching Dhan."""
     path = Path(token_path)
     lock_path = path.with_name(path.name + ".lock")
@@ -144,7 +144,7 @@ def renew_web_token(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError("Another token renewal is already running") from None
-        return _renew_unlocked(client_id, token_path, opener, expiry_path=expiry_path)
+        return _renew_unlocked(client_id, token_path, opener, expiry_path=expiry_path,lead_minutes=lead_minutes)
     finally:
         os.close(fd)
 

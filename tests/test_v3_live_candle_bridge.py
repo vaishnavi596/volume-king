@@ -17,6 +17,8 @@ class LiveCandleBridgeTests(unittest.TestCase):
         self.assertIsNone(check(r=dict(r,candle_origin=None)))
         self.assertIsNone(check(r=dict(r,symbol="SENSEX")))
         self.assertIsNone(check(now=now+86400))
+        future=bars+[[now+60,100,102,99,101,10]]
+        self.assertIsNone(completed_live_history(r,future,q,symbol="NIFTY",timeframe="1m",now=now))
 
     def test_bad_clock_and_invalid_ohlcv_abstain(self):
         now=datetime(2026,11,26,11,4,20,tzinfo=IST).timestamp()

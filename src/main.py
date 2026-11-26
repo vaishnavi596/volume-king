@@ -9478,6 +9478,10 @@ console.log('BOT KING Lightweight Charts ready');
         # Stable sort preserves the saved list order for equal priorities.
         def priority(sym):
             attempt=watch_three_minute_warm_attempts.get((generation,sym),-1.0)
+            # For already-attempted symbols tie-break by cached candle age.
+            # For unattempted symbols preserve roster order without 51 cache reads.
+            if attempt<0:
+                return (attempt,0)
             history=shared_history(sym,"3m")
             bars=history.get("bars") or []
             stamp=bars[-1][0] if bars else 0
@@ -10041,6 +10045,10 @@ console.log('BOT KING Lightweight Charts ready');
                         # completed tail items; existing budget/guards still own IO.
                         if len(results)%5==0:
                             await warm_selected_watch_three_minute_early(generation)
+                    # Give a short final tail the same bounded Watchlist slot.
+                    # No new parallel worker or quota bypass.
+                    if results and len(results)%5 and not background_interrupted:
+                        await warm_selected_watch_three_minute_early(generation)
                 else:
                     results=await asyncio.gather(*(load_one(sym) for sym in symbols))
                 # A background-interrupted Dhan pass is incomplete. Do not
@@ -10619,11 +10627,16 @@ console.log('BOT KING Lightweight Charts ready');
                         if (generation!=provider_generation[0]
                                 or watch_bootstrap_stop_requested() or not dhan_feed.connected):
                             break
+                        watch_three_minute_warm_attempts[(generation,sym)]=time.monotonic()
                         data=await asyncio.wait_for(asyncio.to_thread(
                             get_market_data,sym,"1m","2d"),timeout=25)
                         if (generation!=provider_generation[0]
+                                or prefs.get("source")!="Dhan"
                                 or data.get("source")!="Dhan"):
+                            record_watch_outcome(generation,sym,"DISCARDED_RESPONSE")
                             break
+                        record_watch_outcome(generation,sym,data.get("_watch_read_origin","UNKNOWN_ORIGIN")
+                            if valid_candle_history(data.get("bars")) else "INVALID_RESPONSE")
                         data=retain_candle_history(data,shared_history(sym,"1m"),provider="Dhan")
                         if valid_candle_history(data.get("bars")):
                             chart_snapshots[(sym,"1m",generation)]=dict(
@@ -10693,11 +10706,20 @@ console.log('BOT KING Lightweight Charts ready');
         # Separate metadata-only Oracle request; never triggered by Doctor.
         # No Dhan quota use; stale/disconnected generations are not published.
         while True:
-            await asyncio.sleep(180)
+            await asyncio.sleep(5)
             if not app_active[0] or lifecycle_background[0] or not clone_v2_gateway.connected:
                 continue
             generation=provider_generation[0]
-            result=await asyncio.to_thread(clone_v2_gateway.renewal_health)
+            if (renewal_health_cache.get("generation")==generation
+                    and 0<=time.monotonic()-renewal_health_cache.get("at",0)<180):
+                continue
+            try:
+                result=await asyncio.to_thread(clone_v2_gateway.renewal_health)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("renewal_metadata_poll",exc)
+                result={"state":"UNVERIFIED","reason":"RENEWAL_POLL_FAILED"}
             if generation==provider_generation[0] and clone_v2_gateway.connected:
                 renewal_health_cache.clear()
                 renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
