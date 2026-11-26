@@ -28,7 +28,11 @@ def restored_quote_rows(rows, *, source):
     """Restore prices as cached observations, never as current-session LIVE."""
     from math import isfinite
     result = {}
+    if not isinstance(rows,dict) or not isinstance(source,str) or not source:
+        return result
     for symbol, row in rows.items():
+        if not isinstance(symbol,str) or not symbol.strip():
+            continue
         if not isinstance(row, dict) or row.get("source") != source:
             continue
         price = row.get("price")

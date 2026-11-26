@@ -28,5 +28,8 @@ def historical_close_display(history, *, now):
     if latest is None:
         return None
     stamp,closing=latest
-    clock=datetime.fromtimestamp(stamp,IST).strftime("%d %b %H:%M IST")
+    try:
+        clock=datetime.fromtimestamp(stamp,IST).strftime("%d %b %H:%M IST")
+    except (ValueError,OverflowError,OSError):
+        return None
     return (f"HIST {closing:,.2f}",f"HIST CLOSE • {clock} • NOT LIVE • source unverified")

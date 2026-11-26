@@ -3,6 +3,7 @@
 The handoff never fetches market data and never upgrades evidence to live votes.
 """
 from copy import deepcopy
+from math import isfinite
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 from time import monotonic
@@ -10,7 +11,8 @@ from time import monotonic
 
 class OptionEvidenceCache:
     def __init__(self, ttl_seconds=120, max_entries=128, clock=monotonic, today=None):
-        if not (0 < ttl_seconds <= 600 and 0 < max_entries <= 1024):
+        if (type(ttl_seconds) not in (int,float) or not isfinite(ttl_seconds) or not 0<ttl_seconds<=600
+                or type(max_entries) is not int or not 0<max_entries<=1024):
             raise ValueError("Invalid bounded evidence cache settings")
         self._ttl = ttl_seconds
         self._limit = max_entries
@@ -29,13 +31,16 @@ class OptionEvidenceCache:
             return False
         if not isinstance(metrics, dict) or metrics.get("signal_eligible") is not False:
             return False
-        if metrics.get("freshness") != "unverified":
+        if (metrics.get("freshness") != "unverified" or metrics.get("live_verified") is True
+                or metrics.get("symbol",symbol)!=symbol or metrics.get("expiry",expiry)!=expiry):
             return False
         # Legacy internal Dhan metrics may omit source; explicit foreign or
         # spoofed providers must never enter the Dhan-only assessment cache.
         if metrics.get("source", "dhan") != "dhan":
             return False
         now = self._clock()
+        if type(now) not in (int,float) or not isfinite(now) or now<0:
+            return False
         with self._lock:
             self._prune(now)
             key = (symbol, expiry)
@@ -58,6 +63,8 @@ class OptionEvidenceCache:
             except ValueError:
                 return None
         now = self._clock()
+        if type(now) not in (int,float) or not isfinite(now) or now<0:
+            return None
         with self._lock:
             self._prune(now)
             candidates = [(ts, expiry, data) for (sym, expiry), (ts, data)

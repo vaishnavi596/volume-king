@@ -26,7 +26,7 @@ def select_verified_future(rows, symbol, expiry):
         sid=row.get("security_id")
         contract=row.get("contract")
         if (not isinstance(sid,str) or not sid.isascii() or not sid.isdecimal()
-                or int(sid)<=0 or not isinstance(contract,str)
+                or len(sid)>32 or int(sid)<=0 or not isinstance(contract,str)
                 or not contract.strip()):
             return None
         matching.append({"symbol":symbol,"underlying":symbol,
@@ -40,6 +40,8 @@ def select_verified_future(rows, symbol, expiry):
 def normalize_futures_ltp(raw,mapping):
     """Return only source LTP context; no invented OI, volume, direction."""
     if not isinstance(raw,dict) or raw.get("status")!="success":
+        return None
+    if not isinstance(mapping,dict) or any(not isinstance(mapping.get(k),str) or not mapping[k].strip() for k in ("security_id","symbol","underlying","expiry","contract")) or mapping["symbol"]!=mapping["underlying"]:
         return None
     data=raw.get("data")
     values=data.get("NSE_FNO") if isinstance(data,dict) else None

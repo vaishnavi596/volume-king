@@ -9,11 +9,13 @@ import math
 
 INDEXES=("NIFTY","BANKNIFTY","SENSEX")
 
-def _candle_fault(record,frame):
+def _candle_fault(record,frame,symbol=None):
     if not isinstance(record,dict) or not record:
         return "DATA_INCOMPLETE"
     if record.get("source")!="Dhan" or record.get("_scanner_timeframe",frame)!=frame:
         return "TIMEFRAME_MISMATCH"
+    if symbol is not None and record.get("symbol",symbol)!=symbol:
+        return "SYMBOL_MISMATCH"
     bars=record.get("bars")
     if not isinstance(bars,(list,tuple)) or len(bars)<2:
         return "DATA_INCOMPLETE"
@@ -41,9 +43,11 @@ def classify_stock(symbol, quote, histories, generation, required_frames=("1m","
         faults.append("DATA_INCOMPLETE")
     elif quote.get("source")!="Dhan" or type(p) not in (int,float) or not math.isfinite(p) or p<=0:
         faults.append("DATA_INCOMPLETE")
+    if isinstance(quote,dict) and quote.get("symbol",symbol)!=symbol:
+        faults.append("SYMBOL_MISMATCH")
     frame_checks={}
     for frame in ("1m","3m","5m","10m","15m","30m"):
-        fault=_candle_fault(histories.get((symbol,frame,generation)),frame)
+        fault=_candle_fault(histories.get((symbol,frame,generation)),frame,symbol)
         frame_checks[frame]="PRESENT_UNVERIFIED" if fault is None else fault
         if fault and frame in required_frames:
             faults.append(fault)
@@ -66,6 +70,8 @@ class DiagnosticRegistry:
         self.history=deque(maxlen=100)
 
     def reconcile(self, results, generation):
+        if type(generation) is not int or generation<0 or (self.generation is not None and generation<self.generation):
+            return self.summary()
         if self.generation!=generation:
             self.generation=generation
             self.active.clear()

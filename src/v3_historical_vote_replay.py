@@ -55,7 +55,7 @@ def _historical_measured(name, component, *, symbol, timeframe, generation, last
                           and expiry_day.isoformat()==expiry
                           and expiry_day>=datetime.fromtimestamp(
                               last_bar,timezone(timedelta(hours=5,minutes=30))).date())
-        except (ValueError,TypeError,OverflowError):
+        except (ValueError,TypeError,OverflowError,OSError):
             exact_expiry=False
         if not exact_expiry or component.get("underlying")!=symbol:
             return None
@@ -68,7 +68,7 @@ def _historical_measured(name, component, *, symbol, timeframe, generation, last
 def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
                            filter_rows, history_timestamp=None, historical_context=None):
     if (not isinstance(symbol,str) or not symbol or timeframe not in TIMEFRAMES
-            or type(generation) is not int or not isinstance(filter_rows,(list,tuple))):
+            or type(generation) is not int or generation<0 or not isinstance(filter_rows,(list,tuple))):
         raise ValueError("Exact replay identity and computed filter rows required")
     result={"mode":"HIST_REPLAY_READ_ONLY","symbol":symbol,
             "timeframe":timeframe,"generation":generation,
@@ -118,6 +118,7 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
     valid=(len(session)>=30 and all(
         isinstance(b,(tuple,list)) and len(b)>=6 and
         all(type(v) in (int,float) and isfinite(v) for v in b[:6])
+        and min(b[1:5])>0 and b[5]>=0 and b[2]>=max(b[1],b[3],b[4]) and b[3]<=min(b[1],b[4])
         for b in session))
     if not valid:
         result["blockers"].append("COMPLETED_SESSION_HISTORY_INVALID_OR_LT_30")

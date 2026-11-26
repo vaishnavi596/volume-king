@@ -28,7 +28,10 @@ def completed_derived_bars(rows, target, *, now_epoch):
             continue
         if int(stamp)!=stamp or stamp%60!=0 or min(op,hi,lo,cl)<=0 or vol<0 or not lo<=min(op,cl)<=max(op,cl)<=hi:
             continue
-        local=datetime.fromtimestamp(stamp,IST)
+        try:
+            local=datetime.fromtimestamp(stamp,IST)
+        except (ValueError,OverflowError,OSError):
+            continue
         session=local.replace(hour=9,minute=15,second=0,microsecond=0).timestamp()
         delta=int(stamp-session)
         if delta<0 or delta>=375*60 or delta%slot!=0:
@@ -48,6 +51,8 @@ def completed_derived_bars(rows, target, *, now_epoch):
         if any(k not in members for k in indices):
             continue
         values=[members[k] for k in indices]
+        if not isfinite(sum(v[4] for v in values)):
+            continue
         result.append((start,values[0][0],max(v[1] for v in values),
                        min(v[2] for v in values),values[-1][3],sum(v[4] for v in values)))
     return result

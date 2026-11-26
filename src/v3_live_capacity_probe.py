@@ -28,14 +28,14 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
     # necessarily storing a separate chart_snapshots[(sym,"3m",gen)] record.
     # Reproduce the same exact session-aligned 3m derivation locally; do not
     # mislabel a missing stored 3m slot as missing actual 3m evidence.
-    histories=dict(histories)
+    histories={k:v for k,v in histories.items() if isinstance(v,dict)}
     derived_3m=0
     for sym in names:
         target=(sym,"3m",generation)
         if target in histories and (histories[target] or {}).get("bars"):
             continue
         source=histories.get((sym,"1m",generation)) or {}
-        if source.get("source")!="Dhan" or source.get("_scanner_timeframe")!="1m":
+        if source.get("source")!="Dhan" or source.get("_scanner_timeframe")!="1m" or source.get("symbol",sym)!=sym:
             continue
         bars=completed_three_minute_bars(source.get("bars"),now_epoch=time.time())
         if len(bars)>=2:
@@ -51,7 +51,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
             if (histories.get(key) or {}).get("bars"):
                 continue
             origin=histories.get((sym,base,generation)) or {}
-            if origin.get("source")!="Dhan" or origin.get("_scanner_timeframe")!=base:
+            if origin.get("source")!="Dhan" or origin.get("_scanner_timeframe")!=base or origin.get("symbol",sym)!=sym:
                 continue
             bars=completed_derived_bars(origin.get("bars"),target,now_epoch=time.time())
             if len(bars)>=2:
@@ -67,7 +67,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
     for symbol in names:
         q=quotes.get(symbol) or {}
         p=q.get("price") if isinstance(q,dict) else None
-        if isinstance(q,dict) and q.get("source")=="Dhan" and type(p) in (float,int) and math.isfinite(p) and p>0:
+        if isinstance(q,dict) and q.get("source")=="Dhan" and q.get("symbol",symbol)==symbol and type(p) in (float,int) and math.isfinite(p) and p>0:
             quote_present+=1
         else:
             quote_missing.append(symbol)
@@ -75,7 +75,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
             h=histories.get((symbol,frame,generation)) or {}
             bars=h.get("bars") if isinstance(h,dict) else None
             if (isinstance(h,dict) and h.get("source")=="Dhan"
-                    and h.get("_scanner_timeframe",frame)==frame
+                    and h.get("_scanner_timeframe",frame)==frame and h.get("symbol",symbol)==symbol
                     and isinstance(bars,(list,tuple)) and len(bars)>=2):
                 coverage[frame]+=1
             else:
@@ -89,7 +89,7 @@ def benchmark_cached_capacity(equities, quotes, histories, generation, requested
         frame="1m" if symbol in INDEXES else "3m"
         row=histories.get((symbol,frame,generation)) or {}
         bars=row.get("bars") if isinstance(row,dict) else None
-        if not bars or row.get("source")!="Dhan" or row.get("_scanner_timeframe",frame)!=frame:
+        if not bars or row.get("source")!="Dhan" or row.get("_scanner_timeframe",frame)!=frame or row.get("symbol",symbol)!=symbol:
             technical_wait+=1
             continue
         try:

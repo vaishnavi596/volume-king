@@ -469,6 +469,7 @@ def measured_directional_evidence(name, component, *, required_basis):
             or component.get("direction_basis") != required_basis
             or component.get("historical") is True
             or component.get("live_verified") is False
+            or component.get("verified_live") is False
             or not isinstance(component.get("contract"), str)
             or not component["contract"].strip()):
         return EngineEvidence(name, reason="Verified Dhan directional provenance unavailable")
@@ -654,7 +655,7 @@ def resolve_verified_futures_contract(rows, *, symbol, expiry):
         sid = row.get("security_id")
         contract = row.get("contract")
         if (not isinstance(sid, str) or not sid.isascii() or not sid.isdecimal() or
-                int(sid) <= 0 or not isinstance(contract, str) or not contract.strip()):
+                len(sid)>32 or int(sid) <= 0 or not isinstance(contract, str) or not contract.strip()):
             return None
         matches.append({"source": "Dhan", "exchange_segment": "NSE_FNO",
                         "security_id": sid, "contract": contract.strip(),

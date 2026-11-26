@@ -37,10 +37,15 @@ def inspect_candle_tail(raw_bars, *, timeframe="1m"):
             best_end=pos
             best_start=pos-run+1
     if best>=5:
+        try:
+            first_clock=datetime.fromtimestamp(valid[best_start][0],IST).strftime("%Y-%m-%d %H:%M IST")
+            last_clock=datetime.fromtimestamp(valid[best_end][0],IST).strftime("%Y-%m-%d %H:%M IST")
+        except (ValueError,OverflowError,OSError):
+            first_clock=last_clock=None
         review.append({"code":"REPEATED_IDENTICAL_OHLCV_REVIEW",
                        "consecutive_candles":best,
-                       "first_ist":datetime.fromtimestamp(valid[best_start][0],IST).strftime("%Y-%m-%d %H:%M IST"),
-                       "last_ist":datetime.fromtimestamp(valid[best_end][0],IST).strftime("%Y-%m-%d %H:%M IST"),
+                       "first_ist":first_clock,
+                       "last_ist":last_clock,
                        "cached_ohlcv_sample_sha256":sha256(json.dumps(
                            [list(c[:6]) for c in valid[best_start:best_end+1]],
                            separators=(",",":"),allow_nan=False).encode("utf-8")).hexdigest(),

@@ -73,3 +73,7 @@ Execution vs acceptance: internal source/test gate precedes dependent implementa
 
 ## SMART-4 4X MEGA BATCH (26 Nov 2026, owner approved)
 Audit fourfold broader related surfaces before each joint commit. Aim for 4–12 evidenced repairs where safe, not an artificial quota. Keep P01–P16, exact-head CI, no duplicate work, and explicit external blockers. Never weaken source, voting, security or acceptance gates to increase batch size.
+
+
+## SMART-7 ULTRA — 100X MEGA BATCH (owner approved 26 Nov 2026)
+No artificial repair-count target. Review B1–B6 jointly, prioritize implementation and dependencies over cosmetic fixes, combine independent validated changes in one exact-head gate. Preserve P01–P16, no fake source evidence, no concurrent CI, no unauthorized deployment/orders. 100X is scope ambition, not speed or verified completion. Explicitly record implementation gaps separately from external acceptance.
