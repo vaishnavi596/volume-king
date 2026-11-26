@@ -23,13 +23,16 @@ def worker_budget(cpus=None, available_bytes=None):
 
 class LocalAnalysisPool:
     def __init__(self,workers=None):
-        self.workers=worker_budget() if workers is None else max(1,int(workers))
+        if workers is not None and (type(workers) is not int or not 1<=workers<=8):
+            raise ValueError("Local worker budget must be 1 through 8")
+        self.workers=worker_budget() if workers is None else workers
         self._executor=ThreadPoolExecutor(max_workers=self.workers,thread_name_prefix="bk-local")
         self._lock=Lock()
         self._pending=0
         self._running=0
         self._completed=0
         self._failed=0
+        self._submission_failed=0
         self._cancelled=0
         self._running_cancel_waits=0
         self._queue_last_ms=0.0
@@ -70,7 +73,9 @@ class LocalAnalysisPool:
         try:
             future=self._executor.submit(execute)
         except Exception:
-            with self._lock:self._pending-=1
+            with self._lock:
+                self._pending-=1
+                self._submission_failed+=1
             raise
         def done(f):
             if f.cancelled():
@@ -112,6 +117,7 @@ class LocalAnalysisPool:
         with self._lock:
             return {"workers":self.workers,"pending":self._pending,"running":self._running,
                     "completed":self._completed,"failed":self._failed,"cancelled":self._cancelled,
+                    "submission_failed":self._submission_failed,
                     "running_cancel_waits":self._running_cancel_waits,
                     "queue_last_ms":self._queue_last_ms,"queue_max_ms":self._queue_max_ms,
                     "compute_last_ms":self._compute_last_ms,"compute_max_ms":self._compute_max_ms,

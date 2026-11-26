@@ -65,6 +65,8 @@ def plan_active_symbols(
         _add(active, feature)
     if not isinstance(keep_indices, (list, tuple, set, frozenset)):
         raise ValueError("indices must be a sequence")
+    if any(sym not in INDEX_SYMBOLS for sym in keep_indices):
+        raise ValueError("Unknown index in index roster")
     _add(active, keep_indices)
     indices = tuple(sorted(active & INDEX_SYMBOLS))
     equities = tuple(sorted(active - INDEX_SYMBOLS))
@@ -95,7 +97,7 @@ def plan_due_history_symbols(active, *, now, last_attempts=None, cooldown_until=
         raise ValueError("non-finite history scheduling time")
     if now < 0 or cooldown_until < 0 or minimum_spacing < 30 or global_spacing < 1:
         raise ValueError("invalid history scheduling window")
-    if last_global_attempt is not None and last_global_attempt > now:
+    if last_global_attempt is not None and not 0<=last_global_attempt<=now:
         raise ValueError("last_global_attempt is in the future")
     if type(max_batch) is not int or not 1 <= max_batch <= 3:
         raise ValueError("max_batch must be from 1 through 3")

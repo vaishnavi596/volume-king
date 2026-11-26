@@ -11,6 +11,8 @@ SURFACES=("INDEX_CARDS","ANALYSIS_SLOTS")
 
 class DashboardBarMonitor:
     def __init__(self, max_entries=160):
+        if type(max_entries) is not int or max_entries<1:
+            raise ValueError("Invalid dashboard monitor capacity")
         self._states=OrderedDict()
         self.max_entries=max_entries
 
@@ -19,7 +21,7 @@ class DashboardBarMonitor:
                 used_last_good=False):
         if surface not in SURFACES or not isinstance(symbol,str) or not symbol:
             raise ValueError("Invalid dashboard location")
-        if timeframe!="1m" or type(generation) is not int:
+        if timeframe!="1m" or type(generation) is not int or generation<0:
             raise ValueError("Expected exact 1m and provider generation")
         if type(history_present) is not bool or type(bar_constructed) is not bool:
             raise ValueError("Boolean observation required")
@@ -50,15 +52,18 @@ class DashboardBarMonitor:
         return code
 
     def report(self, *, generation, symbols=INDEXES):
-        if type(generation) is not int:
+        if type(generation) is not int or generation<0:
             raise ValueError("Invalid generation")
         issues=[]
         grouped={}
+        healthy=0
         for key,state in self._states.items():
             surface,symbol,tf,gen=key
             if gen!=generation or symbol not in symbols:
                 continue
             grouped.setdefault((symbol,tf),{})[surface]=state
+            if not state["code"] and state["last_bar_constructed"]:
+                healthy+=1
             if state["code"]:
                 issues.append({"code":state["code"],"symbol":symbol,
                                "timeframe":tf,"surface":surface,
@@ -77,7 +82,7 @@ class DashboardBarMonitor:
                                    "blocked_at":"MULTIPLE_DASHBOARD_HISTORY_PRESENTERS",
                                    "next_action":"COMPARE_EXACT_FRAME_CACHE_AND_PRESENTER_ON_SAME_GENERATION"})
         return {"mode":"ERRORS_ONLY","issues":issues,"issue_count":len(issues),
-                "healthy_hidden":sum(1 for s in self._states.values() if not s["code"]),
+                "healthy_hidden":healthy,
                 "source":"Constructed dashboard control tree; NOT Flutter painted pixels",
                 "snapshot_scope":"CURRENT_APP_PROCESS_ONLY_NOT_SERVER_MEMORY",
                 "provider_requests":0,"orders_sent":0}

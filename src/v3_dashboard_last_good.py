@@ -4,9 +4,12 @@ Only caches a successfully calculated HIST result. This is not a live signal,
 not an independent engine vote and does not survive app uninstall.
 """
 from collections import OrderedDict
+from math import isfinite
 
 class LastGoodHistoricalAgreement:
     def __init__(self,limit=220):
+        if type(limit) is not int or limit<1:
+            raise ValueError("Invalid historical cache capacity")
         self.records=OrderedDict()
         self.limit=limit
 
@@ -14,7 +17,7 @@ class LastGoodHistoricalAgreement:
                 calculated=None,source_candle_time=None):
         if not isinstance(symbol,str) or not symbol or timeframe not in ("1m","3m","5m"):
             raise ValueError("Exact symbol and timeframe required")
-        if type(generation) is not int or source!="Dhan":
+        if type(generation) is not int or generation<0 or source!="Dhan":
             return None,False
         if not isinstance(filter_signature,tuple) or any(not isinstance(x,str) for x in filter_signature):
             raise ValueError("Filter signature required")
@@ -24,7 +27,7 @@ class LastGoodHistoricalAgreement:
                     any(type(n) is not int for n in calculated) or
                     min(calculated)<0 or calculated[0]+calculated[1]!=100 or
                     calculated[2]<1 or type(source_candle_time) not in (int,float) or
-                    source_candle_time<=0):
+                    not isfinite(source_candle_time) or source_candle_time<=0):
                 raise ValueError("Malformed historical vote")
             existing=self.records.get(key)
             # Older data may not overwrite a newer last-good state.
