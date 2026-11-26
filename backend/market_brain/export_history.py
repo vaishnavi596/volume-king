@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Read-only Dhan 5m history export for the Market Brain (run on Oracle, stdlib only).
 
-Uses the same local, pairing-key-protected server as the other operator scripts.
+Uses the Clone V2 gateway on this host (127.0.0.1:8002), the same read-only route and
+SSK key file the phone uses.
 It never prints the key, prices or raw responses, sends no orders, and stops at the
 first HTTP 401/403/429 or repeated transport failure. Resumable: finished windows are
 recorded and skipped on the next run. Run when the market is closed.
@@ -13,13 +14,14 @@ import csv
 import datetime as dt
 import json
 import math
+import os
 import pathlib
 import time
 import urllib.error
 import urllib.request
 
-BASE = "http://127.0.0.1:8000"
-KEY_FILE = pathlib.Path("/home/opc/bot-king-pairing-key.txt")
+BASE = "http://127.0.0.1:8002"
+KEY_FILE = pathlib.Path(os.environ.get("BOTKING_CLONE_V2_SSK_FILE", "/home/opc/botking-clone-v2-private/ssk"))
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 SPAN_DAYS = 5          # server rejects (to - from).days > 5
 
@@ -73,10 +75,10 @@ def main(argv=None):
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
     key = KEY_FILE.read_text().strip() if KEY_FILE.exists() else ""
     if not 32 <= len(key) <= 512:
-        raise SystemExit("pairing key unavailable; no requests made")
-    code, status = call("/dhan/status", key)
+        raise SystemExit("SSK key file unavailable; no requests made")
+    code, status = call("/clone-v2/status", key)
     if code != 200 or not status or status.get("authenticated") is not True or status.get("live_orders_enabled") is not False:
-        raise SystemExit("Dhan read-only session unavailable; no history requests made")
+        raise SystemExit("Clone gateway status check failed (HTTP %s); no history requests made" % code)
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     progress_file = out / "progress.json"
@@ -91,9 +93,9 @@ def main(argv=None):
             tag = a.isoformat()
             if tag in finished:
                 continue
-            code, res = call("/dhan/intraday", key, {"symbol": sym, "interval": 5,
+            code, res = call("/clone-v2/market/candles", key, {"symbol": sym, "interval": 5,
                                                       "from_date": a.isoformat(), "to_date": b.isoformat()})
-            if code in (401, 403, 429):
+            if code in (401, 403, 429, 502, 503):
                 print("%s window %d/%d: HTTP %d, STOP (resume later)" % (sym, i, len(plan), code))
                 progress_file.write_text(json.dumps(done))
                 return 3
