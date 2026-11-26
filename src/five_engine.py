@@ -429,6 +429,35 @@ def scanner_snapshot_with_candle(scan_result, history, *, symbol, timeframe, now
     return snapshot
 
 
+def selected_verified_frame_snapshot(result, history, *, symbol, timeframe, now):
+    """Selected 1m/3m publisher: no inferred identity, no HIST promotion.
+
+    The selected scanner supplies its own analysis revision; authenticated
+    exact-frame history must independently qualify before any T/C vote.
+    """
+    if (timeframe not in ("1m","3m") or not isinstance(result,dict)
+            or not isinstance(history,dict) or history.get("symbol")!=symbol
+            or history.get("_scanner_timeframe")!=timeframe
+            or history.get("source")!="Dhan" or history.get("cached")
+            or history.get("live_verified") is not True
+            or history.get("historical") is not False
+            or history.get("freshness") not in ("exchange_verified","verified_live","live_verified")):
+        return None
+    if (result.get("symbol",symbol)!=symbol
+            or result.get("timeframe",timeframe)!=timeframe
+            or result.get("historical") is True
+            or result.get("live_verified") is False):
+        return None
+    normalized=dict(history,freshness="verified_live")
+    candle=verified_candle_evidence(normalized,timeframe,now=now,symbol=symbol)
+    seconds={"1m":60,"3m":180}[timeframe]
+    if not candle.eligible or result.get("timestamp")!=candle.timestamp-seconds:
+        return None
+    scan=dict(result,symbol=symbol,timeframe=timeframe,source="Dhan",
+              historical=False,live_verified=True,freshness="verified_live")
+    return scanner_snapshot_with_candle(scan,normalized,symbol=symbol,
+                                        timeframe=timeframe,now=now)
+
 def measured_directional_evidence(name, component, *, required_basis):
     """Accept only measured, authenticated Dhan directional percentages.
 

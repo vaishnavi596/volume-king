@@ -47,8 +47,8 @@ SUBITEMS = {
 VERIFIED = {}
 # R2 remaining evidence is not full checkpoint credit.
 R2_REMAINING = {
-    "B3.01": ("Exact selected filter calculation and publisher identity audit", "Observed exchange-qualified T across selected frames"),
-    "B3.02": ("Independent completed contiguous candle calculation and publisher audit", "Actual completed Dhan candle revision across frames"),
+    "B3.01": ("Selected 1m/3m verified publisher wired; full calculation and identity audit pending", "Observed exchange-qualified T across selected frames"),
+    "B3.02": ("Independent completed contiguous candle calculation and publisher audit", "Actual completed Dhan candle revision across frames; selected publisher requires matching revision"),
     "B3.03": ("Authenticated expiry-specific trade-side adapter and publisher unavailable", "Matched underlying, expiry, contract and measured directional flow"),
     "B3.04": ("Full policy and exact-mode integration evidence reconciliation", "Three independently eligible sources in actual session"),
     "B3.05": ("Full diagnostic feature-to-probe/test linkage audit", "Mounted Doctor evidence matching the selected frame and generation"),

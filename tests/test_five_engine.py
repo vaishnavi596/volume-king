@@ -1033,3 +1033,33 @@ class R2DirectionalSourceBoundaryTests(unittest.TestCase):
                           dict(historical=True,live_verified=True)):
                 with self.subTest(adapter=adapter.__name__,flags=flags):
                     self.assertFalse(adapter(dict(sample,**flags)).eligible)
+
+
+class RFinalSelectedFrameTests(unittest.TestCase):
+    def test_selected_frame_requires_independent_candle_revision_and_identity(self):
+        from unittest.mock import patch
+        from five_engine import selected_verified_frame_snapshot
+        for frame,seconds in (("1m",60),("3m",180)):
+            stamp=1800000000
+            scan=dict(timestamp=stamp,timeframe=frame,votes=[
+                {"name":"EMA 9/21","vote":1},{"name":"RSI 14","vote":1},
+                {"name":"MACD","vote":1}])
+            hist=dict(symbol="NIFTY",_scanner_timeframe=frame,source="Dhan",
+                      historical=False,live_verified=True,freshness="exchange_verified")
+            candle=EngineEvidence("candle",80,20,verified=True,
+                                  timestamp=stamp+seconds,source="Dhan")
+            args=dict(symbol="NIFTY",timeframe=frame,now=stamp+seconds)
+            with patch("five_engine.verified_candle_evidence",return_value=candle):
+                result=selected_verified_frame_snapshot(scan,hist,**args)
+                self.assertEqual(result["combined"]["coverage"],2)
+                self.assertEqual(result["combined"]["state"],"WAIT")
+                for changed in (dict(cached=True),dict(symbol="SENSEX"),
+                                dict(historical=True),dict(live_verified=False)):
+                    self.assertIsNone(selected_verified_frame_snapshot(scan,dict(hist,**changed),**args))
+                self.assertIsNone(selected_verified_frame_snapshot(dict(scan,timestamp=stamp-1),hist,**args))
+                self.assertIsNone(selected_verified_frame_snapshot(dict(scan,symbol="SENSEX"),hist,**args))
+    def test_selected_frame_publisher_is_wired(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        self.assertIn("frame_snapshot=selected_verified_frame_snapshot(",source)
+        self.assertIn("generation=current_provider_generation,snapshot=frame_snapshot",source)

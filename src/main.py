@@ -8854,6 +8854,16 @@ console.log('BOT KING Lightweight Charts ready');
                 session_eligible=regular_hours(),
                 live_verified=live_source_verified,
                 history_valid=history_valid)
+            # Selected exact-frame publication uses only the completed analysis
+            # revision and independently verified candle provenance. Never turn
+            # a historical cache or exchange transport timestamp into LIVE proof.
+            if interval in ("1m","3m") and display_mode=="LIVE" and live_source_verified:
+                from five_engine import selected_verified_frame_snapshot
+                frame_snapshot=selected_verified_frame_snapshot(
+                    advanced,hist,symbol=sym,timeframe=interval,now=time.time())
+                if frame_snapshot is not None:
+                    contextual_five_engine.publish(symbol=sym,timeframe=interval,
+                        generation=current_provider_generation,snapshot=frame_snapshot)
             if display_mode!="LIVE":
                 advanced=dict(advanced,bias="WAIT",score=0,
                               reason=advanced["reason"]+" • No new verified live signal")
