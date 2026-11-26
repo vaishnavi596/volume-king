@@ -86,6 +86,8 @@ class HistoricalVotingTests(unittest.TestCase):
         self.assertEqual(result["historical_combined"]["state"],"WAIT")
         self.assertEqual(result["historical_combined"]["reason"],
                          "Insufficient verified engines")
+        self.assertEqual(result["partial_technical_direction"]["state"],"BEARISH")
+        self.assertEqual(result["partial_technical_direction"]["mode"],"TECHNICAL_HIST_ONLY_NOT_LIVE")
         self.assertEqual(result["combined"]["state"],"WAIT")
 
     def test_option_historical_expiry_is_canonical_and_not_expired(self):

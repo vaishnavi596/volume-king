@@ -2108,12 +2108,19 @@ def app_main(page:ft.Page):
         # Display-only option context is read separately from memoized replay.
         # It cannot increase quorum or become a historical directional vote.
         option_label=historical_option_summary(sym)
+        partial=output.get("partial_technical_direction")
+        partial_label=""
+        if final["state"]=="WAIT" and isinstance(partial,dict):
+            partial_label=(" | T HIST ONLY "+partial["state"]+
+                " B"+str(partial["bullish"])+"% / S"+str(partial["bearish"])+"%"+
+                " • NOT COMBINED • NOT LIVE")
         direction=final["state"]
         confidence=(" B"+str(final["bullish"])+"% / S"+str(final["bearish"])+"%"
                     if direction in ("BULLISH","BEARISH") else "")
         return note("HIST FINAL • "+sym+" "+frame+" • "+direction+
                     confidence+" • "+str(final["coverage"])+"/5 HIST sources"+
                     " • "+str(final["reason"])+" • NOT LIVE"+
+                    partial_label+
                     (" | "+option_label if option_label else ""))
 
     def five_engine_chips(sym, display_timeframe=None):

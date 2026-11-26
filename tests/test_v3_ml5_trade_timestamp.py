@@ -10,7 +10,8 @@ from clone_v2_gateway import QuotePriceBatch, observed_quote_fields
 class ML5TradeTimestampTests(unittest.TestCase):
     def test_ist_and_reject_placeholder_future(self):
         self.assertEqual(observed_trade_timestamp("2026-11-25 12:00:00",now=1800000000),1795588200)
-        for value in ("1980-01-01 00:00:00","2099-01-01 00:00:00",None,123,"invalid"):
+        self.assertEqual(observed_trade_timestamp("25/11/2026 12:00:00",now=1800000000),1795588200)
+        for value in ("01/01/1980 00:00:00","01/01/2099 00:00:00","31/02/2026 12:00:00","1980-01-01 00:00:00","2099-01-01 00:00:00",None,123,"invalid"):
             self.assertIsNone(observed_trade_timestamp(value,now=1800000000))
     def test_quote_metadata_stays_unverified_and_compatible(self):
         prices=QuotePriceBatch()

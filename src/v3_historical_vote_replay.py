@@ -82,7 +82,7 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
                                    "bullish":None,"bearish":None,
                                    "reason":"HIST_REPLAY_QUORUM_NOT_MET",
                                    "mode":"HIST_ONLY_NOT_LIVE"},
-            "blockers":[]}
+            "blockers":[], "partial_technical_direction":None}
     if source!="Dhan" or not isinstance(bars,(list,tuple)):
         result["blockers"].append("MATCHING_DHAN_HISTORY_REQUIRED")
         return result
@@ -190,6 +190,13 @@ def historical_vote_replay(*, symbol, timeframe, generation, source, bars,
         tail[i][0]-tail[i-1][0]==seconds for i in range(1,8)))
     candle=historical_candle_balance(tail,sample_size=8) if contiguous else None
     result["technical_vote"]=technical
+    # Useful display-only direction even when independent combined quorum fails.
+    # Do not manufacture a combined vote or increase source coverage.
+    if technical:
+        result["partial_technical_direction"]={
+            "state":"BULLISH" if bull>bear else "BEARISH" if bear>bull else "NEUTRAL",
+            "bullish":technical["bullish"],"bearish":technical["bearish"],
+            "directional_count":bull+bear,"mode":"TECHNICAL_HIST_ONLY_NOT_LIVE"}
     result["candle_vote"]=candle
     measured={}
     for engine in HIST_BASES:

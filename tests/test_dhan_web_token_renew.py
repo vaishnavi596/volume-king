@@ -134,5 +134,24 @@ class RenewalTests(unittest.TestCase):
         self.assertEqual(self.path.read_text(), self.old)
 
 
+    def test_fresh_metadata_under_lock_skips_duplicate_rotation(self):
+        from backend.dhan_expiry_store import save_expiry_metadata
+        metadata=self.path.with_name("expiry.json")
+        save_expiry_metadata(metadata,(datetime.now(timezone.utc)+timedelta(hours=10)).isoformat())
+        result=renew_web_token("12345",self.path,
+            lambda req,timeout:self.fail("duplicate renewal network call"),expiry_path=metadata)
+        self.assertEqual(result["status"],"not_due")
+        self.assertEqual(self.path.read_text(),self.old)
+
+    def test_symlink_token_and_lock_rejected(self):
+        link=self.path.with_name("linked")
+        link.symlink_to(self.path)
+        with self.assertRaises(OSError):
+            renew_web_token("12345",link,lambda req,timeout:self.fail("network called"))
+        lock=self.path.with_name("token.lock")
+        lock.symlink_to(self.path)
+        with self.assertRaises(OSError):
+            renew_web_token("12345",self.path,lambda req,timeout:self.fail("network called"))
+
 if __name__ == "__main__":
     unittest.main()

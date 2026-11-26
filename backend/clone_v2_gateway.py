@@ -39,14 +39,23 @@ def observed_trade_timestamp(value, *, now):
     """
     if not isinstance(value, str):
         return None
-    try:
-        stamp = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(
-            tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp()
-        if stamp < 946684800 or stamp > now:
-            return None
-        return stamp
-    except (ValueError, OverflowError, OSError):
+    # Official quote examples use DD/MM/YYYY; retain legacy ISO wall time.
+    # Neither the HTTP arrival time nor a placeholder is a trade timestamp.
+    if type(now) not in (int,float) or not math.isfinite(now):
         return None
+    for fmt, pattern in (
+        ("%d/%m/%Y %H:%M:%S", r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}"),
+        ("%Y-%m-%d %H:%M:%S", r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"),
+    ):
+        if not re.fullmatch(pattern, value, flags=re.ASCII):
+            continue
+        try:
+            stamp = datetime.strptime(value, fmt).replace(
+                tzinfo=timezone(timedelta(hours=5, minutes=30))).timestamp()
+            return stamp if 946684800 <= stamp <= now else None
+        except (ValueError, OverflowError, OSError):
+            return None
+    return None
 
 
 def private_ssk(path):

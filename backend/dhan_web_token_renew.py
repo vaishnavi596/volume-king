@@ -9,35 +9,64 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import stat as stat_module
 import urllib.error
 import urllib.request
 
 from backend.dhan_token_expiry import parse_profile_expiry
-from backend.dhan_expiry_store import save_expiry_metadata
+from backend.dhan_expiry_store import save_expiry_metadata, load_expiry_metadata
+from backend.dhan_renewal_policy import renewal_decision
+from datetime import datetime
+
+class RejectRenewalRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+def direct_renewal_open(req, timeout):
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), RejectRenewalRedirect()
+    ).open(req, timeout=timeout)
 
 API = "https://api.dhan.co/v2"
 TOKEN_FILE = Path("/etc/bot-king/dhan-token")
 
 
-def request_json(url, headers, opener=urllib.request.urlopen):
+def request_json(url, headers, opener=direct_renewal_open):
     req = urllib.request.Request(url, headers=headers, method="GET")
     with opener(req, timeout=20) as response:
-        return json.loads(response.read(100_000))
+        raw=response.read(100_001)
+        if len(raw)>100_000:
+            raise ValueError("Oversized Dhan renewal response")
+        return json.loads(raw)
 
 
-def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen, expiry_path=None):
+def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None):
     if not client_id or not client_id.strip():
         raise ValueError("Client ID required")
     path = Path(token_path)
-    stat = path.stat()
-    if not path.is_file() or stat.st_mode & 0o077:
-        raise ValueError("Token file must be private")
-    old = path.read_text(encoding="utf-8").strip()
+    fd=os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd,"r",encoding="utf-8") as handle:
+        stat=os.fstat(handle.fileno())
+        if (not stat_module.S_ISREG(stat.st_mode) or stat.st_mode & 0o077
+                or stat.st_uid!=os.geteuid() or stat.st_size>16384):
+            raise ValueError("Token file must be private and owner-controlled")
+        old=handle.read(16385).strip()
+        if len(old)>16384:
+            raise ValueError("Token exceeds bounded size")
     if not old:
         raise ValueError("Token file is empty")
     recovery = path.with_name(path.name + ".recovery")
     if recovery.exists() or recovery.is_symlink():
         raise ValueError("Unresolved renewal recovery file; manual reconciliation required")
+    # Recheck expiry under the rotation lock to avoid a second rotation
+    # when a timer decided 'due' before another process completed renewal.
+    if expiry_path is not None and Path(expiry_path).exists():
+        metadata=load_expiry_metadata(expiry_path)
+        decision=renewal_decision(metadata["source"],datetime.fromisoformat(metadata["expires_at"]))
+        if decision["state"]=="valid":
+            return {"status":"not_due","profile_verified":False}
+        if decision["state"]!="renewal_due":
+            raise ValueError("Renewal expiry or provenance no longer eligible")
     # Fail closed before a potentially irreversible remote token rotation.
     # A successful preflight cannot guarantee the later write, so recovery
     # still remains mandatory immediately after receiving the replacement.
@@ -101,13 +130,15 @@ def _renew_unlocked(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlo
 
 
 
-def renew_web_token(client_id, token_path=TOKEN_FILE, opener=urllib.request.urlopen, expiry_path=None):
+def renew_web_token(client_id, token_path=TOKEN_FILE, opener=direct_renewal_open, expiry_path=None):
     """Serialize all cooperating renewal processes before touching Dhan."""
     path = Path(token_path)
     lock_path = path.with_name(path.name + ".lock")
-    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
     try:
-        if os.fstat(fd).st_mode & 0o077:
+        lock_stat=os.fstat(fd)
+        if (not stat_module.S_ISREG(lock_stat.st_mode) or lock_stat.st_mode & 0o077
+                or lock_stat.st_uid!=os.geteuid()):
             raise ValueError("Renewal lock file must be private")
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
