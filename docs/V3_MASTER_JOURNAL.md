@@ -3117,3 +3117,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - `src/main.py`: `closed_session_index_snapshot(generation)` — बंद बाज़ार में, प्रति generation एक बार, `paced_market_quotes` से तीन इंडेक्स का आखिरी भाव; `live_verified=False`, `activate_with_quote` कभी नहीं (LIVE फ़ीड सक्रिय नहीं)। SSK लॉगिन की बंद-बाज़ार शाखा और `dhan_quote_poll` की नई शाखा दोनों से बुलाया जाता है।
 - B221 workflow, pyproject 2.3.221, B3 push-पथ।
 - खुली बातें: Doctor के स्थिर लेबल ("NOT_WIRED") परीक्षणों में बँधे हैं, अलग बैच में; NIFTY 1m में 15:23–15:28 के छह समान OHLCV बार (REVIEW) और RSI 0.0 जैसा मान समतल डेटा पर भ्रामक है; `BK-RENEW-001` को Oracle पर गेटवे का नवीनीकरण-रूट चाहिए (RENEWAL_ROUTE_NOT_DEPLOYED)।
+
+## J5 — Doctor की सुरक्षित स्वयं-मरम्मत (26 नवंबर) और J8 का सुधार
+- पहली B221 कोशिश में B3 फ़ेल: लॉगिन की बंद-बाज़ार शाखा में मेरी जोड़ी पंक्ति से 3 परीक्षण टूटे (`test_v3_clone_closed_session_*`)। पंक्ति हटाई; इंडेक्स का आखिरी भाव अब केवल `dhan_quote_poll` की शाखा से (लॉगिन शाखा अपरिवर्तित)। स्थानीय सूट: 0 विफलताएँ।
+- नया `src/v3_doctor_repairs.py` (शुद्ध तर्क): `StuckFlagWatch` (हर व्यस्त-झंडे की अपनी सीमा) और `RepairLedger` (केवल 4 अनुमत क्रियाएँ, प्रति generation अधिकतम 2 प्रयास, 120s प्रतीक्षा, ऑडिट)।
+- `src/main.py`: Home के PLATINUM SMART DOCTOR में "Safe repair (all)" बटन और "Doctor auto-repair" स्विच (डिफ़ॉल्ट बंद, `prefs[doctor_auto_repair]`)। मरम्मतें: अटका busy-flag छोड़ना, इंडेक्स का आखिरी भाव फिर माँगना, छूटे HIST शेयर दोबारा लोड। हर मरम्मत के बाद पुनःपरीक्षण और परिणाम का संदेश; MASTER DIAG में `doctor_safe_repairs`।
+- कभी नहीं: टोकन, कुंजी, सेटिंग, ऑर्डर, सर्वर। परीक्षण: `test_v3_doctor_repairs.py`, `test_v3_doctor_safe_repair_wiring_contract.py`।
+- फ़ोन पर परखना बाकी।

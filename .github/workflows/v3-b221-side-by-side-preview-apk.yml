@@ -4,7 +4,7 @@ run-name: BOT KING V3 B221 CURRENT JOINT REGRESSION PREVIEW • v2.3.221
 # Never replace the protected same-package release workflow with a temporary key.
 # B221 is an isolated current-source phone-test candidate, not final acceptance.
 # The full independent exact-head B3 gate must PASS before signing this preview.
-# B221 adds the closed-session index last-price snapshot on top of B220; same exact-head gates and signer guards.
+# B221 adds the closed-session index last-price snapshot and J5 bounded Doctor safe repair on top of B220; same exact-head gates and signer guards.
 on:
   push:
     branches:

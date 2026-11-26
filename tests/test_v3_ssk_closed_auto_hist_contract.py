@@ -28,4 +28,4 @@ class ClosedIndexSnapshotContract(unittest.TestCase):
         self.assertIn("accept_newer_dhan_quote", body)
         self.assertNotIn("activate_with_quote", body)
         self.assertIn("closed_index_snapshot_generation[0]==generation", body)
-        self.assertGreaterEqual(SRC.count("closed_session_index_snapshot"), 3)
+        self.assertGreaterEqual(SRC.count("closed_session_index_snapshot"), 3)  # def, poll branch, repair action

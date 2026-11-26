@@ -2528,6 +2528,111 @@ def app_main(page:ft.Page):
                 on_click=lambda e,v=index_name:open_stock(v)))
         return ft.Column(index_cards,spacing=5)
 
+    # ---- J5: bounded, allowlisted on-phone self-repair (no tokens/orders/settings) ----
+    from v3_doctor_repairs import StuckFlagWatch, RepairLedger
+    doctor_stuck_watch=StuckFlagWatch()
+    doctor_repair_ledger=RepairLedger()
+    doctor_repair_busy=[False]
+    doctor_repair_last_lines=["No safe repair run yet"]
+    DOCTOR_FLAG_LIMITS={"watch_batch_busy":300,"index_refresh_busy":180,"option_feed_busy":150,
+                        "scan_busy":900,"watch_closed_hist_loading":1500,
+                        "dhan_history_scan_active":1500,"watch_three_minute_warm_busy":900,
+                        "index_one_minute_busy":600}
+    def doctor_flag_cells():
+        return {"watch_batch_busy":watch_batch_busy,"index_refresh_busy":index_refresh_busy,
+                "option_feed_busy":option_feed_busy,"scan_busy":scan_busy,
+                "watch_closed_hist_loading":watch_closed_hist_loading,
+                "dhan_history_scan_active":dhan_history_scan_active,
+                "watch_three_minute_warm_busy":watch_three_minute_warm_busy,
+                "index_one_minute_busy":index_one_minute_busy}
+    def doctor_missing_hist_symbols():
+        try:
+            return [sym for sym in watch_groups[active_watch[0]]
+                    if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                    and not valid_candle_history(shared_history(sym,"3m").get("bars"))]
+        except Exception:
+            return []
+    def doctor_collect_findings():
+        findings=[]
+        cells=doctor_flag_cells()
+        doctor_stuck_watch.sample({n:bool(c[0]) for n,c in cells.items()},time.monotonic())
+        for name in doctor_stuck_watch.stuck(time.monotonic(),limits=DOCTOR_FLAG_LIMITS):
+            findings.append({"id":"BK-DOC-STUCK-FLAG","action":"release_busy_flag","target":name,
+                "preview":"काम बहुत देर से 'व्यस्त' अटका है: "+name+" — इसे छोड़कर दोबारा चलने दिया जाएगा"})
+        gateway_ok=(prefs.get("source")=="Dhan" and clone_v2_gateway.connected and app_active[0]
+                    and not lifecycle_background[0] and not refresh_hours())
+        if gateway_ok and any(not (quotes.get(i) or {}).get("price") for i in ("NIFTY","BANKNIFTY","SENSEX")):
+            findings.append({"id":"BK-DOC-INDEX-MISSING","action":"retry_closed_index_snapshot",
+                "target":"indices","preview":"NIFTY/BANKNIFTY/SENSEX का आखिरी भाव नहीं है — एक बार फिर माँगा जाएगा (अप्रमाणित, LIVE नहीं)"})
+        if gateway_ok and not watch_closed_hist_loading[0] and not watch_batch_busy[0]:
+            missing=doctor_missing_hist_symbols()
+            if missing:
+                findings.append({"id":"BK-DOC-HIST-MISSING","action":"retry_missing_hist",
+                    "target":"watchlist","preview":str(len(missing))+" शेयरों का HIST इतिहास नहीं है — Watchlist का HIST लोड दोबारा चलेगा"})
+        return findings
+    def doctor_retest(plan):
+        action,target=plan["action"],plan["target"]
+        if action=="release_busy_flag":
+            return True
+        if action=="retry_closed_index_snapshot":
+            return all((quotes.get(i) or {}).get("price") for i in ("NIFTY","BANKNIFTY","SENSEX"))
+        if action=="retry_missing_hist":
+            return len(doctor_missing_hist_symbols())==0 or watch_closed_hist_loading[0]
+        return False
+    async def doctor_run_action(plan):
+        action,target=plan["action"],plan["target"]
+        if action=="release_busy_flag":
+            cell=doctor_flag_cells().get(target)
+            if cell is None:return
+            cell[0]=False
+            doctor_stuck_watch.forget(target)
+        elif action=="retry_closed_index_snapshot":
+            closed_index_snapshot_generation[0]=None
+            await closed_session_index_snapshot(provider_generation[0])
+        elif action=="retry_missing_hist":
+            await refresh_all_dhan_quotes()
+    async def doctor_run_safe_repairs(manual=False):
+        if doctor_repair_busy[0]:
+            return ["सुरक्षित मरम्मत पहले से चल रही है"]
+        doctor_repair_busy[0]=True
+        lines=[]
+        try:
+            generation=provider_generation[0]
+            plans=doctor_repair_ledger.propose(doctor_collect_findings(),generation,time.monotonic())
+            if not plans:
+                lines=["अभी कोई सुरक्षित मरम्मत ज़रूरी नहीं (या सीमा/प्रतीक्षा-समय लागू)"]
+            for plan in plans:
+                if generation!=provider_generation[0]:break
+                try:
+                    await doctor_run_action(plan)
+                    await asyncio.sleep(3)
+                    ok=bool(doctor_retest(plan))
+                    detail="मरम्मत के बाद पुनःपरीक्षण सफल" if ok else "पुनःपरीक्षण में अब भी समस्या"
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    ok=False;detail="मरम्मत में त्रुटि: "+safe_error(exc)
+                    log_error("doctor_safe_repair",exc)
+                doctor_repair_ledger.record(plan,generation,time.monotonic(),ok,detail)
+                lines.append(("✔ " if ok else "✖ ")+plan["preview"]+" → "+detail)
+        finally:
+            doctor_repair_busy[0]=False
+            doctor_repair_last_lines[:]=lines or doctor_repair_last_lines
+        return lines
+    async def doctor_auto_repair_poll():
+        await asyncio.sleep(45)
+        while True:
+            try:
+                if app_active[0] and not lifecycle_background[0]:
+                    if prefs.get("doctor_auto_repair",False):
+                        await doctor_run_safe_repairs()
+                    else:
+                        doctor_collect_findings()  # keeps the stuck-flag clock running
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("doctor_auto_repair_poll",exc)
+            await asyncio.sleep(60)
     repair_board_signature=[None]
     def repair_board():
         data=super_five_recovery.board(provider_generation[0],time.monotonic())
@@ -2562,8 +2667,23 @@ def app_main(page:ft.Page):
             rows.append(note("Cooldown "+str(round(data["retry_after_seconds"]))+"s"))
         if data["persistence_error"]:
             rows.append(note("Audit storage error: "+data["persistence_error"]))
+        def safe_repair_all(e):
+            async def run():
+                lines=await doctor_run_safe_repairs(manual=True)
+                dialog=ft.AlertDialog(title=txt("सुरक्षित मरम्मत का परिणाम",16,GOLD,True),
+                    content=ft.Container(content=ft.Column([ft.Text("\n".join(lines),size=12,selectable=True)],
+                        scroll=ft.ScrollMode.AUTO),height=220))
+                dialog.actions=[ft.TextButton("Close",on_click=lambda e:page.close(dialog))]
+                page.open(dialog)
+            page.run_task(run)
+        def toggle_auto_repair(e):
+            prefs["doctor_auto_repair"]=bool(e.control.value);save()
         rows.append(ft.Row([ft.TextButton("Repair now",on_click=repair_now),
-                            ft.TextButton("Repair logs",on_click=show_logs)],wrap=True))
+                            ft.TextButton("Repair logs",on_click=show_logs),
+                            ft.TextButton("Safe repair (all)",on_click=safe_repair_all)],wrap=True))
+        rows.append(ft.Switch(label="Doctor auto-repair (safe, bounded)",value=bool(prefs.get("doctor_auto_repair",False)),
+                              on_change=toggle_auto_repair))
+        rows.append(note("Safe repair: stuck workers, missing index price, missing HIST only • max 2 tries/generation • never tokens, keys, settings or orders"))
         return section("PLATINUM SMART DOCTOR",ft.Column(rows,spacing=3))
     def update_repair_board():
         # Only repaint this lightweight mounted section, never the full dashboard.
@@ -4802,7 +4922,6 @@ def app_main(page:ft.Page):
                 building_doctor.milestone("gateway_authorized_closed_session")
                 if watch_closed_hist_resume_pending[0] or watch_closed_hist_loading[0]:
                     page.run_task(resume_interrupted_closed_watch_history,True)
-                page.run_task(closed_session_index_snapshot,provider_generation[0])
                 return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
@@ -6878,6 +6997,7 @@ def app_main(page:ft.Page):
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
+                    "doctor_safe_repairs":doctor_repair_ledger.report(),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
                     "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0},
@@ -6989,6 +7109,7 @@ def app_main(page:ft.Page):
                 registry=registry_report()
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
+                data["doctor_safe_repairs"]=doctor_repair_ledger.report()
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
                 data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0}
@@ -10503,6 +10624,7 @@ console.log('BOT KING Lightweight Charts ready');
                 log_error("dhan_index_poll",exc)
             await asyncio.sleep(10)
     page.run_task(dhan_index_poll)
+    page.run_task(doctor_auto_repair_poll)
     index_closed_history_complete_generation=[None]
     async def dhan_index_candle_poll():
         # Independent 180s Dhan 1m index history cadence. Avoid competing with the
