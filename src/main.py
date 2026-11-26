@@ -838,10 +838,14 @@ def app_main(page:ft.Page):
         result=preference_writer.save(safe)
         prefs["_prefs_revision"]=preference_writer.revision
         return result
+    def compact_ui():
+        # Owner request 26 Nov: smaller text and tighter spacing; Settings > Display can revert.
+        return bool(prefs.get("compact_ui",True))
     def txt(s,size=14,color=WHITE,bold=False):
-        return ft.Text(str(s),size=max(14,size),color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
+        shown=max(12,round(size*0.88)) if compact_ui() else max(14,size)
+        return ft.Text(str(s),size=shown,color=color,weight=ft.FontWeight.BOLD if bold else ft.FontWeight.NORMAL)
     def card(*children):
-        return ft.Container(content=ft.Column(list(children),spacing=4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),bgcolor=PANEL,border_radius=10,padding=7,border=ft.border.all(1,BORDER))
+        return ft.Container(content=ft.Column(list(children),spacing=3 if compact_ui() else 4,horizontal_alignment=ft.CrossAxisAlignment.STRETCH),bgcolor=PANEL,border_radius=10,padding=5 if compact_ui() else 7,border=ft.border.all(1,BORDER))
     def heading(s):return txt(s,17,WHITE,True)
     def pill(s,selected=False):
         return ft.Container(content=txt(s,12,BG if selected else MUTED,selected),bgcolor=GOLD if selected else PANEL2,padding=ft.padding.symmetric(12,8),border_radius=20)
@@ -5820,7 +5824,7 @@ def app_main(page:ft.Page):
         page.update()
     def backup_payload():
         allowed={k for _,k in field_bindings if k!="api_url"}
-        allowed.update({"language","filter_modes","scanner_filters","scanner_added_filters","scanner_chart_indicators","scanner_chart_style","scanner_chart_visible","chart_provider","chart_views","last_page","page_scroll","option_strategy","paper_journal","paper_daily_limits","bot_position"})
+        allowed.update({"language","filter_modes","scanner_filters","scanner_added_filters","scanner_chart_indicators","scanner_chart_style","scanner_chart_visible","chart_provider","chart_views","last_page","page_scroll","option_strategy","paper_journal","paper_daily_limits","bot_position","compact_ui"})
         data={k:v for k,v in prefs.items() if k in allowed}
         # Defense in depth: never export the deleted standalone Max Pain slot,
         # including when a stale legacy preference was injected this session.
@@ -7448,6 +7452,10 @@ def app_main(page:ft.Page):
             market_display_choice,
             note("Two automatic source states: verified LIVE or last completed HISTORICAL. "
                  "Missing evidence stays WAIT; cached quote never becomes LIVE; no orders.")],spacing=5)))
+        def toggle_compact_ui(e):
+            prefs["compact_ui"]=bool(e.control.value);save()
+            page.open(ft.SnackBar(content=ft.Text("Layout updates as each screen refreshes; switch screens to see it")))
+        content.append(section('Display', ft.Column([ft.Switch(label='Compact view (smaller text, tighter spacing)',value=compact_ui(),on_change=toggle_compact_ui)])))
         content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
@@ -9709,7 +9717,7 @@ console.log('BOT KING Lightweight Charts ready');
         padding=ft.padding.only(left=12,right=12,top=8,bottom=5),bgcolor=BG)
     app_shell=ft.Column([
         header,
-        ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=8,vertical=4)),
+        ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=3 if compact_ui() else 8,vertical=2 if compact_ui() else 4)),
         ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
     ],expand=True,spacing=0)
     # Whole app text is selectable (long-press, drag, copy) for diagnostics and reports.

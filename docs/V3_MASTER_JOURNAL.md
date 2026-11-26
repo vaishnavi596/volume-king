@@ -3177,3 +3177,8 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - परीक्षण अद्यतन (नया नियम पिन): `test_v3_closed_watchlist_one_tap_queue`, `test_v3_b205_ssk_watchlist_manual_hist_and_compact_boxes`, `test_watchlist_early_three_minute_priority` (+ नया `test_closed_queue_is_faster_than_market_hours_but_still_bounded`); नियमित वार्मअप के परीक्षण वैसे ही। स्थानीय सूट: 1721, 0 विफलताएँ।
 - अपेक्षा: 51 शेयर लगभग 2.5–3 मिनट। यदि फ़ोन पर 429/cooldown दिखे तो अंतर वापस बढ़ाएँगे (Doctor में `closed_hist_pacing_wait_seconds`)।
 - B222 workflow (v2.3.222, `com.botking.v3b222`), pyproject 2.3.222, B3 push-पथ।
+
+## J12 — कॉम्पैक्ट व्यू (26 नवंबर 2026)
+- मालिक की माँग: पेज बहुत बड़े, किनारों पर खाली जगह, Super 5 का फ़ॉन्ट बड़ा।
+- `compact_ui` (डिफ़ॉल्ट चालू): टेक्स्ट ≈88% (न्यूनतम 12), card padding 5/spacing 3, बॉडी की साइड-पैडिंग 8→3। Settings > Display में स्विच से पुराना आकार वापस।
+- B222 (cd0bcb9) की CI B1/B2/Adapter/B3 सब सफल। कॉम्पैक्ट बदलाव अगली बिल्ड में जाएगा।
