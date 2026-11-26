@@ -15,7 +15,7 @@ class FeedHealth:
     def finish(self,key,request_id,state,source="",data_time=None,error=""):
         with self.lock:
             row=self.rows.get(key,{})
-            if row.get("request_id")!=request_id:return False
+            if type(request_id) is not int or row.get("request_id")!=request_id or row.get("state")!="LOADING":return False
             row.update(state=state,source=source,data_time=data_time,error=error)
             if state in ("AVAILABLE","FALLBACK","PARTIAL","HISTORICAL"):
                 row["last_success"]=self.clock()

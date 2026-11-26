@@ -5,6 +5,7 @@ requests, not broker quotas, and not evidence of Oracle production support.
 Dhan calls continue to honor adapter serialization and provider cooldown.
 """
 from dataclasses import dataclass
+from math import isfinite
 
 
 @dataclass(frozen=True)
@@ -42,5 +43,10 @@ def completed_bar_revision(rows):
         return None
     row = rows[-1]
     if not isinstance(row, (tuple, list)) or len(row) < 6:
+        return None
+    if any(type(v) not in (int,float) or not isfinite(v) for v in row[:6]):
+        return None
+    t,o,h,l,c,v=row[:6]
+    if t<=0 or min(o,h,l,c)<=0 or v<0 or h<max(o,l,c) or l>min(o,h,c):
         return None
     return tuple(row[:6])

@@ -12,11 +12,12 @@ from threading import RLock
 import time
 
 PRIVATE={"apikey","apisecret","accesstoken","refreshtoken","feedtoken","jwttoken",
-         "password","mpin","totp","authorization","clientcode","credentials"}
+         "password","mpin","totp","authorization","clientcode","credentials",
+         "token","privatekey","clientsecret","serveraccesskey","accesskey"}
 def public_copy(value):
     if isinstance(value,dict):
         return {str(k):public_copy(v) for k,v in value.items()
-                if str(k).lower().replace("_","").replace(" ","") not in PRIVATE}
+                if str(k).lower().replace("_","").replace(" ","").replace("-","") not in PRIVATE}
     if isinstance(value,(list,tuple)):return [public_copy(v) for v in value]
     if isinstance(value,float) and not math.isfinite(value):raise ValueError("Nonfinite snapshot")
     if value is None or isinstance(value,(str,int,float,bool)):return value
@@ -27,6 +28,8 @@ MAX_CACHE_BARS=1200
 
 class SnapshotStore:
     def __init__(self,path,max_entries=1200,*,incremental=False):
+        if type(max_entries) is not int or max_entries<1:
+            raise ValueError("Invalid snapshot capacity")
         self.path=Path(path);self.max_entries=max_entries;self.lock=RLock();self.records={}
         self.status="No saved market snapshots"
         self.evicted=0;self.rejected=0;self.restored=0;self.save_failures=0
@@ -72,7 +75,7 @@ class SnapshotStore:
             if (isinstance(parts,list) and parts and isinstance(parts[0],str)
                     and isinstance(record,dict)
                     and type(record.get("saved_at")) in (int,float)
-                    and math.isfinite(record["saved_at"])
+                    and math.isfinite(record["saved_at"]) and record["saved_at"]>=0
                     and self.valid(parts[0],record.get("payload"))
                     and self.identity_valid(parts[0],parts[1:],record["payload"])):
                 return record
@@ -169,7 +172,7 @@ class SnapshotStore:
             if not isinstance(bars,list) or not bars:return False
             for row in bars:
                 if not isinstance(row,(list,tuple)) or len(row)<6:return False
-                if not all(isinstance(v,(int,float)) and math.isfinite(v) for v in row[:6]):return False
+                if not all(type(v) in (int,float) and math.isfinite(v) for v in row[:6]):return False
             if kind=="market":
                 price=p.get("price")
                 hist_only=(price is None and p.get("source")=="Dhan"
@@ -279,7 +282,11 @@ class SnapshotStore:
             self.read_max_ms=max(self.read_max_ms,self.read_last_ms)
             return result
     def put(self,kind,parts,payload):
-        safe=public_copy(payload)
+        try:
+            safe=public_copy(payload)
+        except (ValueError,TypeError,OverflowError,RecursionError):
+            with self.lock:self.rejected+=1
+            return False
         if not safe:return False
         if not self.valid(kind,safe) or not self.identity_valid(kind,parts,safe):
             with self.lock:self.rejected+=1
@@ -313,7 +320,7 @@ class SnapshotStore:
                     # An older quote cannot replace a last-good quote even if
                     # a newer candle arrived in the same response.
                     if safe["bars"]==previous["bars"]:return False
-                    for field in ("price","quote_timestamp","change","fetched_at"):
+                    for field in ("price","quote_timestamp","timestamp_origin","change","fetched_at"):
                         safe.pop(field,None)
                         if field in previous:safe[field]=previous[field]
                     safe.update(live_verified=False,freshness="unverified")
@@ -363,8 +370,11 @@ class SnapshotStore:
             return result
 
 def age_label(stamp,now=None):
-    if not isinstance(stamp,(int,float)) or not math.isfinite(stamp):return "Time unavailable"
-    age=(time.time() if now is None else now)-stamp
+    if type(stamp) not in (int,float) or not math.isfinite(stamp):return "Time unavailable"
+    current=time.time() if now is None else now
+    if type(current) not in (int,float) or not math.isfinite(current):return "Time unavailable"
+    age=current-stamp
+    if not math.isfinite(age):return "Time unavailable"
     if age<0:return "Invalid future time"
     if age<60:return f"{int(age)} sec old"
     if age<3600:return f"{int(age//60)} min old"

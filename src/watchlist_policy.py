@@ -10,7 +10,7 @@ WATCHLIST_COUNT = 5
 def normalize_watchlists(groups, *, maximum=MAX_EQUITIES):
     if not isinstance(groups, (list, tuple)) or len(groups) != WATCHLIST_COUNT:
         raise ValueError("Expected five watchlists")
-    if type(maximum) is not int or maximum < 1:
+    if type(maximum) is not int or not 1 <= maximum <= MAX_EQUITIES:
         raise ValueError("Invalid watchlist capacity")
     cleaned = []
     seen = set()

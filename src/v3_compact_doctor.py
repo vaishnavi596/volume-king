@@ -13,10 +13,11 @@ def compact_doctor(stock_states, selected_filters, filter_rows, *,
     failures=[]
     good=0
     for state in stock_states:
-        if state.get("state")=="ERROR":
+        if state.get("state") in ("ERROR","WAIT","UNVERIFIED","STALE","TESTING","BLOCKED","DEGRADED"):
             symbol=state.get("symbol")
             failures.append({"area":"stock","symbol":symbol,
                              "codes":state.get("error_codes",[]),
+                             "status":state.get("state"),
                              "start":"Dhan API",
                              "endpoint":"Oracle Clone Gateway → Dhan quote/history → app cache",
                              "blocked_at":"required Dhan price or selected candle cache",
@@ -34,7 +35,7 @@ def compact_doctor(stock_states, selected_filters, filter_rows, *,
         elif context:
             status,code="WAIT",("UNVERIFIED_OPTION_EVIDENCE" if name in OPTION_FILTERS
                                 else "NEWS_DIRECTION_NOT_VERIFIED")
-        elif vote in (-1,0,1) and type(vote) is int:
+        elif vote in (-1,0,1) and type(vote) is int and row.get("status") not in ("ERROR","WAIT","CHART_ONLY","CONTEXT_ONLY","ADAPTER_NOT_DIRECTIONAL"):
             status,code="CACHED_UNVERIFIED","NO_LIVE_TIMESTAMP_PROOF"
         else:
             status,code="WAIT","TECHNICAL_CANDLES_OR_FILTER_EVIDENCE_MISSING"
