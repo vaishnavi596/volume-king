@@ -406,7 +406,10 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         authorized(x_botking_key)
         # Explicitly provisioned metadata only. No token read, Dhan request,
         # timer execution, credential mutation or inference of renewal success.
-        from backend.dhan_renewal_health import renewal_health_report
+        try:
+            from .dhan_renewal_health import renewal_health_report
+        except ImportError:
+            from dhan_renewal_health import renewal_health_report
         return JSONResponse(renewal_health_report(
             os.environ.get("BOTKING_CLONE_RENEWAL_EXPIRY_FILE")),
             headers={"Cache-Control": "no-store"})

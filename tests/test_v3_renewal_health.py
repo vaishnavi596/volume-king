@@ -39,3 +39,15 @@ class RenewalHealthTests(unittest.TestCase):
             self.assertFalse(report["renewal_observed"])
             self.assertFalse(report["timer_verified"])
             self.assertEqual(report["provider_requests"],0)
+
+    def test_phone_renewal_route_failure_is_classified(self):
+        from urllib.error import HTTPError
+        from clone_v2_gateway import CloneV2Gateway
+        class MissingRoute:
+            def open(self, request, timeout):
+                raise HTTPError(request.full_url,404,"missing",None,None)
+        gateway=CloneV2Gateway(opener=MissingRoute())
+        gateway._origin="https://example.invalid"
+        gateway._key="x"*32
+        self.assertEqual(gateway.renewal_health(),{"state":"UNVERIFIED","reason":"RENEWAL_ROUTE_NOT_DEPLOYED"})
+        self.assertTrue(gateway.connected)

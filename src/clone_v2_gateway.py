@@ -66,8 +66,13 @@ class CloneV2Gateway:
                     or type(data["provider_requests"]) is not int or data["provider_requests"]!=0
                     or type(data["orders_sent"]) is not int or data["orders_sent"]!=0):
                 raise ValueError("Invalid renewal contract")
+            if data["state"]=="UNVERIFIED":
+                return dict(data,reason="SERVER_METADATA_UNVERIFIED")
             return data
-        except (OSError,URLError,ValueError,UnicodeError):
+        except HTTPError as exc:
+            reason={401:"RENEWAL_ROUTE_AUTH_REJECTED",403:"RENEWAL_ROUTE_AUTH_REJECTED",404:"RENEWAL_ROUTE_NOT_DEPLOYED",405:"RENEWAL_ROUTE_NOT_DEPLOYED",502:"RENEWAL_GATEWAY_UNAVAILABLE",503:"RENEWAL_GATEWAY_UNAVAILABLE",504:"RENEWAL_GATEWAY_UNAVAILABLE"}.get(exc.code,"RENEWAL_ROUTE_HTTP_ERROR")
+            return {"state":"UNVERIFIED","reason":reason}
+        except (OSError,URLError,ValueError,UnicodeError,RecursionError):
             return {"state":"UNVERIFIED","reason":"ROUTE_OR_METADATA_UNAVAILABLE"}
 
     def start_dhan_browser_login(self, endpoint, access_key):
