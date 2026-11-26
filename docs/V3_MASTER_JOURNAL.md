@@ -3135,3 +3135,32 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - `src/v3_option_oi_flow.py`: `window_oi_change(metrics)` (बिना ताज़गी/लाइव-quote जाँच, केवल HIST प्रदर्शन के लिए); `oi_change_component` उसी का उपयोग करता है (LIVE शर्तें वैसी ही)।
 - `src/main.py` `five_engine_chips`: O चिप अब `O HIST B<x>/S<y> • OI change • NOT live`; डेटा न हो तो पुराना लेबल।
 - परीक्षण: `WindowOiChangeTests`। N (समाचार) और F (फ़्यूचर्स, सर्वर पर instrument master 503) अभी भी WAIT; M खाली।
+
+## 26 नवंबर 2026 — संयुक्त सार, Oracle जाँच के निष्कर्ष और खुली बातें (Claude, 17:16 IST)
+
+### आज पूरा हुआ (सब कमिट GitHub पर)
+- J2 O बॉक्स का मापा हुआ OI-बदलाव वोट (b9cfa06); J3 Super Five top-5 ऑप्शन-चेन पोल + B219 (9c65b5f); J4 चार OI फ़िल्टर वोट (73b7be0, CI पास); J6 पूरे ऐप का टेक्स्ट चुनकर कॉपी (638c548); J7/B220 बंद बाज़ार पर SSK से स्वतः Watchlist HIST (6550358, CI पास, APK बना); J8 बंद बाज़ार पर इंडेक्स का आखिरी भाव (अप्रमाणित; केवल `dhan_quote_poll` से — लॉगिन शाखा परीक्षणों की वजह से अपरिवर्तित); J5 Doctor की सीमित सुरक्षित स्वयं-मरम्मत (`v3_doctor_repairs.py`, बटन "Safe repair (all)", स्विच डिफ़ॉल्ट बंद); J9 चार्ट-ओवरले लेबल सुधार; J10 O चिप पर `HIST B/S` (ebc9a57)।
+- B221 (v2.3.221, `com.botking.v3b221`) = B220 + J8 + J5 + J9 + J10; CI/APK परिणाम बिल्ड पूरी होने पर दर्ज होगा। पहली B221 कोशिश (c0585da) B3 में फ़ेल हुई (लॉगिन-शाखा के 3 परीक्षण), पंक्ति हटाकर ठीक की (be25176)।
+- स्थानीय सूट: 1720 परीक्षण, 0 विफलताएँ; 55 त्रुटियाँ केवल इसलिए कि यहाँ flet/fastapi नहीं (CI असली गेट)।
+
+### फ़ोन से मिले तथ्य (B219/B220 MASTER DIAG और स्क्रीनशॉट)
+- Settings: "Clone SSK connected • HIST cache only • LIVE OFF"; "Authorize Dhan in Browser" पर "Clone Dhan browser login not configured on Oracle" (Oracle `POST /clone-v2/dhan/start` → 503, 10:30 GMT)।
+- Watchlist HIST 51/51 पूरा; 1m इतिहास 51 वैध, 3m स्थानीय रूप से 51। इंडेक्स `NEVER_ATTEMPTED` (कारण: बंद बाज़ार लॉगिन जान-बूझकर quote-proof नहीं माँगता)। `dhan_feed.connected` = गेटवे जुड़ा **और** quote-proof; इसलिए Dhan-लॉगिन "false"।
+- NIFTY 1m: 1126 बार; 15:23–15:28 के छह बिल्कुल समान OHLCV (REVIEW, वोट से बाहर); 16:42 IST का सत्र-बाहर बार हटाया गया। T HIST 12/88 (8 दिशा-वोट); कोरम 3 इंजन अधूरा → WAIT (सही)।
+- `BK-RENEW-001`: RENEWAL_ROUTE_NOT_DEPLOYED (गेटवे का नवीनीकरण-रूट Oracle पर नहीं)। Paper बॉट मैनुअल-मार्क; Backtest और native बैकग्राउंड अलर्ट जुड़े नहीं; F के लिए futures instrument master सर्वर पर नहीं।
+
+### Oracle सर्वर जाँच (ऑपरेटर ने चलाई; सब केवल-पढ़ने वाली)
+- सेवा `botking-clone-v2` चालू (User=opc; EnvironmentFiles: `/etc/bot-king/clone-v2-dhan-client.env`, `/etc/bot-king/clone-dhan-oauth.env`)। `clone-dhan-oauth.env` (221 बाइट): `CALLBACK_APPROVED=1`, सही `CALLBACK_URL`, `APP_ID` लंबाई 8, `APP_SECRET` लंबाई 36 — सब भरे। `DHAN_CLIENT_ID` सेट। यूनिट में `BOTKING_CLONE_DHAN_TOKEN_FILE` सेट पर पथ पेजर से कटा।
+- शेष संदिग्ध कारण: टोकन-फ़ाइल "सुरक्षित" नहीं (symlink/अनुमति/मालिक) या पथ `/home/opc/` के नीचे नहीं। **लंबित:** `systemctl show botking-clone-v2 -p Environment --no-pager | tr ' ' '\n' | grep TOKEN_FILE` और उस पथ पर `ls -ld`, `stat -c '%A %U %G %F'`; अनुमान से कोई `chmod/chown` नहीं।
+- नवीनीकरण: `botking-clone-web-renew.timer` (15 मिनट) स्वस्थ, "NOT_DUE", समाप्ति 27 नवंबर 02:10 IST (20:40 GMT)। `bot-king-totp-renewal` (V1, `/opt/bot-king-server`) `GENERATION_PENDING_MANUAL_REVIEW` पर खुद रुका; `botking-dhan-renewal.service` 12 नवंबर से failed, टाइमर बंद; `bot-king-dhan-monitor` failed — **इन्हें न छुएँ; एक ही नवीनीकरण इंजन चले।**
+
+### मालिक के निर्णय (आज)
+- सब काम हिंदी में। पाँच बॉक्स T/C/O पूर्ण करना प्राथमिकता; बुलिश/बेयरिश हर हाल में दिखे — **नीति:** असत्यापित मान `HIST … NOT live` लेबल और अलग रंग में दिखे; LIVE का ≥3-इंजन सत्यापित कोरम नहीं हटेगा।
+- ऑटो-रिफ्रेश बाज़ार खुला/बंद दोनों में, सही टाइम-फ्रेम (Dashboard 1m, Watchlist 3m, Scanner चुना हुआ) के साथ; रिफ्रेश के बाद केवल बदला हुआ डेटा बदले (Watchlist में खुली कोशिकाओं का 2s अंश-अद्यतन पहले से है)। Watchlist HIST की गति Dhan-सुरक्षा बजट (180s में ≤12 अनजान अनुरोध, 10s न्यूनतम) से बँधी — बिना माप ढीला नहीं किया।
+- N बॉक्स और छठा M: **मालिक बाद में तय करेंगे।** ऑर्डर अलग भविष्य-परियोजना (केवल पेपर-सत्यापन के बाद, मैन्युअल पुष्टि)।
+
+### खुली बातें / अगला क्रम
+1. मालिक: B221 इंस्टॉल करके MASTER DIAG + "Safe repair (all)" का परिणाम + Watchlist पूरा होने का समय भेजें।
+2. मालिक/ऑपरेटर: टोकन-फ़ाइल की अनुमतियों का आउटपुट; फिर ब्राउज़र-लॉगिन 503 का एक-पंक्ति सुधार। रात 00:41 IST से पहले नवीनीकरण-इंजन की जाँच (रनबुक `docs/V3_TOKEN_RENEWAL_RUNBOOK_20261127.md`)।
+3. कल 09:15 IST के बाद: LIVE जाँच (T/C का `exchange_verified`, O का `measured_oi_change`, कोरम 3)।
+4. Claude, अगला बैच: ऐप खुलते ही पिछला HIST तुरंत दिखाना (सहेजा हुआ डेटा पहले, ताज़ा पीछे से); फिर ऑटो पेपर बॉट (केवल सत्यापित वोट पर), F (सर्वर instrument master के बाद), Doctor के स्थिर "NOT_WIRED" लेबल (परीक्षणों के साथ अलग बैच), NIFTY के समान-OHLCV बार का स्रोत-मिलान।
