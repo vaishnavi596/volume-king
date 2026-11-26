@@ -11,7 +11,7 @@ from five_engine import ENGINE_NAMES, combine_evidence, EngineEvidence
 
 def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
                      box_rows, snapshot=None, market_open=False):
-    if not isinstance(symbol,str) or not symbol or timeframe not in ("1m","3m","5m") or type(generation) is not int:
+    if not isinstance(symbol,str) or not symbol.strip() or timeframe not in ("1m","3m","5m") or type(generation) is not int or generation<0 or type(market_open) is not bool:
         raise ValueError("Exact symbol/timeframe/provider generation required")
     if not isinstance(filter_rows,(list,tuple)) or not isinstance(box_rows,(list,tuple)):
         raise ValueError("Existing Doctor rows required")
@@ -121,7 +121,7 @@ def audit_vote_trace(*, symbol, timeframe, generation, filter_rows,
     # final output based on such incomplete inspection.
     eligible_count=sum(x["vote_state"]=="ELIGIBLE" for x in boxes)
     conflict=conflict_doctor(snapshot,market_open=market_open)
-    if published and "combined" not in snapshot:
+    if published and snapshot.get("combined") is None:
         combined={"state":"WAIT","coverage":eligible_count,"bullish":None,
                   "bearish":None,"reason":"PUBLISHED_COMBINED_VOTE_MISSING"}
     elif any(issue.get("code")=="COMBINED_VOTE_PUBLISH_MISMATCH"

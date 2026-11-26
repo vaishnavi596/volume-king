@@ -57,11 +57,12 @@ def auto_equity_quote_due(now, previous_attempt, *, busy=False, floor_seconds=60
     A backward clock jump fails closed. The initial login (no attempt) is due.
     Provider-specific cooldowns remain the caller's separate mandatory gate.
     """
-    if busy or not isinstance(now,(int,float)) or isinstance(now,bool):
+    from math import isfinite
+    if busy or type(now) not in (int,float) or not isfinite(now) or now<0:
         return False
-    if not isinstance(floor_seconds,(int,float)) or floor_seconds<60:
+    if type(floor_seconds) not in (int,float) or not isfinite(floor_seconds) or floor_seconds<60:
         return False
-    if not isinstance(previous_attempt,(int,float)) or isinstance(previous_attempt,bool):
+    if type(previous_attempt) not in (int,float) or not isfinite(previous_attempt):
         return False
     if previous_attempt<=0:
         return now>=0
@@ -105,5 +106,7 @@ def safe_quote_batch_for_cache(batch, saved_quotes, allowed_symbols):
         return {}
     allowed=set(allowed_symbols)
     return {symbol:dict(row) for symbol,row in batch.items()
-            if symbol in allowed and
+            if symbol in allowed and isinstance(row,dict) and
+            row.get("symbol") in (None,symbol) and
+            not row.get("cached") and
             accept_newer_dhan_quote(saved_quotes.get(symbol),row)}

@@ -10677,9 +10677,9 @@ console.log('BOT KING Lightweight Charts ready');
                 try:
                     page.open(ft.SnackBar(content=ft.Text("Verified LIVE agreement • "+symbol+" "+frame+" • "+key[2]+" • not an order")))
                 except Exception:
-                    verified_alert_gate.acknowledge(key,delivered=False)
+                    verified_alert_gate.acknowledge(key,delivered=False,generation=generation)
                 else:
-                    verified_alert_gate.acknowledge(key,delivered=True)
+                    verified_alert_gate.acknowledge(key,delivered=True,generation=generation)
             except Exception as exc:
                 log_error("verified_foreground_alert_poll",exc)
     async def renewal_metadata_poll():

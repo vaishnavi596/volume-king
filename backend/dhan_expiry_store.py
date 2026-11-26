@@ -51,13 +51,24 @@ def save_expiry_metadata(path, expiry_utc, source="dhan_web"):
 def load_expiry_metadata(path):
     """Read only trusted, owner-private metadata; never infer provenance."""
     target = Path(path)
-    if target.is_symlink() or not target.is_file():
-        raise ValueError("Expiry metadata must be a regular file")
-    st = target.stat()
-    if st.st_mode & 0o077 or st.st_uid != os.geteuid():
-        raise ValueError("Expiry metadata must be owner-private")
-    with target.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    import stat
+    # Validate the opened inode, not a path that may change between checks.
+    try:
+        fd=os.open(str(target),os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        if target.is_symlink() or not target.is_file():
+            raise ValueError("Expiry metadata must be a regular file") from exc
+        raise
+    with os.fdopen(fd,"r",encoding="utf-8") as handle:
+        st=os.fstat(handle.fileno())
+        if not stat.S_ISREG(st.st_mode) or st.st_mode & 0o077 or st.st_uid!=os.geteuid():
+            raise ValueError("Expiry metadata must be owner-private regular file")
+        if st.st_size>4096:
+            raise ValueError("Expiry metadata exceeds bounded size")
+        raw=handle.read(4097)
+        if len(raw)>4096:
+            raise ValueError("Expiry metadata exceeds bounded size")
+        data=json.loads(raw)
     if not isinstance(data, dict) or set(data) != {"source", "expires_at"}:
         raise ValueError("Unexpected expiry metadata")
     if data["source"] != "dhan_web":
