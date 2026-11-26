@@ -11,7 +11,7 @@ class WatchlistFreshnessGuardTests(unittest.TestCase):
         end=SOURCE.index("            signal_available=",start)
         block=SOURCE[start:end]
         self.assertIn('signal_row.get("live_verified") is True',block)
-        self.assertIn('signal_row.get("freshness") in ("verified_live","live_verified")',block)
+        self.assertIn('signal_row.get("freshness") in ("verified_live","live_verified","exchange_verified")',block)
         self.assertIn('not signal_row.get("historical")',block)
 
 

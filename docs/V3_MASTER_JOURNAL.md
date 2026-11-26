@@ -3009,3 +3009,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 exact freshness vocabulary and live quorum Doctor
 - Previous e53964b exact B1/B2/Adapter/Full 45763063916/45763063907/45763063886/45763063933 SUCCESS. Fixed inconsistent acceptance of exchange_verified in 5m shared/ranking and independent candle adapters; explicit BK-LIVE-VOTE-001 quorum report in both Doctors, tests included. No additional provider requests, server deployment, token modification or APK. Actual O/F/N independently validated flow not available; native background and real exchange evidence pending. No final closure claimed. Local execution NOT RUN.
+
+
+### 26 Nov 2026 — B217 regression contract reconciliation
+- Exact 37932d9 B1/B2/Adapter SUCCESS (45764074148/45764074136/45764074131); Full 45764074256 FAILED: 2030 tests, two stale static assertions in test_mobile_regressions and test_watchlist_verified_signal_guard. Updated assertions to require the new exact freshness vocabulary including exchange_verified; retained existing stale, session, source and live flag guards. No production changes, no token/server/APK changes. Local execution NOT RUN; exact new CI pending.
