@@ -57,6 +57,14 @@ def window_oi_change(metrics):
     delta = {"ce": 0.0, "pe": 0.0}
     total_oi = 0.0
     strikes = []
+    # Money weighting (owner 26 Nov: "paisa kidhar laga"): when every listed leg
+    # carries a Dhan last_price, each strike's OI change is weighted by that premium,
+    # so rupee build-up at active strikes outweighs a large count of near-zero far
+    # strikes. Lot size is identical for CE and PE, so it cancels in the ratio.
+    # Otherwise the plain contract-count change is used.
+    priced = all(isinstance(r, dict) and all(
+        isinstance(r.get(side), dict) and _number(r[side].get("last_price"))
+        for side in ("ce", "pe")) for r in rows)
     for row in rows:
         strike = row.get("strike") if isinstance(row, dict) else None
         if not _number(strike, allow_zero=False):
@@ -68,8 +76,9 @@ def window_oi_change(metrics):
             previous = leg.get("previous_oi") if isinstance(leg, dict) else None
             if not _number(oi) or not _number(previous):
                 return None, "Previous OI missing for a listed leg"
-            delta[side] += oi - previous
-            total_oi += oi
+            weight = leg["last_price"] if priced else 1.0
+            delta[side] += (oi - previous) * weight
+            total_oi += oi * weight
     if strikes != sorted(set(strikes)) or window.get("atm") != strikes[3]:
         return None, "Invalid ATM strike ordering"
     bull = max(delta["pe"], 0.0) + max(-delta["ce"], 0.0)

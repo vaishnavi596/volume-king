@@ -131,3 +131,23 @@ class WindowOiChangeTests(unittest.TestCase):
         self.assertIsNone(window_oi_change(chain(pe_delta=500, ce_delta=500))[0])
         self.assertIsNone(window_oi_change({})[0])
         self.assertIsNone(window_oi_change(None)[0])
+
+
+class MoneyWeightedOiChangeTests(unittest.TestCase):
+    def _window(self, priced):
+        rows = []
+        for i, strike in enumerate((100, 101, 102, 103, 104, 105, 106)):
+            leg = lambda oi, prev, px: ({"oi": oi, "previous_oi": prev, "last_price": px}
+                                        if priced else {"oi": oi, "previous_oi": prev})
+            # cheap far strikes: huge CE build-up at tiny premium; ATM: modest PE build-up at high premium
+            ce = leg(1000, 0, 0.05) if i in (5, 6) else leg(100, 100, 5.0)
+            pe = leg(150, 100, 80.0) if i == 3 else leg(100, 100, 5.0)
+            rows.append({"strike": float(strike), "ce": ce, "pe": pe})
+        return {"atm_window": {"source": "dhan", "atm": 103.0, "rows": rows}}
+
+    def test_money_weight_lets_atm_rupees_outweigh_cheap_far_strikes(self):
+        from v3_option_oi_flow import window_oi_change
+        count_based, _ = window_oi_change(self._window(False))
+        money_based, _ = window_oi_change(self._window(True))
+        self.assertGreater(count_based[1], count_based[0])   # contract counts say bearish
+        self.assertGreater(money_based[0], money_based[1])   # rupee build-up says bullish
