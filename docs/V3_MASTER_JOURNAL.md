@@ -3212,3 +3212,8 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 ## J17 — निर्माण के नियम दर्ज (26 नवंबर 2026)
 - नया दस्तावेज़ [`docs/V3_BUILD_RULES_BOXES_FILTERS_BRAIN.md`](V3_BUILD_RULES_BOXES_FILTERS_BRAIN.md): मूल सिद्धांत, 17/18 फ़िल्टर, पाँच बॉक्स, M ब्रेन (सलाहकार), निर्माण-क्रम के गेट, बैच-अनुशासन, बदलाव-प्रक्रिया और प्रस्ताव सूची (P1–P8)।
 - आगे हर नया सुधार इसी प्रक्रिया से: दर्ज → परख → मालिक का फ़ैसला → दस्तावेज़ में जोड़ना।
+
+## J18 — फ़िल्टर-सेट की ऑडिट का प्रस्ताव P9 (26 नवंबर 2026)
+- कोड की असली सूची: 10 डिफ़ॉल्ट (Supertrend, EMA 9/21, RSI 14, MACD, VWAP, SMC Structure, Order Block, Pivot Points, FVG, Liquidity Sweep) + SMA 5/20, Volume, ATR 14 = 13 कैंडल; + 4 OI = 17; 18वाँ News Headlines (वैकल्पिक)। Volume और ATR गैर-दिशात्मक (तटस्थ)।
+- चिंता: ज़्यादातर दिशात्मक फ़िल्टर (Supertrend, EMA, SMA, MACD, SMC breakout, Pivot) एक ही बंद-भाव श्रृंखला पर ट्रेंड/मोमेंटम हैं → आपस में बहुत जुड़े; "Pivot Points" पिछली-बार का pivot है, क्लासिक दैनिक pivot नहीं; Order Block/FVG/Liquidity Sweep व्यक्तिपरक और अप्रमाणित।
+- निर्णय: बिना माप के सेट नहीं बदला जाएगा। 1 साल के Dhan डेटा पर हर फ़िल्टर की अगली-कुछ-कैंडल दिशा-सटीकता walk-forward जाँची जाएगी; बेकार/दोहराव वाले हटेंगे, बेहतर जोड़े जाएँगे। संख्या परिणाम से।
