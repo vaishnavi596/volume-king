@@ -16,3 +16,16 @@ class SskClosedAutoHistContract(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClosedIndexSnapshotContract(unittest.TestCase):
+    def test_snapshot_is_unverified_and_never_activates_live_feed(self):
+        start = SRC.index("async def closed_session_index_snapshot(generation):")
+        end = SRC.index("async def check_clone_v2_market_quotes():")
+        body = SRC[start:end]
+        self.assertIn('"live_verified":False', body)
+        self.assertIn("paced_market_quotes", body)
+        self.assertIn("accept_newer_dhan_quote", body)
+        self.assertNotIn("activate_with_quote", body)
+        self.assertIn("closed_index_snapshot_generation[0]==generation", body)
+        self.assertGreaterEqual(SRC.count("closed_session_index_snapshot"), 3)

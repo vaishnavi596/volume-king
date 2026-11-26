@@ -3111,3 +3111,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - Doctor पंक्ति: "17 filter voting (13 candle + 4 OI positioning)"।
 - B220 workflow (v2.3.220, com.botking.v3b220), pyproject 2.3.220, B3 push-पथ में जोड़ा।
 - सीमा: सर्वर का Dhan ब्राउज़र-लॉगिन Oracle पर चालू होना बाकी; वह इस कोड से ठीक नहीं होता। स्कैनर का बंद-बाज़ार HIST अभी मैनुअल है।
+
+## J8/B221 — बंद बाज़ार पर इंडेक्स का आखिरी भाव (26 नवंबर, B220 MASTER DIAG के आधार पर)
+- निष्कर्ष: बाज़ार बंद होने पर SSK लॉगिन जान-बूझकर `regular_hours()` वाली शाखा में लौट जाता है (quote-proof नहीं माँगता); इसलिए NIFTY/BANKNIFTY/SENSEX का भाव कभी माँगा ही नहीं गया (`index_last_result_state=NEVER_ATTEMPTED`, quotes_present तीनों false)। उसी वजह से चारों OI फ़िल्टर को spot नहीं मिला और वोट None रहा।
+- `src/main.py`: `closed_session_index_snapshot(generation)` — बंद बाज़ार में, प्रति generation एक बार, `paced_market_quotes` से तीन इंडेक्स का आखिरी भाव; `live_verified=False`, `activate_with_quote` कभी नहीं (LIVE फ़ीड सक्रिय नहीं)। SSK लॉगिन की बंद-बाज़ार शाखा और `dhan_quote_poll` की नई शाखा दोनों से बुलाया जाता है।
+- B221 workflow, pyproject 2.3.221, B3 push-पथ।
+- खुली बातें: Doctor के स्थिर लेबल ("NOT_WIRED") परीक्षणों में बँधे हैं, अलग बैच में; NIFTY 1m में 15:23–15:28 के छह समान OHLCV बार (REVIEW) और RSI 0.0 जैसा मान समतल डेटा पर भ्रामक है; `BK-RENEW-001` को Oracle पर गेटवे का नवीनीकरण-रूट चाहिए (RENEWAL_ROUTE_NOT_DEPLOYED)।

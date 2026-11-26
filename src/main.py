@@ -3468,6 +3468,7 @@ def app_main(page:ft.Page):
                         and ssk_closed_auto_hist_generation[0]!=provider_generation[0]
                         and not watch_batch_busy[0] and not index_refresh_busy[0]):
                     ssk_closed_auto_hist_generation[0]=provider_generation[0]
+                    await closed_session_index_snapshot(provider_generation[0])
                     await refresh_all_dhan_quotes()
                 # Index LTP runs in its own poll task, so a slow equity batch
                 # cannot delay the three-index refresh check.
@@ -4801,6 +4802,7 @@ def app_main(page:ft.Page):
                 building_doctor.milestone("gateway_authorized_closed_session")
                 if watch_closed_hist_resume_pending[0] or watch_closed_hist_loading[0]:
                     page.run_task(resume_interrupted_closed_watch_history,True)
+                page.run_task(closed_session_index_snapshot,provider_generation[0])
                 return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
@@ -4905,6 +4907,43 @@ def app_main(page:ft.Page):
         connection_status.color=GOLD
         page.update()
 
+
+    closed_index_snapshot_generation=[None]
+    async def closed_session_index_snapshot(generation):
+        # Market closed: one paced read-only request for the three index LAST prices.
+        # Shown as unverified HIST context only; never activates the LIVE feed,
+        # never grants exchange proof, never feeds orders.
+        if (closed_index_snapshot_generation[0]==generation
+                or prefs.get("source")!="Dhan" or not clone_v2_gateway.connected
+                or refresh_hours()):
+            return
+        closed_index_snapshot_generation[0]=generation
+        try:
+            proof=await asyncio.to_thread(
+                dhan_feed.paced_market_quotes,["NIFTY","BANKNIFTY","SENSEX"])
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("closed_index_snapshot",exc)
+            return
+        if generation!=provider_generation[0] or not isinstance(proof,dict):
+            return
+        from clone_smart_refresh_priority import accept_newer_dhan_quote
+        from clone_v2_gateway import observed_quote_fields
+        for symbol in ("NIFTY","BANKNIFTY","SENSEX"):
+            price=proof.get(symbol)
+            if (type(price) not in (int,float) or not math.isfinite(price) or price<=0):
+                continue
+            old=quotes.get(symbol) or {}
+            candidate={"symbol":symbol,"price":price,"source":"Dhan",
+                       **observed_quote_fields(proof,symbol),"fetched_at":time.time(),
+                       "change":None,
+                       "bars":old.get("bars",[]) if old.get("source")=="Dhan" else [],
+                       "candle_fetched_at":old.get("candle_fetched_at",0),
+                       "live_verified":False}
+            if accept_newer_dhan_quote(old,candidate):
+                quotes[symbol]=candidate
+        request_view_refresh(0)
 
     async def check_clone_v2_market_quotes():
         # Separate B3 two-way read-only smoke: no legacy V1 source switch.
