@@ -757,6 +757,52 @@ class ContextualFiveEngineCache:
         self._snapshots[key] = {**snapshot, "engines": rows,
                                 "combined": combine_evidence(rows)}
 
+    def publish_directional_components(self, *, symbol, timeframe, generation, now,
+                                       options=None, futures=None):
+        """Join explicitly verified same-context components to existing T/C.
+        
+        No provider calls. Never substitute OI/PCR/LTP for measured trade flow.
+        Reject absent identity, obsolete revision, expired or stale component.
+        """
+        from datetime import date, datetime, timezone, timedelta
+        key=self._key(symbol,timeframe,generation)
+        current=self._snapshots.get(key)
+        if current is None or type(now) not in (int,float) or not isfinite(now):
+            return False
+        base=snapshot_for_display(current,now=now)
+        rows=list(base["engines"])
+        for name, component, adapter in (("options",options,option_from_component),
+                                         ("futures",futures,futures_from_component)):
+            if not isinstance(component,dict):
+                continue
+            if (component.get("symbol")!=key[0] or component.get("underlying")!=key[0]
+                    or component.get("timeframe")!=timeframe
+                    or type(component.get("generation")) is not int
+                    or component["generation"]!=generation
+                    or component.get("live_verified") is not True
+                    or component.get("historical") is not False
+                    or component.get("mapping_verified") is not True):
+                continue
+            stamp=component.get("timestamp")
+            if type(stamp) not in (int,float) or not isfinite(stamp) or not 0<=now-stamp<=90:
+                continue
+            try:
+                expiry=component.get("expiry")
+                day=date.fromisoformat(expiry)
+                if day.isoformat()!=expiry or day<datetime.fromtimestamp(now,timezone(timedelta(hours=5,minutes=30))).date():
+                    continue
+            except (TypeError,ValueError,OverflowError,OSError):
+                continue
+            evidence=adapter(component)
+            if evidence.eligible:
+                rows[ENGINE_NAMES.index(name)]=evidence
+        updated=tuple(rows)
+        if updated==tuple(current["engines"]):
+            return False
+        self.publish(symbol=symbol,timeframe=timeframe,generation=generation,
+                     snapshot={"engines":updated})
+        return True
+
     def peek(self, *, symbol, timeframe, generation):
         """Read cached evidence before LIVE/session gating; never certify it."""
         return self._snapshots.get(self._key(symbol, timeframe, generation))

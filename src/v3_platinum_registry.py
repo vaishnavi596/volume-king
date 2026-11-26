@@ -49,11 +49,11 @@ VERIFIED = {}
 R2_REMAINING = {
     "B3.01": ("Selected 1m/3m verified publisher wired; full calculation and identity audit pending", "Observed exchange-qualified T across selected frames"),
     "B3.02": ("Independent completed contiguous candle calculation and exchange_verified publisher compatibility wired; actual session evidence pending", "Actual completed Dhan candle revision across frames; selected publisher requires matching revision"),
-    "B3.03": ("Authenticated expiry-specific trade-side adapter and publisher unavailable", "Matched underlying, expiry, contract and measured directional flow"),
+    "B3.03": ("Exact-context measured-flow composition wired; authenticated expiry-specific feed unavailable", "Matched underlying, expiry, contract and measured directional flow"),
     "B3.04": ("Full policy and exact-mode integration evidence reconciliation", "Three independently eligible sources in actual session"),
     "B3.05": ("Full diagnostic feature-to-probe/test linkage audit", "Mounted Doctor evidence matching the selected frame and generation"),
     "B4.01": ("Verified symbol-specific impact source/adapter unavailable", "Authenticated directional impact rather than headline count"),
-    "B4.02": ("Authenticated mapped-contract trade-side adapter and publisher unavailable", "Measured directional flow for mapped unexpired contract"),
+    "B4.02": ("Exact-context measured-flow composition wired; authenticated mapped-contract feed unavailable", "Measured directional flow for mapped unexpired contract"),
     "B4.03": ("Full independent engine composition and publisher audit", "Actual five-source availability and eligible vote composition"),
     "B4.04": ("Full six-box wiring and no-M-scoring checkpoint reconciliation", "Mounted six-box parity with M remaining standby"),
     "B4.05": ("Shared renderer scoped offline PASS retained; mounted integration not certified", "Dashboard, Super Five, Scanner and Watchlist HIST/LIVE parity"),

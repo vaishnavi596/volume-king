@@ -3013,3 +3013,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 regression contract reconciliation
 - Exact 37932d9 B1/B2/Adapter SUCCESS (45764074148/45764074136/45764074131); Full 45764074256 FAILED: 2030 tests, two stale static assertions in test_mobile_regressions and test_watchlist_verified_signal_guard. Updated assertions to require the new exact freshness vocabulary including exchange_verified; retained existing stale, session, source and live flag guards. No production changes, no token/server/APK changes. Local execution NOT RUN; exact new CI pending.
+
+
+### 26 Nov 2026 — B217 independent directional component composition
+- Previous dede09c Full Regression 45764683915 SUCCESS. Added context-bound O/F composition at selected 1m/3m and shared 5m publishers, exact generation/symbol/frame/expiry, 90-second freshness and explicit mapping/source eligibility, no additional provider calls. Mock regression proves a genuine third component can reach quorum, malformed/stale/context-only inputs cannot. Existing Doctor quorum reasons and registry updated. Current Dhan chain/LTP producers still do not supply measured trade-side flow; no production activation, news/native background/deployment remain open. No APK or token change. Local execution NOT RUN; CI pending.

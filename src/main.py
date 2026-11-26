@@ -1012,6 +1012,8 @@ def app_main(page:ft.Page):
         contextual_five_engine.publish(
             symbol=sym,timeframe="5m",generation=provider_generation[0],
             snapshot=snapshot)
+        if refresh_directional_vote_components(sym,"5m"):
+            five_engine_snapshots[sym]=contextual_five_engine.peek(symbol=sym,timeframe="5m",generation=provider_generation[0])
 
     def publish_five_engine_historical(sym, timeframe, result):
         """Store exact-frame completed Dhan votes as HIST, never LIVE.
@@ -1045,6 +1047,16 @@ def app_main(page:ft.Page):
             # Timestamp/source/verified status (not calendar alone) controls LIVE.
             # Read is always freshness-gated; connected still required.
             market_open=True)
+
+    def refresh_directional_vote_components(sym,tf):
+        # Current context producers are intentionally ineligible until a
+        # trusted measured-flow source is deployed. No requests from UI.
+        if tf not in ("1m","3m","5m") or not regular_hours() or not dhan_feed.connected:
+            return False
+        return contextual_five_engine.publish_directional_components(
+            symbol=sym,timeframe=tf,generation=provider_generation[0],now=time.time(),
+            options=matching_option_context_for_symbol(sym),
+            futures=matching_futures_context_for_symbol(sym))
 
     def live_voting_gate_report(sym,tf):
         from five_engine import live_gate_diagnostic
@@ -8882,6 +8894,7 @@ console.log('BOT KING Lightweight Charts ready');
                 if frame_snapshot is not None:
                     contextual_five_engine.publish(symbol=sym,timeframe=interval,
                         generation=current_provider_generation,snapshot=frame_snapshot)
+                    refresh_directional_vote_components(sym,interval)
             if display_mode!="LIVE":
                 advanced=dict(advanced,bias="WAIT",score=0,
                               reason=advanced["reason"]+" • No new verified live signal")
