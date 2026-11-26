@@ -38,3 +38,12 @@ class ClosedMarketMessageContract(unittest.TestCase):
     def test_quote_check_button_is_labelled_test_only(self):
         self.assertIn("Check Clone B3 Dhan Quotes (test only)", SRC)
         self.assertIn("does not switch the app to LIVE", SRC)
+
+
+class RememberedExpiryContract(unittest.TestCase):
+    def test_blank_expiry_uses_remembered_unexpired_listed_expiry(self):
+        i = SRC.index("def matching_option_context_for_symbol")
+        body = SRC[i:i + 4500]
+        self.assertIn('prefs.get("option_expiry")', body)
+        self.assertIn("remembered>=", body)
+        self.assertIn('saved.get("expiry")==listed', body)

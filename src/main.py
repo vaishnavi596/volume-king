@@ -8413,6 +8413,17 @@ console.log('BOT KING Lightweight Charts ready');
         # A restart clears the in-memory cache; use only the exact selected
         # listed expiry, never an unrelated or expired contract's metrics.
         listed=expiry.value if sym==chain_symbol.value else None
+        if sym==chain_symbol.value and not (isinstance(listed,str) and listed):
+            # Expiry control is blank until the Options tab is visited after a
+            # restart/closed session. Use the last exact broker-listed expiry the
+            # user's selection stored, only while that expiry is not in the past.
+            remembered=str(prefs.get("option_expiry") or "")
+            try:
+                if (date.fromisoformat(remembered).isoformat()==remembered
+                        and remembered>=datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat()):
+                    listed=remembered
+            except ValueError:
+                listed=None
         if isinstance(listed,str) and listed:
             saved=market_store.get("option_context_last_good","Dhan",sym,listed) or {}
             if (saved.get("source")=="dhan" and saved.get("symbol")==sym
