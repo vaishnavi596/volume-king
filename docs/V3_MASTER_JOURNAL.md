@@ -3021,3 +3021,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 directional publisher no-op repair
 - Exact 84eb134 B1/B2/Adapter PASS; Full 45765523488 failed 1 of 2031. Root cause: display freshness normalization changed unavailable reason strings even when all incoming components were rejected, causing false publication. Rejected inputs now leave the stored object unchanged; older component cannot overwrite newer accepted evidence. Display-time freshness checks unchanged. Regression strengthened to assert object identity. No token, APK, server changes. Local tests NOT RUN; new CI pending. B216 login bug remains queued for next agreed batch.
+
+
+### 26 Nov 2026 — B217 SMART-4 login proof and live ingress joint repair
+- Previous 9af1687 Full Regression 45766210534 SUCCESS. Physical B216 report showed Clone Dhan quote proof missing: validated QuotePriceBatch subclass rejected by exact dict type. Accept dictionary subclasses, validate every symbol/finite positive non-bool price, revoke market proof on invalid activation. Preserve existing authenticated quote timestamps at login rather than replacing with None; both Doctors include BK-LOGIN-QUOTE-001. Add mismatched quote symbol rejection in live bridge and nonpositive clock guard in component publisher. Regression fixtures added. Existing token, deployed server, and B216 untouched; no APK triggered. Actual O/F/N feed, native background, Box Six and deployed evidence remain open. Local tests NOT RUN; CI pending.

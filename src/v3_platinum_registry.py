@@ -59,7 +59,7 @@ R2_REMAINING = {
     "B4.05": ("Shared renderer scoped offline PASS retained; mounted integration not certified", "Dashboard, Super Five, Scanner and Watchlist HIST/LIVE parity"),
 }
 R1_R3_R4_REMAINING = {
-    "B1.01": ("Exchange timestamp transport evidence reconciliation", "Actual exchange timestamp"),
+    "B1.01": ("Login QuotePriceBatch type compatibility and timestamp preservation wired; actual exchange timestamp evidence pending", "Actual exchange timestamp"),
     "B1.02": ("Authenticated metadata-only renewal health route and Doctor cache wired; deployment and timer evidence pending", "Observed renewal"),
     "B1.03": ("Authenticated transport evidence reconciliation", "Actual end-to-end data"),
     "B1.04": ("Disconnect/session integration audit", "Actual HIST/LIVE recovery"),

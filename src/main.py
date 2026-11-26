@@ -4721,10 +4721,10 @@ def app_main(page:ft.Page):
             provider_changed(None)
             # Unstamped login proof cannot supersede a newer exchange-stamped quote.
             from clone_smart_refresh_priority import accept_newer_dhan_quote
+            from clone_v2_gateway import observed_quote_fields
             for symbol, price in proof.items():
                 candidate={"symbol":symbol,"price":price,"source":"Dhan",
-                           "freshness":"unverified","quote_timestamp":None,
-                           "live_verified":False,"fetched_at":time.time()}
+                           **observed_quote_fields(proof,symbol),"fetched_at":time.time()}
                 if accept_newer_dhan_quote(quotes.get(symbol),candidate):
                     quotes[symbol]=candidate
             selected_rows={
@@ -6735,6 +6735,7 @@ def app_main(page:ft.Page):
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
+                    "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0},
                     "live_voting_gate":live_voting_gate_report(str(scan_symbol.value or "NIFTY"),str(scan_tf.value or "1m")),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
@@ -6845,6 +6846,7 @@ def app_main(page:ft.Page):
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
+                data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0}
                 data["live_voting_gate"]=live_voting_gate_report(ml5_symbol,ml5_tf)
                 data["persistent_cache"]=market_store.diagnostics()
                 data["ranking_persistence"]=dict(ranking_persist_stats)

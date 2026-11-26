@@ -767,7 +767,7 @@ class ContextualFiveEngineCache:
         from datetime import date, datetime, timezone, timedelta
         key=self._key(symbol,timeframe,generation)
         current=self._snapshots.get(key)
-        if current is None or type(now) not in (int,float) or not isfinite(now):
+        if current is None or type(now) not in (int,float) or not isfinite(now) or now<=0:
             return False
         rows=list(current["engines"])
         accepted=False

@@ -17,6 +17,7 @@ def completed_live_history(response, bars, quote, *, symbol, timeframe, now):
             or response.get("normalized_transport_integrity")!="SHA256_MATCH"
             or response.get("candle_origin")!="DHAN_INTRADAY_TIMESTAMP"
             or quote.get("source")!="Dhan" or quote.get("cached")
+            or quote.get("symbol") not in (None,symbol)
             or quote.get("timestamp_origin")!="DHAN_QUOTE_LAST_TRADE_TIME"):
         return None
     stamp=quote.get("quote_timestamp")

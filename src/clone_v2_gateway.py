@@ -340,7 +340,11 @@ class CloneDhanReadOnly:
         self.gateway.disconnect()
 
     def activate_with_quote(self, quote):
-        if not self.gateway.connected or type(quote) is not dict or not quote:
+        if (not self.gateway.connected or not isinstance(quote,dict) or not quote
+                or any(not isinstance(symbol,str) or not symbol.strip()
+                       or type(price) not in (int,float) or not math.isfinite(price) or price<=0
+                       for symbol,price in quote.items())):
+            self._market_verified=False
             raise FeedError("Clone Dhan quote proof missing")
         self._market_verified = True
 
