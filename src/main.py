@@ -743,6 +743,9 @@ def app_main(page:ft.Page):
                 from v3_live_candle_bridge import completed_live_history
                 qualified=completed_live_history(candle_result,bars,quote,
                     symbol=ticker,timeframe=interval,now=time.time())
+                if qualified is None and interval in ("1m","3m","5m"):
+                    # Existing Doctor provenance field: abstention, not a provider failure.
+                    result["candle_raw_provider_provenance"]="BK-LIVE-CANDLE-001:UNVERIFIED_QUALIFICATION"
                 if qualified is not None:
                     result.update(bars=qualified,historical=False,live_verified=True,
                         freshness="exchange_verified",

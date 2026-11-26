@@ -17,3 +17,21 @@ class LiveCandleBridgeTests(unittest.TestCase):
         self.assertIsNone(check(r=dict(r,candle_origin=None)))
         self.assertIsNone(check(r=dict(r,symbol="SENSEX")))
         self.assertIsNone(check(now=now+86400))
+
+    def test_bad_clock_and_invalid_ohlcv_abstain(self):
+        now=datetime(2026,11,26,11,4,20,tzinfo=IST).timestamp()
+        bars=[[now-200+i*60,100,102,99,101,10] for i in range(4)]
+        q={"source":"Dhan","quote_timestamp":now-5,"timestamp_origin":"DHAN_QUOTE_LAST_TRADE_TIME"}
+        r={"source":"dhan","symbol":"NIFTY","interval":"1m","normalized_transport_integrity":"SHA256_MATCH","candle_origin":"DHAN_INTRADAY_TIMESTAMP"}
+        def check(rows, clock=now):
+            return completed_live_history(r,rows,q,symbol="NIFTY",timeframe="1m",now=clock)
+        self.assertEqual(check(bars),bars[:3])
+        self.assertIsNone(check(bars,1e100))
+        for column,value in ((1,True),(2,98),(3,103),(4,float('nan')),(5,-1)):
+            malformed=[row[:] for row in bars]
+            malformed[1][column]=value
+            self.assertIsNone(check(malformed))
+        opening=datetime(2026,11,26,9,15,tzinfo=IST).timestamp()
+        early=opening+80
+        cross=[[opening-120+i*60,100,102,99,101,10] for i in range(4)]
+        self.assertIsNone(completed_live_history(r,cross,dict(q,quote_timestamp=early-5),symbol="NIFTY",timeframe="1m",now=early))

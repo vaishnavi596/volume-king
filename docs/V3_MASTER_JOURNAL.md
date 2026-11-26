@@ -3029,3 +3029,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 Login Regression सुधार
 - 5f78590 के B1/B2/Adapter PASS; Full 45766990620 में 2033 में दो पुराने literal assertions FAIL। अब actual observed_quote_fields का परीक्षण: timestamp न होने पर None, timestamp होने पर भी live_verified False। पुराने सुरक्षा नियम कायम। Test clock fixture relative बनाया। Production code, Token, Oracle और APK अपरिवर्तित। नया CI pending; local execution not run.
+
+
+### 26 Nov 2026 — B217 संयुक्त LIVE candle validation / Doctor evidence
+- Exact e319b14 Full #576 run 45767889330 SUCCESS. Current bridge audit: reject unrepresentable clock, malformed/nonfinite/impossible OHLCV, and three-candle confirmation crossing session opening. Existing shared candle provenance diagnostic receives stable BK-LIVE-CANDLE-001 unverified qualification status; no false failure or new provider call. Regression fixtures added. Local tests NOT RUN; exact CI pending. Actual independent O/F/N sources, native background, Box Six, deployment and physical acceptance remain OPEN. No APK, token, server or orders changed.

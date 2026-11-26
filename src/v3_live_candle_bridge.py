@@ -8,7 +8,10 @@ def completed_live_history(response, bars, quote, *, symbol, timeframe, now):
         return None
     if type(now) not in (int,float) or not isfinite(now):
         return None
-    clock=datetime.fromtimestamp(now,timezone.utc)
+    try:
+        clock=datetime.fromtimestamp(now,timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
     if not regular_equity_hours(clock):
         return None
     width={"1m":60,"3m":180,"5m":300}[timeframe]
@@ -35,13 +38,17 @@ def completed_live_history(response, bars, quote, *, symbol, timeframe, now):
         t=row[0]
         if type(t) not in (int,float) or not isfinite(t) or (previous is not None and t<=previous):
             return None
+        o,h,l,c,v=row[1:6]
+        if (any(type(x) not in (int,float) or not isfinite(x) for x in (o,h,l,c,v))
+                or min(o,h,l,c)<=0 or v<0 or h<max(o,l,c) or l>min(o,h,c)):
+            return None
         previous=t
         if t+width<=now:
             completed.append(row)
     if len(completed)<3:
         return None
     latest=completed[-1][0]
-    if (latest<opening or (latest-opening)%width!=0
+    if (completed[-3][0]<opening or (latest-opening)%width!=0
             or not 0<=now-latest-width<=width+30
             or stamp<latest+width
             or any(completed[-i][0]-completed[-i-1][0]!=width for i in (1,2))):
