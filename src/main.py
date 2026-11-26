@@ -4394,6 +4394,78 @@ def app_main(page:ft.Page):
                          expiry.value if option_expiry_choice.value=="Manual" else "") not in option_ssk_attempted):
                 await refresh_selected_options()
             await asyncio.sleep(15)
+    top5_expiry_cache={}
+    top5_option_retry_until={}
+    async def top5_option_poll():
+        """Paced, read-only option-chain refresh for Super Five candidates (J3).
+
+        Writes only the exact (generation, symbol, expiry) context cache used by
+        matching_option_context_for_symbol; never touches the Options screen's
+        selected-chain display state, never persists, never places orders. Shares
+        option_feed_busy so it cannot overlap the UI chain fetch, and yields to
+        the Scanner history scan and any Dhan option route cooldown.
+        """
+        while True:
+            await asyncio.sleep(8)
+            try:
+                if (not app_active[0] or lifecycle_background[0] or option_feed_busy[0]
+                        or prefs.get("source")!="Dhan" or not dhan_feed.connected
+                        or not refresh_hours() or not regular_hours()
+                        or dhan_history_scan_active[0]
+                        or dhan_feed.cooldown_remaining("/dhan/option-expiries")>0
+                        or dhan_feed.cooldown_remaining("/dhan/option-chain")>0):
+                    continue
+                generation=provider_generation[0]
+                now=time.time()
+                picks=[]
+                for row in list(top5_candidates)[:5]:
+                    sym=row.get("symbol") if isinstance(row,dict) else None
+                    if (not isinstance(sym,str) or sym==chain_symbol.value
+                            or sym not in DHAN_VERIFIED_SYMBOLS or sym in picks):
+                        continue
+                    if time.monotonic()<top5_option_retry_until.get((generation,sym),0.0):
+                        continue
+                    picks.append(sym)
+                def chain_age(sym):
+                    ages=[now-d["observed_at"] for (g,u,_l),d in dhan_option_context_cache.items()
+                          if g==generation and u==sym and isinstance(d,dict)
+                          and type(d.get("observed_at")) in (int,float)]
+                    return min(ages) if ages else 1e9
+                due=[sym for sym in picks if chain_age(sym)>45]
+                if not due:
+                    continue
+                sym=max(due,key=chain_age)  # oldest first
+                option_feed_busy[0]=True
+                try:
+                    cached=top5_expiry_cache.get((generation,sym))
+                    if cached is None or time.monotonic()-cached[0]>1800:
+                        dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
+                        if generation!=provider_generation[0]:continue
+                        top5_expiry_cache[(generation,sym)]=(time.monotonic(),dates)
+                        await asyncio.sleep(3.25)  # shared expiry/chain pacing gate
+                    else:
+                        dates=cached[1]
+                    chosen=dates[0]
+                    data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
+                    if (generation!=provider_generation[0] or data.get("symbol")!=sym
+                            or data.get("expiry")!=chosen or data.get("source")!="dhan"
+                            or data.get("signal_eligible") is not False):
+                        continue
+                    data["observed_at"]=time.time()
+                    dhan_option_context_cache[(generation,sym,chosen)]=dict(data)
+                    while len(dhan_option_context_cache)>16:
+                        del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
+                    for _tf in ("1m","3m","5m"):
+                        refresh_directional_vote_components(sym,_tf)
+                except FeedError:
+                    top5_option_retry_until[(generation,sym)]=time.monotonic()+120
+                finally:
+                    option_feed_busy[0]=False
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("top5_option_poll",exc)
+                await asyncio.sleep(30)
     def selected_option_rows():
         # Cached Angel One contracts must never appear as current Dhan/Yahoo option data.
         if prefs.get("source")!="Broker API" or not angel_feed.connected:
@@ -10746,6 +10818,7 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(verified_foreground_alert_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
+    page.run_task(top5_option_poll)
     async def oracle_assessment_poll():
         """Reuse a 180s read-only Oracle cache; never request from a widget."""
         await asyncio.sleep(4)
