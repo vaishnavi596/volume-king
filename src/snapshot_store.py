@@ -56,14 +56,30 @@ class SnapshotStore:
             if self.path.exists():
                 if self.path.stat().st_size>MAX_CACHE_BYTES:raise ValueError("Cache too large")
                 data=json.loads(self.path.read_text(encoding="utf-8"))
-                if data.get("version")!=1 or not isinstance(data.get("records"),dict):raise ValueError("Invalid cache")
+                if not isinstance(data,dict) or data.get("version")!=1 or not isinstance(data.get("records"),dict):raise ValueError("Invalid cache")
                 for key,record in data["records"].items():
-                    if isinstance(record,dict) and isinstance(record.get("saved_at"),(int,float)) and isinstance(record.get("payload"),dict):
-                        self.records[key]=public_copy(record)
+                    record=self._validated_restore_record(key,record)
+                    if record is not None:self.records[key]=record
                 self.records=dict(sorted(self.records.items(),key=lambda p:p[1]["saved_at"])[-max_entries:])
                 self.restored=len(self.records);self.file_bytes=self.path.stat().st_size
                 self.status="Saved market snapshots restored"
         except (OSError,ValueError,TypeError):self.records={};self.status="Saved cache unreadable; fresh data can restore it"
+    def _validated_restore_record(self,key,record):
+        """Validate each disk record independently for either backend."""
+        try:
+            parts=json.loads(key)
+            record=public_copy(record)
+            if (isinstance(parts,list) and parts and isinstance(parts[0],str)
+                    and isinstance(record,dict)
+                    and type(record.get("saved_at")) in (int,float)
+                    and math.isfinite(record["saved_at"])
+                    and self.valid(parts[0],record.get("payload"))
+                    and self.identity_valid(parts[0],parts[1:],record["payload"])):
+                return record
+        except (ValueError,TypeError,OverflowError,RecursionError):
+            pass
+        self.rejected+=1
+        return None
     def _connect_incremental(self):
         self.db_path.parent.mkdir(parents=True,exist_ok=True)
         db=sqlite3.connect(str(self.db_path),timeout=5)
@@ -86,6 +102,7 @@ class SnapshotStore:
             if not initialized:
                 # Preserve the original JSON file as rollback material.
                 legacy=SnapshotStore(self.path,self.max_entries)
+                self.rejected+=legacy.rejected
                 if self.path.exists() and legacy.status!="Saved market snapshots restored":
                     raise ValueError("Legacy cache unreadable")
                 with db:
@@ -95,17 +112,12 @@ class SnapshotStore:
             rows={}
             for key,raw in db.execute("SELECT key,record FROM snapshots"):
                 try:
-                    record=public_copy(json.loads(raw))
-                    parts=json.loads(key)
+                    record=json.loads(raw)
                 except (ValueError,TypeError):
                     self.rejected+=1
                     continue
-                if (isinstance(parts,list) and parts and isinstance(record,dict)
-                        and type(record.get("saved_at")) in (int,float)
-                        and math.isfinite(record["saved_at"])
-                        and self.valid(parts[0],record.get("payload"))
-                        and self.identity_valid(parts[0],parts[1:],record["payload"])):
-                    rows[key]=record
+                record=self._validated_restore_record(key,record)
+                if record is not None:rows[key]=record
             self.records=dict(sorted(rows.items(),key=lambda p:p[1]["saved_at"])[-self.max_entries:])
             with db:
                 db.executemany("DELETE FROM snapshots WHERE key=?",[(k,) for (k,) in db.execute("SELECT key FROM snapshots").fetchall() if k not in self.records])

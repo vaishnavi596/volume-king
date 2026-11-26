@@ -121,3 +121,30 @@ class SnapshotTests(unittest.TestCase):
                 self.assertEqual(restored.get("analysis","TCS","3m"),analysis)
                 self.assertEqual(restored.get("fusion","TCS","3m"),fusion)
                 self.assertIsNone(restored.get("fusion","TCS","5m"))
+
+
+class R3RestartRecordValidationTests(unittest.TestCase):
+    def test_json_and_sqlite_migration_isolate_invalid_records(self):
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from snapshot_store import SnapshotStore, sqlite3
+        for incremental in (False, True):
+            if incremental and sqlite3 is None:
+                continue
+            with self.subTest(incremental=incremental), TemporaryDirectory() as directory:
+                path=Path(directory)/"cache.json"
+                good=SnapshotStore.key("analysis","ABC","3m")
+                bad=SnapshotStore.key("analysis","XYZ","3m")
+                payload=dict(symbol="ABC",tf="3m",direction="WAIT",basis="HIST")
+                path.write_text(json.dumps({"version":1,"records":{
+                    good:{"saved_at":1,"payload":payload},
+                    bad:{"saved_at":2,"payload":payload},
+                    "malformed":{"saved_at":3,"payload":payload},
+                    SnapshotStore.key("analysis","ABC","5m"):{"saved_at":True,"payload":payload}
+                }}))
+                restored=SnapshotStore(path,incremental=incremental)
+                self.assertEqual(restored.get("analysis","ABC","3m"),payload)
+                self.assertIsNone(restored.get("analysis","XYZ","3m"))
+                self.assertEqual(restored.diagnostics()["entries"],1)
+                self.assertFalse(restored.diagnostics()["restored_cache_live_proof"])
