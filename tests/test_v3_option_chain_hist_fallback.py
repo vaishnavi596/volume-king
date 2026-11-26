@@ -28,3 +28,13 @@ class OptionChainHistFallbackContract(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClosedMarketMessageContract(unittest.TestCase):
+    def test_closed_market_refresh_message_is_not_a_login_error(self):
+        self.assertIn("REFRESH BLOCKED • market closed: HIST cache only", SRC)
+        self.assertIn("current Dhan login required.", SRC)  # open-market wording kept
+
+    def test_quote_check_button_is_labelled_test_only(self):
+        self.assertIn("Check Clone B3 Dhan Quotes (test only)", SRC)
+        self.assertIn("does not switch the app to LIVE", SRC)

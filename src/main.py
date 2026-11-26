@@ -5131,7 +5131,7 @@ def app_main(page:ft.Page):
                 "/3 indices • "+", ".join(
                     symbol+" "+str(round(result[symbol],2)) for symbol in
                     ("NIFTY","BANKNIFTY","SENSEX") if symbol in result)+
-                " • timestamps unverified; NOT live signals.")
+                " • timestamps unverified; NOT live signals • TEST ONLY: this does not switch the app to LIVE; press Connect Clone V2 (SSK) during market hours for LIVE.")
             connection_status.color=GREEN
         except FeedError as exc:
             connection_status.value="Clone B3 market data not verified: "+str(exc)
@@ -7210,7 +7210,10 @@ def app_main(page:ft.Page):
             test_status.update()
             try:
                 if not dhan_feed.connected or prefs.get("source")!="Dhan":
-                    test_status.value="REFRESH BLOCKED • current Dhan login required."
+                    test_status.value=("REFRESH BLOCKED • market closed: HIST cache only, no LIVE session. "
+                                       "After 09:15 IST press Connect Clone V2 (SSK) in Settings, then refresh."
+                                       if (prefs.get("source")=="Dhan" and clone_v2_gateway.connected and not regular_hours())
+                                       else "REFRESH BLOCKED • current Dhan login required.")
                     return
                 if (watch_batch_busy[0] or index_refresh_busy[0]):
                     test_status.value="REFRESH BLOCKED • active quote worker; retry when idle."
@@ -7262,7 +7265,9 @@ def app_main(page:ft.Page):
             # or from before the user explicitly pressed Diagnostics Refresh.
             if (refreshed[0] is None or refreshed[0][0]!=provider_generation[0]
                     or not dhan_feed.connected or prefs.get("source")!="Dhan"):
-                test_status.value="Tap REFRESH DIAGNOSTICS after Dhan login before TEST ACTIVE (MAX 70)."
+                test_status.value=("Market closed: LIVE test unavailable; HIST cache only. After 09:15 IST connect SSK, then REFRESH DIAGNOSTICS."
+                                   if (clone_v2_gateway.connected and not regular_hours())
+                                   else "Tap REFRESH DIAGNOSTICS after Dhan login before TEST ACTIVE (MAX 70).")
                 test_status.update()
                 return
             busy[0]=True
@@ -7490,7 +7495,7 @@ def app_main(page:ft.Page):
             prefs["compact_ui"]=bool(e.control.value);save()
             page.open(ft.SnackBar(content=ft.Text("Layout updates as each screen refreshes; switch screens to see it")))
         content.append(section('Display', ft.Column([ft.Switch(label='Compact view (smaller text, tighter spacing)',value=compact_ui(),on_change=toggle_compact_ui)])))
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes (test only)', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
             ft.OutlinedButton("Check Futures Context (read-only)",on_click=fetch_futures_context_tap),
