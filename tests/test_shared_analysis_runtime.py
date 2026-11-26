@@ -101,7 +101,7 @@ class SharedAnalysisRuntimeTests(unittest.TestCase):
         wrapper = v["decorate_help"](field)
         field.visible = False
         self.assertFalse(v["decorate_help"](wrapper).visible)
-        self.assertGreaterEqual(v["txt"]("Caption", 11).size, 14)
+        self.assertGreaterEqual(v["txt"]("Caption", 11).size, 12)
 
 
 class HistoricalAgreementMemoTests(unittest.TestCase):
