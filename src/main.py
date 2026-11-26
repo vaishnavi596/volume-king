@@ -3414,6 +3414,7 @@ def app_main(page:ft.Page):
 
     quote_auto_last_attempt=[0.0]
     closed_equity_bootstrap_generation=[None]
+    ssk_closed_auto_hist_generation=[None]
     async def dhan_quote_poll():
         # First authenticated foreground session should display the last
         # available equity snapshot even after market close. One closed-session
@@ -3458,6 +3459,16 @@ def app_main(page:ft.Page):
                             f"Dhan snapshot cooling down • retry in {remaining:.0f}s • "
                             "last valid prices retained; freshness unverified")
                         request_view_refresh(4)
+                # Owner-approved (26 Nov): SSK-only login after the close loads the
+                # Watchlist HIST once per provider generation by itself. Same bounded,
+                # paced, cancellable selected-only worker as the manual button; never LIVE.
+                if (app_active[0] and not lifecycle_background[0]
+                        and prefs.get("source")=="Dhan" and clone_v2_gateway.connected
+                        and not dhan_feed.connected and not refresh_hours()
+                        and ssk_closed_auto_hist_generation[0]!=provider_generation[0]
+                        and not watch_batch_busy[0] and not index_refresh_busy[0]):
+                    ssk_closed_auto_hist_generation[0]=provider_generation[0]
+                    await refresh_all_dhan_quotes()
                 # Index LTP runs in its own poll task, so a slow equity batch
                 # cannot delay the three-index refresh check.
             except asyncio.CancelledError:
@@ -6643,7 +6654,7 @@ def app_main(page:ft.Page):
                         "HIST_CALCULATED" if scanner_calc else "WAIT",
                         "HIST_ONLY_NOT_LIVE_VERIFIED",
                         "selected-timeframe Dhan candles → Scanner filters",
-                        "Inspect exact timeframe/source and 13+4 filter voting",
+                        "Inspect exact timeframe/source and 17 filter voting (13 candle + 4 OI positioning)",
                         calculated=scanner_calc,context_only=non_directional),
                     "FIVE_ENGINE":adapter_row(
                         "VERIFIED" if sections["SUPER_FIVE_ENGINES"]["verified_boxes"]==5 else "WAIT",

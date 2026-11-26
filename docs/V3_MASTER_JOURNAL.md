@@ -3104,3 +3104,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - `src/main.py`: `app_shell` को `ft.SelectionArea` में लपेटा ताकि हर स्क्रीन का टेक्स्ट (Doctor, MASTER DIAG, त्रुटि संदेश) लंबा दबाकर चुना और कॉपी किया जा सके।
 - परीक्षण: `tests/test_v3_selectable_text_contract.py`। कोई डेटा, ऑर्डर या टोकन का रास्ता नहीं बदला।
 - फ़ोन पर परखना बाकी: बटन-टैप और स्क्रॉल पहले जैसे चलते हैं या नहीं (B220 में)।
+
+## J7/B220 — बंद बाज़ार पर SSK से अपने-आप HIST (26 नवंबर)
+- कारण: Settings में "Clone Dhan browser login not configured on Oracle"; `dhan_feed.connected` नहीं बनता, इसलिए ऑटो-पोल बाज़ार-समय तक सीमित थे और बंद बाज़ार का HIST केवल मैनुअल बटन से चलता था।
+- `src/main.py`: `dhan_quote_poll` में नई शाखा — SSK जुड़ा, Dhan-लॉगिन नहीं, बाज़ार बंद, ऐप सक्रिय: प्रति provider generation एक बार `refresh_all_dhan_quotes()` (चुनी हुई इक्विटी, गति-सीमित, रद्द-योग्य, LIVE नहीं)।
+- Doctor पंक्ति: "17 filter voting (13 candle + 4 OI positioning)"।
+- B220 workflow (v2.3.220, com.botking.v3b220), pyproject 2.3.220, B3 push-पथ में जोड़ा।
+- सीमा: सर्वर का Dhan ब्राउज़र-लॉगिन Oracle पर चालू होना बाकी; वह इस कोड से ठीक नहीं होता। स्कैनर का बंद-बाज़ार HIST अभी मैनुअल है।
