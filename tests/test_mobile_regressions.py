@@ -57,7 +57,11 @@ class MobileRegressionTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
         self.assertIn('historical_time=float(result["bars"][-1][0])', source)
         self.assertIn('data_time=quote_time if isinstance(quote_time,(int,float)) else historical_time', source)
-        self.assertIn('"quote_timestamp":None', source)
+        self.assertIn('**observed_quote_fields(proof,symbol)', source)
+        from clone_v2_gateway import observed_quote_fields
+        fields=observed_quote_fields({"NIFTY":25000},"NIFTY")
+        self.assertIsNone(fields["quote_timestamp"])
+        self.assertFalse(fields["live_verified"])
         self.assertIn('state="HISTORICAL"', source)
         self.assertNotIn('quote_timestamp=historical_time', source)
 

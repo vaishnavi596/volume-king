@@ -41,7 +41,13 @@ class TestPhoneStartup(unittest.TestCase):
         # Missing indices still remain unverified; no green all-clear.
         self.assertIn("received_indices==3",body)
         self.assertIn("else GOLD",body)
-        self.assertIn('"live_verified":False',body)
+        self.assertIn('**observed_quote_fields(proof,symbol)',body)
+        from clone_v2_gateway import observed_quote_fields, QuotePriceBatch
+        import time
+        proof=QuotePriceBatch()
+        proof["NIFTY"]=25000
+        proof.trade_timestamps["NIFTY"]=time.time()-1
+        self.assertFalse(observed_quote_fields(proof,"NIFTY")["live_verified"])
 
     def test_option_provider_rate_limit_still_enforced(self):
         body=self.functions["refresh_selected_options"]

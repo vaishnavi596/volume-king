@@ -10,7 +10,8 @@ class LoginQuoteProofTests(unittest.TestCase):
         feed=CloneDhanReadOnly(gateway)
         proof=QuotePriceBatch()
         proof["NIFTY"]=25000.0
-        proof.trade_timestamps["NIFTY"]=1795662000
+        import time
+        proof.trade_timestamps["NIFTY"]=time.time()-1
         feed.activate_with_quote(proof)
         self.assertTrue(feed.connected)
         self.assertEqual(observed_quote_fields(proof,"NIFTY")["timestamp_origin"],"DHAN_QUOTE_LAST_TRADE_TIME")
