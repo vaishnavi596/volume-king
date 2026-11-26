@@ -133,7 +133,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
     def test_actual_budget_skip_and_foreground_guard_are_recorded(self):
         s,calls,_,_,_,_,now=self.fixture()
         s["watch_groups"][0]=["TCS"]
-        s["watch_three_minute_warm_last_provider"][0]=now-5
+        s["watch_three_minute_warm_last_provider"][0]=now-1  # closed gap is 3s
         self.assertFalse(self.invoke(s))
         self.assertIn((0,"early","UPSTREAM_BUDGET_OR_SPACING","TCS"),s["skips"])
         self.assertFalse(self.requests(calls))
@@ -183,7 +183,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             self.assertIn("key in watch_three_minute_warm_attempts",source)
             self.assertIn("now-watch_three_minute_warm_attempts[key]<180",source)
             self.assertIn("watch_three_minute_warm_last_provider[0]>0",source)
-            self.assertIn("now-watch_three_minute_warm_last_provider[0]<10",source)
+            self.assertRegex(source,r"now-watch_three_minute_warm_last_provider\[0\]<(\(3 if explicit_closed else 10\)|10)")
             self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",source)
 
     def test_exact_rolling_budget_and_global_10_second_spacing(self):
@@ -191,9 +191,9 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             with self.subTest(budget=budget):
                 s,calls,_,_,_,_,now=self.fixture()
                 if budget=="twelve_requests":
-                    s["watch_three_minute_upstream_times"][:]=[now-14*i for i in range(1,13)]
+                    s["watch_three_minute_upstream_times"][:]=[now-4*i for i in range(1,41)]  # closed budget is 40/180s
                 else:
-                    s["watch_three_minute_warm_last_provider"][0]=now-5
+                    s["watch_three_minute_warm_last_provider"][0]=now-1  # closed gap is 3s
                 self.assertFalse(self.invoke(s))
                 self.assertEqual(self.requests(calls),[])
                 self.assertEqual(s["chart_snapshots"],{})
@@ -207,7 +207,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         key=(0,0,True,"Dhan","TCS","1m","2d")
         s["market_recent"][key]=(now,{"source":"Dhan"})
         s["watch_three_minute_upstream_times"][:]=[now-60,now-50,now-40]
-        s["watch_three_minute_warm_last_provider"][0]=now-5
+        s["watch_three_minute_warm_last_provider"][0]=now-1  # closed gap is 3s
         self.assertTrue(self.invoke(s))
         self.assertEqual(len(self.requests(calls)),1) # Local get_market_data cache retrieval.
         self.assertEqual(len(s["watch_three_minute_upstream_times"]),3)
@@ -262,9 +262,9 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 if reason=="main_scan":s["dhan_history_scan_active"][0]=True
                 elif reason=="provider_cooldown":s["dhan_feed"].cooldown_remaining=lambda _:30
                 elif reason=="twelve_budget":
-                    s["watch_three_minute_upstream_times"][:]=[now-14*i for i in range(1,13)]
+                    s["watch_three_minute_upstream_times"][:]=[now-4*i for i in range(1,41)]  # closed budget is 40/180s
                 elif reason=="ten_gap":
-                    s["watch_three_minute_warm_last_provider"][0]=now-5
+                    s["watch_three_minute_warm_last_provider"][0]=now-1  # closed gap is 3s
                 elif reason=="wrong_provider":s["prefs"]["source"]="Yahoo Finance"
                 elif reason=="wrong_generation":s["provider_generation"][0]=1
                 elif reason=="background":s["lifecycle_background"][0]=True
@@ -272,6 +272,16 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                     0,explicit_closed=True)))
                 self.assertEqual(self.requests(calls),[])
                 self.assertFalse(s["watch_three_minute_warm_busy"][0])
+
+    def test_closed_queue_is_faster_than_market_hours_but_still_bounded(self):
+        # Closed explicit queue: 12 recent uncached reads and a 5s-old read no longer block...
+        s,calls,errors,window,rows,prior,now=self.fixture()
+        window["open"]=False
+        s["watch_three_minute_upstream_times"][:]=[now-14*i for i in range(1,13)]
+        s["watch_three_minute_warm_last_provider"][0]=now-5
+        s["get_market_data"]=lambda *args:{"source":"Dhan","bars":rows,"live_verified":False}
+        self.assertTrue(asyncio.run(s["warm_selected_watch_three_minute_early"](0,explicit_closed=True)))
+        self.assertFalse(errors)
 
     def test_explicit_manual_retains_last_candle_when_partial_response_after_close(self):
         s,calls,errors,window,rows,prior,now=self.fixture()
@@ -333,9 +343,9 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn('get_market_data,sym,"1m","2d"',helper)
         self.assertIn('await asyncio.sleep(1.5)',helper)
         self.assertNotIn('asyncio.gather(',helper)
-        self.assertIn('len(watch_three_minute_upstream_times)>=12',helper)
+        self.assertIn('len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 12)',helper)
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
-        self.assertIn('watch_three_minute_warm_last_provider[0]<10',helper)
+        self.assertIn('watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 10)',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)
         self.assertIn('(not refresh_hours() and not explicit_closed)',helper)
         self.assertNotIn('get_market_data,sym,"3m"',helper)

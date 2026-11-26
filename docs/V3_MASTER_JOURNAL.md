@@ -3169,3 +3169,11 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - हेड 154eb92 (खाली कमिट; B3 `paths`-फ़िल्टर के कारण push पर नहीं चला, इसलिए B3 और APK workflow दोनों `workflow_dispatch` से चलाए)। B3 पूरा रिग्रेशन: सफल (run 45814574767)। B221 APK बिल्ड: सफल (run 45814527412), v2.3.221, पैकेज `com.botking.v3b221`।
 - कारण-नोट: पहली B221 APK बिल्ड (be25176) का 'exact-SHA B3' गेट अगले पुश से B3 रद्द होने पर `B3_EXACT_SHA_NOT_VERIFIED` से फ़ेल; `[skip ci]` docs-कमिट सबसे नए हेड पर B3 नहीं चलाता — APK से पहले हेड पर B3 होना ज़रूरी।
 - फ़ोन-परीक्षण बाकी।
+
+## J11/B222 — बंद बाज़ार पर Watchlist HIST तेज़ (26 नवंबर, ~18:00 IST)
+- फ़ोन-रिपोर्ट: "HIST 9/51 • provider pacing; next eligible in ~9s" — हर शेयर ~9–13s, 51 शेयर ~7–8 मिनट।
+- आधार: Dhan सहायता-पृष्ठ — Data API 5 अनुरोध/सेकंड, Quote API 1/सेकंड; इतिहास पर DH-904/429 की अनौपचारिक रिपोर्ट ~10,000 अनुरोध/घंटा या 4/सेकंड। पुराना ऐप-बजट (180s में 12, 10s अंतर) इससे बहुत ज़्यादा सतर्क था; Oracle गेटवे वैसे भी प्रदाता-मिस 1.05s से अलग रखता है।
+- `src/main.py` `warm_selected_watch_three_minute_early`: केवल `explicit_closed` (बंद बाज़ार की स्पष्ट HIST कतार) के लिए बजट 40/180s और अंतर 3s; खुले बाज़ार/नियमित वार्मअप (`watch_three_minute_warmup`, 12/180s, 10s) **अपरिवर्तित**। प्रति शेयर 1.5s का मौजूदा विराम और `/dhan/intraday` cooldown की जाँच जस की तस।
+- परीक्षण अद्यतन (नया नियम पिन): `test_v3_closed_watchlist_one_tap_queue`, `test_v3_b205_ssk_watchlist_manual_hist_and_compact_boxes`, `test_watchlist_early_three_minute_priority` (+ नया `test_closed_queue_is_faster_than_market_hours_but_still_bounded`); नियमित वार्मअप के परीक्षण वैसे ही। स्थानीय सूट: 1721, 0 विफलताएँ।
+- अपेक्षा: 51 शेयर लगभग 2.5–3 मिनट। यदि फ़ोन पर 429/cooldown दिखे तो अंतर वापस बढ़ाएँगे (Doctor में `closed_hist_pacing_wait_seconds`)।
+- B222 workflow (v2.3.222, `com.botking.v3b222`), pyproject 2.3.222, B3 push-पथ।

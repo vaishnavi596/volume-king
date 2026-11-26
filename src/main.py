@@ -3334,6 +3334,10 @@ def app_main(page:ft.Page):
     watch_closed_hist_loading=[False]
     watch_closed_hist_key=[None]
     watch_closed_hist_wait_seconds=[0]
+    # Market-CLOSED explicit HIST queue only (owner-approved 26 Nov, evidence: Dhan Data API
+    # limit is 5 requests/second; the Oracle gateway also serialises provider misses).
+    # Closed explicit queue (in warm_selected_watch_three_minute_early): 40 per 180s, 3s floor.
+    # Market-open/periodic budgets stay 12 per 180s with a 10s floor.
     def watch_hist_budget_wait_seconds():
         # Show the *actual* remaining local quota delay. Never guess that a
         # source fetch failed merely because the 12/180s budget is exhausted.
@@ -9822,9 +9826,9 @@ console.log('BOT KING Lightweight Charts ready');
                 prior_cache=market_recent.get(history_key)
                 cache_ready=bool(prior_cache and now-prior_cache[0]<87)
             if not cache_ready and (
-                    len(watch_three_minute_upstream_times)>=12 or
+                    len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 12) or
                     (watch_three_minute_warm_last_provider[0]>0 and
-                     now-watch_three_minute_warm_last_provider[0]<10)):
+                     now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 10))):
                 record_watch_skip(generation,"early","UPSTREAM_BUDGET_OR_SPACING",sym)
                 continue
             watch_three_minute_warm_busy[0]=True
