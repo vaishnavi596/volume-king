@@ -10,6 +10,7 @@ import os
 import tempfile
 import time
 import traceback
+from math import isfinite
 
 
 class LocalObserverRecovery:
@@ -32,6 +33,10 @@ class LocalObserverRecovery:
         self._error_count = 0
         self._success_count = 0
         self._escalation_count = 0
+        self._invalid_callbacks = 0
+
+    def _valid_context(self,generation,now):
+        return type(generation) is int and generation>=0 and type(now) in (int,float) and isfinite(now) and now>=0
 
     def _event(self, state, now, **fields):
         self._sequence += 1
@@ -52,12 +57,18 @@ class LocalObserverRecovery:
             self._phase = "UNOBSERVED"
 
     def ready(self, generation, now):
+        if not self._valid_context(generation,now):
+            self._invalid_callbacks+=1
+            return False
         if self._generation is not None and generation < self._generation:
             return False
         self._scope(generation, now)
         return now >= self._next
 
     def failed(self, generation, now, exc, stage):
+        if not self._valid_context(generation,now):
+            self._invalid_callbacks+=1
+            return None
         if self._generation is not None and generation < self._generation:
             return
         self._scope(generation, now)
@@ -88,6 +99,9 @@ class LocalObserverRecovery:
             self._failures = 0
 
     def succeeded(self, generation, now, published_count):
+        if not self._valid_context(generation,now):
+            self._invalid_callbacks+=1
+            return None
         if self._generation is not None and generation < self._generation:
             return
         self._scope(generation, now)
@@ -108,7 +122,7 @@ class LocalObserverRecovery:
         self._next = 0.0
 
     def advance(self, generation, now, phase):
-        if generation == self._generation and self._pending and phase in ("REPAIRING", "RETESTING", "WAIT_DATA"):
+        if self._valid_context(generation,now) and generation == self._generation and self._pending and phase in ("REPAIRING", "RETESTING", "WAIT_DATA"):
             self._phase = phase
             if phase == "REPAIRING":
                 self._manual_queued = False
@@ -116,6 +130,9 @@ class LocalObserverRecovery:
     def request_retry(self, generation, now):
         # The existing observer is the sole owner. A manual request cannot
         # bypass the cooldown, create a second worker or authorize a new repair.
+        if not self._valid_context(generation,now):
+            self._invalid_callbacks+=1
+            return "INVALID_CONTEXT"
         if generation != self._generation or not self._pending:
             return "NO_PENDING_REPAIR"
         if now < self._next:
@@ -141,7 +158,7 @@ class LocalObserverRecovery:
                     pending=int(matching and self._pending),
                     manual_retry_queued=bool(matching and self._manual_queued),
                     retry_after_seconds=round(max(0,self._next-now),1) if matching else 0,
-                    persistence_error=self._disk_error, scope="Super Five only; session counts")
+                    persistence_error=self._disk_error, invalid_callbacks=self._invalid_callbacks, scope="Super Five only; session counts")
 
     def load_audit(self):
         """Read previous evidence only; never restore cooldown or authorize repair."""
@@ -238,5 +255,5 @@ class LocalObserverRecovery:
             events=list(self._events), events_total=self._sequence,
             retained_events=len(self._events), provider_requests=0, orders_sent=0,
             previous_events=list(self._previous), persisted_sequence=self._persisted_sequence,
-            persistence_error=self._disk_error,
+            persistence_error=self._disk_error, invalid_callbacks=self._invalid_callbacks,
             scope="one allowlisted local observer; last 40 disk events, no other repairs")

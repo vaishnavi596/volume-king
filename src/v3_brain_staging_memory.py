@@ -21,8 +21,20 @@ SCHEMA = 1
 def _canonical(payload):
     if not isinstance(payload, dict):
         raise ValueError("Event payload must be an object")
-    if _FORBIDDEN.intersection(str(k).lower() for k in payload):
-        raise ValueError("Secrets cannot be stored in Brain events")
+    # Inspect nested objects as well as top-level keys before serialization.
+    pending=[(payload,0)]
+    visited=0
+    while pending:
+        value,depth=pending.pop()
+        visited+=1
+        if depth>32 or visited>10000:
+            raise ValueError("Brain event nesting or item budget exceeded")
+        if isinstance(value,dict):
+            if _FORBIDDEN.intersection(str(k).strip().lower() for k in value):
+                raise ValueError("Secrets cannot be stored in Brain events")
+            pending.extend((v,depth+1) for v in value.values())
+        elif isinstance(value,(list,tuple)):
+            pending.extend((v,depth+1) for v in value)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"),
                          allow_nan=False, ensure_ascii=False)
     if len(encoded.encode("utf-8")) > 65536:
@@ -65,9 +77,9 @@ class StagingBrainLedger:
         self._db.close()
 
     def _authorize(self, device_id, credential):
-        expected = self._credentials.get(device_id)
+        expected = self._credentials.get(device_id) if isinstance(device_id,str) else None
         if (not isinstance(expected, str) or not isinstance(credential, str)
-                or not hmac.compare_digest(expected, credential)):
+                or not hmac.compare_digest(expected.encode("utf-8"), credential.encode("utf-8"))):
             raise PermissionError("Master-authorized device required")
 
     def append(self, *, device_id, credential, event_id, kind, created_at, payload):
@@ -132,7 +144,7 @@ class StagingBrainLedger:
         except ImportError as exc:
             raise RuntimeError("Encryption dependency missing; restore blocked") from exc
         target = Path(destination)
-        if target.exists():
+        if target.exists() or target.is_symlink():
             raise FileExistsError("Restore must not overwrite an existing database")
         if not isinstance(encrypted_blob, bytes):
             raise ValueError("Encrypted backup bytes required")
@@ -149,8 +161,18 @@ class StagingBrainLedger:
                     "payload_json", "digest"} <= names:
                 raise ValueError("Invalid Brain ledger schema")
             target.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(str(target)) as dest:
-                temp.backup(dest)
+            import os
+            fd=os.open(str(target),os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+            os.close(fd)
+            try:
+                dest=sqlite3.connect(str(target))
+                try:
+                    temp.backup(dest)
+                finally:
+                    dest.close()
+            except BaseException:
+                target.unlink(missing_ok=True)
+                raise
         finally:
             temp.close()
         return cls(target, device_credentials)

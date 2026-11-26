@@ -8,6 +8,7 @@ from concurrent.futures import Future
 from copy import deepcopy
 from threading import Lock
 import time
+from math import isfinite
 
 VALID_LANES = frozenset(("quotes", "candles", "derivatives", "context"))
 
@@ -30,6 +31,7 @@ class LaneCoordinator:
         self._lock = Lock()
         self._active = {}
         self._cache = {}
+        self._invalidated_active = set()
 
     def run(self, lane, key, fetch, *, ttl_seconds=0, reuse_if=None):
         if lane not in VALID_LANES:
@@ -46,10 +48,10 @@ class LaneCoordinator:
         with self._lock:
             old = self._cache.get(slot)
             now = self._clock()
-            if old is not None and now >= old[0] and now - old[0] < ttl_seconds:
+            if old is not None and type(now) in (int,float) and isfinite(now) and now >= old[0] and now - old[0] < ttl_seconds:
                 # Client-specific freshness guards may narrow a TTL but may
                 # never extend it. A rejected reuse goes back to the owner.
-                if reuse_if is None or reuse_if(old[1], now - old[0]):
+                if reuse_if is None or reuse_if(deepcopy(old[1]), now - old[0]):
                     return deepcopy(old[1])
             flight = self._active.get(slot)
             if flight is None:
@@ -66,19 +68,22 @@ class LaneCoordinator:
             value = fetch()
             stable = deepcopy(value)
             with self._lock:
-                if ttl_seconds > 0:
-                    if len(self._cache) >= self._max_cached:
+                stamp=self._clock()
+                if ttl_seconds > 0 and slot not in self._invalidated_active and type(stamp) in (int,float) and isfinite(stamp):
+                    if slot not in self._cache and len(self._cache) >= self._max_cached:
                         # Evict the oldest timestamp without touching active flights.
                         oldest = min(self._cache, key=lambda k: self._cache[k][0])
                         del self._cache[oldest]
-                    self._cache[slot] = (self._clock(), stable)
+                    self._cache[slot] = (stamp, stable)
                 # Publish while lock protects cache+active state consistently.
                 flight.set_result(deepcopy(stable))
+                self._invalidated_active.discard(slot)
                 del self._active[slot]
             return deepcopy(stable)
         except BaseException as exc:
             with self._lock:
                 flight.set_exception(exc)
+                self._invalidated_active.discard(slot)
                 del self._active[slot]
             raise
 
@@ -86,7 +91,10 @@ class LaneCoordinator:
         if lane not in VALID_LANES or not isinstance(key, str):
             raise ValueError("Unsupported refresh source")
         with self._lock:
-            self._cache.pop((lane, key), None)
+            slot=(lane,key)
+            self._cache.pop(slot, None)
+            if slot in self._active:
+                self._invalidated_active.add(slot)
 
     def cache_size(self):
         with self._lock:
