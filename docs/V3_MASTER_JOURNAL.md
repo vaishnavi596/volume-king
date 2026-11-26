@@ -3242,3 +3242,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - सुधार: `historical_session_window.drop_stale_flat_tail`: अंत के 3 बार के भीतर ख़त्म होने वाली ≥2 जमे बारों की श्रृंखला (सपाट, वॉल्यूम>0 और पिछले के बराबर) से पहले श्रृंखला काट दी जाती है; 30 बार से नीचे कभी नहीं; बीच की श्रृंखला और शून्य-वॉल्यूम सपाट बार नहीं छुए जाते; `historical_regular_session_bars` में जुड़ा। 8 टेस्ट। पूरी सूट: 1751 टेस्ट, 0 विफल, 55 पुराने import-त्रुटियाँ। केवल HIST के लिए; LIVE अपरिवर्तित।
 - B225 (versionCode 225, 2.3.225) workflow में सभी संख्याएँ 225 की गईं।
 - नवीनीकरण: Doctor `RENEWAL_ROUTE_NOT_DEPLOYED` (gateway पर रूट 404/405) दिखाता है; टोकन 27 नवंबर 02:10 IST पर समाप्त; पहला नवीनीकरण ≈00:41 IST। रनबुक अनुसार जाँच ज़रूरी।
+
+## J22 — 26 Nov 2026 रात: B225 CI और B226 (option chain HIST)
+- B225: पहली CI (31fc7d5) फ़ेल — कारण CI में numpy नहीं; Market Brain के 2 टेस्ट इम्पोर्ट पर गिरे। फ़िक्स d6f7c2a (numpy न हो तो SkipTest); B3 पास, APK (run 45853202403) सफल।
+- फ़ोन रिपोर्ट (21:50 IST, बाज़ार बंद): "REFRESH BLOCKED • current Dhan login required", Option Chain खाली। कारण (कोड): dhan_feed.connected = SSK + बाज़ार-खुले में quote-proof; रात में SSK कनेक्ट सिर्फ़ HIST मोड। "Check Clone B3 Dhan Quotes" connected नहीं करता। इंडेक्स भाव 3/3 आए (गेटवे/टोकन ठीक)।
+- Oracle: web-renew टाइमर NOT_DUE (समाप्ति 02:11 IST), totp-renewal service हर 15 मिनट फ़ेल (दूसरा इंजन, कारण अज्ञात), dhan-monitor INVALIDARGUMENT।
+- B226 (स्रोत बदला, CI लंबित): option_chain_preview अब live न होने पर चुने symbol+expiry का सहेजा Dhan चेन HIST लेबल से दिखाता है। नोट: नए पैकेज में कैश तभी बनेगा जब बाज़ार-समय में चेन एक बार आए।

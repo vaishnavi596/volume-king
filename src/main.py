@@ -4661,10 +4661,30 @@ def app_main(page:ft.Page):
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
         strike=str(option_strike.value or "").strip() or "—"
         context=option_chain_display_context(dhan_option_metrics)
-        if (prefs.get("source") == "Dhan" and dhan_feed.connected
+        live_chain=(prefs.get("source") == "Dhan" and dhan_feed.connected
                 and dhan_option_metrics.get("symbol") == chain_symbol.value
                 and dhan_option_metrics.get("expiry") == expiry.value
-                and context.get("available")):
+                and context.get("available"))
+        hist_chain_label=""
+        if not live_chain and prefs.get("source") == "Dhan" and expiry.value:
+            # Closed market / no LIVE proof: show the exact selected symbol+expiry
+            # chain last saved from a genuine Dhan response, clearly as HIST.
+            try:
+                saved=market_store.get("option_context_last_good","Dhan",chain_symbol.value,expiry.value) or {}
+            except Exception:
+                saved={}
+            saved_context=option_chain_display_context(saved)
+            if (saved.get("symbol") == chain_symbol.value and saved.get("expiry") == expiry.value
+                    and saved_context.get("available")):
+                context=saved_context
+                live_chain=True
+                stamp=saved.get("observed_at")
+                try:
+                    when=datetime.fromtimestamp(float(stamp),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
+                except (TypeError,ValueError,OverflowError,OSError):
+                    when="time unknown"
+                hist_chain_label="HIST • last saved Dhan chain • "+when+" • NOT LIVE • signals WAIT"
+        if live_chain:
             display_rows=[]
             for item in context["rows"]:
                 def value(leg, field, decimals=0):
@@ -4687,7 +4707,7 @@ def app_main(page:ft.Page):
                     value(item["pe"],"last_price",2))]))
             return ft.Column([
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
-                note("Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
+                note(hist_chain_label or "Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
                 ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in
                     ["CE Premium","CE OI","CE ΔOI","CE Vol","Strike","PE Vol","PE ΔOI","PE OI","PE Premium"]],
                     rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
