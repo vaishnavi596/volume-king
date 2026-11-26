@@ -307,6 +307,7 @@ def app_main(page:ft.Page):
     from clone_v2_gateway import CloneV2Gateway, CloneDhanReadOnly
     clone_v2_gateway=CloneV2Gateway()  # Independent B2 SSK, never the original V1 connection.
     dhan_feed=CloneDhanReadOnly(clone_v2_gateway)  # B3 Dhan read-only data, clone routes only.
+    renewal_health_cache={}
     clone_v2_connect_busy=[False]
     broker_retry=[0.0]
     broker_failures=[0]
@@ -6708,6 +6709,7 @@ def app_main(page:ft.Page):
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
+                    "renewal_health":renewal_doctor_snapshot(),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
@@ -6816,6 +6818,7 @@ def app_main(page:ft.Page):
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
+                data["renewal_health"]=renewal_doctor_snapshot()
                 data["persistent_cache"]=market_store.diagnostics()
                 data["ranking_persistence"]=dict(ranking_persist_stats)
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
@@ -10646,6 +10649,25 @@ console.log('BOT KING Lightweight Charts ready');
                     verified_alert_gate.acknowledge(key,delivered=True)
             except Exception as exc:
                 log_error("verified_foreground_alert_poll",exc)
+    async def renewal_metadata_poll():
+        # Separate metadata-only Oracle request; never triggered by Doctor.
+        # No Dhan quota use; stale/disconnected generations are not published.
+        while True:
+            await asyncio.sleep(180)
+            if not app_active[0] or lifecycle_background[0] or not clone_v2_gateway.connected:
+                continue
+            generation=provider_generation[0]
+            result=await asyncio.to_thread(clone_v2_gateway.renewal_health)
+            if generation==provider_generation[0] and clone_v2_gateway.connected:
+                renewal_health_cache.clear()
+                renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
+    def renewal_doctor_snapshot():
+        age=time.monotonic()-renewal_health_cache.get("at",0)
+        if (renewal_health_cache.get("generation")!=provider_generation[0]
+                or not clone_v2_gateway.connected or not 0<=age<=420):
+            return {"code":"BK-RENEW-001","state":"UNVERIFIED","renewal_observed":False}
+        return dict(renewal_health_cache["report"],code="BK-RENEW-001",age_seconds=round(age,1))
+    page.run_task(renewal_metadata_poll)
     page.run_task(verified_foreground_alert_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)

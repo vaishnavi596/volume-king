@@ -39,6 +39,37 @@ class CloneV2Gateway:
 
 
 
+    def renewal_health(self):
+        """Authenticated metadata-only read; old deployments remain unverified."""
+        if not self.connected:
+            return {"state":"UNVERIFIED","reason":"DISCONNECTED"}
+        origin,key=self._origin,self._key
+        url=origin+"/clone-v2/renewal-health"
+        request=Request(url,method="GET",headers={"X-BotKing-Key":key,
+            "Accept":"application/json","Cache-Control":"no-store"})
+        try:
+            with (self._opener or direct_https_opener()).open(request,timeout=8) as response:
+                if (response.status!=200 or response.geturl()!=url
+                        or response.headers.get_content_type()!="application/json"):
+                    raise ValueError("Untrusted renewal response")
+                raw=response.read(2049)
+                if len(raw)>2048:raise ValueError("Oversized renewal response")
+                data=json.loads(raw.decode("utf-8"))
+            if (self._origin,self._key)!=(origin,key):
+                raise ValueError("Connection changed")
+            if (not isinstance(data,dict) or set(data)!={"protocol","state","metadata_verified",
+                    "renewal_observed","timer_verified","provider_requests","orders_sent"}
+                    or data["protocol"]!="clone-renewal-health-v1"
+                    or data["state"] not in ("UNVERIFIED","VALID","RENEWAL_DUE","EXPIRED")
+                    or data["metadata_verified"] is not (data["state"]!="UNVERIFIED")
+                    or data["renewal_observed"] is not False or data["timer_verified"] is not False
+                    or type(data["provider_requests"]) is not int or data["provider_requests"]!=0
+                    or type(data["orders_sent"]) is not int or data["orders_sent"]!=0):
+                raise ValueError("Invalid renewal contract")
+            return data
+        except (OSError,URLError,ValueError,UnicodeError):
+            return {"state":"UNVERIFIED","reason":"ROUTE_OR_METADATA_UNAVAILABLE"}
+
     def start_dhan_browser_login(self, endpoint, access_key):
         """Request Clone-only browser consent; return trusted official Dhan URL."""
         from urllib.parse import urlsplit, parse_qs

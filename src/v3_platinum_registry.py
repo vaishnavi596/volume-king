@@ -60,10 +60,10 @@ R2_REMAINING = {
 }
 R1_R3_R4_REMAINING = {
     "B1.01": ("Exchange timestamp transport evidence reconciliation", "Actual exchange timestamp"),
-    "B1.02": ("Trusted renewal health linkage and deployed version evidence", "Observed renewal"),
+    "B1.02": ("Authenticated metadata-only renewal health route and Doctor cache wired; deployment and timer evidence pending", "Observed renewal"),
     "B1.03": ("Authenticated transport evidence reconciliation", "Actual end-to-end data"),
     "B1.04": ("Disconnect/session integration audit", "Actual HIST/LIVE recovery"),
-    "B1.05": ("Trusted renewal and freshness Doctor linkage", "Actual device evidence"),
+    "B1.05": ("Renewal metadata Doctor linkage wired; actual timer execution unverified", "Actual device evidence"),
     "B2.01": ("Remaining synchronous calculation audit", "Measured phone latency"),
     "B2.02": ("Independent engine scheduling audit", "Actual scheduling throughput"),
     "B2.03": ("Cache/worker adaptive tuning", "Phone restart and load"),

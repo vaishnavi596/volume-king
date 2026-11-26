@@ -401,6 +401,16 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
              "status": "ready"},
             headers={"Cache-Control": "no-store"})
 
+    @app.get("/clone-v2/renewal-health")
+    def renewal_health(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        # Explicitly provisioned metadata only. No token read, Dhan request,
+        # timer execution, credential mutation or inference of renewal success.
+        from backend.dhan_renewal_health import renewal_health_report
+        return JSONResponse(renewal_health_report(
+            os.environ.get("BOTKING_CLONE_RENEWAL_EXPIRY_FILE")),
+            headers={"Cache-Control": "no-store"})
+
     @app.get("/clone-v2/health")
     def health():
         # Health is not proof of authorization or live market data.
