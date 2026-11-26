@@ -107,3 +107,13 @@ class R3DoctorIdentityTests(unittest.TestCase):
         checks={row["check"] for row in r["active"]}
         self.assertTrue({"CONNECTION","EQUITY_QUOTE_COVERAGE","INDEX_QUOTE_COVERAGE",
                          "WATCHLIST_SIGNAL_CACHE"}.issubset(checks))
+
+
+class RFinalDoctorClockTests(unittest.TestCase):
+    def test_invalid_scheduler_timestamps_do_not_certify_refresh(self):
+        from v3_smart_active_doctor import active_report
+        result=active_report(generation=1,symbols=["A","B"],quote_present=[],index_present=[],connected={},signal_present=[],attempts={"A":101,"B":float("nan")},now_monotonic=100,market_open=True,errors=[],progress={},performance={},quote_attempt_age=None,outcomes={"A":{"at":None}},skip_events=[{"generation":1,"at":None}])
+        row=next(x for x in result["active"] if x["check"]=="WATCHLIST_FAIR_REFRESH")
+        self.assertEqual(row["attempted"],0)
+        self.assertEqual(row["invalid_attempt_symbols"],["A","B"])
+        self.assertEqual(row["recent_skip_events"],[])

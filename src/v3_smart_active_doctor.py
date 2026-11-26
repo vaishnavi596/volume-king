@@ -24,11 +24,18 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
           {"available": len(signal_present), "selected": total,
            "scope": "existing signal entries only, not candle validation"})
     check("OBSERVED_ERRORS", not errors, {"errors": errors})
-    ages = {sym: round(max(0, now_monotonic-attempts[sym]),1)
-            for sym in symbols if sym in attempts}
+    def valid_monotonic_stamp(value):
+        return (type(value) in (int,float) and math.isfinite(value)
+                and type(now_monotonic) in (int,float) and math.isfinite(now_monotonic)
+                and 0<=value<=now_monotonic)
+    ages = {sym: round(now_monotonic-attempts[sym],1)
+            for sym in set(symbols) if sym in attempts and valid_monotonic_stamp(attempts[sym])}
+    invalid_attempts = sorted({sym for sym in symbols if sym in attempts
+                               and not valid_monotonic_stamp(attempts[sym])})
     issues.append({"check": "WATCHLIST_FAIR_REFRESH", "status": "TESTING",
                    "market_open": market_open, "selected": total,
-                   "attempted": len(ages), "unattempted": total-len(ages),
+                   "attempted": len(ages), "unattempted": len(set(symbols))-len(ages),
+                   "invalid_attempt_symbols":invalid_attempts,
                    "oldest_attempt_age_seconds": max(ages.values(),default=None),
                    "oldest_attempt_symbols": sorted(ages,key=ages.get,reverse=True)[:5],
                    "attempt_is_not_success": True, "performance": performance})
@@ -43,10 +50,13 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     # Cache observation does not certify transport success.
     issues[-1]["gate_snapshot"] = progress.get("watchlist_gate_snapshot", {})
     issues[-1]["gate_scope"] = "instantaneous periodic scheduler gates, not recorded skip history; scanner interleave can still run"
-    outcomes = outcomes or {}
+    outcomes = {sym:row for sym,row in (outcomes or {}).items()
+                if isinstance(row,dict) and valid_monotonic_stamp(row.get("at"))}
     issues[-1]["recent_error_history"] = list(recent_errors or [])[-5:]
-    recent_skips = [row for row in (skip_events or []) if row.get("generation")==generation
-                    and 0<=now_monotonic-row["at"]<=180]
+    recent_skips = [row for row in (skip_events or []) if isinstance(row,dict)
+                    and row.get("generation")==generation and valid_monotonic_stamp(row.get("at"))
+                    and now_monotonic-row["at"]<=180
+                    and all(isinstance(row.get(k),str) for k in ("reason","lane","symbol"))]
     skip_counts = {}
     for row in recent_skips:
         reason=row["reason"]

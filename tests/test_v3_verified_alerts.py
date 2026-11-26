@@ -18,3 +18,14 @@ class VerifiedAlertsTests(unittest.TestCase):
         self.assertIsNone(g.candidate(compose_snapshot(),**args))
         self.assertEqual(g.report()["orders_sent"],0)
         self.assertEqual(g.report()["native_background"],"NOT_WIRED")
+
+
+    def test_old_generation_cannot_clear_alert_deduplication(self):
+        g=VerifiedAlertGate()
+        snapshot=compose_snapshot(**{n:EngineEvidence(n,80,20,verified=True,timestamp=1000,source="Dhan") for n in ("technical","candle","options")})
+        args=dict(symbol="NIFTY",timeframe="3m",generation=2,now=1010,foreground=True,connected=True,historical_mode=False)
+        key=g.candidate(snapshot,**args)
+        g.acknowledge(key,delivered=True)
+        self.assertIsNone(g.candidate(snapshot,**dict(args,generation=1)))
+        self.assertIsNone(g.candidate(snapshot,**args))
+        with self.assertRaises(ValueError):VerifiedAlertGate(0)

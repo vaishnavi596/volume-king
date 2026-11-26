@@ -5,6 +5,8 @@ from five_engine import snapshot_for_display
 
 class VerifiedAlertGate:
     def __init__(self, capacity=256):
+        if type(capacity) is not int or capacity<=0:
+            raise ValueError("Positive alert capacity required")
         self.capacity=capacity
         self.seen=OrderedDict()
         self.generation=None
@@ -14,6 +16,8 @@ class VerifiedAlertGate:
 
     def candidate(self, snapshot, *, symbol, timeframe, generation, now,
                   foreground, connected, historical_mode):
+        if type(generation) is not int or generation<0 or (self.generation is not None and generation<self.generation):
+            return None
         if self.generation != generation:
             self.seen.clear()
             self.generation=generation
