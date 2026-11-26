@@ -3124,3 +3124,8 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - `src/main.py`: Home के PLATINUM SMART DOCTOR में "Safe repair (all)" बटन और "Doctor auto-repair" स्विच (डिफ़ॉल्ट बंद, `prefs[doctor_auto_repair]`)। मरम्मतें: अटका busy-flag छोड़ना, इंडेक्स का आखिरी भाव फिर माँगना, छूटे HIST शेयर दोबारा लोड। हर मरम्मत के बाद पुनःपरीक्षण और परिणाम का संदेश; MASTER DIAG में `doctor_safe_repairs`।
 - कभी नहीं: टोकन, कुंजी, सेटिंग, ऑर्डर, सर्वर। परीक्षण: `test_v3_doctor_repairs.py`, `test_v3_doctor_safe_repair_wiring_contract.py`।
 - फ़ोन पर परखना बाकी।
+
+## J9 — Doctor का चार्ट-ओवरले लेबल सुधारा (26 नवंबर)
+- जाँच: native चार्ट पर EMA 9/21 पहले से Line और Candle दोनों शैलियों में खिंचता है; RSI/MACD मान-टिप्पणी हैं; Supertrend केवल स्थिति (जान-बूझकर कोई गढ़ी हुई रेखा नहीं)। Doctor का `chart_indicator_overlays_supported:false` पुराना/भ्रामक था।
+- `src/main.py`: लेबल `true` + `chart_overlay_detail` (प्रति संकेतक सटीक स्थिति)। चार्ट कोड अपरिवर्तित; VWAP/SMA overlay नहीं जोड़े क्योंकि चार्ट-फ़िल्टर सूची बदलने से सहेजी प्राथमिकताएँ और परीक्षण प्रभावित होते।
+- जाँच (स्पष्टता): Watchlist HIST की धीमी गति Dhan-सुरक्षा बजट है (180s में अधिकतम 12 अनजान अनुरोध, 10s न्यूनतम अंतराल); 429 के जोखिम पर बिना मापे ढीला नहीं किया।
