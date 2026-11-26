@@ -2243,6 +2243,16 @@ def app_main(page:ft.Page):
                     items=data.get("items") or []
                     valid_count=valid_news_context_count(data,now=time.time())
                     if valid_count:label="N "+str(valid_count)+" news • WAIT"
+                    # Owner choice 26 Nov: show headline phrase cues as HIST context.
+                    # Experimental and unverified: displayed only, never counted in the
+                    # combined vote or the 3-engine quorum.
+                    cue=headline_signal(items) if items else None
+                    if (cue and cue["positive"]+cue["negative"]>0
+                            and prefs.get("market_display_mode")!="LIVE_ONLY"):
+                        total=cue["positive"]+cue["negative"]
+                        up=round(100*cue["positive"]/total)
+                        label="N HIST B"+str(up)+"/S"+str(100-up)+" • headline cue • not voted"
+                        color=GREEN if up>50 else RED if up<50 else GOLD
             # A missing engine remains WAIT regardless of calendar date.
             # The last valid technical/candle historical vote remains visible;
             # do not replace its evidence status with an inferred holiday OFF.

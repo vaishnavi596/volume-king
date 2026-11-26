@@ -9,3 +9,8 @@ class CompactUiContract(unittest.TestCase):
     def test_text_has_readable_floor_and_switch_exists(self):
         self.assertIn("max(12,round(size*0.88))", SRC)
         self.assertIn("Compact view (smaller text, tighter spacing)", SRC)
+
+class NewsHistCueContract(unittest.TestCase):
+    def test_news_cue_is_hist_and_not_voted(self):
+        self.assertIn('"N HIST B"', SRC)
+        self.assertIn("headline cue • not voted", SRC)
