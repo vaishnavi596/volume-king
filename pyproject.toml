@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.226" # V3 B226 isolated phone-test (B225 + HIST display of last saved option chain when market closed); Android versionCode 226
+version = "2.3.227" # V3 B227 isolated phone-test (B226 + Options auto-load, remembered expiry); Android versionCode 227
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

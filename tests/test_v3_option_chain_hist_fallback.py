@@ -11,7 +11,7 @@ class OptionChainHistFallbackContract(unittest.TestCase):
         self.body = SRC[i:i + 6000]
 
     def test_uses_exact_symbol_expiry_last_good(self):
-        self.assertIn('market_store.get("option_context_last_good","Dhan",chain_symbol.value,expiry.value)', self.body)
+        self.assertIn('market_store.get("option_context_last_good","Dhan",chain_symbol.value,preview_expiry)', self.body)
 
     def test_hist_label_is_not_live_and_signals_wait(self):
         self.assertIn("HIST • last saved Dhan chain", self.body)
@@ -19,7 +19,7 @@ class OptionChainHistFallbackContract(unittest.TestCase):
 
     def test_saved_chain_must_match_symbol_expiry_and_be_available(self):
         self.assertIn('saved.get("symbol") == chain_symbol.value', self.body)
-        self.assertIn('saved.get("expiry") == expiry.value', self.body)
+        self.assertIn('saved.get("expiry") == preview_expiry', self.body)
         self.assertIn('saved_context.get("available")', self.body)
 
     def test_live_path_still_requires_connection(self):
@@ -47,3 +47,16 @@ class RememberedExpiryContract(unittest.TestCase):
         self.assertIn('prefs.get("option_expiry")', body)
         self.assertIn("remembered>=", body)
         self.assertIn('saved.get("expiry")==listed', body)
+
+
+class OptionChainAutoLoadContract(unittest.TestCase):
+    def test_opening_options_tab_triggers_paced_refresh(self):
+        i = SRC.index("    def render_page(i):")
+        body = SRC[i:i + 4500]
+        self.assertIn("changed and i==1", body)
+        self.assertIn("page.run_task(refresh_selected_options)", body)
+        self.assertIn("not option_feed_busy[0]", body)
+
+    def test_preview_uses_remembered_expiry_when_control_blank(self):
+        i = SRC.index("def option_chain_preview")
+        self.assertIn("preview_expiry", SRC[i:i + 3500])

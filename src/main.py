@@ -4666,15 +4666,24 @@ def app_main(page:ft.Page):
                 and dhan_option_metrics.get("expiry") == expiry.value
                 and context.get("available"))
         hist_chain_label=""
-        if not live_chain and prefs.get("source") == "Dhan" and expiry.value:
+        preview_expiry=expiry.value
+        if not preview_expiry:
+            remembered=str(prefs.get("option_expiry") or "")
+            try:
+                if (date.fromisoformat(remembered).isoformat()==remembered
+                        and remembered>=datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat()):
+                    preview_expiry=remembered
+            except ValueError:
+                preview_expiry=""
+        if not live_chain and prefs.get("source") == "Dhan" and preview_expiry:
             # Closed market / no LIVE proof: show the exact selected symbol+expiry
             # chain last saved from a genuine Dhan response, clearly as HIST.
             try:
-                saved=market_store.get("option_context_last_good","Dhan",chain_symbol.value,expiry.value) or {}
+                saved=market_store.get("option_context_last_good","Dhan",chain_symbol.value,preview_expiry) or {}
             except Exception:
                 saved={}
             saved_context=option_chain_display_context(saved)
-            if (saved.get("symbol") == chain_symbol.value and saved.get("expiry") == expiry.value
+            if (saved.get("symbol") == chain_symbol.value and saved.get("expiry") == preview_expiry
                     and saved_context.get("available")):
                 context=saved_context
                 live_chain=True
@@ -9725,6 +9734,13 @@ console.log('BOT KING Lightweight Charts ready');
             tv_view[0]=None;tv_context[0]=None;tv_ready[0]=False;tv_booted[0]=False;tv_js_view[0]=None
         current[0]=i
         if changed:prefs["last_page"]=i;save()
+        if (changed and i==1 and prefs.get("source")=="Dhan" and not option_feed_busy[0]
+                and (dhan_feed.connected or clone_v2_gateway.connected)
+                and chain_symbol.value in DHAN_VERIFIED_OPTION_SYMBOLS
+                and app_active[0] and not lifecycle_background[0]):
+            # Opening Options must load the selected chain by itself; the user
+            # should not have to re-select the symbol. Same paced, cooldown-aware path.
+            page.run_task(refresh_selected_options)
         body.controls[:]=controls
         # Drop detached page-host entries; only the newly built view is kept.
         delta_hosts_keys=(
