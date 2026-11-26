@@ -2214,7 +2214,13 @@ def app_main(page:ft.Page):
                     data=(matching_option_context_for_symbol(sym)
                           if prefs.get("source")=="Dhan" else {})
                     position=historical_option_position(data,symbol=sym,expiry=data.get("expiry"),now=time.time())
-                    if (position["available"] and prefs.get("market_display_mode")!="LIVE_ONLY"):
+                    from v3_option_oi_flow import window_oi_change
+                    oi_share,_why=window_oi_change(data)
+                    if (oi_share is not None and data.get("source")=="dhan"
+                            and prefs.get("market_display_mode")!="LIVE_ONLY"):
+                        label="O HIST B"+str(oi_share[0])+"/S"+str(oi_share[1])+" • OI change • NOT live"
+                        color=GREEN if oi_share[0]>oi_share[1] else RED
+                    elif (position["available"] and prefs.get("market_display_mode")!="LIVE_ONLY"):
                         label="O HIST "+position["position"].replace("_"," ")+" • WAIT"
                     elif prefs.get("market_display_mode")!="LIVE_ONLY":
                         label="O WAIT"

@@ -112,3 +112,22 @@ class OptionOiFlowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WindowOiChangeTests(unittest.TestCase):
+    def test_hist_share_needs_no_live_quote_or_fresh_timestamp(self):
+        from v3_option_oi_flow import window_oi_change
+        share, why = window_oi_change(chain(pe_delta=900, ce_delta=100))
+        self.assertEqual((share, why), ((90, 10), "OK"))
+        # stale/closed-market chains still give a HIST share, never a LIVE component
+        comp, _ = build(chain(pe_delta=900), q=quote(quote_timestamp=NOW - 9999))
+        self.assertIsNone(comp)
+
+    def test_hist_share_fails_closed_on_missing_previous_oi_or_balance(self):
+        from v3_option_oi_flow import window_oi_change
+        broken = chain(pe_delta=900)
+        broken["atm_window"]["rows"][0]["ce"].pop("previous_oi")
+        self.assertIsNone(window_oi_change(broken)[0])
+        self.assertIsNone(window_oi_change(chain(pe_delta=500, ce_delta=500))[0])
+        self.assertIsNone(window_oi_change({})[0])
+        self.assertIsNone(window_oi_change(None)[0])

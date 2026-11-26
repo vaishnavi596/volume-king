@@ -3129,3 +3129,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - जाँच: native चार्ट पर EMA 9/21 पहले से Line और Candle दोनों शैलियों में खिंचता है; RSI/MACD मान-टिप्पणी हैं; Supertrend केवल स्थिति (जान-बूझकर कोई गढ़ी हुई रेखा नहीं)। Doctor का `chart_indicator_overlays_supported:false` पुराना/भ्रामक था।
 - `src/main.py`: लेबल `true` + `chart_overlay_detail` (प्रति संकेतक सटीक स्थिति)। चार्ट कोड अपरिवर्तित; VWAP/SMA overlay नहीं जोड़े क्योंकि चार्ट-फ़िल्टर सूची बदलने से सहेजी प्राथमिकताएँ और परीक्षण प्रभावित होते।
 - जाँच (स्पष्टता): Watchlist HIST की धीमी गति Dhan-सुरक्षा बजट है (180s में अधिकतम 12 अनजान अनुरोध, 10s न्यूनतम अंतराल); 429 के जोखिम पर बिना मापे ढीला नहीं किया।
+
+## J10 — O बॉक्स पर HIST बुलिश/बेयरिश हर हाल में (26 नवंबर)
+- मालिक की माँग: बुलिश/बेयरिश हर हाल में दिखे (ऐप का पूरा खेल इसी पर)। नीति: LIVE का सत्यापित कोरम/WAIT-नियम अपरिवर्तित; जो मान सत्यापित नहीं है वह `HIST ... NOT live` लिखकर और अलग रंग में दिखे।
+- `src/v3_option_oi_flow.py`: `window_oi_change(metrics)` (बिना ताज़गी/लाइव-quote जाँच, केवल HIST प्रदर्शन के लिए); `oi_change_component` उसी का उपयोग करता है (LIVE शर्तें वैसी ही)।
+- `src/main.py` `five_engine_chips`: O चिप अब `O HIST B<x>/S<y> • OI change • NOT live`; डेटा न हो तो पुराना लेबल।
+- परीक्षण: `WindowOiChangeTests`। N (समाचार) और F (फ़्यूचर्स, सर्वर पर instrument master 503) अभी भी WAIT; M खाली।

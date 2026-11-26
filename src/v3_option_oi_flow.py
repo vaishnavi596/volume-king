@@ -42,29 +42,14 @@ def underlying_quote_live(quote, *, symbol, now):
     return _number(stamp, allow_zero=False) and 0 <= now - stamp <= MAX_AGE_SECONDS
 
 
-def oi_change_component(metrics, *, quote, symbol, timeframe, generation,
-                        observed_at, now):
-    """Return ``(component, reason)``; component is None whenever evidence fails."""
-    if timeframe not in ("1m", "3m", "5m"):
-        return None, "Unsupported frame"
-    if type(generation) is not int:
-        return None, "Generation missing"
-    if not _number(now, allow_zero=False) or not _number(observed_at, allow_zero=False):
-        return None, "Observation time missing"
-    if not 0 <= now - observed_at <= MAX_AGE_SECONDS:
-        return None, "Option chain observation stale"
-    if (not isinstance(metrics, dict) or metrics.get("source") != "dhan"
-            or metrics.get("symbol") != symbol or metrics.get("historical") is True):
-        return None, "Option chain identity or provenance mismatch"
-    expiry = metrics.get("expiry")
-    try:
-        if type(expiry) is not str or date.fromisoformat(expiry).isoformat() != expiry:
-            raise ValueError("expiry")
-    except (TypeError, ValueError):
-        return None, "Option expiry invalid"
-    if not underlying_quote_live(quote, symbol=symbol, now=now):
-        return None, "Underlying Dhan last-trade timestamp not fresh"
-    window = metrics.get("atm_window")
+def window_oi_change(metrics):
+    """Direction share from previous-session OI change over the seven strikes.
+
+    No freshness or underlying-quote checks here: callers decide whether the
+    result is a LIVE component (``oi_change_component``) or a HIST display.
+    Returns ``((bullish, bearish), reason)`` or ``(None, reason)``.
+    """
+    window = metrics.get("atm_window") if isinstance(metrics, dict) else None
     rows = window.get("rows") if isinstance(window, dict) else None
     if (not isinstance(window, dict) or window.get("source") != "dhan"
             or not isinstance(rows, (list, tuple)) or len(rows) != 7):
@@ -96,6 +81,35 @@ def oi_change_component(metrics, *, quote, symbol, timeframe, generation,
     bearish = 100 - bullish
     if bullish == bearish:
         return None, "OI change balanced"
+    return (bullish, bearish), "OK"
+
+
+def oi_change_component(metrics, *, quote, symbol, timeframe, generation,
+                        observed_at, now):
+    """Return ``(component, reason)``; component is None whenever evidence fails."""
+    if timeframe not in ("1m", "3m", "5m"):
+        return None, "Unsupported frame"
+    if type(generation) is not int:
+        return None, "Generation missing"
+    if not _number(now, allow_zero=False) or not _number(observed_at, allow_zero=False):
+        return None, "Observation time missing"
+    if not 0 <= now - observed_at <= MAX_AGE_SECONDS:
+        return None, "Option chain observation stale"
+    if (not isinstance(metrics, dict) or metrics.get("source") != "dhan"
+            or metrics.get("symbol") != symbol or metrics.get("historical") is True):
+        return None, "Option chain identity or provenance mismatch"
+    expiry = metrics.get("expiry")
+    try:
+        if type(expiry) is not str or date.fromisoformat(expiry).isoformat() != expiry:
+            raise ValueError("expiry")
+    except (TypeError, ValueError):
+        return None, "Option expiry invalid"
+    if not underlying_quote_live(quote, symbol=symbol, now=now):
+        return None, "Underlying Dhan last-trade timestamp not fresh"
+    measured, why = window_oi_change(metrics)
+    if measured is None:
+        return None, why
+    bullish, bearish = measured
     return ({"source": "Dhan", "verified": True, "available": True,
              "direction_basis": BASIS,
              "bias": "BULLISH" if bullish > bearish else "BEARISH",
