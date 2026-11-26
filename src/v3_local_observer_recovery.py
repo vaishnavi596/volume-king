@@ -26,6 +26,7 @@ class LocalObserverRecovery:
         self._failures = 0
         self._next = 0.0
         self._pending = False
+        self._manual_queued = False
         self._sequence = 0
         self._phase = "UNOBSERVED"
         self._error_count = 0
@@ -47,6 +48,7 @@ class LocalObserverRecovery:
             self._failures = 0
             self._next = 0.0
             self._pending = False
+            self._manual_queued = False
             self._phase = "UNOBSERVED"
 
     def ready(self, generation, now):
@@ -62,6 +64,7 @@ class LocalObserverRecovery:
         self._failures += 1
         self._error_count += 1
         self._pending = True
+        self._manual_queued = False
         delay = (15, 30, 300)[min(self._failures - 1, 2)]
         self._next = now + delay
         frames = traceback.extract_tb(exc.__traceback__) if exc.__traceback__ else []
@@ -100,12 +103,15 @@ class LocalObserverRecovery:
         if self._phase != "SUCCESS":
             self._phase = "OBSERVED"
         self._pending = False
+        self._manual_queued = False
         self._failures = 0
         self._next = 0.0
 
     def advance(self, generation, now, phase):
         if generation == self._generation and self._pending and phase in ("REPAIRING", "RETESTING", "WAIT_DATA"):
             self._phase = phase
+            if phase == "REPAIRING":
+                self._manual_queued = False
 
     def request_retry(self, generation, now):
         # The existing observer is the sole owner. A manual request cannot
@@ -116,6 +122,9 @@ class LocalObserverRecovery:
             return "COOLDOWN"
         if self._phase in ("REPAIRING", "RETESTING"):
             return "ALREADY_RUNNING"
+        if self._manual_queued:
+            return "QUEUED_EXISTING_OBSERVER"
+        self._manual_queued = True
         self._event("MANUAL_RETRY_REQUESTED", now,
             action="existing observer will retry on its next eligible tick",
             verified=False)
@@ -130,6 +139,7 @@ class LocalObserverRecovery:
         return dict(status=phase, progress=progress, errors=self._error_count,
                     repaired=self._success_count, escalations=self._escalation_count,
                     pending=int(matching and self._pending),
+                    manual_retry_queued=bool(matching and self._manual_queued),
                     retry_after_seconds=round(max(0,self._next-now),1) if matching else 0,
                     persistence_error=self._disk_error, scope="Super Five only; session counts")
 
@@ -223,6 +233,7 @@ class LocalObserverRecovery:
     def report(self, now):
         return dict(mode="BOUNDED_LOCAL_AUDIT" if self._journal_path is not None else "BOUNDED_SESSION_MEMORY", feature=self.FEATURE,
             generation=self._generation, pending=self._pending,
+            manual_retry_queued=self._manual_queued,
             retry_after_seconds=round(max(0.0, self._next-now), 1),
             events=list(self._events), events_total=self._sequence,
             retained_events=len(self._events), provider_requests=0, orders_sent=0,

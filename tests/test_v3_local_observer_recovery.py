@@ -142,3 +142,25 @@ class R3RecoveryGenerationTests(unittest.TestCase):
         r.audit_written(1,"OSError")
         self.assertEqual(r.report(115)["persisted_sequence"],2)
         self.assertIsNone(r.report(115)["persistence_error"])
+
+
+class R3RemainingRecoveryTests(unittest.TestCase):
+    def test_duplicate_manual_retry_is_coalesced(self):
+        r=LocalObserverRecovery()
+        r.failed(1,100,ValueError(),"capture")
+        self.assertEqual(r.request_retry(1,115),"QUEUED_EXISTING_OBSERVER")
+        before=r.report(115)["events_total"]
+        self.assertEqual(r.request_retry(1,116),"QUEUED_EXISTING_OBSERVER")
+        self.assertEqual(r.report(116)["events_total"],before)
+        self.assertTrue(r.board(1,116)["manual_retry_queued"])
+        r.advance(1,116,"REPAIRING")
+        self.assertFalse(r.board(1,116)["manual_retry_queued"])
+        r.succeeded(1,117,2)
+        self.assertFalse(r.report(117)["pending"])
+
+    def test_pending_retest_not_suppressed_by_unchanged_revision(self):
+        from pathlib import Path
+        source=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
+        body=source.split("async def super_five_minute_refresh():",1)[1].split("def historical_five_minute_technical",1)[0]
+        self.assertIn('if fingerprint==last_fingerprint and not super_five_recovery.board(generation,time.monotonic())["pending"]:',body)
+        self.assertIn("if generation==provider_generation[0] and app_active[0] and current[0]==0:",body)

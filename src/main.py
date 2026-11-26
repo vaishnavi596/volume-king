@@ -1721,7 +1721,7 @@ def app_main(page:ft.Page):
                 selected_policy=policy()
                 available=capture()
                 fingerprint=(generation,expected_source,selected_policy,revision(available))
-                if fingerprint==last_fingerprint:
+                if fingerprint==last_fingerprint and not super_five_recovery.board(generation,time.monotonic())["pending"]:
                     continue
                 results={}
                 measurements={}
@@ -1765,7 +1765,7 @@ def app_main(page:ft.Page):
             except Exception as exc:
                 log_error("super_five_minute_refresh",exc)
                 last_fingerprint=None
-                if generation==provider_generation[0]:
+                if generation==provider_generation[0] and app_active[0] and current[0]==0:
                     super_five_recovery.failed(generation,time.monotonic(),exc,stage)
                     update_repair_board()
     def historical_five_minute_technical(symbol):
