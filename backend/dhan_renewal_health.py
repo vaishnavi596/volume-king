@@ -1,7 +1,12 @@
 """Read-only, secret-free renewal eligibility for the Clone gateway."""
 from datetime import datetime, timezone
-from backend.dhan_expiry_store import load_expiry_metadata
-from backend.dhan_renewal_policy import renewal_decision
+if __package__:
+    from .dhan_expiry_store import load_expiry_metadata
+    from .dhan_renewal_policy import renewal_decision
+else:
+    # Oracle deploys these modules directly in its isolated runtime directory.
+    from dhan_expiry_store import load_expiry_metadata
+    from dhan_renewal_policy import renewal_decision
 
 def renewal_health_report(metadata_path, *, now=None):
     report={"protocol":"clone-renewal-health-v1","state":"UNVERIFIED",

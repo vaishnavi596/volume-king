@@ -51,3 +51,17 @@ class RenewalHealthTests(unittest.TestCase):
         gateway._key="x"*32
         self.assertEqual(gateway.renewal_health(),{"state":"UNVERIFIED","reason":"RENEWAL_ROUTE_NOT_DEPLOYED"})
         self.assertTrue(gateway.connected)
+
+    def test_flat_oracle_runtime_import(self):
+        import shutil
+        import subprocess
+        import sys
+        root=Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("dhan_renewal_health.py","dhan_expiry_store.py","dhan_renewal_policy.py"):
+                shutil.copyfile(root/"backend"/name,Path(directory)/name)
+            subprocess.run([sys.executable,"-I","-c",
+                "import sys; sys.path.insert(0,sys.argv[1]); "
+                "from dhan_renewal_health import renewal_health_report; "
+                "assert renewal_health_report(None)['state']=='UNVERIFIED'",directory],
+                cwd=directory,check=True,timeout=15)
