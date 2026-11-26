@@ -8223,6 +8223,16 @@ console.log('BOT KING Lightweight Charts ready');
                     row["detail"]="No matching Dhan expiry snapshot for "+sym+" • WAIT"
                 row["vote"]=None
                 row["context_only"]=bool(data)
+                if data:
+                    # J4: positioning vote on the filter row only (not in the 13-filter T box).
+                    from v3_oi_filter_votes import oi_filter_vote
+                    spot=(quotes.get(sym) or {}).get("price")
+                    vote,why=oi_filter_vote(name,data,spot)
+                    if vote is not None:
+                        row["vote"]=vote
+                        row["context_only"]=False
+                        row["vote_basis"]="oi_window_position"
+                        row["detail"]=why+(" • HIST" if data.get("historical") else " • positioning heuristic, not in T box")
         return rows
     def shared_filter_report(sym,tf,result):
         result=selected_presentation(result,tf)
