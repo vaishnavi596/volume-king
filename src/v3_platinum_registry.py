@@ -58,6 +58,30 @@ R2_REMAINING = {
     "B4.04": ("Full six-box wiring and no-M-scoring checkpoint reconciliation", "Mounted six-box parity with M remaining standby"),
     "B4.05": ("Shared renderer scoped offline PASS retained; mounted integration not certified", "Dashboard, Super Five, Scanner and Watchlist HIST/LIVE parity"),
 }
+R1_R3_R4_REMAINING = {
+    "B1.01": ("Exchange timestamp transport evidence reconciliation", "Actual exchange timestamp"),
+    "B1.02": ("Trusted renewal health linkage and deployed version evidence", "Observed renewal"),
+    "B1.03": ("Authenticated transport evidence reconciliation", "Actual end-to-end data"),
+    "B1.04": ("Disconnect/session integration audit", "Actual HIST/LIVE recovery"),
+    "B1.05": ("Trusted renewal and freshness Doctor linkage", "Actual device evidence"),
+    "B2.01": ("Remaining synchronous calculation audit", "Measured phone latency"),
+    "B2.02": ("Independent engine scheduling audit", "Actual scheduling throughput"),
+    "B2.03": ("Cache/worker adaptive tuning", "Phone restart and load"),
+    "B2.04": ("Recovery fairness and cooldown audit", "Actual reconnect"),
+    "B2.05": ("Capacity optimization evidence reconciliation", "5–70 instrument throughput"),
+    "B2.06": ("Resource instrumentation audit", "CPU/RAM/thermal measurement"),
+    "B2.07": ("Bottleneck Doctor audit", "Phone performance"),
+    "B5.01": ("Native Android background service not implemented", "OS lifecycle observation"),
+    "B5.02": ("Foreground verified alert opt-in; native delivery not implemented", "Device notification delivery"),
+    "B5.03": ("Local observer recovery scoped; other recovery lanes open", "Actual failure and retest"),
+    "B5.04": ("Shared cache restore validation scoped", "Physical restart"),
+    "B5.05": ("Feature-to-probe integration reconciliation", "Mounted Doctor evidence"),
+    "B6.01": ("Final B1–B5 reconciliation", "Final signoff"),
+    "B6.02": ("Full security and regression audit", "Release gate evidence"),
+    "B6.03": ("Signed APK build pending", "Artifact verification"),
+    "B6.04": ("Phone test deliberately separate", "Physical phone test"),
+    "B6.05": ("Paper-only observation", "No real orders evidence"),
+}
 def registry_report():
     rows = []
     for feature_id, name in FEATURES:
@@ -67,7 +91,7 @@ def registry_report():
             checkpoints[checkpoint] = {"state": "VERIFIED" if evidence else "UNRECONCILED",
                                        "evidence": evidence}
         sub = SUBITEMS.get(feature_id)
-        remaining = R2_REMAINING.get(feature_id)
+        remaining = R2_REMAINING.get(feature_id) or R1_R3_R4_REMAINING.get(feature_id)
         rows.append({"id": feature_id, "feature": name,
                      "checkpoints": checkpoints,
                      "remaining_evidence": ({"implementation_integration_tests": remaining[0],

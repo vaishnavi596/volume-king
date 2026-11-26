@@ -277,6 +277,8 @@ def app_main(page:ft.Page):
     prefs["schema_version"]=2
     building_doctor=BuildingDoctor()  # Read-only live diagnostics; no new provider requests.
     stock_diagnostic_registry=DiagnosticRegistry()  # Keep recovery across Settings re-entry.
+    from v3_verified_alerts import VerifiedAlertGate
+    verified_alert_gate=VerifiedAlertGate()
     from v3_local_observer_recovery import LocalObserverRecovery
     super_five_recovery=LocalObserverRecovery(Path(STATE).parent / "platinum_repair_audit.json")
     if prefs.get("language") not in ("English","हिंदी"):prefs["language"]="English"
@@ -6705,6 +6707,7 @@ def app_main(page:ft.Page):
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
+                    "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
@@ -6812,6 +6815,7 @@ def app_main(page:ft.Page):
                 registry=registry_report()
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
+                data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["persistent_cache"]=market_store.diagnostics()
                 data["ranking_persistence"]=dict(ranking_persist_stats)
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
@@ -6827,6 +6831,9 @@ def app_main(page:ft.Page):
             if report.page is not None:report.update()
             if status.page is not None:status.update()
         return ft.Column([
+            ft.Switch(label="Verified foreground alerts (selected Scanner)",value=prefs.get("verified_foreground_alerts") is True,
+                on_change=lambda e:prefs.update(verified_foreground_alerts=bool(e.control.value))),
+            note("Session-only opt-in • no native background delivery or orders."),
             note("Active Doctor: lightweight unresolved checks. Full Master Audit remains available."),
             ft.OutlinedButton("SMART ACTIVE DOCTOR (read-only)",on_click=inspect_active),
             note("All segments in one JSON, or select one segment. Current cache only; does not refresh Dhan."),
@@ -10602,6 +10609,34 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(dhan_index_candle_poll)
     page.run_task(watch_visible_tick)
     page.run_task(watch_all_local_analysis)
+    async def verified_foreground_alert_poll():
+        while True:
+            await asyncio.sleep(15)
+            if prefs.get("verified_foreground_alerts") is not True:
+                continue
+            symbol=str(scan_symbol.value or "NIFTY")
+            frame=str(scan_tf.value or "1m")
+            generation=provider_generation[0]
+            try:
+                key=verified_alert_gate.candidate(
+                    read_five_engine_context(symbol,frame),
+                    symbol=symbol,timeframe=frame,generation=generation,now=time.time(),
+                    foreground=bool(app_active[0] and not lifecycle_background[0]),
+                    connected=bool(prefs.get("source")=="Dhan" and dhan_feed.connected),
+                    historical_mode=prefs.get("market_display_mode")=="HISTORICAL")
+                if key is None:
+                    continue
+                if generation!=provider_generation[0] or not app_active[0] or lifecycle_background[0]:
+                    continue
+                try:
+                    page.open(ft.SnackBar(content=ft.Text("Verified LIVE agreement • "+symbol+" "+frame+" • "+key[2]+" • not an order")))
+                except Exception:
+                    verified_alert_gate.acknowledge(key,delivered=False)
+                else:
+                    verified_alert_gate.acknowledge(key,delivered=True)
+            except Exception as exc:
+                log_error("verified_foreground_alert_poll",exc)
+    page.run_task(verified_foreground_alert_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     async def oracle_assessment_poll():
