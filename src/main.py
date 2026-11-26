@@ -9529,7 +9529,8 @@ console.log('BOT KING Lightweight Charts ready');
         ft.Container(content=body,expand=True,padding=ft.padding.symmetric(horizontal=8,vertical=4)),
         ft.Container(content=navbar,bgcolor="#102330",padding=ft.padding.symmetric(vertical=5))
     ],expand=True,spacing=0)
-    page.add(ft.SafeArea(content=app_shell,expand=True))
+    # Whole app text is selectable (long-press, drag, copy) for diagnostics and reports.
+    page.add(ft.SafeArea(content=ft.SelectionArea(content=app_shell),expand=True))
     building_doctor.milestone("app_shell_submitted")
     # Initialize the provider queue guard before starting scanner tasks.
     dhan_history_scan_active=[False]
