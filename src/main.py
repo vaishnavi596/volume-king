@@ -740,6 +740,14 @@ def app_main(page:ft.Page):
                         "freshness":"unverified" if quote else "historical_unverified",
                         "live_verified":False,
                         "time":datetime.now().strftime("%H:%M")}
+                from v3_live_candle_bridge import completed_live_history
+                qualified=completed_live_history(candle_result,bars,quote,
+                    symbol=ticker,timeframe=interval,now=time.time())
+                if qualified is not None:
+                    result.update(bars=qualified,historical=False,live_verified=True,
+                        freshness="exchange_verified",
+                        candle_raw_provider_provenance="DHAN_CURRENT_COMPLETED_CANDLE_WITH_RECENT_TRADE",
+                        timestamp_origin="DHAN_QUOTE_LAST_TRADE_TIME")
             if result is None:
                 raise FeedError("Dhan-only market result unavailable")
             result["cached"]=False
@@ -1319,7 +1327,7 @@ def app_main(page:ft.Page):
         age=datetime.now(timezone.utc).timestamp()-(display.get("timestamp") or 0)
         # Quote freshness is not established by a recent historical candle.
         provider_unverified = (data.get("source") == "Dhan" and
-                               (data.get("freshness") not in ("verified_live", "live_verified") or data.get("live_verified") is not True))
+                               (data.get("freshness") not in ("verified_live", "live_verified", "exchange_verified") or data.get("live_verified") is not True))
         display.update(symbol=sym,timeframe="5m",source=data.get("source","Unavailable"),
                        freshness=data.get("freshness","unverified"),
                        live_verified=data.get("live_verified") is True,

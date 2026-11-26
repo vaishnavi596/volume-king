@@ -125,7 +125,7 @@ def independent_engine_source_contract():
         "technical": {"adapter": "scanner_snapshot",
                       "readiness": "SOURCE_FRESHNESS_REQUIRED"},
         "candle": {"adapter": "historical_candle_balance",
-                   "readiness": "HISTORICAL_ONLY_INDEPENDENT_LIVE_NOT_WIRED"},
+                   "readiness": "CURRENT_COMPLETED_CANDLE_BRIDGE_REQUIRES_DEPLOYED_SOURCE_PROOF"},
         "news": {"adapter": "news_from_headline_cues",
                  "readiness": "RSS_CONTEXT_ONLY_VERIFIED_IMPACT_NOT_WIRED"},
         "futures": {"adapter": "futures_from_component",

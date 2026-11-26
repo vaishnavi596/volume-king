@@ -3001,3 +3001,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B216 current-source phone-test candidate
 - Exact 5d7b71e B1/B2/Adapter/Full runs 45760255171/45760255152/45760255090/45760255117 SUCCESS. Owner explicitly prioritized building a phone APK during live market. B216 isolated package and disposable preview-only signer, versionName 2.3.216/versionCode 216; independent exact-head B3 required before build/sign/upload. Existing B215 package and token untouched; no server deployment or orders. This is a TEST candidate, not final release or closure of native background/real O/F/N/actual renewal evidence. Local execution NOT RUN; exact CI/build pending. No production key substitution.
+
+
+### 26 Nov 2026 — B217 LIVE candle source bridge (no APK)
+- B216 exact source regression 45761038545 and signed isolated APK 45761038604 SUCCESS. Current batch adds explicit Dhan intraday provenance, preserves authenticated quote timestamp origin, qualifies exact current-session completed 1m/3m/5m candles only with matching normalized digest and recent exchange trade timestamp; excludes stale, cached, incomplete, non-contiguous, closed-session and wrong-symbol inputs. No extra provider requests or token changes. Existing Doctor sees history provenance and eligibility; regression fixture added. Oracle deployment and actual market evidence pending; O/F/N trade-side feeds and native background remain unresolved. No APK triggered intentionally. Local tests not executed.

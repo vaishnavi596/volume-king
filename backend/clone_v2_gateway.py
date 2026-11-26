@@ -640,6 +640,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             payload = {
                 "source": "dhan", "symbol": body.symbol,
                 "interval": str(body.interval) + "m", "bars": bars,
+                "candle_origin": "DHAN_INTRADAY_TIMESTAMP",
                 "last_candle_timestamp": bars[-1][0] if bars else None,
                 # Hash of normalized broker OHLCV after shape validation.
                 # It verifies transport equality only, never exchange freshness.

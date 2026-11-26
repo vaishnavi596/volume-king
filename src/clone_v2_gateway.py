@@ -308,7 +308,8 @@ def observed_quote_fields(prices, symbol):
             and 946684800 <= stamp <= time.time()):
         stamp = None
     return {"quote_timestamp": stamp, "freshness": "unverified",
-            "live_verified": False}
+            "live_verified": False,
+            "timestamp_origin": "DHAN_QUOTE_LAST_TRADE_TIME" if stamp is not None else None}
 
 
 class CloneDhanReadOnly:
