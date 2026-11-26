@@ -7,7 +7,7 @@ from datetime import datetime,timedelta,timezone
 from math import isfinite
 IST=timezone(timedelta(hours=5,minutes=30))
 
-def historical_regular_session_bars(rows, timeframe):
+def _strip_after_close_suffix(rows, timeframe):
     """Remove a validated final after-close cash-session suffix without mutating input.
 
     The normalized gateway may append a post-close reference bar after 18:00.
@@ -39,3 +39,36 @@ def historical_regular_session_bars(rows, timeframe):
     if rows[i][0]<=rows[i-1][0]:
         return rows
     return list(rows[:i])
+
+
+def _stale(r, prev):
+    """Flat bar repeating the previous bar's volume: a frozen feed, not a trade print."""
+    return (r[1]==r[2]==r[3]==r[4] and r[5]>0 and r[5]==prev[5])
+
+def drop_stale_flat_tail(rows, timeframe):
+    """Cut a frozen-feed run (>=2 flat, same-volume bars) near the end of the session.
+
+    Measured on 1y NIFTY 5m: on ~1/3 of days the last 15:15/15:20 bars are frozen and the
+    final bar jumps to the close; on 26 Nov the 1m tail had 6 frozen bars. Analysing them
+    gives RSI 0 / doji-dominated votes. The series is cut BEFORE the frozen run (and the
+    closing print after it), so spacing stays contiguous. Never cuts below 30 bars."""
+    if timeframe not in ("1m","3m","5m") or not isinstance(rows,(list,tuple)) or len(rows)<32:
+        return rows
+    try:
+        n=len(rows)
+        flags=[k>=1 and _stale(rows[k],rows[k-1]) for k in range(n)]
+        end=next((k for k in range(n-1,n-4,-1) if flags[k]),None)   # run may end 0-2 bars before the last
+        if end is None:
+            return rows
+        start=end
+        while start-1>=1 and flags[start-1]:
+            start-=1
+        if end-start+1>=2 and start>=30:
+            return list(rows[:start])
+    except (TypeError,IndexError):
+        return rows
+    return rows
+
+def historical_regular_session_bars(rows, timeframe):
+    """After-close suffix removal, then frozen-feed tail removal (HIST analysis only)."""
+    return drop_stale_flat_tail(_strip_after_close_suffix(rows,timeframe),timeframe)
