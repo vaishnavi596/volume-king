@@ -1056,9 +1056,19 @@ def app_main(page:ft.Page):
         # trusted measured-flow source is deployed. No requests from UI.
         if tf not in ("1m","3m","5m") or not regular_hours() or not dhan_feed.connected:
             return False
+        now=time.time()
+        # Owner-approved measured OI-change positioning (v3_option_oi_flow):
+        # exact symbol/expiry/generation chain + fresh Dhan last-trade quote only.
+        from v3_option_oi_flow import oi_change_component
+        chain=matching_option_context_for_symbol(sym)
+        options=None
+        if isinstance(chain,dict) and type(chain.get("observed_at")) in (int,float):
+            options,_reason=oi_change_component(
+                chain,quote=quotes.get(sym) or {},symbol=sym,timeframe=tf,
+                generation=provider_generation[0],observed_at=chain["observed_at"],now=now)
         return contextual_five_engine.publish_directional_components(
-            symbol=sym,timeframe=tf,generation=provider_generation[0],now=time.time(),
-            options=matching_option_context_for_symbol(sym),
+            symbol=sym,timeframe=tf,generation=provider_generation[0],now=now,
+            options=options,
             futures=matching_futures_context_for_symbol(sym))
 
     def live_voting_gate_report(sym,tf):
@@ -4302,6 +4312,7 @@ def app_main(page:ft.Page):
             option_stage="option-chain metrics"
             data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
+            data["observed_at"]=time.time()  # phone receipt time of this authenticated Dhan chain
             dhan_option_metrics.clear()
             dhan_option_metrics.update(data)
             option_retry_until.pop(option_key,None)
@@ -4318,6 +4329,8 @@ def app_main(page:ft.Page):
                 if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
             while len(dhan_option_context_cache)>16:
                 del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
+            for _tf in ("1m","3m","5m"):  # re-evaluate O for already published frames
+                refresh_directional_vote_components(sym,_tf)
             option_feed.clear()  # Do not show legacy Angel One contract rows.
             option_snapshots.pop(sym,None)  # Unverified metrics must not drive signals.
             option_feed_status[0]="Dhan • expiry "+chosen+" • freshness unverified • signals and live orders OFF"

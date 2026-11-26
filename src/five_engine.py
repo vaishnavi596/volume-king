@@ -483,6 +483,11 @@ def measured_directional_evidence(name, component, *, required_basis):
                           source="Dhan", reason="Measured authenticated Dhan directional strength")
 
 
+# validated_trade_flow is exchange trade-side evidence; measured_oi_change is the
+# owner-approved Dhan chain OI-change positioning measure (see v3_option_oi_flow).
+OPTION_DIRECTION_BASES = ("validated_trade_flow", "measured_oi_change")
+
+
 def option_from_component(component):
     """Adapt authenticated directional option flow; OI/volume alone never votes.
 
@@ -494,7 +499,7 @@ def option_from_component(component):
         return EngineEvidence("options", reason="Verified Dhan option flow unavailable")
     if (component.get("available") is not True or
             component.get("source") != "Dhan" or
-            component.get("direction_basis") != "validated_trade_flow" or
+            component.get("direction_basis") not in OPTION_DIRECTION_BASES or
             component.get("verified") is not True or
             component.get("bias") not in ("BULLISH", "BEARISH")):
         return EngineEvidence("options", reason="Validated Dhan option trade flow unavailable")
@@ -517,7 +522,7 @@ def option_from_component(component):
     # A supplied BULLISH/BEARISH label may not contradict the independently
     # measured trade-side strengths; otherwise it could mislead the 3/5 vote.
     measured = measured_directional_evidence(
-        "options", component, required_basis="validated_trade_flow")
+        "options", component, required_basis=component["direction_basis"])
     if measured.eligible and (
             (component["bias"]=="BULLISH" and measured.bullish<=measured.bearish)
             or (component["bias"]=="BEARISH" and measured.bearish<=measured.bullish)):
