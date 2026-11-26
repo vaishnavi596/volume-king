@@ -769,8 +769,8 @@ class ContextualFiveEngineCache:
         current=self._snapshots.get(key)
         if current is None or type(now) not in (int,float) or not isfinite(now):
             return False
-        base=snapshot_for_display(current,now=now)
-        rows=list(base["engines"])
+        rows=list(current["engines"])
+        accepted=False
         for name, component, adapter in (("options",options,option_from_component),
                                          ("futures",futures,futures_from_component)):
             if not isinstance(component,dict):
@@ -794,8 +794,13 @@ class ContextualFiveEngineCache:
             except (TypeError,ValueError,OverflowError,OSError):
                 continue
             evidence=adapter(component)
-            if evidence.eligible:
-                rows[ENGINE_NAMES.index(name)]=evidence
+            index=ENGINE_NAMES.index(name)
+            prior=rows[index]
+            if evidence.eligible and (not prior.eligible or evidence.timestamp>=prior.timestamp):
+                rows[index]=evidence
+                accepted=True
+        if not accepted:
+            return False
         updated=tuple(rows)
         if updated==tuple(current["engines"]):
             return False

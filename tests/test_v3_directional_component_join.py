@@ -14,10 +14,12 @@ class DirectionalComponentJoinTests(unittest.TestCase):
             timestamp=now-2,mapping_verified=True,verified=True,available=True,
             live_verified=True,historical=False,direction_basis="validated_trade_flow",
             bias="BULLISH",bullish=80,bearish=20)
+        original=cache.peek(**key)
         for bad in (dict(option,generation=0),dict(option,symbol="SENSEX"),
                     dict(option,direction_basis="pcr"),dict(option,timestamp=now-100),
                     dict(option,expiry="2020-01-01")):
             self.assertFalse(cache.publish_directional_components(**key,now=now,options=bad))
+            self.assertIs(cache.peek(**key),original)
         self.assertTrue(cache.publish_directional_components(**key,now=now,options=option))
         self.assertEqual(cache.peek(**key)["combined"]["state"],"BULLISH")
         self.assertEqual(cache.peek(**key)["combined"]["coverage"],3)

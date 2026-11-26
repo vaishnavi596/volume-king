@@ -3017,3 +3017,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 independent directional component composition
 - Previous dede09c Full Regression 45764683915 SUCCESS. Added context-bound O/F composition at selected 1m/3m and shared 5m publishers, exact generation/symbol/frame/expiry, 90-second freshness and explicit mapping/source eligibility, no additional provider calls. Mock regression proves a genuine third component can reach quorum, malformed/stale/context-only inputs cannot. Existing Doctor quorum reasons and registry updated. Current Dhan chain/LTP producers still do not supply measured trade-side flow; no production activation, news/native background/deployment remain open. No APK or token change. Local execution NOT RUN; CI pending.
+
+
+### 26 Nov 2026 — B217 directional publisher no-op repair
+- Exact 84eb134 B1/B2/Adapter PASS; Full 45765523488 failed 1 of 2031. Root cause: display freshness normalization changed unavailable reason strings even when all incoming components were rejected, causing false publication. Rejected inputs now leave the stored object unchanged; older component cannot overwrite newer accepted evidence. Display-time freshness checks unchanged. Regression strengthened to assert object identity. No token, APK, server changes. Local tests NOT RUN; new CI pending. B216 login bug remains queued for next agreed batch.
