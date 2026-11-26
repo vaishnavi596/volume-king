@@ -2974,15 +2974,19 @@ def app_main(page:ft.Page):
                                    (" • refresh failed" if watch_batch_status[0].startswith("Dhan batch failed:") else ""),
                                    size=11,color=MUTED)
             watch_row_cells[sym]=(price_cell,change_cell,five_cell,assessment_cell,signal_cell,freshness_cell)
+            # Owner 26 Nov: header line (symbol, price, remove) then full-width evidence,
+            # instead of a narrow text column beside a wide price column.
             watch_list.controls.append(ft.Row([
-                ft.Container(content=ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=20),
-                    ft.Column([txt(sym,16,WHITE,True),five_cell,assessment_cell,signal_cell,freshness_cell],
-                              expand=True,spacing=2),
-                    ft.Column([price_cell,change_cell,
+                ft.Container(content=ft.Column([
+                    ft.Row([ft.Icon(ft.Icons.CANDLESTICK_CHART,color=GOLD,size=18),
+                        ft.Column([txt(sym,16,WHITE,True)],expand=True),
+                        ft.Column([price_cell,change_cell],spacing=0,
+                                  horizontal_alignment=ft.CrossAxisAlignment.END),
                         ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=RED,
                                       tooltip="Remove from this list",
                                       on_click=lambda e,v=sym:remove_stock(v))],
-                        horizontal_alignment=ft.CrossAxisAlignment.END)],spacing=8),
+                        spacing=4,vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    five_cell,assessment_cell,signal_cell,freshness_cell],spacing=2),
                     bgcolor=PANEL,border_radius=8,padding=5,expand=True,
                     on_click=lambda e,v=sym:open_stock(v))
             ],spacing=2))
@@ -10678,11 +10682,18 @@ console.log('BOT KING Lightweight Charts ready');
         while True:
             try:
                 generation=provider_generation[0]
+                # SSK closed session (owner 26 Nov): no quote proof exists, but the
+                # authenticated gateway may read HIST index candles (same rule as
+                # get_market_data closed_hist_gateway). Never LIVE.
+                closed_index_gateway=(clone_v2_gateway.connected and not dhan_feed.connected
+                                      and not regular_hours() and not refresh_hours())
                 if (app_active[0] and not lifecycle_background[0]
-                        and prefs.get("source")=="Dhan" and dhan_feed.connected
+                        and prefs.get("source")=="Dhan"
+                        and (dhan_feed.connected or closed_index_gateway)
                         and (refresh_hours() or
                              (index_closed_history_complete_generation[0]!=generation
-                              and watch_login_bootstrap_generation[0]==generation
+                              and (watch_login_bootstrap_generation[0]==generation
+                                   or closed_index_gateway)
                               and not watch_three_minute_warm_busy[0]))
                         and not dhan_history_scan_active[0]
                         and not watch_three_minute_warm_busy[0]
