@@ -1,6 +1,11 @@
 import random
 import unittest
 
+try:
+    import numpy  # noqa: F401
+except ImportError:  # CI image has no numpy; Market Brain is a standalone server component
+    raise unittest.SkipTest("numpy not installed")
+
 from market_brain import volatility as vol
 
 IST = 19800

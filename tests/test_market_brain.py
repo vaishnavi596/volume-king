@@ -2,6 +2,11 @@ import math
 import random
 import unittest
 
+try:
+    import numpy  # noqa: F401
+except ImportError:  # CI image has no numpy; Market Brain is a standalone server component
+    raise unittest.SkipTest("numpy not installed")
+
 from market_brain.backtest import scorecard, walk_forward
 from market_brain.features import IST, build_samples, day_key
 from market_brain.memory import BrainMemory
