@@ -28,3 +28,14 @@ class RenewalHealthTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[1]
         self.assertIn('@app.get("/clone-v2/renewal-health")',(root/"backend/clone_v2_gateway.py").read_text())
         self.assertIn('data["renewal_health"]=renewal_doctor_snapshot()',(root/"src/main.py").read_text())
+
+    def test_malformed_metadata_never_breaks_health(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/"metadata.json"
+            p.write_text("["*1500+"]"*1500)
+            os.chmod(p,0o600)
+            report=renewal_health_report(p)
+            self.assertEqual(report["state"],"UNVERIFIED")
+            self.assertFalse(report["renewal_observed"])
+            self.assertFalse(report["timer_verified"])
+            self.assertEqual(report["provider_requests"],0)

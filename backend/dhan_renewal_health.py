@@ -13,6 +13,6 @@ def renewal_health_report(metadata_path, *, now=None):
         metadata=load_expiry_metadata(metadata_path)
         expiry=datetime.fromisoformat(metadata["expires_at"])
         decision=renewal_decision(metadata["source"],expiry,now=now)
-    except (OSError,ValueError,TypeError,OverflowError):
+    except (OSError,ValueError,TypeError,OverflowError,RecursionError):
         return report
     return dict(report,state=decision["state"].upper(),metadata_verified=True)

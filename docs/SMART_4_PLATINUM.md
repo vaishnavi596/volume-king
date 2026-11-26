@@ -77,3 +77,6 @@ Audit fourfold broader related surfaces before each joint commit. Aim for 4–12
 
 ## SMART-7 ULTRA — 100X MEGA BATCH (owner approved 26 Nov 2026)
 No artificial repair-count target. Review B1–B6 jointly, prioritize implementation and dependencies over cosmetic fixes, combine independent validated changes in one exact-head gate. Preserve P01–P16, no fake source evidence, no concurrent CI, no unauthorized deployment/orders. 100X is scope ambition, not speed or verified completion. Explicitly record implementation gaps separately from external acceptance.
+
+## SMART-7 P0 — Token renewal first (26 Nov 2026)
+Owner priority: actual authorized automatic renewal precedes dependent LIVE acceptance. Verify provider-supported provenance, current expiry, deployed timer/service and restart persistence, bounded retry and pre-expiry warning, secure activation, actual authenticated Dhan response and post-renewal expiry advancement. Metadata-only health is not renewal proof. If provider requires consent, escalate rather than bypass. Preserve original 32 IDs/128 checkpoints; all reverse-audit gaps remain open until evidenced: gateway, refresh/scanner, O/F/N source, six-box/17 filters, HIST replay, native background/alerts, restart/recovery, Doctor/repair, security, signed APK and physical acceptance. No concurrent CI or unauthorized deployment.
