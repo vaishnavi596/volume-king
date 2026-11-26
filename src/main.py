@@ -1046,6 +1046,11 @@ def app_main(page:ft.Page):
             # Read is always freshness-gated; connected still required.
             market_open=True)
 
+    def live_voting_gate_report(sym,tf):
+        from five_engine import live_gate_diagnostic
+        snapshot=read_five_engine_context(sym,tf)
+        return live_gate_diagnostic(snapshot,symbol=sym,timeframe=tf)
+ 
     def signal_percentages(row):
         # Shared UI T percentages must use only canonical candle indicators.
         # Saved/legacy OI or News integers are context, not technical votes.
@@ -1103,7 +1108,7 @@ def app_main(page:ft.Page):
         # Keep historical direction visible; the explicit HISTORICAL caption prevents a live claim.
         # Show directional vote proportions even for historical candles.
         # HISTORICAL / NOT live signal labels remain mandatory.
-        fresh=not historical and row.get("live_verified") is True and row.get("freshness") in ("verified_live","live_verified")
+        fresh=not historical and row.get("live_verified") is True and row.get("freshness") in ("verified_live","live_verified","exchange_verified")
         return vote_display(counts,fresh)
 
     def mark_ranking_historical():
@@ -2266,7 +2271,7 @@ def app_main(page:ft.Page):
             stamp=row.get("timestamp");age=now-stamp if isinstance(stamp,(int,float)) else None
             expected_source={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
             historical=(disconnected_dhan or row.get("historical") or row.get("cached") or row.get("source")!=expected_source or
-                        (prefs.get("source")=="Dhan" and (row.get("freshness") not in ("verified_live","live_verified") or row.get("live_verified") is not True)) or
+                        (prefs.get("source")=="Dhan" and (row.get("freshness") not in ("verified_live","live_verified","exchange_verified") or row.get("live_verified") is not True)) or
                         age is None or not 0<=age<=timeframe_spec("5m")["fresh_seconds"] or not regular_hours())
             status="HISTORICAL / last available" if historical else "Recent analysis"
             when=datetime.fromtimestamp(stamp,timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M IST") if stamp else "Time unavailable"
@@ -2780,7 +2785,7 @@ def app_main(page:ft.Page):
                           # merely because their timestamps are recent.
                           and (prefs.get("source")!="Dhan" or
                                (signal_row.get("live_verified") is True and
-                                signal_row.get("freshness") in ("verified_live","live_verified")))
+                                signal_row.get("freshness") in ("verified_live","live_verified","exchange_verified")))
                           and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
                           and math.isfinite(signal_stamp) and signal_stamp>0
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("3m")["fresh_seconds"])
@@ -3601,7 +3606,7 @@ def app_main(page:ft.Page):
                     fresh=(available and not row.get("historical") and regular_hours()
                         and (prefs.get("source")!="Dhan" or (
                             row.get("live_verified") is True and
-                            row.get("freshness") in ("verified_live","live_verified")))
+                            row.get("freshness") in ("verified_live","live_verified","exchange_verified")))
                         and 0<=time.time()-stamp<=timeframe_spec("3m")["fresh_seconds"])
                     # A new LTP by itself is NOT a new candle/filter/assessment.
                     # Keep evidence children mounted until their actual inputs change.
@@ -6718,6 +6723,7 @@ def app_main(page:ft.Page):
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
+                    "live_voting_gate":live_voting_gate_report(str(scan_symbol.value or "NIFTY"),str(scan_tf.value or "1m")),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
                     "code_diagnostic_limit":"Static source-path hints + captured runtime state only; no stack trace, native service or source-live proof",
@@ -6827,6 +6833,7 @@ def app_main(page:ft.Page):
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
+                data["live_voting_gate"]=live_voting_gate_report(ml5_symbol,ml5_tf)
                 data["persistent_cache"]=market_store.diagnostics()
                 data["ranking_persistence"]=dict(ranking_persist_stats)
                 data["local_analysis_workers"]=local_analysis_pool.diagnostics()
@@ -10154,8 +10161,8 @@ console.log('BOT KING Lightweight Charts ready');
                                    (data or {}).get("source")=="Dhan")
                         verified=(source_ok and analyzed.get("live_verified") is True and
                                   (data or {}).get("live_verified") is True and
-                                  analyzed.get("freshness") in ("verified_live","live_verified") and
-                                  (data or {}).get("freshness") in ("verified_live","live_verified") and
+                                  analyzed.get("freshness") in ("verified_live","live_verified","exchange_verified") and
+                                  (data or {}).get("freshness") in ("verified_live","live_verified","exchange_verified") and
                                   analyzed.get("historical") is False and
                                   (data or {}).get("historical") is False)
                         from five_engine import scanner_snapshot_with_candle

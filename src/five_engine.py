@@ -265,7 +265,7 @@ def scanner_snapshot(scan_result):
     if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
         return compose_snapshot()
     verified = (scan_result.get("live_verified") is True and
-                scan_result.get("freshness") in ("verified_live", "live_verified") and
+                scan_result.get("freshness") in ("verified_live", "live_verified", "exchange_verified") and
                 scan_result.get("historical") is False and source == "Dhan")
     technical = technical_from_votes(labels, verified=verified,
                                       timestamp=timestamp, source=source)
@@ -368,7 +368,7 @@ def verified_candle_evidence(history, timeframe, *, now, symbol):
             or history.get("live_verified") is not True
             or history.get("historical") is not False
             or history.get("cached")
-            or history.get("freshness") not in ("verified_live", "live_verified")
+            or history.get("freshness") not in ("verified_live", "live_verified", "exchange_verified")
             or type(now) not in (int, float) or not isfinite(now)):
         return wait
     bars = history.get("bars")
@@ -775,3 +775,15 @@ class ContextualFiveEngineCache:
 
     def __len__(self):
         return len(self._snapshots)
+
+
+def live_gate_diagnostic(snapshot, *, symbol, timeframe):
+    """Read-only explicit quorum/engine gate; no provider requests."""
+    combined=snapshot["combined"]
+    rows=[{"engine":e.name,"eligible":e.eligible,"reason":e.reason}
+          for e in snapshot["engines"]]
+    return {"code":"BK-LIVE-VOTE-001","symbol":symbol,"timeframe":timeframe,
+            "state":combined["state"],"coverage":combined["coverage"],
+            "required":combined["required"],"reason":combined["reason"],
+            "missing_engines":[r for r in rows if not r["eligible"]],
+            "provider_requests":0,"orders_sent":0}

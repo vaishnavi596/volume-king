@@ -3005,3 +3005,7 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 ### 26 Nov 2026 — B217 LIVE candle source bridge (no APK)
 - B216 exact source regression 45761038545 and signed isolated APK 45761038604 SUCCESS. Current batch adds explicit Dhan intraday provenance, preserves authenticated quote timestamp origin, qualifies exact current-session completed 1m/3m/5m candles only with matching normalized digest and recent exchange trade timestamp; excludes stale, cached, incomplete, non-contiguous, closed-session and wrong-symbol inputs. No extra provider requests or token changes. Existing Doctor sees history provenance and eligibility; regression fixture added. Oracle deployment and actual market evidence pending; O/F/N trade-side feeds and native background remain unresolved. No APK triggered intentionally. Local tests not executed.
+
+
+### 26 Nov 2026 — B217 exact freshness vocabulary and live quorum Doctor
+- Previous e53964b exact B1/B2/Adapter/Full 45763063916/45763063907/45763063886/45763063933 SUCCESS. Fixed inconsistent acceptance of exchange_verified in 5m shared/ranking and independent candle adapters; explicit BK-LIVE-VOTE-001 quorum report in both Doctors, tests included. No additional provider requests, server deployment, token modification or APK. Actual O/F/N independently validated flow not available; native background and real exchange evidence pending. No final closure claimed. Local execution NOT RUN.
