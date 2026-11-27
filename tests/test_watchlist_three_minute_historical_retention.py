@@ -86,7 +86,7 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
     def store_prior(scope, *, source="Dhan", votes=None):
         config=(scope["provider_generation"][0],tuple(scope["filter_selected"]),
                 tuple(sorted(scope["filter_modes"].items())),scope["prefs"]["confidence"])
-        old={"source":source,"symbol":"RELIANCE","timeframe":"3m",
+        old={"source":source,"symbol":"RELIANCE","timeframe":"1m",
              "timestamp":15000.0,"historical":True,"live_verified":False,
              "freshness":"historical_unverified","score":75,"bias":"BULLISH",
              "votes":votes if votes is not None else
@@ -107,7 +107,7 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         row=scope["watch_three_minute_signal"]("RELIANCE")
         self.assertEqual(row["votes"],old["votes"])
         self.assertEqual(row["timestamp"],old["timestamp"])
-        self.assertEqual(row["timeframe"],"3m")
+        self.assertEqual(row["timeframe"],"1m")
         self.assertTrue(row["_last_votes_retained"])
         self.assertTrue(row["historical"])
         self.assertFalse(row["live_verified"])
@@ -185,10 +185,10 @@ class WatchThreeMinuteHistoricalRetentionTests(unittest.TestCase):
         self.assertEqual(calls.count("analyze"),1)
         self.assertNotIn("error",calls)
         self.assertEqual(len(scope["historical_indicator_cache"]),1)
-        self.assertEqual(scope["prewarm_calls"],[("RELIANCE",scope["shared_history"]("RELIANCE","3m"),"3m",1)])
+        self.assertEqual(scope["prewarm_calls"],[("RELIANCE",scope["shared_history"]("RELIANCE","1m"),"1m",1)])
         self.assertEqual(len(scope["published_historical"]),1)
         symbol,tf,snapshot=scope["published_historical"][0]
-        self.assertEqual((symbol,tf),("RELIANCE","3m"))
+        self.assertEqual((symbol,tf),("RELIANCE","1m"))
         self.assertEqual(snapshot["votes"],new_votes)
         self.assertTrue(snapshot["historical"])
         self.assertFalse(snapshot["live_verified"])

@@ -21,15 +21,15 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
 
     def test_true_three_minute_source_not_five_minute_rankings(self):
         fn = self.functions["watch_three_minute_signal"]
-        self.assertIn('data=shared_history(sym,"3m")', fn)
-        self.assertIn('bar[0]+180<=now', fn)
+        self.assertIn('data=shared_history(sym,"1m")', fn)
+        self.assertIn('bar[0]+60<=now', fn)
         self.assertNotIn("quality_check(", fn)
         self.assertNotIn("analyze(", fn)
         worker=self.functions["compute_watch_three_minute_worker"]
-        self.assertIn('quality_check(completed,180',worker)
+        self.assertIn('quality_check(completed,60',worker)
         self.assertIn('bars=quality["bars"]',worker)
-        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")',worker)
-        self.assertLess(worker.index('if not quality.get("usable"):'),worker.index('analyze(bars,selected,"3m")'))
+        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"1m")',worker)
+        self.assertLess(worker.index('if not quality.get("usable"):'),worker.index('analyze(bars,selected,"1m")'))
         self.assertNotIn("get_market_data(", fn)
         self.assertNotIn("dhan_feed.intraday", fn)
         self.assertNotIn("watch_signal_cache", fn)
@@ -43,8 +43,8 @@ class WatchThreeMinuteContractTests(unittest.TestCase):
 
     def test_watch_row_never_displays_legacy_5m_vote(self):
         compact = self.functions["compact_watch_signal"]
-        self.assertIn('row.get("timeframe")=="3m"', compact)
-        self.assertIn('vote_display(counts,False,timeframe="3m")', compact)
+        self.assertIn('row.get("timeframe")=="1m"', compact)
+        self.assertIn('vote_display(counts,False,timeframe="1m")', compact)
         self.assertNotIn('vote_display(counts,fresh)', compact)
         watch = self.functions["fill_watch"]
         self.assertIn('signal_row=watch_three_minute_signal(sym)', watch)

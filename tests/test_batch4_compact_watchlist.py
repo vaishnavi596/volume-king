@@ -7,9 +7,9 @@ SOURCE=(Path(__file__).resolve().parents[1]/"src"/"main.py").read_text(encoding=
 class CompactWatchlistTest(unittest.TestCase):
     def test_compact_vote_bar_and_provenance(self):
         body=SOURCE.split("    def compact_watch_signal(",1)[1].split("    def fill_watch(",1)[0]
-        self.assertIn('return vote_display(counts,False,timeframe="3m")',body)
+        self.assertIn('return vote_display(counts,False,timeframe="1m")',body)
         self.assertIn('if not counts:',body)
-        self.assertIn('row.get("timeframe")=="3m"',body)
+        self.assertIn('row.get("timeframe")=="1m"',body)
         self.assertIn('signal_percentages(row)',body)
 
     def test_row_preserves_price_source_and_detail_navigation(self):

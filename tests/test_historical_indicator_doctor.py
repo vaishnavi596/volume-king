@@ -57,7 +57,7 @@ class HistoricalIndicatorDoctorTests(unittest.TestCase):
         self.assertIn("generation!=provider_generation[0]",body)
         self.assertIn("len(historical_equity_worker_inflight)>=local_analysis_pool.workers",body)
         self.assertNotIn("get_market_data(",body)
-        self.assertIn('await prewarm_equity_historical_indicator(sym,shared_history(sym,"3m"),"3m",identity[0])',s)
+        self.assertIn('await prewarm_equity_historical_indicator(sym,shared_history(sym,"1m"),"1m",identity[0])',s)
         self.assertIn('await prewarm_equity_historical_indicator(sym,snapshot,"5m",generation)',s)
 
     def test_equity_worker_error_code(self):

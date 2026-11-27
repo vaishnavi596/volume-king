@@ -56,7 +56,7 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
 
     def test_pacing_budget_not_bypassed(self):
         src=function("warm_selected_watch_three_minute_early")
-        self.assertIn('len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 30)',src)
+        self.assertIn('len(watch_three_minute_upstream_times)>=(54 if explicit_closed else 30)',src)
         self.assertIn('now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 5)',src)
         self.assertIn('get_market_data,sym,"1m","2d"',src)
         self.assertIn('return False  # At most one selected equity per 5m scan cycle.',src)

@@ -23,7 +23,7 @@ class B205PhoneSSKWatchlist(unittest.TestCase):
         for q in ('explicit_closed and clone_v2_gateway.connected and not refresh_hours()',
                   'explicit_closed and refresh_hours()',
                   'not clone_v2_gateway.connected',
-                  'len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 30)',
+                  'len(watch_three_minute_upstream_times)>=(54 if explicit_closed else 30)',
                   'now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 5)',
                   'get_market_data,sym,"1m","2d"'):
             self.assertIn(q,s)

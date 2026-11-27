@@ -792,7 +792,7 @@ class FiveEngineHistoricalTimeframePublishContract(unittest.TestCase):
         self.assertIn('live_verified=False,freshness="historical_unverified"',helper)
         self.assertIn('generation=provider_generation[0]',helper)
         self.assertIn('snapshot=scanner_snapshot(historical_only)',helper)
-        self.assertIn('publish_five_engine_historical(sym,"3m",result)',app)
+        self.assertIn('publish_five_engine_historical(sym,"1m",result)',app)
         self.assertIn('publish_five_engine_historical(sym,interval,historical)',app)
         self.assertIn('if interval in ("1m","3m"):',app)
 

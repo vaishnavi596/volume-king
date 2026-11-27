@@ -2913,27 +2913,27 @@ def app_main(page:ft.Page):
             feedback.value=sym+" removed from List "+str(active_watch[0]+1)
         select(4)
     def compact_watch_signal(row, available, fresh):
-        # Watchlist 3m: never substitute Super Five 5m ranking votes.
-        counts=signal_percentages(row) if available and row.get("timeframe")=="3m" else None
-        if not counts:return note("3m • WAIT • matching 3m candles / valid votes unavailable")
-        return vote_display(counts,False,timeframe="3m")
+        # Watchlist 1m: never substitute Super Five 5m ranking votes.
+        counts=signal_percentages(row) if available and row.get("timeframe")=="1m" else None
+        if not counts:return note("1m • WAIT • matching 1m candles / valid votes unavailable")
+        return vote_display(counts,False,timeframe="1m")
 
     def compact_five_engine_watch(symbol):
-        # Shared timeframe-aware display: Watchlist is 3m, never a 5m live snapshot.
+        # Shared timeframe-aware display: Watchlist is 1m, never a 5m live snapshot.
         # A disconnected provider must not erase last completed Dhan analysis.
         if prefs.get("source")!="Dhan":
             return note("5E WAIT • Dhan source required")
         historical=watch_three_minute_signal(symbol)
-        counts=signal_percentages(historical) if historical.get("timeframe")=="3m" else None
+        counts=signal_percentages(historical) if historical.get("timeframe")=="1m" else None
         if counts and counts[2]>0:
-            return note("5E HIST 3m • T B"+str(round(counts[0]))+"% / S"+
+            return note("5E HIST 1m • T B"+str(round(counts[0]))+"% / S"+
                         str(round(counts[1]))+"% • LIVE 0/5 verified")
-        return note("5E HIST 3m unavailable • LIVE WAIT • 0/5 verified")
+        return note("5E HIST 1m unavailable • LIVE WAIT • 0/5 verified")
 
     watch_fresh_text=ft.Text("",size=11,color=MUTED,max_lines=1)
     watch_fresh_state=[0.0,""]
     def watch_candle_fresh_label():
-        """Separate from the LTP counter: how many selected shares hold a recent completed 3m candle."""
+        """Separate from the LTP counter: how many selected shares hold a recent completed 1m candle."""
         now=time.time()
         if now-watch_fresh_state[0]<10 and watch_fresh_state[1]:
             return watch_fresh_state[1]
@@ -2941,15 +2941,15 @@ def app_main(page:ft.Page):
         fresh=0
         for sym in symbols:
             try:
-                bars=(shared_history(sym,"3m") or {}).get("bars") or []
+                bars=(shared_history(sym,"1m") or {}).get("bars") or []
                 last=bars[-1][0] if bars else None
                 if (type(last) in (int,float) and math.isfinite(last)
-                        and 0<=now-(last+180)<=360):
+                        and 0<=now-(last+60)<=180):
                     fresh+=1
             except Exception:
                 continue
         watch_fresh_state[0]=now
-        watch_fresh_state[1]=("3m candle fresh (<=6 min): "+str(fresh)+"/"+str(len(symbols))
+        watch_fresh_state[1]=("1m candle fresh (<=3 min): "+str(fresh)+"/"+str(len(symbols))
                               +" • separate from LTP "+("loaded" if symbols else "n/a"))
         return watch_fresh_state[1]
     watch_row_cells={}
@@ -3505,10 +3505,13 @@ def app_main(page:ft.Page):
                     if current[0]==4 and watch_status_text.page is not None:
                         watch_status_text.value="Quote check • "+watch_batch_status[0]
                         watch_status_text.update()
-                    await asyncio.sleep(10)
+                    if wait:
+                        await asyncio.sleep(10)
+                    else:
+                        await asyncio.sleep(3)
                 else:
                     watch_closed_hist_wait_seconds[0]=0
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -8197,8 +8200,8 @@ console.log('BOT KING Lightweight Charts ready');
     watch_three_minute_cache={}
     watch_three_minute_inflight=set()
     def watch_three_minute_signal(sym):
-        """Use matching 3m Dhan history; retain prior HIST votes on transient gaps."""
-        pending={"source":"Dhan","timeframe":"3m","historical":True,
+        """Use matching 1m Dhan history; retain prior HIST votes on transient gaps."""
+        pending={"source":"Dhan","timeframe":"1m","historical":True,
                  "live_verified":False,"freshness":"unverified","bias":"WAIT"}
         if prefs.get("source")!="Dhan":return pending
         context=(provider_generation[0],tuple(filter_selected),
@@ -8215,45 +8218,45 @@ console.log('BOT KING Lightweight Charts ready');
                 dict(pending,reason=reason),saved[1],
                 selected_filters=selected,provider="Dhan")
             if retained.get("_last_votes_retained"):
-                return dict(retained,timeframe="3m",source="Dhan",
+                return dict(retained,timeframe="1m",source="Dhan",
                             historical=True,live_verified=False,freshness="unverified",
                             bias="WAIT",score=0)
             return pending
-        data=shared_history(sym,"3m")
+        data=shared_history(sym,"1m")
         if data.get("source")!="Dhan" or not data.get("bars"):
-            return historical_or_wait("3m candles temporarily unavailable")
+            return historical_or_wait("1m candles temporarily unavailable")
         now=time.time()
         completed=[bar for bar in data["bars"] if isinstance(bar,(tuple,list))
                    and len(bar)>=6 and type(bar[0]) in (int,float)
-                   and math.isfinite(bar[0]) and bar[0]+180<=now]
-        if not completed:return historical_or_wait("No completed 3m candles")
-        # Propagate recent 3m OHLCV revisions to the Watchlist signal cache,
+                   and math.isfinite(bar[0]) and bar[0]+60<=now]
+        if not completed:return historical_or_wait("No completed 1m candles")
+        # Propagate recent 1m OHLCV revisions to the Watchlist signal cache,
         # even if the final timestamp/last row did not change.
         recent_three=tuple(tuple(row) for row in completed[-4:])
         identity=context+(recent_three,len(completed),data.get("candle_fetched_at"),
                           tuple(tuple(row) for row in completed))
         saved=watch_three_minute_cache.get(sym)
         if saved and saved[0]==identity:return saved[1]
-        return historical_or_wait("3m local worker pending or unavailable")
+        return historical_or_wait("1m local worker pending or unavailable")
     def watch_three_minute_worker_input(sym):
         if prefs.get("source")!="Dhan":return None
         context=(provider_generation[0],tuple(filter_selected),
                  tuple(sorted(filter_modes.items())),prefs.get("confidence",75))
-        data=shared_history(sym,"3m")
+        data=shared_history(sym,"1m")
         if data.get("source")!="Dhan" or not data.get("bars"):return None
         now=time.time()
         completed=[tuple(bar) for bar in data["bars"] if isinstance(bar,(tuple,list))
                    and len(bar)>=6 and type(bar[0]) in (int,float)
-                   and math.isfinite(bar[0]) and bar[0]+180<=now]
+                   and math.isfinite(bar[0]) and bar[0]+60<=now]
         if not completed:return None
         identity=context+(tuple(completed[-4:]),len(completed),data.get("candle_fetched_at"),tuple(completed))
         return identity,completed,list(active_analysis_filters())
     def compute_watch_three_minute_worker(completed,selected):
-        quality=quality_check(completed,180,now=completed[-1][0]+180)
+        quality=quality_check(completed,60,now=completed[-1][0]+60)
         if not quality.get("usable"):
             return None
         bars=quality["bars"]
-        return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")
+        return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"1m")
     async def prepare_watch_three_minute_signal(sym):
         if not app_active[0] or lifecycle_background[0] or sym not in all_watch_symbols():return
         captured=watch_three_minute_worker_input(sym)
@@ -8275,16 +8278,16 @@ console.log('BOT KING Lightweight Charts ready');
             # Share only the exact validated input to analyze, before adding
             # symbol or presentation metadata. Different session-normalized bars
             # deliberately miss this cache and are computed separately.
-            cache_key=(identity[0],"3m",tuple(selected),validated_bars)
+            cache_key=(identity[0],"1m",tuple(selected),validated_bars)
             if cache_key not in historical_indicator_cache:
                 if len(historical_indicator_cache)>=220:
                     historical_indicator_cache.pop(next(iter(historical_indicator_cache)))
                 historical_indicator_cache[cache_key]=result
-            result=dict(result,source="Dhan",symbol=sym,timeframe="3m",
+            result=dict(result,source="Dhan",symbol=sym,timeframe="1m",
                         historical=True,live_verified=False,freshness="unverified")
             watch_three_minute_cache[sym]=(identity,result)
-            publish_five_engine_historical(sym,"3m",result)
-            await prewarm_equity_historical_indicator(sym,shared_history(sym,"3m"),"3m",identity[0])
+            publish_five_engine_historical(sym,"1m",result)
+            await prewarm_equity_historical_indicator(sym,shared_history(sym,"1m"),"1m",identity[0])
         except Exception as exc:
             log_error("watch_three_minute_worker",exc)
         finally:
@@ -10002,7 +10005,7 @@ console.log('BOT KING Lightweight Charts ready');
                 prior_cache=market_recent.get(history_key)
                 cache_ready=bool(prior_cache and now-prior_cache[0]<87)
             if not cache_ready and (
-                    len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 30) or
+                    len(watch_three_minute_upstream_times)>=(54 if explicit_closed else 30) or
                     (watch_three_minute_warm_last_provider[0]>0 and
                      now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 5))):
                 record_watch_skip(generation,"early","UPSTREAM_BUDGET_OR_SPACING",sym)

@@ -3314,3 +3314,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - FIX: tick 2 s, pre-sleep 0.3 s, provider floor 3 s, budget 54/180 s (gateway still serialises ≥1.1 s). Expected ≈3.4 s/symbol ≈ 175 s per full cycle. Doctor budget_full uses 54.
 - OPEN: Scanner ranking still blocks the warm-up while it runs; consider pausing Scanner scan while Watchlist is on screen, or running both with gateway queue (watch for 429 LOCAL_PACING).
 - J30b (item 2, after B237): Scanner vote bar label uses `display_mode=="LIVE" and live_source_verified` instead of hardcoded not-live; ships in next build (B238). Item 3 (Scanner vs Watchlist warm-up overlap) deliberately NOT changed: any Dhan 429 starts a 30 s gateway-wide cooldown, so running both lanes concurrently needs live evidence first.
+
+## J31 — B238 (2026-11-27 16:30 IST): Watchlist 1m votes + closed-market speed
+- OWNER DECISION: Watchlist votes use 1m candles; the whole list is refreshed within ~3 min (not every minute: gateway ≈1.1 s per history call makes a 51-symbol 1-minute cycle impossible).
+- CODE: watch_three_minute_signal / worker_input / compute / prepare use shared_history(sym,"1m"), width 60 s, quality_check(…,60), cache_key "1m", publish HIST "1m"; labels "1m • WAIT • …", "5E HIST 1m"; counter "1m candle fresh (<=3 min): x/N". Function names keep "three_minute" (internal, tests pin them).
+- CLOSED MARKET: owner saw one share per ~14 s. Closed explicit queue budget 40→54 per 180 s; deferral sleep 10 s only when a real wait exists (else 3 s); after success 0.3 s.
+- Scanner vote bar LIVE label (J30b) ships here. Tests: 1779, 0 failures, 55 baseline errors.
+- OPEN: if 14 s/share persists after B238, the cause is on the gateway/provider side — need Oracle journal for /market/candles timings.

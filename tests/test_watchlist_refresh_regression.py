@@ -94,8 +94,8 @@ class WatchlistRefreshRegression(unittest.TestCase):
     def test_missing_three_minute_votes_are_not_labeled_live(self):
         body=self.source.split("    def compact_watch_signal(row, available, fresh):",1)[1].split(
             "    def compact_five_engine_watch(",1)[0]
-        self.assertIn("3m • WAIT • matching 3m candles / valid votes unavailable",body)
-        self.assertIn('row.get("timeframe")=="3m"',body)
+        self.assertIn("1m • WAIT • matching 1m candles / valid votes unavailable",body)
+        self.assertIn('row.get("timeframe")=="1m"',body)
 
     def test_three_minute_signal_recalculates_revised_ohlcv(self):
         # Same timestamp and bar count may still contain a corrected close,
@@ -108,8 +108,8 @@ class WatchlistRefreshRegression(unittest.TestCase):
         reader=body.split("    def watch_three_minute_worker_input",1)[0]
         self.assertNotIn("analyze(",reader)
         self.assertIn('bars=quality["bars"]',body)
-        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"3m")',body)
-        self.assertIn('cache_key=(identity[0],"3m",tuple(selected),validated_bars)',body)
+        self.assertIn('return tuple(tuple(bar[:6]) for bar in bars),analyze(bars,selected,"1m")',body)
+        self.assertIn('cache_key=(identity[0],"1m",tuple(selected),validated_bars)',body)
 
     def test_python_syntax(self):
         ast.parse(self.source, filename=str(SOURCE))
