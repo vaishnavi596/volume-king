@@ -4,7 +4,7 @@ run-name: BOT KING V3 B239 CURRENT JOINT REGRESSION PREVIEW • v2.3.239
 # Never replace the protected same-package release workflow with a temporary key.
 # B239 is an isolated current-source phone-test candidate, not final acceptance.
 # The full independent exact-head B3 gate must PASS before signing this preview.
-# B239: fixes B238 half-converted Watchlist rows (all rows showed "1m votes unavailable"): row availability, chips and final notes now 1m; market-closed counter shows HIST loaded x/N.
+# B239 (rerun after test re-pin): fixes B238 half-converted Watchlist rows (all rows showed "1m votes unavailable"): row availability, chips and final notes now 1m; market-closed counter shows HIST loaded x/N.
 on:
   push:
     branches:

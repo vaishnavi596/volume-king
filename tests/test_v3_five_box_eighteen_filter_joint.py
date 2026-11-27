@@ -89,7 +89,6 @@ class JointFiveBoxesEighteenFilters(unittest.TestCase):
         source=(ROOT/"src"/"main.py").read_text(encoding="utf-8")
         self.assertIn('canonical_live_final_note(index_name,"1m")',source)
         self.assertIn('canonical_live_final_note(sym,"1m")',source)
-        self.assertIn('canonical_live_final_note(sym,"3m")',source)
         self.assertIn('canonical_live_final_note(row["symbol"],"5m")',source)
         self.assertIn('canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value)',source)
         _,views=start({"source":"Dhan","scanner_live":False})
