@@ -285,6 +285,16 @@ def parse_option_contracts(lines, today_iso, keep_expiries=3):
     return out
 
 
+def lot_by_expiry(contracts):
+    """{"NIFTY|2026-12-02": 65, ...}: exact lot per underlying+expiry (lots can differ by expiry)."""
+    out = {}
+    for key, row in (contracts or {}).items():
+        parts = key.split("|")
+        if len(parts) == 4 and isinstance(row, list) and len(row) == 3:
+            out.setdefault(parts[0] + "|" + parts[1], row[2])
+    return out
+
+
 def load_lot_sizes(now):
     """Cached lot-size map; refreshed from Dhan's public scrip master at most every 12 h. Never raises."""
     try:
@@ -334,6 +344,8 @@ def main():
                 pass  # ledger is best-effort; never stop the runner
             try:
                 out["lot_sizes"] = load_lot_sizes(now)
+                cdata = json.loads(CONTRACT_FILE.read_text(encoding="utf-8")) if CONTRACT_FILE.exists() else {}
+                out["lot_by_expiry"] = lot_by_expiry(cdata.get("contracts") if isinstance(cdata, dict) else {})
             except Exception:
                 pass  # lot sizes are best-effort
             atomic_write(OUT_FILE, json.dumps(out) + "\n")

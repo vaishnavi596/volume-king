@@ -4615,8 +4615,10 @@ def app_main(page:ft.Page):
         tk_sl_pct.value=tk["sl_pct"];tk_tg_pct.value="";tk_tg_price.value=""
         for _c in (tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots,tk_tga_price):_c.value=""
         try:
-            lots=((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("lot_sizes") or {}
-            lot=lots.get(str(chain_symbol.value).upper())
+            _lat=(paper_hb_cache.get("signals") or {}).get("latest") or {}
+            lots=_lat.get("lot_sizes") or {}
+            lot=(_lat.get("lot_by_expiry") or {}).get(str(chain_symbol.value).upper()+"|"+str(expiry.value))
+            if type(lot) is not int:lot=lots.get(str(chain_symbol.value).upper())
             if type(lot) is int and 0<lot<=100000:
                 tk_unit.value=str(lot);tk["lot_from"]="Dhan master (सर्वर)"
             else:tk["lot_from"]="हाथ से भरें"

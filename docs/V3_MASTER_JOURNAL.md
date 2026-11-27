@@ -3487,3 +3487,7 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Ticket: levels 1/2 (price+lots), target-if-averaged, per-scenario rupee lines, server paper button; strike number tap also fills; Doctor M horizons 30/60.
 - Server install: rerun ops/install_server_away_20261127.sh at the B249 sha (ships gateway, server_paper_positions.py, dhan_option_metrics.py, runner).
 - Still open: F futures direction, N risk flag, chart parts, O live vote (Monday), roster-wide server analysis.
+
+## J58 — B250 WIP (no build): lots differ by expiry (28 Nov 2026)
+- Found on server: SENSEX near-expiry lot is 20 while a far contract shows 25 (first-seen map was wrong for near expiries). Runner now writes lot_by_expiry ("SENSEX|2026-12-03": 20) into signals-latest; ticket uses it first, falls back to the per-underlying map. Server paper already uses each contract's own lot.
+- Needs server reinstall + next APK. Not built yet (waiting for owner's B249 report).

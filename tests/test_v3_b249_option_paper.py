@@ -125,3 +125,14 @@ class PhoneWiring(unittest.TestCase):
         self.assertEqual((rows[0]["loss_at_stop"], rows[0]["profit_at_target"]), (3250.0, 1300.0))
         self.assertEqual((rows[1]["avg"], rows[1]["invested"], rows[1]["loss_at_stop"], rows[1]["profit_at_target"]),
                          (85.0, 11050.0, 4550.0, 1950.0))
+
+
+class LotPerExpiry(unittest.TestCase):
+    def test_lot_by_expiry(self):
+        import clone_signal_runner as r
+        c = {"SENSEX|2026-12-03|72000|PE": ["BSE_FNO", 1, 20], "SENSEX|2027-03-25|76000|CE": ["BSE_FNO", 2, 25],
+             "NIFTY|2026-12-02|24500|CE": ["NSE_FNO", 3, 65]}
+        self.assertEqual(r.lot_by_expiry(c), {"SENSEX|2026-12-03": 20, "SENSEX|2027-03-25": 25, "NIFTY|2026-12-02": 65})
+    def test_phone_prefers_per_expiry_lot(self):
+        main = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
+        self.assertIn('lot_by_expiry', main)
