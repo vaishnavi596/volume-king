@@ -3456,3 +3456,9 @@ Lineup: 1 N HIST B/S + risk flag; 2 F HIST (basis/OI change); 3 M forward 20-min
 Done in code (tests pass, pushed): change% from Dhan quote net_change (gateway + phone; server redeploy needed); box M = 20-min forward lean (src/v3_m_forward.py, HIST, not voted) shown in 6th slot + Doctor sixth_M_lean_hist; server M ledger in signal runner (records every 5 min, scores after 20 min, summary in signals-latest + Home card); Breadth line on Watchlist (src/v3_breadth.py, not voted).
 Not done yet: F HIST (needs futures candles/OI route on gateway), N risk flag, premium chart parts, 17-filter review, late 15:30-15:45 candles, roster-wide server analysis, server-paper-closed notice.
 Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_forward.py -> run ops/install_server_away script at the B248 commit (script already fetches v3_m_forward.py).
+
+## J53 — B248 build (28 Nov 2026)
+- Option order ticket: tap CE/PE premium in the chain -> ticket (expiry chips चालू/अगली, BUY/SELL, lots, units/lot, SL/target % <-> rupees, loss/profit in rupees, risk:reward). src/option_ticket.py (pure maths).
+- Ticket is a CALCULATOR: option premium is HIST/UNVERIFIED and the server paper engine quotes only underlyings, so no paper fill yet. Lot size is not in chain data; owner fills Units/lot.
+- Next: server option-instrument quotes so option paper SL/target can run on server; then ticket places server paper.
+- Server redeploy needed: rerun ops/install_server_away_20261127.sh at the B248 commit (change_pct + M ledger).

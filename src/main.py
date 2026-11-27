@@ -2,6 +2,7 @@ import flet as ft
 import json
 import time
 import math
+import option_ticket
 import traceback
 import asyncio
 import urllib.request
@@ -4554,6 +4555,73 @@ def app_main(page:ft.Page):
     def option_paper_action(side):
         option_paper_note.value="Cannot "+side+": verified CE/PE premium, listed strike and lot size unavailable. No order placed."
         page.update()
+    # B248 friendly order ticket: tap a CE/PE premium in the chain -> ticket.
+    # Calculator only: the premium is unverified, so no paper fill is recorded.
+    tk=dict(side="BUY",prem="",sl_pct="4",tg_pct="")
+    tk_lots=ft.TextField(label="Lots",value="1",width=90,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_unit=ft.TextField(label="Units/lot",value=str(prefs.get("bot_lot_size",1)),width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_sl_price=ft.TextField(label="SL price ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_sl_pct=ft.TextField(label="SL % below",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tg_price=ft.TextField(label="Target ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tg_pct=ft.TextField(label="Target % above",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_result=txt("Chain में CE/PE भाव पर टैप करें",13,MUTED)
+    tk_note=txt("",12,MUTED)
+    def tk_recalc(src=None):
+        entry=tk["prem"];side=tk["side"]
+        if src=="sl_pct":tk_sl_price.value=str(option_ticket.price_from_pct(entry,tk_sl_pct.value,side,"sl") or "")
+        elif src=="sl_price":tk_sl_pct.value=str(option_ticket.pct_from_price(entry,tk_sl_price.value,side,"sl") or "")
+        elif src=="tg_pct":tk_tg_price.value=str(option_ticket.price_from_pct(entry,tk_tg_pct.value,side,"tg") or "")
+        elif src=="tg_price":tk_tg_pct.value=str(option_ticket.pct_from_price(entry,tk_tg_price.value,side,"tg") or "")
+        r=option_ticket.ticket_summary(entry,side,tk_lots.value,tk_unit.value,tk_sl_price.value,tk_tg_price.value)
+        if not entry:tk_result.value="Chain में CE/PE भाव पर टैप करें";tk_result.color=MUTED
+        elif not r["valid"]:tk_result.value="लॉट/यूनिट सही भरें";tk_result.color=RED
+        else:
+            bits=["मात्रा "+str(r["qty"])+" • निवेश ₹"+format(r["invested"],",.0f")]
+            bits.append("SL पर नुकसान ₹"+format(r["loss"],",.0f") if r["sl_ok"] else "SL गलत तरफ़ / खाली")
+            bits.append("टारगेट पर मुनाफ़ा ₹"+format(r["profit"],",.0f") if r["tg_ok"] else "टारगेट गलत तरफ़ / खाली")
+            if r["rr"]:bits.append("जोखिम:इनाम 1:"+str(r["rr"]))
+            if r["max_loss"]:bits.append("ज़्यादा से ज़्यादा नुकसान ₹"+format(r["max_loss"],",.0f"))
+            tk_result.value="\n".join(bits)
+            tk_result.color=GREEN if (r["sl_ok"] and r["tg_ok"]) else GOLD
+    def tk_changed(src):
+        def handler(e):
+            tk_recalc(src);page.update()
+        return handler
+    for _f,_k in ((tk_sl_pct,"sl_pct"),(tk_sl_price,"sl_price"),(tk_tg_pct,"tg_pct"),(tk_tg_price,"tg_price"),(tk_lots,None),(tk_unit,None)):
+        _f.on_change=tk_changed(_k)
+    def ticket_pick(strike,side,prem):
+        """Row tap: fill strike/contract/premium; SL default 4%, target left for the owner."""
+        option_strike.value=f"{strike:g}";option_side.value=side
+        tk["prem"]=("" if prem is None else f"{prem:.2f}")
+        tk_sl_pct.value=tk["sl_pct"];tk_tg_pct.value="";tk_tg_price.value=""
+        tk_recalc("sl_pct");tk_note.value=""
+        request_view_refresh(current[0])
+    def ticket_expiry(choice):
+        option_expiry_choice.value=choice;refresh_option_expiry(object())
+        page.update()
+    def ticket_place(e=None):
+        tk_note.value=("Paper entry चालू नहीं: प्रीमियम verified नहीं (HIST/UNVERIFIED) • कोई ऑर्डर नहीं गया • "
+                       "यह टिकट अभी सिर्फ़ गणना है")
+        page.update()
+    def ticket_card():
+        side=tk["side"]
+        def sidebtn(label,val):
+            on=side==val
+            return ft.ElevatedButton(label,on_click=lambda e,v=val:(tk.update(side=v),tk_recalc("sl_pct"),page.update()),
+                                     bgcolor=(GREEN if val=="BUY" else RED) if on else None,color=BG if on else None)
+        exp_chips=ft.Row([ft.ElevatedButton("चालू एक्सपायरी",on_click=lambda e:ticket_expiry("Nearest"),
+                                            bgcolor=GOLD if option_expiry_choice.value=="Nearest" else None,color=BG if option_expiry_choice.value=="Nearest" else None),
+                          ft.ElevatedButton("अगली एक्सपायरी",on_click=lambda e:ticket_expiry("Next"),
+                                            bgcolor=GOLD if option_expiry_choice.value=="Next" else None,color=BG if option_expiry_choice.value=="Next" else None)],wrap=True,spacing=8)
+        head=(str(chain_symbol.value)+" "+str(option_strike.value or "—")+" "+str(option_side.value)+" • "+str(expiry.value or "expiry लोड हो रही")
+              +(" • भाव ₹"+tk["prem"] if tk["prem"] else ""))
+        return section("ऑर्डर टिकट • PAPER (LIVE बंद)",ft.Column([
+            txt(head,15,GOLD,True),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
+            ft.Row([tk_lots,tk_unit],spacing=8),
+            ft.Row([tk_sl_price,tk_sl_pct],spacing=8,wrap=True),ft.Row([tk_tg_price,tk_tg_pct],spacing=8,wrap=True),
+            tk_result,
+            ft.ElevatedButton("PAPER "+side+" (अभी बंद • प्रीमियम unverified)",on_click=ticket_place),tk_note,
+            note("Units/lot आप खुद जाँचकर भरें (चेन में lot size नहीं आता) • LIVE ऑर्डर हमेशा बंद")],spacing=8))
     option_chart_cache={}
     option_chart_busy=[False]
     option_chart_feedback={}
@@ -5022,12 +5090,19 @@ def app_main(page:ft.Page):
                             or type(previous_oi) not in (int,float)):
                         return "—"
                     return f"{current_oi-previous_oi:+,.0f}"
-                display_rows.append(ft.DataRow(cells=[ft.DataCell(txt(v,12,MUTED)) for v in (
-                    value(item["ce"],"last_price",2),value(item["ce"],"oi"),
+                texts=(value(item["ce"],"last_price",2),value(item["ce"],"oi"),
                     oi_change(item["ce"]),value(item["ce"],"volume"),
                     f'{item["strike"]:g}',value(item["pe"],"volume"),
                     oi_change(item["pe"]),value(item["pe"],"oi"),
-                    value(item["pe"],"last_price",2))]))
+                    value(item["pe"],"last_price",2))
+                def _tap(side,leg,strike=item["strike"]):
+                    price=leg.get("last_price")
+                    ok=type(price) in (int,float) and math.isfinite(price) and price>0
+                    return lambda e:ticket_pick(strike,side,price if ok else None)
+                display_rows.append(ft.DataRow(cells=[
+                    ft.DataCell(txt(v,12,GREEN if i==0 else RED if i==8 else MUTED,i in (0,8)),
+                        on_tap=_tap("CE" if i==0 else "PE",item["ce"] if i==0 else item["pe"]) if i in (0,8) else None)
+                    for i,v in enumerate(texts)]))
             return ft.Column([
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
                 note(hist_chain_label or "Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
@@ -5082,6 +5157,7 @@ def app_main(page:ft.Page):
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
         content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
+        content.append(ticket_card())
         content.append(paper_trading_center())
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
