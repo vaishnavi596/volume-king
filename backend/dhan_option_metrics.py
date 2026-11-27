@@ -85,6 +85,12 @@ def listed_atm_window(response, *, spot, wings=3):
     indexed.sort(key=lambda row: row[0])
     if any(indexed[i][0] == indexed[i-1][0] for i in range(1, len(indexed))):
         raise OptionMetricsUnavailable("Duplicate listed strike")
+    # B248: BANKNIFTY/SENSEX often list strikes with only one leg quoted. Use only
+    # strikes that carry BOTH CE and PE; never invent the missing leg.
+    indexed = [row for row in indexed
+               if isinstance(row[1].get("ce"), dict) and isinstance(row[1].get("pe"), dict)]
+    if len(indexed) < 7:
+        raise OptionMetricsUnavailable("Fewer than seven strikes with both CE and PE")
     atm = min(range(len(indexed)), key=lambda i: (abs(indexed[i][0]-spot), indexed[i][0]))
     if atm < 3 or atm + 3 >= len(indexed):
         raise OptionMetricsUnavailable("ATM lacks three listed strikes on both sides")

@@ -27,3 +27,17 @@ class Ticket(unittest.TestCase):
         self.assertLess(src.index("def ticket_pick"), src.index("\n    select(current[0])"))
 if __name__ == "__main__":
     unittest.main()
+
+class WindowTolerance(unittest.TestCase):
+    def test_one_leg_strikes_are_skipped_not_fatal(self):
+        import sys, pathlib
+        sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "backend"))
+        import dhan_option_metrics as m
+        oc = {}
+        for k in range(48000, 49500, 100):
+            oc[f"{k}.000000"] = {"ce": {"oi": 10, "last_price": 5.0}, "pe": {"oi": 11, "last_price": 6.0}}
+        oc["48350.000000"] = {"ce": {"oi": 10, "last_price": 5.0}}  # PE missing
+        r = m.listed_atm_window({"status": "success", "data": {"oc": oc}}, spot=48400)
+        rows = r["rows"]
+        self.assertEqual(len(rows), 7)
+        self.assertNotIn(48350.0, [x["strike"] for x in rows])
