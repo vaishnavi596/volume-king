@@ -3378,3 +3378,8 @@ New defects found in the same report:
  - Doctor says O has no historical direction while Home shows O HIST B0/S100 - open, inspect.
  - Home chart is 5m while the vote bar says 1m (standing decision: all screens 1m); chart shows a long dashed gap line - open.
  - Scanner wording "Dhan reconnect required; scan paused" while SSK is connected and market is closed - open (wording).
+
+## J38 — Point added by owner (2026-11-27 20:15 IST)
+ 8. Background run: app keeps running in the background; on opening the app it must show that it was running; paper-bot orders keep running; data keeps refreshing on its own schedule.
+ Assessment so far: Doctor reports native_background NOT_WIRED; Flet 0.25 Android build has no foreground service, Android suspends the Python app when backgrounded. Only a server-side engine (Oracle) survives phone off. Direction: server runs refresh + paper orders + a heartbeat; phone shows "Server running since / last cycle / open paper orders" on open. Live orders remain permanently OFF.
+ Status 20:14: point "remembered SSK" VERIFIED by owner (restart: Watchlist 7/51 -> 9/51, i.e. connected after restart). Prices on Home/Scanner/Super Five/Options: owner check pending.
