@@ -105,10 +105,10 @@ class CloneV2Gateway:
         """B244/B245: read/write the server PAPER engine only; never an order route."""
         if not self.connected:
             return {"ok":False,"reason":"DISCONNECTED"}
-        if path not in ("state","open","close"):
+        if path not in ("state","open","close","signals/latest","signals/journal"):
             raise ValueError("Unsupported paper path")
         origin,key=self._origin,self._key
-        url=origin+"/clone-v2/paper/"+path
+        url=origin+"/clone-v2/"+("signals/"+path.split("/")[1] if path.startswith("signals/") else "paper/"+path)
         data=None if body is None else json.dumps(body).encode("utf-8")
         headers={"X-BotKing-Key":key,"Accept":"application/json","Cache-Control":"no-store"}
         if data is not None:headers["Content-Type"]="application/json"
@@ -131,6 +131,14 @@ class CloneV2Gateway:
             return {"ok":False,"reason":"HTTP_"+str(exc.code),"detail":str(detail)[:120]}
         except (OSError,URLError,ValueError,UnicodeError,RecursionError):
             return {"ok":False,"reason":"PAPER_UNAVAILABLE"}
+
+    def server_signals(self):
+        """B246: what the server saw while the phone was away (read-only files)."""
+        latest=self._paper_call("GET","signals/latest")
+        journal=self._paper_call("GET","signals/journal")
+        return {"latest":latest if latest.get("ok") else None,
+                "events":journal.get("events",[]) if journal.get("ok") else [],
+                "ok":bool(latest.get("ok") or journal.get("ok"))}
 
     def paper_state(self):
         return self._paper_call("GET","state")

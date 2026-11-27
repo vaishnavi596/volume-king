@@ -27,6 +27,8 @@ IST = timezone(timedelta(hours=5, minutes=30))
 GATEWAY = os.environ.get("BOTKING_SIGNAL_GATEWAY", "http://127.0.0.1:8002")
 SSK_FILE = Path(os.environ.get("BOTKING_SIGNAL_SSK", "/home/opc/botking-clone-v2-private/ssk"))
 OUT_FILE = Path(os.environ.get("BOTKING_SIGNAL_OUT", "/home/opc/botking-clone-v2-private/signals-latest.json"))
+JOURNAL_FILE = Path(os.environ.get("BOTKING_SIGNAL_JOURNAL", str(OUT_FILE.parent / "signals-journal.jsonl")))
+JOURNAL_KEEP = 300
 SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
 FRAMES = (("1m", 1), ("5m", 5))
 
@@ -132,6 +134,35 @@ def cycle(key, now, minute_index, previous):
     return out
 
 
+def change_events(previous, out, now):
+    """Pure: bias/state changes between two cycles -> list of journal rows (B246)."""
+    events = []
+    if not isinstance(previous, dict) or not out.get("market_open"):
+        return events
+    for symbol, frames in (out.get("symbols") or {}).items():
+        for frame, row in (frames or {}).items():
+            old = ((previous.get("symbols") or {}).get(symbol) or {}).get(frame) or {}
+            new_bias, old_bias = row.get("bias"), old.get("bias")
+            if row.get("state") == "LIVE_VERIFIED" and new_bias and new_bias != old_bias:
+                events.append({"t": int(now), "symbol": symbol, "frame": frame,
+                               "event": "BIAS", "from": old_bias, "to": new_bias,
+                               "bullish": row.get("bullish"), "bearish": row.get("bearish")})
+    return events
+
+
+def append_journal(events, path=None):
+    path = path or JOURNAL_FILE
+    if not events:
+        return
+    lines = []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        pass
+    lines.extend(json.dumps(e, separators=(",", ":")) for e in events)
+    atomic_write(path, "\n".join(lines[-JOURNAL_KEEP:]) + "\n")
+
+
 def summary(out):
     parts = []
     for symbol, frames in out.get("symbols", {}).items():
@@ -150,6 +181,10 @@ def main():
         try:
             out = cycle(key, now, minute_index, previous)
             atomic_write(OUT_FILE, json.dumps(out) + "\n")
+            try:
+                append_journal(change_events(previous, out, now))
+            except Exception:
+                pass  # journal is best-effort; never stop the runner
             previous = out
             print(summary(out), flush=True)
         except Exception as exc:

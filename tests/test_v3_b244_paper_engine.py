@@ -57,7 +57,7 @@ class PaperEngineTests(unittest.TestCase):
         for r in ("paper/heartbeat", "paper/state", "paper/open", "paper/close"):
             self.assertIn('"/clone-v2/' + r + '"', src)
         seg = src[src.index("B244: server-side PAPER"):]
-        self.assertEqual(seg.count("authorized(x_botking_key)"), 4)
+        self.assertEqual(seg.count("authorized(x_botking_key)"), 6)
         for banned in ("place_order", "/orders", "super_order", "/v2/orders"):
             self.assertNotIn(banned, seg)
 
@@ -106,10 +106,40 @@ class B245AppWiringTests(unittest.TestCase):
                        "page.run_task(paper_heartbeat_poll)", "no real order"):
             self.assertIn(needle, src)
         gw = (Path(__file__).resolve().parents[1] / "src" / "clone_v2_gateway.py").read_text()
-        self.assertIn('path not in ("state","open","close")', gw)
+        self.assertIn('"signals/latest","signals/journal"', gw)
         self.assertIn('out.get("live_orders_enabled") is not False', gw)
 
     def test_doctor_o_box_reports_oi_change_hist(self):
         src = (Path(__file__).resolve().parents[1] / "src" / "v3_four_box_source_readiness.py").read_text()
         self.assertIn('sources["O"]["oi_change_hist"]', src)
         self.assertIn("display_only", src)
+
+
+class B246ServerAwayTests(unittest.TestCase):
+    def test_change_events_and_journal_trim(self):
+        import importlib.util, tempfile
+        root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(root / "src"))
+        spec = importlib.util.spec_from_file_location("signal_runner_b246", root / "backend" / "clone_signal_runner.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        prev = {"symbols": {"NIFTY": {"1m": {"bias": "BULLISH", "state": "LIVE_VERIFIED"}}}}
+        out = {"market_open": True, "symbols": {"NIFTY": {"1m": {"bias": "BEARISH", "state": "LIVE_VERIFIED", "bullish": 30, "bearish": 70}}}}
+        ev = mod.change_events(prev, out, 1000)
+        self.assertEqual(ev[0]["from"], "BULLISH"); self.assertEqual(ev[0]["to"], "BEARISH")
+        self.assertEqual(mod.change_events(prev, dict(out, market_open=False), 1000), [])
+        self.assertEqual(mod.change_events(None, out, 1000), [])
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "j.jsonl"
+            for i in range(5):
+                mod.append_journal([{"t": i}] * 100, path)
+            self.assertEqual(len(path.read_text().splitlines()), mod.JOURNAL_KEEP)
+
+    def test_gateway_signal_routes_are_read_only_files(self):
+        root = Path(__file__).resolve().parents[1]
+        src = (root / "backend" / "clone_v2_gateway.py").read_text()
+        self.assertIn('"/clone-v2/signals/latest"', src)
+        self.assertIn('"/clone-v2/signals/journal"', src)
+        seg = src[src.index("def read_private_text"):src.index("def paper_poll_once")]
+        self.assertNotIn("post(", seg); self.assertNotIn("urlopen", seg)
+        app = (root / "src" / "main.py").read_text()
+        self.assertIn("server_away_section(),", app)

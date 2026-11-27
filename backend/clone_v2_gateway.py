@@ -864,6 +864,42 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             raise HTTPException(422, str(exc)) from None
         return paper_json({"position": pos})
 
+    def read_private_text(env_name, default, limit):
+        path = os.environ.get(env_name, default)
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                return fh.read(limit + 1)[:limit]
+        except OSError:
+            return ""
+
+    @app.get("/clone-v2/signals/latest")
+    def signals_latest(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        raw = read_private_text("BOTKING_SIGNALS_FILE",
+            "/home/opc/botking-clone-v2-private/signals-latest.json", 65536)
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError
+        except ValueError:
+            data = {"available": False, "reason": "NO_SERVER_SIGNAL_FILE"}
+        return paper_json(data)
+
+    @app.get("/clone-v2/signals/journal")
+    def signals_journal(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        raw = read_private_text("BOTKING_SIGNALS_JOURNAL",
+            "/home/opc/botking-clone-v2-private/signals-journal.jsonl", 65536)
+        events = []
+        for line in raw.splitlines()[-60:]:
+            try:
+                row = json.loads(line)
+                if isinstance(row, dict):
+                    events.append(row)
+            except ValueError:
+                continue
+        return paper_json({"events": events})
+
     def paper_poll_once():
         """Quote only the symbols of OPEN paper positions, inside the shared
         spacing/quota gates. Returns closed positions. Read-only Dhan LTP."""

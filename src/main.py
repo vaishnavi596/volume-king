@@ -2798,6 +2798,7 @@ def app_main(page:ft.Page):
             wrap_delta_section("dashboard_repair",repair_board),
             wrap_delta_section("dashboard_indices",dashboard_market_indices(),dashboard_market_indices),
             wrap_delta_section("dashboard_analysis",dashboard_index_analysis(),dashboard_index_analysis),
+            server_away_section(),
             note('Dashboard index candles: 1m • Scanner has independent timeframe (' + (scan_tf.value or '1m') + ')'),
             wrap_delta_section("dashboard_scan",lambda:section('CANDLE ANALYSIS • ' + scan_shared['direction'],
                     ft.Column([note(scan_shared['symbol'] + ' • ' + scan_shared['tf'] + ' candles'),
@@ -11448,8 +11449,15 @@ console.log('BOT KING Lightweight Charts ready');
         else:
             result={"reachable":False,"reason":str(state.get("reason","PAPER_UNAVAILABLE"))}
             positions=[]
+        try:
+            sig=await asyncio.to_thread(clone_v2_gateway.server_signals)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("server_signals",exc)
+            sig={"ok":False,"latest":None,"events":[]}
         paper_hb_cache.clear()
-        paper_hb_cache.update(at=time.monotonic(),report=result,positions=positions)
+        paper_hb_cache.update(at=time.monotonic(),report=result,positions=positions,signals=sig)
     async def paper_server_open(side):
         sym=chain_symbol.value
         try:
@@ -11471,6 +11479,35 @@ console.log('BOT KING Lightweight Charts ready');
         srv_paper_status.value=("Server paper position closed" if res.get("ok")
             else "Server paper not closed: "+str(res.get("detail") or res.get("reason")))
         await paper_server_refresh();request_view_refresh(current[0])
+    def server_away_section():
+        """B246: what the Oracle server saw/did while the phone was away (read-only)."""
+        sig=paper_hb_cache.get("signals") or {}
+        if not clone_v2_gateway.connected:
+            return section("SERVER • आपके पीछे",note("SSK/Oracle not connected • connect in Settings"))
+        if not sig.get("ok"):
+            return section("SERVER • आपके पीछे",note("Server signal runner not reachable yet • analysis only • no orders"))
+        ctr=[]
+        latest=sig.get("latest") or {}
+        gen=str(latest.get("generated_utc","")).replace("T"," ")[:19]
+        ctr.append(note("Server analysis"+(" • last cycle "+gen+" UTC" if gen else "")+(" • market open" if latest.get("market_open") else " • market closed")+" • no orders"))
+        for sym,frames in (latest.get("symbols") or {}).items():
+            for frame,row in (frames or {}).items():
+                bias=row.get("bias") if isinstance(row,dict) else None
+                state=row.get("state") if isinstance(row,dict) else None
+                color=GREEN if bias=="BULLISH" else RED if bias=="BEARISH" else MUTED
+                ctr.append(ft.Row([txt(sym+" "+frame+" ",14,MUTED),txt(bias or "WAIT",14,color,True),
+                    txt(" • "+(("B"+str(row.get("bullish"))+"/S"+str(row.get("bearish"))) if bias else str(state or "")),14,MUTED)],spacing=0,wrap=True))
+        events=[e for e in sig.get("events",[]) if isinstance(e,dict)][-8:]
+        if events:
+            ctr.append(txt("Changes while you were away",14,GOLD,True))
+            for e in reversed(events):
+                try:when=datetime.fromtimestamp(int(e.get("t")),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
+                except Exception:when="?"
+                ctr.append(note(when+" IST • "+str(e.get("symbol"))+" "+str(e.get("frame"))+" • "+str(e.get("from") or "—")+" → "+str(e.get("to"))))
+        closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-3:]
+        for x in reversed(closed):
+            ctr.append(note("Server paper closed "+str(x.get("symbol"))+" • "+str(x.get("reason"))+" • P&L ₹"+format(x.get("pnl",0),",.2f")))
+        return section("SERVER • आपके पीछे",ft.Column(ctr,spacing=4))
     def server_paper_section():
         rep=paper_hb_cache.get("report") or {}
         if not clone_v2_gateway.connected:
