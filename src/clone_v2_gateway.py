@@ -105,7 +105,7 @@ class CloneV2Gateway:
         """B244/B245: read/write the server PAPER engine only; never an order route."""
         if not self.connected:
             return {"ok":False,"reason":"DISCONNECTED"}
-        if path not in ("state","open","close","signals/latest","signals/journal"):
+        if path not in ("state","open","close","open-option","signals/latest","signals/journal"):
             raise ValueError("Unsupported paper path")
         origin,key=self._origin,self._key
         url=origin+"/clone-v2/"+("signals/"+path.split("/")[1] if path.startswith("signals/") else "paper/"+path)
@@ -139,6 +139,14 @@ class CloneV2Gateway:
         return {"latest":latest if latest.get("ok") else None,
                 "events":journal.get("events",[]) if journal.get("ok") else [],
                 "ok":bool(latest.get("ok") or journal.get("ok"))}
+
+    def paper_open_option(self, underlying, expiry, strike, side, lots, stop, target, levels=None, target_avg=None):
+        """B249: server paper BUY of one option contract; the server uses its OWN live premium as entry."""
+        body={"underlying":str(underlying),"expiry":str(expiry),"strike":float(strike),"side":str(side),
+              "lots":int(lots),"stop":float(stop),"target":float(target),
+              "levels":[{"price":float(x["price"]),"lots":int(x["lots"])} for x in (levels or [])]}
+        if target_avg is not None:body["target_avg"]=float(target_avg)
+        return self._paper_call("POST","open-option",body)
 
     def paper_state(self):
         return self._paper_call("GET","state")

@@ -55,3 +55,44 @@ def ticket_summary(entry, side, lots, unit, sl_price, tg_price):
     if out["loss"] and out["profit"]:
         out["rr"] = round(out["profit"] / out["loss"], 1)
     return out
+
+
+def averaging_scenarios(entry, lots, unit, levels, stop, target, target_avg):
+    """Rupee view for 'no averaging' and after each owner-typed level (BUY only, same contract).
+
+    levels: [(price, lots), ...] any order. Returns [] on invalid input. Each row:
+    label, lots, qty, avg, invested, loss_at_stop, profit_at_target, target.
+    """
+    e, s, t = _num(entry), _num(stop), _num(target)
+    try:
+        q0, u = int(lots), int(unit)
+    except (TypeError, ValueError):
+        return []
+    if None in (e, s, t) or e <= 0 or q0 <= 0 or u <= 0 or not (s < e < t):
+        return []
+    lv = []
+    for price, n in levels or []:
+        p, k = _num(price), None
+        try:
+            k = int(n)
+        except (TypeError, ValueError):
+            pass
+        if p is not None and k and k > 0 and s < p < e:
+            lv.append((p, k))
+    lv.sort(key=lambda x: -x[0])
+    ta = _num(target_avg)
+    rows = []
+    qty, cost = q0 * u, e * q0 * u
+    def row(label, n_lots, q, c, tgt):
+        avg = c / q
+        return {"label": label, "lots": n_lots, "qty": q, "avg": round(avg, 2), "invested": round(c, 2),
+                "loss_at_stop": round((avg - s) * q, 2),
+                "target": tgt, "profit_at_target": (round((tgt - avg) * q, 2) if tgt and tgt > avg else None)}
+    rows.append(row("औसत नहीं", q0, qty, cost, t))
+    n_lots = q0
+    for i, (p, k) in enumerate(lv, 1):
+        n_lots += k
+        qty += k * u
+        cost += p * k * u
+        rows.append(row("स्तर %d के बाद (₹%g)" % (i, p), n_lots, qty, cost, ta if ta else t))
+    return rows

@@ -264,11 +264,15 @@ def area_watch_issues(*, market_open, oracle_connected, ssk_saved, scanner_state
 def _m_lean_for_doctor(history):
     """B248: M forward lean (HIST, display only, not a vote) for the Doctor report."""
     try:
-        from v3_m_forward import m_lean
-        lean = m_lean((history or {}).get("bars")) if (history or {}).get("source") == "Dhan" else None
+        from v3_m_forward import m_leans
+        ok = (history or {}).get("source") == "Dhan"
+        leans = m_leans((history or {}).get("bars")) if ok else {}
     except Exception:
-        lean = None
-    return lean if lean else {"available": False, "reason": "needs >=30 completed 1m Dhan candles"}
+        leans = {}
+    lean = leans.get("20")
+    if not lean:
+        return {"available": False, "reason": "needs >=30 completed 1m Dhan candles"}
+    return dict(lean, h30=leans.get("30"), h60=leans.get("60"))
 
 
 def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futures,

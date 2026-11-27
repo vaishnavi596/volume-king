@@ -250,6 +250,41 @@ def parse_lot_sizes(lines):
     return lots
 
 
+CONTRACT_FILE = Path(os.environ.get("BOTKING_OPTION_CONTRACTS", str(OUT_FILE.parent / "option-contracts.json")))
+CONTRACT_UNDERLYINGS = ("NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY")
+
+
+def parse_option_contracts(lines, today_iso, keep_expiries=3):
+    """Pure: scrip-master lines -> {"NIFTY|2026-12-02|24500|CE": [segment, security_id, lot]} for
+    the nearest `keep_expiries` expiries of each index underlying. Never raises on bad rows."""
+    per = {}
+    for row in csv.DictReader(lines):
+        if row.get("SEM_INSTRUMENT_NAME") != "OPTIDX":
+            continue
+        name = str(row.get("SEM_TRADING_SYMBOL", "")).split("-")[0].strip().upper()
+        if name not in CONTRACT_UNDERLYINGS:
+            continue
+        side = str(row.get("SEM_OPTION_TYPE", "")).strip().upper()
+        exch = str(row.get("SEM_EXM_EXCH_ID", "")).strip().upper()
+        expiry = str(row.get("SEM_EXPIRY_DATE", ""))[:10]
+        try:
+            sid = int(row.get("SEM_SMST_SECURITY_ID"))
+            lot = int(float(row.get("SEM_LOT_UNITS")))
+            strike = float(row.get("SEM_STRIKE_PRICE"))
+        except (TypeError, ValueError):
+            continue
+        if (side not in ("CE", "PE") or exch not in ("NSE", "BSE") or expiry < today_iso
+                or lot <= 0 or strike <= 0 or len(expiry) != 10):
+            continue
+        per.setdefault(name, {}).setdefault(expiry, []).append(
+            ("%s|%s|%g|%s" % (name, expiry, strike, side), [exch + "_FNO", sid, lot]))
+    out = {}
+    for name, by_exp in per.items():
+        for expiry in sorted(by_exp)[:keep_expiries]:
+            out.update(dict(by_exp[expiry]))
+    return out
+
+
 def load_lot_sizes(now):
     """Cached lot-size map; refreshed from Dhan's public scrip master at most every 12 h. Never raises."""
     try:
@@ -258,13 +293,24 @@ def load_lot_sizes(now):
         cached = {}
     if not isinstance(cached, dict):
         cached = {}
-    if now - float(cached.get("fetched", 0) or 0) < LOT_REFRESH_S and cached.get("lots"):
+    if (now - float(cached.get("fetched", 0) or 0) < LOT_REFRESH_S and cached.get("lots")
+            and CONTRACT_FILE.exists()):
         return cached["lots"]
     try:
-        with urllib.request.urlopen(MASTER_URL, timeout=120) as resp:
-            lots = parse_lot_sizes(io.TextIOWrapper(resp, encoding="utf-8", newline=""))
+        with urllib.request.urlopen(MASTER_URL, timeout=180) as resp:
+            raw = resp.read()
+        text = raw.decode("utf-8", "replace")
+        lots = parse_lot_sizes(io.StringIO(text, newline=""))
         if lots.get("NIFTY"):
             atomic_write(LOT_FILE, json.dumps({"fetched": int(now), "lots": lots}) + "\n")
+            try:
+                today = datetime.fromtimestamp(now, IST).date().isoformat()
+                contracts = parse_option_contracts(io.StringIO(text, newline=""), today)
+                if contracts:
+                    atomic_write(CONTRACT_FILE, json.dumps({"fetched": int(now), "contracts": contracts},
+                                                          separators=(",", ":")) + "\n")
+            except Exception:
+                pass  # contracts are best-effort
             return lots
     except Exception:
         pass

@@ -9,6 +9,8 @@ import json, math, os, threading, time, uuid
 
 MAX_OPEN = 10
 MAX_QTY = 100000
+MAX_LEVELS = 3
+MAX_TOTAL_LOTS = 50
 LIVE_ORDERS_ENABLED = False  # constant; nothing in this module reads a switch
 
 
@@ -83,13 +85,84 @@ class PaperEngine:
             self._save()
             return dict(pos)
 
+    def open_option(self, label, instrument, lot_size, lots, entry, stop, target,
+                    levels=None, target_avg=None, expires_at=None):
+        """B249: paper BUY of ONE option contract with optional averaging levels.
+
+        Only BUY (long premium). Averaging adds lots to the SAME contract when its
+        premium falls to an owner-typed level; the stop-loss is a fixed premium
+        price that is never removed; two targets: one if never averaged, one after.
+        """
+        with self.lock:
+            if not isinstance(label, str) or not label or len(label) > 40:
+                raise ValueError("label required")
+            if (not isinstance(instrument, dict) or not isinstance(instrument.get("seg"), str)
+                    or type(instrument.get("sid")) is not int):
+                raise ValueError("instrument required")
+            if type(lot_size) is not int or not 1 <= lot_size <= MAX_QTY:
+                raise ValueError("lot size invalid")
+            if type(lots) is not int or not 1 <= lots <= MAX_TOTAL_LOTS:
+                raise ValueError("lots out of range")
+            if not self._num(entry) or not self._num(stop) or not self._num(target):
+                raise ValueError("entry, stop-loss and target are required")
+            if not (stop < entry < target):
+                raise ValueError("BUY needs stop below and target above entry")
+            clean = []
+            for lv in (levels or []):
+                if (not isinstance(lv, dict) or not self._num(lv.get("price"))
+                        or type(lv.get("lots")) is not int or not 1 <= lv["lots"] <= MAX_TOTAL_LOTS):
+                    raise ValueError("averaging level invalid")
+                price = float(lv["price"])
+                if not (stop < price < entry):
+                    raise ValueError("averaging level must be above stop-loss and below entry")
+                clean.append({"price": price, "lots": lv["lots"]})
+            if len(clean) > MAX_LEVELS:
+                raise ValueError("too many averaging levels")
+            clean.sort(key=lambda x: -x["price"])
+            if len({x["price"] for x in clean}) != len(clean):
+                raise ValueError("duplicate averaging level")
+            if lots + sum(x["lots"] for x in clean) > MAX_TOTAL_LOTS:
+                raise ValueError("total lots too high")
+            ta = None
+            if target_avg is not None:
+                if not self._num(target_avg):
+                    raise ValueError("averaged target invalid")
+                ta = float(target_avg)
+                if clean:
+                    first_avg = (entry * lots + clean[0]["price"] * clean[0]["lots"]) / (lots + clean[0]["lots"])
+                    if ta <= first_avg:
+                        raise ValueError("averaged target must be above the averaged price")
+                else:
+                    raise ValueError("averaged target needs an averaging level")
+            if len(self.open_positions()) >= MAX_OPEN:
+                raise ValueError("too many open paper positions")
+            qty = lots * lot_size
+            pos = {"id": uuid.uuid4().hex[:10], "symbol": label, "side": "BUY", "kind": "OPTION",
+                   "instrument": {"seg": instrument["seg"], "sid": instrument["sid"]},
+                   "lot_size": lot_size, "lots": lots, "qty": qty, "entry": float(entry),
+                   "stop": float(stop), "target": float(target), "target_if_averaged": ta,
+                   "levels": clean, "level_expires_at": expires_at, "averaged": False,
+                   "fills": [{"price": float(entry), "qty": qty, "lots": lots, "t": self.clock()}],
+                   "opened_at": self.clock(), "status": "OPEN", "mode": "PAPER"}
+            self.positions.append(pos)
+            self._save()
+            return dict(pos)
+
+    def open_instruments(self):
+        with self.lock:
+            return {p["symbol"]: (p["instrument"]["seg"], p["instrument"]["sid"])
+                    for p in self.open_positions() if isinstance(p.get("instrument"), dict)}
+
     def _close(self, pos, price, reason):
         pos["status"] = "CLOSED"
         pos["exit"] = float(price)
         pos["reason"] = reason
         pos["closed_at"] = self.clock()
         sign = 1 if pos["side"] == "BUY" else -1
-        pos["pnl"] = round(sign * (pos["exit"] - pos["entry"]) * pos["qty"], 2)
+        if pos.get("fills"):
+            pos["pnl"] = round(sum((pos["exit"] - f["price"]) * f["qty"] for f in pos["fills"]), 2)
+        else:
+            pos["pnl"] = round(sign * (pos["exit"] - pos["entry"]) * pos["qty"], 2)
 
     def close(self, pos_id, price=None):
         with self.lock:
@@ -117,15 +190,43 @@ class PaperEngine:
                 buy = p["side"] == "BUY"
                 if (px <= p["stop"]) if buy else (px >= p["stop"]):
                     self._close(p, p["stop"], "STOP_LOSS")
-                elif p["target"] is not None and ((px >= p["target"]) if buy else (px <= p["target"])):
-                    self._close(p, p["target"], "TARGET")
+                    closed.append(dict(p))
+                    continue
+                if p.get("levels"):
+                    self._work_levels(p, px)
+                tgt = p["target"]
+                if p.get("averaged") and p.get("target_if_averaged"):
+                    tgt = p["target_if_averaged"]
+                if tgt is not None and ((px >= tgt) if buy else (px <= tgt)):
+                    self._close(p, tgt, "TARGET")
                 else:
                     continue
                 closed.append(dict(p))
             self.last_eval_at = self.clock()
-            if closed:
+            if closed or self._level_dirty:
                 self._save()
+                self._level_dirty = False
         return closed
+
+    _level_dirty = False
+
+    def _work_levels(self, p, px):
+        """Fill averaging levels the premium has reached (at the level price); drop expired ones."""
+        exp = p.get("level_expires_at")
+        if exp is not None and self.clock() > exp:
+            p["levels"] = []
+            self._level_dirty = True
+            return
+        while p["levels"] and px <= p["levels"][0]["price"]:
+            lv = p["levels"].pop(0)
+            qty = lv["lots"] * p["lot_size"]
+            p["fills"].append({"price": lv["price"], "qty": qty, "lots": lv["lots"], "t": self.clock()})
+            total = sum(f["qty"] for f in p["fills"])
+            p["entry"] = round(sum(f["price"] * f["qty"] for f in p["fills"]) / total, 4)
+            p["qty"] = total
+            p["lots"] = sum(f["lots"] for f in p["fills"])
+            p["averaged"] = True
+            self._level_dirty = True
 
     def heartbeat(self):
         with self.lock:

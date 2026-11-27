@@ -57,7 +57,7 @@ class PaperEngineTests(unittest.TestCase):
         for r in ("paper/heartbeat", "paper/state", "paper/open", "paper/close"):
             self.assertIn('"/clone-v2/' + r + '"', src)
         seg = src[src.index("B244: server-side PAPER"):]
-        self.assertEqual(seg.count("authorized(x_botking_key)"), 6)
+        self.assertEqual(seg.count("authorized(x_botking_key)"), 7)  # B249: + open-option
         for banned in ("place_order", "/orders", "super_order", "/v2/orders"):
             self.assertNotIn(banned, seg)
 

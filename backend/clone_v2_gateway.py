@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta, timezone
 import os
 import stat
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -132,6 +132,13 @@ def regular_session_now():
     """True during NSE regular hours (IST weekdays 09:15-15:35)."""
     ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
     return ist.weekday() < 5 and (9, 15) <= (ist.hour, ist.minute) < (15, 35)
+
+
+def option_levels_expiry(now=None):
+    """Epoch of today's 15:30 IST: unfilled averaging levels lapse at the close."""
+    ist = timezone(timedelta(hours=5, minutes=30))
+    cur = datetime.now(ist) if now is None else now.astimezone(ist)
+    return cur.replace(hour=15, minute=30, second=0, microsecond=0).timestamp()
 
 
 def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None,
@@ -870,6 +877,89 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             raise HTTPException(422, str(exc)) from None
         return paper_json({"position": pos})
 
+    # ---- B249: paper BUY of one option contract with owner-typed averaging levels ----
+    class PaperLevel(BaseModel):
+        price: float
+        lots: int
+
+    class PaperOpenOption(BaseModel):
+        underlying: str
+        expiry: date
+        strike: float
+        side: str
+        lots: int
+        stop: float
+        target: float
+        levels: List[PaperLevel] = []
+        target_avg: Optional[float] = None
+
+    contract_cache = {"mtime": None, "data": {}}
+
+    def option_contract(underlying, expiry_iso, strike, side):
+        path = os.environ.get("BOTKING_OPTION_CONTRACTS",
+                              "/home/opc/botking-clone-v2-private/option-contracts.json")
+        try:
+            mtime = os.stat(path).st_mtime
+            if contract_cache["mtime"] != mtime:
+                with open(path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                contract_cache["data"] = data.get("contracts", {}) if isinstance(data, dict) else {}
+                contract_cache["mtime"] = mtime
+        except (OSError, ValueError):
+            return None
+        key = "%s|%s|%s|%s" % (underlying, expiry_iso, ("%g" % strike), side)
+        row = contract_cache["data"].get(key)
+        if (isinstance(row, list) and len(row) == 3 and isinstance(row[0], str)
+                and type(row[1]) is int and type(row[2]) is int):
+            return {"seg": row[0], "sid": row[1], "lot": row[2]}
+        return None
+
+    def quote_one(seg, sid):
+        """One read-only LTP for the entry fill (shared spacing/quota gates)."""
+        if quota_remaining() > 0:
+            raise HTTPException(503, "Dhan cooldown active; try again shortly")
+        with market_lock:
+            wait = 1.05 - (time.monotonic() - last_request[0])
+            if 0 < wait <= 1.05:
+                time.sleep(wait)
+            last_request[0] = time.monotonic()
+            feed = provider()
+            reader = getattr(feed, "batch_ltp", None)
+            try:
+                result = reader([(seg, sid)])
+            except Exception as exc:
+                if "429" in str(exc):
+                    quota_start()
+                raise HTTPException(503, "Option quote unavailable") from None
+        try:
+            px = float(result["data"][seg][str(sid)]["last_price"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(503, "Option quote missing") from None
+        if not (math.isfinite(px) and px > 0):
+            raise HTTPException(503, "Option quote invalid")
+        return px
+
+    @app.post("/clone-v2/paper/open-option")
+    def paper_open_option(body: PaperOpenOption, x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if body.underlying not in ("NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY") or body.side not in ("CE", "PE"):
+            raise HTTPException(422, "Unsupported option underlying or side")
+        if not regular_session_now():
+            raise HTTPException(409, "Market closed: option paper entry needs a live premium")
+        contract = option_contract(body.underlying, body.expiry.isoformat(), body.strike, body.side)
+        if contract is None:
+            raise HTTPException(422, "Contract not found in server list (strike/expiry)")
+        entry = quote_one(contract["seg"], contract["sid"])
+        label = "%s %g %s %s" % (body.underlying, body.strike, body.side, body.expiry.strftime("%d%b%y"))
+        try:
+            pos = paper.open_option(label, {"seg": contract["seg"], "sid": contract["sid"]},
+                                    contract["lot"], body.lots, entry, body.stop, body.target,
+                                    [lv.dict() for lv in body.levels], body.target_avg,
+                                    option_levels_expiry())
+        except ValueError as exc:
+            raise HTTPException(422, "%s (server entry premium %.2f)" % (exc, entry)) from None
+        return paper_json({"position": pos, "entry_source": "server LTP at open"})
+
     def read_private_text(env_name, default, limit):
         path = os.environ.get(env_name, default)
         try:
@@ -909,7 +999,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     def paper_poll_once():
         """Quote only the symbols of OPEN paper positions, inside the shared
         spacing/quota gates. Returns closed positions. Read-only Dhan LTP."""
-        symbols = [x for x in paper.heartbeat()["open_symbols"] if x in known]
+        opt_inst = paper.open_instruments()
+        symbols = [x for x in paper.heartbeat()["open_symbols"] if x in known or x in opt_inst]
         if not symbols or not regular_session_now() or quota_remaining() > 0:
             return []
         with market_lock:
@@ -919,11 +1010,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             last_request[0] = time.monotonic()
             feed = provider()
             reader = getattr(feed, "batch_quote", None)
-            result = (reader if callable(reader) else feed.batch_ltp)([known[x] for x in symbols])
+            result = (reader if callable(reader) else feed.batch_ltp)(
+                [(known[x] if x in known else opt_inst[x]) for x in symbols])
         prices = {}
         if isinstance(result, dict) and isinstance(result.get("data"), dict):
             for sym in symbols:
-                seg, sid = known[sym]
+                seg, sid = known[sym] if sym in known else opt_inst[sym]
                 try:
                     prices[sym] = float(result["data"][seg][str(sid)]["last_price"])
                 except (KeyError, TypeError, ValueError):

@@ -21,9 +21,10 @@ class Ticket(unittest.TestCase):
         src = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
         self.assertIn("import option_ticket", src)
         self.assertIn("ticket_card()", src)
-        self.assertIn("on_tap=_tap(", src)
-        i = src.index("def ticket_place"); seg = src[i:i + 400]
-        self.assertNotIn("paper_open", seg)
+        self.assertIn("on_tap=(_tap(", src)
+        i = src.index("async def ticket_server_open"); seg = src[i:i + 2500]
+        self.assertIn("paper_open_option", seg)
+        self.assertNotIn("live_order", seg.lower())
         self.assertLess(src.index("def ticket_pick"), src.index("\n    select(current[0])"))
 if __name__ == "__main__":
     unittest.main()

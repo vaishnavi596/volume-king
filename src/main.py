@@ -4565,6 +4565,12 @@ def app_main(page:ft.Page):
     tk_sl_pct=ft.TextField(label="SL % below",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_tg_price=ft.TextField(label="Target ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_tg_pct=ft.TextField(label="Target % above",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv1_price=ft.TextField(label="औसत स्तर 1 ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv1_lots=ft.TextField(label="लॉट",width=80,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv2_price=ft.TextField(label="औसत स्तर 2 ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv2_lots=ft.TextField(label="लॉट",width=80,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tga_price=ft.TextField(label="औसत होने पर टारगेट ₹",width=170,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_avg_lines=ft.Column([],spacing=2)
     tk_result=txt("Chain में CE/PE भाव पर टैप करें",13,MUTED)
     tk_note=txt("",12,MUTED)
     def tk_recalc(src=None):
@@ -4584,17 +4590,30 @@ def app_main(page:ft.Page):
             if r["max_loss"]:bits.append("ज़्यादा से ज़्यादा नुकसान ₹"+format(r["max_loss"],",.0f"))
             tk_result.value="\n".join(bits)
             tk_result.color=GREEN if (r["sl_ok"] and r["tg_ok"]) else GOLD
+        try:
+            tk_avg_lines.controls=[]
+            levels=[(tk_lv1_price.value,tk_lv1_lots.value),(tk_lv2_price.value,tk_lv2_lots.value)]
+            if any(str(a).strip() for a,_ in levels):
+                for sc in option_ticket.averaging_scenarios(entry,tk_lots.value,tk_unit.value,levels,tk_sl_price.value,tk_tg_price.value,tk_tga_price.value):
+                    line=(sc["label"]+": कुल "+str(sc["lots"])+" लॉट • औसत ₹"+format(sc["avg"],",.2f")+" • निवेश ₹"+format(sc["invested"],",.0f")
+                          +" • SL पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
+                          +((" • टारगेट ₹"+format(sc["target"],",.2f")+" पर मुनाफ़ा ₹"+format(sc["profit_at_target"],",.0f")) if sc["profit_at_target"] else ""))
+                    tk_avg_lines.controls.append(txt(line,12,GOLD))
+        except Exception as exc:
+            log_error("ticket_avg",exc)
     def tk_changed(src):
         def handler(e):
             tk_recalc(src);page.update()
         return handler
-    for _f,_k in ((tk_sl_pct,"sl_pct"),(tk_sl_price,"sl_price"),(tk_tg_pct,"tg_pct"),(tk_tg_price,"tg_price"),(tk_lots,None),(tk_unit,None)):
+    for _f,_k in ((tk_sl_pct,"sl_pct"),(tk_sl_price,"sl_price"),(tk_tg_pct,"tg_pct"),(tk_tg_price,"tg_price"),(tk_lots,None),(tk_unit,None),
+                  (tk_lv1_price,None),(tk_lv1_lots,None),(tk_lv2_price,None),(tk_lv2_lots,None),(tk_tga_price,None)):
         _f.on_change=tk_changed(_k)
     def ticket_pick(strike,side,prem):
         """Row tap: fill strike/contract/premium; SL default 4%, target left for the owner."""
         option_strike.value=f"{strike:g}";option_side.value=side
         tk["prem"]=("" if prem is None else f"{prem:.2f}")
         tk_sl_pct.value=tk["sl_pct"];tk_tg_pct.value="";tk_tg_price.value=""
+        for _c in (tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots,tk_tga_price):_c.value=""
         try:
             lots=((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("lot_sizes") or {}
             lot=lots.get(str(chain_symbol.value).upper())
@@ -4608,10 +4627,32 @@ def app_main(page:ft.Page):
     def ticket_expiry(choice):
         option_expiry_choice.value=choice;refresh_option_expiry(object())
         page.update()
+    async def ticket_server_open():
+        try:
+            if tk["side"]!="BUY":raise ValueError("अभी सिर्फ़ BUY (खरीदा हुआ CE/PE) चलता है")
+            strike=float(option_strike.value);lots=int(tk_lots.value)
+            r=option_ticket.ticket_summary(tk["prem"],"BUY",lots,tk_unit.value,tk_sl_price.value,tk_tg_price.value)
+            if not (r["valid"] and r["sl_ok"] and r["tg_ok"]):raise ValueError("SL नीचे और टारगेट ऊपर का भाव भरें")
+            if not expiry.value:raise ValueError("एक्सपायरी अभी लोड नहीं हुई")
+            levels=[]
+            for pr,n in ((tk_lv1_price.value,tk_lv1_lots.value),(tk_lv2_price.value,tk_lv2_lots.value)):
+                if str(pr).strip():
+                    levels.append({"price":float(pr),"lots":int(n)})
+            tga=float(tk_tga_price.value) if str(tk_tga_price.value).strip() else None
+            res=await asyncio.to_thread(clone_v2_gateway.paper_open_option,chain_symbol.value,expiry.value,strike,
+                option_side.value,lots,float(tk_sl_price.value),float(tk_tg_price.value),levels,tga)
+            if res.get("ok"):
+                pos=res.get("position") or {}
+                tk_note.value=("सर्वर पेपर BUY खुला • "+str(pos.get("symbol"))+" • entry ₹"+format(pos.get("entry",0),",.2f")
+                               +" (सर्वर का लाइव भाव) • फ़ोन बंद हो तब भी SL/टारगेट चलेंगे • असली ऑर्डर नहीं")
+                await paper_server_refresh()
+            else:
+                tk_note.value="नहीं खुला: "+str(res.get("detail") or res.get("reason"))
+        except Exception as exc:
+            tk_note.value="नहीं खुला: "+str(exc)[:120]
+        request_view_refresh(current[0])
     def ticket_place(e=None):
-        tk_note.value=("Paper entry चालू नहीं: प्रीमियम verified नहीं (HIST/UNVERIFIED) • कोई ऑर्डर नहीं गया • "
-                       "यह टिकट अभी सिर्फ़ गणना है")
-        page.update()
+        page.run_task(ticket_server_open)
     def ticket_card():
         side=tk["side"]
         def sidebtn(label,val):
@@ -4628,8 +4669,10 @@ def app_main(page:ft.Page):
             txt(head,15,GOLD,True),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
             ft.Row([tk_lots,tk_unit],spacing=8),
             ft.Row([tk_sl_price,tk_sl_pct],spacing=8,wrap=True),ft.Row([tk_tg_price,tk_tg_pct],spacing=8,wrap=True),
-            tk_result,
-            ft.ElevatedButton("PAPER "+side+" (अभी बंद • प्रीमियम unverified)",on_click=ticket_place),tk_note,
+            txt("औसत (वही CE/PE, नीचे के भाव पर और लॉट) • खाली छोड़ें तो औसत नहीं",12,MUTED),
+            ft.Row([tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots],spacing=8,wrap=True),tk_tga_price,
+            tk_result,tk_avg_lines,
+            ft.ElevatedButton("सर्वर PAPER "+side+" • बाज़ार खुले में",on_click=ticket_place),tk_note,
             note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद")],spacing=8))
     option_chart_cache={}
     option_chart_busy=[False]
@@ -5109,8 +5152,9 @@ def app_main(page:ft.Page):
                     ok=type(price) in (int,float) and math.isfinite(price) and price>0
                     return lambda e:ticket_pick(strike,side,price if ok else None)
                 display_rows.append(ft.DataRow(cells=[
-                    ft.DataCell(txt(v,12,GREEN if i==0 else RED if i==8 else MUTED,i in (0,8)),
-                        on_tap=_tap("CE" if i==0 else "PE",item["ce"] if i==0 else item["pe"]) if i in (0,8) else None)
+                    ft.DataCell(txt(v,12,GREEN if i==0 else RED if i==8 else GOLD if i==4 else MUTED,i in (0,4,8)),
+                        on_tap=(_tap("CE" if i==0 else "PE",item["ce"] if i==0 else item["pe"]) if i in (0,8)
+                                else _tap("PE" if option_side.value=="PE" else "CE",item["pe"] if option_side.value=="PE" else item["ce"])) if i in (0,4,8) else None)
                     for i,v in enumerate(texts)]))
             return ft.Column([
                 note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
@@ -7642,7 +7686,7 @@ def app_main(page:ft.Page):
                         "valid":_t.get("valid"),"sl_side_ok":_t.get("sl_ok"),"target_side_ok":_t.get("tg_ok"),
                         "units_per_lot":tk_unit.value,"lot_source":tk.get("lot_from"),
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
-                        "paper_fill":"DISABLED (premium unverified)","orders_sent":0}
+                        "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                 except Exception as exc:
@@ -11685,7 +11729,9 @@ console.log('BOT KING Lightweight Charts ready');
         closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-5:]
         for x in opens:
             ctr.append(ft.Row([ft.Column([txt(x["symbol"]+" • "+x["side"]+" ×"+str(x["qty"]),14,GOLD,True),
-                note("Entry ₹"+format(x["entry"],",.2f")+" • SL ₹"+format(x["stop"],",.2f")+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f")))],spacing=2,expand=True),
+                note(("औसत ₹" if x.get("averaged") else "Entry ₹")+format(x["entry"],",.2f")+" • SL ₹"+format(x["stop"],",.2f")+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f"))
+                     +((" • औसत पर टारगेट ₹"+format(x["target_if_averaged"],",.2f")) if x.get("target_if_averaged") else "")),
+                *([note("औसत बाक़ी: "+", ".join("₹"+format(l["price"],",.2f")+"×"+str(l["lots"])+" लॉट" for l in x["levels"])+" • शाम 15:30 पर रद्द")] if x.get("levels") else [])],spacing=2,expand=True),
                 ft.OutlinedButton("Close",on_click=lambda e,i=x["id"]:page.run_task(paper_server_close,i))]))
         if not opens:ctr.append(note("No open server paper positions"))
         for x in reversed(closed):
