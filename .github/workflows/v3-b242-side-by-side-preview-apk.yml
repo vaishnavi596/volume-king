@@ -69,8 +69,8 @@ jobs:
           # explanation with strip(); it must not be confused with a
           # holiday-based veto of source-verified LIVE/HIST evidence.
           assert 'equity_session_closed_detail().strip(" •")' in main
-          assert 'historical_close_display(hist,now=time.time())' in main
-          assert 'historical=historical_close_display(hist,now=time.time())' in main
+          assert 'historical_close_display(shared_history(sym,frame),now=time.time(),frame=frame)' in main
+          assert 'historical=hist_close_for_display(sym)' in main
           # Guard the newly verified phone improvements against stale build.
           for marker in (
               'resume_interrupted_closed_watch_history',
