@@ -3396,3 +3396,7 @@ New defects found in the same report:
 ## J41 — Owner decision: roster for the server engine (2026-11-27 20:20 IST)
 - Start with the full roster of 54 = 51 equities + NIFTY, BANKNIFTY, SENSEX, with options carried alongside; design for growth to 70 later (Doctor roster limit already 70).
 - Capacity note: gateway serialises Dhan calls (~1.1 s each), so one pass over 70 symbols needs >= ~77 s of provider time before options/other lanes; the 3-minute freshness target stays feasible but must be measured with the timer counter before growing past 54.
+
+## J42 — Owner check 20:22 IST (build B242) and new point 9
+- VERIFIED by owner on B242: option chain opens automatically; Scanner works; Watchlist shows prices for all shares and for NIFTY/BANKNIFTY/SENSEX; Super Five shows prices.
+- Point 9 (new): colour consistency. Super Five/Scanner card price is drawn with note() = MUTED grey, looks white; value to highlight must use a different colour. Rule proposed: labels MUTED; prices/key numbers GOLD or by direction GREEN/RED, bold. Audit all screens (Home, Scanner, Super Five, Watchlist, Options, Chart) for the same rule. Not built yet: bundled into the next build with points 1-8.
