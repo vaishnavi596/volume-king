@@ -3462,3 +3462,9 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Ticket is a CALCULATOR: option premium is HIST/UNVERIFIED and the server paper engine quotes only underlyings, so no paper fill yet. Lot size is not in chain data; owner fills Units/lot.
 - Next: server option-instrument quotes so option paper SL/target can run on server; then ticket places server paper.
 - Server redeploy needed: rerun ops/install_server_away_20261127.sh at the B248 commit (change_pct + M ledger).
+
+## J54 — B249 plan (owner, 28 Nov 2026)
+- M box: 30 min and 60 min horizons, probability % + confidence, per-index ledger; display first; counts as vote only after owner accepts measured hit-rate (proposal: >=60% on >=200 predictions).
+- O box (5th) to go LIVE: needs verified live option evidence Monday 30 Nov 09:15 IST (chain via server, premiums, OI change); then enable O live vote.
+- Server: Dhan scrip master gives lot units (NIFTY 65, BANKNIFTY 30, SENSEX 25, FINNIFTY 60) and option security ids; daily lot-size file + option ltp for server paper SL/target.
+- Doctor: add server health, chain check per index, ticket check, market-open auto check (09:15-09:20).
