@@ -166,19 +166,34 @@ def analyze(bars, selected=None, timeframe="5m"):
     add("FVG",fvg,fvg_detail)
     sweep=1 if low[-1]<min(low[-11:-1]) and p>min(low[-11:-1]) else -1 if high[-1]>max(high[-11:-1]) and p<max(high[-11:-1]) else 0
     add("Liquidity Sweep",sweep,"10-bar wick sweep with close back inside range" if sweep else "No confirmed sweep")
-    avgvol=sum(vol[-21:-1])/20
+    # A bar stamped at/after 15:30 IST is a post-close print, not a trading
+    # candle (e.g. volume 2249 against a 1.7M average). It must never be the
+    # volume comparison bar; use the last regular-session bar instead.
+    vol_idx=len(vol)-1
+    try:
+        _ist=timezone(timedelta(hours=5,minutes=30))
+        while vol_idx>21:
+            _c=datetime.fromtimestamp(clean[vol_idx][0],_ist)
+            if (_c.hour,_c.minute)>=(15,30) and (_c.hour,_c.minute)<(24,0):
+                vol_idx-=1
+            else:
+                break
+    except (OverflowError,OSError,ValueError):
+        vol_idx=len(vol)-1
+    avgvol=sum(vol[vol_idx-20:vol_idx])/20
     # Preserve a truthful WAIT for an incomplete/zero-volume last bar.
     # The reason code distinguishes source OHLCV gaps from an empty baseline
     # without silently replacing Dhan volume or manufacturing a direction.
     volume_input_status=("NO_BASELINE_VOLUME" if avgvol <= 0 else
-                         "ZERO_LAST_BAR_VOLUME" if vol[-1] <= 0 else "OK")
+                         "ZERO_LAST_BAR_VOLUME" if vol[vol_idx] <= 0 else "OK")
     if volume_input_status != "OK":
         add("Volume",None,"UNAVAILABLE: valid source volume required ("+
             volume_input_status+")")
     else:
-        volume_side=(1 if vol[-1]>avgvol*1.2 and p>close[-2]
-                     else -1 if vol[-1]>avgvol*1.2 and p<close[-2] else 0)
-        add("Volume",volume_side,f"Volume {vol[-1]:.0f}, 20-bar avg {avgvol:.0f}")
+        vp=close[vol_idx];vprev=close[vol_idx-1]
+        volume_side=(1 if vol[vol_idx]>avgvol*1.2 and vp>vprev
+                     else -1 if vol[vol_idx]>avgvol*1.2 and vp<vprev else 0)
+        add("Volume",volume_side,f"Volume {vol[vol_idx]:.0f}, 20-bar avg {avgvol:.0f}")
     for name in OPTION_FILTERS:
         add(name,None,"WAIT: Dhan option-chain metrics are informational, not verified directional votes")
     # News can be selected, but headlines are never converted into a candle vote.
