@@ -97,7 +97,36 @@ def atomic_write(root, path, text, uid, gid):
             os.unlink(temporary)
 
 
-def install(root, client_id, token, now=None, fetch=profile):
+def token_from_recovery(root):
+    """Return the replacement token saved by the renewal engine (never printed)."""
+    path = Path(root) / "dhan-web-renewal-recovery"
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("no recovery file")
+    text = path.read_text(encoding="utf-8", errors="replace").strip()
+    candidates = []
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        stack = [data]
+        while stack:
+            cur = stack.pop()
+            for value in cur.values():
+                if isinstance(value, dict):
+                    stack.append(value)
+                elif isinstance(value, str):
+                    candidates.append(value)
+    else:
+        candidates.append(text)
+    good = [c for c in candidates
+            if 20 <= len(c) <= 16384 and c.count(".") == 2 and not re.search(r"\s", c)]
+    if len(good) != 1:
+        raise ValueError("recovery file has %d token-shaped values (need 1)" % len(good))
+    return good[0]
+
+
+def install(root, client_id, token, now=None, fetch=profile, adopt_recovery=False):
     root = Path(root)
     now = now or datetime.now(timezone.utc)
     if not 20 <= len(token) <= 16384 or re.search(r"\s", token):
@@ -112,8 +141,8 @@ def install(root, client_id, token, now=None, fetch=profile):
         except BlockingIOError:
             raise ValueError("another renewal/install is running")
         recovery = root / "dhan-web-renewal-recovery"
-        if recovery.exists() or recovery.is_symlink():
-            raise ValueError("recovery file exists; stop and review (do not install)")
+        if (recovery.exists() or recovery.is_symlink()) and not adopt_recovery:
+            raise ValueError("recovery file exists; use --adopt-recovery or review")
         pending = root / "dhan-web-renewal-pending.json"
         expiry = verify(token, client_id, fetch)
         if expiry <= now + timedelta(hours=6):
@@ -138,6 +167,8 @@ def install(root, client_id, token, now=None, fetch=profile):
         if pending.exists() and not pending.is_symlink():
             archived = root / ("dhan-web-renewal-pending.json.archived-" + stamp)
             os.replace(str(pending), str(archived))
+        if adopt_recovery and recovery.exists() and not recovery.is_symlink():
+            os.replace(str(recovery), str(root / ("dhan-web-renewal-recovery.adopted-" + stamp)))
         return {"installed": True, "expiry_ist": expiry.isoformat(),
                 "pending_archived": bool(archived)}
     finally:
@@ -148,14 +179,19 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=DEFAULT_ROOT)
     parser.add_argument("--client-env", default=DEFAULT_ENV)
+    parser.add_argument("--adopt-recovery", action="store_true",
+                        help="use the token saved in the renewal recovery file instead of typing one")
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise SystemExit("BLOCKED: run with sudo")
     client_id = read_client_id(args.client_env)
-    print("नया Dhan टोकन पेस्ट करें (स्क्रीन पर नहीं दिखेगा), फिर Enter:")
-    token = getpass.getpass("").strip()
     try:
-        result = install(args.root, client_id, token)
+        if args.adopt_recovery:
+            token = token_from_recovery(args.root)
+        else:
+            print("नया Dhan टोकन पेस्ट करें (स्क्रीन पर नहीं दिखेगा), फिर Enter:")
+            token = getpass.getpass("").strip()
+        result = install(args.root, client_id, token, adopt_recovery=args.adopt_recovery)
     except Exception as exc:  # never echo token-bearing text
         print("INSTALL_FAILED:", type(exc).__name__, "-", str(exc)[:120])
         print("कुछ नहीं बदला गया।")
