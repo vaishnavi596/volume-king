@@ -160,8 +160,8 @@ class HistoricalEngineRevisionTests(unittest.TestCase):
         from datetime import datetime, timezone, timedelta
         _, v, _=SharedAnalysisRuntimeTests().setup_app()
         end=int(datetime(2026,11,23,14,9,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp())
-        bars=[[end-(59-i)*180,100+i,102+i,99+i,101+i,1000] for i in range(60)]
-        v["chart_snapshots"][("TCS","3m",v["provider_generation"][0])]={"source":"Dhan","_scanner_timeframe":"3m","bars":bars,"candle_fetched_at":1}
+        bars=[[end-(59-i)*60,100+i,102+i,99+i,101+i,1000] for i in range(60)]
+        v["chart_snapshots"][("TCS","1m",v["provider_generation"][0])]={"source":"Dhan","_scanner_timeframe":"1m","bars":bars,"candle_fetched_at":1}
         before=v["watch_three_minute_worker_input"]("TCS")[0]
         bars[5][4]-=.1
         after=v["watch_three_minute_worker_input"]("TCS")[0]
