@@ -16,13 +16,16 @@ WORK="$(mktemp -d "$ROOT/.upd.XXXXXXXX")"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$SIG"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_v2_gateway.py" -o "$WORK/clone_v2_gateway.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_signal_runner.py" -o "$WORK/clone_signal_runner.py"
+curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/dhan_option_metrics.py" -o "$WORK/dhan_option_metrics.py"
+python3 -m py_compile "$WORK/dhan_option_metrics.py"
+grep -q 'both CE and PE' "$WORK/dhan_option_metrics.py" || { echo "BLOCKED: wrong option-metrics candidate"; exit 1; }
 for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
   curl -fsSL -m 40 --retry 3 "$BASE/$SRC/src/$f" -o "$WORK/$f"
 done
 for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do python3 -m py_compile "$WORK/$f"; done
 grep -q '/clone-v2/signals/latest' "$WORK/clone_v2_gateway.py" || { echo "BLOCKED: wrong gateway candidate"; exit 1; }
 grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
-for f in clone_v2_gateway.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
+for f in clone_v2_gateway.py dhan_option_metrics.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
 for f in clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
   [ -f "$SIG/$f" ] && cp -p "$SIG/$f" "$SIG/$f.rollback-$TS"; install -m 600 "$WORK/$f" "$SIG/$f"
 done
