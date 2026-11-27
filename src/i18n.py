@@ -3,6 +3,8 @@ import re
 HI={
 "My BOT KING server HTTPS address (optional)":"अपने BOT KING सर्वर का HTTPS पता (वैकल्पिक)",
 "Server access key (not saved)":"सर्वर की एक्सेस की (सेव नहीं होगी)",
+"Remember SSK on this phone (auto-login) • इस फ़ोन पर SSK याद रखें":"इस फ़ोन पर SSK याद रखें (ऑटो-लॉगिन)",
+"Server access key (saved only if Remember is ON)":"सर्वर की एक्सेस की (Remember चालू हो तभी सेव)",
 "I trust this server to receive my Angel One login":"मैं अपना Angel One लॉगिन इस भरोसेमंद सर्वर को भेजने के लिए सहमत हूँ",
 "Confirm that you trust this server before sending your broker login.":"ब्रोकर लॉगिन भेजने से पहले पुष्टि करें कि यह आपका भरोसेमंद सर्वर है।",
 "Home":"होम","Options":"ऑप्शन्स","Settings":"सेटिंग्स","Scanner":"स्कैनर",

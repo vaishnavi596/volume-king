@@ -4868,7 +4868,24 @@ def app_main(page:ft.Page):
     broker_names=["Dhan"]
     broker=ft.Dropdown(label="Select Indian API broker",value="Dhan",options=[ft.dropdown.Option("Dhan")])
     api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
-    server_access=ft.TextField(label="Server access key (not saved)",password=True,can_reveal_password=True)
+    server_access=ft.TextField(label="Server access key (saved only if Remember is ON)",password=True,can_reveal_password=True)
+    # B240 owner-approved auto-login: the SSK is kept ONLY when the owner turns
+    # "Remember" ON, in app-private client storage under its own key (never in the
+    # preferences file/JSON, never in logs or Doctor). Read-only gateway key; orders stay OFF.
+    SSK_STORE_KEY="bot_king_ssk_v1"
+    def ssk_store_read():
+        try:
+            value=page.client_storage.get(SSK_STORE_KEY)
+            if isinstance(value,str) and 8<=len(value.strip())<=512:return value.strip()
+        except Exception:pass
+        return ""
+    def ssk_store_write(value):
+        try:
+            if value:page.client_storage.set(SSK_STORE_KEY,value)
+            else:page.client_storage.remove(SSK_STORE_KEY)
+        except Exception as exc:log_error("ssk_store",exc)
+    ssk_remember=ft.Checkbox(label="Remember SSK on this phone (auto-login) • इस फ़ोन पर SSK याद रखें",value=bool(ssk_store_read()))
+    ssk_auto_login_done=[False]
     server_trust=ft.Checkbox(label="Dhan credentials remain on the server",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
     broker_fields={"Dhan":[]}  # Legacy credential form removed from V3 Android
@@ -5047,6 +5064,7 @@ def app_main(page:ft.Page):
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
             building_doctor.milestone("gateway_authorized")
+            ssk_store_write(access_key if (ssk_remember.value and access_key) else "")
             # On a verified exchange holiday/closed session, SSK authorization
             # is a valid read-only gateway connection, NOT Dhan quote proof.
             # Do not request absent holiday LTPs or activate the LIVE feed.
@@ -5139,6 +5157,9 @@ def app_main(page:ft.Page):
                                      else GOLD)
         except FeedError as exc:
             building_doctor.milestone("login_failed")
+            if any(w in str(exc).lower() for w in ("key rejected","http 401","http 403","session rejected")):
+                ssk_store_write("")  # saved key no longer valid: forget it
+                ssk_remember.value=False
             connection_status.value="Clone V2: "+str(exc)
             connection_status.color=RED
         except Exception as exc:
@@ -5160,6 +5181,7 @@ def app_main(page:ft.Page):
         dhan_feed.disconnect()
         provider_changed(None)
         server_access.value=""
+        ssk_store_write("");ssk_remember.value=False  # explicit Disconnect forgets the saved key
         connection_status.value="Clone V2 SSK session disconnected; market feed unavailable."
         connection_status.color=GOLD
         page.update()
@@ -6755,7 +6777,7 @@ def app_main(page:ft.Page):
                     "CANDLE_TIMEFRAMES":{
                         "cache_by_timeframe":candle_counts,
                         "dashboard_index_default":"1m",
-                        "watchlist_default":"3m",
+                        "watchlist_default":"1m",
                         "scanner_selected":scanner_tf,
                         "scanner_matching_history":scanner_valid,
                         "selected_scanner_history_bars":len(scanner_bars),
@@ -7140,7 +7162,7 @@ def app_main(page:ft.Page):
                     "doctor_safe_repairs":doctor_repair_ledger.report(),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
-                    "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0},
+                    "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0},
                     "live_voting_gate":live_voting_gate_report(str(scan_symbol.value or "NIFTY"),str(scan_tf.value or "1m")),
                     "root_cause_and_solution":remedies if chosen=="ALL" else
                         [row for row in remedies if row["segment"]==chosen],
@@ -7585,7 +7607,7 @@ def app_main(page:ft.Page):
             prefs["compact_ui"]=bool(e.control.value);save()
             page.open(ft.SnackBar(content=ft.Text("Layout updates as each screen refreshes; switch screens to see it")))
         content.append(section('Display', ft.Column([ft.Switch(label='Compact view (smaller text, tighter spacing)',value=compact_ui(),on_change=toggle_compact_ui)])))
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes (test only)', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
+        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, ssk_remember, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes (test only)', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
             ft.OutlinedButton("Check Futures Context (read-only)",on_click=fetch_futures_context_tap),
@@ -11220,6 +11242,20 @@ console.log('BOT KING Lightweight Charts ready');
                 or not clone_v2_gateway.connected or not 0<=age<=420):
             return {"code":"BK-RENEW-001","state":"UNVERIFIED","renewal_observed":False}
         return dict(renewal_health_cache["report"],code="BK-RENEW-001",age_seconds=round(age,1))
+    async def ssk_auto_login():
+        # One attempt per app start; saved key only exists if Remember was ON.
+        if ssk_auto_login_done[0]:return
+        ssk_auto_login_done[0]=True
+        saved=ssk_store_read()
+        if not saved or clone_v2_gateway.connected or prefs.get("source")!="Dhan":return
+        await asyncio.sleep(1.5)
+        if clone_v2_gateway.connected or clone_v2_connect_busy[0] or broker_connect_busy[0]:return
+        connection_status.value="Auto-login with remembered SSK..."
+        connection_status.color=GOLD
+        server_access.value=saved
+        page.update()
+        await check_clone_v2_connection()
+    page.run_task(ssk_auto_login)
     page.run_task(renewal_metadata_poll)
     page.run_task(verified_foreground_alert_poll)
     page.run_task(super_five_minute_refresh)
@@ -11475,6 +11511,9 @@ console.log('BOT KING Lightweight Charts ready');
             # controls history refresh and the resume task checks quotes.
             if prefs.get("source")=="Dhan" and dhan_feed.connected:
                 scan_progress["state"]="Dhan resumed • checking cached quotes"
+            if not clone_v2_gateway.connected and ssk_store_read():
+                ssk_auto_login_done[0]=False  # B240: resume after Android suspended the app -> reconnect once
+                page.run_task(ssk_auto_login)
             page.run_task(refresh_after_resume)
             if current[0]==4 and watch_closed_hist_resume_pending[0]:
                 page.run_task(resume_interrupted_closed_watch_history)

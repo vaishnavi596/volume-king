@@ -46,7 +46,11 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                    and type(candle_stamps[sym]) in (int,float)
                    and math.isfinite(candle_stamps[sym])
                    and 0<candle_stamps[sym]<=now_epoch}
-    stale = [sym for sym in candle_ages if candle_ages[sym]>360]
+    # B240: Watchlist frame is 1m, so a completed bar is "stale" after 180 s,
+    # and only while the market is open (after the close every bar is old by design).
+    CANDLE_STALE_SECONDS = 180
+    stale = ([sym for sym in candle_ages if candle_ages[sym]>CANDLE_STALE_SECONDS]
+             if market_open else [])
     # Cache observation does not certify transport success.
     issues[-1]["gate_snapshot"] = progress.get("watchlist_gate_snapshot", {})
     issues[-1]["gate_scope"] = "instantaneous periodic scheduler gates, not recorded skip history; scanner interleave can still run"
@@ -67,28 +71,54 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
          "age_seconds":round(now_monotonic-row["at"],1)}
         for row in recent_skips[-12:]]
     issues[-1]["skip_history_scope"] = "bounded last 120 events; grouped guards, not exhaustive individual causes"
-    issues[-1]["symbol_observations"] = [
-        {"symbol":sym, "attempt_age_seconds":ages.get(sym),
-         "cached_completed_3m_age_seconds":candle_ages.get(sym),
-         "quote_cached":sym in quote_present,
-         "last_read_outcome":outcomes.get(sym,{}).get("state","NOT_OBSERVED"),
-         "last_read_age_seconds":round(max(0,now_monotonic-outcomes[sym]["at"]),1) if sym in outcomes else None,
-         "transport_success":"UNVERIFIED"}
-        for sym in symbols]
+    def read_problem(sym):
+        state=outcomes.get(sym,{}).get("state","NOT_OBSERVED")
+        return state in ("NOT_OBSERVED","DISCARDED_RESPONSE","INVALID_RESPONSE","UNKNOWN_ORIGIN") or str(state).startswith("ERROR")
+    def symbol_problems(sym):
+        found=[]
+        if sym not in ages: found.append("NO_ATTEMPT")
+        if read_problem(sym): found.append("READ_"+str(outcomes.get(sym,{}).get("state","NOT_OBSERVED")))
+        if market_open and sym not in quote_present: found.append("NO_QUOTE")
+        if market_open and sym not in candle_ages: found.append("NO_CANDLE")
+        if sym in stale: found.append("CANDLE_OLDER_THAN_180S")
+        return found
+    problem_rows = []
+    for sym in symbols:
+        found = symbol_problems(sym)
+        if found:
+            problem_rows.append({"symbol":sym, "problems":found,
+             "attempt_age_seconds":ages.get(sym),
+             "cached_completed_3m_age_seconds":candle_ages.get(sym),
+             "quote_cached":sym in quote_present,
+             "last_read_outcome":outcomes.get(sym,{}).get("state","NOT_OBSERVED"),
+             "last_read_age_seconds":round(max(0,now_monotonic-outcomes[sym]["at"]),1) if sym in outcomes else None,
+             "transport_success":"UNVERIFIED"})
+    issues[-1]["symbols_ok_count"] = total-len(problem_rows)
+    issues[-1]["symbols_with_problem_count"] = len(problem_rows)
+    issues[-1]["symbol_observations"] = problem_rows[:12]
+    issues[-1]["symbol_observations_scope"] = ("only symbols with a problem, max 12; healthy symbols are counted, not listed"
+                                               if problem_rows else "no symbol problems observed; healthy symbols are counted only")
     issues.append({"check": "CONTINUOUS_QUOTE_AND_CANDLE_FRESHNESS",
                    "status": "UNVERIFIED", "last_quote_attempt_age_seconds": quote_attempt_age,
                    "last_quote_success_age_seconds": quote_success_age,
                    "quote_success_scope": "batch success clock; may include partial batch, not per-symbol exchange freshness",
                    "completed_3m_timestamp_count": len(candle_ages),
                    "missing_completed_3m_timestamp_count": total-len(candle_ages),
-                   "older_than_360s_count": len(stale),
+                   "older_than_180s_count": len(stale),
                    "oldest_candles": [{"symbol":sym,"age_seconds":candle_ages[sym]}
                       for sym in sorted(candle_ages,key=candle_ages.get,reverse=True)[:5]],
-                   "age_scope": "cached analyzed completed candle; 360s diagnostic threshold, not exchange proof",
+                   "age_scope": "cached analyzed completed candle; 1m frame: >180s is old only while market is open (not judged after close); not exchange proof",
                    "exchange_live_verified": False})
     issues.append({"check": "SCANNER_RANKING", "status": "TESTING", "progress": progress})
     if engine_observation is not None:
-        issues.append(dict(check="ML5_FIVE_ENGINE_READINESS",status="TESTING",**engine_observation))
+        compact=dict(engine_observation)
+        boxes=[b for b in compact.get("boxes",[]) if isinstance(b,dict)]
+        # B240: boxes that are live-eligible collapse to one word; only blocked boxes show detail.
+        compact["boxes"]=[b if not b.get("live_vote_eligible") else {"box":b.get("box"),"live_vote_eligible":True}
+                          for b in boxes]
+        compact["boxes_live_ok"]=[b.get("box") for b in boxes if b.get("live_vote_eligible")]
+        compact["boxes_blocked"]=[b.get("box") for b in boxes if not b.get("live_vote_eligible")]
+        issues.append(dict(check="ML5_FIVE_ENGINE_READINESS",status="TESTING",**compact))
     if historical_indicator_observation is not None:
         observed=historical_indicator_observation
         matching=observed.get("generation")==generation
@@ -120,7 +150,7 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
                 "code":"BK-HIST-WORKER-003" if matching and worker.get("last_error") else "BK-HIST-WORKER-004",
                 "module":"main.py","function":"prewarm_equity_historical_indicator",
                 "evidence":dict(worker) if matching else {},
-                "scope":"3m/5m local cache prewarm; synchronous fallback remains"})
+                "scope":"local cache prewarm; synchronous fallback remains"})
         else:
             hidden.append("HISTORICAL_EQUITY_WORKER")
     if final_vote_observation is not None:

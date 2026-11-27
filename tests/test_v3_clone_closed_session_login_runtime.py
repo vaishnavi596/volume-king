@@ -63,6 +63,7 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "all_watch_symbols":lambda: ["RELIANCE"],
             "equity_session_closed_detail":lambda:" • NSE/BSE trading holiday",
             "FeedError":FeedError,"log_error":lambda *a:None,
+            "ssk_store_write":lambda value:None,"ssk_remember":FakeField(False),
             "watch_closed_hist_resume_pending":[pending],
             "watch_closed_hist_loading":[False],
             "resume_interrupted_closed_watch_history":resume_interrupted_closed_watch_history,
