@@ -807,4 +807,102 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                              "live_orders_enabled": False},
                             headers={"Cache-Control": "no-store"})
 
+    # ---- B244: server-side PAPER position manager (no orders of any kind) ----
+    try:
+        from .server_paper_positions import PaperEngine
+    except ImportError:
+        from server_paper_positions import PaperEngine
+    paper = PaperEngine(os.environ.get("BOTKING_PAPER_STATE_FILE"))
+
+    class PaperOpen(BaseModel):
+        symbol: str
+        side: str
+        qty: int
+        entry: float
+        stop: float
+        target: Optional[float] = None
+
+    class PaperClose(BaseModel):
+        id: str
+        price: Optional[float] = None
+
+    def paper_json(payload):
+        payload = dict(payload)
+        payload["live_orders_enabled"] = False
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+    @app.get("/clone-v2/paper/heartbeat")
+    def paper_heartbeat(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        return paper_json(paper.heartbeat())
+
+    @app.get("/clone-v2/paper/state")
+    def paper_state(x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        return paper_json(paper.state())
+
+    @app.post("/clone-v2/paper/open")
+    def paper_open(body: PaperOpen, x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        if body.symbol not in known:
+            raise HTTPException(422, "Unknown symbol")
+        try:
+            pos = paper.open(body.symbol, body.side, body.qty, body.entry,
+                             body.stop, body.target)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return paper_json({"position": pos})
+
+    @app.post("/clone-v2/paper/close")
+    def paper_close(body: PaperClose, x_botking_key: Optional[str] = Header(default=None)):
+        authorized(x_botking_key)
+        try:
+            pos = paper.close(body.id, body.price)
+        except KeyError:
+            raise HTTPException(404, "Open paper position not found") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return paper_json({"position": pos})
+
+    def paper_poll_once():
+        """Quote only the symbols of OPEN paper positions, inside the shared
+        spacing/quota gates. Returns closed positions. Read-only Dhan LTP."""
+        symbols = [x for x in paper.heartbeat()["open_symbols"] if x in known]
+        if not symbols or not regular_session_now() or quota_remaining() > 0:
+            return []
+        with market_lock:
+            wait = 1.05 - (time.monotonic() - last_request[0])
+            if 0 < wait <= 1.05:
+                time.sleep(wait)
+            last_request[0] = time.monotonic()
+            feed = provider()
+            reader = getattr(feed, "batch_quote", None)
+            result = (reader if callable(reader) else feed.batch_ltp)([known[x] for x in symbols])
+        prices = {}
+        if isinstance(result, dict) and isinstance(result.get("data"), dict):
+            for sym in symbols:
+                seg, sid = known[sym]
+                try:
+                    prices[sym] = float(result["data"][seg][str(sid)]["last_price"])
+                except (KeyError, TypeError, ValueError):
+                    pass
+        return paper.observe(prices)
+
+    def paper_poll_loop():
+        while True:
+            time.sleep(20)
+            try:
+                paper_poll_once()
+            except Exception as exc:  # keep the engine alive; never raise
+                paper.last_error = type(exc).__name__
+                try:
+                    quota_start() if "429" in str(exc) else None
+                except Exception:
+                    pass
+
+    if os.environ.get("BOTKING_PAPER_POLL") == "1":
+        threading.Thread(target=paper_poll_loop, name="paper-poll", daemon=True).start()
+    app.state.paper_engine = paper
+    app.state.paper_poll_once = paper_poll_once
+
     return app
