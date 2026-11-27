@@ -8499,7 +8499,7 @@ console.log('BOT KING Lightweight Charts ready');
             note(result["display_state"]+" • refresh does not verify exchange time"),
             note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
             note(result.get("reason","Awaiting data")),
-            five_engine_chips(sym,display_timeframe=tf),
+            note("Five boxes: see the live Five Engine section above (single source, not a frozen copy)"),
             vote_display(signal_percentages(result),result.get("display_state")=="LIVE",tf),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
                    else "NEUTRAL" if row.get("vote")==0 else "CONTEXT ONLY" if row.get("context_only") else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
@@ -9309,7 +9309,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
                 txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),
                 note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),
-                note(basis),five_engine_chips(sym,display_timeframe=interval),vote_display(signal_percentages(shown_analysis),False,interval),*lines,
+                note(basis),note("Five boxes: see the live Five Engine section above (single source, not a frozen copy)"),vote_display(signal_percentages(shown_analysis),False,interval),*lines,
                 note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
             ],spacing=5))]
             scan_filter_ready[0]=True

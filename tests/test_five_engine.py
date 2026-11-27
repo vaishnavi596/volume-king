@@ -757,11 +757,14 @@ class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
             'five_engine_chips(index_name,display_timeframe="1m")',
             'five_engine_chips(row["symbol"],display_timeframe="5m")',
             'five_engine_summary(row["symbol"],display_timeframe="5m")',
-            'five_engine_chips(sym,display_timeframe=tf)',
-            'five_engine_chips(sym,display_timeframe=interval)',
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, source)
+        # Scanner analysis blocks are built once per analysis and never repaint;
+        # a second box set there froze and contradicted the live Five Engine section.
+        self.assertNotIn('five_engine_chips(sym,display_timeframe=tf)', source)
+        self.assertNotIn('five_engine_chips(sym,display_timeframe=interval)', source)
+        self.assertIn('see the live Five Engine section above', source)
 
 class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
     def test_paper_trading_has_explicit_timeframe(self):
