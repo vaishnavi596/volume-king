@@ -3473,3 +3473,9 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Included: option order ticket, BANKNIFTY/SENSEX chain fix (server dhan_option_metrics one-leg skip), M lean 30/60 min (HIST, not voted; ledger keys SYMBOL@30/@60), server lot-size map (runner reads Dhan scrip master every 12 h, writes lot_sizes into signals-latest.json; ticket fills Units/lot), Doctor: index_chains, order_ticket, m_horizons_server.
 - Not included (B249): option security ids + server option LTP, F futures direction (candles/OI route), N risk flag, chart parts, O live vote (Monday evidence).
 - Lesson: pushing while B3 regression runs cancels it and the APK gate fails (B3_EXACT_SHA_NOT_VERIFIED). One final push, then wait.
+
+## J56 — B249 owner rule: averaging on the SAME contract (28 Nov 2026)
+- Owner: after buying a CE/PE (e.g. premium 100), if the SAME contract falls to a premium the owner types (70/60/50; for big premiums 800/700), add lots to average. Levels are owner-typed rupee prices, any number of levels, lots per level typed; % shown automatically. No new contract is bought.
+- Ticket shows average price, total lots, invested and max loss in rupees after each level; SL/target recomputed from the average; SL is never removed; unfilled levels expire at end of day.
+- Needs server option premium (option security ids from Dhan scrip master) -> B249 priority 1. Paper only; live orders OFF.
+- Dropped: index-% trigger orders (owner clarified he did not mean buying a different contract).
