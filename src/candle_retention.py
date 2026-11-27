@@ -79,6 +79,15 @@ def retain_candle_history(incoming,previous,*,provider="Dhan"):
     if _valid_bars(new_bars):
         if new_bars[-1][0]>=old_bars[-1][0]:
             return dict(new)
+        # A live-qualified response holds COMPLETED bars only. It legitimately
+        # ends one frame before an earlier unqualified fetch that still carried
+        # the forming bar; that is not an "older provider window".
+        width={"1m":60,"3m":180,"5m":300}.get(new_tf)
+        if (width and new.get("live_verified") is True and new.get("historical") is False
+                and new.get("freshness")=="exchange_verified" and not new.get("cached")
+                and new_bars[-1][0]+width>=old_bars[-1][0]
+                and old_bars[-1][0] not in {row[0] for row in new_bars}):
+            return dict(new)
         # A provider's older historical window must not discard newer bars.
     # Preserve only the candle series; an independently verified quote LTP
     # and its source/freshness metadata are handled by the quote batch path.

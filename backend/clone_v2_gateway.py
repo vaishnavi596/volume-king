@@ -195,6 +195,30 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     candle_cache_ttl_seconds = 180
     candle_cache_max_entries = 100
 
+    def candle_cache_current(entry, interval, to_date, now=None):
+        """During regular hours a cached response is reusable only while it
+        still holds the newest CLOSED bar (live qualification needs the last
+        completed bar <=90 s old). Outside hours the plain TTL applies."""
+        now = time.time() if now is None else now
+        ist = datetime.fromtimestamp(now, timezone(timedelta(hours=5, minutes=30)))
+        if len(entry) < 3 or to_date != ist.date() or ist.weekday() > 4:
+            return True
+        opening = ist.replace(hour=9, minute=15, second=0, microsecond=0).timestamp()
+        if not opening <= now < opening + 6 * 3600 + 20 * 60:
+            return True
+        width = int(interval) * 60
+        grace = 4
+        boundary = opening + ((now - opening) // width) * width
+        if now - boundary < grace:
+            boundary -= width
+        if entry[2] < boundary + grace:
+            return False
+        last = entry[1].get("last_candle_timestamp")
+        if (type(last) in (int, float) and last < boundary - width
+                and now - entry[2] >= 5):
+            return False
+        return True
+
     def market_diagnostic(route, symbol, stage, category):
         """Fixed-enum diagnostics for mapped symbols; no payloads or credentials."""
         if (route not in ("quotes", "candles", "option_expiries", "option_chain")
@@ -596,7 +620,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         with miss_lock:
             with candle_cache_lock:
                 cached = candle_cache.get(cache_key)
-                if cached and 0 <= time.monotonic() - cached[0] < candle_cache_ttl_seconds:
+                if (cached and 0 <= time.monotonic() - cached[0] < candle_cache_ttl_seconds
+                        and candle_cache_current(cached, body.interval, body.to_date)):
                     return JSONResponse(cached[1], headers={"Cache-Control": "no-store"})
             segment, sid = known[body.symbol]
             instrument = "INDEX" if body.symbol in indices else "EQUITY"
@@ -663,7 +688,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 "live_orders_enabled": False}
             if bars:
                 with candle_cache_lock:
-                    candle_cache[cache_key] = (time.monotonic(), payload)
+                    candle_cache[cache_key] = (time.monotonic(), payload, time.time())
                     if len(candle_cache) > candle_cache_max_entries:
                         candle_cache.pop(min(candle_cache, key=lambda k: candle_cache[k][0]))
             return JSONResponse(payload, headers={"Cache-Control": "no-store"})

@@ -642,6 +642,10 @@ def app_main(page:ft.Page):
             # Share recent same-provider candle results across Chart and Scanner.
             # Historical candles remain explicitly unverified, never live quotes.
             ttl=90 if key[3]=="Dhan" else 10
+            if key[3]=="Dhan" and interval in ("1m","3m"):
+                from v3_equity_session_calendar import regular_equity_hours
+                from datetime import datetime as _dt,timezone as _tz
+                if regular_equity_hours(_dt.now(_tz.utc)):ttl=45
             if cached and time.monotonic()-cached[0]<ttl:
                 return dict(copy.deepcopy(cached[1]),_watch_read_origin="SHARED_CACHE")
             result=fetch_market_data_uncached(ticker,interval,range_)
@@ -10763,7 +10767,8 @@ console.log('BOT KING Lightweight Charts ready');
                         and not str(scan_progress.get("state","")).startswith(
                             ("Starting historical", "Checking Dhan batch", "Loading candle", "Loading histories"))
                         and (index_candle_generation[0]!=generation
-                             or time.monotonic()-index_candle_last_attempt[0]>=180)):
+                             or time.monotonic()-index_candle_last_attempt[0]>=180
+                             or (regular_hours() and time.monotonic()-index_candle_last_attempt[0]>=60))):
                     index_candle_generation[0]=generation
                     index_candle_last_attempt[0]=time.monotonic()
                     index_one_minute_busy[0]=True
@@ -10779,7 +10784,7 @@ console.log('BOT KING Lightweight Charts ready');
                                      "Dhan",index_sym,"1m","2d")
                         with market_registry_lock:
                             existing=market_recent.get(history_key)
-                            fresh=bool(existing and time.monotonic()-existing[0]<87)
+                            fresh=bool(existing and time.monotonic()-existing[0]<(42 if regular_hours() else 87))
                         if not fresh:
                             await asyncio.sleep(1.5)
                         if (generation!=provider_generation[0] or lifecycle_background[0]

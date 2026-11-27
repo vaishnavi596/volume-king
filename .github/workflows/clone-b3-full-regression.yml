@@ -18,6 +18,7 @@ on:
       - .github/workflows/v3-b226-side-by-side-preview-apk.yml
       - .github/workflows/v3-b227-side-by-side-preview-apk.yml
       - .github/workflows/v3-b228-side-by-side-preview-apk.yml
+      - .github/workflows/v3-b229-side-by-side-preview-apk.yml
       - .github/workflows/v3-b217-side-by-side-preview-apk.yml
       - .github/workflows/v3-b211-side-by-side-preview-apk.yml
       - .github/workflows/v3-b212-side-by-side-preview-apk.yml

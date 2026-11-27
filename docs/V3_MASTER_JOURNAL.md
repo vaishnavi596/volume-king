@@ -3258,3 +3258,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - Volume filter ignores a post-close (>=15:30 IST) print bar as the comparison bar.
 - B228: open-market Watchlist 3m warm-up budget 12 -> 30 per 180 s, floor 10 s -> 5 s (owner priority: fast; Dhan Data API allows 5 req/s, gateway still serialises at >=1.1 s).
 - backend/clone_signal_runner.py: read-only server-side signal runner for NIFTY/BANKNIFTY/SENSEX (1m/5m), same live-qualification as the phone; no orders.
+
+## J24 — 2026-11-27 11:50 IST — live candle retention + gateway bar-aware cache (B229)
+- WHY: MASTER DIAG/B178 NIFTY 1m showed T/C/O not live. Root causes found in source: (1) candle_retention treated a live-qualified COMPLETED-bars list (forming bar dropped) as an "older provider window" and replaced it with the prior unqualified history (cached/historical); (2) gateway candle cache TTL 180 s vs bridge needing last completed bar <=90 s; (3) phone shared cache 90 s and index candle poll 180 s.
+- ACTION: retention accepts live-qualified list that differs only by the forming bar; gateway `candle_cache_current` (regular hours: cache must be fetched after latest bar boundary+4 s); phone TTL 45 s for 1m/3m in market hours, index poll 60 s in market hours.
+- RESULT: new tests tests/test_live_candle_retention_and_gateway_cache.py PASS; full offline 1776 tests, only the 55 known baseline errors. ITC B178 report shows T and C live-verified (quorum needs a 3rd engine; N/F unwired, O only for F&O index/stocks).
+- OPEN: Oracle gateway needs the new file deployed; B229 APK build; N/F adapters.
