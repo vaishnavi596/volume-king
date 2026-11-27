@@ -20,7 +20,7 @@ class WatchHistoryBudgetUX(unittest.TestCase):
         self.assertIn("wait=watch_hist_budget_wait_seconds()",body)
         self.assertIn("provider pacing; next eligible",body)
         self.assertIn("waiting for worker or cooldown",body)
-        self.assertIn("await asyncio.sleep(10)",body)
+        self.assertIn("await asyncio.sleep(min(10,max(0.5,wait)))",body)
     def test_doctor_can_distinguish_active_paused_and_throttled(self):
         for value in ('"closed_hist_queue_active"','"closed_hist_resume_pending"',
                       '"closed_hist_pacing_wait_seconds"'):

@@ -3342,3 +3342,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - Doctor: Watchlist symbol list now shows only symbols with a problem (max 12) plus ok/problem counts; ML5 boxes that are live-eligible collapse to one word; candle staleness is 180 s (1m frame) and judged only while market is open; old 3m labels updated; login_quote_validation explains authenticated (SSK ok) vs quote_proof (live feed).
 - Correction of my own reading of the 18:05 Doctor report: Oracle=true meant SSK login worked; Dhan=false only meant no live quote feed after close. Outcome "UNCACHED_RESPONSE" is a successful fresh read, not a failure; the ~14 s/share spacing is therefore NOT a disconnected-state wait and is still unexplained (to inspect).
 - Not done (needs live market or a separate design): background run on the phone (no native foreground service in this build; server-first is the real path), N/F feeds, Doctor self-repair extension.
+
+## J35 — B241 (2026-11-27 ~19:10 IST): Watchlist closed HIST ~13 s/share root cause
+- From the B239 Doctor report (18:45): per-share attempt gaps were ~12.5-13 s, some ~5 s. Cause in code: continue_closed_watch_history slept a flat 10 s whenever a call was deferred by the pacing floor, and the reported floor was 5 s while the real explicit-closed floor is 3 s. So each share = ~2.5 s fetch + deferral + 10 s sleep.
+- Fix: sleep only min(10,max(0.5,wait)); reported floor 3 s; idle wait 1 s; Doctor provider_spacing gate <3 s. Expected 51 shares in roughly 2.5-3 min (budget 54/180 s unchanged).
+- Also seen: one TimeoutError (SBILIFE) cost ~50 s; per-call max 34 s (gateway/provider side, not fixed here).
+- Doctor report B239 still shows old format; B240+ shows problem-only symbols.

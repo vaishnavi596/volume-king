@@ -30,7 +30,7 @@ class ClosedHistoricalQueueContract(unittest.TestCase):
             self.assertIn(guard,src)
         self.assertIn('await warm_selected_watch_three_minute_early(',src)
         self.assertIn('explicit_closed=True',src)
-        self.assertIn('await asyncio.sleep(10)',src)
+        self.assertIn('await asyncio.sleep(min(10,max(0.5,wait)))',src)
         self.assertIn('watch_closed_hist_loading[0]=False',src)
         self.assertNotIn('refresh_watch_batch(',src)
 

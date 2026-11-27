@@ -3407,7 +3407,7 @@ def app_main(page:ft.Page):
         now=time.monotonic()
         recent=[t for t in watch_three_minute_upstream_times if 0<=now-t<180]
         budget_wait=(180-(now-min(recent))) if len(recent)>=54 else 0
-        floor_wait=(5-(now-watch_three_minute_warm_last_provider[0])
+        floor_wait=(3-(now-watch_three_minute_warm_last_provider[0])
                     if watch_three_minute_warm_last_provider[0]>0 else 0)
         return max(0,int(math.ceil(max(budget_wait,floor_wait,0))))
 
@@ -3519,9 +3519,10 @@ def app_main(page:ft.Page):
                         watch_status_text.value="Quote check • "+watch_batch_status[0]
                         watch_status_text.update()
                     if wait:
-                        await asyncio.sleep(10)
+                        # B241: sleep only the remaining wait (was a flat 10 s -> ~13 s per share).
+                        await asyncio.sleep(min(10,max(0.5,wait)))
                     else:
-                        await asyncio.sleep(3)
+                        await asyncio.sleep(1)
                 else:
                     watch_closed_hist_wait_seconds[0]=0
                     await asyncio.sleep(0.3)
@@ -7253,7 +7254,7 @@ def app_main(page:ft.Page):
                                   "cooldown_seconds":round(dhan_feed.cooldown_remaining("/dhan/intraday"),1),
                                   "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=54,
                                   "provider_spacing":watch_three_minute_warm_last_provider[0]>0 and
-                                      0<=mono-watch_three_minute_warm_last_provider[0]<10},
+                                      0<=mono-watch_three_minute_warm_last_provider[0]<3},
                               "watchlist_recent_budget_used":sum(
                                   0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)},
                     candle_stamps={sym:watch_three_minute_cache[sym][0][4][-1][0]+180
