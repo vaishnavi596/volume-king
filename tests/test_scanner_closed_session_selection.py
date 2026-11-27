@@ -126,7 +126,7 @@ class ScannerClosedSessionCacheOnlyTests(unittest.TestCase):
         self.assertIn('historical.get("count",0)>=30',scan)
         self.assertIn('now=historical_bars[-1][0]+timeframe_spec(interval)["seconds"]',scan)
         self.assertIn('historical.get("timestamp")==historical_bars[-1][0]',scan)
-        self.assertIn('vote_display(signal_percentages(shown_analysis),False,interval)',scan)
+        self.assertIn('vote_display(signal_percentages(shown_analysis),display_mode=="LIVE" and bool(live_source_verified),interval)',scan)
         self.assertIn('shown_analysis=(historical if history_valid',scan)
         self.assertIn('LAST SESSION HIST',scan)
         self.assertIn('live_verified=False,freshness="historical_unverified"',scan)
