@@ -308,6 +308,8 @@ def app_main(page:ft.Page):
     clone_v2_gateway=CloneV2Gateway()  # Independent B2 SSK, never the original V1 connection.
     dhan_feed=CloneDhanReadOnly(clone_v2_gateway)  # B3 Dhan read-only data, clone routes only.
     renewal_health_cache={}
+    paper_hb_cache={}  # B246: defined early; Home renders before the late workers are defined
+    area_stamps={"scan_done":None,"top5":None,"wl_progress":None}
     clone_v2_connect_busy=[False]
     broker_retry=[0.0]
     broker_failures=[0]
@@ -2798,6 +2800,35 @@ def app_main(page:ft.Page):
             repair_board_signature[0]=signature
         except (AssertionError,RuntimeError) as exc:
             log_error("dashboard_repair_board",exc)
+    def server_away_section():
+        """B246: what the Oracle server saw/did while the phone was away (read-only)."""
+        sig=paper_hb_cache.get("signals") or {}
+        if not clone_v2_gateway.connected:
+            return section("SERVER • आपके पीछे",note("SSK/Oracle not connected • connect in Settings"))
+        if not sig.get("ok"):
+            return section("SERVER • आपके पीछे",note("Server signal runner not reachable yet • analysis only • no orders"))
+        ctr=[]
+        latest=sig.get("latest") or {}
+        gen=str(latest.get("generated_utc","")).replace("T"," ")[:19]
+        ctr.append(note("Server analysis"+(" • last cycle "+gen+" UTC" if gen else "")+(" • market open" if latest.get("market_open") else " • market closed")+" • no orders"))
+        for sym,frames in (latest.get("symbols") or {}).items():
+            for frame,row in (frames or {}).items():
+                bias=row.get("bias") if isinstance(row,dict) else None
+                state=row.get("state") if isinstance(row,dict) else None
+                color=GREEN if bias=="BULLISH" else RED if bias=="BEARISH" else MUTED
+                ctr.append(ft.Row([txt(sym+" "+frame+" ",14,MUTED),txt(bias or "WAIT",14,color,True),
+                    txt(" • "+(("B"+str(row.get("bullish"))+"/S"+str(row.get("bearish"))) if bias else str(state or "")),14,MUTED)],spacing=0,wrap=True))
+        events=[e for e in sig.get("events",[]) if isinstance(e,dict)][-8:]
+        if events:
+            ctr.append(txt("Changes while you were away",14,GOLD,True))
+            for e in reversed(events):
+                try:when=datetime.fromtimestamp(int(e.get("t")),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
+                except Exception:when="?"
+                ctr.append(note(when+" IST • "+str(e.get("symbol"))+" "+str(e.get("frame"))+" • "+str(e.get("from") or "—")+" → "+str(e.get("to"))))
+        closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-3:]
+        for x in reversed(closed):
+            ctr.append(note("Server paper closed "+str(x.get("symbol"))+" • "+str(x.get("reason"))+" • P&L ₹"+format(x.get("pnl",0),",.2f")))
+        return section("SERVER • आपके पीछे",ft.Column(ctr,spacing=4))
     def dashboard():
         # Keep one canonical three-slot index analysis panel. Duplicate market
         # overview, error-monitor and news cards cluttered the Home screen and
@@ -3469,7 +3500,6 @@ def app_main(page:ft.Page):
     # One explicit Watchlist tap schedules selected-only closed HIST warmup.
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
-    area_stamps={"scan_done":None,"top5":None,"wl_progress":None}
     watch_pass_timer={"start":None,"seconds":None,"loaded":0,"total":0}  # B243 visible pass timer
     watch_closed_hist_key=[None]
     watch_closed_hist_wait_seconds=[0]
@@ -11455,7 +11485,6 @@ console.log('BOT KING Lightweight Charts ready');
             if generation==provider_generation[0] and clone_v2_gateway.connected:
                 renewal_health_cache.clear()
                 renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
-    paper_hb_cache={}
     srv_paper_qty=ft.TextField(label="Server paper qty",value="1",width=130,keyboard_type=ft.KeyboardType.NUMBER)
     srv_paper_sl=ft.TextField(label="Stop-loss %",value="2",width=110,keyboard_type=ft.KeyboardType.NUMBER)
     srv_paper_tg=ft.TextField(label="Target %",value="4",width=110,keyboard_type=ft.KeyboardType.NUMBER)
@@ -11516,35 +11545,6 @@ console.log('BOT KING Lightweight Charts ready');
         srv_paper_status.value=("Server paper position closed" if res.get("ok")
             else "Server paper not closed: "+str(res.get("detail") or res.get("reason")))
         await paper_server_refresh();request_view_refresh(current[0])
-    def server_away_section():
-        """B246: what the Oracle server saw/did while the phone was away (read-only)."""
-        sig=paper_hb_cache.get("signals") or {}
-        if not clone_v2_gateway.connected:
-            return section("SERVER • आपके पीछे",note("SSK/Oracle not connected • connect in Settings"))
-        if not sig.get("ok"):
-            return section("SERVER • आपके पीछे",note("Server signal runner not reachable yet • analysis only • no orders"))
-        ctr=[]
-        latest=sig.get("latest") or {}
-        gen=str(latest.get("generated_utc","")).replace("T"," ")[:19]
-        ctr.append(note("Server analysis"+(" • last cycle "+gen+" UTC" if gen else "")+(" • market open" if latest.get("market_open") else " • market closed")+" • no orders"))
-        for sym,frames in (latest.get("symbols") or {}).items():
-            for frame,row in (frames or {}).items():
-                bias=row.get("bias") if isinstance(row,dict) else None
-                state=row.get("state") if isinstance(row,dict) else None
-                color=GREEN if bias=="BULLISH" else RED if bias=="BEARISH" else MUTED
-                ctr.append(ft.Row([txt(sym+" "+frame+" ",14,MUTED),txt(bias or "WAIT",14,color,True),
-                    txt(" • "+(("B"+str(row.get("bullish"))+"/S"+str(row.get("bearish"))) if bias else str(state or "")),14,MUTED)],spacing=0,wrap=True))
-        events=[e for e in sig.get("events",[]) if isinstance(e,dict)][-8:]
-        if events:
-            ctr.append(txt("Changes while you were away",14,GOLD,True))
-            for e in reversed(events):
-                try:when=datetime.fromtimestamp(int(e.get("t")),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
-                except Exception:when="?"
-                ctr.append(note(when+" IST • "+str(e.get("symbol"))+" "+str(e.get("frame"))+" • "+str(e.get("from") or "—")+" → "+str(e.get("to"))))
-        closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-3:]
-        for x in reversed(closed):
-            ctr.append(note("Server paper closed "+str(x.get("symbol"))+" • "+str(x.get("reason"))+" • P&L ₹"+format(x.get("pnl",0),",.2f")))
-        return section("SERVER • आपके पीछे",ft.Column(ctr,spacing=4))
     def server_paper_section():
         rep=paper_hb_cache.get("report") or {}
         if not clone_v2_gateway.connected:

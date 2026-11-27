@@ -172,3 +172,12 @@ class B247AreaWatcherTests(unittest.TestCase):
     def test_saved_ssk_but_disconnected(self):
         rows = self._w(oracle_connected=False)
         self.assertEqual(rows[0]["point"], "GATEWAY_SSK")
+
+
+class B247InitialRenderOrderTests(unittest.TestCase):
+    def test_names_used_by_first_home_render_exist_before_first_select(self):
+        src = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        first_select = src.index("\n    select(current[0])")
+        for needle in ("    def server_away_section():", "    paper_hb_cache={}", "    area_stamps={"):
+            self.assertLess(src.index(needle), first_select, needle)
+        self.assertLess(src.index("    def server_away_section():"), src.index("    def dashboard():"))
