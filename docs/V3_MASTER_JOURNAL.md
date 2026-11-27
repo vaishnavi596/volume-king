@@ -3492,3 +3492,10 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Found on server: SENSEX near-expiry lot is 20 while a far contract shows 25 (first-seen map was wrong for near expiries). Runner now writes lot_by_expiry ("SENSEX|2026-12-03": 20) into signals-latest; ticket uses it first, falls back to the per-underlying map. Server paper already uses each contract's own lot.
 - Needs server reinstall + next APK. Not built yet (waiting for owner's B249 report).
 - J58 addendum (owner screenshot, B249): Watchlist cards were not equally filled: RELIANCE showed O HIST, ICICIBANK/TCS showed O WAIT, because roster option chains live only in memory and reload slowly after an app restart. B250 saves every roster chain to the persistent store (key ("Dhan",symbol,"latest")) and restores it as HIST for any symbol while its expiry is not in the past. M chip text shortened. N and F stay WAIT everywhere until their evidence is wired (known gaps).
+
+## J59 — B250 build (28 Nov 2026)
+- Ticket layout (owner screenshot, overlap): fields had fixed small widths and the generic help wrapper added an info button beside each field, so labels wrapped vertically and overlapped the BUY/SELL row. Fields now expand in two-column rows inside a compact_group (no help wrapper), Hindi labels.
+- Single source of maths: server route /clone-v2/paper/preview-option runs the same server function as the engine (server_paper_positions.scenarios); the phone shows the server result ("सर्वर से जाँचा ✓") and keeps its own copy only as an offline estimate; a 400-case test proves both agree.
+- Roster option chains persisted (HIST) so every Watchlist box O fills after restart; per-expiry lot sizes (SENSEX 20); M horizons use sqrt scaling (30/60 no longer saturate at 25/75).
+- Server reinstall needed (gateway preview route + runner lot_by_expiry): rerun ops/install_server_away_20261127.sh at the B250 sha.
+- Not yet: retire the old phone-local paper system; N/F evidence; chart parts; O live vote (Monday).

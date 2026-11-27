@@ -42,7 +42,7 @@ def m_lean(bars, horizon=HORIZON_MINUTES):
     slope = sum((x - mx) * (y - my) for x, y in zip(xs, closes)) / var   # price per bar
     rng = sum(h - l for h, l, _ in clean) / n or 1e-9                    # mean bar range
     # Projected move over the horizon relative to typical bar range, clipped.
-    score = max(-1.0, min(1.0, slope * horizon / (rng * 4)))
+    score = max(-1.0, min(1.0, slope * math.sqrt(horizon * HORIZON_MINUTES) / (rng * 4)))  # sqrt: longer horizons do not saturate
     # Reversal damper: last 5 bars against the slope reduce confidence.
     recent = closes[-1] - closes[-6]
     if score * recent < 0:

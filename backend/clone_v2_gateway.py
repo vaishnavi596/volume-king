@@ -822,9 +822,9 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
 
     # ---- B244: server-side PAPER position manager (no orders of any kind) ----
     try:
-        from .server_paper_positions import PaperEngine
+        from .server_paper_positions import PaperEngine, scenarios as paper_scenarios
     except ImportError:
-        from server_paper_positions import PaperEngine
+        from server_paper_positions import PaperEngine, scenarios as paper_scenarios
     paper = PaperEngine(os.environ.get("BOTKING_PAPER_STATE_FILE"))
 
     class PaperOpen(BaseModel):
@@ -938,6 +938,29 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         if not (math.isfinite(px) and px > 0):
             raise HTTPException(503, "Option quote invalid")
         return px
+
+    class PaperPreviewOption(BaseModel):
+        underlying: str
+        expiry: date
+        strike: float
+        side: str
+        lots: int
+        entry: float
+        stop: float
+        target: float
+        levels: List[PaperLevel] = []
+        target_avg: Optional[float] = None
+
+    @app.post("/clone-v2/paper/preview-option")
+    def paper_preview_option(body: PaperPreviewOption, x_botking_key: Optional[str] = Header(default=None)):
+        """Rupee view from the SAME server maths the engine uses; no quote, no order."""
+        authorized(x_botking_key)
+        contract = option_contract(body.underlying, body.expiry.isoformat(), body.strike, body.side)
+        if contract is None:
+            raise HTTPException(422, "Contract not found in server list (strike/expiry)")
+        result = paper_scenarios(body.entry, body.lots, contract["lot"],
+                                 [lv.dict() for lv in body.levels], body.stop, body.target, body.target_avg)
+        return paper_json(dict(result, lot_size=contract["lot"], source="server"))
 
     @app.post("/clone-v2/paper/open-option")
     def paper_open_option(body: PaperOpenOption, x_botking_key: Optional[str] = Header(default=None)):

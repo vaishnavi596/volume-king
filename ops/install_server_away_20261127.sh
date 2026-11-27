@@ -27,7 +27,7 @@ for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.p
 done
 for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do python3 -m py_compile "$WORK/$f"; done
 grep -q '/clone-v2/signals/latest' "$WORK/clone_v2_gateway.py" || { echo "BLOCKED: wrong gateway candidate"; exit 1; }
-grep -q 'parse_option_contracts' "$WORK/clone_signal_runner.py" && grep -q 'open-option' "$WORK/clone_v2_gateway.py" && grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
+grep -q 'preview-option' "$WORK/clone_v2_gateway.py" && grep -q 'lot_by_expiry' "$WORK/clone_signal_runner.py" && grep -q 'parse_option_contracts' "$WORK/clone_signal_runner.py" && grep -q 'open-option' "$WORK/clone_v2_gateway.py" && grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
 for f in clone_v2_gateway.py dhan_option_metrics.py server_paper_positions.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
 for f in clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
   [ -f "$SIG/$f" ] && cp -p "$SIG/$f" "$SIG/$f.rollback-$TS"; install -m 600 "$WORK/$f" "$SIG/$f"

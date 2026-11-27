@@ -154,3 +154,48 @@ class RosterChainPersistence(unittest.TestCase):
         main = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
         self.assertIn('("Dhan",sym,"latest")', main)
         self.assertIn('"option_context_last_good","Dhan",sym,"latest"', main)
+
+
+class SingleSourceMaths(unittest.TestCase):
+    def test_phone_estimate_equals_server_maths(self):
+        import random
+        sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "src"))
+        import server_paper_positions as sp, option_ticket as ot
+        random.seed(7)
+        checked = 0
+        for _ in range(400):
+            e = random.uniform(50, 300); stop = e * random.uniform(.3, .9); tg = e * random.uniform(1.1, 2)
+            lv = [{"price": e * random.uniform(.5, .95), "lots": random.randint(1, 3)} for _ in range(random.randint(0, 2))]
+            lv = [x for x in lv if stop < x["price"] < e]
+            a = sp.scenarios(e, 2, 65, lv, stop, tg, e * 1.05)
+            b = ot.averaging_scenarios(e, 2, 65, [(x["price"], x["lots"]) for x in lv], stop, tg, e * 1.05)
+            if not a["ok"]:
+                continue
+            key = lambda rows: [(x["lots"], x["avg"], x["invested"], x["loss_at_stop"], x["profit_at_target"]) for x in rows]
+            self.assertEqual(key(a["rows"]), key(b)); checked += 1
+        self.assertGreater(checked, 300)
+    def test_bad_input_fails_closed(self):
+        import server_paper_positions as sp
+        self.assertFalse(sp.scenarios(100, 1, 65, [], 120, 130, None)["ok"])
+        self.assertFalse(sp.scenarios(100, 1, 65, [{"price": 40, "lots": 1}], 50, 120, None)["ok"])
+    def test_preview_wiring(self):
+        root = pathlib.Path(__file__).parents[1]
+        gw = (root / "backend" / "clone_v2_gateway.py").read_text()
+        self.assertIn('"/clone-v2/paper/preview-option"', gw)
+        self.assertIn("authorized(x_botking_key)", gw[gw.index("def paper_preview_option"):][:400])
+        main = (root / "src" / "main.py").read_text()
+        self.assertIn("tk_srv_preview", main)
+        self.assertIn("सर्वर से जाँचा", main)
+
+
+class TicketLayout(unittest.TestCase):
+    def test_ticket_fields_have_no_fixed_width_and_skip_help_wrapper(self):
+        import re
+        main = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
+        for name in ("tk_lots", "tk_unit", "tk_sl_price", "tk_sl_pct", "tk_tg_price", "tk_tg_pct",
+                     "tk_lv1_price", "tk_lv1_lots", "tk_lv2_price", "tk_lv2_lots", "tk_tga_price"):
+            line = re.search(r"\n    %s=ft\.TextField\([^\n]*" % name, main).group(0)
+            self.assertNotIn("width=", line, name)
+            self.assertIn("expand=True", line, name)
+        card = main[main.index("def ticket_card"):main.index("def ticket_card") + 4000]
+        self.assertIn('data="compact_group"', card)

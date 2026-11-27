@@ -4559,18 +4559,20 @@ def app_main(page:ft.Page):
     # B248 friendly order ticket: tap a CE/PE premium in the chain -> ticket.
     # Calculator only: the premium is unverified, so no paper fill is recorded.
     tk=dict(side="BUY",prem="",sl_pct="4",tg_pct="")
-    tk_lots=ft.TextField(label="Lots",value="1",width=90,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_unit=ft.TextField(label="Units/lot",value=str(prefs.get("bot_lot_size",1)),width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_sl_price=ft.TextField(label="SL price ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_sl_pct=ft.TextField(label="SL % below",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_tg_price=ft.TextField(label="Target ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_tg_pct=ft.TextField(label="Target % above",width=110,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_lv1_price=ft.TextField(label="औसत स्तर 1 ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_lv1_lots=ft.TextField(label="लॉट",width=80,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_lv2_price=ft.TextField(label="औसत स्तर 2 ₹",width=120,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_lv2_lots=ft.TextField(label="लॉट",width=80,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
-    tk_tga_price=ft.TextField(label="औसत होने पर टारगेट ₹",width=170,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lots=ft.TextField(label="लॉट",value="1",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_unit=ft.TextField(label="यूनिट/लॉट",value=str(prefs.get("bot_lot_size",1)),expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_sl_price=ft.TextField(label="SL भाव ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_sl_pct=ft.TextField(label="SL % नीचे",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tg_price=ft.TextField(label="टारगेट ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tg_pct=ft.TextField(label="टारगेट % ऊपर",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv1_price=ft.TextField(label="औसत भाव 1 ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv1_lots=ft.TextField(label="लॉट",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv2_price=ft.TextField(label="औसत भाव 2 ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_lv2_lots=ft.TextField(label="लॉट",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_tga_price=ft.TextField(label="औसत होने पर टारगेट ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_avg_lines=ft.Column([],spacing=2)
+    tk_srv=dict(gen=0)
+    tk_srv_line=txt("",11,MUTED)
     tk_result=txt("Chain में CE/PE भाव पर टैप करें",13,MUTED)
     tk_note=txt("",12,MUTED)
     def tk_recalc(src=None):
@@ -4601,6 +4603,49 @@ def app_main(page:ft.Page):
                     tk_avg_lines.controls.append(txt(line,12,GOLD))
         except Exception as exc:
             log_error("ticket_avg",exc)
+        try:
+            tk_srv["gen"]+=1
+            if tk["prem"] and clone_v2_gateway.connected and expiry.value and r.get("valid") and r.get("sl_ok") and r.get("tg_ok"):
+                tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सर्वर से जाँच रहा..."
+                page.run_task(tk_srv_preview,tk_srv["gen"])
+            else:
+                tk_srv_line.value=""
+        except Exception as exc:
+            log_error("ticket_srv_schedule",exc)
+    async def tk_srv_preview(gen):
+        """B250: the server's own engine maths is the source of truth; the phone's is an estimate."""
+        await asyncio.sleep(0.8)
+        if gen!=tk_srv["gen"]:return
+        try:
+            levels=[]
+            for pr,n in ((tk_lv1_price.value,tk_lv1_lots.value),(tk_lv2_price.value,tk_lv2_lots.value)):
+                if str(pr).strip():levels.append({"price":float(pr),"lots":int(n)})
+            tga=float(tk_tga_price.value) if str(tk_tga_price.value).strip() else None
+            res=await asyncio.to_thread(clone_v2_gateway.paper_preview_option,chain_symbol.value,expiry.value,float(option_strike.value),
+                option_side.value,int(tk_lots.value),float(tk["prem"]),float(tk_sl_price.value),float(tk_tg_price.value),levels,tga)
+            if gen!=tk_srv["gen"]:return
+            if not res.get("ok") or not res.get("rows"):
+                tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सर्वर से नहीं जाँचा ("+str(res.get("detail") or res.get("reason"))[:60]+")"
+                tk_srv_line.color=MUTED
+            else:
+                rows=res["rows"]
+                local=option_ticket.averaging_scenarios(tk["prem"],tk_lots.value,tk_unit.value,[(l["price"],l["lots"]) for l in levels],tk_sl_price.value,tk_tg_price.value,tga)
+                same=bool(local) and abs(local[0]["loss_at_stop"]-rows[0]["loss_at_stop"])<1 and str(res.get("lot_size"))==str(tk_unit.value)
+                tk_avg_lines.controls=[]
+                for i,sc in enumerate(rows):
+                    label="औसत नहीं" if i==0 else "स्तर "+str(i)+" के बाद"
+                    line=(label+": कुल "+str(sc["lots"])+" लॉट • औसत ₹"+format(sc["avg"],",.2f")+" • निवेश ₹"+format(sc["invested"],",.0f")
+                          +" • SL पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
+                          +((" • टारगेट ₹"+format(sc["target"],",.2f")+" पर मुनाफ़ा ₹"+format(sc["profit_at_target"],",.0f")) if sc["profit_at_target"] else ""))
+                    tk_avg_lines.controls.append(txt(line,12,GREEN))
+                tk_srv_line.value=("हिसाब: सर्वर से जाँचा ✓ • लॉट "+str(res.get("lot_size")) if same else
+                                   "हिसाब: सर्वर का दिखा रहे हैं (फ़ोन के अनुमान/लॉट से अंतर) • लॉट "+str(res.get("lot_size")))
+                tk_srv_line.color=GREEN if same else GOLD
+        except Exception as exc:
+            log_error("ticket_srv_preview",exc)
+            tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सर्वर से नहीं जाँचा"
+            tk_srv_line.color=MUTED
+        request_view_refresh(current[0])
     def tk_changed(src):
         def handler(e):
             tk_recalc(src);page.update()
@@ -4669,11 +4714,15 @@ def app_main(page:ft.Page):
               +(" • भाव ₹"+tk["prem"] if tk["prem"] else ""))
         return section("ऑर्डर टिकट • PAPER (LIVE बंद)",ft.Column([
             txt(head,15,GOLD,True),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
-            ft.Row([tk_lots,tk_unit],spacing=8),
-            ft.Row([tk_sl_price,tk_sl_pct],spacing=8,wrap=True),ft.Row([tk_tg_price,tk_tg_pct],spacing=8,wrap=True),
-            txt("औसत (वही CE/PE, नीचे के भाव पर और लॉट) • खाली छोड़ें तो औसत नहीं",12,MUTED),
-            ft.Row([tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots],spacing=8,wrap=True),tk_tga_price,
-            tk_result,tk_avg_lines,
+            ft.Column([
+                ft.Row([tk_lots,tk_unit],spacing=10),
+                ft.Row([tk_sl_price,tk_sl_pct],spacing=10),
+                ft.Row([tk_tg_price,tk_tg_pct],spacing=10),
+                txt("औसत (वही CE/PE, नीचे के भाव पर और लॉट) • खाली छोड़ें तो औसत नहीं",12,MUTED),
+                ft.Row([tk_lv1_price,tk_lv1_lots],spacing=10),
+                ft.Row([tk_lv2_price,tk_lv2_lots],spacing=10),
+                ft.Row([tk_tga_price],spacing=10)],spacing=14,data="compact_group"),
+            tk_result,tk_avg_lines,tk_srv_line,
             ft.ElevatedButton("सर्वर PAPER "+side+" • बाज़ार खुले में",on_click=ticket_place),tk_note,
             note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद")],spacing=8))
     option_chart_cache={}

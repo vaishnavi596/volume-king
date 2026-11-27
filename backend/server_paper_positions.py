@@ -247,3 +247,38 @@ class PaperEngine:
         with self.lock:
             return {"heartbeat": self.heartbeat(),
                     "positions": [dict(p) for p in self.positions[-100:]]}
+
+
+def scenarios(entry, lots, lot_size, levels, stop, target, target_avg):
+    """B250 single source of truth for the rupee view of an option BUY with averaging.
+
+    Same inputs the engine validates in open_option. Returns {"ok":bool,"reason":str,"rows":[...]}.
+    The phone shows this; its own copy of the maths is only an offline estimate.
+    """
+    num = PaperEngine._num
+    try:
+        if not (num(entry) and num(stop) and num(target) and stop < entry < target):
+            return {"ok": False, "reason": "stop below entry below target required", "rows": []}
+        if type(lots) is not int or not 1 <= lots <= MAX_TOTAL_LOTS or type(lot_size) is not int or lot_size < 1:
+            return {"ok": False, "reason": "lots/lot size invalid", "rows": []}
+        lv = []
+        for x in (levels or []):
+            if not (num(x.get("price")) and type(x.get("lots")) is int and x["lots"] >= 1 and stop < x["price"] < entry):
+                return {"ok": False, "reason": "averaging level invalid", "rows": []}
+            lv.append((float(x["price"]), x["lots"]))
+        lv.sort(key=lambda t: -t[0])
+        qty, cost, n = lots * lot_size, entry * lots * lot_size, lots
+        ta = float(target_avg) if num(target_avg) else None
+
+        def row(label, n_lots, q, c, tgt):
+            avg = c / q
+            return {"label": label, "lots": n_lots, "qty": q, "avg": round(avg, 2), "invested": round(c, 2),
+                    "loss_at_stop": round((avg - stop) * q, 2), "target": tgt,
+                    "profit_at_target": round((tgt - avg) * q, 2) if tgt and tgt > avg else None}
+        rows = [row("no averaging", lots, qty, cost, float(target))]
+        for i, (p_, k) in enumerate(lv, 1):
+            n += k; qty += k * lot_size; cost += p_ * k * lot_size
+            rows.append(row("after level %d (%g)" % (i, p_), n, qty, cost, ta if ta else float(target)))
+        return {"ok": True, "reason": "", "rows": rows}
+    except (TypeError, ValueError, AttributeError):
+        return {"ok": False, "reason": "invalid input", "rows": []}
