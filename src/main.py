@@ -3401,6 +3401,7 @@ def app_main(page:ft.Page):
     # Resume only a previously user-requested HIST queue; no unsolicited
     # closed-session provider polling when the user has not tapped Refresh.
     watch_closed_hist_resume_pending=[False]
+    watch_closed_auto_key=[None]
     watch_closed_hist_resume_scope=[None]
     async def resume_interrupted_closed_watch_history(authenticated_reconnect=False):
         for _ in range(15):
@@ -3709,6 +3710,18 @@ def app_main(page:ft.Page):
                 last_filtered_membership[0]=None
                 continue
             try:
+                # Market-closed Watchlist must load its last completed HIST by
+                # itself (no tap): one automatic bounded pass per list/search/day.
+                if (not refresh_hours() and prefs.get("source")=="Dhan"
+                        and clone_v2_gateway.connected and not dhan_feed.connected
+                        and not watch_closed_hist_loading[0] and not watch_batch_busy[0]
+                        and not index_refresh_busy[0]):
+                    closed_key=(provider_generation[0],active_watch[0],
+                                (search.value or "").upper(),
+                                datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat())
+                    if watch_closed_auto_key[0]!=closed_key:
+                        watch_closed_auto_key[0]=closed_key
+                        page.run_task(refresh_all_dhan_quotes)
                 visible=tuple(watch_groups[active_watch[0]])
                 # Reuse the same analyzed 3m result across signatures and row repaint.
                 tick_started=time.perf_counter()

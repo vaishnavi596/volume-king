@@ -3302,3 +3302,8 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - FINDINGS: Watchlist staleness (29/51 >360 s) caused by the 5m Scanner ranking blocking Watchlist ~386 s; N feed = irrelevant UK headlines; F futures adapter missing; day change "—" (gateway LTP route has no previous close); vote bar shows "HIST • NOT live" even when T is live.
 - TESTS: 1779 tests, 0 failures, 55 known baseline errors (fastapi absent locally). Live orders permanently OFF (paper only).
 - NEXT (order): B235 phone test next live session (O live? Doctor `renewal_health`); Watchlist/Scanner interleave fix; vote-bar label; premium chart (axes, grid, volume, pan/zoom, OHLCV tap, VWAP/EMA overlays, default 1m); background run (server first, then phone foreground service); N Indian source, F futures; M stays inert until owner defines its filter.
+
+## J29 — B236 (2026-11-27 15:45 IST): Watchlist after market close
+- OBSERVED: Watchlist stayed still 15:30→15:45; owner: updates started only at 15:45. Cause: automatic polls run in refresh window 09:10–15:45 (equity_refresh_window); closed-market HIST load needed a manual Refresh tap and began only after 15:45.
+- FIX: watch_visible_tick starts one automatic closed-market HIST pass per (generation, list, search, IST date) when refresh window is over, gateway connected, no other busy flag. 1779 tests, 55 baseline errors.
+- OPEN: 15:30–15:45 gap shows quotes only (final 3m candles may be late) — consider making the window end at 15:35 for candles.
