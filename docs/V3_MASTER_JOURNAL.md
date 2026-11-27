@@ -3400,3 +3400,6 @@ New defects found in the same report:
 ## J42 — Owner check 20:22 IST (build B242) and new point 9
 - VERIFIED by owner on B242: option chain opens automatically; Scanner works; Watchlist shows prices for all shares and for NIFTY/BANKNIFTY/SENSEX; Super Five shows prices.
 - Point 9 (new): colour consistency. Super Five/Scanner card price is drawn with note() = MUTED grey, looks white; value to highlight must use a different colour. Rule proposed: labels MUTED; prices/key numbers GOLD or by direction GREEN/RED, bold. Audit all screens (Home, Scanner, Super Five, Watchlist, Options, Chart) for the same rule. Not built yet: bundled into the next build with points 1-8.
+
+## J43 — Point 10 (owner, 2026-11-27 20:23 IST)
+ 10. Scanner filters: on NIFTY the 17 filters are ON; on BANKNIFTY, SENSEX and RELIANCE only 4 filters appear enabled. To check: per-symbol candle count/timeframe loaded in the scanner (indexes 1m, equities 5m per the audit panel), which filters are candle-computable (13 of 18; OI Support/Resistance/Profile, Max Pain, News Headlines wait for external evidence), and why the others are not computed for those symbols. Needs the "54-symbol filter audit" panel / Doctor report for BANKNIFTY.
