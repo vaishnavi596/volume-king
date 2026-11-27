@@ -416,6 +416,12 @@ def app_main(page:ft.Page):
         known_fields={"bias","reason","votes","name","vote","detail","timestamp","overall","coverage","candle","options","news","headlines","global_headlines","url","title","source","published","method","available","news_status","global_status","direction","basis","bars","quality","score"}
         missing=str(exc.args[0]) if isinstance(exc,KeyError) and exc.args else ""
         suffix=" [missing "+missing+"]" if missing in known_fields else ""
+        if isinstance(exc,FeedError) and area.startswith(("dhan_options","top5_option")):
+            # Short allowlisted gateway/HTTP reason only (e.g. 429/cooldown type); no URLs or bodies.
+            import re as _re
+            note=str(exc.args[0]) if exc.args else ""
+            if _re.fullmatch(r"[A-Za-z0-9 _:./-]{1,60}",note) and not _re.search(r"\d{7,}",note):
+                suffix=" ["+note+"]"
         if area in ("chart","load_chart","dhan_index_ltp_batch"):
             display_failures[area]=type(exc).__name__
         building_doctor.error(area,type(exc).__name__)
