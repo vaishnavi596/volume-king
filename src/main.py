@@ -3911,6 +3911,13 @@ def app_main(page:ft.Page):
                         if button.page is not None:button.update()
                 try:
                     fresh_label=watch_candle_fresh_label()
+                    try:
+                        from v3_breadth import breadth,breadth_text
+                        _eq=[(quotes.get(x) or {}).get("change") for x in all_watch_symbols()
+                             if x not in ("NIFTY","BANKNIFTY","SENSEX")]
+                        fresh_label=fresh_label+" • "+breadth_text(breadth(_eq))
+                    except Exception as exc:
+                        log_error("breadth",exc)
                     if watch_fresh_text.value!=fresh_label:
                         watch_fresh_text.value=fresh_label
                         if watch_fresh_text.page is not None:watch_fresh_text.update()

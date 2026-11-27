@@ -3451,3 +3451,8 @@ Planned new safe repair actions (all allowlisted, bounded, read-only provider ca
 Rule: NO APK until owner sends report and says build.
 Six boxes "active" = each box shows its own HIST value (labelled NOT live) today; none enters the live vote until verified live evidence exists (Monday check). M logs predictions to a ledger; not a vote until measured hit-rate.
 Lineup: 1 N HIST B/S + risk flag; 2 F HIST (basis/OI change); 3 M forward 20-min lean + server ledger; 4 Breadth box (51-share up/down); 5 chart parts (axes, grid, volume, zoom/pan, OHLCV tap, VWAP); 6 change vs prev close; 7 15:30-15:45 late candles; 8 17-filter review; 9 server roster-wide analysis; 10 server-paper-closed notice on app open; 11 remaining colour audit (after owner report); 12 Home chart gap verification (after owner report).
+
+## J52 — B248 progress (NO APK built, per owner)
+Done in code (tests pass, pushed): change% from Dhan quote net_change (gateway + phone; server redeploy needed); box M = 20-min forward lean (src/v3_m_forward.py, HIST, not voted) shown in 6th slot + Doctor sixth_M_lean_hist; server M ledger in signal runner (records every 5 min, scores after 20 min, summary in signals-latest + Home card); Breadth line on Watchlist (src/v3_breadth.py, not voted).
+Not done yet: F HIST (needs futures candles/OI route on gateway), N risk flag, premium chart parts, 17-filter review, late 15:30-15:45 candles, roster-wide server analysis, server-paper-closed notice.
+Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_forward.py -> run ops/install_server_away script at the B248 commit (script already fetches v3_m_forward.py).
