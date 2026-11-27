@@ -3321,3 +3321,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - CLOSED MARKET: owner saw one share per ~14 s. Closed explicit queue budget 40→54 per 180 s; deferral sleep 10 s only when a real wait exists (else 3 s); after success 0.3 s.
 - Scanner vote bar LIVE label (J30b) ships here. Tests: 1779, 0 failures, 55 baseline errors.
 - OPEN: if 14 s/share persists after B238, the cause is on the gateway/provider side — need Oracle journal for /market/candles timings.
+
+## J32 — 2026-11-27 17:00 IST — Roadmap & direction (owner discussion)
+- Owner goal: app should say where the market goes next 20 min / 30 min / day, with ~70% reliability; boxes may be added/removed freely; app must keep running when phone is off (server-first); live orders must survive phone shutdown.
+- Position taken: current percentages are filter agreement, not win probability; 70% must be a MEASURED hit-rate per signal state (prediction ledger on server, forward test), boxes kept/dropped by ablation on that ledger.
+- Proposed: T,C,O,F keep; N → risk flag not vote; M = separate "forward" layer; add B (Breadth from the 51-symbol Watchlist); review 17 filters; premium chart.
+- Phases 0–4 with gates (G0 stabilise → G1 ledger 2 weeks → G2 server bot 5 days without phone → G3 hit-rate ~70% on selected states → G4 live orders only after owner's written approval; exchange-side SL, kill-switch, static IP to be verified against Dhan docs).
+- Full roadmap document: Claude Docs "BOT KING V3 — रोडमैप और दिशा (27 नवंबर 2026)". Open owner decisions are listed there as checkboxes.
