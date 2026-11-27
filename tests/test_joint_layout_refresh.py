@@ -46,7 +46,7 @@ class JointLayoutRefreshTests(unittest.TestCase):
         watch=texts(self.v['compact_watch_signal'](row,True,False))
         self.assertIn("Bullish 50%",watch)
         self.assertIn("Bearish 50%",watch)
-        self.assertIn("3m • 2 directional votes • NOT live",watch)
+        self.assertIn("1m • 2 directional votes • NOT live",watch)
         self.assertEqual(texts(self.v['historical_vote_bar']((50,50,2))),expected)
 
     def test_watchlist_details_collapsed_and_redundant_caption_removed(self):

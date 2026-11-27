@@ -5,7 +5,7 @@ run-name: BOT KING V3 B238 CURRENT JOINT REGRESSION PREVIEW • v2.3.238
 # B238 is an isolated current-source phone-test candidate, not final acceptance.
 # The full independent exact-head B3 gate must PASS before signing this preview.
 # B238: Watchlist votes on 1m candles (freshness within ~3 min), closed-market HIST pacing 54/180 s, scanner vote bar LIVE label, on top of B237.
-# B238 rerun: CI test pins updated (flet-only tests for 1m Watchlist labels).
+# B238 rerun 2: CI test pins updated (flet-only tests for 1m Watchlist labels, vote-bar caption).
 on:
   push:
     branches:
