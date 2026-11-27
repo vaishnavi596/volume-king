@@ -51,6 +51,7 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
         async def resume_interrupted_closed_watch_history(authenticated_reconnect=False):
             raise AssertionError('Task must be scheduled, not executed by login fixture')
         class FeedError(Exception):pass
+        async def ssk_store_write_async(value):return None
         ctx={
             "clone_v2_connect_busy":busy,"broker_connect_busy":[False],
             "building_doctor":doctor,"api_url":FakeField("https://example.org"),
@@ -63,7 +64,7 @@ class HolidaySSKRuntimeTests(unittest.IsolatedAsyncioTestCase):
             "all_watch_symbols":lambda: ["RELIANCE"],
             "equity_session_closed_detail":lambda:" • NSE/BSE trading holiday",
             "FeedError":FeedError,"log_error":lambda *a:None,
-            "ssk_store_write":lambda value:None,"ssk_remember":FakeField(False),
+            "ssk_store_write_async":ssk_store_write_async,"ssk_remember":FakeField(False),
             "watch_closed_hist_resume_pending":[pending],
             "watch_closed_hist_loading":[False],
             "resume_interrupted_closed_watch_history":resume_interrupted_closed_watch_history,

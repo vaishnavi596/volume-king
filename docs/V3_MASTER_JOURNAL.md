@@ -3366,3 +3366,15 @@ C. Later
  10. Server-side background run (phone foreground service is not available in this build).
  11. Live-market checks (Monday): O live, 3/3 engines, Watchlist <=3 min, then N/F.
  12. Premium chart parts 1-2 (only after A-B are verified).
+
+## J37 — B242 (2026-11-27 ~19:45 IST): report check of B241 + price fix
+Verification of J36 points from the 19:22 report/screens:
+ 1 Watchlist 51/51: PARTIAL. 51 attempted, 51 ok, 0 problem symbols; oldest attempt 478 s (was 810 s in B239) but target <=180 s not met; exact pass time unknown -> needs the timer counter (point 4).
+ 2 Remembered SSK: FAILED. Doctor showed "ssk_store: TimeoutError" 19:12:30: sync page.client_storage call timed out on Android. Fixed in B242: async get/set/remove with 8 s timeout and an in-memory flag; checkbox restored after async read.
+ 3 Compact Doctor: VERIFIED (symbols_ok 51 / problems 0, empty symbol list).
+New defects found in the same report:
+ - Price "—" on Dashboard/Scanner/Super Five/Options while the index LTP existed (9 min old): quote_price() returned "—" whenever dhan_feed was off. B242: shows last known Dhan LTP, else last HIST close (1m, 3m, 5m). Watchlist HIST-close fallback was also dead since B238 (historical_close_display accepted only 3m) -> now takes a frame argument.
+ - Doctor HISTORICAL_EQUITY_WORKER permanently UNVERIFIED (prewarm rejects tf 1m) - open.
+ - Doctor says O has no historical direction while Home shows O HIST B0/S100 - open, inspect.
+ - Home chart is 5m while the vote bar says 1m (standing decision: all screens 1m); chart shows a long dashed gap line - open.
+ - Scanner wording "Dhan reconnect required; scan paused" while SSK is connected and market is closed - open (wording).

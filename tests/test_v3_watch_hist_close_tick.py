@@ -22,8 +22,8 @@ class WatchHistoricalCloseTick(unittest.TestCase):
         self.assertIn('not dhan_offline()',src)
         self.assertNotIn('and not refresh_hours()',src)
         self.assertIn('if prefs.get("source")=="Dhan":',src)
-        self.assertIn('shared_history(sym,"3m")',src)
-        self.assertIn('historical_close_display',src)
+        self.assertIn('hist_close_for_display(sym)',src)
+        self.assertIn('historical_close_display',function('hist_close_for_display'))
         self.assertNotIn('quotes[sym]=',src)
         self.assertNotIn('dhan_feed.',src)
 

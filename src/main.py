@@ -863,9 +863,26 @@ def app_main(page:ft.Page):
     def unavailable(s):return txt("DATA UNAVAILABLE — "+s,13,RED)
     def dhan_offline():
         return prefs.get("source")=="Dhan" and not dhan_feed.connected
+    def hist_close_for_display(sym):
+        """B242: last completed HIST close (1m, then 3m/5m) as (price label, status) or None."""
+        from v3_hist_close_display import historical_close_display
+        for frame in ("1m","3m","5m"):
+            shown=historical_close_display(shared_history(sym,frame),now=time.time(),frame=frame)
+            if shown is not None:
+                return shown
+        return None
     def quote_price(sym):
-        q=None if dhan_offline() else quotes.get(sym)
-        return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
+        if not dhan_offline():
+            q=quotes.get(sym)
+            return f'{q["price"]:,.2f}' if q and q.get("price") is not None else "—"
+        # B242: feed off (after close / SSK-only): show the LAST KNOWN Dhan LTP, else the
+        # last HIST close. Screens label it (age / HIST / NOT LIVE); it is never LIVE proof.
+        q=quotes.get(sym) or {}
+        price=q.get("price")
+        if (q.get("source")=="Dhan" and type(price) in (int,float) and math.isfinite(price) and price>0):
+            return f"{price:,.2f}"
+        shown=hist_close_for_display(sym)
+        return shown[0] if shown else "—"
     def watch_price_and_status(sym):
         """Keep LTP and historical close distinct across SSK-only closed sessions."""
         q=quotes.get(sym) or {}
@@ -876,9 +893,7 @@ def app_main(page:ft.Page):
         # A mid-session disconnect must retain the last completed candle,
         # not wait for the clock/holiday calendar to permit HIST fallback.
         if prefs.get("source")=="Dhan":
-            from v3_hist_close_display import historical_close_display
-            hist=shared_history(sym,"3m")
-            historical=historical_close_display(hist,now=time.time())
+            historical=hist_close_for_display(sym)
             if historical is not None:
                 return historical
         return "—",None
@@ -2349,7 +2364,7 @@ def app_main(page:ft.Page):
                        and row.get("bias") in ("BULLISH","BEARISH")
                        else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note("LTP unavailable • Dhan disconnected" if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note(("Last price "+quote_price(row["symbol"])+" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else "LTP unavailable • Dhan feed off") if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     ranking_persist_lock=asyncio.Lock()
@@ -4874,18 +4889,30 @@ def app_main(page:ft.Page):
     # "Remember" ON, in app-private client storage under its own key (never in the
     # preferences file/JSON, never in logs or Doctor). Read-only gateway key; orders stay OFF.
     SSK_STORE_KEY="bot_king_ssk_v1"
-    def ssk_store_read():
+    ssk_saved_flag=[False]  # in-memory mirror; client_storage must only be touched with *_async (sync call timed out on Android, 27 Nov)
+    async def ssk_store_read_async():
         try:
-            value=page.client_storage.get(SSK_STORE_KEY)
-            if isinstance(value,str) and 8<=len(value.strip())<=512:return value.strip()
-        except Exception:pass
-        return ""
-    def ssk_store_write(value):
-        try:
-            if value:page.client_storage.set(SSK_STORE_KEY,value)
-            else:page.client_storage.remove(SSK_STORE_KEY)
+            value=await asyncio.wait_for(page.client_storage.get_async(SSK_STORE_KEY),timeout=8)
+            if isinstance(value,str) and 8<=len(value.strip())<=512:
+                ssk_saved_flag[0]=True
+                return value.strip()
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:log_error("ssk_store",exc)
-    ssk_remember=ft.Checkbox(label="Remember SSK on this phone (auto-login) • इस फ़ोन पर SSK याद रखें",value=bool(ssk_store_read()))
+        ssk_saved_flag[0]=False
+        return ""
+    async def ssk_store_write_async(value):
+        try:
+            if value:
+                await asyncio.wait_for(page.client_storage.set_async(SSK_STORE_KEY,value),timeout=8)
+                ssk_saved_flag[0]=True
+            else:
+                await asyncio.wait_for(page.client_storage.remove_async(SSK_STORE_KEY),timeout=8)
+                ssk_saved_flag[0]=False
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:log_error("ssk_store",exc)
+    ssk_remember=ft.Checkbox(label="Remember SSK on this phone (auto-login) • इस फ़ोन पर SSK याद रखें",value=False)
     ssk_auto_login_done=[False]
     server_trust=ft.Checkbox(label="Dhan credentials remain on the server",value=False)
     broker_info=ft.Text("",size=13,color=MUTED)
@@ -5065,7 +5092,7 @@ def app_main(page:ft.Page):
             if result.get("status")!="connected_read_only":
                 raise FeedError("Clone V2 read-only authorization unavailable")
             building_doctor.milestone("gateway_authorized")
-            ssk_store_write(access_key if (ssk_remember.value and access_key) else "")
+            await ssk_store_write_async(access_key if (ssk_remember.value and access_key) else "")
             # On a verified exchange holiday/closed session, SSK authorization
             # is a valid read-only gateway connection, NOT Dhan quote proof.
             # Do not request absent holiday LTPs or activate the LIVE feed.
@@ -5159,7 +5186,7 @@ def app_main(page:ft.Page):
         except FeedError as exc:
             building_doctor.milestone("login_failed")
             if any(w in str(exc).lower() for w in ("key rejected","http 401","http 403","session rejected")):
-                ssk_store_write("")  # saved key no longer valid: forget it
+                await ssk_store_write_async("")  # saved key no longer valid: forget it
                 ssk_remember.value=False
             connection_status.value="Clone V2: "+str(exc)
             connection_status.color=RED
@@ -5182,7 +5209,7 @@ def app_main(page:ft.Page):
         dhan_feed.disconnect()
         provider_changed(None)
         server_access.value=""
-        ssk_store_write("");ssk_remember.value=False  # explicit Disconnect forgets the saved key
+        page.run_task(ssk_store_write_async,"");ssk_remember.value=False  # explicit Disconnect forgets the saved key
         connection_status.value="Clone V2 SSK session disconnected; market feed unavailable."
         connection_status.color=GOLD
         page.update()
@@ -11247,7 +11274,10 @@ console.log('BOT KING Lightweight Charts ready');
         # One attempt per app start; saved key only exists if Remember was ON.
         if ssk_auto_login_done[0]:return
         ssk_auto_login_done[0]=True
-        saved=ssk_store_read()
+        saved=await ssk_store_read_async()
+        if saved:
+            ssk_remember.value=True
+            page.update()
         if not saved or clone_v2_gateway.connected or prefs.get("source")!="Dhan":return
         await asyncio.sleep(1.5)
         if clone_v2_gateway.connected or clone_v2_connect_busy[0] or broker_connect_busy[0]:return
@@ -11512,7 +11542,7 @@ console.log('BOT KING Lightweight Charts ready');
             # controls history refresh and the resume task checks quotes.
             if prefs.get("source")=="Dhan" and dhan_feed.connected:
                 scan_progress["state"]="Dhan resumed • checking cached quotes"
-            if not clone_v2_gateway.connected and ssk_store_read():
+            if not clone_v2_gateway.connected and ssk_saved_flag[0]:
                 ssk_auto_login_done[0]=False  # B240: resume after Android suspended the app -> reconnect once
                 page.run_task(ssk_auto_login)
             page.run_task(refresh_after_resume)

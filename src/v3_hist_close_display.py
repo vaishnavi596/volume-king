@@ -4,9 +4,9 @@ from math import isfinite
 
 IST=timezone(timedelta(hours=5,minutes=30))
 
-def historical_close_display(history, *, now):
-    """Return (price label, status) for a completed exact 3m Dhan candle, else None."""
-    if not isinstance(history,dict) or history.get("source")!="Dhan" or history.get("_scanner_timeframe")!="3m":
+def historical_close_display(history, *, now, frame="3m"):
+    """Return (price label, status) for a completed exact-frame (1m/3m/5m) Dhan candle, else None."""
+    if not isinstance(history,dict) or history.get("source")!="Dhan" or history.get("_scanner_timeframe")!=frame or frame not in ("1m","3m","5m"):
         return None
     bars=history.get("bars")
     if not isinstance(bars,(tuple,list)) or not bars or type(now) not in (int,float) or not isfinite(now):
@@ -19,7 +19,7 @@ def historical_close_display(history, *, now):
         values=(stamp,opening,high,low,closing,volume)
         if any(type(v) not in (int,float) or not isfinite(v) for v in values):
             continue
-        if stamp<=0 or stamp+180>now or min(opening,high,low,closing)<=0 or volume<0:
+        if stamp<=0 or stamp+{"1m":60,"3m":180,"5m":300}[frame]>now or min(opening,high,low,closing)<=0 or volume<0:
             continue
         if high<max(opening,closing,low) or low>min(opening,closing,high):
             continue

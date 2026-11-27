@@ -225,7 +225,7 @@ class MobileRegressionTests(unittest.TestCase):
         self.assertIn('isinstance(stamp,(int,float)) and stamp>0', card)
         self.assertIn('row.get("source")==expected_source', card)
         self.assertIn('and row.get("bias") in ("BULLISH","BEARISH")', card)
-        self.assertIn('"LTP unavailable • Dhan disconnected" if disconnected_dhan', card)
+        self.assertIn('"LTP unavailable • Dhan feed off") if disconnected_dhan', card)
         self.assertIn('else "NO LIVE SIGNAL" if historical', card)
 
     def test_scanner_dhan_option_context_never_duplicate_max_pain_or_vote(self):
