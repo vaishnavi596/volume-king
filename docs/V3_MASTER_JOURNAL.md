@@ -3392,3 +3392,7 @@ New defects found in the same report:
 ## J40 — Owner decision: paper and live developed together, live kept OFF (2026-11-27 20:18 IST)
 - Paper and live execution are developed side by side. The owner keeps live OFF himself and will test everything on the paper board first; only after he is satisfied will he try live on some later day.
 - Engineering rules that follow: live adapter (when written) is fail-closed: default OFF, needs the owner's explicit switch plus a typed confirmation, per-order size cap, and a kill switch; no code path may send a live order otherwise. Dhan order rules (static IP, stop-loss/Super Order) must be verified from Dhan docs before any live adapter is enabled. Nothing live is enabled by Claude.
+
+## J41 — Owner decision: roster for the server engine (2026-11-27 20:20 IST)
+- Start with the full roster of 54 = 51 equities + NIFTY, BANKNIFTY, SENSEX, with options carried alongside; design for growth to 70 later (Doctor roster limit already 70).
+- Capacity note: gateway serialises Dhan calls (~1.1 s each), so one pass over 70 symbols needs >= ~77 s of provider time before options/other lanes; the 3-minute freshness target stays feasible but must be measured with the timer counter before growing past 54.
