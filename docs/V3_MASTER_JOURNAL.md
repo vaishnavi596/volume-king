@@ -3280,3 +3280,4 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - OPEN: Oracle gateway redeploy proof (c197dce), 1m live window vs 60 s poll, N/F/O adapters.
 
 - J26 FIX 13:55: owner wanted the UPPER five-box set kept and the lower one removed. Now one holder (`scan_box_host`) sits in the upper ANALYSIS BASIS block and is repainted by the live scanner_five delta refresh; the lower section no longer draws boxes. 1778 tests, only 55 known baseline errors.
+- J26 PHONE 13:50 (B231 installed): Super Five T box now shows HIST vote (BAJFINANCE T B0/S100 equals its 5m bar; KOTAKBANK T B100/S0) — 5m hydrate works. Watchlist T chip equals the 3m bar (RELIANCE B80/S20, HDFCBANK B0/S100). Scanner analysis block showed the B231 placeholder (upper set removed) as expected; fixed in e8f8ada, shipped as B232. OPEN: every Watchlist row shows "—" for day change; all rows STALE/HIST; LIVE 0/5.
