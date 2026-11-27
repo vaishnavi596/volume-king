@@ -23,6 +23,7 @@ on:
       - .github/workflows/v3-b232-side-by-side-preview-apk.yml
       - .github/workflows/v3-b233-side-by-side-preview-apk.yml
       - .github/workflows/v3-b234-side-by-side-preview-apk.yml
+      - .github/workflows/v3-b235-side-by-side-preview-apk.yml
       - .github/workflows/v3-b229-side-by-side-preview-apk.yml
       - .github/workflows/v3-b217-side-by-side-preview-apk.yml
       - .github/workflows/v3-b211-side-by-side-preview-apk.yml

@@ -4483,7 +4483,18 @@ def app_main(page:ft.Page):
             if sym not in DHAN_VERIFIED_SYMBOLS:
                 if sym!="FINNIFTY":
                     raise FeedError("No mapped Dhan underlying for "+sym)
-            dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
+            # Broker-listed expiries change rarely: reuse a 30-minute exact
+            # (generation, symbol) list instead of hitting the 3 s paced expiry
+            # route on every chain refresh (it returned HTTP 429 and starved O).
+            cached_exp=top5_expiry_cache.get((generation,sym))
+            expiry_fetched=False
+            if cached_exp is not None and time.monotonic()-cached_exp[0]<=1800 and cached_exp[1]:
+                dates=cached_exp[1]
+            else:
+                dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
+                expiry_fetched=True
+                if dates:
+                    top5_expiry_cache[(generation,sym)]=(time.monotonic(),dates)
             if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value:return
             if choice=="Manual":
                 chosen=expiry.value
@@ -4505,7 +4516,8 @@ def app_main(page:ft.Page):
             option_feed_status[0]="Loading Dhan read-only PCR and Dhan Max Pain..."
             # Dhan expiry-list and option-chain share a three-second pacing gate.
             # Wait asynchronously so the UI stays responsive.
-            await asyncio.sleep(3.25)
+            if expiry_fetched:
+                await asyncio.sleep(3.25)
             if (generation!=provider_generation[0] or sym!=chain_symbol.value
                     or choice!=option_expiry_choice.value or expiry.value!=chosen):
                 return
