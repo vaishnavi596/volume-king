@@ -3383,3 +3383,8 @@ New defects found in the same report:
  8. Background run: app keeps running in the background; on opening the app it must show that it was running; paper-bot orders keep running; data keeps refreshing on its own schedule.
  Assessment so far: Doctor reports native_background NOT_WIRED; Flet 0.25 Android build has no foreground service, Android suspends the Python app when backgrounded. Only a server-side engine (Oracle) survives phone off. Direction: server runs refresh + paper orders + a heartbeat; phone shows "Server running since / last cycle / open paper orders" on open. Live orders remain permanently OFF.
  Status 20:14: point "remembered SSK" VERIFIED by owner (restart: Watchlist 7/51 -> 9/51, i.e. connected after restart). Prices on Home/Scanner/Super Five/Options: owner check pending.
+
+## J39 — Owner direction on server-side orders (2026-11-27 20:17 IST)
+- Owner prefers the server-side engine. It must manage an open position itself (hold, sell, or cut at stop-loss) even with the phone off. All of it is tested on the paper board; paper and live must behave identically, differing only by one execution switch in Settings.
+- Design rule: one order-execution interface; the paper adapter is the only one implemented. A live adapter stays unwritten and locked until the owner gives explicit written approval and Dhan's order rules (static IP, order types, stop-loss/Super Order behaviour) are verified from Dhan documentation. Live orders remain permanently OFF until then.
+- Open question for owner: ledger/paper engine first for NIFTY+BANKNIFTY (advice) or all 51.
