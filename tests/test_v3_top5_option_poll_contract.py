@@ -8,7 +8,7 @@ SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "main.py"
 def worker_text():
     text = SRC.read_text(encoding="utf-8")
     start = text.index("    async def top5_option_poll():")
-    end = text.index("    def selected_option_rows():", start)
+    end = text.index("    # ---- B243: whole-roster option-chain rotation", start)
     return text, text[start:end]
 
 

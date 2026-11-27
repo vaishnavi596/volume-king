@@ -2364,7 +2364,7 @@ def app_main(page:ft.Page):
                        and row.get("bias") in ("BULLISH","BEARISH")
                        else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),note(("Last price "+quote_price(row["symbol"])+" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else "LTP unavailable • Dhan feed off") if disconnected_dhan else "LTP "+quote_price(row["symbol"])+" • time unverified"),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),ft.Row([txt("Last price " if disconnected_dhan else "LTP ",14,MUTED),txt(quote_price(row["symbol"]),16,GOLD,True),txt((" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else " unavailable • Dhan feed off") if disconnected_dhan else " • time unverified",14,MUTED)],spacing=0,wrap=True),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     ranking_persist_lock=asyncio.Lock()
@@ -2614,6 +2614,26 @@ def app_main(page:ft.Page):
             if missing:
                 findings.append({"id":"BK-DOC-HIST-MISSING","action":"retry_missing_hist",
                     "target":"watchlist","preview":str(len(missing))+" शेयरों का HIST इतिहास नहीं है — Watchlist का HIST लोड दोबारा चलेगा"})
+        # B243 new read-only repairs ---------------------------------------
+        if (prefs.get("source")=="Dhan" and app_active[0] and not lifecycle_background[0]
+                and not clone_v2_gateway.connected and ssk_saved_flag[0]
+                and not clone_v2_connect_busy[0] and not broker_connect_busy[0]):
+            findings.append({"id":"BK-DOC-SSK-DOWN","action":"reconnect_saved_ssk","target":"ssk",
+                "preview":"SSK कनेक्शन टूटा है पर सेव की हुई चाबी मौजूद है — एक बार दोबारा जुड़ा जाएगा"})
+        if (prefs.get("source")=="Dhan" and clone_v2_gateway.connected and app_active[0]
+                and not lifecycle_background[0] and not option_feed_busy[0]):
+            sym=scan_symbol.value
+            if (sym in DHAN_VERIFIED_SYMBOLS and roster_chain_age(sym)>=1e8
+                    and (provider_generation[0],sym) not in roster_option_none):
+                findings.append({"id":"BK-DOC-OPTCHAIN-MISSING","action":"load_roster_option_chain","target":sym,
+                    "preview":sym+" की ऑप्शन चेन लोड नहीं है (Scanner के ऑप्शन फ़िल्टर अधूरे) — एक बार लोड होगी"})
+        if (prefs.get("source")=="Dhan" and dhan_feed.connected and regular_hours() and refresh_hours()
+                and app_active[0] and not lifecycle_background[0] and not watch_batch_busy[0]):
+            gen=provider_generation[0]
+            stamps=[v for (g,_s),v in watch_three_minute_warm_attempts.items() if g==gen]
+            if stamps and time.monotonic()-max(stamps)>150:
+                findings.append({"id":"BK-DOC-WATCH-STALL","action":"restart_stalled_watchlist","target":"watchlist",
+                    "preview":"Watchlist 150 सेकंड से आगे नहीं बढ़ी — ताज़ा करना दोबारा चलेगा"})
         return findings
     def doctor_retest(plan):
         action,target=plan["action"],plan["target"]
@@ -2623,6 +2643,14 @@ def app_main(page:ft.Page):
             return all((quotes.get(i) or {}).get("price") for i in ("NIFTY","BANKNIFTY","SENSEX"))
         if action=="retry_missing_hist":
             return len(doctor_missing_hist_symbols())==0 or watch_closed_hist_loading[0]
+        if action=="reconnect_saved_ssk":
+            return bool(clone_v2_gateway.connected)
+        if action=="load_roster_option_chain":
+            return roster_chain_age(target)<1e8 or (provider_generation[0],target) in roster_option_none
+        if action=="restart_stalled_watchlist":
+            gen=provider_generation[0]
+            stamps=[v for (g,_s),v in watch_three_minute_warm_attempts.items() if g==gen]
+            return bool(stamps) and time.monotonic()-max(stamps)<=150
         return False
     async def doctor_run_action(plan):
         action,target=plan["action"],plan["target"]
@@ -2636,6 +2664,13 @@ def app_main(page:ft.Page):
             await closed_session_index_snapshot(provider_generation[0])
         elif action=="retry_missing_hist":
             await refresh_all_dhan_quotes()
+        elif action=="reconnect_saved_ssk":
+            ssk_auto_login_done[0]=False
+            await ssk_auto_login()
+        elif action=="load_roster_option_chain":
+            await roster_load_option_chain(target)
+        elif action=="restart_stalled_watchlist":
+            await refresh_all_dhan_quotes()
     async def doctor_run_safe_repairs(manual=False):
         if doctor_repair_busy[0]:
             return ["सुरक्षित मरम्मत पहले से चल रही है"]
@@ -2644,8 +2679,13 @@ def app_main(page:ft.Page):
         try:
             generation=provider_generation[0]
             plans=doctor_repair_ledger.propose(doctor_collect_findings(),generation,time.monotonic())
+            checked=["stuck_busy_flags","indices_last_price","watchlist_hist","ssk_connection",
+                     "scanner_option_chain","watchlist_stall"]
             if not plans:
-                lines=["अभी कोई सुरक्षित मरम्मत ज़रूरी नहीं (या सीमा/प्रतीक्षा-समय लागू)"]
+                lines=["अभी कोई सुरक्षित मरम्मत ज़रूरी नहीं • जाँचे गए: "+", ".join(checked)+" (या सीमा/प्रतीक्षा-समय लागू)"]
+                doctor_repair_ledger.note_run(time.monotonic(),"NOTHING_NEEDED",checked,0)
+            else:
+                doctor_repair_ledger.note_run(time.monotonic(),"REPAIRS_RUN",checked,len(plans))
             for plan in plans:
                 if generation!=provider_generation[0]:break
                 try:
@@ -2669,7 +2709,7 @@ def app_main(page:ft.Page):
         while True:
             try:
                 if app_active[0] and not lifecycle_background[0]:
-                    if prefs.get("doctor_auto_repair",False):
+                    if prefs.get("doctor_auto_repair",True):
                         await doctor_run_safe_repairs()
                     else:
                         doctor_collect_findings()  # keeps the stuck-flag clock running
@@ -2726,7 +2766,7 @@ def app_main(page:ft.Page):
         rows.append(ft.Row([ft.TextButton("Repair now",on_click=repair_now),
                             ft.TextButton("Repair logs",on_click=show_logs),
                             ft.TextButton("Safe repair (all)",on_click=safe_repair_all)],wrap=True))
-        rows.append(ft.Switch(label="Doctor auto-repair (safe, bounded)",value=bool(prefs.get("doctor_auto_repair",False)),
+        rows.append(ft.Switch(label="Doctor auto-repair (safe, bounded)",value=bool(prefs.get("doctor_auto_repair",True)),
                               on_change=toggle_auto_repair))
         rows.append(note("Safe repair: stuck workers, missing index price, missing HIST only • max 2 tries/generation • never tokens, keys, settings or orders"))
         return section("PLATINUM SMART DOCTOR",ft.Column(rows,spacing=3))
@@ -2947,6 +2987,12 @@ def app_main(page:ft.Page):
 
     watch_fresh_text=ft.Text("",size=11,color=MUTED,max_lines=1)
     watch_fresh_state=[0.0,""]
+    def format_pass_seconds(value):
+        try:
+            total=int(round(float(value)))
+        except (TypeError,ValueError,OverflowError):
+            return "—"
+        return (str(total//60)+"m"+str(total%60).zfill(2)+"s") if total>=60 else str(total)+"s"
     def watch_candle_fresh_label():
         """Separate from the LTP counter: how many selected shares hold a recent completed 1m candle."""
         now=time.time()
@@ -2964,8 +3010,10 @@ def app_main(page:ft.Page):
                 except Exception:
                     continue
             watch_fresh_state[0]=now
+            pass_text=(" • last pass "+format_pass_seconds(watch_pass_timer["seconds"])
+                       if watch_pass_timer.get("seconds") is not None else "")
             watch_fresh_state[1]=("Market closed • 1m HIST candles loaded: "+str(fresh)+"/"+str(len(symbols))
-                                  +" • NOT live")
+                                  +pass_text+" • NOT live")
             return watch_fresh_state[1]
         for sym in symbols:
             try:
@@ -3410,6 +3458,7 @@ def app_main(page:ft.Page):
     # One explicit Watchlist tap schedules selected-only closed HIST warmup.
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
+    watch_pass_timer={"start":None,"seconds":None,"loaded":0,"total":0}  # B243 visible pass timer
     watch_closed_hist_key=[None]
     watch_closed_hist_wait_seconds=[0]
     # Market-CLOSED explicit HIST queue only (owner-approved 26 Nov, evidence: Dhan Data API
@@ -3457,6 +3506,7 @@ def app_main(page:ft.Page):
         # One bounded retry pass per explicitly requested queue. Do not reset
         # the rolling provider budget or the per-symbol 180s attempt clock.
         retry_pass=False
+        watch_pass_timer.update(start=time.monotonic(),seconds=None,loaded=0,total=len(selected))
         try:
             while True:
                 if (provider_generation[0]!=generation
@@ -3501,7 +3551,10 @@ def app_main(page:ft.Page):
                         if not valid_candle_history(shared_history(sym,"3m").get("bars"))
                         and watch_three_minute_warm_attempts.get((generation,sym),0)
                             > retry_baseline[sym])
+                watch_pass_timer.update(loaded=finished,total=total)
                 if finished+attempted>=total:
+                    if watch_pass_timer.get("start") is not None and watch_pass_timer.get("seconds") is None:
+                        watch_pass_timer["seconds"]=round(time.monotonic()-watch_pass_timer["start"],1)
                     watch_closed_hist_resume_pending[0]=False
                     watch_closed_hist_resume_scope[0]=None
                     watch_batch_status[0]=(
@@ -3524,7 +3577,7 @@ def app_main(page:ft.Page):
                     watch_closed_hist_wait_seconds[0]=wait
                     if wait:
                         watch_batch_status[0]=(
-                            f"HIST {finished}/{total} • provider pacing; next eligible "
+                            f"HIST {finished}/{total} • {int(time.monotonic()-watch_pass_timer['start'])}s • provider pacing; next eligible "
                             f"in ~{wait}s • NOT LIVE")
                     else:
                         watch_batch_status[0]=(
@@ -4584,7 +4637,7 @@ def app_main(page:ft.Page):
                     data.get("signal_eligible") is False):
                 await asyncio.to_thread(market_store.put,"option_context_last_good",("Dhan",sym,chosen),dict(data))
                 if generation!=provider_generation[0] or sym!=chain_symbol.value or choice!=option_expiry_choice.value or expiry.value!=chosen:return
-            while len(dhan_option_context_cache)>16:
+            while len(dhan_option_context_cache)>80:
                 del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
             for _tf in ("1m","3m","5m"):  # re-evaluate O for already published frames
                 refresh_directional_vote_components(sym,_tf)
@@ -4710,7 +4763,7 @@ def app_main(page:ft.Page):
                         continue
                     data["observed_at"]=time.time()
                     dhan_option_context_cache[(generation,sym,chosen)]=dict(data)
-                    while len(dhan_option_context_cache)>16:
+                    while len(dhan_option_context_cache)>80:
                         del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
                     for _tf in ("1m","3m","5m"):
                         refresh_directional_vote_components(sym,_tf)
@@ -4722,6 +4775,102 @@ def app_main(page:ft.Page):
                 raise
             except Exception as exc:
                 log_error("top5_option_poll",exc)
+                await asyncio.sleep(30)
+    # ---- B243: whole-roster option-chain rotation (read-only, paced, priority first) ----
+    roster_option_none={}
+    def roster_chain_age(sym):
+        generation=provider_generation[0]
+        now=time.time()
+        ages=[now-d["observed_at"] for (g,u,_l),d in dhan_option_context_cache.items()
+              if g==generation and u==sym and isinstance(d,dict)
+              and type(d.get("observed_at")) in (int,float)]
+        return min(ages) if ages else 1e9
+    async def roster_load_option_chain(sym):
+        """One paced read-only chain load for any verified underlying; True when cached."""
+        generation=provider_generation[0]
+        if sym not in DHAN_VERIFIED_SYMBOLS or option_feed_busy[0]:
+            return False
+        option_feed_busy[0]=True
+        try:
+            cached=top5_expiry_cache.get((generation,sym))
+            if cached is None or time.monotonic()-cached[0]>1800 or not cached[1]:
+                dates=await asyncio.to_thread(dhan_feed.option_expiries,sym)
+                if generation!=provider_generation[0]:return False
+                if not dates:
+                    roster_option_none[(generation,sym)]=time.monotonic()
+                    return False
+                top5_expiry_cache[(generation,sym)]=(time.monotonic(),dates)
+                await asyncio.sleep(3.25)  # shared expiry/chain pacing gate
+            else:
+                dates=cached[1]
+            chosen=dates[0]
+            data=await asyncio.to_thread(dhan_feed.option_chain_metrics,sym,chosen)
+            if (generation!=provider_generation[0] or data.get("symbol")!=sym
+                    or data.get("expiry")!=chosen or data.get("source")!="dhan"
+                    or data.get("signal_eligible") is not False):
+                return False
+            data["observed_at"]=time.time()
+            key=(generation,sym,chosen)
+            dhan_option_context_cache.pop(key,None)  # re-insert = newest
+            dhan_option_context_cache[key]=dict(data)
+            while len(dhan_option_context_cache)>80:
+                del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
+            for _tf in ("1m","3m","5m"):
+                refresh_directional_vote_components(sym,_tf)
+            return True
+        except asyncio.CancelledError:
+            raise
+        except FeedError:
+            top5_option_retry_until[(generation,sym)]=time.monotonic()+600
+            return False
+        finally:
+            option_feed_busy[0]=False
+    def roster_option_candidates():
+        order=[]
+        def add(name):
+            if isinstance(name,str) and name in DHAN_VERIFIED_SYMBOLS and name not in order:
+                order.append(name)
+        add(scan_symbol.value)
+        for name in ("NIFTY","BANKNIFTY","SENSEX"):add(name)
+        for row in list(top5_candidates)[:5]:
+            add(row.get("symbol") if isinstance(row,dict) else None)
+        for name in all_watch_symbols():add(name)
+        return order
+    async def roster_option_poll():
+        await asyncio.sleep(20)
+        while True:
+            await asyncio.sleep(6)
+            try:
+                if (not app_active[0] or lifecycle_background[0] or option_feed_busy[0]
+                        or prefs.get("source")!="Dhan"
+                        or not (dhan_feed.connected or clone_v2_gateway.connected)
+                        or dhan_history_scan_active[0] or watch_closed_hist_loading[0]
+                        or watch_three_minute_warm_busy[0]
+                        or dhan_feed.cooldown_remaining("/dhan/option-expiries")>0
+                        or dhan_feed.cooldown_remaining("/dhan/option-chain")>0):
+                    continue
+                generation=provider_generation[0]
+                open_now=bool(regular_hours() and refresh_hours())
+                due=None
+                for sym in roster_option_candidates():
+                    if time.monotonic()<top5_option_retry_until.get((generation,sym),0.0):
+                        continue
+                    none_at=roster_option_none.get((generation,sym))
+                    if none_at is not None and time.monotonic()-none_at<21600:
+                        continue
+                    age=roster_chain_age(sym)
+                    limit=120 if sym in ("NIFTY","BANKNIFTY","SENSEX") else 300
+                    if age>=1e8 or (open_now and age>limit):
+                        due=sym
+                        break
+                if due is None:
+                    continue
+                if await roster_load_option_chain(due) and due==scan_symbol.value and current[0]==3:
+                    request_view_refresh(3)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("roster_option_poll",exc)
                 await asyncio.sleep(30)
     def selected_option_rows():
         # Cached Angel One contracts must never appear as current Dhan/Yahoo option data.
@@ -7302,7 +7451,9 @@ def app_main(page:ft.Page):
                 data["doctor_safe_repairs"]=doctor_repair_ledger.report()
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
-                data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"provider_requests":0}
+                data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0}
+                data["settings_watch"]=doctor_settings_watch()
+                data["timers"]=doctor_timers()
                 data["live_voting_gate"]=live_voting_gate_report(ml5_symbol,ml5_tf)
                 data["persistent_cache"]=market_store.diagnostics()
                 data["ranking_persistence"]=dict(ranking_persist_stats)
@@ -10244,7 +10395,7 @@ console.log('BOT KING Lightweight Charts ready');
                 generation=provider_generation[0]
                 scan_progress["state"]="Starting historical scan • provider "+str(prefs.get("source"))
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
-                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state="Dhan reconnect required; scan paused")
+                    scan_progress.update(checked=0,total=len(watch_symbols),valid=0,failed=0,cached=0,state=("SSK connected • live Dhan feed off (market closed) • scan paused" if clone_v2_gateway.connected else "SSK/Oracle not connected • connect in Settings • scan paused"))
                     if current[0] in (0,4):request_view_refresh(current[0])
                     await asyncio.sleep(3)
                     continue
@@ -10650,7 +10801,7 @@ console.log('BOT KING Lightweight Charts ready');
                 # Do not classify a disconnected Dhan feed as 51 failed symbols.
                 if prefs.get("source")=="Dhan" and not dhan_feed.connected:
                     scan_progress.update(checked=0,total=len(watch_symbols),valid=0,
-                                         failed=0,cached=0,state="Dhan reconnect required; scan paused")
+                                         failed=0,cached=0,state=("SSK connected • live Dhan feed off (market closed) • scan paused" if clone_v2_gateway.connected else "SSK/Oracle not connected • connect in Settings • scan paused"))
                     if current[0] in (0,4):request_view_refresh(current[0])
                     await asyncio.sleep(15)
                     continue
@@ -11264,6 +11415,33 @@ console.log('BOT KING Lightweight Charts ready');
             if generation==provider_generation[0] and clone_v2_gateway.connected:
                 renewal_health_cache.clear()
                 renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
+    def doctor_settings_watch():
+        """B243: report-only drift check of settings that matter; never changes anything."""
+        expected={"source":"Dhan","mode":"Paper","doctor_auto_repair":True}
+        values={"source":prefs.get("source"),"mode":prefs.get("mode","Paper"),
+                "doctor_auto_repair":bool(prefs.get("doctor_auto_repair",True)),
+                "remember_ssk":bool(ssk_remember.value),
+                "watchlist_frame":"1m (fixed)","scanner_frame":scan_tf.value}
+        drift=[{"setting":k,"value":values[k],"expected":v,
+                "severity":"SAFETY" if k=="mode" else "NORMAL",
+                "fix":"Settings screen"} for k,v in expected.items() if values.get(k)!=v]
+        return {"code":"BK-DOC-SETTINGS-001","values":values,"drift":drift,
+                "drift_count":len(drift),"scope":"report only; Doctor never changes settings"}
+    def doctor_timers():
+        """B243: cycle times and ages the owner asked to see."""
+        now_m=time.monotonic()
+        candidates=roster_option_candidates()
+        ages=[roster_chain_age(x) for x in candidates]
+        loaded=[a for a in ages if a<1e8]
+        start=watch_pass_timer.get("start")
+        return {"watchlist_last_pass_seconds":watch_pass_timer.get("seconds"),
+                "watchlist_pass_loaded":watch_pass_timer.get("loaded"),
+                "watchlist_pass_total":watch_pass_timer.get("total"),
+                "watchlist_pass_running_seconds":(round(now_m-start,1)
+                    if (watch_closed_hist_loading[0] and start is not None) else None),
+                "option_chains_loaded":len(loaded),"option_chains_total":len(ages),
+                "option_chain_oldest_age_seconds":(round(max(loaded),1) if loaded else None),
+                "scanner_state":scan_progress.get("state")}
     def renewal_doctor_snapshot():
         age=time.monotonic()-renewal_health_cache.get("at",0)
         if (renewal_health_cache.get("generation")!=provider_generation[0]
@@ -11292,6 +11470,7 @@ console.log('BOT KING Lightweight Charts ready');
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)
     page.run_task(top5_option_poll)
+    page.run_task(roster_option_poll)
     async def oracle_assessment_poll():
         """Reuse a 180s read-only Oracle cache; never request from a widget."""
         await asyncio.sleep(4)

@@ -3418,3 +3418,9 @@ Findings:
  f. Healthy: local analysis 67 done/0 failed, cache 68 entries/0 failures, orders 0.
 New point 12: market-aware Doctor (expected-closed states are not errors; open-market states are strict).
 Planned new safe repair actions (all allowlisted, bounded, read-only provider calls, no settings/orders): load option chain for the Scanner-selected symbol when the filter count is low because the chain is missing, then re-run its scan; reconnect saved SSK when disconnected; restart a stalled Watchlist pass (no progress for 60 s while open); each run logs "nothing needed / fixed / failed" with a reason so the log is never silently empty.
+
+## J46 — B243 (v2.3.243) app-side bundle
+- Roster option-chain rotation (54 symbols; priority scan symbol, NIFTY/BANKNIFTY/SENSEX, Super Five, rest); cache cap 80; read-only, paced, yields to Watchlist/history scans.
+- Doctor: market-aware (closed market is not a fault), 7 safe repairs, auto-repair default ON, settings_watch (report-only drift), timers (Watchlist pass seconds, option chains loaded/oldest age), error_report with next step per failing point, "meaning" text on login_quote_validation.
+- Watchlist label shows last pass time. Scanner paused text: "SSK connected • live Dhan feed off (market closed)". Super Five price now gold bold, label muted.
+- Still open: O-box HIST vs Doctor mismatch, Home chart 5m/gap, M box, server heartbeat + paper engine (Part 2), Monday live checks.

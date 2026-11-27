@@ -68,7 +68,7 @@ class JointSessionRepairTests(unittest.TestCase):
     def test_multi_underlying_option_context_isolated_to_session(self):
         body=segment("    async def refresh_selected_options():","    async def option_poll():")
         self.assertIn("dhan_option_context_cache[(generation,sym,chosen)]",body)
-        self.assertIn("len(dhan_option_context_cache)>16",body)
+        self.assertIn("len(dhan_option_context_cache)>80",body)
         self.assertIn("generation!=provider_generation[0]",body)
         self.assertIn("await asyncio.sleep(3.25)",body)
         context=segment("    def five_engine_summary(symbol, display_timeframe=None):","    def super_five_card():")

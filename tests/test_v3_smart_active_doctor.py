@@ -102,7 +102,7 @@ class R3DoctorIdentityTests(unittest.TestCase):
     def test_equal_counts_of_foreign_symbols_are_not_healthy(self):
         r=active_report(generation=1,symbols=["TCS"],quote_present=["INFY"],
             index_present=["A","B","C"],connected={},signal_present=["INFY"],
-            attempts={},now_monotonic=50,market_open=False,errors=[],
+            attempts={},now_monotonic=50,market_open=True,errors=[],
             progress={},performance={},quote_attempt_age=None)
         checks={row["check"] for row in r["active"]}
         self.assertTrue({"CONNECTION","EQUITY_QUOTE_COVERAGE","INDEX_QUOTE_COVERAGE",
@@ -117,3 +117,35 @@ class RFinalDoctorClockTests(unittest.TestCase):
         self.assertEqual(row["attempted"],0)
         self.assertEqual(row["invalid_attempt_symbols"],["A","B"])
         self.assertEqual(row["recent_skip_events"],[])
+
+
+class B243MarketAwareDoctorTests(unittest.TestCase):
+    def base(self,**over):
+        args=dict(generation=1,symbols=["A","B"],quote_present=[],index_present=["NIFTY","BANKNIFTY","SENSEX"],
+            connected={"Dhan":False,"Oracle":True},signal_present=["A","B"],attempts={},
+            now_monotonic=100,market_open=False,errors=[],progress={},performance={},
+            quote_attempt_age=None,candle_stamps={"A":900,"B":900},now_epoch=1000)
+        args.update(over)
+        return active_report(**args)
+    def test_closed_market_expected_states_are_not_errors(self):
+        r=self.base()
+        names=[x["point"] for x in r["error_report"]]
+        self.assertNotIn("CONNECTION",names)
+        self.assertNotIn("EQUITY_QUOTE_COVERAGE",names)
+        row=next(x for x in r["active"] if x["check"]=="WATCHLIST_FAIR_REFRESH")
+        self.assertEqual(row["symbols_with_problem_count"],0)  # cached candle after close is OK
+    def test_open_market_same_state_is_an_error_with_next_step(self):
+        r=self.base(market_open=True,candle_stamps={"A":999,"B":999})
+        names={x["point"]:x for x in r["error_report"]}
+        self.assertIn("CONNECTION",names)
+        self.assertIn("EQUITY_QUOTE_COVERAGE",names)
+        self.assertTrue(names["CONNECTION"]["next"])
+        self.assertEqual(r["error_count"],len(r["error_report"]))
+    def test_oracle_down_is_error_even_when_closed(self):
+        r=self.base(connected={"Dhan":False,"Oracle":False})
+        self.assertIn("CONNECTION",[x["point"] for x in r["error_report"]])
+    def test_equity_worker_never_run_is_not_listed(self):
+        r=self.base(historical_equity_worker_observation={"generation":1})
+        self.assertNotIn("HISTORICAL_EQUITY_WORKER",[x["check"] for x in r["active"]])
+        r=self.base(historical_equity_worker_observation={"generation":1,"last_error":"x"})
+        self.assertIn("HISTORICAL_EQUITY_WORKER",[x["check"] for x in r["active"]])

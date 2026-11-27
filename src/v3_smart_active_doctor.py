@@ -13,8 +13,13 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
         else:
             issues.append(dict(check=name, status="PENDING_OR_ERROR", **detail))
     total = len(symbols)
-    check("CONNECTION", bool(connected) and all(v is True for v in connected.values()), {"connected": connected})
-    check("EQUITY_QUOTE_COVERAGE", bool(total) and set(quote_present)==set(symbols),
+    # B243: market-aware. After the close the live Dhan quote feed is expected to be off and
+    # 0 live quotes is normal; only an SSK/Oracle problem is an error then.
+    expected_closed = not market_open
+    connection_ok = bool(connected) and (all(v is True for v in connected.values())
+                     or (expected_closed and connected.get("Oracle") is True))
+    check("CONNECTION", connection_ok, {"connected": connected})
+    check("EQUITY_QUOTE_COVERAGE", expected_closed or (bool(total) and set(quote_present)==set(symbols)),
           {"available": len(quote_present), "selected": total})
     check("INDEX_QUOTE_COVERAGE", set(index_present)=={"NIFTY","BANKNIFTY","SENSEX"},
           {"available": len(index_present), "required": 3})
@@ -76,8 +81,11 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
         return state in ("NOT_OBSERVED","DISCARDED_RESPONSE","INVALID_RESPONSE","UNKNOWN_ORIGIN") or str(state).startswith("ERROR")
     def symbol_problems(sym):
         found=[]
-        if sym not in ages: found.append("NO_ATTEMPT")
-        if read_problem(sym): found.append("READ_"+str(outcomes.get(sym,{}).get("state","NOT_OBSERVED")))
+        cached_ok = (not market_open) and sym in candle_ages  # after close a cached candle is OK
+        if sym not in ages and not cached_ok: found.append("NO_ATTEMPT")
+        state=outcomes.get(sym,{}).get("state","NOT_OBSERVED")
+        if read_problem(sym) and not (cached_ok and state=="NOT_OBSERVED"):
+            found.append("READ_"+str(state))
         if market_open and sym not in quote_present: found.append("NO_QUOTE")
         if market_open and sym not in candle_ages: found.append("NO_CANDLE")
         if sym in stale: found.append("CANDLE_OLDER_THAN_180S")
@@ -145,7 +153,8 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     if historical_equity_worker_observation is not None:
         worker=historical_equity_worker_observation
         matching=worker.get("generation")==generation
-        if not matching or not worker.get("successes") or worker.get("last_error"):
+        # B243: never having run is not an error (Watchlist is 1m; this prewarm is only for 3m/5m scans).
+        if matching and worker.get("last_error"):
             issues.append({"check":"HISTORICAL_EQUITY_WORKER","status":"ERROR" if matching and worker.get("last_error") else "UNVERIFIED",
                 "code":"BK-HIST-WORKER-003" if matching and worker.get("last_error") else "BK-HIST-WORKER-004",
                 "module":"main.py","function":"prewarm_equity_historical_indicator",
@@ -169,8 +178,49 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
     issues.append({"check": "FULL_FUNCTIONAL_WIRING", "status": "NOT_RUN_IN_ACTIVE_MODE",
                    "scope": "five engines, final voting, chart, paper, lifecycle, alerts, backtest",
                    "next": "Use MASTER DIAG for full audit"})
+    # B243: one short line per failing point: what, why, what to do next.
+    next_step = {
+        "CONNECTION":"Settings -> Connect Clone V2 (SSK); Doctor reconnects a saved key by itself",
+        "EQUITY_QUOTE_COVERAGE":"market hours: Watchlist -> Refresh data; check Dhan connection",
+        "INDEX_QUOTE_COVERAGE":"Doctor retries the index snapshot; else Connect Clone V2 (SSK)",
+        "WATCHLIST_ROSTER":"Watchlist: remove duplicates / stay within 70 symbols",
+        "WATCHLIST_SIGNAL_CACHE":"Watchlist -> Refresh data",
+        "OBSERVED_ERRORS":"open Doctor details for the error list",
+        "WATCHLIST_FAIR_REFRESH":"Doctor restarts a stalled pass; else Watchlist -> Refresh data",
+        "CONTINUOUS_QUOTE_AND_CANDLE_FRESHNESS":"market hours: check Dhan connection and Watchlist refresh",
+        "HISTORICAL_INDICATOR_RUNTIME":"send MASTER DIAG",
+        "HISTORICAL_INDEX_WORKER":"send MASTER DIAG",
+        "HISTORICAL_EQUITY_WORKER":"send MASTER DIAG",
+        "FINAL_VOTE_FRAME_GUARD":"select 1m frame; send MASTER DIAG if it stays",
+        "QUOTE_CONTRACT":"send Doctor report",
+    }
+    error_report = []
+    for issue in issues:
+        name = issue.get("check")
+        status = issue.get("status")
+        if name == "FULL_FUNCTIONAL_WIRING":
+            continue
+        if name == "WATCHLIST_FAIR_REFRESH":
+            bad = bool(issue.get("symbols_with_problem_count"))
+        else:
+            bad = status in ("PENDING_OR_ERROR","ERROR") or (status == "UNVERIFIED" and market_open)
+        if not bad:
+            continue
+        if name == "CONNECTION":
+            reason = ("SSK/Oracle not connected" if not (connected or {}).get("Oracle")
+                      else "Dhan live feed off (market open)")
+        elif name == "EQUITY_QUOTE_COVERAGE":
+            reason = str(issue.get("available"))+"/"+str(issue.get("selected"))+" live quotes (market open)"
+        elif name == "WATCHLIST_FAIR_REFRESH":
+            names = [str(r.get("symbol")) for r in issue.get("symbol_observations", [])[:3]]
+            reason = str(issue.get("symbols_with_problem_count"))+" symbols with a problem: "+", ".join(names)
+        else:
+            reason = str(issue.get("reason") or issue.get("scope") or "see details above")[:120]
+        error_report.append({"point": name, "status": status, "code": issue.get("code"),
+                             "reason": reason, "next": next_step.get(name, "send Doctor report")})
     return {"test":"V3_SMART_ACTIVE_DOCTOR","mode":"LIGHTWEIGHT_CACHE_ONLY",
             "provider_generation": generation,"healthy_hidden_count":len(hidden),
+            "error_report":error_report,"error_count":len(error_report),
             "active_count":len(issues),"active":issues,
             "source_live_verified":False,"provider_requests":0,"orders_sent":0}
 

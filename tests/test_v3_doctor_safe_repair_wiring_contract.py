@@ -11,7 +11,7 @@ class DoctorSafeRepairWiring(unittest.TestCase):
         return text.split("\n", 1)[1]  # drop the descriptive header comment
 
     def test_auto_repair_defaults_off_and_is_user_switchable(self):
-        self.assertIn('prefs.get("doctor_auto_repair",False)', SRC)
+        self.assertIn('prefs.get("doctor_auto_repair",True)', SRC)
         self.assertIn("Doctor auto-repair (safe, bounded)", SRC)
         self.assertIn("page.run_task(doctor_auto_repair_poll)", SRC)
 

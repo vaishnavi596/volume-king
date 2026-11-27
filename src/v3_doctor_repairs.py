@@ -2,7 +2,7 @@
 
 The caller (main.py) supplies the actions. This module only decides WHAT may run,
 HOW OFTEN, and keeps an audit trail. It can never be asked to touch tokens, keys,
-broker orders, user settings or source code: only the four allowlisted, local or
+broker orders, user settings or source code: only the allowlisted, local or
 already-permitted read-only actions below exist.
 """
 from collections import deque
@@ -12,7 +12,10 @@ STUCK_AFTER_SECONDS = 300
 MAX_ATTEMPTS_PER_GENERATION = 2
 COOLDOWN_SECONDS = 120
 ALLOWED_ACTIONS = ("release_busy_flag", "retry_closed_index_snapshot",
-                   "retry_missing_hist", "recompute_local_cache")
+                   "retry_missing_hist", "recompute_local_cache",
+                   # B243: still read-only / reconnect-only; never settings, tokens or orders
+                   "reconnect_saved_ssk", "load_roster_option_chain",
+                   "restart_stalled_watchlist")
 
 
 def _valid_time(value):
@@ -56,6 +59,15 @@ class RepairLedger:
         self._last = {}
         self._events = deque(maxlen=40)
         self._sequence = 0
+        self._last_run = None
+
+    def note_run(self, now, result, checked, planned=0):
+        """Record every run, even when nothing was needed, so the log is never silently empty."""
+        if not _valid_time(now):
+            return
+        self._last_run = {"at_monotonic": round(now, 1), "result": str(result)[:40],
+                          "planned": int(planned) if type(planned) is int else 0,
+                          "checked": [str(x)[:40] for x in (checked or ())][:20]}
 
     def propose(self, findings, generation, now):
         """Return only findings that are allowlisted, under the cap, and cooled down."""
@@ -92,6 +104,7 @@ class RepairLedger:
 
     def report(self):
         return {"code": self.CODE, "events": list(self._events),
+                "last_run": self._last_run,
                 "allowed_actions": list(ALLOWED_ACTIONS),
                 "max_attempts_per_generation": MAX_ATTEMPTS_PER_GENERATION,
                 "cooldown_seconds": COOLDOWN_SECONDS,
