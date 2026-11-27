@@ -3270,3 +3270,4 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - ACTION: gateway caps index quote reuse at 10 s in market hours; phone refreshes the 3-index quote right before each index candle read.
 - RESULT: 1778 tests, only 55 known baseline errors. Server signal runner shows all 3 indices LIVE_VERIFIED on 1m and 5m (12:15 IST).
 - OPEN: gateway redeploy on Oracle; B230 phone proof; N/F adapters; O flow.
+- J25 FIX (07:05 UTC): first B230 push FAILED B3 gate (3 time-dependent quote-cache parity tests: cap applied to equity selections and used wall clock). Cap now only for the full three-index batch via patchable `regular_session_now()`; parity tests pin it off, plus a new market-hours test. fastapi tests cannot run in this sandbox (no fastapi) — verified by CI only.

@@ -128,6 +128,12 @@ def load_equity_registry(path):
         return {}
 
 
+def regular_session_now():
+    """True during NSE regular hours (IST weekdays 09:15-15:35)."""
+    ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    return ist.weekday() < 5 and (9, 15) <= (ist.hour, ist.minute) < (15, 35)
+
+
 def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None,
                consent_config_factory=None, futures_master_factory=None):
     """Fail closed at startup if owner has not provisioned a protected key."""
@@ -477,9 +483,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                          and not cache[1].get("unavailable") else 20)
             # Regular hours: live qualification needs a last-trade stamp no
             # older than the newest completed bar, so reuse is capped at 10 s.
-            _ist = datetime.now(timezone(timedelta(hours=5, minutes=30)))
-            if (_ist.weekday() < 5 and
-                    (9, 15) <= (_ist.hour, _ist.minute) < (15, 35)):
+            if full_index_batch and regular_session_now():
                 cache_ttl = min(cache_ttl, 10)
             if cache and 0 <= now - cache[0] < cache_ttl:
                 return JSONResponse(cache[1], headers={"Cache-Control": "no-store"})

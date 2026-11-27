@@ -67,6 +67,7 @@ class QuoteFreshnessSource(unittest.TestCase):
         with open("backend/clone_v2_gateway.py") as f:
             src = f.read()
         self.assertIn("cache_ttl = min(cache_ttl, 10)", src)
+        self.assertIn("if full_index_batch and regular_session_now():", src)
 
     def test_phone_refreshes_index_quote_before_candle_read(self):
         with open("src/main.py") as f:

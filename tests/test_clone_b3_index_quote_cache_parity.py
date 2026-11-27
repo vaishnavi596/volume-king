@@ -10,6 +10,12 @@ class CloneIndexBatchCacheParityTests(unittest.TestCase):
     KEY = b"k" * 40
     URL = "/clone-v2/market/quotes"
 
+    def setUp(self):
+        # Wall-clock independent: these tests cover the out-of-session TTLs.
+        patcher = patch("backend.clone_v2_gateway.regular_session_now", return_value=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def make_client(self, omit_sensex=False):
         class FakeDhan:
             def __init__(self):
@@ -72,6 +78,19 @@ class CloneIndexBatchCacheParityTests(unittest.TestCase):
             fake_time.monotonic.return_value = 125.0
             third = self.quote(client, ["RELIANCE"])
         self.assertTrue(all(x.status_code == 200 for x in (first, second, third)))
+        self.assertEqual(feed.calls, 2)
+
+    def test_market_hours_cap_complete_index_batch_to_10_seconds(self):
+        feed, client = self.make_client()
+        with patch("backend.clone_v2_gateway.regular_session_now", return_value=True), \
+                patch("backend.clone_v2_gateway.time") as fake_time:
+            fake_time.monotonic.return_value = 100.0
+            self.quote(client, ["NIFTY", "BANKNIFTY", "SENSEX"])
+            fake_time.monotonic.return_value = 108.0
+            self.quote(client, ["NIFTY", "BANKNIFTY", "SENSEX"])
+            self.assertEqual(feed.calls, 1)
+            fake_time.monotonic.return_value = 111.0
+            self.quote(client, ["NIFTY", "BANKNIFTY", "SENSEX"])
         self.assertEqual(feed.calls, 2)
 
 

@@ -3,6 +3,7 @@ run-name: BOT KING V3 B230 CURRENT JOINT REGRESSION PREVIEW • v2.3.230
 # This PREVIEW has a distinct package ID and is NOT an upgrade to installed B198.
 # Never replace the protected same-package release workflow with a temporary key.
 # B230 is an isolated current-source phone-test candidate, not final acceptance.
+# B230 rebuild: quote-cache cap limited to the three-index batch and made clock-deterministic in tests.
 # The full independent exact-head B3 gate must PASS before signing this preview.
 # B230 adds faster open-market Watchlist 3m refresh (30 per 180s, 5s floor) and Volume post-close bar fix, on top of B227; same exact-head gates and signer guards.
 on:
