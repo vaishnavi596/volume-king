@@ -71,3 +71,38 @@ class LedgerTests(unittest.TestCase):
         led = r.ledger_step({}, out, 1000)
         led = r.ledger_step(led, out, 2300)
         self.assertEqual(led["stats"], {})
+
+
+class Horizons(unittest.TestCase):
+    def _bars(self, n, step):
+        return [(i, 100 + i * step, 100.5 + i * step, 99.5 + i * step, 100 + i * step, 1) for i in range(n)]
+    def test_horizons_and_min_bars(self):
+        import v3_m_forward as m
+        self.assertIsNone(m.m_lean(self._bars(40, 0.2), 60))
+        self.assertEqual(m.m_lean(self._bars(80, 0.2), 60)["horizon_minutes"], 60)
+        self.assertEqual(m.m_lean(self._bars(40, 0.2), 30)["lean"], "BULLISH")
+        self.assertIsNone(m.m_lean(self._bars(80, 0.2), 45))
+        self.assertEqual(set(m.m_leans(self._bars(80, -0.2))), {"20", "30", "60"})
+    def test_confidence_label(self):
+        import v3_m_forward as m
+        self.assertEqual(m.confidence_label(0.7), "मज़बूत")
+        self.assertEqual(m.confidence_label(0.1), "हल्का")
+    def test_ledger_scores_30_minute_rows(self):
+        import clone_signal_runner as r
+        led = {}
+        out = {"market_open": True, "m_lean": {"NIFTY": {"lean": "BULLISH", "ltp": 100.0}},
+               "m_horizons": {"NIFTY": {"30": {"lean": "BULLISH", "ltp": 100.0}}}}
+        r.ledger_step(led, out, 1000)
+        out2 = {"market_open": True, "m_lean": {"NIFTY": {"lean": "BULLISH", "ltp": 101.0}}}
+        r.ledger_step(led, out2, 1000 + 31 * 60)
+        self.assertEqual(led["stats"]["NIFTY@30"], {"n": 1, "hits": 1})
+
+
+class LotSizes(unittest.TestCase):
+    def test_parse(self):
+        import clone_signal_runner as r
+        lines = ["SEM_INSTRUMENT_NAME,SEM_TRADING_SYMBOL,SEM_LOT_UNITS",
+                 "OPTIDX,NIFTY-Dec2026-20000-CE,65.0", "OPTIDX,NIFTY-Dec2026-20050-CE,99.0",
+                 "OPTIDX,BANKNIFTY-Dec2026-69400-CE,30.0", "OPTSTK,RELIANCE-Dec2026-1500-CE,500.0",
+                 "FUTCUR,USDINR-28Aug2024-FUT,1.0", "OPTIDX,BAD-X,abc"]
+        self.assertEqual(r.parse_lot_sizes(lines), {"NIFTY": 65, "BANKNIFTY": 30, "RELIANCE": 500})

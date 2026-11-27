@@ -11,8 +11,17 @@ HORIZON_MINUTES = 20
 MIN_BARS = 30
 
 
-def m_lean(bars):
-    """Return {"bullish","bearish","lean","strength"} or None when evidence is thin."""
+HORIZONS = (20, 30, 60)
+_WINDOW = {20: 60, 30: 60, 60: 90}
+_MIN = {20: 30, 30: 30, 60: 45}
+
+
+def m_lean(bars, horizon=HORIZON_MINUTES):
+    """Return {"bullish","bearish","lean","strength"} or None when evidence is thin.
+
+    horizon: 20, 30 or 60 minutes (B249). 60 needs more bars (45+) so it appears later in the session."""
+    if horizon not in _WINDOW:
+        return None
     clean = []
     for b in bars or ():
         try:
@@ -21,8 +30,8 @@ def m_lean(bars):
             continue
         if all(math.isfinite(x) and x > 0 for x in (c, h, l)) and h >= l:
             clean.append((h, l, c))
-    clean = clean[-60:]
-    if len(clean) < MIN_BARS:
+    clean = clean[-_WINDOW[horizon]:]
+    if len(clean) < _MIN[horizon]:
         return None
     closes = [c for _, _, c in clean]
     n = len(closes)
@@ -33,7 +42,7 @@ def m_lean(bars):
     slope = sum((x - mx) * (y - my) for x, y in zip(xs, closes)) / var   # price per bar
     rng = sum(h - l for h, l, _ in clean) / n or 1e-9                    # mean bar range
     # Projected move over the horizon relative to typical bar range, clipped.
-    score = max(-1.0, min(1.0, slope * HORIZON_MINUTES / (rng * 4)))
+    score = max(-1.0, min(1.0, slope * horizon / (rng * 4)))
     # Reversal damper: last 5 bars against the slope reduce confidence.
     recent = closes[-1] - closes[-6]
     if score * recent < 0:
@@ -42,7 +51,7 @@ def m_lean(bars):
     bear = 100 - bull
     return {"bullish": bull, "bearish": bear,
             "lean": "BULLISH" if bull > 55 else "BEARISH" if bull < 45 else "NEUTRAL",
-            "strength": round(abs(score), 3), "horizon_minutes": HORIZON_MINUTES,
+            "strength": round(abs(score), 3), "horizon_minutes": horizon,
             "vote_eligible": False}
 
 
@@ -53,3 +62,17 @@ def resolve_prediction(entry_price, lean, price_after):
     if price_after == entry_price:
         return None
     return (price_after > entry_price) == (lean == "BULLISH")
+
+
+def m_leans(bars):
+    """All horizons at once: {"20":lean|None,"30":...,"60":...}."""
+    return {str(h): m_lean(bars, h) for h in HORIZONS}
+
+
+def confidence_label(strength):
+    """Plain-language confidence from lean strength (NOT a measured probability)."""
+    try:
+        v = float(strength)
+    except (TypeError, ValueError):
+        return "—"
+    return "मज़बूत" if v >= 0.6 else "मध्यम" if v >= 0.3 else "हल्का"

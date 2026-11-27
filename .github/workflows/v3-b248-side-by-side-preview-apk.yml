@@ -4,7 +4,7 @@ run-name: BOT KING V3 B248 CURRENT JOINT REGRESSION PREVIEW • v2.3.248
 # Never replace the protected same-package release workflow with a temporary key.
 # B248 is an isolated current-source phone-test candidate, not final acceptance.
 # The full independent exact-head B3 gate must PASS before signing this preview.
-# B248: option order ticket (tap chain row, SL/target % and rupees), change%, M lean ledger, Breadth, server away, B247 area watchers.
+# B248: option order ticket, lot sizes from server, M lean 30/60 min, BANKNIFTY/SENSEX chain fix, Doctor chain+ticket checks, change%, Breadth, server away, B247 area watchers.
 on:
   push:
     branches:

@@ -2306,9 +2306,10 @@ def app_main(page:ft.Page):
             if prefs.get("source")=="Dhan" and prefs.get("market_display_mode")!="LIVE_ONLY":
                 from v3_m_forward import m_lean
                 _mh=shared_history(sym,"1m") or {}
-                _ml=m_lean(_mh.get("bars")) if _mh.get("source")=="Dhan" else None
+                _ml=m_lean(_mh.get("bars"),30) if _mh.get("source")=="Dhan" else None
+                _m60=m_lean(_mh.get("bars"),60) if _mh.get("source")=="Dhan" else None
                 if _ml:
-                    m_text="M HIST B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+" • 20m lean • not voted"
+                    m_text="M HIST 30m B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+(" • 60m B"+str(_m60["bullish"])+"/S"+str(_m60["bearish"]) if _m60 else "")+" • not voted"
                     m_color=m_border=GREEN if _ml["lean"]=="BULLISH" else RED if _ml["lean"]=="BEARISH" else GOLD
         except Exception as exc:
             log_error("m_forward",exc)
@@ -2836,7 +2837,7 @@ def app_main(page:ft.Page):
         for sym_,row_ in mled.items():
             if isinstance(row_,dict) and row_.get("n"):
                 ctr.append(note("M lean ledger "+str(sym_)+": "+str(row_.get("hits"))+"/"+str(row_.get("n"))+" hit"+
-                                (" • "+str(row_.get("hit_rate"))+"%" if row_.get("hit_rate") is not None else "")+" • 20 min • not a vote"))
+                                (" • "+str(row_.get("hit_rate"))+"%" if row_.get("hit_rate") is not None else "")+" • "+("20" if "@" not in str(sym_) else str(sym_).split("@")[1])+" min • not a vote"))
         events=[e for e in sig.get("events",[]) if isinstance(e,dict)][-8:]
         if events:
             ctr.append(txt("Changes while you were away",14,GOLD,True))
@@ -4594,6 +4595,14 @@ def app_main(page:ft.Page):
         option_strike.value=f"{strike:g}";option_side.value=side
         tk["prem"]=("" if prem is None else f"{prem:.2f}")
         tk_sl_pct.value=tk["sl_pct"];tk_tg_pct.value="";tk_tg_price.value=""
+        try:
+            lots=((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("lot_sizes") or {}
+            lot=lots.get(str(chain_symbol.value).upper())
+            if type(lot) is int and 0<lot<=100000:
+                tk_unit.value=str(lot);tk["lot_from"]="Dhan master (सर्वर)"
+            else:tk["lot_from"]="हाथ से भरें"
+        except Exception as exc:
+            log_error("ticket_lot",exc);tk["lot_from"]="हाथ से भरें"
         tk_recalc("sl_pct");tk_note.value=""
         request_view_refresh(current[0])
     def ticket_expiry(choice):
@@ -4621,7 +4630,7 @@ def app_main(page:ft.Page):
             ft.Row([tk_sl_price,tk_sl_pct],spacing=8,wrap=True),ft.Row([tk_tg_price,tk_tg_pct],spacing=8,wrap=True),
             tk_result,
             ft.ElevatedButton("PAPER "+side+" (अभी बंद • प्रीमियम unverified)",on_click=ticket_place),tk_note,
-            note("Units/lot आप खुद जाँचकर भरें (चेन में lot size नहीं आता) • LIVE ऑर्डर हमेशा बंद")],spacing=8))
+            note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद")],spacing=8))
     option_chart_cache={}
     option_chart_busy=[False]
     option_chart_feedback={}
@@ -7620,6 +7629,22 @@ def app_main(page:ft.Page):
                         "scope":"report only; market-aware age limits; no provider calls"}
                     data["error_report"]=list(data.get("error_report",[]))+extra
                     data["error_count"]=len(data["error_report"])
+                    # B248: report-only: index chains + order ticket + M horizons
+                    _ix={}
+                    for _s in ("NIFTY","BANKNIFTY","SENSEX"):
+                        _a=roster_chain_age(_s)
+                        _ix[_s]={"loaded":_a<1e8,"age_seconds":(round(_a,1) if _a<1e8 else None)}
+                    _srv=((paper_hb_cache.get("signals") or {}).get("latest") or {})
+                    data["index_chains"]={"code":"BK-DOC-IDXCHAIN-001","rows":_ix,"scope":"report only; no provider calls"}
+                    _t=option_ticket.ticket_summary(tk.get("prem"),tk.get("side","BUY"),tk_lots.value,tk_unit.value,tk_sl_price.value,tk_tg_price.value)
+                    data["order_ticket"]={"code":"BK-DOC-TICKET-001","symbol":chain_symbol.value,
+                        "strike":option_strike.value,"contract":option_side.value,"premium":tk.get("prem") or None,
+                        "valid":_t.get("valid"),"sl_side_ok":_t.get("sl_ok"),"target_side_ok":_t.get("tg_ok"),
+                        "units_per_lot":tk_unit.value,"lot_source":tk.get("lot_from"),
+                        "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
+                        "paper_fill":"DISABLED (premium unverified)","orders_sent":0}
+                    data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
+                        "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                 except Exception as exc:
                     log_error("area_watchers",exc)
                 data["timers"]=doctor_timers()

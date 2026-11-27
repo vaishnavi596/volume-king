@@ -8,7 +8,9 @@ rules as the phone (v3_live_candle_bridge) and runs the same scanner filters.
 Result is written atomically to a private JSON file. No orders, no broker
 write endpoint, no credentials printed. Standard library only (Python 3.9).
 """
+import csv
 import hashlib
+import io
 import json
 import os
 import sys
@@ -22,7 +24,7 @@ from pathlib import Path
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
-from v3_m_forward import m_lean, resolve_prediction  # noqa: E402
+from v3_m_forward import m_lean, m_leans, resolve_prediction  # noqa: E402
 
 IST = timezone(timedelta(hours=5, minutes=30))
 GATEWAY = os.environ.get("BOTKING_SIGNAL_GATEWAY", "http://127.0.0.1:8002")
@@ -135,6 +137,10 @@ def cycle(key, now, minute_index, previous):
                     ltp = (quotes.get(symbol) or {}).get("ltp")
                     if lean and type(ltp) in (int, float):
                         out.setdefault("m_lean", {})[symbol] = dict(lean, ltp=float(ltp))
+                    if type(ltp) in (int, float):
+                        for hz, hl in m_leans(response.get("bars")).items():
+                            if hz != "20" and hl:
+                                out.setdefault("m_horizons", {}).setdefault(symbol, {})[hz] = dict(hl, ltp=float(ltp))
                 out["symbols"][symbol][frame] = evaluate(symbol, frame, response, quotes.get(symbol), now)
             except urllib.error.HTTPError as exc:
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": "HTTP %s" % exc.code}
@@ -181,17 +187,26 @@ def ledger_step(ledger, out, now):
         if now - ledger["last_t"].get(symbol, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
             ledger["pending"].append({"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"]})
             ledger["last_t"][symbol] = int(now)
+    for symbol, hz_map in (out.get("m_horizons") or {}).items():
+        for hz, lean in (hz_map or {}).items():
+            key = symbol + "@" + hz
+            if now - ledger["last_t"].get(key, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
+                ledger["pending"].append({"t": int(now), "symbol": symbol, "lean": lean["lean"],
+                                          "entry": lean["ltp"], "h": int(hz)})
+                ledger["last_t"][key] = int(now)
     keep = []
     for row in ledger["pending"]:
-        if now - row["t"] < LEDGER_HORIZON_S:
+        hz = row.get("h", LEDGER_HORIZON_S // 60)
+        if now - row["t"] < hz * 60:
             keep.append(row); continue
         price = ((out.get("m_lean") or {}).get(row["symbol"]) or {}).get("ltp")
         hit = resolve_prediction(row["entry"], row["lean"], price) if price is not None else None
         if hit is None:
             continue  # neutral / flat / no price: not scored
-        st = ledger["stats"].setdefault(row["symbol"], {"n": 0, "hits": 0})
+        skey = row["symbol"] if "h" not in row else row["symbol"] + "@" + str(row["h"])
+        st = ledger["stats"].setdefault(skey, {"n": 0, "hits": 0})
         st["n"] += 1; st["hits"] += int(bool(hit))
-    ledger["pending"] = keep[-200:]
+    ledger["pending"] = keep[-400:]
     return ledger
 
 
@@ -214,6 +229,48 @@ def summary(out):
     return "market_open=%s | %s" % (out.get("market_open"), " ; ".join(parts) or out.get("note", ""))
 
 
+MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
+LOT_FILE = Path(os.environ.get("BOTKING_LOT_FILE", str(OUT_FILE.parent / "lot-sizes.json")))
+LOT_REFRESH_S = 12 * 3600
+
+
+def parse_lot_sizes(lines):
+    """Pure: Dhan scrip-master lines -> {"NIFTY": 65, ...} for index and stock options (first seen wins)."""
+    lots = {}
+    for row in csv.DictReader(lines):
+        if row.get("SEM_INSTRUMENT_NAME") not in ("OPTIDX", "OPTSTK"):
+            continue
+        name = str(row.get("SEM_TRADING_SYMBOL", "")).split("-")[0].strip().upper()
+        try:
+            lot = int(float(row.get("SEM_LOT_UNITS")))
+        except (TypeError, ValueError):
+            continue
+        if name and 0 < lot <= 100000 and name not in lots:
+            lots[name] = lot
+    return lots
+
+
+def load_lot_sizes(now):
+    """Cached lot-size map; refreshed from Dhan's public scrip master at most every 12 h. Never raises."""
+    try:
+        cached = json.loads(LOT_FILE.read_text(encoding="utf-8")) if LOT_FILE.exists() else {}
+    except (OSError, ValueError):
+        cached = {}
+    if not isinstance(cached, dict):
+        cached = {}
+    if now - float(cached.get("fetched", 0) or 0) < LOT_REFRESH_S and cached.get("lots"):
+        return cached["lots"]
+    try:
+        with urllib.request.urlopen(MASTER_URL, timeout=120) as resp:
+            lots = parse_lot_sizes(io.TextIOWrapper(resp, encoding="utf-8", newline=""))
+        if lots.get("NIFTY"):
+            atomic_write(LOT_FILE, json.dumps({"fetched": int(now), "lots": lots}) + "\n")
+            return lots
+    except Exception:
+        pass
+    return cached.get("lots") or {}
+
+
 def main():
     key = SSK_FILE.read_bytes().strip().decode("ascii")
     once = "--once" in sys.argv
@@ -229,6 +286,10 @@ def main():
                 out["m_ledger"] = ledger_summary(ledger)
             except Exception:
                 pass  # ledger is best-effort; never stop the runner
+            try:
+                out["lot_sizes"] = load_lot_sizes(now)
+            except Exception:
+                pass  # lot sizes are best-effort
             atomic_write(OUT_FILE, json.dumps(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))

@@ -3468,3 +3468,8 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - O box (5th) to go LIVE: needs verified live option evidence Monday 30 Nov 09:15 IST (chain via server, premiums, OI change); then enable O live vote.
 - Server: Dhan scrip master gives lot units (NIFTY 65, BANKNIFTY 30, SENSEX 25, FINNIFTY 60) and option security ids; daily lot-size file + option ltp for server paper SL/target.
 - Doctor: add server health, chain check per index, ticket check, market-open auto check (09:15-09:20).
+
+## J55 — B248 final contents (28 Nov 2026)
+- Included: option order ticket, BANKNIFTY/SENSEX chain fix (server dhan_option_metrics one-leg skip), M lean 30/60 min (HIST, not voted; ledger keys SYMBOL@30/@60), server lot-size map (runner reads Dhan scrip master every 12 h, writes lot_sizes into signals-latest.json; ticket fills Units/lot), Doctor: index_chains, order_ticket, m_horizons_server.
+- Not included (B249): option security ids + server option LTP, F futures direction (candles/OI route), N risk flag, chart parts, O live vote (Monday evidence).
+- Lesson: pushing while B3 regression runs cancels it and the APK gate fails (B3_EXACT_SHA_NOT_VERIFIED). One final push, then wait.

@@ -41,3 +41,13 @@ class WindowTolerance(unittest.TestCase):
         rows = r["rows"]
         self.assertEqual(len(rows), 7)
         self.assertNotIn(48350.0, [x["strike"] for x in rows])
+
+
+class Wiring249(unittest.TestCase):
+    def test_lot_and_doctor_wiring(self):
+        import pathlib
+        src = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
+        for needle in ('"lot_sizes"', 'data["index_chains"]', 'data["order_ticket"]',
+                       'data["m_horizons_server"]', 'm_lean(_mh.get("bars"),30)'):
+            self.assertIn(needle, src)
+        self.assertIn('"orders_sent":0', src)
