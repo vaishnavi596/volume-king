@@ -3271,3 +3271,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - RESULT: 1778 tests, only 55 known baseline errors. Server signal runner shows all 3 indices LIVE_VERIFIED on 1m and 5m (12:15 IST).
 - OPEN: gateway redeploy on Oracle; B230 phone proof; N/F adapters; O flow.
 - J25 FIX (07:05 UTC): first B230 push FAILED B3 gate (3 time-dependent quote-cache parity tests: cap applied to equity selections and used wall clock). Cap now only for the full three-index batch via patchable `regular_session_now()`; parity tests pin it off, plus a new market-hours test. fastapi tests cannot run in this sandbox (no fastapi) — verified by CI only.
+
+## J26 — 2026-11-27 13:25 IST — cross-screen box consistency, stage A (B231)
+- WHY: owner reported five boxes + bullish/bearish candle differ between Super Five, Watchlist and Scanner. Source audit: (1) cached HIST engine publish ran only for 1m/3m, so Super Five 5m T box could be WAIT while Watchlist showed a vote; (2) Scanner showed TWO five-box sets (live "Five Engine" section + frozen copy inside ANALYSIS BASIS built once per analysis), phone screenshot 13:09 showed T B11/S89 vs T B0/S100 for the same symbol/timeframe.
+- ACTION: publish accepts 5m; frozen duplicate box sets removed from both analysis blocks (one live set remains). Tests updated; version 2.3.231, B231 workflow.
+- RESULT: 1778 tests, only 55 known baseline errors. CI/APK PENDING.
+- OWNER DECISION 13:03: all screens default 1m; Scanner keeps full interval list; Watchlist pacing unchanged (option 1). Chart premium levels 1+2+3 requested 13:22. NEXT: stage B (Watchlist 1m + fresh-count), chart segment, stage C (Super Five 1m).
+- OPEN: Oracle gateway redeploy proof (c197dce), 1m live window vs 60 s poll, N/F/O adapters.
