@@ -4574,7 +4574,7 @@ def app_main(page:ft.Page):
                     and (chain_symbol.value in DHAN_VERIFIED_SYMBOLS or chain_symbol.value=="FINNIFTY")
                     and not option_feed_busy[0]
                     and (dhan_option_last_attempt[0]<=0
-                         or time.monotonic()-dhan_option_last_attempt[0]>=60)
+                         or time.monotonic()-dhan_option_last_attempt[0]>=45)
                     and time.monotonic()>=option_retry_until.get(
                         (provider_generation[0],chain_symbol.value,option_expiry_choice.value,
                          expiry.value if option_expiry_choice.value=="Manual" else ""),0.0)
@@ -4625,7 +4625,7 @@ def app_main(page:ft.Page):
                           if g==generation and u==sym and isinstance(d,dict)
                           and type(d.get("observed_at")) in (int,float)]
                     return min(ages) if ages else 1e9
-                due=[sym for sym in picks if chain_age(sym)>45]
+                due=[sym for sym in picks if chain_age(sym)>40]
                 if not due:
                     continue
                 sym=max(due,key=chain_age)  # oldest first

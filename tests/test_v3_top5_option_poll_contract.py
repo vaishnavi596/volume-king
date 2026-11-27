@@ -37,7 +37,7 @@ class Top5OptionPollContract(unittest.TestCase):
         self.assertIn("asyncio.sleep(8)", body)
         self.assertIn("asyncio.sleep(3.25)", body)
         self.assertIn("[:5]", body)  # Super Five candidates only, never 70 symbols
-        self.assertRegex(body, r"chain_age\(sym\)>45")
+        self.assertRegex(body, r"chain_age\(sym\)>40")
         self.assertIn('data.get("signal_eligible") is not False', body)
         self.assertIn('data["observed_at"]=time.time()', body)
         self.assertIsNone(re.search(r"for\s+\w+\s+in\s+selected_equities", body))

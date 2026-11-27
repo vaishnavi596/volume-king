@@ -3287,3 +3287,8 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - ACTION: five_engine.verified_candle_evidence window = width+30 s (same as v3_live_candle_bridge); new Watchlist line "3m candle fresh (<=6 min): x/N" separate from LTP; tests added (1m window 85 s eligible, 95 s rejected).
 - RESULT: 1779 tests, only 55 known baseline errors. CI/APK PENDING (B233 supersedes B232).
 - OPEN: change vs open/prev close (gateway uses LTP route: no previous close), Watchlist and Super Five to 1m, chart redesign, N/O extreme HIST labels, gateway redeploy proof c197dce.
+
+## J28 — B234 (2026-11-27): O box live freshness
+- O already has a live "measured_oi_change" component (OI change × last price over 7 ATM strikes; not real trade flow). It needs chain `observed_at` ≤ 90 s and a live underlying quote.
+- Cause of HIST/WAIT: chain refresh cadence (≥60 s + 3.25 s pacing + loop 15 s) left gaps above the 90 s gate. Fix: selected-chain poll ≥45 s, Super Five chain refresh when older than 40 s. Gates unchanged.
+- Still open: phone-side `dhan_options: FeedError` cause, vote-bar "HIST • NOT live" label, chart redesign, background service.

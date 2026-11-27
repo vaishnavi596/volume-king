@@ -14,7 +14,7 @@ class FiveEngineDhanReadOnlyTests(unittest.TestCase):
         self.assertIn('prefs.get("source")=="Dhan"',block)
         self.assertIn('chain_symbol.value in DHAN_VERIFIED_SYMBOLS',block)
         self.assertIn('dhan_feed.connected',block)
-        self.assertIn('dhan_option_last_attempt[0]>=60',block)
+        self.assertIn('dhan_option_last_attempt[0]>=45',block)
         self.assertIn("await refresh_selected_options()",block)
         self.assertNotIn('get_market_data(',block)
         self.assertNotIn('quotes[sym]=hist',block)
