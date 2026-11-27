@@ -64,3 +64,35 @@ class PaperEngineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PhoneHeartbeatClientTests(unittest.TestCase):
+    def _gw(self, payload, url="https://x.example/clone-v2/paper/heartbeat"):
+        import io, json as _j
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("phone_clone_gw", Path(__file__).resolve().parents[1] / "src" / "clone_v2_gateway.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        CloneV2Gateway = mod.CloneV2Gateway
+
+        class Resp:
+            status = 200
+            def __init__(s): s.headers = type("H", (), {"get_content_type": lambda self: "application/json"})(); s.b = io.BytesIO(_j.dumps(payload).encode())
+            def geturl(s): return url
+            def read(s, n): return s.b.read(n)
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+        class Op:
+            def open(self, req, timeout=0): return Resp()
+        g = CloneV2Gateway(opener=Op()); g._origin = "https://x.example"; g._key = "k" * 40
+        return g
+
+    def test_valid_heartbeat(self):
+        r = self._gw({"mode": "PAPER", "live_orders_enabled": False, "open_count": 2, "uptime_seconds": 5}).paper_heartbeat()
+        self.assertTrue(r["reachable"]); self.assertEqual(r["open_count"], 2); self.assertFalse(r["live_orders_enabled"])
+
+    def test_live_true_is_rejected(self):
+        r = self._gw({"mode": "PAPER", "live_orders_enabled": True}).paper_heartbeat()
+        self.assertFalse(r["reachable"])
+
+    def test_disconnected(self):
+        self.assertFalse(self._gw({}).__class__().paper_heartbeat()["reachable"])

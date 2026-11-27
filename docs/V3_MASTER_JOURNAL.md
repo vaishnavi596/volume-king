@@ -3424,3 +3424,8 @@ Planned new safe repair actions (all allowlisted, bounded, read-only provider ca
 - Doctor: market-aware (closed market is not a fault), 7 safe repairs, auto-repair default ON, settings_watch (report-only drift), timers (Watchlist pass seconds, option chains loaded/oldest age), error_report with next step per failing point, "meaning" text on login_quote_validation.
 - Watchlist label shows last pass time. Scanner paused text: "SSK connected • live Dhan feed off (market closed)". Super Five price now gold bold, label muted.
 - Still open: O-box HIST vs Doctor mismatch, Home chart 5m/gap, M box, server heartbeat + paper engine (Part 2), Monday live checks.
+
+## J47 — B244 server paper engine (installed on Oracle, verified)
+- backend/server_paper_positions.py + gateway routes /clone-v2/paper/{heartbeat,state,open,close}; PAPER only, stop-loss mandatory on correct side, stop/target auto-close, JSON state file, 20 s poller for OPEN symbols only (market hours, shared quota gates). No order endpoints; live flag constant False.
+- Installed via ops/install_paper_engine_20261127.sh at a294d96; owner verified heartbeat: mode PAPER, live false. systemd drop-in paper.conf sets state file + BOTKING_PAPER_POLL=1.
+- App: CloneV2Gateway.paper_heartbeat + 60 s poll; Doctor shows server_paper_engine. App UI to open/close paper positions on server = next step; M box and live adapter not started.

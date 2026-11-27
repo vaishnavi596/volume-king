@@ -7453,6 +7453,7 @@ def app_main(page:ft.Page):
                 data["renewal_health"]=renewal_doctor_snapshot()
                 data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0}
                 data["settings_watch"]=doctor_settings_watch()
+                data["server_paper_engine"]=paper_heartbeat_snapshot()
                 data["timers"]=doctor_timers()
                 data["live_voting_gate"]=live_voting_gate_report(ml5_symbol,ml5_tf)
                 data["persistent_cache"]=market_store.diagnostics()
@@ -11415,6 +11416,29 @@ console.log('BOT KING Lightweight Charts ready');
             if generation==provider_generation[0] and clone_v2_gateway.connected:
                 renewal_health_cache.clear()
                 renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
+    paper_hb_cache={}
+    async def paper_heartbeat_poll():
+        # B244: read-only server paper-engine heartbeat every 60 s; no Dhan quota.
+        while True:
+            await asyncio.sleep(7)
+            if not app_active[0] or lifecycle_background[0] or not clone_v2_gateway.connected:
+                continue
+            if 0<=time.monotonic()-paper_hb_cache.get("at",-1e9)<60:
+                continue
+            try:
+                result=await asyncio.to_thread(clone_v2_gateway.paper_heartbeat)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("paper_heartbeat_poll",exc)
+                result={"reachable":False,"reason":"HEARTBEAT_POLL_FAILED"}
+            paper_hb_cache.clear()
+            paper_hb_cache.update(at=time.monotonic(),report=result)
+    def paper_heartbeat_snapshot():
+        rep=paper_hb_cache.get("report")
+        if rep is None:
+            return {"code":"BK-SRV-PAPER-001","reachable":None,"reason":"NOT_CHECKED_YET"}
+        return dict(rep,code="BK-SRV-PAPER-001",age_seconds=round(time.monotonic()-paper_hb_cache["at"],1))
     def doctor_settings_watch():
         """B243: report-only drift check of settings that matter; never changes anything."""
         expected={"source":"Dhan","mode":"Paper","doctor_auto_repair":True}
@@ -11466,6 +11490,7 @@ console.log('BOT KING Lightweight Charts ready');
         await check_clone_v2_connection()
     page.run_task(ssk_auto_login)
     page.run_task(renewal_metadata_poll)
+    page.run_task(paper_heartbeat_poll)
     page.run_task(verified_foreground_alert_poll)
     page.run_task(super_five_minute_refresh)
     page.run_task(option_poll)

@@ -75,6 +75,32 @@ class CloneV2Gateway:
         except (OSError,URLError,ValueError,UnicodeError,RecursionError):
             return {"state":"UNVERIFIED","reason":"ROUTE_OR_METADATA_UNAVAILABLE"}
 
+    def paper_heartbeat(self):
+        """B244: read-only server paper-engine heartbeat (no orders, no Dhan call)."""
+        if not self.connected:
+            return {"reachable":False,"reason":"DISCONNECTED"}
+        origin,key=self._origin,self._key
+        url=origin+"/clone-v2/paper/heartbeat"
+        request=Request(url,method="GET",headers={"X-BotKing-Key":key,
+            "Accept":"application/json","Cache-Control":"no-store"})
+        try:
+            with (self._opener or direct_https_opener()).open(request,timeout=8) as response:
+                if (response.status!=200 or response.geturl()!=url
+                        or response.headers.get_content_type()!="application/json"):
+                    raise ValueError("Untrusted heartbeat response")
+                raw=response.read(4097)
+                if len(raw)>4096:raise ValueError("Oversized heartbeat")
+                data=json.loads(raw.decode("utf-8"))
+            if (not isinstance(data,dict) or data.get("mode")!="PAPER"
+                    or data.get("live_orders_enabled") is not False):
+                raise ValueError("Invalid heartbeat contract")
+            keep=("mode","uptime_seconds","last_eval_age_seconds","open_count","closed_count","open_symbols","last_error")
+            return dict({k:data.get(k) for k in keep},reachable=True,live_orders_enabled=False)
+        except HTTPError as exc:
+            return {"reachable":False,"reason":"HEARTBEAT_ROUTE_HTTP_"+str(exc.code)}
+        except (OSError,URLError,ValueError,UnicodeError,RecursionError):
+            return {"reachable":False,"reason":"HEARTBEAT_UNAVAILABLE"}
+
     def start_dhan_browser_login(self, endpoint, access_key):
         """Request Clone-only browser consent; return trusted official Dhan URL."""
         from urllib.parse import urlsplit, parse_qs
