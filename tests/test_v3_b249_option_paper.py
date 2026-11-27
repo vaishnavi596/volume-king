@@ -136,3 +136,21 @@ class LotPerExpiry(unittest.TestCase):
     def test_phone_prefers_per_expiry_lot(self):
         main = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
         self.assertIn('lot_by_expiry', main)
+
+
+class RosterChainPersistence(unittest.TestCase):
+    def test_latest_pointer_accepted_and_wrong_symbol_rejected(self):
+        sys.path.insert(0, str(pathlib.Path(__file__).parents[1] / "src"))
+        from snapshot_store import SnapshotStore
+        import tempfile, os
+        payload = {"source": "dhan", "signal_eligible": False, "symbol": "TCS", "expiry": "2099-12-29", "pcr": 1.0}
+        with tempfile.TemporaryDirectory() as d:
+            st = SnapshotStore(pathlib.Path(d) / "c.json", incremental=True)
+            self.assertTrue(st.put("option_context_last_good", ("Dhan", "TCS", "latest"), dict(payload)))
+            self.assertTrue(st.put("option_context_last_good", ("Dhan", "TCS", "2099-12-29"), dict(payload)))
+            self.assertFalse(st.put("option_context_last_good", ("Dhan", "INFY", "latest"), dict(payload)))
+            self.assertEqual(st.get("option_context_last_good", "Dhan", "TCS", "latest")["symbol"], "TCS")
+    def test_main_restores_latest_for_every_symbol(self):
+        main = (pathlib.Path(__file__).parents[1] / "src" / "main.py").read_text()
+        self.assertIn('("Dhan",sym,"latest")', main)
+        self.assertIn('"option_context_last_good","Dhan",sym,"latest"', main)

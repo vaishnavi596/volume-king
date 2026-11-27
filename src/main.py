@@ -2309,7 +2309,7 @@ def app_main(page:ft.Page):
                 _ml=m_lean(_mh.get("bars"),30) if _mh.get("source")=="Dhan" else None
                 _m60=m_lean(_mh.get("bars"),60) if _mh.get("source")=="Dhan" else None
                 if _ml:
-                    m_text="M HIST 30m B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+(" • 60m B"+str(_m60["bullish"])+"/S"+str(_m60["bearish"]) if _m60 else "")+" • not voted"
+                    m_text="M HIST 30m B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+(" • 60m B"+str(_m60["bullish"])+"/S"+str(_m60["bearish"]) if _m60 else "")
                     m_color=m_border=GREEN if _ml["lean"]=="BULLISH" else RED if _ml["lean"]=="BEARISH" else GOLD
         except Exception as exc:
             log_error("m_forward",exc)
@@ -5005,6 +5005,12 @@ def app_main(page:ft.Page):
             dhan_option_context_cache[key]=dict(data)
             while len(dhan_option_context_cache)>80:
                 del dhan_option_context_cache[next(iter(dhan_option_context_cache))]
+            try:
+                # B250: keep each roster chain as HIST so every box O fills after an app restart.
+                await asyncio.to_thread(market_store.put,"option_context_last_good",("Dhan",sym,chosen),dict(data))
+                await asyncio.to_thread(market_store.put,"option_context_last_good",("Dhan",sym,"latest"),dict(data))
+            except Exception as exc:
+                log_error("roster_chain_persist",exc)
             for _tf in ("1m","3m","5m"):
                 refresh_directional_vote_components(sym,_tf)
             return True
@@ -8961,6 +8967,18 @@ console.log('BOT KING Lightweight Charts ready');
                     and saved.get("expiry")==listed and
                     saved.get("signal_eligible") is False):
                 return dict(saved,historical=True,live_verified=False)
+        try:
+            # B250: last saved roster chain for this symbol (HIST only), while its expiry is not in the past.
+            latest=market_store.get("option_context_last_good","Dhan",sym,"latest") or {}
+            exp=str(latest.get("expiry") or "")
+            if (latest.get("source")=="dhan" and latest.get("symbol")==sym and latest.get("signal_eligible") is False
+                    and date.fromisoformat(exp).isoformat()==exp
+                    and exp>=datetime.now(timezone(timedelta(hours=5,minutes=30))).date().isoformat()):
+                return dict(latest,historical=True,live_verified=False)
+        except (ValueError,TypeError):
+            pass
+        except Exception as exc:
+            log_error("roster_chain_restore",exc)
         return {}
 
     def enrich_context_filter_rows(sym,rows):

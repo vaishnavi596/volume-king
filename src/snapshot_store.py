@@ -240,7 +240,9 @@ class SnapshotStore:
                     and frame in ("1m","2m","3m","5m","10m","15m","30m","1h")
                     and tuple(parts)==(symbol,frame))
         if kind=="analysis_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("timeframe"))
-        if kind=="option_context_last_good":return tuple(parts)==("Dhan",p.get("symbol"),p.get("expiry"))
+        if kind=="option_context_last_good":
+            # B250: ("Dhan",symbol,"latest") is the pointer to the newest saved chain of that symbol.
+            return tuple(parts) in (("Dhan",p.get("symbol"),p.get("expiry")),("Dhan",p.get("symbol"),"latest"))
         return True
     def _physical_bytes(self):
         paths=(self.db_path,Path(str(self.db_path)+"-wal"),Path(str(self.db_path)+"-shm"),Path(str(self.db_path)+"-journal")) if self.incremental else (self.path,)
