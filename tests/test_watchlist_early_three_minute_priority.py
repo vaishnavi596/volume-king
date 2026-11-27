@@ -172,7 +172,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
                 if reason=="symbol_attempt":
                     s["watch_three_minute_warm_attempts"][(0,"TCS")]=5.0
                 else:
-                    s["watch_three_minute_warm_last_provider"][0]=5.0
+                    s["watch_three_minute_warm_last_provider"][0]=7.0
                 self.assertFalse(self.invoke(s))
                 self.assertFalse(self.requests(calls))
 
@@ -183,7 +183,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             self.assertIn("key in watch_three_minute_warm_attempts",source)
             self.assertIn("now-watch_three_minute_warm_attempts[key]<180",source)
             self.assertIn("watch_three_minute_warm_last_provider[0]>0",source)
-            self.assertRegex(source,r"now-watch_three_minute_warm_last_provider\[0\]<(\(3 if explicit_closed else 10\)|10)")
+            self.assertRegex(source,r"now-watch_three_minute_warm_last_provider\[0\]<(\(3 if explicit_closed else 5\)|5)")
             self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",source)
 
     def test_exact_rolling_budget_and_global_10_second_spacing(self):
@@ -343,9 +343,9 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
         self.assertIn('get_market_data,sym,"1m","2d"',helper)
         self.assertIn('await asyncio.sleep(1.5)',helper)
         self.assertNotIn('asyncio.gather(',helper)
-        self.assertIn('len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 12)',helper)
+        self.assertIn('len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 30)',helper)
         self.assertIn('watch_three_minute_upstream_times.append(attempt_time)',helper)
-        self.assertIn('watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 10)',helper)
+        self.assertIn('watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 5)',helper)
         self.assertIn('watch_three_minute_warm_attempts[key]=time.monotonic()',helper)
         self.assertIn('(not refresh_hours() and not explicit_closed)',helper)
         self.assertNotIn('get_market_data,sym,"3m"',helper)

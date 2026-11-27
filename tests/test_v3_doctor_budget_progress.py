@@ -5,7 +5,7 @@ SRC=(pathlib.Path(__file__).resolve().parents[1]/"src"/"main.py").read_text()
 
 class DoctorBudgetProgressTests(unittest.TestCase):
     def test_budget_matches_scheduler(self):
-        self.assertIn("if len(warm_times)>=12:",SRC)
+        self.assertIn("if len(warm_times)>=30:",SRC)
         self.assertNotIn("if len(warm_times)>=3:",SRC)
         self.assertIn('"warmup_max_uncached_requests_per_180s":12',SRC)
     def test_history_progress_is_separate_from_ranking(self):

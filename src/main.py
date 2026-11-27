@@ -3355,14 +3355,14 @@ def app_main(page:ft.Page):
     # Market-CLOSED explicit HIST queue only (owner-approved 26 Nov, evidence: Dhan Data API
     # limit is 5 requests/second; the Oracle gateway also serialises provider misses).
     # Closed explicit queue (in warm_selected_watch_three_minute_early): 40 per 180s, 3s floor.
-    # Market-open/periodic budgets stay 12 per 180s with a 10s floor.
+    # Market-open/periodic budgets: 30 per 180s with a 5s floor (owner priority: fast Watchlist; the gateway still serialises at >=1.1s).
     def watch_hist_budget_wait_seconds():
         # Show the *actual* remaining local quota delay. Never guess that a
         # source fetch failed merely because the 12/180s budget is exhausted.
         now=time.monotonic()
         recent=[t for t in watch_three_minute_upstream_times if 0<=now-t<180]
-        budget_wait=(180-(now-min(recent))) if len(recent)>=12 else 0
-        floor_wait=(10-(now-watch_three_minute_warm_last_provider[0])
+        budget_wait=(180-(now-min(recent))) if len(recent)>=30 else 0
+        floor_wait=(5-(now-watch_three_minute_warm_last_provider[0])
                     if watch_three_minute_warm_last_provider[0]>0 else 0)
         return max(0,int(math.ceil(max(budget_wait,floor_wait,0))))
 
@@ -6962,11 +6962,11 @@ def app_main(page:ft.Page):
                         "evidence":"Selected equity count or cross-list duplication",
                         "solution":"Deduplicate watchlist ownership and apply the 70 unique-equity cap",
                         "confidence":"CACHE_CONFIRMED"})
-                if len(warm_times)>=12:
+                if len(warm_times)>=30:
                     remedies.append({"segment":"WATCHLIST_54_70",
                         "code":"3M_WARMUP_RATE_BUDGET_FULL",
                         "source":"src/main.py:warm_selected_watch_three_minute_early",
-                        "evidence":"12 or more uncached provider requests in rolling 180s",
+                        "evidence":"30 or more uncached provider requests in rolling 180s",
                         "solution":"Prioritize least-recently attempted selected equities and reuse exact 1m histories; do not increase Dhan quota blindly",
                         "confidence":"CACHE_CONFIRMED"})
                 if index_failure_code[0] not in ("NOT_TESTED","NONE_ALL_THREE_QUOTES_PRESENT"):
@@ -7148,7 +7148,7 @@ def app_main(page:ft.Page):
                                   "index_busy":bool(index_one_minute_busy[0]),
                                   "watchlist_busy":bool(watch_three_minute_warm_busy[0]),
                                   "cooldown_seconds":round(dhan_feed.cooldown_remaining("/dhan/intraday"),1),
-                                  "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=12,
+                                  "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=30,
                                   "provider_spacing":watch_three_minute_warm_last_provider[0]>0 and
                                       0<=mono-watch_three_minute_warm_last_provider[0]<10},
                               "watchlist_recent_budget_used":sum(
@@ -9924,9 +9924,9 @@ console.log('BOT KING Lightweight Charts ready');
                 prior_cache=market_recent.get(history_key)
                 cache_ready=bool(prior_cache and now-prior_cache[0]<87)
             if not cache_ready and (
-                    len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 12) or
+                    len(watch_three_minute_upstream_times)>=(40 if explicit_closed else 30) or
                     (watch_three_minute_warm_last_provider[0]>0 and
-                     now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 10))):
+                     now-watch_three_minute_warm_last_provider[0]<(3 if explicit_closed else 5))):
                 record_watch_skip(generation,"early","UPSTREAM_BUDGET_OR_SPACING",sym)
                 continue
             watch_three_minute_warm_busy[0]=True
@@ -10845,8 +10845,8 @@ console.log('BOT KING Lightweight Charts ready');
                 # Rolling-window cap, not a fixed bucket that can burst at rollover.
                 watch_three_minute_upstream_times[:]=[
                     t for t in watch_three_minute_upstream_times if now-t<180]
-                # Hard budget: at most 12 *uncached* upstream 1m histories in any
-                # 180s window, spaced >=10s. Cache hits use no extra Dhan call.
+                # Hard budget: at most 30 *uncached* upstream 1m histories in any
+                # 180s window, spaced >=5s. Cache hits use no extra Dhan call.
                 selected=[sym for sym in all_watch_symbols()
                           if sym in DHAN_VERIFIED_SYMBOLS
                           and sym not in ("NIFTY","BANKNIFTY","SENSEX")]
@@ -10872,9 +10872,9 @@ console.log('BOT KING Lightweight Charts ready');
                         prior_cache=market_recent.get(history_key)
                         cache_ready=bool(prior_cache and now-prior_cache[0]<87)
                     if not cache_ready and (
-                            len(watch_three_minute_upstream_times)>=12 or
+                            len(watch_three_minute_upstream_times)>=30 or
                             (watch_three_minute_warm_last_provider[0]>0 and
-                             now-watch_three_minute_warm_last_provider[0]<10)):
+                             now-watch_three_minute_warm_last_provider[0]<5)):
                         record_watch_skip(provider_generation[0],"periodic","UPSTREAM_BUDGET_OR_SPACING",sym)
                         break
                     watch_three_minute_warm_busy[0]=True
