@@ -916,13 +916,20 @@ def app_main(page:ft.Page):
         points=[ft.LineChartDataPoint(i,(v-lo)/spread*100) for i,v in enumerate(values)]
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
-    def dashboard_mini_candles(sym, data):
-        # Same validated 5-minute Dhan history as Scanner; no network request.
+    def dashboard_mini_candles(sym, data, frame="5m"):
+        # Validated Dhan history of the stated frame; no network request.
         if prefs.get("source")!="Dhan" or data.get("source")!="Dhan":
             return note("Dhan mini candles unavailable")
-        bars=clean_bars(data.get("bars") or [])[-24:]
+        bars=clean_bars(data.get("bars") or [])
+        # B247: draw only the newest session so no overnight/holiday gap line is produced.
+        if bars:
+            ist=timezone(timedelta(hours=5,minutes=30))
+            last_day=datetime.fromtimestamp(bars[-1][0],ist).date()
+            same_day=[b for b in bars if datetime.fromtimestamp(b[0],ist).date()==last_day]
+            if len(same_day)>=2:bars=same_day
+        bars=bars[-(60 if frame=="1m" else 24):]
         if len(bars)<2:
-            return note("Dhan 5m candles not loaded • no artificial chart")
+            return note("Dhan "+frame+" candles not loaded • no artificial chart")
         lo=min(bar[3] for bar in bars);hi=max(bar[2] for bar in bars)
         span=max(hi-lo,.01);width=300;height=108
         items=[]
@@ -940,7 +947,7 @@ def app_main(page:ft.Page):
         return ft.Column([
             ft.Container(content=ft.Stack(items,width=width,height=height),
                          height=height,alignment=ft.alignment.center,bgcolor=PANEL),
-            txt("Dhan • 5m • "+str(len(bars))+" historical candles • "+stamp+
+            txt("Dhan • "+frame+" • "+str(len(bars))+" historical candles • "+stamp+
                 " • NOT verified live",11,MUTED)
         ],spacing=2)
 
@@ -2366,6 +2373,8 @@ def app_main(page:ft.Page):
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
             controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),ft.Row([txt("Last price " if disconnected_dhan else "LTP ",14,MUTED),txt(quote_price(row["symbol"]),16,GOLD,True),txt((" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else " unavailable • Dhan feed off") if disconnected_dhan else " • time unverified",14,MUTED)],spacing=0,wrap=True),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
+        controls.append(note(("Ranking updated "+format_pass_seconds(round(time.monotonic()-area_stamps["top5"]))+" ago")
+                             if area_stamps.get("top5") else "Ranking age: not refreshed in this session yet"))
         return section("SUPER FIVE • LAST AVAILABLE ANALYSIS",ft.Column(controls,spacing=7))
     ranking_persist_lock=asyncio.Lock()
     ranking_persist_stats={"skipped_owner":0,"saved":0,"failed":0}
@@ -2518,7 +2527,7 @@ def app_main(page:ft.Page):
                     rows.append(five_engine_chips(sym,display_timeframe="1m"))
                     rows.append(canonical_live_final_note(sym,"1m"))
                     rows.append(scanner_historical_final_vote(sym,"1m"))
-                    rows.append(dashboard_mini_candles(sym,candle_data))
+                    rows.append(dashboard_mini_candles(sym,candle_data,"1m"))
                     dashboard_bar_monitor.observe(
                         surface="ANALYSIS_SLOTS",symbol=sym,timeframe="1m",
                         generation=provider_generation[0],
@@ -2765,10 +2774,11 @@ def app_main(page:ft.Page):
             prefs["doctor_auto_repair"]=bool(e.control.value);save()
         rows.append(ft.Row([ft.TextButton("Repair now",on_click=repair_now),
                             ft.TextButton("Repair logs",on_click=show_logs),
-                            ft.TextButton("Safe repair (all)",on_click=safe_repair_all)],wrap=True))
+                            ft.TextButton("Safe repair (all)",on_click=safe_repair_all),
+                            ft.TextButton("Restore safe settings",on_click=lambda e:doctor_restore_settings())],wrap=True))
         rows.append(ft.Switch(label="Doctor auto-repair (safe, bounded)",value=bool(prefs.get("doctor_auto_repair",True)),
                               on_change=toggle_auto_repair))
-        rows.append(note("Safe repair: stuck workers, missing index price, missing HIST only • max 2 tries/generation • never tokens, keys, settings or orders"))
+        rows.append(note("Safe repair: stuck workers, missing index price, missing HIST only • max 2 tries/generation • never tokens, keys or orders • settings change only when YOU press Restore safe settings"))
         return section("PLATINUM SMART DOCTOR",ft.Column(rows,spacing=3))
     def update_repair_board():
         # Only repaint this lightweight mounted section, never the full dashboard.
@@ -3080,7 +3090,7 @@ def app_main(page:ft.Page):
             # Mounted controls retain identity during quote/filter changes.
             # The symbol label, action button, rows and scroll position stay put.
             price_cell=txt(watch_price_and_status(sym)[0] if prefs.get("source")=="Dhan" else quote_price(sym) if quote_source==expected_quote_source else "—",
-                           16,price_color(sym) if quote_source==expected_quote_source else MUTED,True)
+                           16,price_color(sym) if quote_source==expected_quote_source else (WHITE if watch_price_and_status(sym)[0] not in ("—",None) else MUTED),True)
             change_cell=txt("CONNECT DHAN" if dhan_offline() else
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
                             10,price_color(sym) if quote_source==expected_quote_source else MUTED)
@@ -3459,6 +3469,7 @@ def app_main(page:ft.Page):
     # One explicit Watchlist tap schedules selected-only closed HIST warmup.
     # No unbounded burst, automatic holiday boot, or actual quote promotion.
     watch_closed_hist_loading=[False]
+    area_stamps={"scan_done":None,"top5":None,"wl_progress":None}
     watch_pass_timer={"start":None,"seconds":None,"loaded":0,"total":0}  # B243 visible pass timer
     watch_closed_hist_key=[None]
     watch_closed_hist_wait_seconds=[0]
@@ -3553,6 +3564,7 @@ def app_main(page:ft.Page):
                         and watch_three_minute_warm_attempts.get((generation,sym),0)
                             > retry_baseline[sym])
                 watch_pass_timer.update(loaded=finished,total=total)
+                area_stamps["wl_progress"]=time.monotonic()
                 if finished+attempted>=total:
                     if watch_pass_timer.get("start") is not None and watch_pass_timer.get("seconds") is None:
                         watch_pass_timer["seconds"]=round(time.monotonic()-watch_pass_timer["start"],1)
@@ -4998,7 +5010,7 @@ def app_main(page:ft.Page):
             horizontal_margin=8,
         )
         return ft.Column([
-            note("Underlying: "+str(chain_symbol.value)+" • "+quote_price(chain_symbol.value)),
+            ft.Row([txt("Underlying: "+str(chain_symbol.value)+" • ",14,MUTED),txt(quote_price(chain_symbol.value),16,GOLD,True)],spacing=0,wrap=True),
             note("Underlying provider: "+({"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"),"Unverified"))+" • price freshness must be verified separately. CE/PE quotes require a connected supported option-chain broker."),
             ft.Row([table],scroll=ft.ScrollMode.ALWAYS),
             note("Last available option quotes • timestamps below • not a live connection guarantee") if rows and not angel_feed.connected else note(option_feed_status[0]) if rows else note("Option-chain snapshot pending • Dhan automatically loads PCR and Dhan Max Pain when a listed expiry is available; CE/PE premiums not verified."),
@@ -7456,6 +7468,30 @@ def app_main(page:ft.Page):
                 data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0}
                 data["settings_watch"]=doctor_settings_watch()
                 data["server_paper_engine"]=paper_heartbeat_snapshot()
+                try:
+                    from v3_smart_active_doctor import area_watch_issues
+                    _m=time.monotonic()
+                    _open=bool(refresh_hours() and regular_hours())
+                    _pc=paper_hb_cache.get("report") or {}
+                    _chain=(roster_chain_age(chain_symbol.value) if chain_symbol.value in DHAN_VERIFIED_SYMBOLS else None)
+                    _ovote=(roster_chain_age(scan_symbol.value) if scan_symbol.value in DHAN_VERIFIED_SYMBOLS else None)
+                    _stall=(_m-area_stamps["wl_progress"]) if (watch_closed_hist_loading[0] and area_stamps["wl_progress"]) else None
+                    extra=area_watch_issues(market_open=_open,oracle_connected=bool(clone_v2_gateway.connected),
+                        ssk_saved=bool(ssk_saved_flag[0]),scanner_state=scan_progress.get("state"),
+                        scanner_busy=bool(dhan_history_scan_active[0]),
+                        scanner_idle_seconds=(_m-area_stamps["scan_done"]) if area_stamps["scan_done"] else None,
+                        chain_age=(_chain if _chain is not None and _chain<1e8 else None),chain_symbol=chain_symbol.value,
+                        super_five_age=(_m-area_stamps["top5"]) if area_stamps["top5"] else None,
+                        super_five_count=len(top5_candidates),
+                        o_vote_age=(_ovote if _ovote is not None and _ovote<1e8 else None),
+                        watch_stalled_seconds=_stall,
+                        server_paper_reachable=_pc.get("reachable"))
+                    data["area_watchers"]={"code":"BK-AREA-WATCH-001","failing":len(extra),"rows":extra,
+                        "scope":"report only; market-aware age limits; no provider calls"}
+                    data["error_report"]=list(data.get("error_report",[]))+extra
+                    data["error_count"]=len(data["error_report"])
+                except Exception as exc:
+                    log_error("area_watchers",exc)
                 data["timers"]=doctor_timers()
                 data["live_voting_gate"]=live_voting_gate_report(ml5_symbol,ml5_tf)
                 data["persistent_cache"]=market_store.diagnostics()
@@ -10933,6 +10969,7 @@ console.log('BOT KING Lightweight Charts ready');
                     fusion_cache[candidate["symbol"]+":5m"]=combined
                     candidate.update(combined_bias=combined["overall"],coverage=combined["coverage"])
                 top5_last_update[0]=datetime.now().strftime("%d %b %H:%M")
+                area_stamps["scan_done"]=area_stamps["top5"]=time.monotonic()
                 if available and ranking_owner_current():
                     await persist_current_ranking(ranking_owner_current,ranking_symbols,top5_last_update[0])
                     if not ranking_owner_current():
@@ -11546,6 +11583,14 @@ console.log('BOT KING Lightweight Charts ready');
                 "fix":"Settings screen"} for k,v in expected.items() if values.get(k)!=v]
         return {"code":"BK-DOC-SETTINGS-001","values":values,"drift":drift,
                 "drift_count":len(drift),"scope":"report only; Doctor never changes settings"}
+    def doctor_restore_settings():
+        """One-tap restore of the few safety defaults; the owner presses it, Doctor never does."""
+        prefs["source"]="Dhan";prefs["mode"]="Paper";prefs["doctor_auto_repair"]=True
+        try:mode.value="Paper"
+        except Exception:pass
+        save()
+        page.open(ft.SnackBar(content=ft.Text("Restored: source Dhan • mode Paper • Doctor auto-repair ON")))
+        page.update()
     def doctor_timers():
         """B243: cycle times and ages the owner asked to see."""
         now_m=time.monotonic()
@@ -11560,7 +11605,11 @@ console.log('BOT KING Lightweight Charts ready');
                     if (watch_closed_hist_loading[0] and start is not None) else None),
                 "option_chains_loaded":len(loaded),"option_chains_total":len(ages),
                 "option_chain_oldest_age_seconds":(round(max(loaded),1) if loaded else None),
-                "scanner_state":scan_progress.get("state")}
+                "scanner_state":scan_progress.get("state"),
+                "scanner_last_done_age_seconds":(round(now_m-area_stamps["scan_done"],1) if area_stamps.get("scan_done") else None),
+                "super_five_age_seconds":(round(now_m-area_stamps["top5"],1) if area_stamps.get("top5") else None),
+                "selected_chain_age_seconds":(lambda a:round(a,1) if a<1e8 else None)(roster_chain_age(chain_symbol.value)) if chain_symbol.value in DHAN_VERIFIED_SYMBOLS else None,
+                "watchlist_progress_age_seconds":(round(now_m-area_stamps["wl_progress"],1) if area_stamps.get("wl_progress") else None)}
     def renewal_doctor_snapshot():
         age=time.monotonic()-renewal_health_cache.get("at",0)
         if (renewal_health_cache.get("generation")!=provider_generation[0]

@@ -143,3 +143,32 @@ class B246ServerAwayTests(unittest.TestCase):
         self.assertNotIn("post(", seg); self.assertNotIn("urlopen", seg)
         app = (root / "src" / "main.py").read_text()
         self.assertIn("server_away_section(),", app)
+
+
+class B247AreaWatcherTests(unittest.TestCase):
+    def _w(self, **kw):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+        from v3_smart_active_doctor import area_watch_issues
+        base = dict(market_open=True, oracle_connected=True, ssk_saved=True, scanner_state="x",
+                    scanner_busy=False, scanner_idle_seconds=10, chain_age=10, chain_symbol="NIFTY",
+                    super_five_age=10, super_five_count=5, o_vote_age=10, watch_stalled_seconds=None)
+        base.update(kw)
+        return area_watch_issues(**base)
+
+    def test_healthy_open_market_has_no_rows(self):
+        self.assertEqual(self._w(), [])
+
+    def test_closed_market_never_flags_ages(self):
+        self.assertEqual(self._w(market_open=False, chain_age=9999, super_five_age=9999,
+                                 scanner_idle_seconds=9999, o_vote_age=9999), [])
+
+    def test_open_market_flags_each_stale_area(self):
+        rows = self._w(chain_age=200, super_five_age=400, scanner_idle_seconds=1000,
+                       o_vote_age=500, watch_stalled_seconds=90)
+        self.assertEqual({r["point"] for r in rows}, {"OPTIONS_CHAIN_AGE", "SUPER_FIVE_STALE",
+            "SCANNER_STUCK", "O_VOTE_AGE", "WATCHLIST_NO_PROGRESS"})
+        self.assertTrue(all(r["next"] and r["reason"] and r["code"] for r in rows))
+
+    def test_saved_ssk_but_disconnected(self):
+        rows = self._w(oracle_connected=False)
+        self.assertEqual(rows[0]["point"], "GATEWAY_SSK")

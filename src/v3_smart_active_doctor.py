@@ -225,6 +225,42 @@ def active_report(*, generation, symbols, quote_present, index_present, connecte
             "source_live_verified":False,"provider_requests":0,"orders_sent":0}
 
 
+def area_watch_issues(*, market_open, oracle_connected, ssk_saved, scanner_state,
+                      scanner_busy, scanner_idle_seconds, chain_age, chain_symbol,
+                      super_five_age, super_five_count, o_vote_age, watch_stalled_seconds,
+                      server_paper_reachable=None):
+    """B247 cache-only area watchers. Returns error_report rows ({point,status,code,reason,next}).
+
+    Market-aware: age limits apply only while the market is open. Never calls a provider."""
+    rows = []
+    def add(point, reason, nxt, code):
+        rows.append({"point": point, "status": "PENDING_OR_ERROR", "code": code,
+                     "reason": reason, "next": nxt})
+    if not oracle_connected and ssk_saved:
+        add("GATEWAY_SSK", "SSK disconnected but a saved key exists",
+            "Doctor reconnects the saved key; else Settings -> Connect", "BK-AREA-GW-001")
+    if market_open and oracle_connected:
+        if scanner_idle_seconds is not None and scanner_idle_seconds > 900 and not scanner_busy:
+            add("SCANNER_STUCK", "no scan result for %d min while market open" % (scanner_idle_seconds // 60),
+                "Scanner -> Scan now", "BK-AREA-SCAN-001")
+        if chain_age is not None and chain_age > 90:
+            add("OPTIONS_CHAIN_AGE", "%s option chain %ds old (limit 90s)" % (chain_symbol, int(chain_age)),
+                "Doctor reloads the chain; else open Options", "BK-AREA-OPT-001")
+        if super_five_count and super_five_age is not None and super_five_age > 300:
+            add("SUPER_FIVE_STALE", "Super Five ranking %ds old (limit 300s)" % int(super_five_age),
+                "Scanner -> Scan now", "BK-AREA-S5-001")
+        if o_vote_age is not None and o_vote_age > 180:
+            add("O_VOTE_AGE", "O option vote %ds old (limit 180s)" % int(o_vote_age),
+                "Options chain refresh", "BK-AREA-O-001")
+        if watch_stalled_seconds is not None and watch_stalled_seconds > 60:
+            add("WATCHLIST_NO_PROGRESS", "Watchlist no progress for %ds" % int(watch_stalled_seconds),
+                "Doctor restarts the stalled pass", "BK-AREA-WL-001")
+    if oracle_connected and server_paper_reachable is False:
+        add("SERVER_PAPER_ENGINE", "server paper engine not reachable",
+            "check Oracle service botking-clone-v2", "BK-AREA-SRV-001")
+    return rows
+
+
 def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futures,
                            options, snapshot, now, connected, technical_agreement=None,
                            quote=None):

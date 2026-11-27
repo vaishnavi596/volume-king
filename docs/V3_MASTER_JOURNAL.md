@@ -3440,3 +3440,9 @@ Planned new safe repair actions (all allowlisted, bounded, read-only provider ca
 ## J49 — B246 (v2.3.246) server "आपके पीछे"
 - Signal runner now journals bias changes (signals-journal.jsonl, last 300); gateway read-only routes /clone-v2/signals/latest and /journal; ops/install_server_away_20261127.sh installs gateway+runner (idempotent, rollback).
 - App Home card "SERVER • आपके पीछे": latest server bias per index/frame, changes while away, server-paper closes. Analysis only, no orders. Runner covers NIFTY/BANKNIFTY/SENSEX 1m/5m only; roster-wide server analysis and option chains are NEXT.
+
+## J50 — B247 (v2.3.247) audit bundle (owner: "सब सुधार लागू करके बिल्ड")
+- Doctor area watchers (market-aware, report-only): scanner stuck, options-chain age >90 s, Super Five >300 s, O vote >180 s, Watchlist no progress >60 s, saved SSK but disconnected, server paper unreachable; rows added to error_report with code/reason/next. Timers extended (scanner/Super Five/chain/watchlist progress ages).
+- Doctor "Restore safe settings" button (owner-pressed only). Super Five shows "Ranking updated … ago".
+- Home mini chart: label was hard-coded "5m" while data was 1m -> now frame-aware (1m, newest session only => no overnight gap line). Watchlist offline price and Options underlying price now differ in colour from labels.
+- Not done (need data sources / live market): N and F feeds, O trade flow, M box, Breadth box, premium chart parts, change vs prev close, 15:30-15:45 late candles, roster-wide server analysis, prediction ledger. Live orders stay OFF.

@@ -21,13 +21,13 @@ def test_dashboard_only_removes_old_three_input_fusion_card():
 def test_selected_dashboard_slots_reuse_dhan_native_candles_without_network():
     source=MAIN.read_text(encoding="utf-8")
     chart=source.split("    def dashboard_mini_candles(",1)[1].split("    def help_status(",1)[0]
-    assert "clean_bars(data.get(\"bars\") or [])[-24:]" in chart
+    assert "bars=clean_bars(data.get(\"bars\") or [])" in chart and "bars=bars[-(60 if frame==\"1m\" else 24):]" in chart
     assert 'data.get("source")!="Dhan"' in chart
     assert "ft.Stack(items" in chart
     assert "asyncio.to_thread" not in chart
     assert "get_market_data(" not in chart
     section=source.split("    def dashboard_index_analysis():",1)[1].split("    def dashboard_market_indices():",1)[0]
-    assert "rows.append(dashboard_mini_candles(sym,candle_data))" in section
+    assert 'rows.append(dashboard_mini_candles(sym,candle_data,"1m"))' in section
     assert 'shared_history(sym,"1m")' in section
 
 
