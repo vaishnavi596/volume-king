@@ -555,6 +555,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                     quotes[symbol] = {"symbol": symbol, "ltp": float(raw),
                                       "source": "dhan", "freshness": "unverified"}
                     if callable(quote_reader):
+                        # B248: day change % from Dhan quote net_change (prev close = ltp - net_change).
+                        nc = result["data"][seg][str(sid)].get("net_change")
+                        if type(nc) in (int, float) and math.isfinite(nc):
+                            prev = float(raw) - float(nc)
+                            if prev > 0 and abs(nc / prev * 100) <= 50:
+                                quotes[symbol]["change_pct"] = round(nc / prev * 100, 4)
                         stamp = observed_trade_timestamp(result["data"][seg][str(sid)].get("last_trade_time"), now=time.time())
                         if stamp is not None:
                             quotes[symbol].update(exchange_trade_timestamp=stamp,

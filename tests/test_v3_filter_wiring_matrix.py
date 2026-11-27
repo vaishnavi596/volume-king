@@ -363,7 +363,7 @@ class V3FilterWiringTests(unittest.TestCase):
         self.assertIn("counts=historical_five_minute_technical(sym)",chips)
         self.assertIn("bull,bear=counts[:2];historical=True",chips)
         self.assertIn('" HIST " if historical',chips)
-        self.assertIn('content=ft.Text("6  —"',chips)
+        self.assertIn('m_text,m_color,m_border="6  —"',chips)
 
     def test_cached_historical_scan_republishes_same_frame_not_live(self):
         src=(ROOT/"src/main.py").read_text(encoding="utf-8")

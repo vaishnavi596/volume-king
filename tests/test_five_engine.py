@@ -648,7 +648,7 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         function = source[start:end]
         self.assertIn('("technical","T"),("candle","C"),("news","N")', function)
         self.assertIn('("futures","F"),("options","O")', function)
-        self.assertIn('ft.Text("6  —"', function)
+        self.assertIn('m_text,m_color,m_border="6  —"', function)
         self.assertIn('cards.append(', function)
 
 

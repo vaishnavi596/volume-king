@@ -181,3 +181,33 @@ class B247InitialRenderOrderTests(unittest.TestCase):
         for needle in ("    def server_away_section():", "    paper_hb_cache={}", "    area_stamps={"):
             self.assertLess(src.index(needle), first_select, needle)
         self.assertLess(src.index("    def server_away_section():"), src.index("    def dashboard():"))
+
+
+class B248ChangePctTests(unittest.TestCase):
+    def test_client_validates_and_exposes_change_pct(self):
+        import importlib.util, io, json as _j
+        root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(root / "src"))
+        spec = importlib.util.spec_from_file_location("phone_gw_b248", root / "src" / "clone_v2_gateway.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        payload = {"source": "dhan", "freshness": "unverified", "live_orders_enabled": False, "unavailable": [],
+                   "quotes": {"NIFTY": {"symbol": "NIFTY", "ltp": 25000.0, "source": "dhan", "freshness": "unverified", "change_pct": 0.75},
+                              "SENSEX": {"symbol": "SENSEX", "ltp": 80000.0, "source": "dhan", "freshness": "unverified", "change_pct": 999}}}
+        class Resp:
+            status = 200
+            def __init__(s): s.headers = type("H", (), {"get_content_type": lambda self: "application/json"})(); s.b = io.BytesIO(_j.dumps(payload).encode())
+            def geturl(s): return "https://x.example/clone-v2/market/quotes"
+            def read(s, n): return s.b.read(n)
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+        class Op:
+            def open(self, req, timeout=0): return Resp()
+        g = mod.CloneV2Gateway(opener=Op()); g._origin = "https://x.example"; g._key = "k" * 40
+        out = g.market_quotes(["NIFTY", "SENSEX"])
+        self.assertEqual(mod.observed_quote_fields(out, "NIFTY")["change"], 0.75)
+        self.assertIsNone(mod.observed_quote_fields(out, "SENSEX")["change"])  # absurd value rejected
+
+    def test_server_adds_change_pct_from_net_change(self):
+        src = (Path(__file__).resolve().parents[1] / "backend" / "clone_v2_gateway.py").read_text()
+        self.assertIn('quotes[symbol]["change_pct"]', src)
+        self.assertIn('.get("net_change")', src)

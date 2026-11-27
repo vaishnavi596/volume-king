@@ -2298,10 +2298,23 @@ def app_main(page:ft.Page):
         # Reserved sixth display slot: intentionally blank until a future
         # Time-Based Movement & Reversal filter is reviewed and implemented.
         # This is not a scoring engine, WAIT result, percentage or broker poll.
+        # B248: box M shows a 20-minute forward LEAN (HIST, never a vote) when 1m candles exist;
+        # otherwise the original inert placeholder is kept.
+        m_text,m_color,m_border="6  —",MUTED,BORDER
+        try:
+            if prefs.get("source")=="Dhan" and prefs.get("market_display_mode")!="LIVE_ONLY":
+                from v3_m_forward import m_lean
+                _mh=shared_history(sym,"1m") or {}
+                _ml=m_lean(_mh.get("bars")) if _mh.get("source")=="Dhan" else None
+                if _ml:
+                    m_text="M HIST B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+" • 20m lean • not voted"
+                    m_color=m_border=GREEN if _ml["lean"]=="BULLISH" else RED if _ml["lean"]=="BEARISH" else GOLD
+        except Exception as exc:
+            log_error("m_forward",exc)
         cards.append(ft.Container(
-            content=ft.Text("6  —",size=10,color=MUTED,weight=ft.FontWeight.BOLD,
+            content=ft.Text(m_text,size=10,color=m_color,weight=ft.FontWeight.BOLD,
                             text_align=ft.TextAlign.CENTER),
-            border=ft.border.all(1,BORDER),border_radius=8,padding=5,
+            border=ft.border.all(1,m_border),border_radius=8,padding=5,
             bgcolor=PANEL2,expand=True))
         # Explicit three-per-row layout avoids wrap-dependent clipping on
         # narrow Android panels; all five states + inert sixth are mounted.
@@ -5436,7 +5449,6 @@ def app_main(page:ft.Page):
             old=quotes.get(symbol) or {}
             candidate={"symbol":symbol,"price":price,"source":"Dhan",
                        **observed_quote_fields(proof,symbol),"fetched_at":time.time(),
-                       "change":None,
                        "bars":old.get("bars",[]) if old.get("source")=="Dhan" else [],
                        "candle_fetched_at":old.get("candle_fetched_at",0),
                        "live_verified":False}

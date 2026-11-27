@@ -261,6 +261,16 @@ def area_watch_issues(*, market_open, oracle_connected, ssk_saved, scanner_state
     return rows
 
 
+def _m_lean_for_doctor(history):
+    """B248: M forward lean (HIST, display only, not a vote) for the Doctor report."""
+    try:
+        from v3_m_forward import m_lean
+        lean = m_lean((history or {}).get("bars")) if (history or {}).get("source") == "Dhan" else None
+    except Exception:
+        lean = None
+    return lean if lean else {"available": False, "reason": "needs >=30 completed 1m Dhan candles"}
+
+
 def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futures,
                            options, snapshot, now, connected, technical_agreement=None,
                            quote=None):
@@ -301,6 +311,7 @@ def ml5_engine_observation(*, symbol, timeframe, generation, history, news, futu
     valid_stamp=timestamp_observation["timestamp_observed"]
     return {"identity":identity,"boxes":boxes,"combined":display["combined"],
             "sixth_M":"INERT_NOT_SCORED",
+            "sixth_M_lean_hist":_m_lean_for_doctor(history),
             "quote_timestamp_observed":bool(valid_stamp),
             "quote_timestamp_age_seconds":timestamp_observation["timestamp_age_seconds"],
             "quote_timestamp_scope":"existing cache field; not independent exchange proof",

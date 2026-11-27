@@ -312,6 +312,9 @@ class CloneV2Gateway:
             if type(price) not in (int, float) or not math.isfinite(price) or price <= 0:
                 raise FeedError("Clone market invalid quote")
             validated[name] = float(price)
+            change_pct = item.get("change_pct")
+            if type(change_pct) in (int, float) and math.isfinite(change_pct) and abs(change_pct) <= 50:
+                validated.change_pcts[name] = float(change_pct)
             stamp = item.get("exchange_trade_timestamp")
             if (item.get("timestamp_origin")=="DHAN_QUOTE_LAST_TRADE_TIME"
                     and type(stamp) in (int,float) and math.isfinite(stamp)
@@ -381,6 +384,7 @@ class QuotePriceBatch(dict):
     def __init__(self):
         super().__init__()
         self.trade_timestamps = {}
+        self.change_pcts = {}
 
 
 def observed_quote_fields(prices, symbol):
@@ -389,7 +393,10 @@ def observed_quote_fields(prices, symbol):
     if not (type(stamp) in (int,float) and math.isfinite(stamp)
             and 946684800 <= stamp <= time.time()):
         stamp = None
+    changes = getattr(prices, "change_pcts", {})
+    change = changes.get(symbol) if isinstance(changes, dict) else None
     return {"quote_timestamp": stamp, "freshness": "unverified",
+            "change": change if type(change) in (int, float) and math.isfinite(change) else None,
             "live_verified": False,
             "timestamp_origin": "DHAN_QUOTE_LAST_TRADE_TIME" if stamp is not None else None}
 

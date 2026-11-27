@@ -31,7 +31,7 @@ class IndexFiveBoxJointContract(unittest.TestCase):
         self.assertIn('("technical","T")',chip)
         for item in ('("candle","C")','("news","N")','("futures","F")','("options","O")'):
             self.assertIn(item,chip)
-        self.assertIn('content=ft.Text("6  —"',chip)
+        self.assertIn('m_text,m_color,m_border="6  —"',chip)
         self.assertIn("ft.Row(cards[:3],spacing=4)",chip)
         self.assertIn("ft.Row(cards[3:],spacing=4)",chip)
         self.assertIn("return ft.Column([",chip)

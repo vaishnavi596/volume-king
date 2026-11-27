@@ -3446,3 +3446,8 @@ Planned new safe repair actions (all allowlisted, bounded, read-only provider ca
 - Doctor "Restore safe settings" button (owner-pressed only). Super Five shows "Ranking updated … ago".
 - Home mini chart: label was hard-coded "5m" while data was 1m -> now frame-aware (1m, newest session only => no overnight gap line). Watchlist offline price and Options underlying price now differ in colour from labels.
 - Not done (need data sources / live market): N and F feeds, O trade flow, M box, Breadth box, premium chart parts, change vs prev close, 15:30-15:45 late candles, roster-wide server analysis, prediction ledger. Live orders stay OFF.
+
+## J51 — B248 lineup (owner: "सुधार शुरू करें, ऐप अभी बिल्ड नहीं; सोमवार को लाइव चेक")
+Rule: NO APK until owner sends report and says build.
+Six boxes "active" = each box shows its own HIST value (labelled NOT live) today; none enters the live vote until verified live evidence exists (Monday check). M logs predictions to a ledger; not a vote until measured hit-rate.
+Lineup: 1 N HIST B/S + risk flag; 2 F HIST (basis/OI change); 3 M forward 20-min lean + server ledger; 4 Breadth box (51-share up/down); 5 chart parts (axes, grid, volume, zoom/pan, OHLCV tap, VWAP); 6 change vs prev close; 7 15:30-15:45 late candles; 8 17-filter review; 9 server roster-wide analysis; 10 server-paper-closed notice on app open; 11 remaining colour audit (after owner report); 12 Home chart gap verification (after owner report).
