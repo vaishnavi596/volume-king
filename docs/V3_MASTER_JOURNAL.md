@@ -3328,3 +3328,10 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - Proposed: T,C,O,F keep; N → risk flag not vote; M = separate "forward" layer; add B (Breadth from the 51-symbol Watchlist); review 17 filters; premium chart.
 - Phases 0–4 with gates (G0 stabilise → G1 ledger 2 weeks → G2 server bot 5 days without phone → G3 hit-rate ~70% on selected states → G4 live orders only after owner's written approval; exchange-side SL, kill-switch, static IP to be verified against Dhan docs).
 - Full roadmap document: Claude Docs "BOT KING V3 — रोडमैप और दिशा (27 नवंबर 2026)". Open owner decisions are listed there as checkboxes.
+
+## J33 — B239 (2026-11-27 18:15 IST): fix of B238 Watchlist 1m wiring
+- OWNER REPORT 17:55 (B238): every Watchlist row said "1m • WAIT • matching 1m candles / valid votes unavailable"; counter "1m candle fresh 0/50" after close.
+- CAUSE: B238 switched the signal producer to 1m but the row/filter/evidence code (`signal_available`, `filtered_member`, `available`, chips/final notes) still required timeframe "3m". Tests passed because those pins still held the old string; CI-only (flet) tests caught only 2 of the sites.
+- FIX: all Watchlist row sites use "1m"; Oracle fallback text "Dhan phone 1m"; closed-market counter = "Market closed • 1m HIST candles loaded x/N • NOT live". Tests re-pinned.
+- LESSON: after a timeframe switch, grep every consumer of the producer's `timeframe` field, not only the producer.
+- OPEN: Doctor still prints old pacing constants (12/180 s, 10 s floor, watchlist_default 3m); 7.3 s local analysis tick for 51 symbols (MASTER DIAG 16:48) to be re-measured; renewal-health now SERVER_METADATA_UNVERIFIED (expiry-file path not provisioned).

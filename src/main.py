@@ -396,16 +396,16 @@ def app_main(page:ft.Page):
                     lines==["Oracle 4 factors / 5 filters • WAIT • server producer not configured"]):
                 three=watch_three_minute_signal(symbol)
                 if (three.get("source")=="Dhan"
-                        and three.get("timeframe")=="3m"
+                        and three.get("timeframe")=="1m"
                         and three.get("historical") is True
                         and three.get("live_verified") is False):
                     counts=signal_percentages(three)
                     if counts and counts[2]>0:
-                        return ["Dhan phone 3m • Candle HIST B"+
+                        return ["Dhan phone 1m • Candle HIST B"+
                                 str(round(counts[0]))+"/S"+str(round(counts[1]))+
                                 " • "+str(counts[2])+" technical votes • "+
                                 "OI/PCR 4 filters CONTEXT/WAIT • NOT live"]
-                return ["Dhan phone 3m • Candle WAIT • "+
+                return ["Dhan phone 1m • Candle WAIT • "+
                         "OI/PCR 4 filters CONTEXT/WAIT • NOT live"]
             return [compact]
         return lines
@@ -2939,6 +2939,19 @@ def app_main(page:ft.Page):
             return watch_fresh_state[1]
         symbols=list(all_watch_symbols())
         fresh=0
+        if not regular_hours():
+            # Market closed: a 3-minute freshness count is meaningless. Show how
+            # many shares hold completed last-session 1m candles (HIST).
+            for sym in symbols:
+                try:
+                    if valid_candle_history((shared_history(sym,"1m") or {}).get("bars")):
+                        fresh+=1
+                except Exception:
+                    continue
+            watch_fresh_state[0]=now
+            watch_fresh_state[1]=("Market closed • 1m HIST candles loaded: "+str(fresh)+"/"+str(len(symbols))
+                                  +" • NOT live")
+            return watch_fresh_state[1]
         for sym in symbols:
             try:
                 bars=(shared_history(sym,"1m") or {}).get("bars") or []
@@ -2993,7 +3006,7 @@ def app_main(page:ft.Page):
                           and isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
                           and math.isfinite(signal_stamp) and signal_stamp>0
                           and 0<=datetime.now(timezone.utc).timestamp()-signal_stamp<=timeframe_spec("3m")["fresh_seconds"])
-            signal_available=(signal_row.get("timeframe")=="3m" and signal_row.get("source")==expected_quote_source and
+            signal_available=(signal_row.get("timeframe")=="1m" and signal_row.get("source")==expected_quote_source and
                               isinstance(signal_stamp,(int,float)) and not isinstance(signal_stamp,bool)
                               and math.isfinite(signal_stamp) and signal_stamp>0 and signal_counts is not None)
             signal_direction=("Bullish" if signal_counts[0]>signal_counts[1] else
@@ -3008,8 +3021,8 @@ def app_main(page:ft.Page):
                             quote_change(sym) if quote_source==expected_quote_source else "SOURCE MISMATCH",
                             10,price_color(sym) if quote_source==expected_quote_source else MUTED)
             five_cell=ft.Container(content=ft.Column([
-                five_engine_chips(sym,display_timeframe="3m"),
-                canonical_live_final_note(sym,"3m"),scanner_historical_final_vote(sym,"3m")],spacing=2))
+                five_engine_chips(sym,display_timeframe="1m"),
+                canonical_live_final_note(sym,"1m"),scanner_historical_final_vote(sym,"1m")],spacing=2))
             assessment_cell=ft.Container(content=note(oracle_assessment_notes(sym,"watchlist")[0]))
             signal_cell=ft.Container(content=compact_watch_signal(signal_row,signal_available,signal_fresh))
             freshness_cell=ft.Text((watch_price_and_status(sym)[1] or ("LTP cached • not live" if not quote_fresh else "LTP time unverified"))+
@@ -3791,7 +3804,7 @@ def app_main(page:ft.Page):
                         signal=tick_signals[sym]
                         counts=signal_percentages(signal)
                         stamp=signal.get("timestamp")
-                        valid=(signal.get("timeframe")=="3m" and
+                        valid=(signal.get("timeframe")=="1m" and
                                signal.get("source")==expected_source and
                                isinstance(stamp,(int,float)) and not isinstance(stamp,bool) and
                                math.isfinite(stamp) and stamp>0 and counts is not None)
@@ -3847,7 +3860,7 @@ def app_main(page:ft.Page):
                     row=signal_row
                     stamp=row.get("timestamp")
                     counts=signal_percentages(row)
-                    available=(row.get("timeframe")=="3m" and row.get("source")==expected and counts is not None
+                    available=(row.get("timeframe")=="1m" and row.get("source")==expected and counts is not None
                         and isinstance(stamp,(int,float)) and not isinstance(stamp,bool)
                         and math.isfinite(stamp) and stamp>0)
                     fresh=(available and not row.get("historical") and regular_hours()
@@ -3874,8 +3887,8 @@ def app_main(page:ft.Page):
                         # Replace child content inside persistent mounted containers,
                         # not the symbol label/row or the whole Watchlist page.
                         five.content=ft.Column([
-                            five_engine_chips(sym,display_timeframe="3m"),
-                            canonical_live_final_note(sym,"3m"),scanner_historical_final_vote(sym,"3m")],spacing=2)
+                            five_engine_chips(sym,display_timeframe="1m"),
+                            canonical_live_final_note(sym,"1m"),scanner_historical_final_vote(sym,"1m")],spacing=2)
                         assessment.content=note(oracle_assessment_notes(sym,"watchlist")[0])
                         signal.content=compact_watch_signal(row,available,fresh)
                         for cell in (five,assessment,signal):

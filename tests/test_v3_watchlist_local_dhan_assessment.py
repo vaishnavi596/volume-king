@@ -40,10 +40,10 @@ class WatchlistLocalDhanFallbackTests(unittest.TestCase):
 
     def test_unconfigured_oracle_uses_real_historical_three_minute_votes(self):
         result, calls = self._invoke({
-            "source": "Dhan", "timeframe": "3m", "historical": True,
+            "source": "Dhan", "timeframe": "1m", "historical": True,
             "live_verified": False, "percentages": (33, 67, 8)})
         self.assertEqual(calls, ["RELIANCE"])
-        self.assertIn("Dhan phone 3m", result[0])
+        self.assertIn("Dhan phone 1m", result[0])
         self.assertIn("Candle HIST B33/S67", result[0])
         self.assertIn("NOT live", result[0])
         self.assertIn("OI/PCR 4 filters CONTEXT/WAIT", result[0])
@@ -51,11 +51,11 @@ class WatchlistLocalDhanFallbackTests(unittest.TestCase):
 
     def test_wrong_frame_or_unverified_source_fails_closed(self):
         for row in (
-            {"source": "Dhan", "timeframe": "5m", "historical": True,
-             "live_verified": False, "percentages": (33, 67, 8)},
-            {"source": "Yahoo Finance", "timeframe": "3m", "historical": True,
-             "live_verified": False, "percentages": (33, 67, 8)},
             {"source": "Dhan", "timeframe": "3m", "historical": True,
+             "live_verified": False, "percentages": (33, 67, 8)},
+            {"source": "Yahoo Finance", "timeframe": "1m", "historical": True,
+             "live_verified": False, "percentages": (33, 67, 8)},
+            {"source": "Dhan", "timeframe": "1m", "historical": True,
              "live_verified": True, "percentages": (33, 67, 8)},
         ):
             with self.subTest(row=row):

@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.238" # V3 B238 (Watchlist 1m votes, closed HIST pacing) on B237 (Watchlist 54/180s pacing) on B236 (Watchlist closed-market HIST auto-load) on B235 (expiry cache, no 429 on options/expiries) on B234 isolated phone-test (B233 + O OI-change chain refresh 45 s; B233 = 1m candle live window width+30 s + Watchlist candle-fresh counter); Android versionCode 238
+version = "2.3.239" # V3 B239 (fix Watchlist 1m row wiring) on B238 (Watchlist 1m votes, closed HIST pacing) on B237 (Watchlist 54/180s pacing) on B236 (Watchlist closed-market HIST auto-load) on B235 (expiry cache, no 429 on options/expiries) on B234 isolated phone-test (B233 + O OI-change chain refresh 45 s; B233 = 1m candle live window width+30 s + Watchlist candle-fresh counter); Android versionCode 239
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

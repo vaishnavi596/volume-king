@@ -658,8 +658,8 @@ class FiveEngineTimeframeIsolationContract(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text(encoding="utf-8")
         self.assertIn('five_cell=ft.Container(content=ft.Column([', source)
         self.assertIn('five.content=ft.Column([', source)
-        self.assertIn('five_engine_chips(sym,display_timeframe="3m")', source)
-        self.assertIn('scanner_historical_final_vote(sym,"3m")', source)
+        self.assertIn('five_engine_chips(sym,display_timeframe="1m")', source)
+        self.assertIn('scanner_historical_final_vote(sym,"1m")', source)
         self.assertIn('(display_timeframe is None or raw.get("timeframe")==display_timeframe)', source)
 
     def test_scanner_chips_request_selected_timeframe(self):

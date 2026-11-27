@@ -37,7 +37,7 @@ class FiveEngineDoctorFrameTests(unittest.TestCase):
         self.assertNotIn('read_five_engine_context(sym,"5m")',chips)
         self.assertNotIn('read_five_engine_context(symbol,"5m")',summary)
         self.assertIn('five_engine_chips(index_name,display_timeframe="1m")',self.source)
-        self.assertIn('five_engine_chips(sym,display_timeframe="3m")',self.source)
+        self.assertIn('five_engine_chips(sym,display_timeframe="1m")',self.source)
         self.assertIn('five_engine_chips(row["symbol"],display_timeframe="5m")',self.source)
 
     def test_historical_engine_publishers_preserve_exact_timeframe(self):

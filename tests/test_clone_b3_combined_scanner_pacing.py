@@ -27,7 +27,7 @@ class ScannerBatchGuards(unittest.TestCase):
         self.assertIn('if not allow_network and prefs.get("source")=="Dhan":',SOURCE)
     def test_watchlist_filtered_membership_matches_row_eligibility(self):
         rows=SOURCE.split("                    def filtered_member(sym):",1)[1].split("                    membership=",1)[0]
-        for check in ('signal.get("timeframe")=="3m"',
+        for check in ('signal.get("timeframe")=="1m"',
                       'signal.get("source")==expected_source',
                       'search.value.upper() not in sym'):
             self.assertIn(check,rows)
