@@ -3348,3 +3348,21 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - Fix: sleep only min(10,max(0.5,wait)); reported floor 3 s; idle wait 1 s; Doctor provider_spacing gate <3 s. Expected 51 shares in roughly 2.5-3 min (budget 54/180 s unchanged).
 - Also seen: one TimeoutError (SBILIFE) cost ~50 s; per-call max 34 s (gateway/provider side, not fixed here).
 - Doctor report B239 still shows old format; B240+ shows problem-only symbols.
+
+## J36 — Master work list (2026-11-27 19:25 IST), owner-approved format
+Rule: after every build, each point is checked against the owner's report and marked DONE-VERIFIED or REOPENED before the next point starts.
+A. Verify what is already built
+ 1. B241 Watchlist: 51/51 time (target <=3 min), top count = rows filled.
+ 2. B240 remembered SSK: connects on app start and on resume.
+ 3. B240 compact Doctor: only problem symbols/boxes shown.
+B. Build next (one build, several points)
+ 4. Timer counter on every refreshing area (Watchlist, Scanner, Options, Super Five, Index): elapsed time of the current/last cycle + age since last update.
+ 5. Doctor auto-repair: currently OFF by default (prefs doctor_auto_repair=False) -> make default ON (allowlisted safe actions only).
+ 6. Doctor watchers for every area: Scanner paused/stuck, Options chain age >90 s, Super Five stale, O vote age, Watchlist no progress for 60 s, gateway disconnected with a saved SSK.
+ 7. Doctor watches Settings: drift from defaults (source, timeframes 1m, refresh window, Remember SSK, auto-repair flag) -> report + one-tap restore; no silent changes.
+ 8. Error report at every point: typed code + reason + last-OK time + next action, one line each, only for failing points.
+ 9. Repair ledger visible in Doctor: what was repaired, retest result.
+C. Later
+ 10. Server-side background run (phone foreground service is not available in this build).
+ 11. Live-market checks (Monday): O live, 3/3 engines, Watchlist <=3 min, then N/F.
+ 12. Premium chart parts 1-2 (only after A-B are verified).
