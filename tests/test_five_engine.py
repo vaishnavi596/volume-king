@@ -637,7 +637,7 @@ class ScannerFiveBoxSharedRenderingContract(unittest.TestCase):
         self.assertIn('wrap_delta_section("scanner_five"', source)
         self.assertIn('five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
         self.assertIn('five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)', source)
-        self.assertIn('ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value),scanner_historical_final_vote()]', source)
+        self.assertIn('ft.Column([(refresh_scan_boxes() and None) or five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value),scanner_historical_final_vote()]', source)
         self.assertIn('def scanner_historical_final_vote(symbol=None, timeframe=None):', source)
 
     def test_shared_chips_keep_five_engine_order_and_sixth_inert(self):
@@ -764,7 +764,8 @@ class FiveEngineCrossScreenTimeframeContract(unittest.TestCase):
         # a second box set there froze and contradicted the live Five Engine section.
         self.assertNotIn('five_engine_chips(sym,display_timeframe=tf)', source)
         self.assertNotIn('five_engine_chips(sym,display_timeframe=interval)', source)
-        self.assertIn('see the live Five Engine section above', source)
+        self.assertIn('note(basis),refresh_scan_boxes(),vote_display(', source)
+        self.assertIn('scan_box_host=ft.Container()', source)
 
 class FiveEnginePaperTradingTimeframeContract(unittest.TestCase):
     def test_paper_trading_has_explicit_timeframe(self):

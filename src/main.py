@@ -8499,7 +8499,7 @@ console.log('BOT KING Lightweight Charts ready');
             note(result["display_state"]+" • refresh does not verify exchange time"),
             note("Completed candle: "+stamp+" • historical/unverified unless source verification is established"),
             note(result.get("reason","Awaiting data")),
-            note("Five boxes: see the live Five Engine section above (single source, not a frozen copy)"),
+            refresh_scan_boxes(),
             vote_display(signal_percentages(result),result.get("display_state")=="LIVE",tf),
             *[txt(row["name"]+" • "+("BULLISH" if row.get("vote")==1 else "BEARISH" if row.get("vote")==-1
                    else "NEUTRAL" if row.get("vote")==0 else "CONTEXT ONLY" if row.get("context_only") else "UNAVAILABLE")+" • "+str(row.get("detail","")),14,
@@ -8697,6 +8697,19 @@ console.log('BOT KING Lightweight Charts ready');
     for c in [scan_symbol,scan_budget,scan_min,scan_max,scan_period,scan_tf,scan_expiry,scan_auto]:
         c.on_change=trigger_scan
     scan_result=ft.Column(spacing=12)
+    # ONE five-box set for the Scanner, shown in the UPPER (analysis) block. The
+    # holder is repainted by the live "scanner_five" delta refresh, never frozen.
+    scan_box_host=ft.Container()
+    def refresh_scan_boxes():
+        try:
+            scan_box_host.content=five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value)
+        except Exception as exc:
+            log_error("scanner_five_boxes",exc)
+            scan_box_host.content=note("Five boxes temporarily unavailable")
+        if scan_box_host.page is not None:
+            try:scan_box_host.update()
+            except (AssertionError,RuntimeError):pass
+        return scan_box_host
     scan_busy=[False]
     scan_filter_ready=[False]
     def scan_num(x):
@@ -8993,7 +9006,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Selected-source underlying candles • simulated premiums, not live contracts"),
             scanner_controls(),scan_result,
             safe_scanner_widget("Chart",scanner_compact_chart),fusion_selected,
-            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([five_engine_chips(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value),scanner_historical_final_vote()],spacing=5))),
+            wrap_delta_section("scanner_five",lambda:safe_scanner_widget("Five Engine",lambda:ft.Column([(refresh_scan_boxes() and None) or five_engine_summary(scan_symbol.value or "NIFTY",display_timeframe=scan_tf.value),canonical_live_final_note(scan_symbol.value or "NIFTY",scan_tf.value),scanner_historical_final_vote()],spacing=5))),
             wrap_delta_section("scanner_options",lambda:safe_scanner_widget("Options",scanner_option_context)),
             wrap_delta_section("scanner_assessment",lambda:safe_scanner_widget("Oracle Assessment",lambda:section("ORACLE ASSESSMENT • READ ONLY",ft.Column([note(x) for x in oracle_assessment_notes(scan_symbol.value or "NIFTY","scanner")],spacing=3)))),
             help_box("Scanner", "Analysis/Chart/Both routes a filter only to supported functions. Headline sentiment is experimental. WAIT can mean stale or missing data, not a sideways prediction.")]
@@ -9309,7 +9322,7 @@ console.log('BOT KING Lightweight Charts ready');
             scan_result.controls=[section("ANALYSIS BASIS • Candles & Filters",ft.Column([
                 txt("Candle "+interval+" • Period "+period+" • "+str(len(bars))+" bars",12,GOLD,True),
                 note("Latest IST: "+updated.astimezone(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y %H:%M")),
-                note(basis),note("Five boxes: see the live Five Engine section above (single source, not a frozen copy)"),vote_display(signal_percentages(shown_analysis),False,interval),*lines,
+                note(basis),refresh_scan_boxes(),vote_display(signal_percentages(shown_analysis),False,interval),*lines,
                 note("Results from cached or stale candles are historical, not live trade signals." if hist.get("cached") else "Filter votes are candle-based; check source freshness before trading.")
             ],spacing=5))]
             scan_filter_ready[0]=True

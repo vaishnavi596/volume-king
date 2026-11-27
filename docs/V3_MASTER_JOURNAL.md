@@ -3278,3 +3278,5 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - RESULT: 1778 tests, only 55 known baseline errors. CI/APK PENDING.
 - OWNER DECISION 13:03: all screens default 1m; Scanner keeps full interval list; Watchlist pacing unchanged (option 1). Chart premium levels 1+2+3 requested 13:22. NEXT: stage B (Watchlist 1m + fresh-count), chart segment, stage C (Super Five 1m).
 - OPEN: Oracle gateway redeploy proof (c197dce), 1m live window vs 60 s poll, N/F/O adapters.
+
+- J26 FIX 13:55: owner wanted the UPPER five-box set kept and the lower one removed. Now one holder (`scan_box_host`) sits in the upper ANALYSIS BASIS block and is repainted by the live scanner_five delta refresh; the lower section no longer draws boxes. 1778 tests, only 55 known baseline errors.
