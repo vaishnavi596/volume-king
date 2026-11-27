@@ -14,7 +14,8 @@ class CachedHistoricalPublisherTests(unittest.TestCase):
         publisher=body("ensure_cached_historical_engine_publish")
         chips=body("five_engine_chips")
         self.assertIn("ensure_cached_historical_engine_publish(sym,display_timeframe)",chips)
-        self.assertIn('tf not in ("1m","3m")',publisher)
+        self.assertIn('tf not in ("1m","3m","5m")',publisher)  # Super Five 5m hydrates exactly like 1m/3m
+        self.assertIn('display_timeframe in ("1m","3m","5m")',chips)
         self.assertIn('history.get("_scanner_timeframe")!=tf',publisher)
         self.assertIn("historical_regular_session_bars(original,tf)",publisher)
         self.assertIn("valid_candle_history(completed)",publisher)

@@ -1989,7 +1989,7 @@ def app_main(page:ft.Page):
         The five-engine publisher must see that *same* historical technical
         result. No broker request, LIVE proof, or cross-frame substitution.
         """
-        if tf not in ("1m","3m") or prefs.get("source")!="Dhan":
+        if tf not in ("1m","3m","5m") or prefs.get("source")!="Dhan":
             return False
         history=shared_history(sym,tf)
         if (not isinstance(history,dict) or history.get("source")!="Dhan"
@@ -2148,7 +2148,7 @@ def app_main(page:ft.Page):
                ("futures","F"),("options","O"))
         # Normal UI hydration, not Doctor: publish existing exact-frame HIST
         # once so a closed market does not depend on a manual Run Scan.
-        if (display_timeframe in ("1m","3m") and prefs.get("source")=="Dhan"
+        if (display_timeframe in ("1m","3m","5m") and prefs.get("source")=="Dhan"
                 and prefs.get("market_display_mode")!="LIVE_ONLY"):
             ensure_cached_historical_engine_publish(sym,display_timeframe)
         # Read the exact requested timeframe/generation, never the 5m rank
