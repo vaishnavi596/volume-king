@@ -22,6 +22,7 @@ from pathlib import Path
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
+from v3_m_forward import m_lean, resolve_prediction  # noqa: E402
 
 IST = timezone(timedelta(hours=5, minutes=30))
 GATEWAY = os.environ.get("BOTKING_SIGNAL_GATEWAY", "http://127.0.0.1:8002")
@@ -29,6 +30,9 @@ SSK_FILE = Path(os.environ.get("BOTKING_SIGNAL_SSK", "/home/opc/botking-clone-v2
 OUT_FILE = Path(os.environ.get("BOTKING_SIGNAL_OUT", "/home/opc/botking-clone-v2-private/signals-latest.json"))
 JOURNAL_FILE = Path(os.environ.get("BOTKING_SIGNAL_JOURNAL", str(OUT_FILE.parent / "signals-journal.jsonl")))
 JOURNAL_KEEP = 300
+LEDGER_FILE = Path(os.environ.get("BOTKING_SIGNAL_LEDGER", str(OUT_FILE.parent / "m-ledger.json")))
+LEDGER_EVERY_S = 300
+LEDGER_HORIZON_S = 1200
 SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
 FRAMES = (("1m", 1), ("5m", 5))
 
@@ -126,6 +130,11 @@ def cycle(key, now, minute_index, previous):
                 response = with_integrity(post("/clone-v2/market/candles", {
                     "symbol": symbol, "interval": interval,
                     "from_date": today, "to_date": today}, key))
+                if interval == 1:
+                    lean = m_lean(response.get("bars"))
+                    ltp = (quotes.get(symbol) or {}).get("ltp")
+                    if lean and type(ltp) in (int, float):
+                        out.setdefault("m_lean", {})[symbol] = dict(lean, ltp=float(ltp))
                 out["symbols"][symbol][frame] = evaluate(symbol, frame, response, quotes.get(symbol), now)
             except urllib.error.HTTPError as exc:
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": "HTTP %s" % exc.code}
@@ -163,6 +172,39 @@ def append_journal(events, path=None):
     atomic_write(path, "\n".join(lines[-JOURNAL_KEEP:]) + "\n")
 
 
+def ledger_step(ledger, out, now):
+    """Pure: record M predictions every 5 min, score them after 20 min. Mutates and returns ledger."""
+    ledger.setdefault("pending", []); ledger.setdefault("stats", {}); ledger.setdefault("last_t", {})
+    if not out.get("market_open"):
+        return ledger
+    for symbol, lean in (out.get("m_lean") or {}).items():
+        if now - ledger["last_t"].get(symbol, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
+            ledger["pending"].append({"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"]})
+            ledger["last_t"][symbol] = int(now)
+    keep = []
+    for row in ledger["pending"]:
+        if now - row["t"] < LEDGER_HORIZON_S:
+            keep.append(row); continue
+        price = ((out.get("m_lean") or {}).get(row["symbol"]) or {}).get("ltp")
+        hit = resolve_prediction(row["entry"], row["lean"], price) if price is not None else None
+        if hit is None:
+            continue  # neutral / flat / no price: not scored
+        st = ledger["stats"].setdefault(row["symbol"], {"n": 0, "hits": 0})
+        st["n"] += 1; st["hits"] += int(bool(hit))
+    ledger["pending"] = keep[-200:]
+    return ledger
+
+
+def ledger_summary(ledger):
+    rows = {}
+    for symbol, st in (ledger.get("stats") or {}).items():
+        n = st.get("n", 0)
+        rows[symbol] = {"n": n, "hits": st.get("hits", 0),
+                        "hit_rate": round(100 * st.get("hits", 0) / n, 1) if n else None}
+    return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows,
+            "note": "M is a forward lean; not a vote until a measured hit-rate is accepted by the owner"}
+
+
 def summary(out):
     parts = []
     for symbol, frames in out.get("symbols", {}).items():
@@ -180,6 +222,13 @@ def main():
         now = time.time()
         try:
             out = cycle(key, now, minute_index, previous)
+            try:
+                ledger = json.loads(LEDGER_FILE.read_text(encoding="utf-8")) if LEDGER_FILE.exists() else {}
+                ledger = ledger_step(ledger if isinstance(ledger, dict) else {}, out, now)
+                atomic_write(LEDGER_FILE, json.dumps(ledger) + "\n")
+                out["m_ledger"] = ledger_summary(ledger)
+            except Exception:
+                pass  # ledger is best-effort; never stop the runner
             atomic_write(OUT_FILE, json.dumps(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))

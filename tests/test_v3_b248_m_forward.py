@@ -37,3 +37,37 @@ class MForwardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LedgerTests(unittest.TestCase):
+    def _runner(self):
+        import importlib.util
+        root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(root / "src"))
+        spec = importlib.util.spec_from_file_location("runner_b248", root / "backend" / "clone_signal_runner.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        return mod
+
+    def test_record_then_score_after_horizon(self):
+        r = self._runner()
+        out = {"market_open": True, "m_lean": {"NIFTY": {"lean": "BULLISH", "ltp": 100.0}}}
+        led = r.ledger_step({}, out, 1000)
+        self.assertEqual(len(led["pending"]), 1)
+        led = r.ledger_step(led, dict(out, m_lean={"NIFTY": {"lean": "BULLISH", "ltp": 101.0}}), 1000 + 1200)
+        self.assertEqual(led["stats"]["NIFTY"], {"n": 1, "hits": 1})
+        self.assertEqual(r.ledger_summary(led)["scored"]["NIFTY"]["hit_rate"], 100.0)
+
+    def test_rate_limited_to_every_five_minutes_and_closed_market_idle(self):
+        r = self._runner()
+        out = {"market_open": True, "m_lean": {"NIFTY": {"lean": "BEARISH", "ltp": 100.0}}}
+        led = r.ledger_step({}, out, 1000)
+        led = r.ledger_step(led, out, 1100)
+        self.assertEqual(len(led["pending"]), 1)
+        self.assertEqual(r.ledger_step({}, dict(out, market_open=False), 1000).get("pending"), [])
+
+    def test_neutral_never_scored(self):
+        r = self._runner()
+        out = {"market_open": True, "m_lean": {"NIFTY": {"lean": "NEUTRAL", "ltp": 100.0}}}
+        led = r.ledger_step({}, out, 1000)
+        led = r.ledger_step(led, out, 2300)
+        self.assertEqual(led["stats"], {})

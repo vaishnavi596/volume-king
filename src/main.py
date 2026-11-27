@@ -2831,6 +2831,11 @@ def app_main(page:ft.Page):
                 color=GREEN if bias=="BULLISH" else RED if bias=="BEARISH" else MUTED
                 ctr.append(ft.Row([txt(sym+" "+frame+" ",14,MUTED),txt(bias or "WAIT",14,color,True),
                     txt(" • "+(("B"+str(row.get("bullish"))+"/S"+str(row.get("bearish"))) if bias else str(state or "")),14,MUTED)],spacing=0,wrap=True))
+        mled=(latest.get("m_ledger") or {}).get("scored") or {}
+        for sym_,row_ in mled.items():
+            if isinstance(row_,dict) and row_.get("n"):
+                ctr.append(note("M lean ledger "+str(sym_)+": "+str(row_.get("hits"))+"/"+str(row_.get("n"))+" hit"+
+                                (" • "+str(row_.get("hit_rate"))+"%" if row_.get("hit_rate") is not None else "")+" • 20 min • not a vote"))
         events=[e for e in sig.get("events",[]) if isinstance(e,dict)][-8:]
         if events:
             ctr.append(txt("Changes while you were away",14,GOLD,True))
