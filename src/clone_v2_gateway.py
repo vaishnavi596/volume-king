@@ -101,6 +101,49 @@ class CloneV2Gateway:
         except (OSError,URLError,ValueError,UnicodeError,RecursionError):
             return {"reachable":False,"reason":"HEARTBEAT_UNAVAILABLE"}
 
+    def _paper_call(self, method, path, body=None):
+        """B244/B245: read/write the server PAPER engine only; never an order route."""
+        if not self.connected:
+            return {"ok":False,"reason":"DISCONNECTED"}
+        if path not in ("state","open","close"):
+            raise ValueError("Unsupported paper path")
+        origin,key=self._origin,self._key
+        url=origin+"/clone-v2/paper/"+path
+        data=None if body is None else json.dumps(body).encode("utf-8")
+        headers={"X-BotKing-Key":key,"Accept":"application/json","Cache-Control":"no-store"}
+        if data is not None:headers["Content-Type"]="application/json"
+        request=Request(url,data=data,method=method,headers=headers)
+        try:
+            with (self._opener or direct_https_opener()).open(request,timeout=10) as response:
+                if (response.status!=200 or response.geturl()!=url
+                        or response.headers.get_content_type()!="application/json"):
+                    raise ValueError("Untrusted paper response")
+                raw=response.read(65537)
+                if len(raw)>65536:raise ValueError("Oversized paper response")
+                out=json.loads(raw.decode("utf-8"))
+            if not isinstance(out,dict) or out.get("live_orders_enabled") is not False:
+                raise ValueError("Invalid paper contract")
+            return dict(out,ok=True)
+        except HTTPError as exc:
+            detail=""
+            try:detail=json.loads(exc.read(512).decode("utf-8")).get("detail","")
+            except Exception:pass
+            return {"ok":False,"reason":"HTTP_"+str(exc.code),"detail":str(detail)[:120]}
+        except (OSError,URLError,ValueError,UnicodeError,RecursionError):
+            return {"ok":False,"reason":"PAPER_UNAVAILABLE"}
+
+    def paper_state(self):
+        return self._paper_call("GET","state")
+
+    def paper_open(self, symbol, side, qty, entry, stop, target):
+        return self._paper_call("POST","open",{"symbol":symbol,"side":side,"qty":int(qty),
+            "entry":float(entry),"stop":float(stop),"target":float(target)})
+
+    def paper_close(self, pos_id, price=None):
+        body={"id":str(pos_id)}
+        if price is not None:body["price"]=float(price)
+        return self._paper_call("POST","close",body)
+
     def start_dhan_browser_login(self, endpoint, access_key):
         """Request Clone-only browser consent; return trusted official Dhan URL."""
         from urllib.parse import urlsplit, parse_qs

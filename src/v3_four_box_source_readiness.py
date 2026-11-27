@@ -144,6 +144,15 @@ def four_box_source_readiness(*, symbol, timeframe, generation, history,
     sources["O"]["error_code"]=position["code"]
     sources["O"]["historical_context_label"]=option_position_label(position)
     sources["O"]["historical_vote_eligible"]=False
+    try:
+        from v3_option_oi_flow import window_oi_change
+        share,why=window_oi_change(option_context if option_match else {})
+    except Exception:
+        share,why=None,"UNAVAILABLE"
+    # B245: same OI-change share Home shows as "O HIST B../S.. NOT live"; display only, never a vote.
+    sources["O"]["oi_change_hist"]=({"bullish":share[0],"bearish":share[1],"display_only":True,
+                                     "live_vote_eligible":False} if share is not None
+                                    else {"available":False,"reason":str(why)})
     for row in sources.values():
         row["live_direction_verified"] = False
         row["source_evidence_mode"] = "HIST_ONLY" if row.get("historical_direction_available") else "CONTEXT_ONLY"

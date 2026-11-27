@@ -3429,3 +3429,10 @@ Planned new safe repair actions (all allowlisted, bounded, read-only provider ca
 - backend/server_paper_positions.py + gateway routes /clone-v2/paper/{heartbeat,state,open,close}; PAPER only, stop-loss mandatory on correct side, stop/target auto-close, JSON state file, 20 s poller for OPEN symbols only (market hours, shared quota gates). No order endpoints; live flag constant False.
 - Installed via ops/install_paper_engine_20261127.sh at a294d96; owner verified heartbeat: mode PAPER, live false. systemd drop-in paper.conf sets state file + BOTKING_PAPER_POLL=1.
 - App: CloneV2Gateway.paper_heartbeat + 60 s poll; Doctor shows server_paper_engine. App UI to open/close paper positions on server = next step; M box and live adapter not started.
+
+## J48 — B245 (v2.3.245)
+- Server renewal-health now VALID: expiry view copy (sync timer every 2 min, opc 600) + gateway env; lesson: `set -e` in pasted shell block closed the session before restart.
+- App: "Server Paper" section in Options trading page (qty/SL%/target%, Server BUY/SELL on selected option symbol, Close, closed list, engine status). Paper only; phone never sends orders.
+- Doctor O box now reports oi_change_hist (same share Home shows as "O HIST B../S.. NOT live"; display only).
+- Background ON/OFF toggle NOT added: the server engine is the background; phone cannot truly run in background.
+- Open: M box, server analysis loop, N/F feeds, Home chart 5m/gap, Monday live checks, renewal ~23:15 IST check.

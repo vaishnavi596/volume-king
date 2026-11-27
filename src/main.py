@@ -6099,6 +6099,7 @@ def app_main(page:ft.Page):
                      ft.OutlinedButton("EXIT • PAPER",on_click=lambda e:timed_paper_action("EXIT"))
                  ],wrap=True),paper_exit_price,paper_exit_fees],spacing=5)),
             paper_control_card(),
+            server_paper_section(),
             section("PROFIT BOOKING PRESETS • MANUAL PAPER TICKS",
                 ft.Column([
                     note("Choose 25%, 50% or 75% partial quantity, then Process manual mark. EXIT closes 100%."),
@@ -11417,6 +11418,10 @@ console.log('BOT KING Lightweight Charts ready');
                 renewal_health_cache.clear()
                 renewal_health_cache.update(generation=generation,at=time.monotonic(),report=result)
     paper_hb_cache={}
+    srv_paper_qty=ft.TextField(label="Server paper qty",value="1",width=130,keyboard_type=ft.KeyboardType.NUMBER)
+    srv_paper_sl=ft.TextField(label="Stop-loss %",value="2",width=110,keyboard_type=ft.KeyboardType.NUMBER)
+    srv_paper_tg=ft.TextField(label="Target %",value="4",width=110,keyboard_type=ft.KeyboardType.NUMBER)
+    srv_paper_status=txt("Server paper • no real orders",12,MUTED)
     async def paper_heartbeat_poll():
         # B244: read-only server paper-engine heartbeat every 60 s; no Dhan quota.
         while True:
@@ -11425,15 +11430,68 @@ console.log('BOT KING Lightweight Charts ready');
                 continue
             if 0<=time.monotonic()-paper_hb_cache.get("at",-1e9)<60:
                 continue
-            try:
-                result=await asyncio.to_thread(clone_v2_gateway.paper_heartbeat)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                log_error("paper_heartbeat_poll",exc)
-                result={"reachable":False,"reason":"HEARTBEAT_POLL_FAILED"}
-            paper_hb_cache.clear()
-            paper_hb_cache.update(at=time.monotonic(),report=result)
+            await paper_server_refresh()
+    async def paper_server_refresh():
+        """Fetch server paper state (heartbeat + positions); read-only."""
+        try:
+            state=await asyncio.to_thread(clone_v2_gateway.paper_state)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_error("paper_server_refresh",exc)
+            state={"ok":False,"reason":"PAPER_POLL_FAILED"}
+        if state.get("ok") and isinstance(state.get("heartbeat"),dict):
+            hb=state["heartbeat"]
+            keep=("mode","uptime_seconds","last_eval_age_seconds","open_count","closed_count","open_symbols","last_error")
+            result=dict({k:hb.get(k) for k in keep},reachable=True,live_orders_enabled=False)
+            positions=[x for x in state.get("positions",[]) if isinstance(x,dict)][-30:]
+        else:
+            result={"reachable":False,"reason":str(state.get("reason","PAPER_UNAVAILABLE"))}
+            positions=[]
+        paper_hb_cache.clear()
+        paper_hb_cache.update(at=time.monotonic(),report=result,positions=positions)
+    async def paper_server_open(side):
+        sym=chain_symbol.value
+        try:
+            qty=int(srv_paper_qty.value)
+            sl_pct=float(srv_paper_sl.value);tg_pct=float(srv_paper_tg.value)
+            price=finite(float(quote_price(sym).replace(",","")),"Server paper entry",.000001)
+            if not (0<sl_pct<50 and 0<tg_pct<100 and qty>0):raise ValueError("qty/SL/target invalid")
+        except Exception:
+            srv_paper_status.value="Server paper: valid quantity, SL %, target % and a current price are required."
+            request_view_refresh(current[0]);return
+        mult=1 if side=="BUY" else -1
+        stop=price*(1-mult*sl_pct/100);target=price*(1+mult*tg_pct/100)
+        res=await asyncio.to_thread(clone_v2_gateway.paper_open,sym,side,qty,price,stop,target)
+        srv_paper_status.value=("Server paper "+side+" "+sym+" opened • runs on server even if phone is off • no real order"
+            if res.get("ok") else "Server paper not opened: "+str(res.get("detail") or res.get("reason")))
+        await paper_server_refresh();request_view_refresh(current[0])
+    async def paper_server_close(pos_id):
+        res=await asyncio.to_thread(clone_v2_gateway.paper_close,pos_id,None)
+        srv_paper_status.value=("Server paper position closed" if res.get("ok")
+            else "Server paper not closed: "+str(res.get("detail") or res.get("reason")))
+        await paper_server_refresh();request_view_refresh(current[0])
+    def server_paper_section():
+        rep=paper_hb_cache.get("report") or {}
+        if not clone_v2_gateway.connected:
+            return section("Server Paper • runs when phone is off",ft.Column([note("SSK/Oracle not connected • connect in Settings"),note("Live orders OFF • paper only")],spacing=6))
+        ctr=[note(("Server engine OK • open "+str(rep.get("open_count"))+" • closed "+str(rep.get("closed_count"))+" • checked every 20 s in market hours")
+                  if rep.get("reachable") else "Server engine not reachable yet ("+str(rep.get("reason","not checked"))+")"),
+             note("Live orders OFF • paper only • stop-loss and target are checked by the server")]
+        ctr.append(srv_paper_status)
+        ctr.append(ft.Row([srv_paper_qty,srv_paper_sl,srv_paper_tg],wrap=True,spacing=8))
+        ctr.append(ft.Row([ft.ElevatedButton("Server BUY "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"BUY")),
+                           ft.ElevatedButton("Server SELL "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"SELL"))],wrap=True,spacing=8))
+        opens=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="OPEN"]
+        closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-5:]
+        for x in opens:
+            ctr.append(ft.Row([ft.Column([txt(x["symbol"]+" • "+x["side"]+" ×"+str(x["qty"]),14,GOLD,True),
+                note("Entry ₹"+format(x["entry"],",.2f")+" • SL ₹"+format(x["stop"],",.2f")+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f")))],spacing=2,expand=True),
+                ft.OutlinedButton("Close",on_click=lambda e,i=x["id"]:page.run_task(paper_server_close,i))]))
+        if not opens:ctr.append(note("No open server paper positions"))
+        for x in reversed(closed):
+            ctr.append(note("Closed "+x["symbol"]+" "+x["side"]+" • "+str(x.get("reason"))+" • P&L ₹"+format(x.get("pnl",0),",.2f")))
+        return section("Server Paper • runs when phone is off",ft.Column(ctr,spacing=6))
     def paper_heartbeat_snapshot():
         rep=paper_hb_cache.get("report")
         if rep is None:

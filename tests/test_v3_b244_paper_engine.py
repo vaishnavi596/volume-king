@@ -96,3 +96,20 @@ class PhoneHeartbeatClientTests(unittest.TestCase):
 
     def test_disconnected(self):
         self.assertFalse(self._gw({}).__class__().paper_heartbeat()["reachable"])
+
+
+class B245AppWiringTests(unittest.TestCase):
+    def test_server_paper_ui_is_paper_only_and_wired(self):
+        src = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
+        for needle in ("def server_paper_section():", "async def paper_server_open(side):",
+                       "async def paper_server_close(pos_id):", "server_paper_section(),",
+                       "page.run_task(paper_heartbeat_poll)", "no real order"):
+            self.assertIn(needle, src)
+        gw = (Path(__file__).resolve().parents[1] / "src" / "clone_v2_gateway.py").read_text()
+        self.assertIn('path not in ("state","open","close")', gw)
+        self.assertIn('out.get("live_orders_enabled") is not False', gw)
+
+    def test_doctor_o_box_reports_oi_change_hist(self):
+        src = (Path(__file__).resolve().parents[1] / "src" / "v3_four_box_source_readiness.py").read_text()
+        self.assertIn('sources["O"]["oi_change_hist"]', src)
+        self.assertIn("display_only", src)

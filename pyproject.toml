@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.244" # V3 B244 (server paper heartbeat) on B243 (roster option chains, strong Doctor) on B242 (async SSK save, closed-market prices) on B241 (closed Watchlist HIST wait 3 s not 10 s) on B240 (remembered SSK auto-login, short Doctor) on B239 (fix Watchlist 1m row wiring) on B238 (Watchlist 1m votes, closed HIST pacing) on B237 (Watchlist 54/180s pacing) on B236 (Watchlist closed-market HIST auto-load) on B235 (expiry cache, no 429 on options/expiries) on B234 isolated phone-test (B233 + O OI-change chain refresh 45 s; B233 = 1m candle live window width+30 s + Watchlist candle-fresh counter); Android versionCode 244
+version = "2.3.245" # V3 B245 (server paper UI) on B244 (server paper heartbeat) on B243 (roster option chains, strong Doctor) on B242 (async SSK save, closed-market prices) on B241 (closed Watchlist HIST wait 3 s not 10 s) on B240 (remembered SSK auto-login, short Doctor) on B239 (fix Watchlist 1m row wiring) on B238 (Watchlist 1m votes, closed HIST pacing) on B237 (Watchlist 54/180s pacing) on B236 (Watchlist closed-market HIST auto-load) on B235 (expiry cache, no 429 on options/expiries) on B234 isolated phone-test (B233 + O OI-change chain refresh 45 s; B233 = 1m candle live window width+30 s + Watchlist candle-fresh counter); Android versionCode 245
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 
