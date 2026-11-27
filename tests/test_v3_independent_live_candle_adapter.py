@@ -21,6 +21,14 @@ class IndependentCandleAdapterTest(unittest.TestCase):
                        dict(symbol="TCS"),dict(_scanner_timeframe="1m"),dict(cached=True)):
             self.assertFalse(verified_candle_evidence(dict(h,**change),"5m",now=now,symbol="NIFTY").eligible)
         self.assertFalse(verified_candle_evidence(h,"5m",now=now+601,symbol="NIFTY").eligible)
+    def test_one_minute_window_matches_live_bridge_tolerance(self):
+        start=datetime(2026,11,23,10,0,tzinfo=timezone(timedelta(hours=5,minutes=30))).timestamp()
+        bars=[[start+i*60,100,103,99,102,50] for i in range(10)]
+        h=dict(symbol="NIFTY",source="Dhan",_scanner_timeframe="1m",
+               live_verified=True,historical=False,freshness="exchange_verified",bars=bars)
+        close=start+10*60
+        self.assertTrue(verified_candle_evidence(h,"1m",now=close+85,symbol="NIFTY").eligible)
+        self.assertFalse(verified_candle_evidence(h,"1m",now=close+95,symbol="NIFTY").eligible)
     def test_join_does_not_duplicate_technical_vote_or_invent_quorum(self):
         h,now=self.fixture()
         scan=dict(symbol="NIFTY",timeframe="5m",source="Dhan",live_verified=True,

@@ -2924,6 +2924,28 @@ def app_main(page:ft.Page):
                         str(round(counts[1]))+"% • LIVE 0/5 verified")
         return note("5E HIST 3m unavailable • LIVE WAIT • 0/5 verified")
 
+    watch_fresh_text=ft.Text("",size=11,color=MUTED,max_lines=1)
+    watch_fresh_state=[0.0,""]
+    def watch_candle_fresh_label():
+        """Separate from the LTP counter: how many selected shares hold a recent completed 3m candle."""
+        now=time.time()
+        if now-watch_fresh_state[0]<10 and watch_fresh_state[1]:
+            return watch_fresh_state[1]
+        symbols=list(all_watch_symbols())
+        fresh=0
+        for sym in symbols:
+            try:
+                bars=(shared_history(sym,"3m") or {}).get("bars") or []
+                last=bars[-1][0] if bars else None
+                if (type(last) in (int,float) and math.isfinite(last)
+                        and 0<=now-(last+180)<=360):
+                    fresh+=1
+            except Exception:
+                continue
+        watch_fresh_state[0]=now
+        watch_fresh_state[1]=("3m candle fresh (<=6 min): "+str(fresh)+"/"+str(len(symbols))
+                              +" • separate from LTP "+("loaded" if symbols else "n/a"))
+        return watch_fresh_state[1]
     watch_row_cells={}
     watch_status_text=ft.Text("",size=11,color=MUTED,max_lines=2,
                               overflow=ft.TextOverflow.ELLIPSIS)
@@ -3722,6 +3744,13 @@ def app_main(page:ft.Page):
                     if button.disabled!=should_disable:
                         button.disabled=should_disable
                         if button.page is not None:button.update()
+                try:
+                    fresh_label=watch_candle_fresh_label()
+                    if watch_fresh_text.value!=fresh_label:
+                        watch_fresh_text.value=fresh_label
+                        if watch_fresh_text.page is not None:watch_fresh_text.update()
+                except Exception as exc:
+                    log_error("watch_fresh_counter",exc)
                 if signature==last_visible_signature and watch_status_text.value==(
                         "Quote check • "+watch_batch_status[0]):
                     continue
@@ -3859,6 +3888,7 @@ def app_main(page:ft.Page):
         return [ft.Row([heading("Watchlist"),refresh_btn],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             watch_status_text,
+            watch_fresh_text,
             ft.Row([ft.Container(content=ft.TextButton("List "+str(i+1),on_click=lambda e,k=i:change_watch(k),style=ft.ButtonStyle(color=GOLD if active_watch[0]==i else MUTED,padding=2)),expand=True) for i in range(5)],spacing=0),
             ft.Row([search,ft.IconButton(icon=ft.Icons.CLOSE,tooltip="Clear search",on_click=clear_watch_search)],spacing=2),
             ft.Row([ft.TextButton(text=n,on_click=lambda e,v=n:set_filter(v),style=ft.ButtonStyle(color=GOLD if watch_filter[0]==n else MUTED,padding=4)) for n in ["All","Bullish","Bearish","Neutral"]],scroll=ft.ScrollMode.AUTO,spacing=2),

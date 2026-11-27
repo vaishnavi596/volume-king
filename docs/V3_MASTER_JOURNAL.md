@@ -3281,3 +3281,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 
 - J26 FIX 13:55: owner wanted the UPPER five-box set kept and the lower one removed. Now one holder (`scan_box_host`) sits in the upper ANALYSIS BASIS block and is repainted by the live scanner_five delta refresh; the lower section no longer draws boxes. 1778 tests, only 55 known baseline errors.
 - J26 PHONE 13:50 (B231 installed): Super Five T box now shows HIST vote (BAJFINANCE T B0/S100 equals its 5m bar; KOTAKBANK T B100/S0) — 5m hydrate works. Watchlist T chip equals the 3m bar (RELIANCE B80/S20, HDFCBANK B0/S100). Scanner analysis block showed the B231 placeholder (upper set removed) as expected; fixed in e8f8ada, shipped as B232. OPEN: every Watchlist row shows "—" for day change; all rows STALE/HIST; LIVE 0/5.
+
+## J27 — 2026-11-27 14:10 IST — live-market fixes bundle (B233)
+- WHY: owner wants the live-market-only fixes applied before the next install. C evidence window was `seconds` (60 s for 1m) while the live bridge qualifies the same bar up to width+30 s, so with a 60 s poll the 1m C box missed its window about half the time. Watchlist top "51/51" is the LTP count, not candle freshness.
+- ACTION: five_engine.verified_candle_evidence window = width+30 s (same as v3_live_candle_bridge); new Watchlist line "3m candle fresh (<=6 min): x/N" separate from LTP; tests added (1m window 85 s eligible, 95 s rejected).
+- RESULT: 1779 tests, only 55 known baseline errors. CI/APK PENDING (B233 supersedes B232).
+- OPEN: change vs open/prev close (gateway uses LTP route: no previous close), Watchlist and Super Five to 1m, chart redesign, N/O extreme HIST labels, gateway redeploy proof c197dce.

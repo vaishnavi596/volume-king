@@ -387,7 +387,9 @@ def verified_candle_evidence(history, timeframe, *, now, symbol):
         return wait
     last = bars[-1][0]
     stamp = bars[-2][0] if last + seconds > now else last
-    if not 0 <= now - (stamp + seconds) <= seconds:
+    # Same tolerance as v3_live_candle_bridge.completed_live_history (width+30 s):
+    # a 1m bar closed 61-90 s ago is still the newest completed bar between 60 s polls.
+    if not 0 <= now - (stamp + seconds) <= seconds + 30:
         return wait
     return EngineEvidence("candle", balance["bullish"], balance["bearish"],
                           verified=True, timestamp=stamp + seconds, source="Dhan",
