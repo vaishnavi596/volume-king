@@ -10773,6 +10773,16 @@ console.log('BOT KING Lightweight Charts ready');
                     index_candle_last_attempt[0]=time.monotonic()
                     index_one_minute_busy[0]=True
                     index_history_ready=0
+                    if regular_hours():
+                        # Live qualification needs a Dhan last-trade stamp newer than
+                        # the newest completed bar; refresh the three-index quote
+                        # right before the candle read (no extra poller, one batch).
+                        try:
+                            await refresh_dhan_index_quotes(force=True)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:
+                            log_error("index_quote_before_candle",exc)
                     for index_sym in ("NIFTY","BANKNIFTY","SENSEX"):
                         if (generation!=provider_generation[0] or not app_active[0]
                                 or lifecycle_background[0] or dhan_history_scan_active[0] or

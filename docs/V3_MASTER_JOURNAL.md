@@ -3264,3 +3264,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - ACTION: retention accepts live-qualified list that differs only by the forming bar; gateway `candle_cache_current` (regular hours: cache must be fetched after latest bar boundary+4 s); phone TTL 45 s for 1m/3m in market hours, index poll 60 s in market hours.
 - RESULT: new tests tests/test_live_candle_retention_and_gateway_cache.py PASS; full offline 1776 tests, only the 55 known baseline errors. ITC B178 report shows T and C live-verified (quorum needs a 3rd engine; N/F unwired, O only for F&O index/stocks).
 - OPEN: Oracle gateway needs the new file deployed; B229 APK build; N/F adapters.
+
+## J25 — 2026-11-27 12:35 IST — fresh index quote stamp (B230)
+- WHY: phone report 12:24 (older build) showed NIFTY candle age 20 s (gateway cache fix works) but T/C still unverified; quote_timestamp_age 70–98 s > 90 s limit and < latest bar end. Cause: gateway full-index quote batch cached 60 s + phone index quote gap 60 s.
+- ACTION: gateway caps index quote reuse at 10 s in market hours; phone refreshes the 3-index quote right before each index candle read.
+- RESULT: 1778 tests, only 55 known baseline errors. Server signal runner shows all 3 indices LIVE_VERIFIED on 1m and 5m (12:15 IST).
+- OPEN: gateway redeploy on Oracle; B230 phone proof; N/F adapters; O flow.

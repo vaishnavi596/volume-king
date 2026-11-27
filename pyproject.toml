@@ -1,7 +1,7 @@
 
 [project]
 name = "bot-king"
-version = "2.3.229" # V3 B229 isolated phone-test (B228 + live-candle retention fix, faster open-market index candle cadence); Android versionCode 229
+version = "2.3.230" # V3 B230 isolated phone-test (B229 + fresh index quote stamp before candle read); Android versionCode 230
 dependencies = ["flet==0.25.2", "flet-webview==0.1.0"]
 requires-python = ">=3.11"
 

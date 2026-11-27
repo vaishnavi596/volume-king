@@ -61,3 +61,14 @@ class GatewayCacheSource(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class QuoteFreshnessSource(unittest.TestCase):
+    def test_gateway_caps_index_quote_reuse_in_market_hours(self):
+        with open("backend/clone_v2_gateway.py") as f:
+            src = f.read()
+        self.assertIn("cache_ttl = min(cache_ttl, 10)", src)
+
+    def test_phone_refreshes_index_quote_before_candle_read(self):
+        with open("src/main.py") as f:
+            src = f.read()
+        self.assertIn("await refresh_dhan_index_quotes(force=True)", src)
