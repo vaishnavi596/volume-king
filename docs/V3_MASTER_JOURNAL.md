@@ -3479,3 +3479,4 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Ticket shows average price, total lots, invested and max loss in rupees after each level; SL/target recomputed from the average; SL is never removed; unfilled levels expire at end of day.
 - Needs server option premium (option security ids from Dhan scrip master) -> B249 priority 1. Paper only; live orders OFF.
 - Dropped: index-% trigger orders (owner clarified he did not mean buying a different contract).
+- J56 addendum: SL entered directly as a premium price (e.g. 50) with % and rupee loss beside it. TWO targets: target_if_not_averaged (e.g. 120 on a 100 entry) and target_if_averaged (e.g. 90/100/110). Server applies the one that matches what actually happened. Worked example (lot 65): no-avg SL50 loss 3,250, avg-85 SL50 loss 4,550 (41.2%), targets 90/100/110 -> 650/1,950/3,250. Open question: one SL or two.
