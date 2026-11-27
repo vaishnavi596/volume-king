@@ -41,9 +41,9 @@ class WatchlistRefreshRegression(unittest.TestCase):
         self.assertIn("if current[0]==4:",body)  # UI repaint only
         self.assertIn("selected=[sym for sym in all_watch_symbols()",body)
         self.assertIn("watch_candle_recent(prior_three)",body)
-        self.assertIn("len(watch_three_minute_upstream_times)>=30",body)
+        self.assertIn("len(watch_three_minute_upstream_times)>=54",body)
         self.assertIn("watch_three_minute_upstream_times.append(attempt_time)",body)
-        self.assertIn("watch_three_minute_warm_last_provider[0]<5",body)
+        self.assertIn("watch_three_minute_warm_last_provider[0]<3",body)
         self.assertIn('get_market_data,sym,"1m","2d"',body)
         self.assertIn('chart_snapshots[(sym,"1m",generation)]',body)
         self.assertIn('data=retain_candle_history(data,prior,provider="Dhan")',body)

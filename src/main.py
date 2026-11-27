@@ -3387,13 +3387,13 @@ def app_main(page:ft.Page):
     # Market-CLOSED explicit HIST queue only (owner-approved 26 Nov, evidence: Dhan Data API
     # limit is 5 requests/second; the Oracle gateway also serialises provider misses).
     # Closed explicit queue (in warm_selected_watch_three_minute_early): 40 per 180s, 3s floor.
-    # Market-open/periodic budgets: 30 per 180s with a 5s floor (owner priority: fast Watchlist; the gateway still serialises at >=1.1s).
+    # Market-open/periodic budgets: 54 per 180s with a 3s floor (whole 51-symbol Watchlist within ~3 min) (owner priority: fast Watchlist; the gateway still serialises at >=1.1s).
     def watch_hist_budget_wait_seconds():
         # Show the *actual* remaining local quota delay. Never guess that a
         # source fetch failed merely because the 12/180s budget is exhausted.
         now=time.monotonic()
         recent=[t for t in watch_three_minute_upstream_times if 0<=now-t<180]
-        budget_wait=(180-(now-min(recent))) if len(recent)>=30 else 0
+        budget_wait=(180-(now-min(recent))) if len(recent)>=54 else 0
         floor_wait=(5-(now-watch_three_minute_warm_last_provider[0])
                     if watch_three_minute_warm_last_provider[0]>0 else 0)
         return max(0,int(math.ceil(max(budget_wait,floor_wait,0))))
@@ -7213,7 +7213,7 @@ def app_main(page:ft.Page):
                                   "index_busy":bool(index_one_minute_busy[0]),
                                   "watchlist_busy":bool(watch_three_minute_warm_busy[0]),
                                   "cooldown_seconds":round(dhan_feed.cooldown_remaining("/dhan/intraday"),1),
-                                  "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=30,
+                                  "budget_full":sum(0<=mono-stamp<180 for stamp in watch_three_minute_upstream_times)>=54,
                                   "provider_spacing":watch_three_minute_warm_last_provider[0]>0 and
                                       0<=mono-watch_three_minute_warm_last_provider[0]<10},
                               "watchlist_recent_budget_used":sum(
@@ -10920,7 +10920,7 @@ console.log('BOT KING Lightweight Charts ready');
     # completed_three_minute_bars() derives real 3m OHLCV locally from 3 consecutive 1m rows.
     async def watch_three_minute_warmup():
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)  # owner rule: whole Watchlist up to date within ~3 min
             try:
                 if (not app_active[0] or lifecycle_background[0]
                         or prefs.get("source")!="Dhan" or not dhan_feed.connected
@@ -10934,8 +10934,8 @@ console.log('BOT KING Lightweight Charts ready');
                 # Rolling-window cap, not a fixed bucket that can burst at rollover.
                 watch_three_minute_upstream_times[:]=[
                     t for t in watch_three_minute_upstream_times if now-t<180]
-                # Hard budget: at most 30 *uncached* upstream 1m histories in any
-                # 180s window, spaced >=5s. Cache hits use no extra Dhan call.
+                # Hard budget: at most 54 *uncached* upstream 1m histories in any
+                # 180s window, spaced >=3s. Cache hits use no extra Dhan call.
                 selected=[sym for sym in all_watch_symbols()
                           if sym in DHAN_VERIFIED_SYMBOLS
                           and sym not in ("NIFTY","BANKNIFTY","SENSEX")]
@@ -10961,15 +10961,15 @@ console.log('BOT KING Lightweight Charts ready');
                         prior_cache=market_recent.get(history_key)
                         cache_ready=bool(prior_cache and now-prior_cache[0]<87)
                     if not cache_ready and (
-                            len(watch_three_minute_upstream_times)>=30 or
+                            len(watch_three_minute_upstream_times)>=54 or
                             (watch_three_minute_warm_last_provider[0]>0 and
-                             now-watch_three_minute_warm_last_provider[0]<5)):
+                             now-watch_three_minute_warm_last_provider[0]<3)):
                         record_watch_skip(provider_generation[0],"periodic","UPSTREAM_BUDGET_OR_SPACING",sym)
                         break
                     watch_three_minute_warm_busy[0]=True
                     try:
                         if not cache_ready:
-                            await asyncio.sleep(1.5)
+                            await asyncio.sleep(0.3)
                         if (generation!=provider_generation[0]
                                 or not app_active[0] or lifecycle_background[0]
                                 or not refresh_hours() or dhan_history_scan_active[0]

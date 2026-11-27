@@ -3307,3 +3307,9 @@ Full policy in docs/SMART_4_PLATINUM.md. Previous #538 1987/1987 verified; #539 
 - OBSERVED: Watchlist stayed still 15:30→15:45; owner: updates started only at 15:45. Cause: automatic polls run in refresh window 09:10–15:45 (equity_refresh_window); closed-market HIST load needed a manual Refresh tap and began only after 15:45.
 - FIX: watch_visible_tick starts one automatic closed-market HIST pass per (generation, list, search, IST date) when refresh window is over, gateway connected, no other busy flag. 1779 tests, 55 baseline errors.
 - OPEN: 15:30–15:45 gap shows quotes only (final 3m candles may be late) — consider making the window end at 15:35 for candles.
+
+## J30 — B237 (2026-11-27 16:00 IST): Watchlist speed rule
+- OWNER RULE: whole Watchlist (51) must be up to date within 1–3 min.
+- CAUSE: one equity per 5 s tick + 1.5 s pre-sleep + 5 s provider floor + 30/180 s budget ⇒ ≥330 s/cycle, worse when the 5m Scanner ranking (dhan_history_scan_active) pauses the warm-up (~6 min).
+- FIX: tick 2 s, pre-sleep 0.3 s, provider floor 3 s, budget 54/180 s (gateway still serialises ≥1.1 s). Expected ≈3.4 s/symbol ≈ 175 s per full cycle. Doctor budget_full uses 54.
+- OPEN: Scanner ranking still blocks the warm-up while it runs; consider pausing Scanner scan while Watchlist is on screen, or running both with gateway queue (watch for 429 LOCAL_PACING).

@@ -183,7 +183,7 @@ class EarlyThreeMinutePriorityTests(unittest.TestCase):
             self.assertIn("key in watch_three_minute_warm_attempts",source)
             self.assertIn("now-watch_three_minute_warm_attempts[key]<180",source)
             self.assertIn("watch_three_minute_warm_last_provider[0]>0",source)
-            self.assertRegex(source,r"now-watch_three_minute_warm_last_provider\[0\]<(\(3 if explicit_closed else 5\)|5)")
+            self.assertRegex(source,r"now-watch_three_minute_warm_last_provider\[0\]<(\(3 if explicit_closed else 5\)|5|3)")
             self.assertNotIn("watch_three_minute_warm_attempts.get(key,0)",source)
 
     def test_exact_rolling_budget_and_global_10_second_spacing(self):
