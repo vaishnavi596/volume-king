@@ -184,17 +184,17 @@ class FuturesLean(unittest.TestCase):
 
 class VoteGate(unittest.TestCase):
     def test_gate_needs_samples_and_rate(self):
-        led = {"stats": {"NIFTY@30": {"n": 20, "hits": 13}}, "oi_stats": {"NIFTY": {"n": 40, "hits": 24}},
+        led = {"stats": {"NIFTY@30": {"n": 20, "hits": 13}}, "oi_stats": {"NIFTY": {"n": 40, "hits": 26}},
                "news_stats": {"NIFTY": {"n": 40, "hits": 18}}, "fut_stats": {}}
         g = rn.vote_gate(led)
         self.assertFalse(g["M"]["eligible"])                 # n=20 < 30
-        self.assertTrue(g["O"]["eligible"])                  # 40 samples, 60%
+        self.assertTrue(g["O"]["eligible"])                  # 40 samples, 65%, Wilson low above 50
         self.assertFalse(g["N"]["eligible"])                 # 45% < 55%
         self.assertFalse(g["F"]["eligible"]); self.assertIsNone(g["F"]["hit_rate"])
         rep = {"m_hit": {"30m": {"n": 600, "hit_rate": 60.0}}}   # 600/6 = 100 effective samples
         g2 = rn.vote_gate(led, rep)
         self.assertTrue(g2["M"]["eligible"])
-        self.assertEqual(g2["M"]["n"], 120)
+        self.assertEqual(g2["M"]["n"], 103)
 
 
 class GatedFuturesVote(unittest.TestCase):

@@ -85,6 +85,24 @@ def combine_evidence(evidence, *, min_engines=3, min_margin=10):
             "bullish": bull, "bearish": bear, "reason": "Verified directional agreement; not win probability"}
 
 
+def independent_agreement(evidence):
+    """B252 diagnostic: how many INDEPENDENT directional sources back the leader.
+
+    Technical and candle engines read the same candles, so when both are eligible and point the same way
+    they count as ONE source (weight 1.0 together, not 2.0). Display/diagnostic only; combine_evidence is unchanged.
+    """
+    elig = [e for e in evidence if getattr(e, "eligible", False) and e.bullish != e.bearish]
+    bulls = [e.name for e in elig if e.bullish > e.bearish]
+    bears = [e.name for e in elig if e.bearish > e.bullish]
+    lead = bulls if len(bulls) >= len(bears) else bears
+    weight = float(len(lead))
+    if "technical" in lead and "candle" in lead:
+        weight -= 1.0
+    return {"leader": ("BULLISH" if lead is bulls else "BEARISH") if lead else None,
+            "raw_count": len(lead), "independent_weight": weight,
+            "opposing": len(bears if lead is bulls else bulls)}
+
+
 def empty_evidence(reason="Awaiting verified data"):
     """Canonical five-engine placeholder; never invent missing percentages."""
     return tuple(EngineEvidence(name=name, reason=reason) for name in ENGINE_NAMES)

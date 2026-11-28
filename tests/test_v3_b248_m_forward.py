@@ -54,7 +54,7 @@ class LedgerTests(unittest.TestCase):
         led = r.ledger_step({}, out, 1000)
         self.assertEqual(len(led["pending"]), 1)
         led = r.ledger_step(led, dict(out, m_lean={"NIFTY": {"lean": "BULLISH", "ltp": 101.0}}), 1000 + 1200)
-        self.assertEqual(led["stats"]["NIFTY"], {"n": 1, "hits": 1})
+        self.assertEqual(led["stats"]["NIFTY"], {"n": 1, "hits": 1, "up": 1})
         self.assertEqual(r.ledger_summary(led)["scored"]["NIFTY"]["hit_rate"], 100.0)
 
     def test_rate_limited_to_every_five_minutes_and_closed_market_idle(self):
@@ -95,7 +95,7 @@ class Horizons(unittest.TestCase):
         r.ledger_step(led, out, 1000)
         out2 = {"market_open": True, "m_lean": {"NIFTY": {"lean": "BULLISH", "ltp": 101.0}}}
         r.ledger_step(led, out2, 1000 + 31 * 60)
-        self.assertEqual(led["stats"]["NIFTY@30"], {"n": 1, "hits": 1})
+        self.assertEqual(led["stats"]["NIFTY@30"], {"n": 1, "hits": 1, "up": 1})
 
 
 class LotSizes(unittest.TestCase):

@@ -919,6 +919,34 @@ def app_main(page:ft.Page):
         points=[ft.LineChartDataPoint(i,(v-lo)/spread*100) for i,v in enumerate(values)]
         return ft.LineChart(data_series=[ft.LineChartData(data_points=points,stroke_width=2,color=price_color(sym),curved=False)],min_x=0,max_x=len(points)-1,min_y=-5,max_y=105,left_axis=ft.ChartAxis(labels_size=0),bottom_axis=ft.ChartAxis(labels_size=0),right_axis=ft.ChartAxis(labels_size=0),top_axis=ft.ChartAxis(labels_size=0),border=ft.border.all(0,"#000000"),expand=True)
 
+    def overlay_dots(sym,full_bars,n_vis,y_of,width):
+        """Filter lines for one symbol (B252): same scanner_engine maths; shared by Chart tab and Home mini-chart."""
+        items=[]
+        try:
+            from scanner_engine import ema as _ema,supertrend_series,pivot_value
+            store=prefs.get("chart_filters_by_symbol") or {}
+            fsel=[x for x in (store.get(sym) if isinstance(store.get(sym),list) else ["VWAP"]) if x in ALL_FILTERS]
+            fcl=[float(b[4]) for b in full_bars]
+            def dots(series,color,size=3):
+                tail=series[-n_vis:]
+                for j,val in enumerate(tail):
+                    if val is None:continue
+                    yy=y_of(val)
+                    if yy is not None:items.append(ft.Container(left=j*width/n_vis+3,top=yy,width=size,height=size,bgcolor=color,border_radius=2))
+            if "EMA 9/21" in fsel:
+                dots(_ema(fcl,9),ft.Colors.AMBER_300);dots(_ema(fcl,21),ft.Colors.PINK_300)
+            if "SMA 5/20" in fsel:
+                def sma(vals,n):return [sum(vals[i-n+1:i+1])/n if i>=n-1 else None for i in range(len(vals))]
+                dots(sma(fcl,5),ft.Colors.LIGHT_GREEN_300);dots(sma(fcl,20),ft.Colors.PURPLE_200)
+            if "Supertrend" in fsel:
+                st=supertrend_series(full_bars)
+                dots([v for v,_ in st],ft.Colors.TEAL_300,4)
+            if "Pivot Points" in fsel:
+                pv=pivot_value(full_bars);yy=y_of(pv) if pv is not None else None
+                if yy is not None:items.append(ft.Container(left=0,top=yy,width=width,height=1,bgcolor=ft.Colors.with_opacity(.8,ft.Colors.ORANGE_300)))
+        except Exception as exc:
+            log_error("overlay_dots",exc)
+        return items
     def dashboard_mini_candles(sym, data, frame="5m"):
         # Validated Dhan history of the stated frame; no network request.
         if prefs.get("source")!="Dhan" or data.get("source")!="Dhan":
@@ -945,6 +973,7 @@ def app_main(page:ft.Page):
             items.append(ft.Container(left=x,top=min(y(o),y(c)),
                                       width=max(3,width/len(bars)-2),
                                       height=max(2,abs(y(c)-y(o))),bgcolor=col))
+        items+=overlay_dots(sym,bars,len(bars),lambda val:(5+(hi-val)/span*(height-10)) if lo<=val<=hi else None,width)
         stamp=datetime.fromtimestamp(bars[-1][0],
             timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M IST")
         return ft.Column([
@@ -2342,7 +2371,7 @@ def app_main(page:ft.Page):
                         log_error("m_context",exc)
                 if _ml:
                     m_text="M HIST 30m B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+(" • 60m B"+str(_m60["bullish"])+"/S"+str(_m60["bearish"]) if _m60 else "")
-                    if _mc:m_text+="\nसहमति "+str(_mc["agree"])+"/"+str(_mc["total"])+" • भरोसा "+str(_mc["confidence"])
+                    if _mc:m_text+="\nसहमति "+str(_mc["agree"])+"/"+str(_mc["total"])+" • भरोसा "+str(_mc["confidence"])+(" • बग़ल-चाल" if _mc.get("regime")=="SIDEWAYS" else "")
                     m_color=m_border=GREEN if _ml["lean"]=="BULLISH" else RED if _ml["lean"]=="BEARISH" else GOLD
         except Exception as exc:
             log_error("m_forward",exc)
@@ -4231,28 +4260,8 @@ def app_main(page:ft.Page):
                     yv=10+(high-pv/vv)/spread*195
                     if 0<=yv<=205:controls.append(ft.Container(left=x+1,top=yv,width=3,height=3,bgcolor=ft.Colors.CYAN_300,border_radius=2))
             controls.append(ft.Container(left=x-1,top=0,width=max(5,width/len(bars)),height=270,on_click=lambda e,b=(_,o,h,l,c,v):chart_show_ohlc(b)))
-        # Per-symbol filter lines: same scanner_engine.ema over the full history, then the visible tail.
-        try:
-            from scanner_engine import ema as _ema
-            fsel=chart_sym_filters(symbol.value)
-            fcl=[float(b[4]) for b in full_bars]
-            def _dots(series,color):
-                tail=series[-len(bars):]
-                for j,val in enumerate(tail):
-                    yy=10+(high-val)/spread*195
-                    if 0<=yy<=205:controls.append(ft.Container(left=j*width/len(bars)+3,top=yy,width=3,height=3,bgcolor=color,border_radius=2))
-            if "EMA 9/21" in fsel:
-                _dots(_ema(fcl,9),ft.Colors.AMBER_300);_dots(_ema(fcl,21),ft.Colors.PINK_300)
-            if "SMA 5/20" in fsel:
-                def _sma(vals,n):return [sum(vals[max(0,i-n+1):i+1])/len(vals[max(0,i-n+1):i+1]) if i>=n-1 else None for i in range(len(vals))]
-                for n_,col in ((5,ft.Colors.LIGHT_GREEN_300),(20,ft.Colors.PURPLE_200)):
-                    sm=_sma(fcl,n_)[-len(bars):]
-                    for j,val in enumerate(sm):
-                        if val is None:continue
-                        yy=10+(high-val)/spread*195
-                        if 0<=yy<=205:controls.append(ft.Container(left=j*width/len(bars)+3,top=yy,width=3,height=3,bgcolor=col,border_radius=2))
-        except Exception as exc:
-            log_error("chart_filter_lines",exc)
+        # Per-symbol filter lines (same scanner_engine maths as the Home mini-chart).
+        controls+=overlay_dots(symbol.value,full_bars,len(bars),lambda val:(10+(high-val)/spread*195) if 0<=10+(high-val)/spread*195<=205 else None,width)
         # Fixed candle-derived reference guides, not interactive touch drawings.
         mode=drawing_mode[0]
         if mode=="Horizontal":
@@ -4269,7 +4278,7 @@ def app_main(page:ft.Page):
         last_candle_time=(datetime.fromtimestamp(bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
                           if isinstance(bars[-1][0],(int,float)) else "unknown")
         candle_status=note(str(q.get("source","Market"))+" • "+str(timeframe.value)+" OHLC • last "+last_candle_time+" • "+str(q.get("freshness","unverified"))+" • NOT live")
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),chart_ohlc,ft.Row([ft.TextButton(text=str(n)+" कैंडल",on_click=lambda e,n=n:chart_set_bars(n),style=ft.ButtonStyle(color=GOLD if chart_bars_n[0]==n else MUTED)) for n in (24,36,60,90)],wrap=True),note("नीचे की पट्टी = वॉल्यूम • ग्रिड पर भाव • सियान बिंदु = VWAP, पीला/गुलाबी = EMA 9/21, हरा/बैंगनी = SMA 5/20 (फ़िल्टर चुनने पर)"),candle_status,guide],spacing=3)
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),chart_ohlc,ft.Row([ft.TextButton(text=str(n)+" कैंडल",on_click=lambda e,n=n:chart_set_bars(n),style=ft.ButtonStyle(color=GOLD if chart_bars_n[0]==n else MUTED)) for n in (24,36,60,90)],wrap=True),note("नीचे की पट्टी = वॉल्यूम • ग्रिड पर भाव • सियान = VWAP, पीला/गुलाबी = EMA 9/21, हरा/बैंगनी = SMA 5/20, हरा-नीला बिंदु = Supertrend, नारंगी रेखा = Pivot (फ़िल्टर चुनने पर)"),candle_status,guide],spacing=3)
     def drawing_action(v):
         drawing_mode[0]="None" if v=="Clear" else v
         if v=="Trendline":

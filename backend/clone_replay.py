@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from clone_signal_runner import post, with_integrity, atomic_write, SSK_FILE, OUT_FILE, SYMBOLS, IST  # noqa: E402
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
-from v3_m_forward import m_leans, m_context, resolve_prediction, window_of  # noqa: E402
+from v3_m_forward import m_leans, m_context, resolve_prediction, window_of, min_move  # noqa: E402
 
 REPLAY_FILE = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
 STEP = 5
@@ -35,13 +35,15 @@ def split_days(bars):
     return {d: v for d, v in days.items() if len(v) >= 120}
 
 
-def bump(group, key, hit):
-    g = group.setdefault(key, {"n": 0, "hits": 0})
+def bump(group, key, hit, up=None):
+    g = group.setdefault(key, {"n": 0, "hits": 0, "up": 0})
     g["n"] += 1
     g["hits"] += int(bool(hit))
+    if up is not None:
+        g["up"] += int(bool(up))
 
 
-def replay_day(bars, report):
+def replay_day(bars, report, prev_close=None):
     n = len(bars)
     for i in range(START_IDX, n, STEP):
         past = bars[:i]
@@ -73,18 +75,20 @@ def replay_day(bars, report):
             lean = leans.get(str(hz))
             if not lean:
                 continue
-            hit = resolve_prediction(entry, lean["lean"], after)
+            hit = resolve_prediction(entry, lean["lean"], after, min_move(past, entry, hz))
             if hit is None:
+                report["flat"] = report.get("flat", 0) + 1
                 continue
-            bump(report["horizons"], "%dm" % hz, hit)
-            ctx = m_context(lean, past, [bias] * 3 if bias else None, t) if lean["lean"] != "NEUTRAL" else None
+            bump(report["horizons"], "%dm" % hz, hit, after > entry)
+            ctx = m_context(lean, past, [bias] if bias else None, t, None, prev_close) if lean["lean"] != "NEUTRAL" else None
             if hz == 30 and ctx:
                 bump(report["windows"], ctx["window"], hit)
                 bump(report["confluence"], "%d/%d" % (ctx["agree"], ctx["total"]), hit)
 
 
 def finish(group):
-    return {k: {"n": v["n"], "hit_rate": round(100 * v["hits"] / v["n"], 1) if v["n"] else None}
+    return {k: {"n": v["n"], "hit_rate": round(100 * v["hits"] / v["n"], 1) if v["n"] else None,
+                "up_rate": round(100 * v.get("up", 0) / v["n"], 1) if v["n"] and k.endswith("m") else None}
             for k, v in sorted(group.items())}
 
 
@@ -105,8 +109,13 @@ def main():
         # the current day is excluded when the market may still be open
         days.pop(today.isoformat(), None) if datetime.now(IST).hour < 16 else None
         report["symbols"][symbol] = sorted(days)
-        for d, bars in days.items():
-            replay_day(bars, report)
+        prev = None
+        for d, bars in sorted(days.items()):
+            replay_day(bars, report, prev)
+            try:
+                prev = float(bars[-1][4])
+            except (TypeError, ValueError, IndexError):
+                prev = None
             if d not in report["days"]:
                 report["days"].append(d)
         time.sleep(1.2)

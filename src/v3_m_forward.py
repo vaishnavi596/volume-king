@@ -33,6 +33,8 @@ def m_lean(bars, horizon=HORIZON_MINUTES):
     clean = clean[-_WINDOW[horizon]:]
     if len(clean) < _MIN[horizon]:
         return None
+    if _past_close(bars, horizon):
+        return None   # B252: a forecast that runs past the 15:30 close has no meaning
     closes = [c for _, _, c in clean]
     n = len(closes)
     xs = list(range(n))
@@ -47,21 +49,84 @@ def m_lean(bars, horizon=HORIZON_MINUTES):
     recent = closes[-1] - closes[-6]
     if score * recent < 0:
         score *= 0.5
+    # B252 regime: efficiency ratio (straight move / total wiggle). Sideways markets damp the lean.
+    path = sum(abs(closes[i] - closes[i - 1]) for i in range(1, n))
+    er = abs(closes[-1] - closes[0]) / path if path > 0 else 0.0
+    regime = "TREND" if er >= 0.3 else "SIDEWAYS" if er < 0.15 else "MIXED"
+    score *= {"TREND": 1.0, "MIXED": 0.8, "SIDEWAYS": 0.5}[regime]
     bull = round(50 + 50 * score)
     bear = 100 - bull
     return {"bullish": bull, "bearish": bear,
             "lean": "BULLISH" if bull > 55 else "BEARISH" if bull < 45 else "NEUTRAL",
             "strength": round(abs(score), 3), "horizon_minutes": horizon,
-            "vote_eligible": False}
+            "regime": regime, "efficiency": round(er, 3), "vote_eligible": False}
 
 
-def resolve_prediction(entry_price, lean, price_after):
-    """Ledger rule: NEUTRAL is not scored; otherwise hit when price moved in the lean's direction."""
+def _last_epoch(bars):
+    for b in reversed(list(bars or ())):
+        try:
+            t = float(b[0])
+        except (TypeError, ValueError, IndexError):
+            continue
+        return t if t > 1e9 else None
+    return None
+
+
+def _past_close(bars, horizon):
+    """True when last bar time + horizon is beyond the 15:30 IST close (only for real epoch stamps)."""
+    t = _last_epoch(bars)
+    if t is None:
+        return False
+    from datetime import datetime, timezone, timedelta
+    d = datetime.fromtimestamp(t, timezone(timedelta(hours=5, minutes=30)))
+    return d.hour * 60 + d.minute + horizon > 930
+
+
+def min_move(bars, price, horizon):
+    """Smallest price move (points) that counts as a real move at this horizon; smaller moves are noise."""
+    rngs = []
+    for b in list(bars or ())[-60:]:
+        try:
+            h, l = float(b[2]), float(b[3])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if math.isfinite(h) and math.isfinite(l) and h >= l:
+            rngs.append(h - l)
+    mean_rng = sum(rngs) / len(rngs) if rngs else 0.0
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        p = 0.0
+    return round(max(0.0008 * p * math.sqrt(horizon / 30.0), 0.5 * mean_rng * math.sqrt(horizon)), 4)
+
+
+def resolve_prediction(entry_price, lean, price_after, min_move=0.0):
+    """Ledger rule: NEUTRAL is not scored; a move smaller than min_move is noise (not scored);
+    otherwise hit when price moved in the lean's direction."""
     if lean == "NEUTRAL" or not all(type(x) in (int, float) and math.isfinite(x) for x in (entry_price, price_after)):
         return None
-    if price_after == entry_price:
+    if price_after == entry_price or abs(price_after - entry_price) < (min_move or 0.0):
         return None
     return (price_after > entry_price) == (lean == "BULLISH")
+
+
+def wilson_low(hits, n, z=1.28):
+    """Lower confidence bound (%) of a hit-rate; z=1.28 is ~90% one-sided. None when n is 0."""
+    if not n:
+        return None
+    p = hits / n
+    d = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    spread = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return round(100 * (centre - spread) / d, 1)
+
+
+def strength_band(strength):
+    try:
+        v = float(strength)
+    except (TypeError, ValueError):
+        return "LOW"
+    return "HIGH" if v >= 0.6 else "MID" if v >= 0.3 else "LOW"
 
 
 def m_leans(bars):
@@ -114,7 +179,35 @@ def _vwap_and_volume(bars):
     return (1 if last > pv / vv else -1 if last < pv / vv else 0), (recent / before if before > 0 else None)
 
 
-def m_context(lean, bars, engine_biases=None, now=None, oi_lean=None):
+def orb_levels(bars, minutes=15):
+    """Opening-range high/low (first `minutes` after 9:15 IST) of the bars' own day, and the last close."""
+    from datetime import datetime, timezone, timedelta
+    ist = timezone(timedelta(hours=5, minutes=30))
+    hi = lo = last = None
+    day = None
+    for b in bars or ():
+        try:
+            t = float(b[0]); h = float(b[2]); l = float(b[3]); c = float(b[4])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if t < 1e9 or not all(math.isfinite(x) for x in (h, l, c)):
+            continue
+        d = datetime.fromtimestamp(t, ist)
+        if day is None:
+            day = d.date()
+        if d.date() != day:
+            continue
+        m = d.hour * 60 + d.minute
+        last = (m, c)
+        if 555 <= m < 555 + minutes:
+            hi = h if hi is None else max(hi, h)
+            lo = l if lo is None else min(lo, l)
+    if hi is None or last is None or last[0] < 555 + minutes:
+        return None
+    return {"high": hi, "low": lo, "close": last[1]}
+
+
+def m_context(lean, bars, engine_biases=None, now=None, oi_lean=None, prev_close=None):
     """Confluence around one lean. Returns {"checks":[...], "agree","total","window","adj_strength","confidence"}.
 
     engine_biases: iterable of "BULLISH"/"BEARISH"/other from the other engine rows (any timeframe).
@@ -130,9 +223,15 @@ def m_context(lean, bars, engine_biases=None, now=None, oi_lean=None):
     if vol_ratio is not None:
         checks.append(("VOLUME", vol_ratio >= 1.0))
     bi = [b for b in (engine_biases or ()) if b in ("BULLISH", "BEARISH")]
-    if len(bi) >= 3:
+    if len(bi) >= 2:   # B252: callers pass INDEPENDENT sources only (candle frames collapsed to one)
         aligned = sum((b == "BULLISH") == (sign == 1) for b in bi)
         checks.append(("ENGINES", aligned * 2 > len(bi)))
+    orb = orb_levels(bars)
+    if orb and (orb["close"] > orb["high"] or orb["close"] < orb["low"]):
+        checks.append(("ORB", (orb["close"] > orb["high"]) == (sign == 1)))
+    if type(prev_close) in (int, float) and prev_close > 0 and orb:
+        if orb["close"] != prev_close:
+            checks.append(("PDC", (orb["close"] > prev_close) == (sign == 1)))
     if isinstance(oi_lean, dict) and type(oi_lean.get("bullish")) in (int, float):
         tilt = oi_lean["bullish"] - 50
         if abs(tilt) >= 5:
@@ -143,4 +242,5 @@ def m_context(lean, bars, engine_biases=None, now=None, oi_lean=None):
     conf = (0.5 + 0.5 * agree / total) if total else 0.7
     adj = round(float(lean.get("strength", 0)) * _WINDOW_FACTOR.get(window, 0.7) * conf, 3)
     return {"checks": [{"name": n, "agrees": bool(ok)} for n, ok in checks], "agree": agree, "total": total,
-            "window": window, "adj_strength": adj, "confidence": confidence_label(adj)}
+            "window": window, "adj_strength": adj, "confidence": confidence_label(adj),
+            "regime": lean.get("regime")}

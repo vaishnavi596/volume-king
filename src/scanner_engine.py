@@ -32,6 +32,35 @@ def ema(values, period):
         out.append(value if not out else alpha * value + (1 - alpha) * out[-1])
     return out
 
+def supertrend_series(bars):
+    """Per-bar Supertrend (ATR14 x3), the SAME recurrence analyze() uses. Returns [(line_value, trend)] per bar."""
+    clean=[b for b in bars if len(b)>=5]
+    if not clean:return []
+    high=[float(b[2]) for b in clean];low=[float(b[3]) for b in clean];close=[float(b[4]) for b in clean]
+    tr=[high[0]-low[0]]+[max(high[i]-low[i],abs(high[i]-close[i-1]),abs(low[i]-close[i-1])) for i in range(1,len(close))]
+    atr=tr[0];atrs=[]
+    for t in tr:atr=(atr*13+t)/14;atrs.append(atr)
+    upper=lower=None;trend=1;out=[]
+    for i in range(len(close)):
+        mid=(high[i]+low[i])/2
+        ub=mid+3*atrs[i];lb=mid-3*atrs[i]
+        if upper is not None:
+            ub=min(ub,upper) if close[i-1]<=upper else ub
+            lb=max(lb,lower) if close[i-1]>=lower else lb
+            if trend==1 and close[i]<lower:trend=-1
+            elif trend==-1 and close[i]>upper:trend=1
+        upper,lower=ub,lb
+        out.append((lower if trend==1 else upper,trend))
+    return out
+
+
+def pivot_value(bars):
+    """Previous-bar pivot, the SAME value analyze() votes on (None when fewer than 2 bars)."""
+    clean=[b for b in bars if len(b)>=5]
+    if len(clean)<2:return None
+    return (float(clean[-2][2])+float(clean[-2][3])+float(clean[-2][4]))/3
+
+
 def analyze(bars, selected=None, timeframe="5m"):
     selected = DEFAULT_FILTERS if selected is None else selected
     if not isinstance(selected, (list, tuple, set)) or any(not isinstance(name, str) for name in selected):

@@ -25,7 +25,7 @@ from pathlib import Path
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
-from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction  # noqa: E402
+from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction, min_move, wilson_low, strength_band, window_of  # noqa: E402
 try:
     import v3_news_cue  # noqa: E402
 except ImportError:  # older server install: server headline cue stays off
@@ -271,12 +271,12 @@ def cycle(key, now, minute_index, previous):
                     lean = m_lean(response.get("bars"))
                     ltp = (quotes.get(symbol) or {}).get("ltp")
                     if lean and type(ltp) in (int, float):
-                        out.setdefault("m_lean", {})[symbol] = dict(lean, ltp=float(ltp))
+                        out.setdefault("m_lean", {})[symbol] = dict(lean, ltp=float(ltp), mv=min_move(response.get("bars"), ltp, 20))
                         m_bars[symbol] = response.get("bars")
                     if type(ltp) in (int, float):
                         for hz, hl in m_leans(response.get("bars")).items():
                             if hz != "20" and hl:
-                                out.setdefault("m_horizons", {}).setdefault(symbol, {})[hz] = dict(hl, ltp=float(ltp))
+                                out.setdefault("m_horizons", {}).setdefault(symbol, {})[hz] = dict(hl, ltp=float(ltp), mv=min_move(response.get("bars"), ltp, int(hz)))
                 out["symbols"][symbol][frame] = evaluate(symbol, frame, response, quotes.get(symbol), now)
             except urllib.error.HTTPError as exc:
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": "HTTP %s" % exc.code}
@@ -302,8 +302,14 @@ def cycle(key, now, minute_index, previous):
         try:
             fl = (out.get("fut_lean") or {}).get(symbol) or {}
             fbias = ("BULLISH" if fl.get("bullish", 50) >= 55 else "BEARISH" if fl.get("bullish", 50) <= 45 else None)
-            biases = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()] + ([fbias] if fbias else [])
-            ctx = m_context(lean, m_bars.get(symbol), biases, now, (out.get("oi_lean") or {}).get(symbol))
+            frame_b = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()
+                       if (r or {}).get("bias") in ("BULLISH", "BEARISH")]
+            # B252: 1m/3m/5m frames share one candle source -> ONE independent technical vote (majority)
+            tech_b = ("BULLISH" if frame_b.count("BULLISH") > frame_b.count("BEARISH") else
+                      "BEARISH" if frame_b.count("BEARISH") > frame_b.count("BULLISH") else None)
+            biases = [b for b in (tech_b, fbias) if b]
+            ctx = m_context(lean, m_bars.get(symbol), biases, now, (out.get("oi_lean") or {}).get(symbol),
+                            prev_close(key, symbol, today))
             if ctx:
                 lean["context"] = ctx
         except Exception:
@@ -340,6 +346,29 @@ def append_journal(events, path=None):
     atomic_write(path, "\n".join(lines[-JOURNAL_KEEP:]) + "\n")
 
 
+PREV_CLOSE = {}   # (symbol, today) -> previous session close; best-effort, fetched once per day
+
+
+def prev_close(key, symbol, today):
+    ck = (symbol, today)
+    if ck in PREV_CLOSE:
+        return PREV_CLOSE[ck]
+    val = None
+    try:
+        from datetime import date, timedelta as _td
+        d0 = date.fromisoformat(today)
+        resp = with_integrity(post("/clone-v2/market/candles", {
+            "symbol": symbol, "interval": 1, "from_date": (d0 - _td(days=6)).isoformat(),
+            "to_date": (d0 - _td(days=1)).isoformat()}, key))
+        for b in reversed(resp.get("bars") or []):
+            if type(b[4]) in (int, float) and b[4] > 0:
+                val = float(b[4]); break
+    except Exception:
+        val = None
+    PREV_CLOSE[ck] = val
+    return val
+
+
 def ledger_step(ledger, out, now):
     """Pure: record M predictions every 5 min, score them after 20 min. Mutates and returns ledger."""
     ledger.setdefault("pending", []); ledger.setdefault("stats", {}); ledger.setdefault("last_t", {})
@@ -347,7 +376,8 @@ def ledger_step(ledger, out, now):
         return ledger
     for symbol, lean in (out.get("m_lean") or {}).items():
         if now - ledger["last_t"].get(symbol, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
-            row_ = {"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"]}
+            row_ = {"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"],
+                    "mv": lean.get("mv", 0.0), "s": lean.get("strength", 0.0)}
             ctx_ = lean.get("context") or {}
             if ctx_:
                 row_["w"] = ctx_.get("window"); row_["c"] = "%d/%d" % (ctx_.get("agree", 0), ctx_.get("total", 0))
@@ -358,7 +388,8 @@ def ledger_step(ledger, out, now):
             key = symbol + "@" + hz
             if now - ledger["last_t"].get(key, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
                 ledger["pending"].append({"t": int(now), "symbol": symbol, "lean": lean["lean"],
-                                          "entry": lean["ltp"], "h": int(hz)})
+                                          "entry": lean["ltp"], "h": int(hz), "mv": lean.get("mv", 0.0),
+                                          "s": lean.get("strength", 0.0), "w": window_of(now)})
                 ledger["last_t"][key] = int(now)
     keep = []
     for row in ledger["pending"]:
@@ -366,17 +397,25 @@ def ledger_step(ledger, out, now):
         if now - row["t"] < hz * 60:
             keep.append(row); continue
         price = ((out.get("m_lean") or {}).get(row["symbol"]) or {}).get("ltp")
-        hit = resolve_prediction(row["entry"], row["lean"], price) if price is not None else None
+        hit = resolve_prediction(row["entry"], row["lean"], price, row.get("mv", 0.0)) if price is not None else None
         if hit is None:
-            continue  # neutral / flat / no price: not scored
+            ledger["flat"] = ledger.get("flat", 0) + 1   # neutral / noise-sized / no price: counted, not scored
+            continue
         skey = row["symbol"] if "h" not in row else row["symbol"] + "@" + str(row["h"])
-        st = ledger["stats"].setdefault(skey, {"n": 0, "hits": 0})
+        st = ledger["stats"].setdefault(skey, {"n": 0, "hits": 0, "up": 0})
         st["n"] += 1; st["hits"] += int(bool(hit))
+        went_up = (price > row["entry"])
+        st["up"] = st.get("up", 0) + int(went_up)   # B252 baseline: how often the market simply rose
+        hzv = row.get("h", LEDGER_HORIZON_S // 60)
+        gk_list = [("sb", "%s:%s" % (hzv, strength_band(row.get("s", 0))))]
         if "h" not in row:
-            for gk, gv in (("w", row.get("w")), ("c", row.get("c"))):
-                if gv:
-                    g = ledger.setdefault("groups", {}).setdefault(gk + ":" + str(gv), {"n": 0, "hits": 0})
-                    g["n"] += 1; g["hits"] += int(bool(hit))
+            gk_list += [("w", row.get("w")), ("c", row.get("c"))]
+        elif hzv == 30 and row.get("w"):
+            gk_list += [("w30", row.get("w"))]
+        for gk, gv in gk_list:
+            if gv:
+                g = ledger.setdefault("groups", {}).setdefault(gk + ":" + str(gv), {"n": 0, "hits": 0})
+                g["n"] += 1; g["hits"] += int(bool(hit))
     ledger["pending"] = keep[-400:]
     return ledger
 
@@ -385,34 +424,62 @@ VOTE_MIN_N = 30          # scored samples a box needs before it may vote
 VOTE_MIN_RATE = 55.0     # measured hit-rate (%) a box needs before it may vote
 
 
-def vote_gate(ledger, replay=None):
-    """Pure evidence gate per box: eligible only after enough scored samples AND a hit-rate above the bar.
+OVERLAP_30M = 6          # samples every 5 min on a 30-min horizon overlap; ~1/6 is independent evidence
 
-    M uses the 30-minute ledger rows plus replay (replay windows overlap, so its count is divided by 6).
-    O/N/F use the daily morning-lean ledgers. Eligibility is computed here; it never changes by itself
-    what the phone shows as LIVE until the phone-side vote wiring reads it.
+
+def _gate_row(n_eff, hits_eff, base=None):
+    rate = round(100 * hits_eff / n_eff, 1) if n_eff else None
+    low = wilson_low(hits_eff, n_eff) if n_eff else None
+    edge = round(rate - base, 1) if (rate is not None and base is not None) else None
+    ok = bool(n_eff >= VOTE_MIN_N and rate is not None and rate >= VOTE_MIN_RATE
+              and low is not None and low >= 50.0 and (edge is None or edge > 0))
+    return {"n": n_eff, "hit_rate": rate, "wilson_low": low, "baseline": base, "edge": edge,
+            "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE, "eligible": ok}
+
+
+def vote_gate(ledger, replay=None):
+    """Pure evidence gate per box (B252): enough INDEPENDENT scored samples, hit-rate above the bar,
+    the 90% lower confidence bound (Wilson) at or above 50%, and an edge over the market-drift baseline.
+
+    M: 30-minute rows (overlap divided by 6, live and replay alike), pooled, plus per-symbol and per-window rows.
+    Baseline = share of the majority direction among scored moves (what always saying 'up' or 'down' would score).
+    O/N/F: daily morning-lean ledgers (one sample per day, no overlap, no baseline).
     """
     def agg(stats, match=None):
-        n = hits = 0
+        n = hits = up = 0
         for k, v in (stats or {}).items():
             if match is None or match(k):
-                n += int(v.get("n", 0)); hits += int(v.get("hits", 0))
-        return n, hits
-    boxes = {}
-    n, hits = agg(ledger.get("stats"), lambda k: k.endswith("@30"))
+                n += int(v.get("n", 0)); hits += int(v.get("hits", 0)); up += int(v.get("up", 0))
+        return n, hits, up
+
+    out = {}
+    n, hits, up = agg(ledger.get("stats"), lambda k: k.endswith("@30"))
     rep = ((replay or {}).get("m_hit") or {}).get("30m") or {}
     if type(rep.get("n")) is int and type(rep.get("hit_rate")) in (int, float) and rep["n"] > 0:
-        rn_ = rep["n"] // 6
-        n += rn_; hits += round(rn_ * rep["hit_rate"] / 100)
-    boxes["M"] = (n, hits)
-    boxes["O"] = agg(ledger.get("oi_stats"))
-    boxes["N"] = agg(ledger.get("news_stats"))
-    boxes["F"] = agg(ledger.get("fut_stats"))
-    out = {}
-    for box, (n, hits) in boxes.items():
-        rate = round(100 * hits / n, 1) if n else None
-        out[box] = {"n": n, "hit_rate": rate, "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE,
-                    "eligible": bool(n >= VOTE_MIN_N and rate is not None and rate >= VOTE_MIN_RATE)}
+        n += rep["n"]; hits += round(rep["n"] * rep["hit_rate"] / 100)
+        if type(rep.get("up_rate")) in (int, float):
+            up += round(rep["n"] * rep["up_rate"] / 100)
+        else:
+            up += rep["n"] // 2   # drift unknown: assume 50/50
+    n_eff, h_eff, u_eff = n // OVERLAP_30M, round(hits / OVERLAP_30M), round(up / OVERLAP_30M)
+    base = round(100 * max(u_eff, n_eff - u_eff) / n_eff, 1) if n_eff else None
+    out["M"] = _gate_row(n_eff, h_eff, base)
+    by_sym = {}
+    for k, v in (ledger.get("stats") or {}).items():
+        if k.endswith("@30"):
+            sn, sh, su = int(v.get("n", 0)) // OVERLAP_30M, round(int(v.get("hits", 0)) / OVERLAP_30M), round(int(v.get("up", 0)) / OVERLAP_30M)
+            sb = round(100 * max(su, sn - su) / sn, 1) if sn else None
+            by_sym[k[:-3]] = _gate_row(sn, sh, sb)
+    out["M_symbols"] = by_sym
+    by_win = {}
+    for k, v in (ledger.get("groups") or {}).items():
+        if k.startswith("w30:"):
+            wn, wh = int(v.get("n", 0)) // OVERLAP_30M, round(int(v.get("hits", 0)) / OVERLAP_30M)
+            by_win[k[4:]] = _gate_row(wn, wh, None)
+    out["M_windows"] = by_win
+    for box, field in (("O", "oi_stats"), ("N", "news_stats"), ("F", "fut_stats")):
+        n, hits, _ = agg(ledger.get(field))
+        out[box] = _gate_row(n, hits, None)
     return out
 
 

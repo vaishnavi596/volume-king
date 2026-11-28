@@ -3515,3 +3515,18 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Unverified against live Dhan: the FUTIDX candle call. Failure is harmless (route returns 502, F stays WAIT). Check Doctor fut_lean on Monday.
 - Options page: BUY last, old dummy paper centre removed; compact chain (K/L/Cr); Settings filters as compact tiles.
 - J61 addendum (owner: "वोट कराना ही होगा"): evidence gate vote_gate in the server runner (box eligible only with >=30 scored samples AND >=55% hit-rate; M also uses replay with overlap discount /6). F now votes via basis ledger_gated_lean (five_engine.FUTURES_DIRECTION_BASES, 290 s freshness) only while its gate is eligible; O already votes (measured_oi_change). N and M vote wiring deliberately deferred until their gates show real numbers.
+
+## J62 — B252 build (28 Nov 2026): six-box depth
+- Owner asked for a deep audit of the 6 boxes and a stronger base for the 30/60-minute direction. Done (server runner + replay + phone):
+  1. Noise threshold: a move smaller than min_move (max of 0.08% of price x sqrt(h/30), 0.5 x mean 1m range x sqrt(h)) is NOT scored (counted as "flat").
+  2. Market-drift baseline: ledger stats keep "up"; baseline = majority-direction share; gate needs edge > 0 over "always up/down".
+  3. Gate uses the 90% Wilson lower bound >= 50%, plus hit-rate >= 55% and >= 30 INDEPENDENT samples (30m rows /6 overlap, live and replay).
+  4. Gate split per symbol (M_symbols) and per time window (M_windows); pooled M row kept.
+  5. Independence: the 1m/3m/5m frames of one symbol are ONE technical source in M confluence (ENGINES needs 2 independent sources); five_engine.independent_agreement() counts technical+candle as one (diagnostic only; combine_evidence unchanged).
+  6. M returns nothing when horizon runs past the 15:30 close.
+  7. Opening-range break (first 15 min) and previous-close checks added to M confluence; replay passes prev close.
+  8. Regime (efficiency ratio): TREND / MIXED / SIDEWAYS damp the lean; box shows "बग़ल-चाल" when sideways.
+  12. Calibration: ledger groups sb:<h>:<LOW|MID|HIGH> give the measured hit-rate per strength band.
+- Chart: Home mini-chart and Chart tab share overlay_dots(); Supertrend (scanner_engine.supertrend_series, same recurrence) and Pivot line added; per-symbol filters apply on both.
+- Not done (deferred on purpose): heavy-weight constituents engine, true futures build-up classification (needs OI in candles), VIX/gap input, measured-weight live vote (no measured rates for T/C yet), OI S/R/Max Pain chart lines, pinch zoom.
+- Server reinstall: rerun ops/install_server_away_20261127.sh at the B252 sha (or wait for the 02:15 IST updater).
