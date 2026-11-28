@@ -43,3 +43,18 @@ class Replay(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OptionsPageLayout(unittest.TestCase):
+    def test_buy_last_no_dummy(self):
+        src = open("src/main.py", encoding="utf-8").read()
+        a = src.index("    def options():")
+        body = src[a:src.index("    # One Paper/Live selector", a)]
+        self.assertNotIn("paper_trading_center()", body)
+        self.assertNotIn("option_paper_action('SELL')", body)
+        self.assertLess(body.index("Strategy Selector"), body.index("content.append(ticket_card())"))
+        self.assertTrue(body.rstrip().endswith("return content"))
+        self.assertTrue(body.index("content.append(ticket_card())") > body.index("server_paper_section(False)"))
+        t = src[src.index("    def ticket_card():"):src.index("    option_chart_cache={}")]
+        self.assertNotIn('sidebtn("SELL"', t)
+        self.assertGreater(t.index("ticket_place"), t.index("tk_result"))

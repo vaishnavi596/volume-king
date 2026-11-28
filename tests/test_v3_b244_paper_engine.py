@@ -101,7 +101,7 @@ class PhoneHeartbeatClientTests(unittest.TestCase):
 class B245AppWiringTests(unittest.TestCase):
     def test_server_paper_ui_is_paper_only_and_wired(self):
         src = (Path(__file__).resolve().parents[1] / "src" / "main.py").read_text()
-        for needle in ("def server_paper_section():", "async def paper_server_open(side):",
+        for needle in ("def server_paper_section(show_controls=True):", "async def paper_server_open(side):",
                        "async def paper_server_close(pos_id):", "server_paper_section(),",
                        "page.run_task(paper_heartbeat_poll)", "no real order"):
             self.assertIn(needle, src)

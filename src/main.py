@@ -4752,7 +4752,7 @@ def app_main(page:ft.Page):
         _ws=(paper_hb_cache.get("window_stats") or {}).get(_tw)
         _wtxt=_tm+" • आम अनुभव, आपके आँकड़े नहीं"+((" • आपके पेपर में यहाँ: "+str(_ws["n"])+" बंद, टारगेट "+str(_ws["target"])+", SL "+str(_ws["stop"])) if _ws else "")
         return section("ऑर्डर टिकट • PAPER (LIVE बंद)",ft.Column([
-            txt(head,15,GOLD,True),txt(_wtxt,12,{"good":GREEN,"warn":GOLD,"bad":RED}[_tl]),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
+            txt(head,15,GOLD,True),txt(_wtxt,12,{"good":GREEN,"warn":GOLD,"bad":RED}[_tl]),exp_chips,ft.Column([option_strike,option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
             ft.Column([
                 ft.Row([tk_lots,tk_unit],spacing=10),
                 ft.Row([tk_sl_price,tk_sl_pct],spacing=10),
@@ -4762,8 +4762,8 @@ def app_main(page:ft.Page):
                 ft.Row([tk_lv2_price,tk_lv2_lots],spacing=10),
                 ft.Row([tk_tga_price],spacing=10),ft.Row([tk_sla_price],spacing=10)],spacing=14,data="compact_group"),
             tk_result,tk_avg_lines,tk_srv_line,
-            ft.ElevatedButton("सर्वर PAPER "+side+" • बाज़ार खुले में",on_click=ticket_place),tk_note,
-            note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद")],spacing=8))
+            note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद • सिर्फ़ ख़रीदा हुआ CE/PE"),tk_note,
+            ft.ElevatedButton("सर्वर PAPER BUY • बाज़ार खुले में",on_click=ticket_place,bgcolor=GREEN,color=BG)],spacing=8))
     option_chart_cache={}
     option_chart_busy=[False]
     option_chart_feedback={}
@@ -5305,14 +5305,14 @@ def app_main(page:ft.Page):
                  note(option_feed_status[0]),
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), ft.Column([option_strike, option_side],horizontal_alignment=ft.CrossAxisAlignment.STRETCH), option_qty, ft.Row([ft.ElevatedButton('BUY • Paper', on_click=lambda e: option_paper_action('BUY'), bgcolor=GREEN, color=BG), ft.ElevatedButton('SELL • Paper', on_click=lambda e: option_paper_action('SELL'), bgcolor=RED, color=BG)], wrap=True), option_paper_note, option_chart_panel()])]))])
-        content.append(ticket_card())
-        content.append(paper_trading_center())
+        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), note('CE/PE भाव या स्ट्राइक पर टैप करें → ऑर्डर टिकट पेज के सबसे नीचे अपने-आप भर जाएगा'), txt('चुना: '+str(option_strike.value or '—')+' '+str(option_side.value)+((' • भाव ₹'+tk['prem']) if tk['prem'] else ''),13,GOLD,True), option_chart_panel()])]))])
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
         content.append(section('Strategy Selector', ft.Column([ft.Row([ft.ElevatedButton(n, on_click=lambda e, v=n: choose_strategy(v)) for n in ['Bull Call Spread', 'Bear Put Spread', 'Iron Condor']], wrap=True), note('Selected strategy: ' + (strategy_choice[0] or 'None')), note('Educational preview only; no orders are placed')])))
         content.extend([help_box("Options", "Every section below uses the selected symbol and expiry. CE/PE prices, OI and PCR require a verified broker feed; blank values are not zero.")])
+        content.append(server_paper_section(False))
+        content.append(ticket_card())
         return content
     # One Paper/Live selector on the shared Trading Center; the Live option
     # is a display-only locked preference with zero broker order callbacks.
@@ -11832,17 +11832,18 @@ console.log('BOT KING Lightweight Charts ready');
         srv_paper_status.value=("Server paper position closed" if res.get("ok")
             else "Server paper not closed: "+str(res.get("detail") or res.get("reason")))
         await paper_server_refresh();request_view_refresh(current[0])
-    def server_paper_section():
+    def server_paper_section(show_controls=True):
         rep=paper_hb_cache.get("report") or {}
         if not clone_v2_gateway.connected:
             return section("Server Paper • runs when phone is off",ft.Column([note("SSK/Oracle not connected • connect in Settings"),note("Live orders OFF • paper only")],spacing=6))
         ctr=[note(("Server engine OK • open "+str(rep.get("open_count"))+" • closed "+str(rep.get("closed_count"))+" • checked every 20 s in market hours")
                   if rep.get("reachable") else "Server engine not reachable yet ("+str(rep.get("reason","not checked"))+")"),
              note("Live orders OFF • paper only • stop-loss and target are checked by the server")]
-        ctr.append(srv_paper_status)
-        ctr.append(ft.Row([srv_paper_qty,srv_paper_sl,srv_paper_tg],wrap=True,spacing=8))
-        ctr.append(ft.Row([ft.ElevatedButton("Server BUY "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"BUY")),
-                           ft.ElevatedButton("Server SELL "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"SELL"))],wrap=True,spacing=8))
+        if show_controls:
+            ctr.append(srv_paper_status)
+            ctr.append(ft.Row([srv_paper_qty,srv_paper_sl,srv_paper_tg],wrap=True,spacing=8))
+            ctr.append(ft.Row([ft.ElevatedButton("Server BUY "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"BUY")),
+                               ft.ElevatedButton("Server SELL "+chain_symbol.value,on_click=lambda e:page.run_task(paper_server_open,"SELL"))],wrap=True,spacing=8))
         opens=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="OPEN"]
         closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-5:]
         for x in opens:

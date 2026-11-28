@@ -111,7 +111,9 @@ class JointSessionRepairTests(unittest.TestCase):
         self.assertIn('login_bootstrap.finish(provider_generation[0],"equities",found,total)',login)
 
     def test_no_live_orders_and_paper_center_retained(self):
-        self.assertIn("content.append(paper_trading_center())",SRC)
+        # B252-owner: the old phone-local dummy paper center is removed from the Options page; the function stays for other uses
+        self.assertIn("def paper_trading_center():",SRC)
+        self.assertNotIn("content.append(paper_trading_center())",SRC)
         self.assertIn('note("Paper Bot: "+paper_bot_state[0]',SRC)
         self.assertIn('paper_bot_state[0]="Running"',SRC)
         self.assertIn('if not manual_contract_confirmed.value:',SRC)
