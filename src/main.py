@@ -2760,6 +2760,7 @@ def app_main(page:ft.Page):
         return findings
     def doctor_news_ok(sym):
         try:
+            from v3_four_box_source_readiness import valid_news_context_count
             with news_lock:
                 nd=news_cache.get(sym) or {}
             if valid_news_context_count(nd,now=time.time()):return True

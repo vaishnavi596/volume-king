@@ -46,6 +46,10 @@ class DoctorPower(unittest.TestCase):
             self.assertIn(needle, SRC)
         self.assertNotIn("LIVE_ORDERS_ENABLED=True", SRC)
 
+    def test_news_check_imports_its_counter(self):
+        i = SRC.index("def doctor_news_ok(sym):")
+        self.assertIn("from v3_four_box_source_readiness import valid_news_context_count", SRC[i:i + 300])
+
     def test_scrub_removes_secrets(self):
         import re
         t = re.sub(r"[A-Za-z0-9_\-]{24,}", "", "area: KeyError abcdefghijklmnopqrstuvwxyz0123")
