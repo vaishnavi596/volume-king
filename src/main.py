@@ -7938,7 +7938,7 @@ def app_main(page:ft.Page):
                     data["server_replay"]={"code":"BK-DOC-REPLAY-001","at":_rp.get("at"),"days":_rp.get("days"),
                         "engine":_rp.get("engine"),"m_hit":_rp.get("m_hit"),"m_by_window_30m":_rp.get("m_by_window_30m"),
                         "engine_dir_20m":_rp.get("engine_dir_20m")}
-                    data["server_autoupdate"]={"code":"BK-DOC-AUTOUPD-001","last_run":_au.get("at"),
+                    data["server_autoupdate"]={"code":"BK-DOC-AUTOUPD-001","last_run":_au.get("at"),"code_applied_at":_au.get("applied_at"),
                         "sha":str(_au.get("sha") or "")[:7],"result":_au.get("result") or "NO_RUN_YET",
                         "live_orders":"OFF (constant)"}
                 except Exception as exc:

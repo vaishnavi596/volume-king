@@ -29,3 +29,22 @@ class Cleanup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Updater(unittest.TestCase):
+    def test_updater_checks_often_but_applies_only_when_market_closed(self):
+        u = open("ops/botking_autoupdate.sh", encoding="utf-8").read()
+        self.assertIn('MARKET=1', u); self.assertIn('NEW_CODE_WAITING_FOR_MARKET_CLOSE', u)
+        self.assertIn('"$HM" -ge 900', u); self.assertIn('"$HM" -lt 1545', u); self.assertIn('"$DOW" -le 5', u)
+        self.assertIn("flock -n 9", u)
+        self.assertIn("-mmin +1200", u)                                   # replay not re-run on every 30-min check
+        self.assertIn("^LIVE_ORDERS_ENABLED = False", u)                   # guard kept
+        self.assertNotIn("outside night window", u)
+
+    def test_installer_moves_timer_to_every_30_minutes(self):
+        i = open("ops/install_server_away_20261127.sh", encoding="utf-8").read()
+        self.assertIn("OnCalendar=*:0/30", i)
+        self.assertIn("systemctl restart botking-autoupdate.timer", i)
+
+    def test_doctor_shows_when_code_was_applied(self):
+        self.assertIn('"code_applied_at":_au.get("applied_at")', SRC)

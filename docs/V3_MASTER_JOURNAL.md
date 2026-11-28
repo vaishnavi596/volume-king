@@ -3547,3 +3547,7 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Empty boxes now say why: O "चेन नहीं मिली (शायद F&O नहीं)", F "अभी सिर्फ़ इंडेक्स पर" (labels still start with WAIT). Doctor gets box_coverage (fixable vs not_applicable per symbol) and its chart-overlay claims were corrected.
 - Gateway cuts signals-latest.json at 65536 bytes (invalid JSON would drop every server lean): runner now caps the file at 60000 bytes, dropping replay/autoupdate/ledger first and listing them in "trimmed".
 - Not done: Doctor automatic repair for N/F/O coverage (diagnosis only), VIX/gap, OI S/R lines, pinch-zoom, native background service.
+
+## J65 — updater every 30 minutes (28 Nov 2026, server only, no APK)
+- Owner: a once-a-night updater leaves the server 12-14 h behind a push. Timer is now every 30 min (installer rewrites the timer on the next run, no manual command). The script checks GitHub each time but APPLIES new code only while the market is closed (Mon-Fri before 09:00 or from 15:45 IST, all weekend); during market hours it writes NEW_CODE_WAITING_FOR_MARKET_CLOSE. flock prevents overlap; replay re-runs only when its file is >20 h old or right after an update; status file now carries applied_at (Doctor: server_autoupdate.code_applied_at after the next APK).
+- Guards unchanged: LIVE_ORDERS_ENABLED = False check, rollback copies, SERVER_AWAY_INSTALL_OK check.

@@ -25,6 +25,19 @@ grep -q 'both CE and PE' "$WORK/dhan_option_metrics.py" || { echo "BLOCKED: wron
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_replay.py" -o "$WORK/clone_replay.py"
 python3 -m py_compile "$WORK/clone_replay.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/ops/botking_autoupdate.sh" -o "$WORK/botking_autoupdate.sh" && bash -n "$WORK/botking_autoupdate.sh" && grep -q "^LIVE_ORDERS_ENABLED\|LIVE_ORDERS_ENABLED = False" "$WORK/botking_autoupdate.sh" && sudo install -m 755 "$WORK/botking_autoupdate.sh" /usr/local/bin/botking-autoupdate.sh || echo "NOTE: updater self-refresh skipped"
+# B254: check GitHub every 30 minutes (the updater itself decides: apply only while the market is closed)
+if systemctl cat botking-autoupdate.timer >/dev/null 2>&1; then
+  sudo tee /etc/systemd/system/botking-autoupdate.timer >/dev/null <<'TIMER_U'
+[Unit]
+Description=BOT KING updater timer (every 30 min)
+[Timer]
+OnCalendar=*:0/30
+Persistent=false
+[Install]
+WantedBy=timers.target
+TIMER_U
+  sudo systemctl daemon-reload && sudo systemctl restart botking-autoupdate.timer || echo "NOTE: timer refresh skipped"
+fi
 for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do
   curl -fsSL -m 40 --retry 3 "$BASE/$SRC/src/$f" -o "$WORK/$f"
 done
