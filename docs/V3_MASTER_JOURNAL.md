@@ -3588,3 +3588,10 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - F gate row comes from the replay when it has samples; the live ledger only fills it while the replay has none.
 - O: Dhan has an Expired Options Data API, but whether it carries OI and how far back is NOT confirmed — not wired. N: no trustworthy past headlines — both fill from live ledgers from Monday 30 Nov.
 - Replay timeouts raised (installer 600 s, auto-updater 900 s) for the extra fetches.
+
+## J71 — B260 build (28 Nov 2026): share F and N from the server
+- Owner (19:33): boxes F, N, O were empty for every share. Cause: the server only ever produced F/N leans for the three indices.
+- Server runner now rotates the 51 roster shares: 6 futures leans and 4 headline cues per cycle (price lean + OI build-up for F, Google News phrase cues for N); closed market uses the last session's candles. They join fut_lean/news_cue AFTER the ledger step so the index-only F/N gate numbers stay clean.
+- Futures contract list now includes roster-share futures (FUTSTK, nearest expiry); the gateway futures/candles route accepts roster underlyings. One forced contract-list refresh when the old file has indices only.
+- Phone: F label for shares says the server is filling it. Old app builds show the values automatically (they read fut_lean/news_cue by symbol).
+- Not done: O for shares on a fresh install still fills one chain at a time after the Watchlist HIST load (about 10-15 minutes).

@@ -24,7 +24,7 @@ class Cleanup(unittest.TestCase):
 
     def test_empty_boxes_keep_wait_prefix_and_say_why(self):
         self.assertIn('label="O WAIT • चेन नहीं मिली (शायद F&O नहीं)"', SRC)
-        self.assertIn('label="F WAIT • अभी सिर्फ़ इंडेक्स पर"', SRC)
+        self.assertIn('label="F WAIT • सर्वर शेयर-फ्यूचर्स बारी-बारी भर रहा है"', SRC)
 
 
 if __name__ == "__main__":

@@ -2354,7 +2354,7 @@ def app_main(page:ft.Page):
                 elif name=="futures" and prefs.get("market_display_mode")!="LIVE_ONLY":
                     _fl=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("fut_lean") or {}).get(sym) or {})
                     if type(_fl.get("bullish")) not in (int,float) and sym not in ("NIFTY","BANKNIFTY","SENSEX"):
-                        label="F WAIT • अभी सिर्फ़ इंडेक्स पर"
+                        label="F WAIT • सर्वर शेयर-फ्यूचर्स बारी-बारी भर रहा है"
                     elif type(_fl.get("bullish")) not in (int,float):
                         label="F WAIT • सर्वर फ्यूचर्स बाज़ार खुलने पर"  # B258
                     if type(_fl.get("bullish")) in (int,float):

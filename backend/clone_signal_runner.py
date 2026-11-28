@@ -54,6 +54,11 @@ FRAMES = (("1m", 1), ("5m", 5))
 OI_EXPIRY_CACHE = {}
 NEWS_STATE = {"at": 0.0, "cue": {}}
 NEWS_EVERY_S = 600
+# B260: the 51 roster shares (same list as the phone); their F and N leans are rotated through a few per cycle.
+STOCK_ROSTER = ('ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJAJFINSV', 'BAJFINANCE', 'BEL', 'BHARTIARTL', 'BPCL', 'BRITANNIA', 'CIPLA', 'COALINDIA', 'DIVISLAB', 'DRREDDY', 'EICHERMOT', 'GRASIM', 'HCLTECH', 'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HINDUNILVR', 'ICICIBANK', 'INDUSINDBK', 'INFY', 'ITC', 'JSWSTEEL', 'KOTAKBANK', 'LT', 'M&M', 'MARUTI', 'NESTLEIND', 'NTPC', 'ONGC', 'POWERGRID', 'RELIANCE', 'SBILIFE', 'SBIN', 'SHRIRAMFIN', 'SUNPHARMA', 'TATASTEEL', 'TCS', 'TECHM', 'TITAN', 'TMCV', 'TMPV', 'TRENT', 'ULTRACEMCO', 'WIPRO')
+STOCK_STATE = {"fut": {}, "news": {}, "cursor": 0}
+STOCK_FUT_PER_CYCLE = 6
+STOCK_NEWS_PER_CYCLE = 4
 
 
 def post(path, body, key, timeout=25):
@@ -327,7 +332,7 @@ def cycle(key, now, minute_index, previous):
             except Exception as exc:  # keep the loop alive; never print payloads
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": type(exc).__name__}
     try:
-        carried_f = (previous or {}).get("fut_lean") or {}
+        carried_f = {k: v for k, v in ((previous or {}).get("fut_lean") or {}).items() if k in SYMBOLS}   # B260: share leans are merged later
         if minute_index % 5 == 0 or not carried_f:
             futures = (json.loads(FUTURES_FILE.read_text(encoding="utf-8")).get("futures")
                        if FUTURES_FILE.exists() else {}) or {}
@@ -666,10 +671,11 @@ def parse_option_contracts(lines, today_iso, keep_expiries=3):
 
 
 def parse_future_contracts(lines, today_iso):
-    """Pure: scrip-master lines -> {"NIFTY": ["NSE_FNO", security_id, lot, "2026-12-30"]} nearest index future."""
+    """Pure: scrip-master lines -> {"NIFTY": ["NSE_FNO", security_id, lot, "2026-12-30"]} nearest index future (B260: and roster-share futures)."""
     best = {}
     for row in csv.DictReader(lines):
-        if row.get("SEM_INSTRUMENT_NAME") != "FUTIDX":
+        kind = row.get("SEM_INSTRUMENT_NAME")
+        if kind not in ("FUTIDX", "FUTSTK"):
             continue
         name = str(row.get("SEM_TRADING_SYMBOL", "")).split("-")[0].strip().upper()
         exch = str(row.get("SEM_EXM_EXCH_ID", "")).strip().upper()
@@ -679,7 +685,8 @@ def parse_future_contracts(lines, today_iso):
             lot = int(float(row.get("SEM_LOT_UNITS")))
         except (TypeError, ValueError):
             continue
-        if (name not in CONTRACT_UNDERLYINGS or exch not in ("NSE", "BSE") or len(expiry) != 10
+        allowed = name in CONTRACT_UNDERLYINGS if kind == "FUTIDX" else (name in STOCK_ROSTER and exch == "NSE")
+        if (not allowed or exch not in ("NSE", "BSE") or len(expiry) != 10
                 or expiry < today_iso or lot <= 0):
             continue
         if name not in best or expiry < best[name][3]:
@@ -705,8 +712,13 @@ def load_lot_sizes(now):
         cached = {}
     if not isinstance(cached, dict):
         cached = {}
+    try:   # B260: an older futures file has indices only; force one refresh so the share futures appear
+        has_stock_fut = any(k in (json.loads(FUTURES_FILE.read_text(encoding="utf-8")).get("futures") or {})
+                            for k in STOCK_ROSTER) if FUTURES_FILE.exists() else False
+    except (OSError, ValueError):
+        has_stock_fut = False
     if (now - float(cached.get("fetched", 0) or 0) < LOT_REFRESH_S and cached.get("lots")
-            and CONTRACT_FILE.exists()):
+            and CONTRACT_FILE.exists() and has_stock_fut):
         return cached["lots"]
     try:
         with urllib.request.urlopen(MASTER_URL, timeout=180) as resp:
@@ -733,6 +745,67 @@ def load_lot_sizes(now):
     except Exception:
         pass
     return cached.get("lots") or {}
+
+
+def stock_refresh(key, now, today_iso):
+    """B260: rotate through the roster shares: a few futures leans and a few headline cues per cycle (display + ledger
+    context only, never a vote). Leans come from the last session's candles when the market is closed."""
+    try:
+        futures = (json.loads(FUTURES_FILE.read_text(encoding="utf-8")).get("futures")
+                   if FUTURES_FILE.exists() else {}) or {}
+    except (OSError, ValueError):
+        futures = {}
+    names = [n for n in STOCK_ROSTER if n in futures]
+    start = STOCK_STATE["cursor"]
+    picked = [names[(start + k) % len(names)] for k in range(min(STOCK_FUT_PER_CYCLE, len(names)))] if names else []
+    lo = (datetime.fromtimestamp(now, IST).date() - timedelta(days=4)).isoformat()
+    for name in picked:
+        try:
+            resp = post("/clone-v2/market/futures/candles", {"underlying": name, "interval": 1,
+                                                            "from_date": lo, "to_date": today_iso}, key)
+            bars = resp.get("bars") or []
+            last_day = datetime.fromtimestamp(bars[-1][0], IST).date().isoformat() if bars else None
+            idx = [k for k, b in enumerate(bars) if datetime.fromtimestamp(b[0], IST).date().isoformat() == last_day]
+            day_bars = [bars[k] for k in idx]
+            oi_all = resp.get("oi")
+            day_oi = [oi_all[k] for k in idx] if isinstance(oi_all, list) and len(oi_all) == len(bars) else None
+            lean = m_lean(day_bars, 30)
+            if not lean:
+                continue
+            row = {"expiry": futures[name][3], "bullish": lean["bullish"], "bearish": lean["bearish"],
+                   "lean": lean["lean"], "strength": lean["strength"], "t": int(now), "day": last_day}
+            bu = futures_buildup(day_bars, day_oi) if futures_buildup and day_oi else None
+            if bu:
+                row["buildup"] = bu["state"]; row["oi_change_pct"] = bu["oi_change_pct"]
+                sign = 1 if bu["direction"] == "BULLISH" else -1
+                tilt = row["bullish"] - 50
+                if tilt != 0 and (tilt > 0) == (sign == 1):
+                    row["bullish"] = max(0, min(100, round(50 + tilt * (1 + 0.25 * bu["weight"]))))
+                elif tilt != 0:
+                    row["bullish"] = round(50 + tilt / 2)
+                row["bearish"] = 100 - row["bullish"]
+            STOCK_STATE["fut"][name] = row
+        except Exception:
+            continue   # one share failing never stops the rotation
+    STOCK_STATE["cursor"] = (start + STOCK_FUT_PER_CYCLE) % max(1, len(names) or 1)
+    if v3_news_cue is not None:
+        opener = urllib.request.build_opener()
+        base = int(now // 60) * STOCK_NEWS_PER_CYCLE
+        for k in range(STOCK_NEWS_PER_CYCLE):
+            name = STOCK_ROSTER[(base + k) % len(STOCK_ROSTER)]
+            try:
+                url = "https://news.google.com/rss/search?" + urllib.parse.urlencode(
+                    {"q": name + " share India when:1d", "hl": "en-IN", "gl": "IN", "ceid": "IN:en"})
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 BOT KING personal headline reader"})
+                with opener.open(req, timeout=8) as resp:
+                    raw = resp.read(262_145)
+                if len(raw) > 262_144:
+                    continue
+                row = v3_news_cue.headline_signal(v3_news_cue.parse_news_rss(raw, "Google News RSS", now))
+                row["t"] = int(now)
+                STOCK_STATE["news"][name] = row
+            except Exception:
+                continue
 
 
 def main():
@@ -783,6 +856,14 @@ def main():
                     out["replay"] = json.loads(rp.read_text(encoding="utf-8"))
             except Exception:
                 pass  # replay summary is informational only
+            try:   # B260: share F/N leans join the output AFTER the ledger step so the index-only ledger stays clean
+                stock_refresh(key, now, datetime.fromtimestamp(now, IST).date().isoformat())
+                for field, state_key in (("fut_lean", "fut"), ("news_cue", "news")):
+                    merged = dict(STOCK_STATE[state_key]); merged.update(out.get(field) or {})
+                    if merged:
+                        out[field] = merged
+            except Exception:
+                pass  # share leans are best-effort
             atomic_write(OUT_FILE, cap_signal_size(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))

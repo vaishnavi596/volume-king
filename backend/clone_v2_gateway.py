@@ -979,7 +979,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     def market_futures_candles(body: MarketFuturesCandles,
                                x_botking_key: Optional[str] = Header(default=None)):
         authorized(x_botking_key)
-        if (body.underlying not in ("NIFTY", "BANKNIFTY", "SENSEX") or body.interval not in (1, 5)
+        if (not re.fullmatch(r"[A-Z0-9&-]{1,20}", body.underlying) or body.interval not in (1, 5)   # B260: roster shares too; the contract list decides
                 or body.from_date > body.to_date or (body.to_date - body.from_date).days > 5
                 or body.to_date > datetime.now(timezone(timedelta(hours=5, minutes=30))).date()):
             raise HTTPException(422, "Invalid futures candle selection")
@@ -987,7 +987,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         if contract is None:
             raise HTTPException(422, "Futures contract not in server list yet")
         args = {"securityId": str(contract["sid"]), "exchangeSegment": contract["seg"],
-                "instrument": "FUTIDX", "interval": str(body.interval),
+                "instrument": "FUTIDX" if body.underlying in ("NIFTY", "BANKNIFTY", "SENSEX") else "FUTSTK",
+                "interval": str(body.interval),
                 "fromDate": body.from_date.isoformat() + " 09:15:00",
                 "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
         try:
