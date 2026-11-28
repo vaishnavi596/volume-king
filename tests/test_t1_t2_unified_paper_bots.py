@@ -43,10 +43,11 @@ class PaperTradingCenterUITests(unittest.TestCase):
             for child in control._get_children():
                 yield from captions(child)
         text=" ".join(piece for control in controls for piece in captions(control))
-        self.assertIn("TRADING CENTER",text)
-        self.assertIn("LIVE TRADING",text)
-        self.assertIn("PAPER BOT",text)
+        # B252 layout (owner): the old dummy paper centre is gone from Options; BUY is the last, only order action
+        self.assertNotIn("TRADING CENTER",text)
+        self.assertNotIn("PAPER BOT",text)
         self.assertIn("BUY",text)
+        self.assertNotIn("LIVE TRADING ON",text.upper())
 
     def test_independent_bot_switch_and_restore(self):
         page,v=start({"scanner_live":False,"source":"Dhan","last_page":1})

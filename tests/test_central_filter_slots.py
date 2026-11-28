@@ -15,7 +15,7 @@ class CentralFilterSlotsTests(unittest.TestCase):
         self.assertEqual(len(v["filter_selected"]),11)
         page=v["central_filter_settings"]()
         self.assertIsNotNone(page)
-        self.assertEqual(len(v["filter_checklist"].controls),11)
+        self.assertEqual(len(v["filter_checklist"].controls[0].controls),11)   # compact tiles inside one wrapping Row
         self.assertIn("OI Support",[opt.key for opt in v["filter_choice"].options])
         for name in ("OI Support","OI Resistance","Dhan Max Pain"):
             v["add_filter_slot"](name)

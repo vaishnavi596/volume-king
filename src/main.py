@@ -4876,7 +4876,8 @@ def app_main(page:ft.Page):
         # The Dhan gateway currently supplies option-chain snapshots, not
         # strike-specific historical CE/PE candles.
         return section("Option Chart",ft.Column([
-            txt("Dhan CE/PE premium history • not available from the read-only gateway • no simulated chart; Dhan data only • चेन अपने-आप रिफ्रेश होती है",10,MUTED),
+            note('Dhan-only read-only charts/scanner and option metrics. Live orders OFF.'),
+            txt("Dhan CE/PE premium history • not available from the read-only gateway • Historical option candles unavailable • no simulated chart; Dhan data only. • चेन अपने-आप रिफ्रेश होती है",10,MUTED),
             txt(option_feed_status[0],10,MUTED)
         ],spacing=3))
     def quote_caption(sym):
@@ -5399,7 +5400,7 @@ def app_main(page:ft.Page):
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
-                 txt("Auto refresh • Dhan • "+str(option_feed_status[0]),10,MUTED),
+                 txt("Auto refresh • Dhan broker-listed expiry and option metrics • "+str(option_feed_status[0]),10,MUTED),
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
                  txt("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"),11,MUTED)]
         content.extend([section('Option Chain', ft.Column([ft.Column([option_chain_preview(), txt('CE/PE भाव या स्ट्राइक पर टैप → ऑर्डर टिकट (पेज के सबसे नीचे) भर जाएगा',10,GOLD), txt('चुना: '+str(option_strike.value or '—')+' '+str(option_side.value)+((' • भाव ₹'+tk['prem']) if tk['prem'] else ''),13,GOLD,True), option_chart_panel()])]))])
