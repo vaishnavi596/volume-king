@@ -92,3 +92,11 @@ class ClosedMarketO(unittest.TestCase):
             r.oi_snapshot = orig
         src = open("src/main.py", encoding="utf-8").read()
         self.assertIn('if heavy_busy and sym not in ("NIFTY","BANKNIFTY","SENSEX"):', src)
+
+
+class FirstLoad(unittest.TestCase):
+    def test_closed_login_primes_history_and_doctors_show_server_overview(self):
+        src = open("src/main.py", encoding="utf-8").read()
+        self.assertIn('elif prefs.get("auto_prime_hist",True) and not watch_batch_busy[0]:', src)
+        self.assertIn('"server_overview":doctor_server_overview()', src)
+        self.assertIn('data["server_overview"]=doctor_server_overview()', src)

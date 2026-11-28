@@ -3568,3 +3568,10 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Signing: workflows use the persistent owner key if repo secrets BOTKING_SIGN_KEYSTORE_B64 and BOTKING_SIGN_KEY_PASSWORD exist; otherwise a disposable signer (then an update does NOT install over the previous build). Secrets NOT yet created (needs the owner's go-ahead).
 - Doctor N repair check fixed (missing import made the retest always fail).
 - Not done: recovery code, Android Keystore storage, signature check on server, Watchlist engine on 1m, "last update" labels per box.
+
+## J68 — B257 build (28 Nov 2026): O box and first-load fixes
+- Owner report: O box filled for the three indices only after selecting each in the Scanner turn by turn. Cause: the roster option-chain poll waited for the long Watchlist HIST/warm-up flags. Now NIFTY/BANKNIFTY/SENSEX chains do not wait for them (shares still do).
+- Server runner now refreshes the three index option-chain OI leans every 30 min while the market is closed (carried between), so O is filled from measured data, not empty.
+- First load: a fresh login while closed now starts the Watchlist HIST load by itself (it used to wait until the Watchlist tab was opened).
+- Every Doctor (Master too) now carries server_overview (server file age, box_base, autoupdate, replay, which leans exist, vote gate with weights/horizons) so one report is enough.
+- Not done: bulk server history cache for first load (needs a design + screenshots), Watchlist engine on 1m, O oi_change_hist 0/100 check on live chain.

@@ -2851,6 +2851,25 @@ def app_main(page:ft.Page):
             doctor_research.append({"error":sig,"suggestions":titles,"applied":False,
                 "note":"सुझाव मात्र — ऐप ख़ुद लागू नहीं करता; अगली बिल्ड में जाँचकर डाला जाएगा"})
             del doctor_research[:-10]
+    def doctor_server_overview():
+        """B256: server-side box facts inside EVERY Doctor (Master too), so one report is enough."""
+        try:
+            srv=((paper_hb_cache.get("signals") or {}).get("latest") or {})
+            if not srv:
+                return {"code":"BK-DOC-SRVOVR-001","state":"NO_SERVER_SIGNAL_FILE_RECEIVED_YET"}
+            gate=srv.get("vote_gate") or {}
+            au=srv.get("autoupdate") or {}
+            rp=srv.get("replay") or {}
+            return {"code":"BK-DOC-SRVOVR-001","generated_utc":srv.get("generated_utc"),"market_open":srv.get("market_open"),
+                "box_base":srv.get("box_base") or "NOT_REPORTED (old server code)",
+                "autoupdate":{"last_run":au.get("at"),"applied_at":au.get("applied_at"),"sha":str(au.get("sha") or "")[:7],"result":au.get("result")},
+                "replay":{"at":rp.get("at"),"days":len(rp.get("days") or []),"next_day_symbols":sorted((rp.get("next_day") or {}).keys())},
+                "leans_present":{k:sorted((srv.get(k) or {}).keys()) for k in ("oi_lean","fut_lean","heavy_lean","news_cue","m_lean")},
+                "vote_gate":{k:{"eligible":v.get("eligible"),"n":v.get("n"),"hit":v.get("hit_rate"),"weight":v.get("weight"),"horizon":v.get("horizon")}
+                             for k,v in gate.items() if isinstance(v,dict) and "eligible" in v}}
+        except Exception as exc:
+            log_error("doctor_server_overview",exc)
+            return {"code":"BK-DOC-SRVOVR-001","state":"OVERVIEW_ERROR"}
     def doctor_extra_report():
         events=doctor_repair_ledger.report().get("events") or []
         return {"code":"BK-DOC-SUMMARY-001",
@@ -5837,6 +5856,15 @@ def app_main(page:ft.Page):
                 building_doctor.milestone("gateway_authorized_closed_session")
                 if watch_closed_hist_resume_pending[0] or watch_closed_hist_loading[0]:
                     page.run_task(resume_interrupted_closed_watch_history,True)
+                elif prefs.get("auto_prime_hist",True) and not watch_batch_busy[0]:
+                    # B256: a fresh login while closed starts the Watchlist HIST load by itself
+                    # (before, it waited until the owner opened the Watchlist tab).
+                    watch_closed_hist_resume_pending[0]=True
+                    watch_closed_hist_resume_scope[0]=(provider_generation[0],active_watch[0],(search.value or "").upper(),
+                        tuple(sym for sym in watch_groups[active_watch[0]]
+                              if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                              and (not search.value or search.value.upper() in sym)))
+                    page.run_task(resume_interrupted_closed_watch_history,True)
                 return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
@@ -7919,7 +7947,7 @@ def app_main(page:ft.Page):
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
-                    "doctor_safe_repairs":doctor_repair_ledger.report(),"doctor_summary":doctor_extra_report(),
+                    "doctor_safe_repairs":doctor_repair_ledger.report(),"doctor_summary":doctor_extra_report(),"server_overview":doctor_server_overview(),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
                     "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0},
@@ -8031,7 +8059,7 @@ def app_main(page:ft.Page):
                 registry=registry_report()
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
-                data["doctor_safe_repairs"]=doctor_repair_ledger.report();data["doctor_summary"]=doctor_extra_report()
+                data["doctor_safe_repairs"]=doctor_repair_ledger.report();data["doctor_summary"]=doctor_extra_report();data["server_overview"]=doctor_server_overview()
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
                 data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0}
