@@ -78,7 +78,7 @@ sleep 5
 if test "$(systemctl is-active "$SERVICE")" = active && curl -fsS -m 8 -o /dev/null http://127.0.0.1:8002/clone-v2/health; then
   echo "SERVER_AWAY_INSTALL_OK gateway=$(systemctl is-active "$SERVICE") runner=$(systemctl is-active "$RUNNER")"
   if [ "$(TZ=Asia/Kolkata date +%H)" -ge 16 ] || [ "$(TZ=Asia/Kolkata date +%u)" -ge 6 ] || [ "$(TZ=Asia/Kolkata date +%H)" -lt 9 ]; then
-    (cd "$SIG" && timeout 150 python3.9 clone_replay.py 2>&1 | tail -2) || echo "REPLAY_SKIPPED"
+    (cd "$SIG" && timeout 300 python3.9 clone_replay.py 2>&1 | tail -2) || echo "REPLAY_SKIPPED"
   fi
 else
   echo "FAILED: rolling back gateway"

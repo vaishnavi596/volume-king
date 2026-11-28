@@ -2690,7 +2690,7 @@ def app_main(page:ft.Page):
         return ft.Column(index_cards,spacing=5)
 
     # ---- J5: bounded, allowlisted on-phone self-repair (no tokens/orders/settings) ----
-    from v3_doctor_repairs import StuckFlagWatch, RepairLedger
+    from v3_doctor_repairs import StuckFlagWatch, RepairLedger, MAJOR_ACTIONS
     doctor_stuck_watch=StuckFlagWatch()
     doctor_repair_ledger=RepairLedger()
     doctor_repair_busy=[False]
@@ -2750,7 +2750,23 @@ def app_main(page:ft.Page):
             if stamps and time.monotonic()-max(stamps)>150:
                 findings.append({"id":"BK-DOC-WATCH-STALL","action":"restart_stalled_watchlist","target":"watchlist",
                     "preview":"Watchlist 150 सेकंड से आगे नहीं बढ़ी — ताज़ा करना दोबारा चलेगा"})
+        # B255: N box coverage (public RSS only; never needs Dhan quotes)
+        if (prefs.get("source")=="Dhan" and (dhan_feed.connected or clone_v2_gateway.connected)
+                and app_active[0] and not lifecycle_background[0]
+                and time.monotonic()-news_bootstrap_time[0]>300):
+            if not doctor_news_ok("NIFTY"):
+                findings.append({"id":"BK-DOC-NEWS-EMPTY","action":"refresh_news_boxes","target":"NIFTY",
+                    "preview":"N बॉक्स (ख़बर) खाली है — ख़बरें दोबारा लाई जाएँगी (सिर्फ़ सार्वजनिक RSS)"})
         return findings
+    def doctor_news_ok(sym):
+        try:
+            with news_lock:
+                nd=news_cache.get(sym) or {}
+            if valid_news_context_count(nd,now=time.time()):return True
+            srv=(((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("news_cue") or {}).get(sym) or {}
+            return type(srv.get("bullish")) in (int,float)
+        except Exception:
+            return False
     def doctor_retest(plan):
         action,target=plan["action"],plan["target"]
         if action=="release_busy_flag":
@@ -2767,6 +2783,8 @@ def app_main(page:ft.Page):
             gen=provider_generation[0]
             stamps=[v for (g,_s),v in watch_three_minute_warm_attempts.items() if g==gen]
             return bool(stamps) and time.monotonic()-max(stamps)<=150
+        if action=="refresh_news_boxes":
+            return doctor_news_ok(target)
         return False
     async def doctor_run_action(plan):
         action,target=plan["action"],plan["target"]
@@ -2787,6 +2805,53 @@ def app_main(page:ft.Page):
             await roster_load_option_chain(target)
         elif action=="restart_stalled_watchlist":
             await refresh_all_dhan_quotes()
+        elif action=="refresh_news_boxes":
+            news_bootstrap_time[0]=0.0
+            await refresh_superfive_news()
+    # B255: approval mode + error research + 3-class report
+    doctor_pending={}
+    doctor_research=[]
+    doctor_researched=set()
+    def doctor_scrub(text):
+        import re as _re
+        t=_re.sub(r"https?://\S+","",str(text))
+        t=_re.sub(r"[A-Za-z0-9_\-]{24,}","",t)
+        t=_re.sub(r"\d{4,}","",t)
+        return " ".join(t.split())[:80]
+    def doctor_search_titles(query):
+        import urllib.request as _ur,urllib.parse as _up,re as _re,html as _html
+        req=_ur.Request("https://html.duckduckgo.com/html/?q="+_up.quote(query),headers={"User-Agent":"Mozilla/5.0"})
+        with _ur.urlopen(req,timeout=8) as r:
+            raw=r.read(200000).decode("utf-8","ignore")
+        titles=[_html.unescape(_re.sub(r"<[^>]+>","",m)).strip() for m in _re.findall(r'class="result__a"[^>]*>(.*?)</a>',raw,_re.S)]
+        return [t for t in titles if t][:3]
+    async def doctor_research_errors():
+        """Unknown recorded errors -> public web search of the scrubbed error TYPE only. Suggestions are
+        shown in the report; the app never downloads or runs code from the web."""
+        done=0
+        for entry in list(diagnostics)[-10:]:
+            area_exc=entry.split(" IST ",1)[-1]
+            sig=doctor_scrub(area_exc.split("[",1)[0])
+            if not sig or sig in doctor_researched or done>=2:continue
+            doctor_researched.add(sig);done+=1
+            exc_name=sig.split(":",1)[-1].strip()
+            try:
+                titles=await asyncio.to_thread(doctor_search_titles,"python flet android "+exc_name+" fix")
+            except Exception as exc:
+                titles=[];log_error("doctor_research",exc)
+            doctor_research.append({"error":sig,"suggestions":titles,"applied":False,
+                "note":"सुझाव मात्र — ऐप ख़ुद लागू नहीं करता; अगली बिल्ड में जाँचकर डाला जाएगा"})
+            del doctor_research[:-10]
+    def doctor_extra_report():
+        events=doctor_repair_ledger.report().get("events") or []
+        return {"code":"BK-DOC-SUMMARY-001",
+            "fixed":[e for e in events if e.get("result")=="RETEST_OK"][-8:],
+            "not_fixed":[e for e in events if e.get("result")!="RETEST_OK"][-8:],
+            "waiting_for_owner_approval":[dict(v) for v in doctor_pending.values()],
+            "needs_server_or_new_build":["सर्वर की फ़ाइलें/कोड की गड़बड़ी फ़ोन से नहीं सुधरती — रिपोर्ट मुझे भेजें"],
+            "approval_mode":bool(prefs.get("doctor_ask_major",True)),
+            "web_research":list(doctor_research),
+            "never_touched":"keys, SSK, orders, code files, live-order switch"}
     async def doctor_run_safe_repairs(manual=False):
         if doctor_repair_busy[0]:
             return ["सुरक्षित मरम्मत पहले से चल रही है"]
@@ -2804,6 +2869,10 @@ def app_main(page:ft.Page):
                 doctor_repair_ledger.note_run(time.monotonic(),"REPAIRS_RUN",checked,len(plans))
             for plan in plans:
                 if generation!=provider_generation[0]:break
+                if (plan["action"] in MAJOR_ACTIONS and prefs.get("doctor_ask_major",True) and not manual):
+                    doctor_pending[plan["id"]+"|"+str(plan["target"])]=plan
+                    lines.append("⏸ "+plan["preview"]+" → आपकी मंज़ूरी का इंतज़ार")
+                    continue
                 try:
                     await doctor_run_action(plan)
                     await asyncio.sleep(3)
@@ -2816,6 +2885,10 @@ def app_main(page:ft.Page):
                     log_error("doctor_safe_repair",exc)
                 doctor_repair_ledger.record(plan,generation,time.monotonic(),ok,detail)
                 lines.append(("✔ " if ok else "✖ ")+plan["preview"]+" → "+detail)
+            try:
+                await doctor_research_errors()
+            except Exception as exc:
+                log_error("doctor_research_errors",exc)
         finally:
             doctor_repair_busy[0]=False
             doctor_repair_last_lines[:]=lines or doctor_repair_last_lines
@@ -2883,6 +2956,25 @@ def app_main(page:ft.Page):
                             ft.TextButton("Repair logs",on_click=show_logs),
                             ft.TextButton("Safe repair (all)",on_click=safe_repair_all),
                             ft.TextButton("Restore safe settings",on_click=lambda e:doctor_restore_settings())],wrap=True))
+        def toggle_ask_major(e):
+            prefs["doctor_ask_major"]=bool(e.control.value);save()
+        def approve_pending(e):
+            async def run():
+                for k,plan in list(doctor_pending.items()):
+                    doctor_pending.pop(k,None)
+                    try:
+                        await doctor_run_action(plan)
+                        doctor_repair_ledger.record(plan,provider_generation[0],time.monotonic(),bool(doctor_retest(plan)),"मालिक की मंज़ूरी से")
+                    except Exception as exc:
+                        log_error("doctor_approved_repair",exc)
+                update_repair_board()
+            page.run_task(run)
+        rows.append(ft.Switch(label="बड़े सुधार से पहले मुझसे पूछे",value=bool(prefs.get("doctor_ask_major",True)),
+                              on_change=toggle_ask_major))
+        if doctor_pending:
+            rows.append(ft.Row([note("मंज़ूरी चाहिए: "+"; ".join(p_["preview"] for p_ in doctor_pending.values())),
+                                ft.TextButton("मंज़ूर करें",on_click=approve_pending),
+                                ft.TextButton("रद्द",on_click=lambda e:(doctor_pending.clear(),update_repair_board()))],wrap=True))
         rows.append(ft.Switch(label="Doctor auto-repair (safe, bounded)",value=bool(prefs.get("doctor_auto_repair",True)),
                               on_change=toggle_auto_repair))
         rows.append(note("Safe repair: stuck workers, missing index price, missing HIST only • max 2 tries/generation • never tokens, keys or orders • settings change only when YOU press Restore safe settings"))
@@ -7754,7 +7846,7 @@ def app_main(page:ft.Page):
                     "historical_equity_worker":dict(historical_equity_worker_profile) if historical_equity_worker_profile.get("generation")==generation else {},
                     "platinum_feature_registry":__import__("v3_platinum_registry").registry_report(),
                     "local_auto_recovery":super_five_recovery.report(time.monotonic()),
-                    "doctor_safe_repairs":doctor_repair_ledger.report(),
+                    "doctor_safe_repairs":doctor_repair_ledger.report(),"doctor_summary":doctor_extra_report(),
                     "verified_alerts":dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True),
                     "renewal_health":renewal_doctor_snapshot(),
                     "login_quote_validation":{"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0},
@@ -7866,7 +7958,7 @@ def app_main(page:ft.Page):
                 registry=registry_report()
                 data["platinum_feature_registry"]={key:value for key,value in registry.items() if key!="rows"}
                 data["local_auto_recovery"]=super_five_recovery.report(time.monotonic())
-                data["doctor_safe_repairs"]=doctor_repair_ledger.report()
+                data["doctor_safe_repairs"]=doctor_repair_ledger.report();data["doctor_summary"]=doctor_extra_report()
                 data["verified_alerts"]=dict(verified_alert_gate.report(),enabled=prefs.get("verified_foreground_alerts") is True)
                 data["renewal_health"]=renewal_doctor_snapshot()
                 data["login_quote_validation"]={"code":"BK-LOGIN-QUOTE-001","authenticated":clone_v2_gateway.connected,"quote_proof":dhan_feed.connected,"meaning":"authenticated=SSK/Oracle login ok; quote_proof=live Dhan quote feed active (false after close is normal)","provider_requests":0}
@@ -7943,7 +8035,11 @@ def app_main(page:ft.Page):
                     _rp=_srv.get("replay") or {}
                     data["server_replay"]={"code":"BK-DOC-REPLAY-001","at":_rp.get("at"),"days":_rp.get("days"),
                         "engine":_rp.get("engine"),"m_hit":_rp.get("m_hit"),"m_by_window_30m":_rp.get("m_by_window_30m"),
-                        "engine_dir_20m":_rp.get("engine_dir_20m")}
+                        "engine_dir_20m":_rp.get("engine_dir_20m"),
+                        "box_hit":_rp.get("box_hit"),"next_day":_rp.get("next_day"),
+                        "box_base":(_srv.get("box_base") or "NOT_REPORTED"),
+                        "horizons":{k:(v or {}).get("horizon") for k,v in (_srv.get("vote_gate") or {}).items() if isinstance(v,dict) and v.get("horizon")},
+                        "weights":{k:(v or {}).get("weight") for k,v in (_srv.get("vote_gate") or {}).items() if isinstance(v,dict) and "weight" in v}}
                     data["server_autoupdate"]={"code":"BK-DOC-AUTOUPD-001","last_run":_au.get("at"),"code_applied_at":_au.get("applied_at"),
                         "sha":str(_au.get("sha") or "")[:7],"result":_au.get("result") or "NO_RUN_YET",
                         "live_orders":"OFF (constant)"}
@@ -11979,6 +12075,35 @@ console.log('BOT KING Lightweight Charts ready');
         srv_paper_status.value=("Server paper position closed" if res.get("ok")
             else "Server paper not closed: "+str(res.get("detail") or res.get("reason")))
         await paper_server_refresh();request_view_refresh(current[0])
+    def paper_edit_dialog(x):
+        """B255: the trade (side, qty, entry) is fixed; only protection levels are editable, and only for OPEN positions."""
+        def val(k):return "" if x.get(k) is None else str(x[k])
+        f_sl=ft.TextField(label="SL ₹ (बदल सकते हैं)",value=val("stop"),dense=True,width=130,data="compact_group")
+        f_tg=ft.TextField(label="Target ₹ (खाली=हटाएँ)",value=val("target"),dense=True,width=150,data="compact_group")
+        f_asl=ft.TextField(label="औसत पर SL ₹",value=val("stop_if_averaged"),dense=True,width=130,data="compact_group")
+        f_atg=ft.TextField(label="औसत पर Target ₹",value=val("target_if_averaged"),dense=True,width=150,data="compact_group")
+        msg=note("सौदा (साइड, मात्रा, एंट्री) नहीं बदलता — सिर्फ़ SL/Target/औसत बदलते हैं। चाहें तो Close से निकलें।")
+        async def save_edit():
+            def num(c):
+                t=(c.value or "").strip().replace(",","")
+                return float(t) if t else None
+            try:
+                fields={"stop":num(f_sl),"target":num(f_tg),"stop_if_averaged":num(f_asl),"target_if_averaged":num(f_atg)}
+                clear=[k for k,c in (("target",f_tg),("stop_if_averaged",f_asl),("target_if_averaged",f_atg))
+                       if not (c.value or "").strip() and x.get(k) is not None]
+            except ValueError:
+                msg.value="संख्या सही नहीं है";page.update();return
+            res=await asyncio.to_thread(lambda:clone_v2_gateway.paper_edit(x["id"],clear=clear,**fields))
+            if res.get("ok"):
+                page.close(dlg);srv_paper_status.value="सौदे के SL/Target सुधारे गए"
+                await paper_server_refresh();request_view_refresh(current[0])
+            else:
+                msg.value="नहीं बदला: "+str(res.get("detail") or res.get("reason"));page.update()
+        dlg=ft.AlertDialog(title=txt("सौदा सुधारें • "+x["symbol"],14,GOLD,True),
+            content=ft.Column([ft.Row([f_sl,f_tg],wrap=True,spacing=6),ft.Row([f_asl,f_atg],wrap=True,spacing=6),msg],tight=True,spacing=4),
+            actions=[ft.TextButton("रद्द",on_click=lambda e:page.close(dlg)),
+                     ft.TextButton("सेव",on_click=lambda e:page.run_task(save_edit))])
+        page.open(dlg)
     def server_paper_section(show_controls=True):
         rep=paper_hb_cache.get("report") or {}
         if not clone_v2_gateway.connected:
@@ -11995,10 +12120,11 @@ console.log('BOT KING Lightweight Charts ready');
         closed=[x for x in paper_hb_cache.get("positions",[]) if x.get("status")=="CLOSED"][-5:]
         for x in opens:
             ctr.append(ft.Row([ft.Column([txt(x["symbol"]+" • "+x["side"]+" ×"+str(x["qty"]),14,GOLD,True),
-                note(("औसत ₹" if x.get("averaged") else "Entry ₹")+format(x["entry"],",.2f")+" • SL ₹"+format(x["stop"],",.2f")+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f"))
+                note(("औसत ₹" if x.get("averaged") else "Entry ₹")+format(x["entry"],",.2f")+" • SL "+("— (लगाएँ)" if x.get("stop") is None else "₹"+format(x["stop"],",.2f"))+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f"))
                      +((" • औसत पर टारगेट ₹"+format(x["target_if_averaged"],",.2f")) if x.get("target_if_averaged") else "")
                      +((" • औसत पर नया SL ₹"+format(x["stop_if_averaged"],",.2f")) if x.get("stop_if_averaged") else "")),
                 *([note("औसत बाक़ी: "+", ".join("₹"+format(l["price"],",.2f")+"×"+str(l["lots"])+" लॉट" for l in x["levels"])+" • शाम 15:30 पर रद्द")] if x.get("levels") else [])],spacing=2,expand=True),
+                ft.OutlinedButton("सुधारें",on_click=lambda e,p_=x:paper_edit_dialog(p_)),
                 ft.OutlinedButton("Close",on_click=lambda e,i=x["id"]:page.run_task(paper_server_close,i))]))
         if not opens:ctr.append(note("No open server paper positions"))
         for x in reversed(closed):

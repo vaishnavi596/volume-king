@@ -716,6 +716,59 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                         candle_cache.pop(min(candle_cache, key=lambda k: candle_cache[k][0]))
             return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
+    @app.post("/clone-v2/market/daily")
+    def market_daily(body: MarketCandles,
+                     x_botking_key: Optional[str] = Header(default=None)):
+        """B255: read-only daily candles (up to ~1 year) for next-day scoring. interval is ignored."""
+        authorized(x_botking_key)
+        today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+        if (body.symbol not in known or body.from_date > body.to_date
+                or (body.to_date - body.from_date).days > 400 or body.to_date > today):
+            raise HTTPException(422, "Invalid Clone Dhan daily selection")
+        cache_key = ("daily", body.symbol, body.from_date, body.to_date)
+        with candle_cache_lock:
+            cached = candle_cache.get(cache_key)
+            if cached and 0 <= time.monotonic() - cached[0] < 3600:
+                return JSONResponse(cached[1], headers={"Cache-Control": "no-store"})
+        segment, sid = known[body.symbol]
+        args = {"securityId": str(sid), "exchangeSegment": segment,
+                "instrument": "INDEX" if body.symbol in indices else "EQUITY",
+                "expiryCode": 0, "fromDate": body.from_date.isoformat(),
+                "toDate": body.to_date.isoformat()}
+        try:
+            quota_guard()
+            result = provider().historical(args)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            market_diagnostic("candles", body.symbol, "provider", "upstream_error")
+            provider_read_error(exc, "Clone Dhan daily candles unavailable")
+        try:
+            fields = ["timestamp", "open", "high", "low", "close", "volume"]
+            arrays = [result[key] for key in fields]
+            if (any(not isinstance(v, list) for v in arrays)
+                    or any(len(a) != len(arrays[0]) for a in arrays) or len(arrays[0]) > 600):
+                raise ValueError()
+            bars = []
+            for ts, op, high, low, close, vol in zip(*arrays):
+                vals = (float(ts), float(op), float(high), float(low), float(close), float(vol))
+                if (not all(math.isfinite(v) for v in vals) or ts <= 0
+                        or min(op, high, low, close) <= 0 or vol < 0):
+                    raise ValueError()
+                bars.append([int(ts), float(op), float(high), float(low), float(close), float(vol)])
+            if any(bars[i][0] >= bars[i + 1][0] for i in range(len(bars) - 1)):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError, OverflowError):
+            market_diagnostic("candles", body.symbol, "validation", "invalid_bars")
+            raise HTTPException(502, "Clone Dhan daily response invalid") from None
+        payload = {"source": "dhan", "symbol": body.symbol, "interval": "1d", "bars": bars,
+                   "freshness": "historical_unverified" if bars else "no_candles_available",
+                   "live_orders_enabled": False}
+        if bars:
+            with candle_cache_lock:
+                candle_cache[cache_key] = (time.monotonic(), payload, time.time())
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
     @app.post("/clone-v2/market/futures/context")
     def market_futures_context(body: MarketFuturesContext,
                                x_botking_key: Optional[str] = Header(default=None)):
@@ -973,8 +1026,8 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         strike: float
         side: str
         lots: int
-        stop: float
-        target: float
+        stop: Optional[float] = None
+        target: Optional[float] = None
         levels: List[PaperLevel] = []
         target_avg: Optional[float] = None
         stop_avg: Optional[float] = None
@@ -1048,6 +1101,34 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         result = paper_scenarios(body.entry, body.lots, contract["lot"],
                                  [lv.dict() for lv in body.levels], body.stop, body.target, body.target_avg, body.stop_avg)
         return paper_json(dict(result, lot_size=contract["lot"], source="server"))
+
+    class PaperEdit(BaseModel):
+        id: str
+        stop: Optional[float] = None
+        target: Optional[float] = None
+        stop_if_averaged: Optional[float] = None
+        target_if_averaged: Optional[float] = None
+        levels: Optional[List[PaperLevel]] = None
+        clear: List[str] = []
+
+    @app.post("/clone-v2/paper/edit")
+    def paper_edit(body: PaperEdit, x_botking_key: Optional[str] = Header(default=None)):
+        """B255: edit stop/target/averaging of an OPEN paper position; the trade itself is never editable."""
+        authorized(x_botking_key)
+        changes = {k: getattr(body, k) for k in ("stop", "target", "stop_if_averaged", "target_if_averaged")
+                   if getattr(body, k) is not None}
+        for k in body.clear:
+            if k in ("target", "stop_if_averaged", "target_if_averaged"):
+                changes[k] = None
+        if body.levels is not None:
+            changes["levels"] = [lv.dict() for lv in body.levels]
+        try:
+            pos = paper.edit_levels(body.id, changes)
+        except KeyError:
+            raise HTTPException(404, "Open paper position not found") from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        return paper_json({"position": pos})
 
     @app.post("/clone-v2/paper/open-option")
     def paper_open_option(body: PaperOpenOption, x_botking_key: Optional[str] = Header(default=None)):

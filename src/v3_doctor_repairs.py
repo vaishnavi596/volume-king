@@ -15,7 +15,11 @@ ALLOWED_ACTIONS = ("release_busy_flag", "retry_closed_index_snapshot",
                    "retry_missing_hist", "recompute_local_cache",
                    # B243: still read-only / reconnect-only; never settings, tokens or orders
                    "reconnect_saved_ssk", "load_roster_option_chain",
-                   "restart_stalled_watchlist")
+                   "restart_stalled_watchlist",
+                   # B255: box coverage repair (public RSS refresh only; never keys, orders or settings)
+                   "refresh_news_boxes")
+# B255: repairs that change connection state wait for the owner's tap when approval mode is on
+MAJOR_ACTIONS = ("reconnect_saved_ssk",)
 
 
 def _valid_time(value):

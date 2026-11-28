@@ -118,9 +118,9 @@ class PaperEngine:
                 raise ValueError("lot size invalid")
             if type(lots) is not int or not 1 <= lots <= MAX_TOTAL_LOTS:
                 raise ValueError("lots out of range")
-            if not self._num(entry) or not self._num(stop) or not self._num(target):
-                raise ValueError("entry, stop-loss and target are required")
-            if not (stop < entry < target):
+            if not self._num(entry) or (stop is not None and not self._num(stop)) or (target is not None and not self._num(target)):
+                raise ValueError("entry must be a number; stop-loss and target must be numbers or left empty (editable later)")
+            if (stop is not None and stop >= entry) or (target is not None and target <= entry):
                 raise ValueError("BUY needs stop below and target above entry")
             clean = []
             for lv in (levels or []):
@@ -128,7 +128,7 @@ class PaperEngine:
                         or type(lv.get("lots")) is not int or not 1 <= lv["lots"] <= MAX_TOTAL_LOTS):
                     raise ValueError("averaging level invalid")
                 price = float(lv["price"])
-                if not (stop < price < entry):
+                if not ((stop is None or stop < price) and price < entry):
                     raise ValueError("averaging level must be above stop-loss and below entry")
                 clean.append({"price": price, "lots": lv["lots"]})
             if len(clean) > MAX_LEVELS:
@@ -162,7 +162,7 @@ class PaperEngine:
             pos = {"id": uuid.uuid4().hex[:10], "symbol": label, "side": "BUY", "kind": "OPTION",
                    "instrument": {"seg": instrument["seg"], "sid": instrument["sid"]},
                    "lot_size": lot_size, "lots": lots, "qty": qty, "entry": float(entry),
-                   "stop": float(stop), "target": float(target), "target_if_averaged": ta, "stop_if_averaged": sa,
+                   "stop": None if stop is None else float(stop), "target": None if target is None else float(target), "target_if_averaged": ta, "stop_if_averaged": sa,
                    "levels": clean, "level_expires_at": expires_at, "averaged": False,
                    "fills": [{"price": float(entry), "qty": qty, "lots": lots, "t": self.clock()}],
                    "opened_at": self.clock(), "window": entry_window(self.clock()), "status": "OPEN", "mode": "PAPER"}
@@ -185,6 +185,56 @@ class PaperEngine:
             pos["pnl"] = round(sum((pos["exit"] - f["price"]) * f["qty"] for f in pos["fills"]), 2)
         else:
             pos["pnl"] = round(sign * (pos["exit"] - pos["entry"]) * pos["qty"], 2)
+
+    def edit_levels(self, pos_id, changes):
+        """B255: edit the PROTECTION of an open position (stop, target, averaged stop/target, averaging levels).
+        The trade itself (side, quantity, entry, fills) is never editable: only hold or exit."""
+        allowed = {"stop", "target", "stop_if_averaged", "target_if_averaged", "levels"}
+        if not isinstance(changes, dict) or not changes or set(changes) - allowed:
+            raise ValueError("only stop, target, averaged stop/target and averaging levels can be edited")
+        with self.lock:
+            pos = next((p for p in self.open_positions() if p["id"] == pos_id), None)
+            if pos is None:
+                raise KeyError("open position not found")
+            buy = pos["side"] == "BUY"
+            ref = (pos.get("fills") or [{"price": pos["entry"]}])[0]["price"]   # first fill price
+            new = {k: changes[k] for k in changes}
+            for k in ("stop", "target", "stop_if_averaged", "target_if_averaged"):
+                if k in new and new[k] is not None and not self._num(new[k]):
+                    raise ValueError(k + " invalid")
+            if "stop" in new and new["stop"] is None:
+                raise ValueError("stop-loss can be changed but not removed")
+            stop = float(new["stop"]) if "stop" in new else pos.get("stop")
+            target = (None if new.get("target") is None else float(new["target"])) if "target" in new else pos.get("target")
+            if stop is not None and not ((stop < ref) if buy else (stop > ref)):
+                raise ValueError("stop-loss must be on the loss side of the entry")
+            if target is not None and not ((target > ref) if buy else (target < ref)):
+                raise ValueError("target must be on the profit side of the entry")
+            if "levels" in new:
+                clean = []
+                for lv in (new["levels"] or []):
+                    if (not isinstance(lv, dict) or not self._num(lv.get("price"))
+                            or type(lv.get("lots")) is not int or not 1 <= lv["lots"] <= MAX_TOTAL_LOTS):
+                        raise ValueError("averaging level invalid")
+                    price = float(lv["price"])
+                    if stop is not None and not (stop < price < ref):
+                        raise ValueError("averaging level must be above stop-loss and below entry")
+                    clean.append({"price": price, "lots": lv["lots"]})
+                if len(clean) > MAX_LEVELS or len({x["price"] for x in clean}) != len(clean):
+                    raise ValueError("too many or duplicate averaging levels")
+                if pos.get("lots", 0) + sum(x["lots"] for x in clean) > MAX_TOTAL_LOTS:
+                    raise ValueError("total lots too high")
+                clean.sort(key=lambda x: -x["price"])
+                pos["levels"] = clean
+            for k in ("stop_if_averaged", "target_if_averaged"):
+                if k in new:
+                    pos[k] = None if new[k] is None else float(new[k])
+            pos["stop"] = stop
+            pos["target"] = target
+            pos.setdefault("edits", []).append({"t": self.clock(), "fields": sorted(changes)})
+            del pos["edits"][:-10]
+            self._save()
+            return dict(pos)
 
     def close(self, pos_id, price=None):
         with self.lock:
@@ -213,7 +263,7 @@ class PaperEngine:
                 stp = p["stop"]
                 if p.get("averaged") and p.get("stop_if_averaged"):
                     stp = p["stop_if_averaged"]
-                if (px <= stp) if buy else (px >= stp):
+                if stp is not None and ((px <= stp) if buy else (px >= stp)):
                     self._close(p, stp, "STOP_LOSS")
                     closed.append(dict(p))
                     continue

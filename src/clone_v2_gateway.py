@@ -105,7 +105,7 @@ class CloneV2Gateway:
         """B244/B245: read/write the server PAPER engine only; never an order route."""
         if not self.connected:
             return {"ok":False,"reason":"DISCONNECTED"}
-        if path not in ("state","open","close","open-option","preview-option","signals/latest","signals/journal"):
+        if path not in ("state","open","close","edit","open-option","preview-option","signals/latest","signals/journal"):
             raise ValueError("Unsupported paper path")
         origin,key=self._origin,self._key
         url=origin+"/clone-v2/"+("signals/"+path.split("/")[1] if path.startswith("signals/") else "paper/"+path)
@@ -164,6 +164,14 @@ class CloneV2Gateway:
     def paper_open(self, symbol, side, qty, entry, stop, target):
         return self._paper_call("POST","open",{"symbol":symbol,"side":side,"qty":int(qty),
             "entry":float(entry),"stop":float(stop),"target":float(target)})
+
+    def paper_edit(self, pos_id, **fields):
+        """B255: edit protection levels of an OPEN paper position (never the trade itself)."""
+        body={"id":str(pos_id)}
+        for k in ("stop","target","stop_if_averaged","target_if_averaged"):
+            if fields.get(k) is not None:body[k]=float(fields[k])
+        if fields.get("clear"):body["clear"]=[str(c) for c in fields["clear"]]
+        return self._paper_call("POST","edit",body)
 
     def paper_close(self, pos_id, price=None):
         body={"id":str(pos_id)}

@@ -14,7 +14,7 @@ RP="$PRIV/replay-latest.json"
 replay(){ [ -f /home/opc/botking-clone-v2-runtime/signals/clone_replay.py ] || return 0
   # only when missing or older than 20 hours (a check every 30 min must not re-run a 5-minute replay)
   if [ ! -f "$RP" ] || [ -n "$(find "$RP" -mmin +1200 2>/dev/null)" ] || [ "${1:-}" = "now" ]; then
-    (cd /home/opc/botking-clone-v2-runtime/signals && timeout 290 python3.9 clone_replay.py >/dev/null 2>&1) || true
+    (cd /home/opc/botking-clone-v2-runtime/signals && timeout 600 python3.9 clone_replay.py >/dev/null 2>&1) || true
   fi; }
 status(){ printf '{"at":"%s","applied_at":"%s","sha":"%s","result":"%s"}\n' "$(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST')" "$(cat "$APPLIED_AT" 2>/dev/null)" "$1" "$2" > "$STATUS.tmp" && mv "$STATUS.tmp" "$STATUS"; }
 HM="$(TZ=Asia/Kolkata date +%H%M)"; HM=$((10#$HM)); DOW="$(TZ=Asia/Kolkata date +%u)"

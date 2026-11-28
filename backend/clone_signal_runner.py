@@ -260,7 +260,7 @@ def oi_morning_step(ledger, out, now, field="oi_lean", book_key="oi_morning", st
 def cycle(key, now, minute_index, previous):
     out = {"generated_utc": datetime.fromtimestamp(now, timezone.utc).isoformat(),
            "market_open": bool(regular_equity_hours(datetime.fromtimestamp(now, timezone.utc))),
-           "live_orders_enabled": False, "mode": "READ_ONLY_ANALYSIS", "symbols": {}}
+           "live_orders_enabled": False, "mode": "READ_ONLY_ANALYSIS", "box_base": "1m", "symbols": {}}
     if not out["market_open"]:
         out["note"] = "market closed; no provider requests"
         return out
@@ -354,11 +354,9 @@ def cycle(key, now, minute_index, previous):
         try:
             fl = (out.get("fut_lean") or {}).get(symbol) or {}
             fbias = ("BULLISH" if fl.get("bullish", 50) >= 55 else "BEARISH" if fl.get("bullish", 50) <= 45 else None)
-            frame_b = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()
-                       if (r or {}).get("bias") in ("BULLISH", "BEARISH")]
-            # B252: 1m/3m/5m frames share one candle source -> ONE independent technical vote (majority)
-            tech_b = ("BULLISH" if frame_b.count("BULLISH") > frame_b.count("BEARISH") else
-                      "BEARISH" if frame_b.count("BEARISH") > frame_b.count("BULLISH") else None)
+            # B255: box base is ALWAYS the 1m frame (owner rule); 3m/5m stay scanner-only options
+            one_m = (out["symbols"].get(symbol) or {}).get("1m") or {}
+            tech_b = one_m.get("bias") if one_m.get("bias") in ("BULLISH", "BEARISH") else None
             hv = (out.get("heavy_lean") or {}).get(symbol) or {}
             hbias = ("BULLISH" if hv.get("bullish", 50) >= 60 else "BEARISH" if hv.get("bullish", 50) <= 40 else None)
             biases = [b for b in (tech_b, fbias, hbias) if b]
@@ -487,8 +485,14 @@ def _gate_row(n_eff, hits_eff, base=None):
     edge = round(rate - base, 1) if (rate is not None and base is not None) else None
     ok = bool(n_eff >= VOTE_MIN_N and rate is not None and rate >= VOTE_MIN_RATE
               and low is not None and low >= 50.0 and (edge is None or edge > 0))
+    # B255: vote weight 0..1 from the measured Wilson lower bound (50 -> 0, 100 -> 1); unproven boxes weigh 0
+    weight = round(max(0.0, (low - 50.0) / 50.0), 2) if (ok and low is not None) else 0.0
     return {"n": n_eff, "hit_rate": rate, "wilson_low": low, "baseline": base, "edge": edge,
-            "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE, "eligible": ok}
+            "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE, "eligible": ok, "weight": weight}
+
+
+BOX_HORIZON = {"M": "30-60m", "T": "30m", "C": "30m", "H": "30m", "F": "30m", "O": "day", "N": "day",
+               "H_morning": "day", "D": "next-day"}
 
 
 def vote_gate(ledger, replay=None):
@@ -542,6 +546,15 @@ def vote_gate(ledger, replay=None):
     for box, field in (("O", "oi_stats"), ("N", "news_stats"), ("F", "fut_stats"), ("H_morning", "heavy_stats")):
         n, hits, _ = agg(ledger.get(field))
         out[box] = _gate_row(n, hits, None)
+    nd = (replay or {}).get("next_day") or {}
+    dn = dh = du = 0
+    for v in nd.values():
+        if isinstance(v, dict) and type(v.get("n")) is int and type(v.get("hit_rate")) in (int, float):
+            dn += v["n"]; dh += round(v["n"] * v["hit_rate"] / 100); du += round(v["n"] * (v.get("up_rate") or 50) / 100)
+    out["D"] = _gate_row(dn, dh, round(100 * max(du, dn - du) / dn, 1) if dn else None)
+    for box, row in out.items():
+        if box in BOX_HORIZON and isinstance(row, dict):
+            row["horizon"] = BOX_HORIZON[box]
     return out
 
 
