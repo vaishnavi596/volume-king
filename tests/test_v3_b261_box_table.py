@@ -76,3 +76,24 @@ class Wiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServerFilters(unittest.TestCase):
+    def test_default_is_the_owner_17_and_file_overrides(self):
+        import json, tempfile
+        import scanner_engine as se
+        self.assertEqual(len(se.server_filters("/nonexistent/f.json")), 17)
+        self.assertNotIn("News Headlines", se.server_filters("/nonexistent/f.json"))
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "filters.json")
+            open(f, "w").write(json.dumps({"filters": ["RSI 14", "MACD", "Max Pain", "Bogus"]}))
+            self.assertEqual(se.server_filters(f), ["RSI 14", "MACD", "Dhan Max Pain"])
+            open(f, "w").write("not json")
+            self.assertEqual(len(se.server_filters(f)), 17)
+
+    def test_table_uses_thirteen_candle_votes(self):
+        import box_table
+        bars, now = session()
+        row = box_table.build_row(bars, now)
+        self.assertEqual(row["T"]["n"] <= 13, True)
+        self.assertGreater(row["T"]["n"], 5)

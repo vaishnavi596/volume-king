@@ -22,7 +22,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
+from scanner_engine import analyze, DEFAULT_FILTERS, server_filters  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
 try:
@@ -111,7 +111,7 @@ def evaluate(symbol, frame, response, quote_item, now):
     if qualified is None:
         row["reason"] = "candles/quote did not meet live-qualification rules"
         return row
-    result = analyze(qualified, selected=list(DEFAULT_FILTERS), timeframe=frame)
+    result = analyze(qualified, selected=server_filters(), timeframe=frame)
     votes = [v for v in result.get("votes", []) if v.get("vote") in (-1, 1)]
     bulls = sum(v["vote"] == 1 for v in votes)
     bears = sum(v["vote"] == -1 for v in votes)

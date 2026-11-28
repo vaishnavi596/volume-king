@@ -7,6 +7,26 @@ DEFAULT_FILTERS = ["Supertrend", "EMA 9/21", "RSI 14", "MACD", "VWAP",
 OPTION_FILTERS = ["OI Support", "OI Resistance", "OI Profile", "Dhan Max Pain"]
 ALL_FILTERS = DEFAULT_FILTERS + OPTION_FILTERS + ["SMA 5/20", "Volume", "ATR 14", "News Headlines"]
 
+OWNER_FILTERS = ALL_FILTERS[:17]   # B261: the owner's 17-of-18 selection (all but News Headlines); 13 candle filters vote, 4 OI are context only
+
+
+def server_filters(path=None):
+    """Filter set the SERVER uses so its numbers match the phone: the owner's saved selection when a
+    filters.json exists next to the private files (written later by the phone), else the 17-filter default."""
+    import json
+    import os
+    path = path or os.environ.get("BOTKING_FILTERS_FILE", "/home/opc/botking-clone-v2-private/filters.json")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        chosen = canonical_filter_selection(raw.get("filters") if isinstance(raw, dict) else None)
+        if chosen and len(chosen) <= len(ALL_FILTERS):
+            return chosen
+    except (OSError, ValueError, TypeError):
+        pass
+    return list(OWNER_FILTERS)
+
+
 def canonical_filter_selection(saved):
     """One-way legacy migration: keep Dhan Max Pain, never a second Max Pain.
 

@@ -8,7 +8,7 @@ owner's own filters later. Nothing here is a vote and nothing places an order.
 import json
 import time
 
-from scanner_engine import analyze, DEFAULT_FILTERS
+from scanner_engine import analyze, server_filters
 from analysis_quality import quality_check
 from historical_session_window import historical_regular_session_bars
 from five_engine import completed_timeframe_candle_balance
@@ -36,7 +36,7 @@ def tech_box(bars, now):
     quality = quality_check(bars, 60, now=bars[-1][0] + 60)
     if not quality.get("usable"):
         return None
-    result = analyze(quality["bars"], list(DEFAULT_FILTERS), "1m")
+    result = analyze(quality["bars"], server_filters(), "1m")
     bulls = bears = 0
     seen = set()
     for item in result.get("votes") or []:
@@ -101,7 +101,7 @@ def build_row(raw, now, fut=None, news=None, oi=None):
 
 def assemble_table(rows, now, market_open, extra=None):
     out = {"v": TABLE_VERSION, "at": int(now), "market_open": bool(market_open), "box_base": "1m",
-           "filters": "default", "count": len(rows), "rows": rows}
+           "filters": "owner17", "count": len(rows), "rows": rows}
     if extra:
         out.update(extra)
     return out

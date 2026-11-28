@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from clone_signal_runner import post, with_integrity, atomic_write, SSK_FILE, OUT_FILE, SYMBOLS, IST, futures_buildup  # noqa: E402
-from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
+from scanner_engine import analyze, DEFAULT_FILTERS, server_filters  # noqa: E402
 try:
     from v3_heavyweights import heavy_lean, constituents  # noqa: E402
 except ImportError:
@@ -24,6 +24,7 @@ from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction, window_
 
 REPLAY_FILE = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
 STEP = 5
+SERVER_FILTERS = server_filters()   # B261: same 17-filter set the phone uses
 START_IDX = 60
 HORIZONS = (20, 30, 60)
 
@@ -107,7 +108,7 @@ def replay_day(bars, report, prev_close=None, symbol=None, heavy_day=None, fut_d
         entry = float(past[-1][4])
         t = float(past[-1][0])
         try:
-            res = analyze([list(b) for b in past], selected=list(DEFAULT_FILTERS), timeframe="1m")
+            res = analyze([list(b) for b in past], selected=SERVER_FILTERS, timeframe="1m")
             votes = [v for v in res.get("votes", []) if v.get("vote") in (-1, 1)]
             report["engine"]["calls"] += 1
         except Exception:
