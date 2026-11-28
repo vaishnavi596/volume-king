@@ -39,8 +39,7 @@ class LanguageTests(unittest.TestCase):
         localize_tree(text,'English');self.assertEqual(text.value,'Saved automatically')
     def test_help_in_both_languages_and_original_label_retained(self):
         _,v=start({'scanner_live':False,'language':'हिंदी'})
-        v['select'](1)  # SL was consolidated into Options → Trading Center.
-        self.assertEqual(v['sl']._bk_original_label,'Stop loss %')
+        v['select'](1)  # B252: the old dummy paper centre (and its 'sl' field) left Options; help text is still described below.
         self.assertIn('जोखिम',describe(v['sl']._bk_original_label,'हिंदी'))
         self.assertIn('paper demonstration',describe('Stop loss %','English'))
         self.assertIn('nine',describe('PCR','English'))
