@@ -99,6 +99,7 @@ class A3RegressionTests(unittest.TestCase):
         ist=datetime.now(timezone(timedelta(hours=5,minutes=30)))
         from v3_equity_session_calendar import regular_equity_hours
         expected=" WAIT"  # Missing source evidence is not a holiday inference.
-        self.assertEqual(labels[:5],[name+expected for name in ("T","C","N","F","O")])
+        # B258: empty C/F now say why; the base "X WAIT" prefix must still lead each label.
+        self.assertEqual([l.split(" •")[0] for l in labels[:5]],[name+expected for name in ("T","C","N","F","O")])
         # Reserved sixth visual slot is inert; the five engine states stay unchanged.
         self.assertEqual(len(labels[:5]),5)
