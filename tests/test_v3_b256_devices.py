@@ -53,8 +53,12 @@ class Routes(unittest.TestCase):
         c = TestClient(app)
         H = {"X-BotKing-Key": MASTER}
         self.assertEqual(c.get("/clone-v2/whoami", headers=H).json()["role"], "master")
-        code = c.post("/clone-v2/devices/code", json={"name": "Bhai"}, headers=H).json()["code"]
-        dev = c.post("/clone-v2/devices/redeem", json={"code": code}).json()
+        r1 = c.post("/clone-v2/devices/code", json={"name": "Bhai"}, headers=H)
+        self.assertEqual(r1.status_code, 200, r1.text)
+        code = r1.json()["code"]
+        r2 = c.post("/clone-v2/devices/redeem", json={"code": code})
+        self.assertEqual(r2.status_code, 200, r2.text)
+        dev = r2.json()
         D = {"X-BotKing-Key": dev["device_key"]}
         self.assertEqual(c.get("/clone-v2/whoami", headers=D).json()["role"], "device")
         self.assertEqual(c.get("/clone-v2/devices", headers=D).status_code, 403)       # clone cannot manage devices

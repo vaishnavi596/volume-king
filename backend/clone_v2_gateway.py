@@ -436,14 +436,17 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
 
     class DeviceCodeBody(BaseModel):
         name: str = "Clone"
+    globals()['DeviceCodeBody'] = DeviceCodeBody   # B256: FastAPI resolves string annotations from module globals
 
     class DeviceRedeemBody(BaseModel):
         code: str
+    globals()['DeviceRedeemBody'] = DeviceRedeemBody   # B256: FastAPI resolves string annotations from module globals
 
     class DeviceSetBody(BaseModel):
         id: str
         enabled: Optional[bool] = None
         delete: bool = False
+    globals()['DeviceSetBody'] = DeviceSetBody   # B256: FastAPI resolves string annotations from module globals
 
     @app.get("/clone-v2/whoami")
     def whoami(x_botking_key: Optional[str] = Header(default=None)):
@@ -950,6 +953,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         interval: int
         from_date: date
         to_date: date
+    globals()['MarketFuturesCandles'] = MarketFuturesCandles   # B256: FastAPI resolves string annotations from module globals
 
     futures_file_cache = {"mtime": None, "data": {}}
 
@@ -1043,10 +1047,12 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         entry: float
         stop: float
         target: Optional[float] = None
+    globals()['PaperOpen'] = PaperOpen   # B256: FastAPI resolves string annotations from module globals
 
     class PaperClose(BaseModel):
         id: str
         price: Optional[float] = None
+    globals()['PaperClose'] = PaperClose   # B256: FastAPI resolves string annotations from module globals
 
     def paper_json(payload):
         payload = dict(payload)
@@ -1090,6 +1096,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
     class PaperLevel(BaseModel):
         price: float
         lots: int
+    globals()['PaperLevel'] = PaperLevel   # B256: FastAPI resolves string annotations from module globals
 
     class PaperOpenOption(BaseModel):
         underlying: str
@@ -1102,6 +1109,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         levels: List[PaperLevel] = []
         target_avg: Optional[float] = None
         stop_avg: Optional[float] = None
+    globals()['PaperOpenOption'] = PaperOpenOption   # B256: FastAPI resolves string annotations from module globals
 
     contract_cache = {"mtime": None, "data": {}}
 
@@ -1161,6 +1169,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         levels: List[PaperLevel] = []
         target_avg: Optional[float] = None
         stop_avg: Optional[float] = None
+    globals()['PaperPreviewOption'] = PaperPreviewOption   # B256: FastAPI resolves string annotations from module globals
 
     @app.post("/clone-v2/paper/preview-option")
     def paper_preview_option(body: PaperPreviewOption, x_botking_key: Optional[str] = Header(default=None)):
@@ -1181,6 +1190,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         target_if_averaged: Optional[float] = None
         levels: Optional[List[PaperLevel]] = None
         clear: List[str] = []
+    globals()['PaperEdit'] = PaperEdit   # B256: FastAPI resolves string annotations from module globals
 
     @app.post("/clone-v2/paper/edit")
     def paper_edit(body: PaperEdit, x_botking_key: Optional[str] = Header(default=None)):
