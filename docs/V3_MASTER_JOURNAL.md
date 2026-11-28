@@ -3499,3 +3499,11 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Roster option chains persisted (HIST) so every Watchlist box O fills after restart; per-expiry lot sizes (SENSEX 20); M horizons use sqrt scaling (30/60 no longer saturate at 25/75).
 - Server reinstall needed (gateway preview route + runner lot_by_expiry): rerun ops/install_server_away_20261127.sh at the B250 sha.
 - Not yet: retire the old phone-local paper system; N/F evidence; chart parts; O live vote (Monday).
+
+## J60 — B251 build (28 Nov 2026)
+- Averaging: owner wants a NEW stop-loss after averaging (stop_avg) — server engine, preview maths, phone ticket and server paper card; must sit below the lowest averaging level.
+- Chart: price grid + labels, volume strip, VWAP dots, tap candle → OHLCV, 24/36/60/90 candle zoom (pinch/pan not yet).
+- M box: confluence (VWAP side, volume vs earlier, other engines' bias) + IST time-window; adj strength/confidence; ledger groups by window and confluence. Still never a vote.
+- Time windows (general table, labelled so): ticket hint; server paper stores entry window and reports window_stats.
+- Nightly server updater (ops/botking_autoupdate.sh, timer 02:15 IST) installed by owner; Doctor row server_autoupdate (shows after this APK).
+- Not yet: option OI/PCR change inside M (runner has no chain), morning-OI ledger, higher-timeframe/VIX inputs, pinch zoom.

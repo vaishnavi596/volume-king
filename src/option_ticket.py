@@ -4,6 +4,25 @@ BUY: stop below entry, target above. SELL: mirrored. Money is premium x units.
 """
 import math
 
+WINDOWS = (("OPEN_VOLATILE", 555, 585, "bad", "9:15–9:45 झटकों का समय • नई एंट्री से बचें"),
+           ("SETTLING", 585, 600, "warn", "9:45–10:00 शांत हो रहा है • इंतज़ार बेहतर"),
+           ("BEST_TREND", 600, 690, "good", "10:00–11:30 आम तौर पर दिशा साफ़ • बेहतर समय"),
+           ("MIDDAY_QUIET", 690, 810, "bad", "11:30–13:30 ठंडी/बग़ल की चाल • टारगेट कम लगता है"),
+           ("AFTERNOON", 810, 900, "warn", "13:30–15:00 ठीक • थीटा तेज़"),
+           ("LATE_RISKY", 900, 931, "bad", "15:00 के बाद नई एंट्री जोखिम भरी"))
+
+
+def time_hint(ts):
+    """(window, level, hindi text) for an epoch time. General market-hours table, NOT measured on this account."""
+    from datetime import datetime, timezone, timedelta
+    t = datetime.fromtimestamp(ts, timezone(timedelta(hours=5, minutes=30)))
+    m = t.hour * 60 + t.minute
+    for name, a, b, lvl, msg in WINDOWS:
+        if a <= m < b:
+            return name, lvl, msg
+    return "OTHER", "bad", "बाज़ार का नियमित समय नहीं"
+
+
 def _num(x):
     try:
         v = float(str(x).replace(",", "").strip())

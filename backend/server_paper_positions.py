@@ -14,6 +14,21 @@ MAX_TOTAL_LOTS = 50
 LIVE_ORDERS_ENABLED = False  # constant; nothing in this module reads a switch
 
 
+WINDOWS = (("OPEN_VOLATILE", 555, 585), ("SETTLING", 585, 600), ("BEST_TREND", 600, 690),
+           ("MIDDAY_QUIET", 690, 810), ("AFTERNOON", 810, 900), ("LATE_RISKY", 900, 931))
+
+
+def entry_window(ts):
+    """IST time-window label for an epoch timestamp (general market-hours table; same table as the phone)."""
+    from datetime import datetime, timezone, timedelta
+    t = datetime.fromtimestamp(ts, timezone(timedelta(hours=5, minutes=30)))
+    m = t.hour * 60 + t.minute
+    for name, a, b in WINDOWS:
+        if a <= m < b:
+            return name
+    return "OTHER"
+
+
 class PaperEngine:
     def __init__(self, path=None, clock=time.time):
         self.path = path
@@ -150,7 +165,7 @@ class PaperEngine:
                    "stop": float(stop), "target": float(target), "target_if_averaged": ta, "stop_if_averaged": sa,
                    "levels": clean, "level_expires_at": expires_at, "averaged": False,
                    "fills": [{"price": float(entry), "qty": qty, "lots": lots, "t": self.clock()}],
-                   "opened_at": self.clock(), "status": "OPEN", "mode": "PAPER"}
+                   "opened_at": self.clock(), "window": entry_window(self.clock()), "status": "OPEN", "mode": "PAPER"}
             self.positions.append(pos)
             self._save()
             return dict(pos)
@@ -253,9 +268,24 @@ class PaperEngine:
                     "open_symbols": sorted({p["symbol"] for p in opens}),
                     "last_error": self.last_error}
 
+    def window_stats(self):
+        """Measured outcomes of CLOSED paper trades by entry time-window (informational, owner's own data)."""
+        out = {}
+        with self.lock:
+            for p in self.positions:
+                if p.get("status") != "CLOSED":
+                    continue
+                w = p.get("window") or "OTHER"
+                st = out.setdefault(w, {"n": 0, "target": 0, "stop": 0, "pnl": 0.0})
+                st["n"] += 1
+                st["target"] += p.get("reason") == "TARGET"
+                st["stop"] += p.get("reason") == "STOP_LOSS"
+                st["pnl"] = round(st["pnl"] + float(p.get("pnl") or 0), 2)
+        return out
+
     def state(self):
         with self.lock:
-            return {"heartbeat": self.heartbeat(),
+            return {"heartbeat": self.heartbeat(), "window_stats": self.window_stats(),
                     "positions": [dict(p) for p in self.positions[-100:]]}
 
 

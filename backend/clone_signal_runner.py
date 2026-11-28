@@ -24,7 +24,7 @@ from pathlib import Path
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
-from v3_m_forward import m_lean, m_leans, resolve_prediction  # noqa: E402
+from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction  # noqa: E402
 
 IST = timezone(timedelta(hours=5, minutes=30))
 GATEWAY = os.environ.get("BOTKING_SIGNAL_GATEWAY", "http://127.0.0.1:8002")
@@ -120,6 +120,7 @@ def cycle(key, now, minute_index, previous):
         return out
     quotes = post("/clone-v2/market/quotes", {"symbols": list(SYMBOLS)}, key).get("quotes", {})
     today = datetime.fromtimestamp(now, IST).date().isoformat()
+    m_bars = {}
     for symbol in SYMBOLS:
         out["symbols"][symbol] = {}
         for frame, interval in FRAMES:
@@ -137,6 +138,7 @@ def cycle(key, now, minute_index, previous):
                     ltp = (quotes.get(symbol) or {}).get("ltp")
                     if lean and type(ltp) in (int, float):
                         out.setdefault("m_lean", {})[symbol] = dict(lean, ltp=float(ltp))
+                        m_bars[symbol] = response.get("bars")
                     if type(ltp) in (int, float):
                         for hz, hl in m_leans(response.get("bars")).items():
                             if hz != "20" and hl:
@@ -146,6 +148,14 @@ def cycle(key, now, minute_index, previous):
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": "HTTP %s" % exc.code}
             except Exception as exc:  # keep the loop alive; never print payloads
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": type(exc).__name__}
+    for symbol, lean in (out.get("m_lean") or {}).items():
+        try:
+            biases = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()]
+            ctx = m_context(lean, m_bars.get(symbol), biases, now)
+            if ctx:
+                lean["context"] = ctx
+        except Exception:
+            pass  # context is best-effort
     return out
 
 
@@ -185,7 +195,11 @@ def ledger_step(ledger, out, now):
         return ledger
     for symbol, lean in (out.get("m_lean") or {}).items():
         if now - ledger["last_t"].get(symbol, 0) >= LEDGER_EVERY_S and lean.get("lean") in ("BULLISH", "BEARISH", "NEUTRAL"):
-            ledger["pending"].append({"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"]})
+            row_ = {"t": int(now), "symbol": symbol, "lean": lean["lean"], "entry": lean["ltp"]}
+            ctx_ = lean.get("context") or {}
+            if ctx_:
+                row_["w"] = ctx_.get("window"); row_["c"] = "%d/%d" % (ctx_.get("agree", 0), ctx_.get("total", 0))
+            ledger["pending"].append(row_)
             ledger["last_t"][symbol] = int(now)
     for symbol, hz_map in (out.get("m_horizons") or {}).items():
         for hz, lean in (hz_map or {}).items():
@@ -206,6 +220,11 @@ def ledger_step(ledger, out, now):
         skey = row["symbol"] if "h" not in row else row["symbol"] + "@" + str(row["h"])
         st = ledger["stats"].setdefault(skey, {"n": 0, "hits": 0})
         st["n"] += 1; st["hits"] += int(bool(hit))
+        if "h" not in row:
+            for gk, gv in (("w", row.get("w")), ("c", row.get("c"))):
+                if gv:
+                    g = ledger.setdefault("groups", {}).setdefault(gk + ":" + str(gv), {"n": 0, "hits": 0})
+                    g["n"] += 1; g["hits"] += int(bool(hit))
     ledger["pending"] = keep[-400:]
     return ledger
 
@@ -216,7 +235,9 @@ def ledger_summary(ledger):
         n = st.get("n", 0)
         rows[symbol] = {"n": n, "hits": st.get("hits", 0),
                         "hit_rate": round(100 * st.get("hits", 0) / n, 1) if n else None}
-    return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows,
+    groups = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
+              for k, v in (ledger.get("groups") or {}).items()}
+    return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows, "groups": groups,
             "note": "M is a forward lean; not a vote until a measured hit-rate is accepted by the owner"}
 
 

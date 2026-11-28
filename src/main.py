@@ -2308,8 +2308,16 @@ def app_main(page:ft.Page):
                 _mh=shared_history(sym,"1m") or {}
                 _ml=m_lean(_mh.get("bars"),30) if _mh.get("source")=="Dhan" else None
                 _m60=m_lean(_mh.get("bars"),60) if _mh.get("source")=="Dhan" else None
+                _mc=None
+                if _ml:
+                    try:
+                        from v3_m_forward import m_context
+                        _mc=m_context(_ml,_mh.get("bars"),None,time.time())
+                    except Exception as exc:
+                        log_error("m_context",exc)
                 if _ml:
                     m_text="M HIST 30m B"+str(_ml["bullish"])+"/S"+str(_ml["bearish"])+(" • 60m B"+str(_m60["bullish"])+"/S"+str(_m60["bearish"]) if _m60 else "")
+                    if _mc:m_text+="\nसहमति "+str(_mc["agree"])+"/"+str(_mc["total"])+" • भरोसा "+str(_mc["confidence"])
                     m_color=m_border=GREEN if _ml["lean"]=="BULLISH" else RED if _ml["lean"]=="BEARISH" else GOLD
         except Exception as exc:
             log_error("m_forward",exc)
@@ -4740,8 +4748,11 @@ def app_main(page:ft.Page):
                                             bgcolor=GOLD if option_expiry_choice.value=="Next" else None,color=BG if option_expiry_choice.value=="Next" else None)],wrap=True,spacing=8)
         head=(str(chain_symbol.value)+" "+str(option_strike.value or "—")+" "+str(option_side.value)+" • "+str(expiry.value or "expiry लोड हो रही")
               +(" • भाव ₹"+tk["prem"] if tk["prem"] else ""))
+        _tw,_tl,_tm=option_ticket.time_hint(time.time())
+        _ws=(paper_hb_cache.get("window_stats") or {}).get(_tw)
+        _wtxt=_tm+" • आम अनुभव, आपके आँकड़े नहीं"+((" • आपके पेपर में यहाँ: "+str(_ws["n"])+" बंद, टारगेट "+str(_ws["target"])+", SL "+str(_ws["stop"])) if _ws else "")
         return section("ऑर्डर टिकट • PAPER (LIVE बंद)",ft.Column([
-            txt(head,15,GOLD,True),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
+            txt(head,15,GOLD,True),txt(_wtxt,12,{"good":GREEN,"warn":GOLD,"bad":RED}[_tl]),exp_chips,ft.Row([sidebtn("BUY","BUY"),sidebtn("SELL","SELL")],spacing=8),
             ft.Column([
                 ft.Row([tk_lots,tk_unit],spacing=10),
                 ft.Row([tk_sl_price,tk_sl_pct],spacing=10),
@@ -7772,6 +7783,8 @@ def app_main(page:ft.Page):
                         "units_per_lot":tk_unit.value,"lot_source":tk.get("lot_from"),
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
+                    data["m_context_server"]={"code":"BK-DOC-MCTX-001","symbols":{k:(v.get("context") or {}) for k,v in (_srv.get("m_lean") or {}).items()},
+                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"paper_window_stats":paper_hb_cache.get("window_stats")}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                     _au=_srv.get("autoupdate") or {}
@@ -11793,7 +11806,7 @@ console.log('BOT KING Lightweight Charts ready');
             log_error("server_signals",exc)
             sig={"ok":False,"latest":None,"events":[]}
         paper_hb_cache.clear()
-        paper_hb_cache.update(at=time.monotonic(),report=result,positions=positions,signals=sig)
+        paper_hb_cache.update(at=time.monotonic(),report=result,positions=positions,signals=sig,window_stats=(state.get("window_stats") if isinstance(state.get("window_stats"),dict) else {}))
     async def paper_server_open(side):
         sym=chain_symbol.value
         try:
