@@ -58,3 +58,19 @@ class OptionsPageLayout(unittest.TestCase):
         t = src[src.index("    def ticket_card():"):src.index("    option_chart_cache={}")]
         self.assertNotIn('sidebtn("SELL"', t)
         self.assertGreater(t.index("ticket_place"), t.index("tk_result"))
+
+
+class ChartFilterMemory(unittest.TestCase):
+    def test_per_symbol_filters_wired(self):
+        src = open("src/main.py", encoding="utf-8").read()
+        self.assertIn('prefs.setdefault("chart_filters_by_symbol",{})', src)
+        self.assertIn("def chart_filter_panel(sym,bars):", src)
+        self.assertIn("chart_filter_panel(symbol.value,", src)
+        a = src.index("    def chart_filter_panel(sym,bars):")
+        body = src[a:a + 2500]
+        self.assertIn("for n in ALL_FILTERS", body)               # all 18, not 4
+        self.assertIn("analyze([list(b) for b in bars]", body)    # same engine calculation
+        self.assertIn("from scanner_engine import ema as _ema", src)
+        # filters never touch the vote/scan state
+        self.assertNotIn("scan_generation", body)
+        self.assertNotIn("filter_selected", body)

@@ -4151,6 +4151,39 @@ def app_main(page:ft.Page):
     chart_snapshots={}
     def chart_snapshot(sym):
         return chart_snapshots.get((sym,timeframe.value,provider_generation[0])) or {}
+    def chart_sym_filters(sym):
+        """Per-symbol chart filter memory (owner 28 Nov): NIFTY keeps its own, HDFCBANK its own, etc."""
+        store=prefs.setdefault("chart_filters_by_symbol",{})
+        sel=store.get(sym)
+        if not isinstance(sel,list):sel=["VWAP"]
+        return [x for x in sel if x in ALL_FILTERS]
+    def chart_toggle_filter(sym,name):
+        store=prefs.setdefault("chart_filters_by_symbol",{})
+        sel=chart_sym_filters(sym)
+        if name in sel:sel.remove(name)
+        else:sel.append(name)
+        store[sym]=sel;save();select(5)
+    def chart_filter_panel(sym,bars):
+        """All 18 filters as chips for THIS symbol + engine verdict badges (same scanner_engine calculation)."""
+        sel=chart_sym_filters(sym)
+        chips=[ft.Container(content=txt(("✓ " if n in sel else "")+n,10,BG if n in sel else MUTED,n in sel),
+                            bgcolor=GOLD if n in sel else PANEL2,border_radius=12,padding=ft.padding.symmetric(horizontal=8,vertical=5),
+                            on_click=lambda e,n=n:chart_toggle_filter(sym,n)) for n in ALL_FILTERS]
+        badges=[]
+        if sel and len(bars)>=30:
+            try:
+                tf=timeframe.value if timeframe.value in ("1m","2m","3m","5m","10m","15m","30m","1h","1d") else "5m"
+                res=analyze([list(b) for b in bars],selected=list(sel),timeframe=tf)
+                for v in res.get("votes",[]):
+                    vv=v.get("vote")
+                    tag="▲ BULLISH" if vv==1 else "▼ BEARISH" if vv==-1 else "● NEUTRAL" if vv==0 else "— डेटा नहीं"
+                    badges.append(txt(v.get("name","?")+" "+tag+" • "+str(v.get("detail") or v.get("reason") or "")[:60],10,
+                                      GREEN if vv==1 else RED if vv==-1 else MUTED))
+            except Exception as exc:
+                log_error("chart_filter_badges",exc)
+        return section("चार्ट फ़िल्टर • "+sym+" • "+str(len(sel))+"/"+str(len(ALL_FILTERS))+" (हर सिंबल की अपनी याद)",ft.Column([
+            ft.Row(chips,wrap=True,spacing=4,run_spacing=4),
+            txt("EMA/SMA/VWAP चार्ट पर रेखा बनती है; बाक़ी का फ़ैसला (स्कैनर वाली वही गणना) नीचे दिखता है • वोट पर कोई असर नहीं",10,MUTED)]+badges,spacing=3))
     chart_ohlc=note("किसी कैंडल पर टैप करें: खुला/ऊँचा/नीचा/बंद/वॉल्यूम यहाँ दिखेगा")
     chart_bars_n=[36]
     def chart_show_ohlc(b):
@@ -4167,6 +4200,7 @@ def app_main(page:ft.Page):
         bars=q.get("bars") or []
         if len(bars)<2:
             return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("No validated OHLC history for "+str(symbol.value)+" • "+str(timeframe.value)+" • not live"),note("Check Dhan history, cooldown and selected timeframe; last valid LTP is separate")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
+        full_bars=list(bars)
         bars=bars[-chart_bars_n[0]:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=230)
@@ -4193,10 +4227,32 @@ def app_main(page:ft.Page):
                 vh=max(1,v/vmax*50)
                 controls.append(ft.Container(left=x,top=270-vh,width=max(3,width/len(bars)-2),height=vh,bgcolor=ft.Colors.with_opacity(.55,color)))
                 pv+=(h+l+c)/3*v;vv+=v
-                if vv>0:
+                if vv>0 and "VWAP" in chart_sym_filters(symbol.value):
                     yv=10+(high-pv/vv)/spread*195
                     if 0<=yv<=205:controls.append(ft.Container(left=x+1,top=yv,width=3,height=3,bgcolor=ft.Colors.CYAN_300,border_radius=2))
             controls.append(ft.Container(left=x-1,top=0,width=max(5,width/len(bars)),height=270,on_click=lambda e,b=(_,o,h,l,c,v):chart_show_ohlc(b)))
+        # Per-symbol filter lines: same scanner_engine.ema over the full history, then the visible tail.
+        try:
+            from scanner_engine import ema as _ema
+            fsel=chart_sym_filters(symbol.value)
+            fcl=[float(b[4]) for b in full_bars]
+            def _dots(series,color):
+                tail=series[-len(bars):]
+                for j,val in enumerate(tail):
+                    yy=10+(high-val)/spread*195
+                    if 0<=yy<=205:controls.append(ft.Container(left=j*width/len(bars)+3,top=yy,width=3,height=3,bgcolor=color,border_radius=2))
+            if "EMA 9/21" in fsel:
+                _dots(_ema(fcl,9),ft.Colors.AMBER_300);_dots(_ema(fcl,21),ft.Colors.PINK_300)
+            if "SMA 5/20" in fsel:
+                def _sma(vals,n):return [sum(vals[max(0,i-n+1):i+1])/len(vals[max(0,i-n+1):i+1]) if i>=n-1 else None for i in range(len(vals))]
+                for n_,col in ((5,ft.Colors.LIGHT_GREEN_300),(20,ft.Colors.PURPLE_200)):
+                    sm=_sma(fcl,n_)[-len(bars):]
+                    for j,val in enumerate(sm):
+                        if val is None:continue
+                        yy=10+(high-val)/spread*195
+                        if 0<=yy<=205:controls.append(ft.Container(left=j*width/len(bars)+3,top=yy,width=3,height=3,bgcolor=col,border_radius=2))
+        except Exception as exc:
+            log_error("chart_filter_lines",exc)
         # Fixed candle-derived reference guides, not interactive touch drawings.
         mode=drawing_mode[0]
         if mode=="Horizontal":
@@ -4213,7 +4269,7 @@ def app_main(page:ft.Page):
         last_candle_time=(datetime.fromtimestamp(bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
                           if isinstance(bars[-1][0],(int,float)) else "unknown")
         candle_status=note(str(q.get("source","Market"))+" • "+str(timeframe.value)+" OHLC • last "+last_candle_time+" • "+str(q.get("freshness","unverified"))+" • NOT live")
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),chart_ohlc,ft.Row([ft.TextButton(text=str(n)+" कैंडल",on_click=lambda e,n=n:chart_set_bars(n),style=ft.ButtonStyle(color=GOLD if chart_bars_n[0]==n else MUTED)) for n in (24,36,60,90)],wrap=True),note("सियान बिंदु = VWAP • नीचे की पट्टी = वॉल्यूम • ग्रिड पर भाव"),candle_status,guide],spacing=3)
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),chart_ohlc,ft.Row([ft.TextButton(text=str(n)+" कैंडल",on_click=lambda e,n=n:chart_set_bars(n),style=ft.ButtonStyle(color=GOLD if chart_bars_n[0]==n else MUTED)) for n in (24,36,60,90)],wrap=True),note("नीचे की पट्टी = वॉल्यूम • ग्रिड पर भाव • सियान बिंदु = VWAP, पीला/गुलाबी = EMA 9/21, हरा/बैंगनी = SMA 5/20 (फ़िल्टर चुनने पर)"),candle_status,guide],spacing=3)
     def drawing_action(v):
         drawing_mode[0]="None" if v=="Clear" else v
         if v=="Trendline":
@@ -4386,7 +4442,7 @@ def app_main(page:ft.Page):
                 note(quote_caption(symbol.value)),chart_message,
 
             ])))
-            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),section("Price Trend",ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
+            content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),chart_filter_panel(symbol.value,(chart_snapshot(symbol.value).get("bars") or [])),section("Price Trend",ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
             selected=[n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value]
             indicator_rows=[ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,
