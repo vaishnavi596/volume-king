@@ -1773,29 +1773,34 @@ def app_main(page:ft.Page):
             if sym not in used:top5_candidates.append({"symbol":sym,"bias":"DATA UNAVAILABLE","score":0,"timestamp":None,"age":0,"reason":"No valid candle data","historical":True});used.add(sym)
         return available
     news_bootstrap_generation=[None]
+    news_bootstrap_time=[0.0]
     async def refresh_superfive_news():
-        # Five bounded RSS contexts after authorized login. This is NOT
-        # market data, never a verified directional vote or an order input.
+        # Bounded RSS contexts. This is NOT market data, never a verified directional vote or an order input.
+        # B254: public RSS needs no Dhan feed, so it also runs while the market is closed (SSK connected is enough),
+        # starts with the three indices (their N box), and repeats every 30 minutes instead of once per login.
         generation=provider_generation[0]
-        if (news_bootstrap_generation[0]==generation or not app_active[0]
-                or prefs.get("source")!="Dhan" or not dhan_feed.connected):
+        reachable=dhan_feed.connected or clone_v2_gateway.connected
+        fresh=(news_bootstrap_generation[0]==generation and time.monotonic()-news_bootstrap_time[0]<1800)
+        if fresh or not app_active[0] or prefs.get("source")!="Dhan" or not reachable:
             return
         news_bootstrap_generation[0]=generation
+        news_bootstrap_time[0]=time.monotonic()
         selected_news_symbols=all_watch_symbols()
-        candidates=list(dict.fromkeys(row.get("symbol") for row in top5_candidates
-            if isinstance(row,dict) and row.get("symbol") in selected_news_symbols))[:5]
+        candidates=["NIFTY","BANKNIFTY","SENSEX"]
+        candidates+=list(dict.fromkeys(row.get("symbol") for row in top5_candidates
+            if isinstance(row,dict) and row.get("symbol") in selected_news_symbols and row.get("symbol") not in candidates))[:5]
         # A first install or cleared cache has no saved Top Five. Prime a
         # bounded set of watchlist news contexts rather than silently sending
         # zero requests for the whole login generation. These are NOT scored
         # or promoted to trading signals.
         for sym in selected_news_symbols:
-            if len(candidates)>=5:
+            if len(candidates)>=8:
                 break
             if sym not in candidates:
                 candidates.append(sym)
         for sym in candidates:
             if (generation!=provider_generation[0] or not app_active[0]
-                    or not dhan_feed.connected):
+                    or not (dhan_feed.connected or clone_v2_gateway.connected)):
                 break
             await asyncio.to_thread(fetch_news,sym)
             if current[0]==0:
@@ -3761,6 +3766,7 @@ def app_main(page:ft.Page):
         closed_ssk_hist=(clone_v2_gateway.connected and not refresh_hours()
                          and not dhan_feed.connected)
         if closed_ssk_hist:
+            page.run_task(refresh_superfive_news)   # B254: headlines do not need the live feed
             if not watch_closed_hist_loading[0]:
                 selected=tuple(sym for sym in watch_groups[active_watch[0]]
                     if sym in DHAN_VERIFIED_SYMBOLS
@@ -5734,7 +5740,7 @@ def app_main(page:ft.Page):
                 page.run_task(refresh_selected_options)
             # Bounded contextual RSS bootstrap is independent of Dhan market
             # quotes and never a verified five-engine directional vote.
-            if app_active[0] and dhan_feed.connected:
+            if app_active[0] and (dhan_feed.connected or clone_v2_gateway.connected):
                 page.run_task(refresh_superfive_news)
             connection_status.value=(
                 "Clone B3 Dhan→Oracle→Phone verified • "+

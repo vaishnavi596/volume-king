@@ -48,3 +48,15 @@ class Updater(unittest.TestCase):
 
     def test_doctor_shows_when_code_was_applied(self):
         self.assertIn('"code_applied_at":_au.get("applied_at")', SRC)
+
+
+class NewsWithoutLiveFeed(unittest.TestCase):
+    def test_news_runs_when_market_closed_and_covers_indices(self):
+        a = SRC.index("    async def refresh_superfive_news():")
+        b = SRC.index("    async def super_five_minute_refresh():")
+        seg = SRC[a:b]
+        self.assertIn("reachable=dhan_feed.connected or clone_v2_gateway.connected", seg)
+        self.assertIn('candidates=["NIFTY","BANKNIFTY","SENSEX"]', seg)
+        self.assertIn("time.monotonic()-news_bootstrap_time[0]<1800", seg)     # repeats every 30 min
+        self.assertNotIn("not dhan_feed.connected):\n            return", seg)
+        self.assertIn("page.run_task(refresh_superfive_news)   # B254", SRC)

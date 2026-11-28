@@ -48,7 +48,7 @@ class JointSessionRepairTests(unittest.TestCase):
         # Without saved Top Five, prime no more than five equity RSS contexts.
         self.assertIn("selected_news_symbols=all_watch_symbols()",news)
         self.assertIn("for sym in selected_news_symbols:",news)
-        self.assertIn("if len(candidates)>=5:",news)
+        self.assertIn("if len(candidates)>=8:",news)   # B254: three indices first, then up to five equities
         self.assertIn("if sym not in candidates:",news)
         self.assertIn("candidates.append(sym)",news)
         self.assertIn("await asyncio.to_thread(fetch_news,sym)",news)
