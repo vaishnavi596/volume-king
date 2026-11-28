@@ -46,7 +46,9 @@ class Registry(unittest.TestCase):
 class Routes(unittest.TestCase):
     def test_flow(self):
         os.environ["BOTKING_CLONE_DEVICES_FILE"] = os.path.join(tempfile.mkdtemp(), "d.json")
-        import clone_v2_gateway as g
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('backend_gateway_b256', 'backend/clone_v2_gateway.py')
+        g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
         app = g.create_app(key_bytes=MASTER.encode())
         c = TestClient(app)
         H = {"X-BotKing-Key": MASTER}
