@@ -892,6 +892,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         target: float
         levels: List[PaperLevel] = []
         target_avg: Optional[float] = None
+        stop_avg: Optional[float] = None
 
     contract_cache = {"mtime": None, "data": {}}
 
@@ -950,6 +951,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         target: float
         levels: List[PaperLevel] = []
         target_avg: Optional[float] = None
+        stop_avg: Optional[float] = None
 
     @app.post("/clone-v2/paper/preview-option")
     def paper_preview_option(body: PaperPreviewOption, x_botking_key: Optional[str] = Header(default=None)):
@@ -959,7 +961,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         if contract is None:
             raise HTTPException(422, "Contract not found in server list (strike/expiry)")
         result = paper_scenarios(body.entry, body.lots, contract["lot"],
-                                 [lv.dict() for lv in body.levels], body.stop, body.target, body.target_avg)
+                                 [lv.dict() for lv in body.levels], body.stop, body.target, body.target_avg, body.stop_avg)
         return paper_json(dict(result, lot_size=contract["lot"], source="server"))
 
     @app.post("/clone-v2/paper/open-option")
@@ -978,7 +980,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             pos = paper.open_option(label, {"seg": contract["seg"], "sid": contract["sid"]},
                                     contract["lot"], body.lots, entry, body.stop, body.target,
                                     [lv.dict() for lv in body.levels], body.target_avg,
-                                    option_levels_expiry())
+                                    option_levels_expiry(), body.stop_avg)
         except ValueError as exc:
             raise HTTPException(422, "%s (server entry premium %.2f)" % (exc, entry)) from None
         return paper_json({"position": pos, "entry_source": "server LTP at open"})

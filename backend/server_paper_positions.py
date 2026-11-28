@@ -86,7 +86,7 @@ class PaperEngine:
             return dict(pos)
 
     def open_option(self, label, instrument, lot_size, lots, entry, stop, target,
-                    levels=None, target_avg=None, expires_at=None):
+                    levels=None, target_avg=None, expires_at=None, stop_avg=None):
         """B249: paper BUY of ONE option contract with optional averaging levels.
 
         Only BUY (long premium). Averaging adds lots to the SAME contract when its
@@ -134,13 +134,20 @@ class PaperEngine:
                         raise ValueError("averaged target must be above the averaged price")
                 else:
                     raise ValueError("averaged target needs an averaging level")
+            sa = None
+            if stop_avg is not None:
+                if not clean:
+                    raise ValueError("averaged stop-loss needs an averaging level")
+                if not self._num(stop_avg) or not 0 < stop_avg < clean[-1]["price"]:
+                    raise ValueError("averaged stop-loss must be below the lowest averaging level")
+                sa = float(stop_avg)
             if len(self.open_positions()) >= MAX_OPEN:
                 raise ValueError("too many open paper positions")
             qty = lots * lot_size
             pos = {"id": uuid.uuid4().hex[:10], "symbol": label, "side": "BUY", "kind": "OPTION",
                    "instrument": {"seg": instrument["seg"], "sid": instrument["sid"]},
                    "lot_size": lot_size, "lots": lots, "qty": qty, "entry": float(entry),
-                   "stop": float(stop), "target": float(target), "target_if_averaged": ta,
+                   "stop": float(stop), "target": float(target), "target_if_averaged": ta, "stop_if_averaged": sa,
                    "levels": clean, "level_expires_at": expires_at, "averaged": False,
                    "fills": [{"price": float(entry), "qty": qty, "lots": lots, "t": self.clock()}],
                    "opened_at": self.clock(), "status": "OPEN", "mode": "PAPER"}
@@ -188,8 +195,11 @@ class PaperEngine:
                 if px is None:
                     continue
                 buy = p["side"] == "BUY"
-                if (px <= p["stop"]) if buy else (px >= p["stop"]):
-                    self._close(p, p["stop"], "STOP_LOSS")
+                stp = p["stop"]
+                if p.get("averaged") and p.get("stop_if_averaged"):
+                    stp = p["stop_if_averaged"]
+                if (px <= stp) if buy else (px >= stp):
+                    self._close(p, stp, "STOP_LOSS")
                     closed.append(dict(p))
                     continue
                 if p.get("levels"):
@@ -249,7 +259,7 @@ class PaperEngine:
                     "positions": [dict(p) for p in self.positions[-100:]]}
 
 
-def scenarios(entry, lots, lot_size, levels, stop, target, target_avg):
+def scenarios(entry, lots, lot_size, levels, stop, target, target_avg, stop_avg=None):
     """B250 single source of truth for the rupee view of an option BUY with averaging.
 
     Same inputs the engine validates in open_option. Returns {"ok":bool,"reason":str,"rows":[...]}.
@@ -269,16 +279,21 @@ def scenarios(entry, lots, lot_size, levels, stop, target, target_avg):
         lv.sort(key=lambda t: -t[0])
         qty, cost, n = lots * lot_size, entry * lots * lot_size, lots
         ta = float(target_avg) if num(target_avg) else None
+        sa = None
+        if num(stop_avg):
+            if not lv or not 0 < stop_avg < lv[-1][0]:
+                return {"ok": False, "reason": "averaged stop below lowest level required", "rows": []}
+            sa = float(stop_avg)
 
-        def row(label, n_lots, q, c, tgt):
+        def row(label, n_lots, q, c, tgt, stp):
             avg = c / q
             return {"label": label, "lots": n_lots, "qty": q, "avg": round(avg, 2), "invested": round(c, 2),
-                    "loss_at_stop": round((avg - stop) * q, 2), "target": tgt,
+                    "stop": stp, "loss_at_stop": round((avg - stp) * q, 2), "target": tgt,
                     "profit_at_target": round((tgt - avg) * q, 2) if tgt and tgt > avg else None}
-        rows = [row("no averaging", lots, qty, cost, float(target))]
+        rows = [row("no averaging", lots, qty, cost, float(target), float(stop))]
         for i, (p_, k) in enumerate(lv, 1):
             n += k; qty += k * lot_size; cost += p_ * k * lot_size
-            rows.append(row("after level %d (%g)" % (i, p_), n, qty, cost, ta if ta else float(target)))
+            rows.append(row("after level %d (%g)" % (i, p_), n, qty, cost, ta if ta else float(target), sa if sa else float(stop)))
         return {"ok": True, "reason": "", "rows": rows}
     except (TypeError, ValueError, AttributeError):
         return {"ok": False, "reason": "invalid input", "rows": []}

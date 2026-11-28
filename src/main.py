@@ -4118,18 +4118,35 @@ def app_main(page:ft.Page):
     chart_snapshots={}
     def chart_snapshot(sym):
         return chart_snapshots.get((sym,timeframe.value,provider_generation[0])) or {}
+    chart_ohlc=note("किसी कैंडल पर टैप करें: खुला/ऊँचा/नीचा/बंद/वॉल्यूम यहाँ दिखेगा")
+    chart_bars_n=[36]
+    def chart_show_ohlc(b):
+        try:
+            t=datetime.fromtimestamp(b[0],timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M") if isinstance(b[0],(int,float)) else "?"
+            chart_ohlc.value=t+" • O "+format(b[1],",.2f")+" H "+format(b[2],",.2f")+" L "+format(b[3],",.2f")+" C "+format(b[4],",.2f")+" • Vol "+format(b[5],",.0f")
+            chart_ohlc.update()
+        except Exception as exc:
+            log_error("chart_ohlc",exc)
+    def chart_set_bars(n):
+        chart_bars_n[0]=n;select(5)
     def chart_candles():
         q=chart_snapshot(symbol.value)
         bars=q.get("bars") or []
         if len(bars)<2:
             return ft.Container(content=ft.Column([ft.Icon(ft.Icons.CANDLESTICK_CHART,size=48,color=GOLD),txt("Candles loading / unavailable"),note("No validated OHLC history for "+str(symbol.value)+" • "+str(timeframe.value)+" • not live"),note("Check Dhan history, cooldown and selected timeframe; last valid LTP is separate")],horizontal_alignment=ft.CrossAxisAlignment.CENTER),height=210,alignment=ft.alignment.center)
-        bars=bars[-36:]
+        bars=bars[-chart_bars_n[0]:]
         if chart_style[0]=="Line":
             return ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=230)
         low=min(b[3] for b in bars);high=max(b[2] for b in bars)
         spread=max(high-low,.001)
-        width=324; height=230
+        width=324; height=290
         controls=[]
+        for k in range(5):
+            gy=10+k*195/4
+            controls.append(ft.Container(left=0,top=gy,width=width,height=1,bgcolor=ft.Colors.with_opacity(.18,MUTED)))
+            controls.append(ft.Text(format(high-k*spread/4,",.2f"),size=9,color=MUTED,left=2,top=max(0,gy-12)))
+        vmax=max([b[5] for b in bars if isinstance(b[5],(int,float))] or [0])
+        pv=vv=0.0
         for i,(_,o,h,l,c,v) in enumerate(bars):
             x=i*width/len(bars)+2
             yhigh=10+(high-h)/spread*195
@@ -4139,6 +4156,14 @@ def app_main(page:ft.Page):
             color=GREEN if c>=o else RED
             controls.append(ft.Container(left=x+2,top=yhigh,width=2,height=max(1,ylow-yhigh),bgcolor=color))
             controls.append(ft.Container(left=x,top=min(yo,yc),width=max(3,width/len(bars)-2),height=max(2,abs(yc-yo)),bgcolor=color))
+            if vmax>0 and isinstance(v,(int,float)):
+                vh=max(1,v/vmax*50)
+                controls.append(ft.Container(left=x,top=270-vh,width=max(3,width/len(bars)-2),height=vh,bgcolor=ft.Colors.with_opacity(.55,color)))
+                pv+=(h+l+c)/3*v;vv+=v
+                if vv>0:
+                    yv=10+(high-pv/vv)/spread*195
+                    if 0<=yv<=205:controls.append(ft.Container(left=x+1,top=yv,width=3,height=3,bgcolor=ft.Colors.CYAN_300,border_radius=2))
+            controls.append(ft.Container(left=x-1,top=0,width=max(5,width/len(bars)),height=270,on_click=lambda e,b=(_,o,h,l,c,v):chart_show_ohlc(b)))
         # Fixed candle-derived reference guides, not interactive touch drawings.
         mode=drawing_mode[0]
         if mode=="Horizontal":
@@ -4155,7 +4180,7 @@ def app_main(page:ft.Page):
         last_candle_time=(datetime.fromtimestamp(bars[-1][0],timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
                           if isinstance(bars[-1][0],(int,float)) else "unknown")
         candle_status=note(str(q.get("source","Market"))+" • "+str(timeframe.value)+" OHLC • last "+last_candle_time+" • "+str(q.get("freshness","unverified"))+" • NOT live")
-        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),candle_status,guide],spacing=3)
+        return ft.Column([ft.Row([note(f"High {high:,.2f}"),note(f"Low {low:,.2f}")],alignment=ft.MainAxisAlignment.SPACE_BETWEEN),ft.Container(content=ft.Stack(controls,width=width,height=height),height=height),chart_ohlc,ft.Row([ft.TextButton(text=str(n)+" कैंडल",on_click=lambda e,n=n:chart_set_bars(n),style=ft.ButtonStyle(color=GOLD if chart_bars_n[0]==n else MUTED)) for n in (24,36,60,90)],wrap=True),note("सियान बिंदु = VWAP • नीचे की पट्टी = वॉल्यूम • ग्रिड पर भाव"),candle_status,guide],spacing=3)
     def drawing_action(v):
         drawing_mode[0]="None" if v=="Clear" else v
         if v=="Trendline":
@@ -4570,6 +4595,7 @@ def app_main(page:ft.Page):
     tk_lv2_price=ft.TextField(label="औसत भाव 2 ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_lv2_lots=ft.TextField(label="लॉट",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_tga_price=ft.TextField(label="औसत होने पर टारगेट ₹",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
+    tk_sla_price=ft.TextField(label="औसत होने पर नया SL ₹ (औसत भाव से नीचे)",expand=True,keyboard_type=ft.KeyboardType.NUMBER,dense=True)
     tk_avg_lines=ft.Column([],spacing=2)
     tk_srv=dict(gen=0)
     tk_srv_line=txt("",11,MUTED)
@@ -4596,9 +4622,9 @@ def app_main(page:ft.Page):
             tk_avg_lines.controls=[]
             levels=[(tk_lv1_price.value,tk_lv1_lots.value),(tk_lv2_price.value,tk_lv2_lots.value)]
             if any(str(a).strip() for a,_ in levels):
-                for sc in option_ticket.averaging_scenarios(entry,tk_lots.value,tk_unit.value,levels,tk_sl_price.value,tk_tg_price.value,tk_tga_price.value):
+                for sc in option_ticket.averaging_scenarios(entry,tk_lots.value,tk_unit.value,levels,tk_sl_price.value,tk_tg_price.value,tk_tga_price.value,tk_sla_price.value):
                     line=(sc["label"]+": कुल "+str(sc["lots"])+" लॉट • औसत ₹"+format(sc["avg"],",.2f")+" • निवेश ₹"+format(sc["invested"],",.0f")
-                          +" • SL पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
+                          +" • SL ₹"+format(sc.get("stop") or 0,",.2f")+" पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
                           +((" • टारगेट ₹"+format(sc["target"],",.2f")+" पर मुनाफ़ा ₹"+format(sc["profit_at_target"],",.0f")) if sc["profit_at_target"] else ""))
                     tk_avg_lines.controls.append(txt(line,12,GOLD))
         except Exception as exc:
@@ -4621,21 +4647,22 @@ def app_main(page:ft.Page):
             for pr,n in ((tk_lv1_price.value,tk_lv1_lots.value),(tk_lv2_price.value,tk_lv2_lots.value)):
                 if str(pr).strip():levels.append({"price":float(pr),"lots":int(n)})
             tga=float(tk_tga_price.value) if str(tk_tga_price.value).strip() else None
+            sla=float(tk_sla_price.value) if str(tk_sla_price.value).strip() else None
             res=await asyncio.to_thread(clone_v2_gateway.paper_preview_option,chain_symbol.value,expiry.value,float(option_strike.value),
-                option_side.value,int(tk_lots.value),float(tk["prem"]),float(tk_sl_price.value),float(tk_tg_price.value),levels,tga)
+                option_side.value,int(tk_lots.value),float(tk["prem"]),float(tk_sl_price.value),float(tk_tg_price.value),levels,tga,sla)
             if gen!=tk_srv["gen"]:return
             if not res.get("ok") or not res.get("rows"):
                 tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सर्वर से नहीं जाँचा ("+str(res.get("detail") or res.get("reason"))[:60]+")"
                 tk_srv_line.color=MUTED
             else:
                 rows=res["rows"]
-                local=option_ticket.averaging_scenarios(tk["prem"],tk_lots.value,tk_unit.value,[(l["price"],l["lots"]) for l in levels],tk_sl_price.value,tk_tg_price.value,tga)
+                local=option_ticket.averaging_scenarios(tk["prem"],tk_lots.value,tk_unit.value,[(l["price"],l["lots"]) for l in levels],tk_sl_price.value,tk_tg_price.value,tga,sla)
                 same=bool(local) and abs(local[0]["loss_at_stop"]-rows[0]["loss_at_stop"])<1 and str(res.get("lot_size"))==str(tk_unit.value)
                 tk_avg_lines.controls=[]
                 for i,sc in enumerate(rows):
                     label="औसत नहीं" if i==0 else "स्तर "+str(i)+" के बाद"
                     line=(label+": कुल "+str(sc["lots"])+" लॉट • औसत ₹"+format(sc["avg"],",.2f")+" • निवेश ₹"+format(sc["invested"],",.0f")
-                          +" • SL पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
+                          +" • SL ₹"+format(sc.get("stop") or 0,",.2f")+" पर नुकसान ₹"+format(sc["loss_at_stop"],",.0f")
                           +((" • टारगेट ₹"+format(sc["target"],",.2f")+" पर मुनाफ़ा ₹"+format(sc["profit_at_target"],",.0f")) if sc["profit_at_target"] else ""))
                     tk_avg_lines.controls.append(txt(line,12,GREEN))
                 tk_srv_line.value=("हिसाब: सर्वर से जाँचा ✓ • लॉट "+str(res.get("lot_size")) if same else
@@ -4651,14 +4678,14 @@ def app_main(page:ft.Page):
             tk_recalc(src);page.update()
         return handler
     for _f,_k in ((tk_sl_pct,"sl_pct"),(tk_sl_price,"sl_price"),(tk_tg_pct,"tg_pct"),(tk_tg_price,"tg_price"),(tk_lots,None),(tk_unit,None),
-                  (tk_lv1_price,None),(tk_lv1_lots,None),(tk_lv2_price,None),(tk_lv2_lots,None),(tk_tga_price,None)):
+                  (tk_lv1_price,None),(tk_lv1_lots,None),(tk_lv2_price,None),(tk_lv2_lots,None),(tk_tga_price,None),(tk_sla_price,None)):
         _f.on_change=tk_changed(_k)
     def ticket_pick(strike,side,prem):
         """Row tap: fill strike/contract/premium; SL default 4%, target left for the owner."""
         option_strike.value=f"{strike:g}";option_side.value=side
         tk["prem"]=("" if prem is None else f"{prem:.2f}")
         tk_sl_pct.value=tk["sl_pct"];tk_tg_pct.value="";tk_tg_price.value=""
-        for _c in (tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots,tk_tga_price):_c.value=""
+        for _c in (tk_lv1_price,tk_lv1_lots,tk_lv2_price,tk_lv2_lots,tk_tga_price,tk_sla_price):_c.value=""
         try:
             _lat=(paper_hb_cache.get("signals") or {}).get("latest") or {}
             lots=_lat.get("lot_sizes") or {}
@@ -4686,8 +4713,9 @@ def app_main(page:ft.Page):
                 if str(pr).strip():
                     levels.append({"price":float(pr),"lots":int(n)})
             tga=float(tk_tga_price.value) if str(tk_tga_price.value).strip() else None
+            sla=float(tk_sla_price.value) if str(tk_sla_price.value).strip() else None
             res=await asyncio.to_thread(clone_v2_gateway.paper_open_option,chain_symbol.value,expiry.value,strike,
-                option_side.value,lots,float(tk_sl_price.value),float(tk_tg_price.value),levels,tga)
+                option_side.value,lots,float(tk_sl_price.value),float(tk_tg_price.value),levels,tga,sla)
             if res.get("ok"):
                 pos=res.get("position") or {}
                 tk_note.value=("सर्वर पेपर BUY खुला • "+str(pos.get("symbol"))+" • entry ₹"+format(pos.get("entry",0),",.2f")
@@ -4721,7 +4749,7 @@ def app_main(page:ft.Page):
                 txt("औसत (वही CE/PE, नीचे के भाव पर और लॉट) • खाली छोड़ें तो औसत नहीं",12,MUTED),
                 ft.Row([tk_lv1_price,tk_lv1_lots],spacing=10),
                 ft.Row([tk_lv2_price,tk_lv2_lots],spacing=10),
-                ft.Row([tk_tga_price],spacing=10)],spacing=14,data="compact_group"),
+                ft.Row([tk_tga_price],spacing=10),ft.Row([tk_sla_price],spacing=10)],spacing=14,data="compact_group"),
             tk_result,tk_avg_lines,tk_srv_line,
             ft.ElevatedButton("सर्वर PAPER "+side+" • बाज़ार खुले में",on_click=ticket_place),tk_note,
             note("Units/lot: "+str(tk.get("lot_from","हाथ से भरें"))+" • LIVE ऑर्डर हमेशा बंद")],spacing=8))
@@ -11803,7 +11831,8 @@ console.log('BOT KING Lightweight Charts ready');
         for x in opens:
             ctr.append(ft.Row([ft.Column([txt(x["symbol"]+" • "+x["side"]+" ×"+str(x["qty"]),14,GOLD,True),
                 note(("औसत ₹" if x.get("averaged") else "Entry ₹")+format(x["entry"],",.2f")+" • SL ₹"+format(x["stop"],",.2f")+" • Target "+("—" if x.get("target") is None else "₹"+format(x["target"],",.2f"))
-                     +((" • औसत पर टारगेट ₹"+format(x["target_if_averaged"],",.2f")) if x.get("target_if_averaged") else "")),
+                     +((" • औसत पर टारगेट ₹"+format(x["target_if_averaged"],",.2f")) if x.get("target_if_averaged") else "")
+                     +((" • औसत पर नया SL ₹"+format(x["stop_if_averaged"],",.2f")) if x.get("stop_if_averaged") else "")),
                 *([note("औसत बाक़ी: "+", ".join("₹"+format(l["price"],",.2f")+"×"+str(l["lots"])+" लॉट" for l in x["levels"])+" • शाम 15:30 पर रद्द")] if x.get("levels") else [])],spacing=2,expand=True),
                 ft.OutlinedButton("Close",on_click=lambda e,i=x["id"]:page.run_task(paper_server_close,i))]))
         if not opens:ctr.append(note("No open server paper positions"))

@@ -34,6 +34,18 @@ class OptionPaper(unittest.TestCase):
         c = e.positions[-1]
         self.assertEqual((c["reason"], c["exit"], c["pnl"]), ("STOP_LOSS", 50.0, -4550.0))
 
+    def test_new_stop_after_average_trigger(self):
+        e = eng()
+        e.open_option("X", INST, 65, 1, 100, 50, 120, levels=[{"price": 70, "lots": 1}], target_avg=100,
+                      expires_at=9e9, stop_avg=40)
+        e.observe({"X": 69}); e.observe({"X": 45})
+        self.assertEqual(len(e.open_positions()), 1)       # old SL 50 no longer applies
+        e.observe({"X": 39})
+        c = e.positions[-1]
+        self.assertEqual((c["reason"], c["exit"], c["pnl"]), ("STOP_LOSS", 40.0, round((40 - 100) * 65 + (40 - 70) * 65, 2)))
+        with self.assertRaises(ValueError):
+            eng().open_option("Y", INST, 65, 1, 100, 50, 120, levels=[{"price": 70, "lots": 1}], stop_avg=75)
+
     def test_gap_below_stop_does_not_average(self):
         e = eng()
         e.open_option("X", INST, 65, 1, 100, 50, 120, levels=[{"price": 70, "lots": 1}], expires_at=9e9)
@@ -199,3 +211,22 @@ class TicketLayout(unittest.TestCase):
             self.assertIn("expand=True", line, name)
         card = main[main.index("def ticket_card"):main.index("def ticket_card") + 4000]
         self.assertIn('data="compact_group"', card)
+
+
+class StopAfterAveragingTests(unittest.TestCase):
+    def test_new_stop_after_average(self):
+        import server_paper_positions as sp
+        eng = sp.PaperEngine(None) if False else None
+        r = sp.scenarios(100, 1, 65, [{"price": 70, "lots": 1}], 50, 120, 100, 40)
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["rows"][0]["stop"], 50.0)
+        self.assertEqual(r["rows"][1]["stop"], 40.0)
+        self.assertEqual(r["rows"][1]["loss_at_stop"], round((85 - 40) * 130, 2))
+        bad = sp.scenarios(100, 1, 65, [{"price": 70, "lots": 1}], 50, 120, 100, 75)
+        self.assertFalse(bad["ok"])
+
+    def test_phone_matches_server(self):
+        import option_ticket, server_paper_positions as sp
+        a = sp.scenarios(100, 1, 65, [{"price": 70, "lots": 1}], 50, 120, 100, 40)["rows"]
+        b = option_ticket.averaging_scenarios(100, 1, 65, [(70, 1)], 50, 120, 100, 40)
+        self.assertEqual([x["loss_at_stop"] for x in a], [x["loss_at_stop"] for x in b])

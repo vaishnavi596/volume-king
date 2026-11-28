@@ -140,20 +140,22 @@ class CloneV2Gateway:
                 "events":journal.get("events",[]) if journal.get("ok") else [],
                 "ok":bool(latest.get("ok") or journal.get("ok"))}
 
-    def paper_open_option(self, underlying, expiry, strike, side, lots, stop, target, levels=None, target_avg=None):
+    def paper_open_option(self, underlying, expiry, strike, side, lots, stop, target, levels=None, target_avg=None, stop_avg=None):
         """B249: server paper BUY of one option contract; the server uses its OWN live premium as entry."""
         body={"underlying":str(underlying),"expiry":str(expiry),"strike":float(strike),"side":str(side),
               "lots":int(lots),"stop":float(stop),"target":float(target),
               "levels":[{"price":float(x["price"]),"lots":int(x["lots"])} for x in (levels or [])]}
         if target_avg is not None:body["target_avg"]=float(target_avg)
+        if stop_avg is not None:body["stop_avg"]=float(stop_avg)
         return self._paper_call("POST","open-option",body)
 
-    def paper_preview_option(self, underlying, expiry, strike, side, lots, entry, stop, target, levels=None, target_avg=None):
+    def paper_preview_option(self, underlying, expiry, strike, side, lots, entry, stop, target, levels=None, target_avg=None, stop_avg=None):
         """B250: rupee view computed by the server's own engine maths (no quote, no order)."""
         body={"underlying":str(underlying),"expiry":str(expiry),"strike":float(strike),"side":str(side),
               "lots":int(lots),"entry":float(entry),"stop":float(stop),"target":float(target),
               "levels":[{"price":float(x["price"]),"lots":int(x["lots"])} for x in (levels or [])]}
         if target_avg is not None:body["target_avg"]=float(target_avg)
+        if stop_avg is not None:body["stop_avg"]=float(stop_avg)
         return self._paper_call("POST","preview-option",body)
 
     def paper_state(self):
