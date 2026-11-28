@@ -4676,6 +4676,9 @@ def app_main(page:ft.Page):
                 tk_srv_line.value=("हिसाब: सर्वर से जाँचा ✓ • लॉट "+str(res.get("lot_size")) if same else
                                    "हिसाब: सर्वर का दिखा रहे हैं (फ़ोन के अनुमान/लॉट से अंतर) • लॉट "+str(res.get("lot_size")))
                 tk_srv_line.color=GREEN if same else GOLD
+        except ValueError:
+            tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सभी खाने सही भरें तो सर्वर जाँचेगा"  # half-typed numbers are normal, not an error
+            tk_srv_line.color=MUTED
         except Exception as exc:
             log_error("ticket_srv_preview",exc)
             tk_srv_line.value="हिसाब: फ़ोन का अनुमान • सर्वर से नहीं जाँचा"
@@ -4783,13 +4786,9 @@ def app_main(page:ft.Page):
         # The Dhan gateway currently supplies option-chain snapshots, not
         # strike-specific historical CE/PE candles.
         return section("Option Chart",ft.Column([
-            note('Dhan-only read-only charts/scanner and option metrics. Live orders OFF.'),
-            note("Dhan CE/PE premium history • not available from the current read-only gateway"),
-            note("The Option Chain above can display Dhan strikes, OI and premiums when returned by the selected expiry."),
-            note("Historical option candles unavailable • no simulated chart; Dhan data only."),
-            note("Dhan option-chain data refreshes automatically when symbol or expiry changes."),
-            note(option_feed_status[0])
-        ],spacing=6))
+            txt("Dhan CE/PE premium history • not available from the read-only gateway • no simulated chart; Dhan data only • चेन अपने-आप रिफ्रेश होती है",10,MUTED),
+            txt(option_feed_status[0],10,MUTED)
+        ],spacing=3))
     def quote_caption(sym):
         if dhan_offline():
             return ("SSK/Oracle CONNECTED • HIST candles available separately • "
@@ -5186,6 +5185,14 @@ def app_main(page:ft.Page):
             return note("Dhan Max Pain: "+f'{value:,.0f}'+
                         " • UNVERIFIED • live orders OFF • OI Support/Resistance directional evidence not connected")
         return note("Premium flow unavailable without verified volume and transaction direction.")
+    def cnum(v,signed=False):
+        """Compact Indian units for a crowded chain: 1.09Cr / 29.2L / 5.4K."""
+        if type(v) not in (int,float) or not math.isfinite(v):return "—"
+        a=abs(v);sg=("+" if v>0 else "-" if v<0 else "") if signed else ("-" if v<0 else "")
+        if a>=1e7:return sg+format(a/1e7,".2f")+"Cr"
+        if a>=1e5:return sg+format(a/1e5,".1f")+"L"
+        if a>=1e3:return sg+format(a/1e3,".1f")+"K"
+        return sg+format(a,".0f")
     def option_chain_preview():
         # Keep the structure visible without presenting missing quotes as zero.
         headings=["CE Premium","CE OI","Strike","PE OI","PE Premium"]
@@ -5228,7 +5235,8 @@ def app_main(page:ft.Page):
             for item in context["rows"]:
                 def value(leg, field, decimals=0):
                     v=leg.get(field)
-                    return ("—" if v is None else f"{v:,.{decimals}f}")
+                    if v is None:return "—"
+                    return f"{v:,.{decimals}f}" if decimals else cnum(v)
                 def oi_change(leg):
                     # Change in open interest is not money flow, and previous
                     # OI may be missing. Never display invented zero change.
@@ -5237,7 +5245,7 @@ def app_main(page:ft.Page):
                     if (type(current_oi) not in (int,float)
                             or type(previous_oi) not in (int,float)):
                         return "—"
-                    return f"{current_oi-previous_oi:+,.0f}"
+                    return cnum(current_oi-previous_oi,True)
                 texts=(value(item["ce"],"last_price",2),value(item["ce"],"oi"),
                     oi_change(item["ce"]),value(item["ce"],"volume"),
                     f'{item["strike"]:g}',value(item["pe"],"volume"),
@@ -5248,17 +5256,17 @@ def app_main(page:ft.Page):
                     ok=type(price) in (int,float) and math.isfinite(price) and price>0
                     return lambda e:ticket_pick(strike,side,price if ok else None)
                 display_rows.append(ft.DataRow(cells=[
-                    ft.DataCell(txt(v,12,GREEN if i==0 else RED if i==8 else GOLD if i==4 else MUTED,i in (0,4,8)),
+                    ft.DataCell(txt(v,11,GREEN if i==0 else RED if i==8 else GOLD if i==4 else MUTED,i in (0,4,8)),
                         on_tap=(_tap("CE" if i==0 else "PE",item["ce"] if i==0 else item["pe"]) if i in (0,8)
                                 else _tap("PE" if option_side.value=="PE" else "CE",item["pe"] if option_side.value=="PE" else item["ce"])) if i in (0,4,8) else None)
                     for i,v in enumerate(texts)]))
             return ft.Column([
-                note("Underlying provider: Dhan • "+str(chain_symbol.value)+" • price freshness must be verified separately. CE/PE quotes require verified Dhan option-chain data."),
-                note(hist_chain_label or "Dhan • ATM ±3 listed strikes • UNVERIFIED • signals WAIT • live orders OFF"),
-                ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,12,GOLD,True)) for h in
-                    ["CE Premium","CE OI","CE ΔOI","CE Vol","Strike","PE Vol","PE ΔOI","PE OI","PE Premium"]],
-                    rows=display_rows,column_spacing=10,horizontal_margin=8)],scroll=ft.ScrollMode.ALWAYS),
-                note("CE/PE premiums, OI and ΔOI are historical/unverified context only; ΔOI is NOT traded cash. Missing fields shown as —.")])
+                txt((hist_chain_label or "Dhan • ATM ±3 • UNVERIFIED • signals WAIT")+" • "+str(chain_symbol.value)+" • live orders OFF",10,MUTED),
+                ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,10,GOLD,True)) for h in
+                    ["CE ₹","CE OI","CE ΔOI","CE Vol","Strike","PE Vol","PE ΔOI","PE OI","PE ₹"]],
+                    rows=display_rows,column_spacing=5,horizontal_margin=3,data_row_min_height=30,data_row_max_height=32,
+                    heading_row_height=30,divider_thickness=0.5)],scroll=ft.ScrollMode.ALWAYS),
+                txt("OI/ΔOI unverified context; ΔOI is NOT traded cash • L=लाख Cr=करोड़ K=हज़ार • — = डेटा नहीं",10,MUTED)],spacing=3)
         if prefs.get("source") == "Dhan":
             return ft.Column([
                 note("Dhan option strikes unavailable for selected symbol/expiry • UNVERIFIED • signals WAIT"),
@@ -5301,11 +5309,10 @@ def app_main(page:ft.Page):
         ],horizontal_alignment=ft.CrossAxisAlignment.STRETCH,spacing=8)
     def options():
         content=[heading("Options • One scroll page"),symbol_search(chain_symbol),chain_symbol,option_expiry_choice,expiry,option_expiry_note,
-                 note("Auto refresh • Dhan broker-listed expiry and option metrics"),
-                 note(option_feed_status[0]),
+                 txt("Auto refresh • Dhan • "+str(option_feed_status[0]),10,MUTED),
                  ft.Column([option_add_symbol,ft.ElevatedButton("Add",on_click=add_option_symbol)],horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
-                 note("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"))]
-        content.extend([section('Option Chain', ft.Column([ft.Row([txt('CALL (CE)', 14, GREEN, True), txt('STRIKE', 14, GOLD, True), txt('PUT (PE)', 14, RED, True)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), ft.Column([option_chain_preview(), note('CE/PE भाव या स्ट्राइक पर टैप करें → ऑर्डर टिकट पेज के सबसे नीचे अपने-आप भर जाएगा'), txt('चुना: '+str(option_strike.value or '—')+' '+str(option_side.value)+((' • भाव ₹'+tk['prem']) if tk['prem'] else ''),13,GOLD,True), option_chart_panel()])]))])
+                 txt("Selected: "+str(chain_symbol.value)+" • "+str(expiry.value or "expiry not set"),11,MUTED)]
+        content.extend([section('Option Chain', ft.Column([ft.Column([option_chain_preview(), txt('CE/PE भाव या स्ट्राइक पर टैप → ऑर्डर टिकट (पेज के सबसे नीचे) भर जाएगा',10,GOLD), txt('चुना: '+str(option_strike.value or '—')+' '+str(option_side.value)+((' • भाव ₹'+tk['prem']) if tk['prem'] else ''),13,GOLD,True), option_chart_panel()])]))])
         content.append(section('OI Analysis', option_metrics('OI')))
         content.append(section('Put Call Ratio', option_metrics('PCR')))
         content.append(section('Premium Money Flow • Volume activity only', option_metrics('Flow')))
