@@ -3507,3 +3507,4 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Time windows (general table, labelled so): ticket hint; server paper stores entry window and reports window_stats.
 - Nightly server updater (ops/botking_autoupdate.sh, timer 02:15 IST) installed by owner; Doctor row server_autoupdate (shows after this APK).
 - Not yet: option OI/PCR change inside M (runner has no chain), morning-OI ledger, higher-timeframe/VIX inputs, pinch zoom.
+- J60 addendum: first B251 APK attempt failed only at the signature-check step (workflow still expected versionCode 250; sed missed the double-escaped regex). Fixed. Added closed-market REPLAY (backend/clone_replay.py): replays last closed days' real 1m candles through M + the scanner filters, measures hit-rates by horizon/window/confluence; run by installer and the nightly updater; summary in signals-latest "replay" and Doctor row server_replay.

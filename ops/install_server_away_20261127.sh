@@ -22,6 +22,9 @@ python3 -m py_compile "$WORK/server_paper_positions.py"
 grep -q 'def open_option' "$WORK/server_paper_positions.py" || { echo "BLOCKED: wrong paper engine candidate"; exit 1; }
 python3 -m py_compile "$WORK/dhan_option_metrics.py"
 grep -q 'both CE and PE' "$WORK/dhan_option_metrics.py" || { echo "BLOCKED: wrong option-metrics candidate"; exit 1; }
+curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_replay.py" -o "$WORK/clone_replay.py"
+python3 -m py_compile "$WORK/clone_replay.py"
+curl -fsSL -m 40 --retry 3 "$BASE/$SRC/ops/botking_autoupdate.sh" -o "$WORK/botking_autoupdate.sh" && bash -n "$WORK/botking_autoupdate.sh" && grep -q "^LIVE_ORDERS_ENABLED\|LIVE_ORDERS_ENABLED = False" "$WORK/botking_autoupdate.sh" && sudo install -m 755 "$WORK/botking_autoupdate.sh" /usr/local/bin/botking-autoupdate.sh || echo "NOTE: updater self-refresh skipped"
 for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
   curl -fsSL -m 40 --retry 3 "$BASE/$SRC/src/$f" -o "$WORK/$f"
 done
@@ -29,7 +32,7 @@ for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_ca
 grep -q '/clone-v2/signals/latest' "$WORK/clone_v2_gateway.py" || { echo "BLOCKED: wrong gateway candidate"; exit 1; }
 grep -q 'preview-option' "$WORK/clone_v2_gateway.py" && grep -q 'lot_by_expiry' "$WORK/clone_signal_runner.py" && grep -q 'parse_option_contracts' "$WORK/clone_signal_runner.py" && grep -q 'open-option' "$WORK/clone_v2_gateway.py" && grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
 for f in clone_v2_gateway.py dhan_option_metrics.py server_paper_positions.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
-for f in clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
+for f in clone_replay.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py; do
   [ -f "$SIG/$f" ] && cp -p "$SIG/$f" "$SIG/$f.rollback-$TS"; install -m 600 "$WORK/$f" "$SIG/$f"
 done
 if ! systemctl cat "$RUNNER" >/dev/null 2>&1; then
@@ -60,6 +63,9 @@ sudo systemctl restart "$SERVICE" "$RUNNER"
 sleep 5
 if test "$(systemctl is-active "$SERVICE")" = active && curl -fsS -m 8 -o /dev/null http://127.0.0.1:8002/clone-v2/health; then
   echo "SERVER_AWAY_INSTALL_OK gateway=$(systemctl is-active "$SERVICE") runner=$(systemctl is-active "$RUNNER")"
+  if [ "$(TZ=Asia/Kolkata date +%H)" -ge 16 ] || [ "$(TZ=Asia/Kolkata date +%u)" -ge 6 ] || [ "$(TZ=Asia/Kolkata date +%H)" -lt 9 ]; then
+    (cd "$SIG" && timeout 150 python3.9 clone_replay.py 2>&1 | tail -2) || echo "REPLAY_SKIPPED"
+  fi
 else
   echo "FAILED: rolling back gateway"
   [ -f "$ROOT/clone_v2_gateway.py.rollback-$TS" ] && cp -p "$ROOT/clone_v2_gateway.py.rollback-$TS" "$ROOT/clone_v2_gateway.py"

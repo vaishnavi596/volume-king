@@ -375,6 +375,12 @@ def main():
                     out["autoupdate"] = json.loads(au.read_text(encoding="utf-8"))
             except Exception:
                 pass  # update status is informational only
+            try:
+                rp = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
+                if rp.exists():
+                    out["replay"] = json.loads(rp.read_text(encoding="utf-8"))
+            except Exception:
+                pass  # replay summary is informational only
             atomic_write(OUT_FILE, json.dumps(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))
