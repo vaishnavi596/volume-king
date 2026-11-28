@@ -14,13 +14,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from clone_signal_runner import post, with_integrity, atomic_write, SSK_FILE, OUT_FILE, SYMBOLS, IST  # noqa: E402
+from clone_signal_runner import post, with_integrity, atomic_write, SSK_FILE, OUT_FILE, SYMBOLS, IST, futures_buildup  # noqa: E402
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 try:
     from v3_heavyweights import heavy_lean, constituents  # noqa: E402
 except ImportError:
     heavy_lean = constituents = None
-from v3_m_forward import m_leans, m_context, resolve_prediction, window_of, min_move  # noqa: E402
+from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction, window_of, min_move  # noqa: E402
 
 REPLAY_FILE = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
 STEP = 5
@@ -62,7 +62,45 @@ def body_balance(past, n=8):
     return "BULLISH" if share >= 60 else "BEARISH" if share <= 40 else None
 
 
-def replay_day(bars, report, prev_close=None, symbol=None, heavy_day=None):
+def split_fut(bars, oi):
+    """Group futures candles (and their aligned OI list, when present) by IST day -> (bars, oi_or_None)."""
+    days = {}
+    for k, b in enumerate(bars or ()):
+        try:
+            t = float(b[0]); float(b[4])
+        except (TypeError, ValueError, IndexError):
+            continue
+        d = days.setdefault(datetime.fromtimestamp(t, IST).date().isoformat(), ([], []))
+        d[0].append(b)
+        d[1].append(oi[k] if isinstance(oi, list) and len(oi) == len(bars) else None)
+    return {k: (v[0], v[1] if all(x is not None for x in v[1]) else None) for k, v in days.items() if len(v[0]) >= 120}
+
+
+def fut_bias(fut_day, t):
+    """Same F rule as the live runner (price lean + OI build-up tilt), using only futures candles up to time t."""
+    if not fut_day:
+        return None
+    fb, foi = fut_day
+    n = sum(1 for b in fb if b[0] <= t)
+    if n < 45:
+        return None
+    past = fb[:n]
+    lean = m_lean(past, 30)
+    if not lean:
+        return None
+    bull = lean["bullish"]
+    bu = futures_buildup(past, foi[:n] if foi else None) if futures_buildup and foi else None
+    if bu:
+        sign = 1 if bu["direction"] == "BULLISH" else -1
+        tilt = bull - 50
+        if tilt != 0 and (tilt > 0) == (sign == 1):
+            bull = max(0, min(100, round(50 + tilt * (1 + 0.25 * bu["weight"]))))
+        elif tilt != 0:
+            bull = round(50 + tilt / 2)
+    return "BULLISH" if bull >= 60 else "BEARISH" if bull <= 40 else None
+
+
+def replay_day(bars, report, prev_close=None, symbol=None, heavy_day=None, fut_day=None):
     n = len(bars)
     for i in range(START_IDX, n, STEP):
         past = bars[:i]
@@ -89,13 +127,14 @@ def replay_day(bars, report, prev_close=None, symbol=None, heavy_day=None):
             hl = heavy_lean(symbol, sub)
             if hl:
                 h_bias = "BULLISH" if hl["bullish"] >= 60 else "BEARISH" if hl["bullish"] <= 40 else None
+        f_bias = fut_bias(fut_day, t)
         for hz in HORIZONS:
             j = i - 1 + hz
             if j >= n:
                 continue
             after = float(bars[j][4])
             mv = min_move(past, entry, hz)
-            for box, bx in (("T", bias), ("C", c_bias), ("H", h_bias)):
+            for box, bx in (("T", bias), ("C", c_bias), ("H", h_bias), ("F", f_bias)):
                 if bx:
                     bh = resolve_prediction(entry, bx, after, mv)
                     if bh is not None:
@@ -158,14 +197,23 @@ def main():
     next_day = {}
     if constituents:
         for name in sorted({c for s_ in SYMBOLS for c in constituents(s_)}):
-            try:
-                r_ = with_integrity(post("/clone-v2/market/candles", {
-                    "symbol": name, "interval": 1,
-                    "from_date": (today - timedelta(days=5)).isoformat(), "to_date": today.isoformat()}, key, timeout=60))
-                heavy_days[name] = split_days(r_.get("bars"))
-            except Exception:
-                heavy_days[name] = {}
-            time.sleep(1.2)
+            collected = []
+            for w in range(INTRADAY_WINDOWS):   # B259: same ~4 weeks as the indices, so H has far more than 37 samples
+                hi = today - timedelta(days=5 * w + (0 if w == 0 else 1))
+                lo = hi - timedelta(days=5 if w == 0 else 4)
+                try:
+                    r_ = with_integrity(post("/clone-v2/market/candles", {
+                        "symbol": name, "interval": 1,
+                        "from_date": lo.isoformat(), "to_date": hi.isoformat()}, key, timeout=60))
+                    collected.extend(r_.get("bars") or [])
+                except Exception:
+                    pass
+                time.sleep(1.2)
+            seen_h, merged_h = set(), []
+            for b in sorted(collected, key=lambda x: x[0]):
+                if b[0] not in seen_h:
+                    seen_h.add(b[0]); merged_h.append(b)
+            heavy_days[name] = split_days(merged_h)
     for symbol in SYMBOLS:
         all_bars, failure = [], None
         for w in range(INTRADAY_WINDOWS):   # B255: 5-day windows going back (gateway cap), ~4 weeks in total
@@ -187,13 +235,41 @@ def main():
             if b[0] not in seen_ts:
                 seen_ts.add(b[0]); merged.append(b)
         days = split_days(merged)
+        fut_days = {}   # B259: index-futures 1m candles + OI for the same days, so box F is scored on past data too
+        f_bars, f_oi, f_ok = [], [], True
+        for w in range(INTRADAY_WINDOWS):
+            hi = today - timedelta(days=5 * w + (0 if w == 0 else 1))
+            lo = hi - timedelta(days=4 if w else 4)
+            try:
+                fr = with_integrity(post("/clone-v2/market/futures/candles", {
+                    "underlying": symbol, "interval": 1,
+                    "from_date": lo.isoformat(), "to_date": hi.isoformat()}, key, timeout=60))
+                fb_ = fr.get("bars") or []
+                fo_ = fr.get("oi")
+                if isinstance(fo_, list) and len(fo_) == len(fb_):
+                    f_oi.extend(fo_)
+                else:
+                    f_ok = False
+                    f_oi.extend([None] * len(fb_))
+                f_bars.extend(fb_)
+            except Exception:
+                pass
+            time.sleep(1.2)
+        if f_bars:
+            order = sorted(range(len(f_bars)), key=lambda k: f_bars[k][0])
+            seen_f, sb, so = set(), [], []
+            for k in order:
+                if f_bars[k][0] not in seen_f:
+                    seen_f.add(f_bars[k][0]); sb.append(f_bars[k]); so.append(f_oi[k])
+            fut_days = split_fut(sb, so if f_ok else None)
+        report.setdefault("fut_days", {})[symbol] = sorted(fut_days)
         # the current day is excluded when the market may still be open
         days.pop(today.isoformat(), None) if datetime.now(IST).hour < 16 else None
         report["symbols"][symbol] = sorted(days)
         prev = None
         for d, bars in sorted(days.items()):
             hd = {c: (heavy_days.get(c) or {}).get(d) for c in (constituents(symbol) if constituents else ())}
-            replay_day(bars, report, prev, symbol, hd)
+            replay_day(bars, report, prev, symbol, hd, fut_days.get(d))
             try:
                 prev = float(bars[-1][4])
             except (TypeError, ValueError, IndexError):
@@ -216,7 +292,7 @@ def main():
            "m_hit": finish(report["horizons"]), "m_by_window_30m": finish(report["windows"]),
            "m_by_confluence_30m": finish(report["confluence"]), "engine_dir_20m": finish(report["engine_dir"]),
            "box_hit": {k: finish(v) for k, v in sorted(report["box"].items())},
-           "flat_moves": report.get("flat", 0), "next_day": next_day,
+           "flat_moves": report.get("flat", 0), "next_day": next_day, "fut_days": report.get("fut_days", {}),
            "note": "REPLAY on past real candles; analysis only; M is never a vote"}
     atomic_write(REPLAY_FILE, json.dumps(out) + "\n")
     print("REPLAY_OK days=%s calls=%d errors=%d" % (",".join(out["days"]), report["engine"]["calls"], report["engine"]["errors"]))

@@ -554,7 +554,7 @@ def vote_gate(ledger, replay=None):
             wn, wh = int(v.get("n", 0)) // OVERLAP_30M, round(int(v.get("hits", 0)) / OVERLAP_30M)
             by_win[k[4:]] = _gate_row(wn, wh, None)
     out["M_windows"] = by_win
-    for box in ("T", "C", "H"):
+    for box in ("T", "C", "H", "F"):   # B259: F is scored on past futures candles by the replay as well
         r_ = (((replay or {}).get("box_hit") or {}).get(box) or {}).get("30m") or {}
         if type(r_.get("n")) is int and r_["n"] > 0 and type(r_.get("hit_rate")) in (int, float):
             bn, bh = r_["n"] // OVERLAP_30M, round(r_["n"] * r_["hit_rate"] / 100 / OVERLAP_30M)
@@ -564,6 +564,8 @@ def vote_gate(ledger, replay=None):
             out[box] = _gate_row(0, 0, None)
     for box, field in (("O", "oi_stats"), ("N", "news_stats"), ("F", "fut_stats"), ("H_morning", "heavy_stats")):
         n, hits, _ = agg(ledger.get(field))
+        if box == "F" and (out.get("F") or {}).get("n", 0) > 0:
+            continue   # replay already measured F; live ledger numbers join only while the replay has none
         out[box] = _gate_row(n, hits, None)
     nd = (replay or {}).get("next_day") or {}
     dn = dh = du = 0

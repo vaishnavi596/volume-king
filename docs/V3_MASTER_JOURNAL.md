@@ -3582,3 +3582,9 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - O (OI change) is capped at 95/5; a seven-strike window is never certainty.
 - C/N/F boxes now say why they are empty (no 1m history / no direction cue / futures lean after open).
 - Not done: one shared engine function for the ranking scan (still 5m), per-box last-update labels, N direction for shares.
+
+## J70 — B259 build (28 Nov 2026): past-data scoring for box F and H
+- Owner: past-week data can score boxes too. Server replay now also fetches ~4 weeks of index-futures 1m candles + OI and scores box F by the same rule as live (price lean + OI build-up tilt) against what the index did next; H (heavy weights) now uses the same 4 weeks (was 5 days, 37 samples).
+- F gate row comes from the replay when it has samples; the live ledger only fills it while the replay has none.
+- O: Dhan has an Expired Options Data API, but whether it carries OI and how far back is NOT confirmed — not wired. N: no trustworthy past headlines — both fill from live ledgers from Monday 30 Nov.
+- Replay timeouts raised (installer 600 s, auto-updater 900 s) for the extra fetches.

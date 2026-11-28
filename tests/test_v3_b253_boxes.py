@@ -80,7 +80,7 @@ class ReplayAndGate(unittest.TestCase):
     def test_installer_ships_new_modules_and_replay_has_room(self):
         inst = open("ops/install_server_away_20261127.sh", encoding="utf-8").read()
         self.assertEqual(inst.count("v3_fut_buildup.py v3_heavyweights.py"), 3)
-        self.assertIn("timeout 600", open("ops/botking_autoupdate.sh", encoding="utf-8").read())
+        self.assertIn("timeout 900", open("ops/botking_autoupdate.sh", encoding="utf-8").read())
 
 
 if __name__ == "__main__":
