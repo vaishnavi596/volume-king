@@ -2319,7 +2319,7 @@ def app_main(page:ft.Page):
                 elif name=="futures" and prefs.get("market_display_mode")!="LIVE_ONLY":
                     _fl=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("fut_lean") or {}).get(sym) or {})
                     if type(_fl.get("bullish")) in (int,float):
-                        label="F HIST B"+str(_fl["bullish"])+"/S"+str(_fl["bearish"])+" • futures price+premium lean • not voted"
+                        label="F HIST B"+str(_fl["bullish"])+"/S"+str(_fl["bearish"])+(" • "+str(_fl["buildup"]).replace("_"," ") if _fl.get("buildup") else " • futures price+premium lean")+" • not voted"
                         color=GREEN if _fl["bullish"]>50 else RED if _fl["bullish"]<50 else GOLD
                 elif name=="news":
                     with news_lock:
@@ -7882,7 +7882,7 @@ def app_main(page:ft.Page):
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
                     data["m_context_server"]={"code":"BK-DOC-MCTX-001","symbols":{k:(v.get("context") or {}) for k,v in (_srv.get("m_lean") or {}).items()},
-                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"vote_gate":_srv.get("vote_gate"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
+                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"vote_gate":_srv.get("vote_gate"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"heavy_lean":_srv.get("heavy_lean"),"heavy_morning":(_srv.get("m_ledger") or {}).get("heavy_morning"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                     _au=_srv.get("autoupdate") or {}

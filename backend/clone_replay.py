@@ -16,6 +16,10 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from clone_signal_runner import post, with_integrity, atomic_write, SSK_FILE, OUT_FILE, SYMBOLS, IST  # noqa: E402
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
+try:
+    from v3_heavyweights import heavy_lean, constituents  # noqa: E402
+except ImportError:
+    heavy_lean = constituents = None
 from v3_m_forward import m_leans, m_context, resolve_prediction, window_of, min_move  # noqa: E402
 
 REPLAY_FILE = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
@@ -43,7 +47,22 @@ def bump(group, key, hit, up=None):
         g["up"] += int(bool(up))
 
 
-def replay_day(bars, report, prev_close=None):
+def body_balance(past, n=8):
+    """Same body-only balance as five_engine.historical_candle_balance (bull/bear share of the last n candles)."""
+    bulls = bears = 0
+    for b in past[-n:]:
+        try:
+            o, c = float(b[1]), float(b[4])
+        except (TypeError, ValueError, IndexError):
+            return None
+        bulls += c > o; bears += c < o
+    if bulls + bears < 5:
+        return None
+    share = round(bulls * 100 / (bulls + bears))
+    return "BULLISH" if share >= 60 else "BEARISH" if share <= 40 else None
+
+
+def replay_day(bars, report, prev_close=None, symbol=None, heavy_day=None):
     n = len(bars)
     for i in range(START_IDX, n, STEP):
         past = bars[:i]
@@ -63,11 +82,24 @@ def replay_day(bars, report, prev_close=None):
             report["engine"]["directional_ge3"] += 1
             bias = "BULLISH" if bulls > bears else "BEARISH" if bears > bulls else None
         leans = m_leans(past)
+        c_bias = body_balance(past)
+        h_bias = None
+        if heavy_day and heavy_lean and symbol:
+            sub = {k: [b for b in v if b[0] <= t] for k, v in heavy_day.items() if v}
+            hl = heavy_lean(symbol, sub)
+            if hl:
+                h_bias = "BULLISH" if hl["bullish"] >= 60 else "BEARISH" if hl["bullish"] <= 40 else None
         for hz in HORIZONS:
             j = i - 1 + hz
             if j >= n:
                 continue
             after = float(bars[j][4])
+            mv = min_move(past, entry, hz)
+            for box, bx in (("T", bias), ("C", c_bias), ("H", h_bias)):
+                if bx:
+                    bh = resolve_prediction(entry, bx, after, mv)
+                    if bh is not None:
+                        bump(report.setdefault("box", {}).setdefault(box, {}), "%dm" % hz, bh, after > entry)
             if bias:
                 hit = resolve_prediction(entry, bias, after)
                 if hit is not None and hz == 20:
@@ -95,8 +127,19 @@ def finish(group):
 def main():
     key = SSK_FILE.read_bytes().strip().decode("ascii")
     today = datetime.now(IST).date()
-    report = {"horizons": {}, "windows": {}, "confluence": {}, "engine_dir": {},
+    report = {"horizons": {}, "windows": {}, "confluence": {}, "engine_dir": {}, "box": {},
               "engine": {"calls": 0, "errors": 0, "directional_ge3": 0}, "days": [], "symbols": {}}
+    heavy_days = {}
+    if constituents:
+        for name in sorted({c for s_ in SYMBOLS for c in constituents(s_)}):
+            try:
+                r_ = with_integrity(post("/clone-v2/market/candles", {
+                    "symbol": name, "interval": 1,
+                    "from_date": (today - timedelta(days=5)).isoformat(), "to_date": today.isoformat()}, key, timeout=60))
+                heavy_days[name] = split_days(r_.get("bars"))
+            except Exception:
+                heavy_days[name] = {}
+            time.sleep(1.2)
     for symbol in SYMBOLS:
         try:
             resp = with_integrity(post("/clone-v2/market/candles", {
@@ -111,7 +154,8 @@ def main():
         report["symbols"][symbol] = sorted(days)
         prev = None
         for d, bars in sorted(days.items()):
-            replay_day(bars, report, prev)
+            hd = {c: (heavy_days.get(c) or {}).get(d) for c in (constituents(symbol) if constituents else ())}
+            replay_day(bars, report, prev, symbol, hd)
             try:
                 prev = float(bars[-1][4])
             except (TypeError, ValueError, IndexError):
@@ -124,6 +168,8 @@ def main():
            "symbols": report["symbols"], "engine": report["engine"],
            "m_hit": finish(report["horizons"]), "m_by_window_30m": finish(report["windows"]),
            "m_by_confluence_30m": finish(report["confluence"]), "engine_dir_20m": finish(report["engine_dir"]),
+           "box_hit": {k: finish(v) for k, v in sorted(report["box"].items())},
+           "flat_moves": report.get("flat", 0),
            "note": "REPLAY on past real candles; analysis only; M is never a vote"}
     atomic_write(REPLAY_FILE, json.dumps(out) + "\n")
     print("REPLAY_OK days=%s calls=%d errors=%d" % (",".join(out["days"]), report["engine"]["calls"], report["engine"]["errors"]))

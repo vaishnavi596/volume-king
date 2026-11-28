@@ -7,7 +7,7 @@ PRIV="/home/opc/botking-clone-v2-private"
 STATE="$PRIV/autoupdate-applied.sha"
 STATUS="$PRIV/autoupdate-status.json"
 mkdir -p "$PRIV"
-replay(){ [ -f /home/opc/botking-clone-v2-runtime/signals/clone_replay.py ] && (cd /home/opc/botking-clone-v2-runtime/signals && timeout 150 python3.9 clone_replay.py >/dev/null 2>&1) || true; }
+replay(){ [ -f /home/opc/botking-clone-v2-runtime/signals/clone_replay.py ] && (cd /home/opc/botking-clone-v2-runtime/signals && timeout 290 python3.9 clone_replay.py >/dev/null 2>&1) || true; }
 status(){ printf '{"at":"%s","sha":"%s","result":"%s"}\n' "$(TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST')" "$1" "$2" > "$STATUS.tmp" && mv "$STATUS.tmp" "$STATUS"; }
 HM="$(TZ=Asia/Kolkata date +%H%M)"; HM=$((10#$HM))
 if [ "${1:-}" != "--force" ] && { [ "$HM" -lt 30 ] || [ "$HM" -gt 530 ]; }; then echo "outside night window"; exit 0; fi

@@ -25,6 +25,11 @@ from pathlib import Path
 from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
+try:
+    from v3_fut_buildup import futures_buildup
+    from v3_heavyweights import heavy_lean, constituents
+except ImportError:   # older installs: features stay off
+    futures_buildup = heavy_lean = constituents = None
 from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction, min_move, wilson_low, strength_band, window_of  # noqa: E402
 try:
     import v3_news_cue  # noqa: E402
@@ -138,6 +143,16 @@ def fut_snapshot(key, symbol, today_iso, futures, idx_bars):
     basis = [(int(b[0]), float(b[4]) - spot_by_t[int(b[0])]) for b in bars if int(b[0]) in spot_by_t]
     out = {"expiry": row[3], "bullish": lean["bullish"], "bearish": lean["bearish"], "lean": lean["lean"],
            "strength": lean["strength"]}
+    bu = futures_buildup(bars, resp.get("oi")) if futures_buildup else None
+    if bu:   # B253: price + open-interest build-up; agrees -> small boost, disagrees -> halve the tilt
+        out["buildup"] = bu["state"]; out["oi_change_pct"] = bu["oi_change_pct"]
+        sign = 1 if bu["direction"] == "BULLISH" else -1
+        tilt = out["bullish"] - 50
+        if tilt != 0 and (tilt > 0) == (sign == 1):
+            out["bullish"] = max(0, min(100, round(50 + tilt * (1 + 0.25 * bu["weight"]))))
+        elif tilt != 0:
+            out["bullish"] = round(50 + tilt / 2)
+        out["bearish"] = 100 - out["bullish"]
     if len(basis) >= 31:
         change = basis[-1][1] - basis[-31][1]
         out["basis"] = round(basis[-1][1], 2)
@@ -298,6 +313,28 @@ def cycle(key, now, minute_index, previous):
             out["fut_lean"] = carried_f
     except Exception:
         pass  # futures lean is best-effort
+    try:   # B253: heavy-weight constituents lean per index (candles every 5 min, carried between)
+        carried_h = (previous or {}).get("heavy_lean") or {}
+        if heavy_lean is None:
+            pass
+        elif minute_index % 5 == 0 or not carried_h:
+            cache = {}
+            for s in SYMBOLS:
+                names = [n for n in constituents(s)]
+                for n in names:
+                    if n not in cache:
+                        try:
+                            cache[n] = with_integrity(post("/clone-v2/market/candles", {
+                                "symbol": n, "interval": 1, "from_date": today, "to_date": today}, key)).get("bars")
+                        except Exception:
+                            cache[n] = None
+                hl = heavy_lean(s, cache)
+                if hl:
+                    out.setdefault("heavy_lean", {})[s] = dict(hl, t=int(now))
+        elif carried_h:
+            out["heavy_lean"] = carried_h
+    except Exception:
+        pass  # heavy-weight lean is best-effort
     for symbol, lean in (out.get("m_lean") or {}).items():
         try:
             fl = (out.get("fut_lean") or {}).get(symbol) or {}
@@ -307,7 +344,9 @@ def cycle(key, now, minute_index, previous):
             # B252: 1m/3m/5m frames share one candle source -> ONE independent technical vote (majority)
             tech_b = ("BULLISH" if frame_b.count("BULLISH") > frame_b.count("BEARISH") else
                       "BEARISH" if frame_b.count("BEARISH") > frame_b.count("BULLISH") else None)
-            biases = [b for b in (tech_b, fbias) if b]
+            hv = (out.get("heavy_lean") or {}).get(symbol) or {}
+            hbias = ("BULLISH" if hv.get("bullish", 50) >= 60 else "BEARISH" if hv.get("bullish", 50) <= 40 else None)
+            biases = [b for b in (tech_b, fbias, hbias) if b]
             ctx = m_context(lean, m_bars.get(symbol), biases, now, (out.get("oi_lean") or {}).get(symbol),
                             prev_close(key, symbol, today))
             if ctx:
@@ -477,7 +516,15 @@ def vote_gate(ledger, replay=None):
             wn, wh = int(v.get("n", 0)) // OVERLAP_30M, round(int(v.get("hits", 0)) / OVERLAP_30M)
             by_win[k[4:]] = _gate_row(wn, wh, None)
     out["M_windows"] = by_win
-    for box, field in (("O", "oi_stats"), ("N", "news_stats"), ("F", "fut_stats")):
+    for box in ("T", "C", "H"):
+        r_ = (((replay or {}).get("box_hit") or {}).get(box) or {}).get("30m") or {}
+        if type(r_.get("n")) is int and r_["n"] > 0 and type(r_.get("hit_rate")) in (int, float):
+            bn, bh = r_["n"] // OVERLAP_30M, round(r_["n"] * r_["hit_rate"] / 100 / OVERLAP_30M)
+            bu_ = round((r_.get("up_rate") or 50) * bn / 100)
+            out[box] = _gate_row(bn, bh, round(100 * max(bu_, bn - bu_) / bn, 1) if bn else None)
+        else:
+            out[box] = _gate_row(0, 0, None)
+    for box, field in (("O", "oi_stats"), ("N", "news_stats"), ("F", "fut_stats"), ("H_morning", "heavy_stats")):
         n, hits, _ = agg(ledger.get(field))
         out[box] = _gate_row(n, hits, None)
     return out
@@ -498,6 +545,8 @@ def ledger_summary(ledger):
     fut = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
            for k, v in (ledger.get("fut_stats") or {}).items()}
     return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows, "groups": groups, "oi_morning": oi, "news_morning": news, "fut_morning": fut,
+            "heavy_morning": {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
+                              for k, v in (ledger.get("heavy_stats") or {}).items()},
             "note": "M is a forward lean; not a vote until a measured hit-rate is accepted by the owner"}
 
 
@@ -657,6 +706,7 @@ def main():
                 ledger = oi_morning_step(ledger, out, now)
                 ledger = oi_morning_step(ledger, out, now, "news_cue", "news_morning", "news_stats")
                 ledger = oi_morning_step(ledger, out, now, "fut_lean", "fut_morning", "fut_stats")
+                ledger = oi_morning_step(ledger, out, now, "heavy_lean", "heavy_morning", "heavy_stats")
                 atomic_write(LEDGER_FILE, json.dumps(ledger) + "\n")
                 out["m_ledger"] = ledger_summary(ledger)
                 try:

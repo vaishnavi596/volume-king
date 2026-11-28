@@ -864,11 +864,24 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
                 "toDate": (body.to_date + timedelta(days=1)).isoformat() + " 00:00:00"}
         try:
             quota_guard()
-            result = provider().intraday(args)
+            try:
+                result = provider().intraday(dict(args, oi=True))   # B253: ask for open interest too
+            except HTTPException:
+                raise
+            except Exception:
+                result = provider().intraday(args)                  # provider refused the OI flag: plain candles
         except HTTPException:
             raise
         except Exception as exc:
             provider_read_error(exc, "Clone Dhan futures candles unavailable")
+        oi_series = None
+        try:
+            raw_oi = result.get("open_interest")
+            if (isinstance(raw_oi, list) and len(raw_oi) == len(result.get("timestamp") or ())
+                    and all(type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in raw_oi)):
+                oi_series = [float(v) for v in raw_oi]
+        except Exception:
+            oi_series = None
         try:
             fields = ["timestamp", "open", "high", "low", "close", "volume"]
             arrays = [result[k] for k in fields]
@@ -889,7 +902,7 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
         except (KeyError, TypeError, ValueError, OverflowError):
             raise HTTPException(502, "Clone Dhan futures candle response invalid") from None
         return JSONResponse({"source": "dhan", "underlying": body.underlying, "expiry": contract["expiry"],
-                             "interval": body.interval, "bars": bars, "live_orders_enabled": False},
+                             "interval": body.interval, "bars": bars, "oi": oi_series, "live_orders_enabled": False},
                             headers={"Cache-Control": "no-store"})
 
     # ---- B244: server-side PAPER position manager (no orders of any kind) ----

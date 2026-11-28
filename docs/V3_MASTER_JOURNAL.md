@@ -3530,3 +3530,12 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Chart: Home mini-chart and Chart tab share overlay_dots(); Supertrend (scanner_engine.supertrend_series, same recurrence) and Pivot line added; per-symbol filters apply on both.
 - Not done (deferred on purpose): heavy-weight constituents engine, true futures build-up classification (needs OI in candles), VIX/gap input, measured-weight live vote (no measured rates for T/C yet), OI S/R/Max Pain chart lines, pinch zoom.
 - Server reinstall: rerun ops/install_server_away_20261127.sh at the B252 sha (or wait for the 02:15 IST updater).
+
+## J63 — B253 build (28 Nov 2026): use available data, do not wait for live
+- Owner: stop waiting for live market; analyse on the data we already have and switch to live automatically when live data exists.
+- Replay (past real 1m candles) now also scores T (scanner bias), C (candle-body balance) and H (heavy-weights) at 20/30/60 min with the B252 noise threshold and drift baseline; vote_gate gets T, C, H rows from it (30m rows /6 overlap, Wilson, edge). O and N cannot be replayed (Dhan keeps no option-chain/news history) - they keep the daily morning ledgers.
+- Heavy-weights engine (src/v3_heavyweights.py): HDFCBANK/RELIANCE/ICICIBANK/INFY/TCS (approximate weights, stated as such) -> lean per index; server cycle every 5 min; also an independent source in M confluence; morning ledger heavy_morning.
+- Futures build-up (src/v3_fut_buildup.py): price and open interest -> LONG_BUILDUP / SHORT_BUILDUP / SHORT_COVERING / LONG_UNWINDING. Gateway futures candles ask Dhan for open interest (oi flag) and fall back to plain candles; "oi" is null when Dhan does not return it. UNVERIFIED against live Dhan - check Doctor fut_lean.buildup.
+- Phone: F box shows the build-up state; Doctor gets heavy_lean / heavy_morning.
+- Nothing here votes by itself: all new rows are gate/evidence; live (LIVE_VERIFIED) data still replaces HIST automatically when the market is open.
+- Server: the 02:15 IST updater fetches the two new modules (installer list updated) and runs replay with a 290 s limit.

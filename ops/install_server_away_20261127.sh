@@ -25,15 +25,15 @@ grep -q 'both CE and PE' "$WORK/dhan_option_metrics.py" || { echo "BLOCKED: wron
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_replay.py" -o "$WORK/clone_replay.py"
 python3 -m py_compile "$WORK/clone_replay.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/ops/botking_autoupdate.sh" -o "$WORK/botking_autoupdate.sh" && bash -n "$WORK/botking_autoupdate.sh" && grep -q "^LIVE_ORDERS_ENABLED\|LIVE_ORDERS_ENABLED = False" "$WORK/botking_autoupdate.sh" && sudo install -m 755 "$WORK/botking_autoupdate.sh" /usr/local/bin/botking-autoupdate.sh || echo "NOTE: updater self-refresh skipped"
-for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py; do
+for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do
   curl -fsSL -m 40 --retry 3 "$BASE/$SRC/src/$f" -o "$WORK/$f"
 done
-for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py; do python3 -m py_compile "$WORK/$f"; done
+for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do python3 -m py_compile "$WORK/$f"; done
 grep -q '/clone-v2/signals/latest' "$WORK/clone_v2_gateway.py" || { echo "BLOCKED: wrong gateway candidate"; exit 1; }
 grep -q 'preview-option' "$WORK/clone_v2_gateway.py" && grep -q 'lot_by_expiry' "$WORK/clone_signal_runner.py" && grep -q 'parse_option_contracts' "$WORK/clone_signal_runner.py" && grep -q 'open-option' "$WORK/clone_v2_gateway.py" && grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
 grep -q "futures/candles" "$WORK/clone_v2_gateway.py" && grep -q "parse_future_contracts" "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong futures candidate"; exit 1; }
 for f in clone_v2_gateway.py dhan_option_metrics.py server_paper_positions.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
-for f in clone_replay.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py; do
+for f in clone_replay.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do
   [ -f "$SIG/$f" ] && cp -p "$SIG/$f" "$SIG/$f.rollback-$TS"; install -m 600 "$WORK/$f" "$SIG/$f"
 done
 if ! systemctl cat "$RUNNER" >/dev/null 2>&1; then
