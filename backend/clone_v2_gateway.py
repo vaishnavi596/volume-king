@@ -411,10 +411,81 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             headers=headers)
 
 
+    try:
+        from .device_registry import DeviceRegistry, DeviceDisabled, RedeemLocked
+    except ImportError:
+        from device_registry import DeviceRegistry, DeviceDisabled, RedeemLocked
+    devices = DeviceRegistry(os.environ.get("BOTKING_CLONE_DEVICES_FILE",
+                                            "/home/opc/botking-clone-v2-private/devices.json"))
+
     def authorized(key):
-        if (not isinstance(key, str) or len(key) > 1024
-                or not hmac.compare_digest(key.encode("utf-8"), key_bytes)):
-            raise HTTPException(403, "Clone V2 server access denied")
+        """Master key (SSK) or an ENABLED per-device key passes. Returns the role."""
+        if (isinstance(key, str) and len(key) <= 1024
+                and hmac.compare_digest(key.encode("utf-8"), key_bytes)):
+            return "master"
+        try:
+            if devices.check(key) is not None:
+                return "device"
+        except DeviceDisabled:
+            raise HTTPException(403, "DEVICE_DISABLED") from None
+        raise HTTPException(403, "Clone V2 server access denied")
+
+    def master_only(key):
+        if authorized(key) != "master":
+            raise HTTPException(403, "Master key required")
+
+    class DeviceCodeBody(BaseModel):
+        name: str = "Clone"
+
+    class DeviceRedeemBody(BaseModel):
+        code: str
+
+    class DeviceSetBody(BaseModel):
+        id: str
+        enabled: Optional[bool] = None
+        delete: bool = False
+
+    @app.get("/clone-v2/whoami")
+    def whoami(x_botking_key: Optional[str] = Header(default=None)):
+        role = authorized(x_botking_key)
+        return JSONResponse({"role": role, "live_orders_enabled": False}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/devices/code")
+    def device_code(body: DeviceCodeBody, x_botking_key: Optional[str] = Header(default=None)):
+        master_only(x_botking_key)
+        try:
+            return JSONResponse(devices.create_code(body.name), headers={"Cache-Control": "no-store"})
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+
+    @app.post("/clone-v2/devices/redeem")
+    def device_redeem(body: DeviceRedeemBody):
+        try:
+            out = devices.redeem(body.code)
+        except RedeemLocked:
+            raise HTTPException(429, "Too many wrong codes; wait 10 minutes") from None
+        if out is None:
+            raise HTTPException(403, "Code invalid or expired")
+        return JSONResponse(out, headers={"Cache-Control": "no-store"})
+
+    @app.get("/clone-v2/devices")
+    def device_list(x_botking_key: Optional[str] = Header(default=None)):
+        master_only(x_botking_key)
+        return JSONResponse({"devices": devices.listing()}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/clone-v2/devices/set")
+    def device_set(body: DeviceSetBody, x_botking_key: Optional[str] = Header(default=None)):
+        master_only(x_botking_key)
+        try:
+            if body.delete:
+                devices.delete(body.id)
+            elif body.enabled is not None:
+                devices.set_enabled(body.id, body.enabled)
+            else:
+                raise HTTPException(422, "enabled or delete required")
+        except KeyError:
+            raise HTTPException(404, "Device not found") from None
+        return JSONResponse({"devices": devices.listing()}, headers={"Cache-Control": "no-store"})
 
     def provider():
         if market_feed_factory is not None:

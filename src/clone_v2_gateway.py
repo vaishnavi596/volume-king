@@ -132,6 +132,57 @@ class CloneV2Gateway:
         except (OSError,URLError,ValueError,UnicodeError,RecursionError):
             return {"ok":False,"reason":"PAPER_UNAVAILABLE"}
 
+    # ---- B256: device control (master) and enrolment (clone) ----
+    def _device_call(self, method, path, body=None, *, origin=None, key=None):
+        """Allowlisted device-registry routes only. Returns {"ok":..} and never raises."""
+        if path not in ("whoami","devices","devices/code","devices/set","devices/redeem"):
+            raise ValueError("Unsupported device path")
+        origin=origin or self._origin
+        key=self._key if key is None else key
+        if not origin or (path!="devices/redeem" and not key):
+            return {"ok":False,"reason":"DISCONNECTED"}
+        url=origin+"/clone-v2/"+path
+        data=None if body is None else json.dumps(body).encode("utf-8")
+        headers={"Accept":"application/json","Cache-Control":"no-store"}
+        if path!="devices/redeem":headers["X-BotKing-Key"]=key
+        if data is not None:headers["Content-Type"]="application/json"
+        try:
+            with (self._opener or direct_https_opener()).open(Request(url,data=data,method=method,headers=headers),timeout=10) as response:
+                if (response.status!=200 or response.geturl()!=url
+                        or response.headers.get_content_type()!="application/json"):
+                    raise ValueError("Untrusted device response")
+                raw=response.read(16385)
+                if len(raw)>16384:raise ValueError("Oversized device response")
+                out=json.loads(raw.decode("utf-8"))
+            return dict(out,ok=True) if isinstance(out,dict) else {"ok":False,"reason":"BAD_SHAPE"}
+        except HTTPError as exc:
+            detail=""
+            try:detail=json.loads(exc.read(512).decode("utf-8")).get("detail","")
+            except Exception:pass
+            return {"ok":False,"reason":"HTTP_"+str(exc.code),"detail":str(detail)[:120]}
+        except (OSError,URLError,ValueError,UnicodeError,RecursionError):
+            return {"ok":False,"reason":"DEVICE_UNAVAILABLE"}
+
+    def whoami(self):
+        return self._device_call("GET","whoami")
+
+    def device_list(self):
+        return self._device_call("GET","devices")
+
+    def device_new_code(self, name):
+        return self._device_call("POST","devices/code",{"name":str(name)[:24]})
+
+    def device_set(self, device_id, enabled=None, delete=False):
+        body={"id":str(device_id)}
+        if delete:body["delete"]=True
+        elif enabled is not None:body["enabled"]=bool(enabled)
+        return self._device_call("POST","devices/set",body)
+
+    def redeem_device_code(self, endpoint, code):
+        """Clone first login: one-time code -> this phone's own device key (never the master key)."""
+        origin=server_origin(endpoint)
+        return self._device_call("POST","devices/redeem",{"code":str(code).strip().upper()[:16]},origin=origin,key="-")
+
     def server_signals(self):
         """B246: what the server saw while the phone was away (read-only files)."""
         latest=self._paper_call("GET","signals/latest")
@@ -385,6 +436,12 @@ class CloneV2Gateway:
             if exc.code == 404:
                 raise FeedError("Clone V2 gateway not deployed (HTTP 404)") from None
             if exc.code in (401, 403):
+                try:
+                    disabled = b"DEVICE_DISABLED" in exc.read(512)
+                except Exception:
+                    disabled = False
+                if disabled:
+                    raise FeedError("DEVICE_DISABLED: मालिक ने इस ऐप को बंद किया है") from None
                 raise FeedError("Clone V2 server access denied") from None
             if exc.code == 429:
                 raise FeedError("Clone V2 gateway rate limited; do not retry immediately") from None

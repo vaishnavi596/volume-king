@@ -16,6 +16,7 @@ WORK="$(mktemp -d "$ROOT/.upd.XXXXXXXX")"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$SIG"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_v2_gateway.py" -o "$WORK/clone_v2_gateway.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/clone_signal_runner.py" -o "$WORK/clone_signal_runner.py"
+curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/device_registry.py" -o "$WORK/device_registry.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/dhan_option_metrics.py" -o "$WORK/dhan_option_metrics.py"
 curl -fsSL -m 40 --retry 3 "$BASE/$SRC/backend/server_paper_positions.py" -o "$WORK/server_paper_positions.py"
 python3 -m py_compile "$WORK/server_paper_positions.py"
@@ -41,11 +42,11 @@ fi
 for f in scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do
   curl -fsSL -m 40 --retry 3 "$BASE/$SRC/src/$f" -o "$WORK/$f"
 done
-for f in clone_v2_gateway.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do python3 -m py_compile "$WORK/$f"; done
+for f in clone_v2_gateway.py device_registry.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do python3 -m py_compile "$WORK/$f"; done
 grep -q '/clone-v2/signals/latest' "$WORK/clone_v2_gateway.py" || { echo "BLOCKED: wrong gateway candidate"; exit 1; }
 grep -q 'preview-option' "$WORK/clone_v2_gateway.py" && grep -q 'lot_by_expiry' "$WORK/clone_signal_runner.py" && grep -q 'parse_option_contracts' "$WORK/clone_signal_runner.py" && grep -q 'open-option' "$WORK/clone_v2_gateway.py" && grep -q 'def change_events' "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong runner candidate"; exit 1; }
 grep -q "futures/candles" "$WORK/clone_v2_gateway.py" && grep -q "parse_future_contracts" "$WORK/clone_signal_runner.py" || { echo "BLOCKED: wrong futures candidate"; exit 1; }
-for f in clone_v2_gateway.py dhan_option_metrics.py server_paper_positions.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
+for f in clone_v2_gateway.py device_registry.py dhan_option_metrics.py server_paper_positions.py; do [ -f "$ROOT/$f" ] && cp -p "$ROOT/$f" "$ROOT/$f.rollback-$TS"; install -m 640 "$WORK/$f" "$ROOT/$f"; done
 for f in clone_replay.py clone_signal_runner.py scanner_engine.py v3_live_candle_bridge.py v3_equity_session_calendar.py v3_m_forward.py v3_option_oi_flow.py v3_news_cue.py v3_fut_buildup.py v3_heavyweights.py; do
   [ -f "$SIG/$f" ] && cp -p "$SIG/$f" "$SIG/$f.rollback-$TS"; install -m 600 "$WORK/$f" "$SIG/$f"
 done

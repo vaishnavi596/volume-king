@@ -53,6 +53,14 @@ try:
         APP_VERSION = BUILD_VERSION
 except ImportError:
     pass
+# B256: which app this is. "master" = owner's app (device control); "clone" = another phone (code login only).
+try:
+    from _build_role import BUILD_ROLE
+except ImportError:
+    BUILD_ROLE = "master"
+if BUILD_ROLE not in ("master", "clone"):
+    BUILD_ROLE = "master"
+DEFAULT_SERVER = "https://botkingrajesh.duckdns.org"
 from pathlib import Path
 
 #                                  Apache License
@@ -5542,8 +5550,8 @@ def app_main(page:ft.Page):
     source=ft.Dropdown(label="Data provider",dense=True,value="Dhan",options=[ft.dropdown.Option("Dhan")])
     broker_names=["Dhan"]
     broker=ft.Dropdown(label="Select Indian API broker",value="Dhan",options=[ft.dropdown.Option("Dhan")])
-    api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=prefs.get("api_url",""),hint_text="https://botkingrajesh.duckdns.org")
-    server_access=ft.TextField(label="Server access key (saved only if Remember is ON)",password=True,can_reveal_password=True)
+    api_url=ft.TextField(label="My BOT KING server HTTPS address (optional)",value=(prefs.get("api_url") or DEFAULT_SERVER),hint_text=DEFAULT_SERVER,visible=(BUILD_ROLE=="master"))
+    server_access=ft.TextField(label="Server access key (saved only if Remember is ON)",password=True,can_reveal_password=True,visible=(BUILD_ROLE=="master"))
     # B240 owner-approved auto-login: the SSK is kept ONLY when the owner turns
     # "Remember" ON, in app-private client storage under its own key (never in the
     # preferences file/JSON, never in logs or Doctor). Read-only gateway key; orders stay OFF.
@@ -5734,6 +5742,66 @@ def app_main(page:ft.Page):
     def open_clone_dhan_browser_login(e):
         page.run_task(start_clone_dhan_browser_login)
 
+    # ---- B256: clone login by one-time code; master device control ----
+    device_code_field=ft.TextField(label="डिवाइस कोड (मालिक से, 8 अक्षर)",dense=True,width=230,max_length=16,
+                                   capitalization=ft.TextCapitalization.CHARACTERS,visible=(BUILD_ROLE=="clone"),data="compact_group")
+    async def redeem_clone_code(e=None):
+        code=(device_code_field.value or "").strip()
+        if len(code)<6:
+            connection_status.value="पहले मालिक से मिला कोड डालें";connection_status.color=GOLD;page.update();return
+        connection_status.value="कोड जाँचा जा रहा है...";connection_status.color=GOLD;page.update()
+        res=await asyncio.to_thread(clone_v2_gateway.redeem_device_code,DEFAULT_SERVER,code)
+        if res.get("ok") and res.get("device_key"):
+            api_url.value=DEFAULT_SERVER;prefs["api_url"]=DEFAULT_SERVER
+            server_access.value=res["device_key"];ssk_remember.value=True
+            device_code_field.value="";save()
+            await check_clone_v2_connection()
+        else:
+            why={"HTTP_403":"कोड ग़लत या पुराना है","HTTP_429":"बहुत ग़लत कोशिशें — 10 मिनट रुकें"}.get(res.get("reason"),"सर्वर नहीं मिला")
+            connection_status.value="कोड नहीं चला: "+why;connection_status.color=RED;page.update()
+    device_rows=ft.Column(spacing=3)
+    device_code_note=note("")
+    def fmt_seen(ts):
+        if not ts:return "अभी तक नहीं दिखा"
+        mins=max(0,int((time.time()-ts)//60))
+        return "अभी" if mins<2 else (str(mins)+" मिनट पहले" if mins<120 else str(mins//60)+" घंटे पहले")
+    async def devices_refresh(e=None):
+        res=await asyncio.to_thread(clone_v2_gateway.device_list)
+        device_rows.controls.clear()
+        if not res.get("ok"):
+            device_rows.controls.append(note("डिवाइस सूची नहीं मिली ("+str(res.get("reason"))+") — सर्वर नया कोड ले ले तब चलेगा"))
+        else:
+            for d in res.get("devices",[]):
+                async def toggle(ev,i=d["id"]):
+                    await asyncio.to_thread(clone_v2_gateway.device_set,i,bool(ev.control.value));await devices_refresh()
+                async def remove(ev,i=d["id"]):
+                    await asyncio.to_thread(clone_v2_gateway.device_set,i,None,True);await devices_refresh()
+                device_rows.controls.append(ft.Row([
+                    ft.Column([txt(d["name"],13,WHITE,True),note("आख़िरी बार: "+fmt_seen(d.get("last_seen")))],spacing=0,expand=True),
+                    ft.Switch(value=bool(d.get("enabled")),on_change=lambda ev,t=toggle:page.run_task(t,ev)),
+                    ft.IconButton(icon=ft.Icons.DELETE_OUTLINE,icon_size=20,tooltip="हटाएँ",on_click=lambda ev,r=remove:page.run_task(r,ev))],
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER))
+            if not res.get("devices"):device_rows.controls.append(note("अभी कोई क्लोन ऐप नहीं जुड़ा"))
+        page.update()
+    def add_device_dialog(e=None):
+        name_field=ft.TextField(label="इस ऐप का नाम (जैसे भाई का फ़ोन)",dense=True,max_length=24,value="Clone")
+        out=ft.Text("",size=22,selectable=True,color=GOLD,weight=ft.FontWeight.BOLD)
+        async def make(ev):
+            res=await asyncio.to_thread(clone_v2_gateway.device_new_code,name_field.value or "Clone")
+            out.value=res["code"] if res.get("ok") else "कोड नहीं बना: "+str(res.get("detail") or res.get("reason"))
+            page.update()
+        dlg=ft.AlertDialog(title=txt("नया डिवाइस जोड़ें",15,GOLD,True),
+            content=ft.Column([name_field,out,note("कोड 10 मिनट चलता है और एक ही बार। इसे क्लोन ऐप में डालना है।")],tight=True,spacing=6),
+            actions=[ft.TextButton("कोड बनाएँ",on_click=lambda ev:page.run_task(make,ev)),
+                     ft.TextButton("बंद",on_click=lambda ev:(page.close(dlg),page.run_task(devices_refresh)))])
+        page.open(dlg)
+    def device_control_section():
+        page.run_task(devices_refresh)
+        return section("डिवाइस नियंत्रण • MASTER",ft.Column([
+            note("यहाँ से बाक़ी क्लोन ऐप चालू/बंद कर सकते हैं। बंद ऐप को सर्वर डेटा नहीं देता।"),
+            device_rows,
+            ft.Row([ft.ElevatedButton("नया डिवाइस जोड़ें",on_click=add_device_dialog,bgcolor=GOLD,color=BG),
+                    ft.OutlinedButton("सूची ताज़ा करें",on_click=lambda ev:page.run_task(devices_refresh))],wrap=True)],spacing=4))
     async def check_clone_v2_connection():
         # B2 dedicated SSK flow. Original V1 session and market refresh lanes
         # remain untouched; a status handshake is not verified LIVE market data.
@@ -8379,7 +8447,11 @@ def app_main(page:ft.Page):
             prefs["compact_ui"]=bool(e.control.value);save()
             page.open(ft.SnackBar(content=ft.Text("Layout updates as each screen refreshes; switch screens to see it")))
         content.append(section('Display', ft.Column([ft.Switch(label='Compact view (smaller text, tighter spacing)',value=compact_ui(),on_change=toggle_compact_ui)])))
-        content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, ssk_remember, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes (test only)', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
+        if BUILD_ROLE=="clone":
+            content.append(section('सर्वर से जुड़ें • CLONE', ft.Column([note('मालिक से मिला कोड एक बार डालें। उसके बाद ऐप अपने-आप जुड़ा रहेगा।'), device_code_field, ft.Row([ft.ElevatedButton('कोड से जुड़ें', on_click=lambda ev:page.run_task(redeem_clone_code), bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect', on_click=disconnect_clone_v2_gateway)], wrap=True), connection_status, ssk_remember])))
+        else:
+            content.append(section('Broker & Data Source', ft.Column([broker, broker_info, source, credential_column, api_url, server_access, ssk_remember, server_trust, ft.Row([ft.OutlinedButton('Authorize Dhan in Browser (Clone)', on_click=open_clone_dhan_browser_login), ft.ElevatedButton('Connect Clone V2 (SSK)', on_click=check_clone_v2_gateway, bgcolor=GOLD, color=BG), ft.OutlinedButton('Disconnect Clone V2', on_click=disconnect_clone_v2_gateway), ft.OutlinedButton('Check Clone B3 Dhan Quotes (test only)', on_click=check_clone_v2_market)], wrap=True), connection_status, note('Dhan Browser → SSK → Check Quotes. Existing Oracle callback: /dhan/callback. Quote timestamps unverified; live orders OFF.')])))
+            content.append(device_control_section())
         content.append(section("FUTURES • READ ONLY",ft.Column([
             futures_symbol_input,futures_expiry_input,
             ft.OutlinedButton("Check Futures Context (read-only)",on_click=fetch_futures_context_tap),
@@ -10695,7 +10767,9 @@ console.log('BOT KING Lightweight Charts ready');
     header=ft.Container(
         content=ft.Row([
             ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=24),
-            ft.Row([txt("BOT KING",18,GOLD,True),txt("v"+str(APP_VERSION),14,MUTED)],spacing=8,wrap=True),
+            ft.Row([txt("BOT KING",18,GOLD,True),txt("v"+str(APP_VERSION),14,MUTED),
+                    ft.Container(content=txt("MASTER" if BUILD_ROLE=="master" else "CLONE • OTHER MOBILE",11,BG,True),
+                        bgcolor=GOLD if BUILD_ROLE=="master" else "#4FC3F7",border_radius=6,padding=ft.padding.symmetric(horizontal=6,vertical=1))],spacing=8,wrap=True),
             ft.Container(expand=True),
             ft.IconButton(icon=ft.Icons.NOTIFICATIONS_NONE,icon_color=GOLD,icon_size=24,tooltip="सिग्नल बदलाव (सर्वर)",on_click=lambda e:show_signal_bell())
         ],spacing=8,vertical_alignment=ft.CrossAxisAlignment.CENTER),
