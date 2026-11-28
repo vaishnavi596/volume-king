@@ -212,10 +212,10 @@ jobs:
           "$AAPT" dump badging "$APK" | grep -F "application-label:'BOT KING MASTER'"
           "$SIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/v3-b257-master-sign/apk-info"
           PASS="$(cat "$RUNNER_TEMP/v3-b257-master-sign/password")"
-          EXPECTED="$(keytool -list -v -keystore "$RUNNER_TEMP/v3-b257-master-sign/preview.jks" -alias "$(cat "$RUNNER_TEMP/v3-b257-master-sign/alias")" -storepass "$PASS" | grep -m1 'SHA257:' | sed 's/.*SHA257: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
-          ACTUAL="$(grep -m1 'certificate SHA-257 digest:' "$RUNNER_TEMP/v3-b257-master-sign/apk-info" | sed 's/.*certificate SHA-257 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED="$(keytool -list -v -keystore "$RUNNER_TEMP/v3-b257-master-sign/preview.jks" -alias "$(cat "$RUNNER_TEMP/v3-b257-master-sign/alias")" -storepass "$PASS" | grep -m1 'SHA256:' | sed 's/.*SHA256: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          ACTUAL="$(grep -m1 'certificate SHA-256 digest:' "$RUNNER_TEMP/v3-b257-master-sign/apk-info" | sed 's/.*certificate SHA-256 digest: //' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
           test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
-          sha257sum "$APK"
+          sha256sum "$APK"
           echo B257_PREVIEW_SIGNATURE_AND_PACKAGE=PASS
       - name: Delete disposable preview-only signer
         if: always()
