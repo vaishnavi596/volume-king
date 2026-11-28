@@ -114,7 +114,7 @@ def _vwap_and_volume(bars):
     return (1 if last > pv / vv else -1 if last < pv / vv else 0), (recent / before if before > 0 else None)
 
 
-def m_context(lean, bars, engine_biases=None, now=None):
+def m_context(lean, bars, engine_biases=None, now=None, oi_lean=None):
     """Confluence around one lean. Returns {"checks":[...], "agree","total","window","adj_strength","confidence"}.
 
     engine_biases: iterable of "BULLISH"/"BEARISH"/other from the other engine rows (any timeframe).
@@ -133,6 +133,10 @@ def m_context(lean, bars, engine_biases=None, now=None):
     if len(bi) >= 3:
         aligned = sum((b == "BULLISH") == (sign == 1) for b in bi)
         checks.append(("ENGINES", aligned * 2 > len(bi)))
+    if isinstance(oi_lean, dict) and type(oi_lean.get("bullish")) in (int, float):
+        tilt = oi_lean["bullish"] - 50
+        if abs(tilt) >= 5:
+            checks.append(("OI", (tilt > 0) == (sign == 1)))
     agree = sum(1 for _, ok in checks if ok)
     total = len(checks)
     window = window_of(now) if now is not None else "OTHER"

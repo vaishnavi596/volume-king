@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +26,14 @@ from scanner_engine import analyze, DEFAULT_FILTERS  # noqa: E402
 from v3_live_candle_bridge import completed_live_history  # noqa: E402
 from v3_equity_session_calendar import regular_equity_hours  # noqa: E402
 from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction  # noqa: E402
+try:
+    import v3_news_cue  # noqa: E402
+except ImportError:  # older server install: server headline cue stays off
+    v3_news_cue = None
+try:
+    from v3_option_oi_flow import window_oi_change  # noqa: E402
+except ImportError:  # older server install without the OI module: OI lean simply stays off
+    window_oi_change = None
 
 IST = timezone(timedelta(hours=5, minutes=30))
 GATEWAY = os.environ.get("BOTKING_SIGNAL_GATEWAY", "http://127.0.0.1:8002")
@@ -37,6 +46,9 @@ LEDGER_EVERY_S = 300
 LEDGER_HORIZON_S = 1200
 SYMBOLS = ("NIFTY", "BANKNIFTY", "SENSEX")
 FRAMES = (("1m", 1), ("5m", 5))
+OI_EXPIRY_CACHE = {}
+NEWS_STATE = {"at": 0.0, "cue": {}}
+NEWS_EVERY_S = 600
 
 
 def post(path, body, key, timeout=25):
@@ -111,6 +123,110 @@ def atomic_write(path, text):
             os.unlink(tmp)
 
 
+def fut_snapshot(key, symbol, today_iso, futures, idx_bars):
+    """Index-future price lean + premium (basis) trend from today's 1m futures candles. Read-only; None on any problem."""
+    row = futures.get(symbol)
+    if not row or not idx_bars:
+        return None
+    resp = post("/clone-v2/market/futures/candles", {"underlying": symbol, "interval": 1,
+                                                    "from_date": today_iso, "to_date": today_iso}, key)
+    bars = resp.get("bars")
+    lean = m_lean(bars, 30)
+    if not lean:
+        return None
+    spot_by_t = {int(b[0]): float(b[4]) for b in idx_bars}
+    basis = [(int(b[0]), float(b[4]) - spot_by_t[int(b[0])]) for b in bars if int(b[0]) in spot_by_t]
+    out = {"expiry": row[3], "bullish": lean["bullish"], "bearish": lean["bearish"], "lean": lean["lean"],
+           "strength": lean["strength"]}
+    if len(basis) >= 31:
+        change = basis[-1][1] - basis[-31][1]
+        out["basis"] = round(basis[-1][1], 2)
+        out["basis_change_30m"] = round(change, 2)
+        if (change > 0) != (lean["bullish"] > 50) and change != 0:
+            out["bullish"] = round((out["bullish"] + 50) / 2)       # premium trend disagrees: halve the tilt
+            out["bearish"] = 100 - out["bullish"]
+            out["basis_agrees"] = False
+        else:
+            out["basis_agrees"] = True
+    return out
+
+
+def oi_snapshot(key, symbol, today_iso, expiry_cache):
+    """Nearest-expiry option-chain OI-change lean for one index (read-only). None on any problem."""
+    if window_oi_change is None:
+        return None
+    exp = expiry_cache.get(symbol)
+    if not exp or exp[0] != today_iso:
+        dates = post("/clone-v2/market/options/expiries", {"symbol": symbol}, key).get("expiries") or []
+        nxt = next((d for d in dates if isinstance(d, str) and d >= today_iso), None)
+        if not nxt:
+            return None
+        exp = (today_iso, nxt)
+        expiry_cache[symbol] = exp
+    metrics = post("/clone-v2/market/options/chain", {"symbol": symbol, "expiry": exp[1]}, key)
+    share, reason = window_oi_change(metrics)
+    row = {"expiry": exp[1], "pcr": metrics.get("pcr"), "max_pain": metrics.get("max_pain"), "reason": reason}
+    if share:
+        row.update(bullish=share[0], bearish=share[1])
+    return row
+
+
+def news_refresh(now, opener=None):
+    """Every 10 min: Google News RSS headline cue for the 3 indices. Read-only, display + ledger only."""
+    if v3_news_cue is None or now - NEWS_STATE["at"] < NEWS_EVERY_S:
+        return NEWS_STATE["cue"]
+    NEWS_STATE["at"] = now
+    cue = {}
+    opener = opener or urllib.request.build_opener()
+    for sym, query in v3_news_cue.NEWS_QUERIES.items():
+        try:
+            url = "https://news.google.com/rss/search?" + urllib.parse.urlencode(
+                {"q": query + " when:1d", "hl": "en-IN", "gl": "IN", "ceid": "IN:en"})
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 BOT KING personal headline reader"})
+            with opener.open(req, timeout=8) as resp:
+                raw = resp.read(262_145)
+            if len(raw) > 262_144:
+                continue
+            items = v3_news_cue.parse_news_rss(raw, "Google News RSS", now)
+            row = v3_news_cue.headline_signal(items)
+            row["t"] = int(now)
+            cue[sym] = row
+        except Exception:
+            continue  # one feed failing never stops the runner
+    if cue:
+        NEWS_STATE["cue"] = cue
+    return NEWS_STATE["cue"]
+
+
+def oi_morning_step(ledger, out, now, field="oi_lean", book_key="oi_morning", stat_key="oi_stats"):
+    """Pure: record the first decisive OI lean after 09:20 IST per index, score it vs the close (>=15:20 IST).
+
+    Scored only when the lean was decisive (|bullish-50| >= 10); balanced readings are not scored.
+    """
+    ist = datetime.fromtimestamp(now, IST)
+    day, hm = ist.date().isoformat(), ist.hour * 60 + ist.minute
+    book = ledger.setdefault(book_key, {})
+    stats = ledger.setdefault(stat_key, {})
+    for old in [d for d in book if d != day]:
+        if old < day:
+            book.pop(old, None)
+    today = book.setdefault(day, {})
+    for symbol in sorted(set(out.get(field) or {}) | set(today)):
+        row = (out.get(field) or {}).get(symbol) or {}
+        spot = (out.get("spot") or {}).get(symbol)
+        if (symbol not in today and 560 <= hm < 700 and type(spot) in (int, float)
+                and type(row.get("bullish")) in (int, float)):
+            today[symbol] = {"bullish": row["bullish"], "spot": float(spot), "at": int(now)}
+        rec = today.get(symbol)
+        if rec and not rec.get("scored") and hm >= 920 and type(spot) in (int, float):
+            rec["scored"] = True
+            if abs(rec["bullish"] - 50) >= 10 and spot != rec["spot"]:
+                st = stats.setdefault(symbol, {"n": 0, "hits": 0})
+                st["n"] += 1
+                st["hits"] += int((spot > rec["spot"]) == (rec["bullish"] > 50))
+    return ledger
+
+
 def cycle(key, now, minute_index, previous):
     out = {"generated_utc": datetime.fromtimestamp(now, timezone.utc).isoformat(),
            "market_open": bool(regular_equity_hours(datetime.fromtimestamp(now, timezone.utc))),
@@ -121,6 +237,23 @@ def cycle(key, now, minute_index, previous):
     quotes = post("/clone-v2/market/quotes", {"symbols": list(SYMBOLS)}, key).get("quotes", {})
     today = datetime.fromtimestamp(now, IST).date().isoformat()
     m_bars = {}
+    out["spot"] = {s: (quotes.get(s) or {}).get("ltp") for s in SYMBOLS
+                   if type((quotes.get(s) or {}).get("ltp")) in (int, float)}
+    try:
+        carried = (previous or {}).get("oi_lean") or {}
+        if minute_index % 5 == 0 or not carried:
+            for s in SYMBOLS:
+                try:
+                    snap = oi_snapshot(key, s, today, OI_EXPIRY_CACHE)
+                except Exception:
+                    snap = None
+                if snap:
+                    out.setdefault("oi_lean", {})[s] = dict(snap, t=int(now))
+        elif carried:
+            out["oi_lean"] = carried
+    except Exception:
+        pass  # OI lean is best-effort
+    idx_bars = {}
     for symbol in SYMBOLS:
         out["symbols"][symbol] = {}
         for frame, interval in FRAMES:
@@ -134,6 +267,7 @@ def cycle(key, now, minute_index, previous):
                     "symbol": symbol, "interval": interval,
                     "from_date": today, "to_date": today}, key))
                 if interval == 1:
+                    idx_bars[symbol] = response.get("bars")
                     lean = m_lean(response.get("bars"))
                     ltp = (quotes.get(symbol) or {}).get("ltp")
                     if lean and type(ltp) in (int, float):
@@ -148,10 +282,28 @@ def cycle(key, now, minute_index, previous):
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": "HTTP %s" % exc.code}
             except Exception as exc:  # keep the loop alive; never print payloads
                 out["symbols"][symbol][frame] = {"state": "ERROR", "reason": type(exc).__name__}
+    try:
+        carried_f = (previous or {}).get("fut_lean") or {}
+        if minute_index % 5 == 0 or not carried_f:
+            futures = (json.loads(FUTURES_FILE.read_text(encoding="utf-8")).get("futures")
+                       if FUTURES_FILE.exists() else {}) or {}
+            for s in SYMBOLS:
+                try:
+                    snap = fut_snapshot(key, s, today, futures, idx_bars.get(s))
+                except Exception:
+                    snap = None
+                if snap:
+                    out.setdefault("fut_lean", {})[s] = dict(snap, t=int(now))
+        elif carried_f:
+            out["fut_lean"] = carried_f
+    except Exception:
+        pass  # futures lean is best-effort
     for symbol, lean in (out.get("m_lean") or {}).items():
         try:
-            biases = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()]
-            ctx = m_context(lean, m_bars.get(symbol), biases, now)
+            fl = (out.get("fut_lean") or {}).get(symbol) or {}
+            fbias = ("BULLISH" if fl.get("bullish", 50) >= 55 else "BEARISH" if fl.get("bullish", 50) <= 45 else None)
+            biases = [(r or {}).get("bias") for r in (out["symbols"].get(symbol) or {}).values()] + ([fbias] if fbias else [])
+            ctx = m_context(lean, m_bars.get(symbol), biases, now, (out.get("oi_lean") or {}).get(symbol))
             if ctx:
                 lean["context"] = ctx
         except Exception:
@@ -237,7 +389,13 @@ def ledger_summary(ledger):
                         "hit_rate": round(100 * st.get("hits", 0) / n, 1) if n else None}
     groups = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
               for k, v in (ledger.get("groups") or {}).items()}
-    return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows, "groups": groups,
+    oi = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
+          for k, v in (ledger.get("oi_stats") or {}).items()}
+    news = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
+            for k, v in (ledger.get("news_stats") or {}).items()}
+    fut = {k: {"n": v.get("n", 0), "hit_rate": round(100 * v.get("hits", 0) / v["n"], 1) if v.get("n") else None}
+           for k, v in (ledger.get("fut_stats") or {}).items()}
+    return {"horizon_minutes": LEDGER_HORIZON_S // 60, "scored": rows, "groups": groups, "oi_morning": oi, "news_morning": news, "fut_morning": fut,
             "note": "M is a forward lean; not a vote until a measured hit-rate is accepted by the owner"}
 
 
@@ -273,6 +431,7 @@ def parse_lot_sizes(lines):
 
 CONTRACT_FILE = Path(os.environ.get("BOTKING_OPTION_CONTRACTS", str(OUT_FILE.parent / "option-contracts.json")))
 CONTRACT_UNDERLYINGS = ("NIFTY", "BANKNIFTY", "SENSEX", "FINNIFTY")
+FUTURES_FILE = Path(os.environ.get("BOTKING_FUTURES_CONTRACTS", str(OUT_FILE.parent / "futures-contracts.json")))
 
 
 def parse_option_contracts(lines, today_iso, keep_expiries=3):
@@ -304,6 +463,28 @@ def parse_option_contracts(lines, today_iso, keep_expiries=3):
         for expiry in sorted(by_exp)[:keep_expiries]:
             out.update(dict(by_exp[expiry]))
     return out
+
+
+def parse_future_contracts(lines, today_iso):
+    """Pure: scrip-master lines -> {"NIFTY": ["NSE_FNO", security_id, lot, "2026-12-30"]} nearest index future."""
+    best = {}
+    for row in csv.DictReader(lines):
+        if row.get("SEM_INSTRUMENT_NAME") != "FUTIDX":
+            continue
+        name = str(row.get("SEM_TRADING_SYMBOL", "")).split("-")[0].strip().upper()
+        exch = str(row.get("SEM_EXM_EXCH_ID", "")).strip().upper()
+        expiry = str(row.get("SEM_EXPIRY_DATE", ""))[:10]
+        try:
+            sid = int(row.get("SEM_SMST_SECURITY_ID"))
+            lot = int(float(row.get("SEM_LOT_UNITS")))
+        except (TypeError, ValueError):
+            continue
+        if (name not in CONTRACT_UNDERLYINGS or exch not in ("NSE", "BSE") or len(expiry) != 10
+                or expiry < today_iso or lot <= 0):
+            continue
+        if name not in best or expiry < best[name][3]:
+            best[name] = [exch + "_FNO", sid, lot, expiry]
+    return best
 
 
 def lot_by_expiry(contracts):
@@ -342,6 +523,12 @@ def load_lot_sizes(now):
                                                           separators=(",", ":")) + "\n")
             except Exception:
                 pass  # contracts are best-effort
+            try:
+                futs = parse_future_contracts(io.StringIO(text, newline=""), today)
+                if futs:
+                    atomic_write(FUTURES_FILE, json.dumps({"fetched": int(now), "futures": futs}) + "\n")
+            except Exception:
+                pass  # futures list is best-effort
             return lots
     except Exception:
         pass
@@ -357,8 +544,17 @@ def main():
         try:
             out = cycle(key, now, minute_index, previous)
             try:
+                nc = news_refresh(now)
+                if nc:
+                    out["news_cue"] = nc
+            except Exception:
+                pass  # headline cue is best-effort
+            try:
                 ledger = json.loads(LEDGER_FILE.read_text(encoding="utf-8")) if LEDGER_FILE.exists() else {}
                 ledger = ledger_step(ledger if isinstance(ledger, dict) else {}, out, now)
+                ledger = oi_morning_step(ledger, out, now)
+                ledger = oi_morning_step(ledger, out, now, "news_cue", "news_morning", "news_stats")
+                ledger = oi_morning_step(ledger, out, now, "fut_lean", "fut_morning", "fut_stats")
                 atomic_write(LEDGER_FILE, json.dumps(ledger) + "\n")
                 out["m_ledger"] = ledger_summary(ledger)
             except Exception:

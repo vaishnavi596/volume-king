@@ -3508,3 +3508,9 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Nightly server updater (ops/botking_autoupdate.sh, timer 02:15 IST) installed by owner; Doctor row server_autoupdate (shows after this APK).
 - Not yet: option OI/PCR change inside M (runner has no chain), morning-OI ledger, higher-timeframe/VIX inputs, pinch zoom.
 - J60 addendum: first B251 APK attempt failed only at the signature-check step (workflow still expected versionCode 250; sed missed the double-escaped regex). Fixed. Added closed-market REPLAY (backend/clone_replay.py): replays last closed days' real 1m candles through M + the scanner filters, measures hit-rates by horizon/window/confluence; run by installer and the nightly updater; summary in signals-latest "replay" and Doctor row server_replay.
+
+## J61 — B252 WIP (28 Nov 2026, no build): six-box work
+- Server runner now adds, read-only: option-chain OI-change lean (oi_lean) per index every 5 min; index-future 1m candles (new gateway route /clone-v2/market/futures/candles, instrument FUTIDX, futures list parsed from the scrip master into futures-contracts.json) -> fut_lean (price lean + premium trend); Google News RSS headline cue for the 3 indices (news_cue). All display/ledger only, never a vote.
+- M confluence gained OI and futures checks. Ledger scores first-decisive reading after 09:20 IST against the close for OI, news, futures (oi_morning/news_morning/fut_morning). Phone boxes F and N show server HIST leans ("not voted").
+- Unverified against live Dhan: the FUTIDX candle call. Failure is harmless (route returns 502, F stays WAIT). Check Doctor fut_lean on Monday.
+- Options page: BUY last, old dummy paper centre removed; compact chain (K/L/Cr); Settings filters as compact tiles.

@@ -2272,6 +2272,11 @@ def app_main(page:ft.Page):
                         if balance:
                             label=("C HIST B"+str(balance["bullish"])+"/S"+
                                    str(balance["bearish"])+" • NOT live")
+                elif name=="futures" and prefs.get("market_display_mode")!="LIVE_ONLY":
+                    _fl=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("fut_lean") or {}).get(sym) or {})
+                    if type(_fl.get("bullish")) in (int,float):
+                        label="F HIST B"+str(_fl["bullish"])+"/S"+str(_fl["bearish"])+" • futures price+premium lean • not voted"
+                        color=GREEN if _fl["bullish"]>50 else RED if _fl["bullish"]<50 else GOLD
                 elif name=="news":
                     with news_lock:
                         data=news_cache.get(sym) or {}
@@ -2288,6 +2293,11 @@ def app_main(page:ft.Page):
                         up=round(100*cue["positive"]/total)
                         label="N HIST B"+str(up)+"/S"+str(100-up)+" • headline cue • not voted"
                         color=GREEN if up>50 else RED if up<50 else GOLD
+                    elif prefs.get("market_display_mode")!="LIVE_ONLY":
+                        _sc=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("news_cue") or {}).get(sym) or {})
+                        if type(_sc.get("bullish")) in (int,float):
+                            label="N HIST B"+str(_sc["bullish"])+"/S"+str(_sc["bearish"])+" • server headline cue • not voted"
+                            color=GREEN if _sc["bullish"]>50 else RED if _sc["bullish"]<50 else GOLD
             # A missing engine remains WAIT regardless of calendar date.
             # The last valid technical/candle historical vote remains visible;
             # do not replace its evidence status with an inferred holiday OFF.
@@ -2312,7 +2322,7 @@ def app_main(page:ft.Page):
                 if _ml:
                     try:
                         from v3_m_forward import m_context
-                        _mc=m_context(_ml,_mh.get("bars"),None,time.time())
+                        _mc=m_context(_ml,_mh.get("bars"),None,time.time(),(((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("oi_lean") or {}).get(sym))
                     except Exception as exc:
                         log_error("m_context",exc)
                 if _ml:
@@ -7791,7 +7801,7 @@ def app_main(page:ft.Page):
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
                     data["m_context_server"]={"code":"BK-DOC-MCTX-001","symbols":{k:(v.get("context") or {}) for k,v in (_srv.get("m_lean") or {}).items()},
-                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"paper_window_stats":paper_hb_cache.get("window_stats")}
+                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                     _au=_srv.get("autoupdate") or {}
