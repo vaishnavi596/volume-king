@@ -5345,15 +5345,19 @@ def app_main(page:ft.Page):
                 if (not app_active[0] or lifecycle_background[0] or option_feed_busy[0]
                         or prefs.get("source")!="Dhan"
                         or not (dhan_feed.connected or clone_v2_gateway.connected)
-                        or dhan_history_scan_active[0] or watch_closed_hist_loading[0]
-                        or watch_three_minute_warm_busy[0]
                         or dhan_feed.cooldown_remaining("/dhan/option-expiries")>0
                         or dhan_feed.cooldown_remaining("/dhan/option-chain")>0):
                     continue
+                # B256: the three index chains (O box) never wait for the long Watchlist HIST/warm-up;
+                # only the other roster shares do (they are many and slower to matter).
+                heavy_busy=bool(dhan_history_scan_active[0] or watch_closed_hist_loading[0]
+                                or watch_three_minute_warm_busy[0])
                 generation=provider_generation[0]
                 open_now=bool(regular_hours() and refresh_hours())
                 due=None
                 for sym in roster_option_candidates():
+                    if heavy_busy and sym not in ("NIFTY","BANKNIFTY","SENSEX"):
+                        continue
                     if time.monotonic()<top5_option_retry_until.get((generation,sym),0.0):
                         continue
                     none_at=roster_option_none.get((generation,sym))

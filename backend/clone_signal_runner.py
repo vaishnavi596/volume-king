@@ -262,7 +262,21 @@ def cycle(key, now, minute_index, previous):
            "market_open": bool(regular_equity_hours(datetime.fromtimestamp(now, timezone.utc))),
            "live_orders_enabled": False, "mode": "READ_ONLY_ANALYSIS", "box_base": "1m", "symbols": {}}
     if not out["market_open"]:
-        out["note"] = "market closed; no provider requests"
+        # B256: while closed, keep ONE light read-only refresh of the three index option-chain OI leans
+        # (every 30 min, a handful of requests) so the O box shows measured HIST data instead of staying empty.
+        out["note"] = "market closed; option OI lean refreshed every 30 min only"
+        carried = (previous or {}).get("oi_lean") or {}
+        if carried:
+            out["oi_lean"] = carried
+        if minute_index % 30 == 0 or not carried:
+            today = datetime.fromtimestamp(now, IST).date().isoformat()
+            for s_ in SYMBOLS:
+                try:
+                    snap = oi_snapshot(key, s_, today, OI_EXPIRY_CACHE)
+                except Exception:
+                    snap = None
+                if snap:
+                    out.setdefault("oi_lean", {})[s_] = dict(snap, t=int(now), closed=True)
         return out
     quotes = post("/clone-v2/market/quotes", {"symbols": list(SYMBOLS)}, key).get("quotes", {})
     today = datetime.fromtimestamp(now, IST).date().isoformat()

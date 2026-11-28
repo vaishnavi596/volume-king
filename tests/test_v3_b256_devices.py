@@ -73,3 +73,22 @@ class Routes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClosedMarketO(unittest.TestCase):
+    def test_runner_refreshes_index_oi_while_closed_and_phone_index_chains_skip_hist_gate(self):
+        import clone_signal_runner as r
+        calls = []
+        orig = r.oi_snapshot
+        r.oi_snapshot = lambda key, s, today, cache: (calls.append(s) or {"expiry": "x", "bullish": 60, "bearish": 40})
+        try:
+            out = r.cycle("k", 1764000000.0, 0, None)   # Saturday: market closed
+            self.assertFalse(out["market_open"])
+            self.assertEqual(sorted(out["oi_lean"]), ["BANKNIFTY", "NIFTY", "SENSEX"])
+            calls.clear()
+            r.cycle("k", 1764000060.0, 1, out)           # next minute: carried, no new requests
+            self.assertEqual(calls, [])
+        finally:
+            r.oi_snapshot = orig
+        src = open("src/main.py", encoding="utf-8").read()
+        self.assertIn('if heavy_busy and sym not in ("NIFTY","BANKNIFTY","SENSEX"):', src)
