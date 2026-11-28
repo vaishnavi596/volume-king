@@ -5265,7 +5265,7 @@ def app_main(page:ft.Page):
                 ft.Row([ft.DataTable(columns=[ft.DataColumn(txt(h,10,GOLD,True)) for h in
                     ["CE ₹","CE OI","CE ΔOI","CE Vol","Strike","PE Vol","PE ΔOI","PE OI","PE ₹"]],
                     rows=display_rows,column_spacing=5,horizontal_margin=3,data_row_min_height=30,data_row_max_height=32,
-                    heading_row_height=30,divider_thickness=0.5)],scroll=ft.ScrollMode.ALWAYS),
+                    heading_row_height=30,divider_thickness=0.5)],scroll=ft.ScrollMode.AUTO),
                 txt("OI/ΔOI unverified context; ΔOI is NOT traded cash • L=लाख Cr=करोड़ K=हज़ार • — = डेटा नहीं",10,MUTED)],spacing=3)
         if prefs.get("source") == "Dhan":
             return ft.Column([
