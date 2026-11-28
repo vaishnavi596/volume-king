@@ -97,6 +97,7 @@ class ClosedMarketO(unittest.TestCase):
 class FirstLoad(unittest.TestCase):
     def test_closed_login_primes_history_and_doctors_show_server_overview(self):
         src = open("src/main.py", encoding="utf-8").read()
-        self.assertIn('elif prefs.get("auto_prime_hist",True) and not watch_batch_busy[0]:', src)
+        self.assertIn("async def closed_hist_prime_poll():", src)
+        self.assertIn("page.run_task(closed_hist_prime_poll)", src)
         self.assertIn('"server_overview":doctor_server_overview()', src)
         self.assertIn('data["server_overview"]=doctor_server_overview()', src)

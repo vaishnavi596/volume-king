@@ -5856,15 +5856,6 @@ def app_main(page:ft.Page):
                 building_doctor.milestone("gateway_authorized_closed_session")
                 if watch_closed_hist_resume_pending[0] or watch_closed_hist_loading[0]:
                     page.run_task(resume_interrupted_closed_watch_history,True)
-                elif prefs.get("auto_prime_hist",True) and not watch_batch_busy[0]:
-                    # B256: a fresh login while closed starts the Watchlist HIST load by itself
-                    # (before, it waited until the owner opened the Watchlist tab).
-                    watch_closed_hist_resume_pending[0]=True
-                    watch_closed_hist_resume_scope[0]=(provider_generation[0],active_watch[0],(search.value or "").upper(),
-                        tuple(sym for sym in watch_groups[active_watch[0]]
-                              if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")
-                              and (not search.value or search.value.upper() in sym)))
-                    page.run_task(resume_interrupted_closed_watch_history,True)
                 return
             # One demand-based Dhan request covers indices plus actual selected
             # equities. No idle fanout to all 70, and no duplicate bootstrap.
@@ -12303,6 +12294,31 @@ console.log('BOT KING Lightweight Charts ready');
         server_access.value=saved
         page.update()
         await check_clone_v2_connection()
+    async def closed_hist_prime_poll():
+        """B256: after a login while the market is closed, start the Watchlist HIST load by itself
+        (once per login generation). The login routine itself stays SSK-only; this is a separate, owner-switchable task."""
+        primed=set()
+        await asyncio.sleep(10)
+        while True:
+            try:
+                generation=provider_generation[0]
+                if (generation not in primed and prefs.get("auto_prime_hist",True) and app_active[0]
+                        and not lifecycle_background[0] and prefs.get("source")=="Dhan"
+                        and clone_v2_gateway.connected and not regular_hours() and not refresh_hours()
+                        and not watch_closed_hist_loading[0] and not watch_batch_busy[0]):
+                    primed.add(generation)
+                    watch_closed_hist_resume_pending[0]=True
+                    watch_closed_hist_resume_scope[0]=(generation,active_watch[0],(search.value or "").upper(),
+                        tuple(sym for sym in watch_groups[active_watch[0]]
+                              if sym in DHAN_VERIFIED_SYMBOLS and sym not in ("NIFTY","BANKNIFTY","SENSEX")
+                              and (not search.value or search.value.upper() in sym)))
+                    await resume_interrupted_closed_watch_history(True)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log_error("closed_hist_prime",exc)
+            await asyncio.sleep(15)
+    page.run_task(closed_hist_prime_poll)
     page.run_task(ssk_auto_login)
     page.run_task(renewal_metadata_poll)
     page.run_task(paper_heartbeat_poll)
