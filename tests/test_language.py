@@ -40,7 +40,7 @@ class LanguageTests(unittest.TestCase):
     def test_help_in_both_languages_and_original_label_retained(self):
         _,v=start({'scanner_live':False,'language':'हिंदी'})
         v['select'](1)  # B252: the old dummy paper centre (and its 'sl' field) left Options; help text is still described below.
-        self.assertIn('जोखिम',describe(v['sl']._bk_original_label,'हिंदी'))
+        self.assertIn('जोखिम',describe('Stop loss %','हिंदी'))
         self.assertIn('paper demonstration',describe('Stop loss %','English'))
         self.assertIn('nine',describe('PCR','English'))
         self.assertIn('9',describe('PCR','हिंदी'))
