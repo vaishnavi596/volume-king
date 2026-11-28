@@ -348,6 +348,12 @@ def main():
                 out["lot_by_expiry"] = lot_by_expiry(cdata.get("contracts") if isinstance(cdata, dict) else {})
             except Exception:
                 pass  # lot sizes are best-effort
+            try:
+                au = Path("/home/opc/botking-clone-v2-private/autoupdate-status.json")
+                if au.exists():
+                    out["autoupdate"] = json.loads(au.read_text(encoding="utf-8"))
+            except Exception:
+                pass  # update status is informational only
             atomic_write(OUT_FILE, json.dumps(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))

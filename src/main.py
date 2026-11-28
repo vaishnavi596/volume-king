@@ -7746,6 +7746,10 @@ def app_main(page:ft.Page):
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
+                    _au=_srv.get("autoupdate") or {}
+                    data["server_autoupdate"]={"code":"BK-DOC-AUTOUPD-001","last_run":_au.get("at"),
+                        "sha":str(_au.get("sha") or "")[:7],"result":_au.get("result") or "NO_RUN_YET",
+                        "live_orders":"OFF (constant)"}
                 except Exception as exc:
                     log_error("area_watchers",exc)
                 data["timers"]=doctor_timers()
